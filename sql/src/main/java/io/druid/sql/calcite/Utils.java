@@ -32,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexSlot;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -76,6 +77,23 @@ public class Utils
   public static boolean isInputRef(RexNode op)
   {
     return op.isA(SqlKind.INPUT_REF);
+  }
+
+  public static int[] getInputRefs(List<RexNode> nodes)
+  {
+    final int[] inputRefs = new int[nodes.size()];
+    for (int i = 0; i < inputRefs.length; i++) {
+      if (!isInputRef(nodes.get(i))) {
+        return null;
+      }
+      inputRefs[i] = ((RexSlot) nodes.get(i)).getIndex();
+    }
+    return inputRefs;
+  }
+
+  public static boolean isA(RexNode op, String opName)
+  {
+    return op instanceof RexCall && opName.equals(((RexCall) op).getOperator().getName());
   }
 
   public static boolean isAllInputRef(List<RexNode> nodes)

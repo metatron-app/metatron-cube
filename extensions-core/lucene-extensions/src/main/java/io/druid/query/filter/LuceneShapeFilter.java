@@ -36,21 +36,24 @@ import java.util.Set;
 
 /**
  */
-@JsonTypeName("lucene.within")
-public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
+@JsonTypeName("lucene.shape")
+public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
 {
   private final String field;
+  private final SpatialOperations operation;
   private final ShapeFormat shapeFormat;
   private final String shapeString;
 
   @JsonCreator
-  public LuceneWithinFilter(
+  public LuceneShapeFilter(
       @JsonProperty("field") String field,
+      @JsonProperty("operation") SpatialOperations operation,
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat,
       @JsonProperty("shapeString") String shapeString
   )
   {
     this.field = Preconditions.checkNotNull(field, "field can not be null");
+    this.operation = operation == null ? SpatialOperations.COVEREDBY : operation;
     this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
   }
@@ -60,6 +63,12 @@ public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFil
   public String getField()
   {
     return field;
+  }
+
+  @JsonProperty
+  public SpatialOperations getOperation()
+  {
+    return operation;
   }
 
   @JsonProperty
@@ -79,10 +88,10 @@ public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFil
   {
     if (descriptor.containsKey(fieldName)) {
       String desc = descriptor.get(fieldName);
-      if (desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC)) {
+      if (desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) && operation == SpatialOperations.COVEREDBY) {
         return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString);
       } else if (desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC)) {
-        return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, shapeFormat, shapeString);
+        return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
       }
     }
     return super.toOptimizedFilter(descriptor, fieldName);
@@ -104,7 +113,7 @@ public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFil
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneWithinFilter(replaced, shapeFormat, shapeString);
+    return new LuceneShapeFilter(replaced, operation, shapeFormat, shapeString);
   }
 
   @Override
@@ -122,7 +131,7 @@ public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFil
   @Override
   public DimFilter forLog()
   {
-    return new LuceneWithinFilter(field, shapeFormat, "<shape>");
+    return new LuceneShapeFilter(field, operation, shapeFormat, "<shape>");
   }
 
   @Override
@@ -130,6 +139,7 @@ public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFil
   {
     return "LuceneWithinFilter{" +
            "field='" + field + '\'' +
+           ", operation=" + operation +
            ", shapeFormat=" + shapeFormat +
            ", shapeString=" + shapeString +
            '}';
@@ -138,7 +148,7 @@ public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFil
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, shapeFormat, shapeString);
+    return Objects.hash(field, operation, shapeFormat, shapeString);
   }
 
   @Override
@@ -151,9 +161,12 @@ public class LuceneWithinFilter extends DimFilter.LuceneFilter implements DimFil
       return false;
     }
 
-    LuceneWithinFilter that = (LuceneWithinFilter) o;
+    LuceneShapeFilter that = (LuceneShapeFilter) o;
 
     if (!field.equals(that.field)) {
+      return false;
+    }
+    if (!operation.equals(that.operation)) {
       return false;
     }
     if (!shapeFormat.equals(that.shapeFormat)) {

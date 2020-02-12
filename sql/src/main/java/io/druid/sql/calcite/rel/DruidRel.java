@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rel;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
@@ -152,6 +153,11 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
   public PlannerContext getPlannerContext()
   {
     return queryMaker.getPlannerContext();
+  }
+
+  public ObjectMapper getObjectMapper()
+  {
+    return queryMaker.getJsonMapper();
   }
 
   public abstract T asDruidConvention();

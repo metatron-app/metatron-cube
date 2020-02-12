@@ -26,7 +26,7 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
-import io.druid.query.filter.LuceneWithinFilter;
+import io.druid.query.filter.LuceneShapeFilter;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ExprVirtualColumn;
@@ -144,8 +144,9 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
-    builder.filters(new LuceneWithinFilter(
+    builder.filters(new LuceneShapeFilter(
         "geom",
+        SpatialOperations.COVEREDBY,
         ShapeFormat.WKT,
         "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))"
     ));
@@ -197,8 +198,9 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
-    builder.filters(new LuceneWithinFilter(
+    builder.filters(new LuceneShapeFilter(
         "gis.coord",
+        SpatialOperations.COVEREDBY,
         ShapeFormat.WKT,
         "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
     ));

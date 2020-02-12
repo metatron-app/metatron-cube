@@ -20,7 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import io.druid.data.ConstantQuery;
 import io.druid.query.select.StreamQuery;
@@ -30,7 +30,6 @@ import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
 {
@@ -84,7 +83,7 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
         road4[0]
     );
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
-        source, "gis.coord", null, boundary, "geom_buf", null, null, null, null, Maps.<String, Object>newHashMap()
+        source, "gis.coord", null, null, boundary, "geom_buf", null, null, null, null, Maps.<String, Object>newHashMap()
     );
     ObjectMapper mapper = segmentWalker.getObjectMapper();
     String serialized = mapper.writeValueAsString(filtered);
@@ -114,9 +113,9 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
   @Test
   public void testBoundaryJoin()
   {
-    Map<String, String> boundaryJoin = ImmutableMap.of("road_name", "name", "boundary", "geom_buf");
+    List<String> boundaryJoin = ImmutableList.of("name", "geom_buf");
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
-        source, "gis.coord", null, boundary, "geom_buf", true, boundaryJoin, null, null, Maps.<String, Object>newHashMap()
+        source, "gis.coord", null, null, boundary, "geom_buf", true, boundaryJoin, null, null, Maps.<String, Object>newHashMap()
     );
 
     // returns 2 geometry (union into thress polygon, no 테헤란로)
@@ -188,9 +187,9 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
     Query.ArrayOutputSupport deserialized = mapper.readValue(serialized, Query.ArrayOutputSupport.class);
     Assert.assertEquals(constant, deserialized);
 
-    Map<String, String> boundaryJoin = ImmutableMap.of("road_name", "name");
+    List<String> boundaryJoin = ImmutableList.of("name");
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
-        source, "gis.coord", null, constant, "geom_buf", null, boundaryJoin, null, null, Maps.<String, Object>newHashMap()
+        source, "gis.coord", null, null, constant, "geom_buf", null, boundaryJoin, null, null, Maps.<String, Object>newHashMap()
     );
     List<Object[]> roadSideEstates = runQuery(filtered);
     Assert.assertEquals(14, roadSideEstates.size());

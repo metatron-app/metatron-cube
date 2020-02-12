@@ -211,11 +211,11 @@ public class SqlResource
     catch (ForbiddenException e) {
       throw e; // let ForbiddenExceptionMapper handle this
     }
-    catch (Exception e) {
+    catch (Throwable e) {
       log.warn(e, "Failed to handle query: %s %s", query, context);
       lifecycle.emitLogsAndMetrics(query, e, remoteAddr, -1, -1);
       currThread.setName(currThreadName);
-      final Exception exceptionToReport;
+      final Throwable exceptionToReport;
 
       if (e instanceof RelOptPlanner.CannotPlanException) {
         exceptionToReport = new ISE("Cannot build plan for query: %s", query);

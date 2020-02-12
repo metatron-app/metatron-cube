@@ -24,9 +24,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -36,6 +33,9 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.math.expr.Expr;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -462,6 +462,7 @@ public class ColumnSelectorFactories
       this.resolver = resolver;
     }
 
+    @Override
     protected Row current()
     {
       return in.get();

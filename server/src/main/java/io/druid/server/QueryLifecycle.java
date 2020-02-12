@@ -243,7 +243,7 @@ public class QueryLifecycle
       // FIXME duplicated logging
       log.makeAlert(e, "Exception handling request")
          .addData("exception", e.toString())
-         .addData("query", query)
+         .addData("query", forLog)
          .addData("peer", remoteAddress)
          .emit();
     }

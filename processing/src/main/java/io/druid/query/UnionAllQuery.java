@@ -25,6 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -35,10 +37,12 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.PostProcessingOperator.UnionSupport;
+import io.druid.query.select.Schema;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
@@ -69,6 +73,22 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   public static UnionAllQuery union(List<Query> queries, int limit, int parallelism)
   {
     return new UnionAllQuery(null, queries, false, limit, -1, Maps.newHashMap());
+  }
+
+  public static UnionAllQuery union(
+      List<Query> queries,
+      Query.SchemaProvider provider,
+      QuerySegmentWalker segmentWalker
+  )
+  {
+    return union(queries).withSchema(Suppliers.memoize(new Supplier<Schema>()
+    {
+      @Override
+      public Schema get()
+      {
+        return provider.schema(segmentWalker);
+      }
+    }));
   }
 
   // dummy datasource for authorization
@@ -106,6 +126,8 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   private final int limit;
   private final int parallelism;
 
+  private transient Supplier<Schema> schema;  //  optional schema provider
+
   @JsonCreator
   public UnionAllQuery(
       @JsonProperty("query") Query<T> query,
@@ -122,6 +144,11 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     this.sortOnUnion = sortOnUnion;
     this.limit = limit;
     this.parallelism = parallelism;
+  }
+
+  public Schema getSchema()
+  {
+    return schema == null ? null : schema.get();
   }
 
   public Query getRepresentative()
@@ -196,13 +223,13 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   @SuppressWarnings("unchecked")
   public Query<T> withOverriddenContext(final Map<String, Object> contextOverride)
   {
-    return newInstance(query, queries, computeOverriddenContext(contextOverride));
+    return newInstance(query, queries, parallelism, computeOverriddenContext(contextOverride));
   }
 
   @SuppressWarnings("unchecked")
-  protected Query newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
+  protected UnionAllQuery newInstance(Query<T> query, List<Query<T>> queries, int parallelism, Map<String, Object> context)
   {
-    return new UnionAllQuery(query, queries, sortOnUnion, limit, parallelism, context);
+    return new UnionAllQuery(query, queries, sortOnUnion, limit, parallelism, context).withSchema(schema);
   }
 
   @Override
@@ -218,15 +245,37 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   }
 
   @SuppressWarnings("unchecked")
-  public Query withQueries(List<Query> queries)
+  public UnionAllQuery withQueries(List<Query> queries)
   {
-    return new UnionAllQuery(null, queries, sortOnUnion, limit, parallelism, getContext());
+    return newInstance(null, GuavaUtils.cast(queries), parallelism, getContext());
   }
 
   @SuppressWarnings("unchecked")
-  public Query withQuery(Query query)
+  public UnionAllQuery withQuery(Query query)
   {
-    return new UnionAllQuery(query, null, sortOnUnion, limit, parallelism, getContext());
+    return newInstance(query, null, parallelism, getContext());
+  }
+
+  @SuppressWarnings("unchecked")
+  public UnionAllQuery withParallelism(int parallelism)
+  {
+    return newInstance(query, queries, parallelism, getContext());
+  }
+
+  public UnionAllQuery withSchema(Supplier<Schema> schema)
+  {
+    this.schema = schema;
+    return this;
+  }
+
+  @SuppressWarnings("unchecked")
+  public Sequence<Row> asRow(Sequence sequence)
+  {
+    Schema schema = getSchema();
+    if (schema == null) {
+      return Sequences.map(sequence, GuavaUtils.<Object, Row>caster());
+    }
+    return Sequences.map(sequence, ArrayToRow.arrayToRow(ImmutableList.copyOf(schema.getColumnNames())));
   }
 
   @Override
@@ -391,7 +440,6 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                         @Override
                         public Sequence<T> call()
                         {
-                          // removed eager loading.. especially bad for join query
                           Sequence<T> sequence = QueryUtils.rewrite(query, segmentWalker, queryConfig)
                                                            .run(segmentWalker, responseContext);
                           sequence = Sequences.withBaggage(sequence, semaphore);

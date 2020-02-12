@@ -74,12 +74,12 @@ public class ArrayToRow extends PostProcessingOperator.ReturnsRow<Object[]>
       @Override
       public Row apply(final Object[] input)
       {
-        DateTime datetime = null;
+        long datetime = 0;
         final int limit = Math.min(input.length, columnNames.size());
         final Map<String, Object> map = Maps.newHashMapWithExpectedSize(limit);
         for (int i = 0; i < limit; i++) {
           if (i == timeIndex && input[i] != null) {
-            datetime = DateTimes.utc(((Number) input[i]).longValue());
+            datetime = ((Number) input[i]).longValue();
           } else {
             map.put(columnNames.get(i), input[i]);
           }

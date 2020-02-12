@@ -78,7 +78,6 @@ import org.joda.time.Interval;
 
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -171,18 +170,21 @@ public class Queries
 
   private static Schema _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
+    Schema schema = null;
     if (subQuery.getDataSource() instanceof QueryDataSource) {
       QueryDataSource dataSource = (QueryDataSource) subQuery.getDataSource();
-      Schema schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
-      LOG.debug(
-          "%s resolved schema : %s%s",
-          subQuery.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
-      );
-      return schema;
+      schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
     }
-    if (subQuery instanceof Query.ColumnsSupport) {
-      // no type information in query
-      Schema schema = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+    if (schema == null && subQuery instanceof Query.SchemaProvider) {
+      schema = ((Query.SchemaProvider) subQuery).schema(segmentWalker);
+    }
+    if (schema == null && subQuery instanceof Query.ColumnsSupport) {
+      schema = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+    }
+    if (schema == null && subQuery instanceof UnionAllQuery) {
+      schema = ((UnionAllQuery) subQuery).getSchema();
+    }
+    if (schema != null) {
       LOG.debug(
           "%s resolved schema : %s%s",
           subQuery.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
@@ -233,26 +235,28 @@ public class Queries
       List<String> aliases = joinQuery.getPrefixAliases();
       Set<String> uniqueNames = Sets.newHashSet();
       for (int i = 0; i < queries.size(); i++) {
-        final Schema schema = relaySchema((Query) queries.get(i), segmentWalker);
+        final Schema element = relaySchema((Query) queries.get(i), segmentWalker);
         final String prefix = aliases == null ? "" : aliases.get(i) + ".";
-        for (Pair<String, ValueDesc> pair : schema.dimensionAndTypes()) {
+        for (Pair<String, ValueDesc> pair : element.dimensionAndTypes()) {
           dimensionNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
           dimensionTypes.add(pair.rhs);
         }
-        for (Pair<String, ValueDesc> pair : schema.metricAndTypes()) {
+        for (Pair<String, ValueDesc> pair : element.metricAndTypes()) {
           metricNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
           metricTypes.add(pair.rhs);
         }
       }
     } else {
       // todo union-all (partitioned-join, etc.)
-      throw new UnsupportedOperationException("Cannot extract schema from query " + subQuery);
+      throw new UnsupportedOperationException(
+          String.format("Cannot extract schema from query type [%s]", subQuery.getType())
+      );
     }
     LOG.debug(
         "%s resolved schema : %s%s + %s%s",
         subQuery.getDataSource().getNames(), dimensionNames, dimensionTypes, metricNames, metricTypes
     );
-    return new Schema(dimensionNames, metricNames, GuavaUtils.concatish(dimensionTypes, metricTypes));
+    return new Schema(dimensionNames, metricNames, GuavaUtils.concat(dimensionTypes, metricTypes));
   }
 
   // keep the same convention with calcite (see SqlValidatorUtil.addFields)
@@ -283,9 +287,7 @@ public class Queries
   @SuppressWarnings("unchecked")
   public static <I> Sequence<Row> convertToRow(Query<I> subQuery, Sequence<I> sequence)
   {
-    if (subQuery instanceof JoinQuery.JoinDelegate) {
-      return ((JoinQuery.JoinDelegate) subQuery).asRow(sequence);
-    } else if (subQuery instanceof SelectQuery) {
+    if (subQuery instanceof SelectQuery) {
       return Sequences.explode((Sequence<Result<SelectResultValue>>) sequence, SELECT_TO_ROWS);
     } else if (subQuery instanceof TopNQuery) {
       return Sequences.explode((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS);
@@ -293,6 +295,8 @@ public class Queries
       return (Sequence<Row>) sequence;
     } else if (subQuery instanceof StreamQuery) {
       return ((StreamQuery) subQuery).asRow((Sequence<Object[]>) sequence);
+    } else if (subQuery instanceof UnionAllQuery) {
+      return ((UnionAllQuery) subQuery).asRow(sequence);
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }

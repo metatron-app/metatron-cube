@@ -25,16 +25,24 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.query.Query.ArrayOutputSupport;
+import io.druid.query.Query.FilterSupport;
+import io.druid.query.Query.RewritingQuery;
+import io.druid.query.Query.SchemaProvider;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.select.Schema;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.lucene.SpatialOperations;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -49,29 +57,31 @@ import java.util.Objects;
 
 @JsonTypeName("geo.boundary")
 public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
-    implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
+    implements RewritingQuery<Object[]>, ArrayOutputSupport<Object[]>, FilterSupport<Object[]>, SchemaProvider
 {
   private static final int DEFAULT_PARALLELISM = 2;
 
-  private final Query.ArrayOutputSupport<?> query;
+  private final ArrayOutputSupport<?> query;
+  private final String queryColumn;
   private final String pointColumn;
   private final String shapeColumn;
 
-  private final Query.ArrayOutputSupport boundary;
+  private final ArrayOutputSupport boundary;
   private final String boundaryColumn;
   private final boolean boundaryUnion;
-  private final Map<String, String> boundaryJoin;
+  private final List<String> boundaryJoin;
   private final SpatialOperations operation;
   private final Integer parallelism;
 
   public GeoBoundaryFilterQuery(
-      @JsonProperty("query") Query.ArrayOutputSupport query,
+      @JsonProperty("query") ArrayOutputSupport<?> query,
       @JsonProperty("pointColumn") String pointColumn,
       @JsonProperty("shapeColumn") String shapeColumn,
-      @JsonProperty("boundary") Query.ArrayOutputSupport<?> boundary,
+      @JsonProperty("queryColumn") String queryColumn,
+      @JsonProperty("boundary") ArrayOutputSupport<?> boundary,
       @JsonProperty("boundaryColumn") String boundaryColumn,
       @JsonProperty("boundaryUnion") Boolean boundaryUnion,
-      @JsonProperty("boundaryJoin") Map<String, String> boundaryJoin,
+      @JsonProperty("boundaryJoin") List<String> boundaryJoin,
       @JsonProperty("operation") SpatialOperations operation,
       @JsonProperty("parallelism") Integer parallelism,
       @JsonProperty("context") Map<String, Object> context
@@ -81,14 +91,15 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     this.query = query;
     this.pointColumn = pointColumn;
     this.shapeColumn = shapeColumn;
+    this.queryColumn = queryColumn;
     this.boundary = Preconditions.checkNotNull(boundary, "boundary");
     this.boundaryColumn = boundaryColumn;
     this.boundaryUnion = boundaryUnion == null || boundaryUnion;
-    this.boundaryJoin = boundaryJoin;
-    Preconditions.checkArgument(query instanceof Query.FilterSupport, "'query' should support filters");
+    this.boundaryJoin = boundaryJoin == null ? ImmutableList.<String>of() : boundaryJoin;
+    Preconditions.checkArgument(query instanceof FilterSupport, "'query' should support filters");
     Preconditions.checkArgument(
-        pointColumn == null ^ shapeColumn == null,
-        "Must have a valid, non-null 'pointColumn' xor 'shapeColumn'"
+        queryColumn != null ^ pointColumn != null ^ shapeColumn != null,
+        "Must have a valid, non-null 'queryColumn' xor 'pointColumn' xor 'shapeColumn'"
     );
     List<String> boundaryColumns = boundary.estimatedOutputColumns();
     if (boundaryColumn == null) {
@@ -112,9 +123,16 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @JsonProperty
-  public Query.ArrayOutputSupport getQuery()
+  public ArrayOutputSupport getQuery()
   {
     return query;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getQueryColumn()
+  {
+    return queryColumn;
   }
 
   @JsonProperty
@@ -132,7 +150,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @JsonProperty
-  public Query.ArrayOutputSupport getBoundary()
+  public ArrayOutputSupport getBoundary()
   {
     return boundary;
   }
@@ -152,7 +170,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
 
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public Map<String, String> getBoundaryJoin()
+  public List<String> getBoundaryJoin()
   {
     return boundaryJoin;
   }
@@ -171,6 +189,55 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     return parallelism;
   }
 
+
+  @Override
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return ((FilterSupport<?>) query).getVirtualColumns();
+  }
+
+  @Override
+  public VCSupport<Object[]> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new GeoBoundaryFilterQuery(
+        (ArrayOutputSupport) ((FilterSupport<?>) query).withVirtualColumns(virtualColumns),
+        pointColumn,
+        shapeColumn,
+        queryColumn,
+        boundary,
+        boundaryColumn,
+        boundaryUnion,
+        boundaryJoin,
+        operation,
+        parallelism,
+        getContext()
+    );
+  }
+
+  @Override
+  public DimFilter getFilter()
+  {
+    return ((FilterSupport<?>) query).getFilter();
+  }
+
+  @Override
+  public FilterSupport<Object[]> withFilter(DimFilter filter)
+  {
+    return new GeoBoundaryFilterQuery(
+        (ArrayOutputSupport) ((FilterSupport<?>) query).withFilter(filter),
+        pointColumn,
+        shapeColumn,
+        queryColumn,
+        boundary,
+        boundaryColumn,
+        boundaryUnion,
+        boundaryJoin,
+        operation,
+        parallelism,
+        getContext()
+    );
+  }
+
   @Override
   public GeoBoundaryFilterQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
@@ -178,6 +245,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         query,
         pointColumn,
         shapeColumn,
+        queryColumn,
         boundary,
         boundaryColumn,
         boundaryUnion,
@@ -194,6 +262,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         query,
         pointColumn,
         shapeColumn,
+        queryColumn,
         boundary,
         boundaryColumn,
         boundaryUnion,
@@ -217,6 +286,37 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @Override
+  public Schema schema(QuerySegmentWalker segmentWalker)
+  {
+    final List<String> names = Lists.newArrayList();
+    final List<ValueDesc> types = Lists.newArrayList();
+
+    final Schema querySchema = Queries.relaySchema(query, segmentWalker);
+    final List<String> queryColumns = querySchema.getColumnNames();
+    final List<ValueDesc> queryTypes = querySchema.getColumnTypes();
+    for (String column : query.estimatedOutputColumns()) {
+      int index = queryColumns.indexOf(column);
+      if (index >= 0) {
+        names.add(column);
+        types.add(queryTypes.get(index));
+      }
+    }
+    if (!boundaryJoin.isEmpty()) {
+      final Schema boundarySchema = Queries.relaySchema(boundary, segmentWalker);
+      final List<String> boundayColumns = boundarySchema.getColumnNames();
+      final List<ValueDesc> boundayTypes = boundarySchema.getColumnTypes();
+      for (String column : boundaryJoin) {
+        int index = boundayColumns.indexOf(column);
+        if (index >= 0) {
+          names.add(column);
+          types.add(boundayTypes.get(index));
+        }
+      }
+    }
+    return Schema.of(GuavaUtils.zipAsMap(names, types));
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
@@ -227,24 +327,21 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     final int geomIndex = columns.indexOf(boundaryColumn);
 
     final Map<String, Integer> joinMapping = Maps.newLinkedHashMap();
-    if (!GuavaUtils.isNullOrEmpty(boundaryJoin)) {
-      for (Map.Entry<String, String> join : boundaryJoin.entrySet()) {
-        String column = join.getValue() == null ? join.getKey() : join.getValue();
-        if (boundaryColumn.equals(column)) {
-          joinMapping.put(join.getKey(), -1);
-          continue;
-        }
-        int index = columns.indexOf(column);
-        if (index >= 0) {
-          joinMapping.put(join.getKey(), index);
-        }
+    for (String column : boundaryJoin) {
+      if (column.equals(boundaryColumn)) {
+        joinMapping.put(column, -1);
+        continue;
+      }
+      int index = columns.indexOf(column);
+      if (index >= 0) {
+        joinMapping.put(column, index);
       }
     }
     final List<Object[]> rows = Lists.newArrayList();
     final List<Geometry> geometries = Lists.newArrayList();
     final ShapeReader reader = ShapeUtils.newWKTReader();
     final Map<String, Object> context = BaseQuery.copyContextForMeta(getContext());
-    final Query.ArrayOutputSupport runner = (ArrayOutputSupport) boundary.withOverriddenContext(context);
+    final ArrayOutputSupport runner = (ArrayOutputSupport) boundary.withOverriddenContext(context);
     final Sequence<Object[]> array = runner.array(QueryRunners.run(runner, segmentWalker));
     for (Object[] row : Sequences.toList(array)) {
       String boundary = Objects.toString(row[geomIndex], null);
@@ -282,7 +379,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
           }
           queries.add(makeQuery(mapper, geometry, joinMapping, joinRow, context));
         }
-        return UnionAllQuery.union(queries, -1, executor);
+        return UnionAllQuery.union(queries, this, segmentWalker);
       }
       return makeQuery(mapper, union, joinMapping, rows.get(0), context);
     }
@@ -290,7 +387,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     for (int i = 0; i < geometries.size(); i++) {
       queries.add(makeQuery(mapper, geometries.get(i), joinMapping, rows.get(i), context));
     }
-    return UnionAllQuery.union(queries, -1, executor);
+    return UnionAllQuery.union(queries, this, segmentWalker);
   }
 
   private Query makeQuery(
@@ -312,7 +409,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   private <T> Function<Sequence<T>, Sequence<Object[]>> proc(
-      final Query.ArrayOutputSupport<T> query,
+      final ArrayOutputSupport<T> query,
       final String geometryWKT,
       final Map<String, Integer> joinMapping,
       final Object[] row
@@ -355,8 +452,18 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
 
   private Map<String, Object> makeFilter(String geometryWKT)
   {
-    if (pointColumn != null) {
-      // only supports 'covers'
+    SpatialOperations op = operation == null ? SpatialOperations.COVEREDBY : operation;
+    if (shapeColumn != null) {
+      return ImmutableMap.<String, Object>of(
+          "type", "lucene.spatial",
+          "operation", op.getName(),
+          "field", shapeColumn,
+          "shapeFormat", "WKT",
+          "shapeString", geometryWKT
+      );
+    } else if (pointColumn != null) {
+      // only supports 'coveredBy'
+      Preconditions.checkArgument(op == SpatialOperations.COVEREDBY);
       return ImmutableMap.<String, Object>of(
           "type", "lucene.latlon.polygon",
           "field", pointColumn,
@@ -364,11 +471,11 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
           "shapeString", geometryWKT
       );
     } else {
-      SpatialOperations op = operation == null ? SpatialOperations.COVEREDBY : operation;
+      Preconditions.checkNotNull(queryColumn);
       return ImmutableMap.<String, Object>of(
-          "type", "lucene.spatial",
+          "type", "lucene.shape",
           "operation", op.getName(),
-          "field", shapeColumn,
+          "field", queryColumn,
           "shapeFormat", "WKT",
           "shapeString", geometryWKT
       );
@@ -379,8 +486,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   public List<String> estimatedOutputColumns()
   {
     return GuavaUtils.concat(
-        Preconditions.checkNotNull(query.estimatedOutputColumns()),
-        Lists.newArrayList(boundaryJoin.keySet())
+        Preconditions.checkNotNull(query.estimatedOutputColumns()), boundaryJoin
     );
   }
 
@@ -407,6 +513,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
            Objects.equals(query, that.query) &&
            Objects.equals(pointColumn, that.pointColumn) &&
            Objects.equals(shapeColumn, that.shapeColumn) &&
+           Objects.equals(queryColumn, that.queryColumn) &&
            Objects.equals(boundary, that.boundary) &&
            Objects.equals(boundaryColumn, that.boundaryColumn) &&
            Objects.equals(boundaryUnion, that.boundaryUnion) &&
@@ -422,6 +529,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
            "query=" + query +
            (pointColumn == null ? "" : ", pointColumn=" + pointColumn) +
            (shapeColumn == null ? "" : ", shapeColumn=" + shapeColumn) +
+           (queryColumn == null ? "" : ", queryColumn=" + queryColumn) +
            ", boundary=" + boundary +
            (boundaryColumn == null ? "" : ", boundaryColumn=" + boundaryColumn) +
            ", boundaryUnion='" + boundaryUnion + '\'' +

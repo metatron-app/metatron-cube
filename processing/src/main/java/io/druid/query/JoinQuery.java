@@ -486,29 +486,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
-    public Query withQueries(List queries)
-    {
-      return new JoinDelegate(
-          queries,
-          prefixAliases,
-          timeColumnName,
-          estimatedCardinality,
-          getLimit(),
-          getContext()
-      );
-    }
-
-    @Override
-    public Query withQuery(Query query)
-    {
-      throw new IllegalStateException();
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
-    protected Query newInstance(
+    protected JoinDelegate newInstance(
         Query<Map<String, Object>> query,
         List<Query<Map<String, Object>>> queries,
+        int parallism,
         Map<String, Object> context
     )
     {

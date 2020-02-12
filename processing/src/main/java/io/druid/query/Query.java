@@ -26,6 +26,7 @@ import com.google.common.collect.Ordering;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
@@ -39,6 +40,7 @@ import io.druid.query.kmeans.KMeansQuery;
 import io.druid.query.kmeans.KMeansTaggingQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
+import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
@@ -204,6 +206,7 @@ public interface Query<T> extends QueryContextKeys
     boolean allMetricsForEmpty();
   }
 
+  Logger LOG = new Logger(ArrayOutputSupport.class);
   interface ArrayOutputSupport<T> extends Query<T>
   {
     List<String> estimatedOutputColumns();
@@ -256,5 +259,11 @@ public interface Query<T> extends QueryContextKeys
   interface LogProvider<T> extends Query<T>
   {
     Query<T> forLog();
+  }
+
+  // schema for sub-query handling
+  interface SchemaProvider
+  {
+    Schema schema(QuerySegmentWalker segmentWalker);
   }
 }

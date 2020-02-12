@@ -149,8 +149,7 @@ public class SqlLifecycle
     return (String) this.queryContext.get(PlannerContext.CTX_SQL_QUERY_ID);
   }
 
-  public PlannerContext plan()
-      throws ValidationException, RelConversionException, SqlParseException
+  private PlannerContext plan() throws ValidationException, RelConversionException, SqlParseException
   {
     synchronized (lock) {
       transition(State.INITIALIZED, State.PLANNED);
@@ -218,26 +217,6 @@ public class SqlLifecycle
     synchronized (lock) {
       transition(State.AUTHORIZED, State.EXECUTING);
       return plannerResult.run();
-    }
-  }
-
-  public Sequence<Object[]> runSimple(
-      String sql,
-      Map<String, Object> queryContext,
-      String remoteAddress
-  ) throws ValidationException, RelConversionException, SqlParseException
-  {
-    Sequence<Object[]> result;
-
-    initialize(sql, queryContext);
-    try {
-      planAndAuthorize(null);
-      result = execute();
-      return result;
-    }
-    catch (Throwable e) {
-      emitLogsAndMetrics(sql, e, remoteAddress, -1, -1);
-      throw e;
     }
   }
 
