@@ -28,7 +28,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -70,6 +69,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   private final boolean boundaryUnion;
   private final List<String> boundaryJoin;
   private final SpatialOperations operation;
+  private final boolean flip;
   private final Integer parallelism;
 
   public GeoBoundaryFilterQuery(
@@ -83,6 +83,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       @JsonProperty("boundaryJoin") List<String> boundaryJoin,
       @JsonProperty("operation") SpatialOperations operation,
       @JsonProperty("parallelism") Integer parallelism,
+      @JsonProperty("flip") boolean flip,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -113,6 +114,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     }
     this.operation = operation;
     this.parallelism = parallelism;
+    this.flip = flip;
   }
 
   @Override
@@ -188,6 +190,11 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     return parallelism;
   }
 
+  @JsonProperty
+  public boolean isFlip()
+  {
+    return flip;
+  }
 
   @Override
   public List<VirtualColumn> getVirtualColumns()
@@ -209,6 +216,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         boundaryJoin,
         operation,
         parallelism,
+        flip,
         getContext()
     );
   }
@@ -233,6 +241,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         boundaryJoin,
         operation,
         parallelism,
+        flip,
         getContext()
     );
   }
@@ -251,7 +260,26 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         boundaryJoin,
         operation,
         parallelism,
+        flip,
         computeOverriddenContext(contextOverride)
+    );
+  }
+
+  public GeoBoundaryFilterQuery withBoundaryJoin(List<String> boundaryJoin)
+  {
+    return new GeoBoundaryFilterQuery(
+        query,
+        pointColumn,
+        shapeColumn,
+        queryColumn,
+        boundary,
+        boundaryColumn,
+        boundaryUnion,
+        boundaryJoin,
+        operation,
+        parallelism,
+        flip,
+        getContext()
     );
   }
 
@@ -268,6 +296,25 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         boundaryJoin,
         operation,
         parallelism,
+        flip,
+        getContext()
+    );
+  }
+
+  public GeoBoundaryFilterQuery withFlip(boolean flip)
+  {
+    return new GeoBoundaryFilterQuery(
+        query,
+        pointColumn,
+        shapeColumn,
+        queryColumn,
+        boundary,
+        boundaryColumn,
+        boundaryUnion,
+        boundaryJoin,
+        operation,
+        parallelism,
+        flip,
         getContext()
     );
   }
@@ -287,6 +334,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         boundaryJoin,
         operation,
         parallelism,
+        flip,
         computeOverriddenContext(ImmutableMap.<String, Object>of(QUERYID, id))
     );
   }
@@ -306,31 +354,32 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   @Override
   public RowSignature schema(QuerySegmentWalker segmentWalker)
   {
-    final List<String> names = Lists.newArrayList();
-    final List<ValueDesc> types = Lists.newArrayList();
-
     final RowSignature querySchema = Queries.relaySchema(query, segmentWalker);
     final List<String> queryColumns = querySchema.getColumnNames();
     final List<ValueDesc> queryTypes = querySchema.getColumnTypes();
+
+    final List<String> qnames = Lists.newArrayList();
+    final List<ValueDesc> qtypes = Lists.newArrayList();
     for (String column : query.estimatedOutputColumns()) {
       int index = queryColumns.indexOf(column);
-      if (index >= 0) {
-        names.add(column);
-        types.add(queryTypes.get(index));
-      }
+      qnames.add(column);
+      qtypes.add(queryTypes.get(index));
     }
-    if (!boundaryJoin.isEmpty()) {
-      final RowSignature boundarySchema = Queries.relaySchema(boundary, segmentWalker);
-      final List<String> boundayColumns = boundarySchema.getColumnNames();
-      final List<ValueDesc> boundayTypes = boundarySchema.getColumnTypes();
-      for (String column : boundaryJoin) {
-        int index = boundayColumns.indexOf(column);
-        if (index >= 0) {
-          names.add(column);
-          types.add(boundayTypes.get(index));
-        }
-      }
+    if (boundaryJoin.isEmpty()) {
+      return new RowSignature.Simple(qnames, qtypes);
     }
+    final List<String> bnames = Lists.newArrayList();
+    final List<ValueDesc> btypes = Lists.newArrayList();
+    final RowSignature boundarySchema = Queries.relaySchema(boundary, segmentWalker);
+    final List<String> boundayColumns = boundarySchema.getColumnNames();
+    final List<ValueDesc> boundayTypes = boundarySchema.getColumnTypes();
+    for (String column : boundaryJoin) {
+      int index = boundayColumns.indexOf(column);
+      bnames.add(column);
+      btypes.add(boundayTypes.get(index));
+    }
+    final List<String> names = flip ? GuavaUtils.concat(bnames, qnames) : GuavaUtils.concat(qnames, bnames);
+    final List<ValueDesc> types = flip ? GuavaUtils.concat(btypes, qtypes) : GuavaUtils.concat(qtypes, btypes);
     return new RowSignature.Simple(names, types);
   }
 
@@ -344,15 +393,14 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     final String boundaryColumn = this.boundaryColumn == null ? columns.get(0) : this.boundaryColumn;
     final int geomIndex = columns.indexOf(boundaryColumn);
 
-    final Map<String, Integer> joinMapping = Maps.newLinkedHashMap();
-    for (String column : boundaryJoin) {
+    final int[] joinMapping = new int[boundaryJoin.size()];
+    for (int i = 0; i < joinMapping.length; i++) {
+      String column = boundaryJoin.get(i);
       if (column.equals(boundaryColumn)) {
-        joinMapping.put(column, -1);
-        continue;
-      }
-      int index = columns.indexOf(column);
-      if (index >= 0) {
-        joinMapping.put(column, index);
+        joinMapping[i] = -1;
+      } else {
+        int index = columns.indexOf(column);
+        joinMapping[i] = index >= 0 ? index : -2;
       }
     }
     final List<Object[]> rows = Lists.newArrayList();
@@ -384,7 +432,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         for (int i = 0; i < union.getNumGeometries(); i++) {
           Geometry geometry = union.getGeometryN(i);
           Object[] joinRow = null;
-          if (!joinMapping.isEmpty()) {
+          if (joinMapping.length > 0) {
             for (int j = 0; j < geometries.size(); j++) {
               if (!geometries.get(j).disjoint(geometry)) {
                 joinRow = rows.get(j);
@@ -411,7 +459,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   private Query makeQuery(
       ObjectMapper mapper,
       Geometry geometry,
-      Map<String, Integer> joinMapping,
+      int[] joinMapping,
       Object[] joinRow,
       Map<String, Object> context
   )
@@ -429,11 +477,11 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   private <T> Function<Sequence<T>, Sequence<Object[]>> proc(
       final ArrayOutputSupport<T> query,
       final String geometryWKT,
-      final Map<String, Integer> joinMapping,
+      final int[] indices,
       final Object[] row
   )
   {
-    if (GuavaUtils.isNullOrEmpty(joinMapping)) {
+    if (indices.length == 0) {
       return new Function<Sequence<T>, Sequence<Object[]>>()
       {
         @Override
@@ -443,27 +491,44 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         }
       };
     }
+    final Function<Object[], Object[]> function;
+    if (flip) {
+      function = new Function<Object[], Object[]>()
+      {
+        @Override
+        public Object[] apply(final Object[] array)
+        {
+          final Object[] updatable = new Object[array.length + indices.length];
+          int i = 0;
+          for (; i < indices.length; i++) {
+            updatable[i] = indices[i] < 0 ? geometryWKT : row[indices[i]];
+          }
+          System.arraycopy(array, 0, updatable, i, array.length);
+          return updatable;
+        }
+      };
+    } else {
+      function = new Function<Object[], Object[]>()
+      {
+        @Override
+        public Object[] apply(final Object[] array)
+        {
+          final Object[] updatable = Arrays.copyOf(array, array.length + indices.length);
+          int i = 0;
+          for (; i < indices.length; i++) {
+            updatable[array.length + i] = indices[i] < 0 ? geometryWKT : row[indices[i]];
+          }
+          return updatable;
+        }
+      };
+    }
+
     return new Function<Sequence<T>, Sequence<Object[]>>()
     {
       @Override
       public Sequence<Object[]> apply(Sequence<T> input)
       {
-        return Sequences.map(
-            query.array(input),
-            new Function<Object[], Object[]>()
-            {
-              @Override
-              public Object[] apply(final Object[] array)
-              {
-                final Object[] updatable = Arrays.copyOf(array, array.length + joinMapping.size());
-                int i = 0;
-                for (Map.Entry<String, Integer> entry : joinMapping.entrySet()) {
-                  updatable[array.length + i++] = entry.getValue() < 0 ? geometryWKT : row[entry.getValue()];
-                }
-                return updatable;
-              }
-            }
-        );
+        return Sequences.map(query.array(input), function);
       }
     };
   }
@@ -503,9 +568,8 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    return GuavaUtils.concat(
-        Preconditions.checkNotNull(query.estimatedOutputColumns()), boundaryJoin
-    );
+    List<String> columns = Preconditions.checkNotNull(query.estimatedOutputColumns());
+    return flip ? GuavaUtils.concat(boundaryJoin, columns) : GuavaUtils.concat(columns, boundaryJoin);
   }
 
   @Override

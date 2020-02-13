@@ -198,7 +198,7 @@ public interface DimFilter extends Expression, Cacheable
     protected DimFilter toExprFilter(@NotNull String columnName)
     {
       // return MathExprFilter with shape or esri expressions
-      throw new UnsupportedOperationException(String.format("not supports rewritting %s", this));
+      throw new UnsupportedOperationException(String.format("not supports rewritting %s", getClass().getSimpleName()));
     }
 
     protected DimFilter toOptimizedFilter(@NotNull Map<String, String> descriptor, @NotNull String fieldName)

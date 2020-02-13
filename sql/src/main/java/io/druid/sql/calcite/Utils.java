@@ -91,9 +91,9 @@ public class Utils
     return inputRefs;
   }
 
-  public static boolean isA(RexNode op, String opName)
+  public static String opName(RexNode op)
   {
-    return op instanceof RexCall && opName.equals(((RexCall) op).getOperator().getName());
+    return op instanceof RexCall ? ((RexCall) op).getOperator().getName() : null;
   }
 
   public static boolean isAllInputRef(List<RexNode> nodes)

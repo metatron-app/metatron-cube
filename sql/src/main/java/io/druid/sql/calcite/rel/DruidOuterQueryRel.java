@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.druid.common.utils.StringUtils;
@@ -168,7 +169,7 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   @Override
   public List<String> getDataSourceNames()
   {
-    return ((DruidRel) sourceRel).getDataSourceNames();
+    return Preconditions.checkNotNull(Utils.getDruidRel(sourceRel)).getDataSourceNames();
   }
 
   @Override

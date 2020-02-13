@@ -125,7 +125,7 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    throw new UnsupportedOperationException("not supports filtering " + this);
+    throw new UnsupportedOperationException("not supports filtering " + forLog());
   }
 
   @Override
@@ -137,7 +137,7 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   @Override
   public String toString()
   {
-    return "LuceneWithinFilter{" +
+    return "LuceneShapeFilter{" +
            "field='" + field + '\'' +
            ", operation=" + operation +
            ", shapeFormat=" + shapeFormat +

@@ -26,7 +26,6 @@ import com.google.common.collect.Ordering;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
@@ -205,7 +204,6 @@ public interface Query<T> extends QueryContextKeys
     boolean allMetricsForEmpty();
   }
 
-  Logger LOG = new Logger(ArrayOutputSupport.class);
   interface ArrayOutputSupport<T> extends Query<T>
   {
     List<String> estimatedOutputColumns();
