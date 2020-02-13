@@ -27,7 +27,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.Arrays;
 import java.util.List;
@@ -58,6 +58,7 @@ public class DruidExpression
     this.expression = Preconditions.checkNotNull(expression);
   }
 
+  // LOOKUP, REGEXP_EXTRACT
   public static DruidExpression of(final SimpleExtraction simpleExtraction, final String expression)
   {
     return new DruidExpression(simpleExtraction, expression);
@@ -75,12 +76,30 @@ public class DruidExpression
 
   public static DruidExpression fromFunctionCall(final String functionName, final List<DruidExpression> args)
   {
-    return new DruidExpression(null, functionCall(functionName, args));
+    return fromExpression(functionCall(functionName, args));
   }
 
-  public static String numberLiteral(final Number n)
+  public static String numberLiteral(final long n)
   {
-    return n == null ? nullLiteral() : n.toString();
+    return String.valueOf(n);
+  }
+
+  public static String numberLiteral(final double n)
+  {
+    return String.valueOf(n);
+  }
+
+  public static String numberLiteral(final Number n, final SqlTypeName typeName)
+  {
+    if (n == null) {
+      return nullLiteral();
+    }
+    if (SqlTypeName.FLOAT == typeName) {
+      return n.toString() + 'F';
+    } else if (SqlTypeName.DECIMAL == typeName) {
+      return n.toString() + 'B';
+    }
+    return n.toString();
   }
 
   public static String stringLiteral(final String s)

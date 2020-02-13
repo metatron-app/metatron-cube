@@ -23,6 +23,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
+import io.druid.data.Rows;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
@@ -34,6 +35,7 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -108,7 +110,7 @@ public class Evals
       return leftVal.floatValue() == rightVal.floatValue();
     }
     if (lt.isDouble() && rt.isDouble()) {
-      return leftVal.doubleValue() == rightVal.longValue();
+      return leftVal.doubleValue() == rightVal.doubleValue();
     }
     return Objects.equals(leftVal.value(), rightVal.value());
   }
@@ -324,7 +326,7 @@ public class Evals
   // do not use except flattening purpose
   static Expr toConstant(ExprEval eval)
   {
-    ValueDesc type = eval.type();
+    final ValueDesc type = eval.type();
     switch (type.type()) {
       case BOOLEAN:
         return new BooleanExpr(eval.asBoolean());
@@ -337,8 +339,8 @@ public class Evals
       case STRING:
         return new StringExpr(eval.asString());
       default:
-        return new RelayExpr(eval);
     }
+    return new RelayExpr(eval);
   }
 
   public static Expr constant(Object value, ValueDesc type)
@@ -416,6 +418,16 @@ public class Evals
         return ExprEval.of(eval.asString());
       case DATETIME:
         return ExprEval.of(eval.asDateTime());
+    }
+    if (eval.isNull()) {
+      return ExprEval.of(null, castTo);
+    }
+    if (castTo.isDecimal()) {
+      final Long longVal = Rows.parseLong(eval.value(), null);
+      if (longVal != null) {
+        return ExprEval.of(new BigDecimal(longVal));
+      }
+      return ExprEval.of(new BigDecimal(Rows.parseDouble(eval.value(), null)));
     }
     throw new IllegalArgumentException("not supported type " + castTo);
   }

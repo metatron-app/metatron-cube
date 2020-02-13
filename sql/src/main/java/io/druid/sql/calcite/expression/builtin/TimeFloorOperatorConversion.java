@@ -21,8 +21,14 @@ package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import io.druid.common.DateTimes;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.expression.OperatorConversions;
+import io.druid.sql.calcite.expression.SqlOperatorConversion;
+import io.druid.sql.calcite.planner.Calcites;
+import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -32,13 +38,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
-import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.Expressions;
-import io.druid.sql.calcite.expression.OperatorConversions;
-import io.druid.sql.calcite.expression.SqlOperatorConversion;
-import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
@@ -85,7 +84,7 @@ public class TimeFloorOperatorConversion implements SqlOperatorConversion
             input.getExpression(),
             DruidExpression.stringLiteral(granularity.getPeriod().toString()),
             DruidExpression.numberLiteral(
-                granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis()
+                granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis(), SqlTypeName.BIGINT
             ),
             DruidExpression.stringLiteral(granularity.getTimeZone().toString())
         ).stream().map(DruidExpression::fromExpression).collect(Collectors.toList())

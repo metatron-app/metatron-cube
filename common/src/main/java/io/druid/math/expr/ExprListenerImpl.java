@@ -82,6 +82,20 @@ public class ExprListenerImpl extends ExprBaseListener
   }
 
   @Override
+  public void exitLongExpr(ExprParser.LongExprContext ctx)
+  {
+    String text = ctx.getText();
+    char last = text.charAt(text.length() - 1);
+    if (last == 'l' || last == 'L') {
+      text = text.substring(0, text.length() - 1);
+    }
+    nodes.put(
+        ctx,
+        new LongExpr(Long.parseLong(text))
+    );
+  }
+
+  @Override
   public void exitFloatExpr(ExprParser.FloatExprContext ctx)
   {
     nodes.put(
@@ -96,6 +110,16 @@ public class ExprListenerImpl extends ExprBaseListener
     nodes.put(
         ctx,
         new DoubleExpr(Double.parseDouble(ctx.getText()))
+    );
+  }
+
+  @Override
+  public void exitDecimalExpr(ExprParser.DecimalExprContext ctx)
+  {
+    final String text = ctx.getText();
+    nodes.put(
+        ctx,
+        new DecimalExpr(text.substring(0, text.length() - 1))
     );
   }
 
@@ -127,15 +151,6 @@ public class ExprListenerImpl extends ExprBaseListener
       default:
         throw new RuntimeException("Unrecognized binary operator " + ctx.getChild(1).getText());
     }
-  }
-
-  @Override
-  public void exitLongExpr(ExprParser.LongExprContext ctx)
-  {
-    nodes.put(
-        ctx,
-        new LongExpr(Long.parseLong(ctx.getText()))
-    );
   }
 
   @Override

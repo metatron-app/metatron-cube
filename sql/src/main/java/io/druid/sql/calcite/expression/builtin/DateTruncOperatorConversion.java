@@ -90,7 +90,6 @@ public class DateTruncOperatorConversion implements SqlOperatorConversion
         rowSignature,
         rexNode,
         inputExpressions -> {
-          final DruidExpression arg = inputExpressions.get(1);
           final Expr truncTypeExpr = Parser.parse(inputExpressions.get(0).getExpression(), rowSignature);
 
           if (!Evals.isConstantString(truncTypeExpr)) {
@@ -107,7 +106,7 @@ public class DateTruncOperatorConversion implements SqlOperatorConversion
           return DruidExpression.fromFunctionCall(
               "timestamp_floor",
               ImmutableList.of(
-                  arg,
+                  inputExpressions.get(1),
                   DruidExpression.fromExpression(DruidExpression.stringLiteral(truncPeriod.toString())),
                   DruidExpression.fromExpression(DruidExpression.stringLiteral(null)),
                   DruidExpression.fromExpression(DruidExpression.stringLiteral(plannerContext.getTimeZone().getID()))

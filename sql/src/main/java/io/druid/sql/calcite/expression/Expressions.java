@@ -172,33 +172,32 @@ public class Expressions
       // Translate literal.
       if (RexLiteral.isNullLiteral(rexNode)) {
         return DruidExpression.fromExpression(DruidExpression.nullLiteral());
-      } else if (SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName)) {
-        return DruidExpression.fromExpression(DruidExpression.numberLiteral((Number) RexLiteral.value(rexNode)));
-      } else if (SqlTypeFamily.INTERVAL_DAY_TIME == sqlTypeName.getFamily()) {
-        // Calcite represents DAY-TIME intervals in milliseconds.
-        final long milliseconds = ((Number) RexLiteral.value(rexNode)).longValue();
-        return DruidExpression.fromExpression(DruidExpression.numberLiteral(milliseconds));
-      } else if (SqlTypeFamily.INTERVAL_YEAR_MONTH == sqlTypeName.getFamily()) {
-        // Calcite represents YEAR-MONTH intervals in months.
-        final long months = ((Number) RexLiteral.value(rexNode)).longValue();
-        return DruidExpression.fromExpression(DruidExpression.numberLiteral(months));
-      } else if (SqlTypeName.STRING_TYPES.contains(sqlTypeName)) {
-        return DruidExpression.fromExpression(DruidExpression.stringLiteral(RexLiteral.stringValue(rexNode)));
-      } else if (SqlTypeName.TIMESTAMP == sqlTypeName || SqlTypeName.DATE == sqlTypeName) {
-        if (RexLiteral.isNullLiteral(rexNode)) {
-          return DruidExpression.fromExpression(DruidExpression.nullLiteral());
-        } else {
+      } else {
+        final Comparable value = RexLiteral.value(rexNode);
+        if (SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName)) {
+          return DruidExpression.fromExpression(DruidExpression.numberLiteral((Number) value, sqlTypeName));
+        } else if (SqlTypeFamily.INTERVAL_DAY_TIME == sqlTypeName.getFamily()) {
+          // Calcite represents DAY-TIME intervals in milliseconds.
+          final long milliseconds = ((Number) value).longValue();
+          return DruidExpression.fromExpression(DruidExpression.numberLiteral(milliseconds));
+        } else if (SqlTypeFamily.INTERVAL_YEAR_MONTH == sqlTypeName.getFamily()) {
+          // Calcite represents YEAR-MONTH intervals in months.
+          final long months = ((Number) value).longValue();
+          return DruidExpression.fromExpression(DruidExpression.numberLiteral(months));
+        } else if (SqlTypeName.STRING_TYPES.contains(sqlTypeName)) {
+          return DruidExpression.fromExpression(DruidExpression.stringLiteral(RexLiteral.stringValue(rexNode)));
+        } else if (SqlTypeName.TIMESTAMP == sqlTypeName || SqlTypeName.DATE == sqlTypeName) {
           return DruidExpression.fromExpression(
               DruidExpression.numberLiteral(
                   Calcites.calciteDateTimeLiteralToJoda(rexNode, plannerContext.getTimeZone()).getMillis()
               )
           );
+        } else if (SqlTypeName.BOOLEAN == sqlTypeName) {
+          return DruidExpression.fromExpression(String.valueOf(RexLiteral.booleanValue(rexNode)));
+        } else {
+          // Can't translate other literals.
+          return null;
         }
-      } else if (SqlTypeName.BOOLEAN == sqlTypeName) {
-        return DruidExpression.fromExpression(String.valueOf(RexLiteral.booleanValue(rexNode)));
-      } else {
-        // Can't translate other literals.
-        return null;
       }
     } else {
       // Can't translate.
@@ -533,9 +532,7 @@ public class Expressions
   )
   {
     final DruidExpression druidExpression = toDruidExpression(plannerContext, rowSignature, rexNode);
-    return druidExpression == null
-           ? null
-           : new MathExprFilter(druidExpression.getExpression());
+    return druidExpression == null ? null : new MathExprFilter(druidExpression.getExpression());
   }
 
   /**

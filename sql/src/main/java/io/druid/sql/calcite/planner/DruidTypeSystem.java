@@ -94,6 +94,8 @@ public class DruidTypeSystem implements RelDataTypeSystem
 
     if (SqlTypeName.INT_TYPES.contains(argumentType.getSqlTypeName())) {
       return Calcites.createSqlType(typeFactory, SqlTypeName.BIGINT);
+    } else if (SqlTypeName.DECIMAL.equals(argumentType.getSqlTypeName())) {
+      return Calcites.createSqlType(typeFactory, SqlTypeName.DECIMAL);
     } else {
       return Calcites.createSqlType(typeFactory, SqlTypeName.DOUBLE);
     }

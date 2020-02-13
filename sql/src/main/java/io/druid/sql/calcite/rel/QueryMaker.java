@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Ints;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
@@ -58,6 +57,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.joda.time.DateTime;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -292,8 +292,10 @@ public class QueryMaker
       return ColumnMetaData.Rep.of(Long.class);
     } else if (sqlType == SqlTypeName.FLOAT) {
       return ColumnMetaData.Rep.of(Float.class);
-    } else if (sqlType == SqlTypeName.DOUBLE || sqlType == SqlTypeName.DECIMAL) {
+    } else if (sqlType == SqlTypeName.DOUBLE) {
       return ColumnMetaData.Rep.of(Double.class);
+    } else if (sqlType == SqlTypeName.DECIMAL) {
+      return ColumnMetaData.Rep.of(BigDecimal.class);
     } else if (sqlType == SqlTypeName.BOOLEAN) {
       return ColumnMetaData.Rep.of(Boolean.class);
     } else if (sqlType == SqlTypeName.OTHER) {
@@ -338,28 +340,24 @@ public class QueryMaker
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
     } else if (sqlType == SqlTypeName.INTEGER) {
-      if (value instanceof String) {
-        coercedValue = Ints.tryParse((String) value);
-      } else if (value instanceof Number) {
-        coercedValue = ((Number) value).intValue();
-      } else {
+      final Long longValue = Rows.parseLong(value, null);
+      if (longValue == null) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
+      coercedValue = longValue.intValue();
     } else if (sqlType == SqlTypeName.BIGINT) {
-      try {
-        coercedValue = Rows.parseLong(value);
-      }
-      catch (Exception e) {
+      coercedValue = Rows.parseLong(value, null);
+      if (coercedValue == null) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
     } else if (sqlType == SqlTypeName.FLOAT) {
-      try {
-        coercedValue = Rows.parseFloat(value);
-      }
-      catch (Exception e) {
+      coercedValue = Rows.parseFloat(value, null);
+      if (coercedValue == null) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
-    } else if (SqlTypeName.FRACTIONAL_TYPES.contains(sqlType)) {
+    } else if (sqlType == SqlTypeName.DECIMAL) {
+      coercedValue = coerceDecimal(value, sqlType);
+    } else if (SqlTypeName.APPROX_TYPES.contains(sqlType)) {
       try {
         coercedValue = Rows.parseDouble(value);
       }
@@ -380,17 +378,44 @@ public class QueryMaker
 
   private static DateTime coerceDateTime(Object value, SqlTypeName sqlType)
   {
-    final DateTime dateTime;
+    if (value instanceof DateTime) {
+      return (DateTime) value;
+    } else if (value instanceof Number) {
+      return DateTimes.utc(((Number) value).longValue());
+    } else {
+      Long timestamp = Rows.parseLong(value, null);
+      if (timestamp != null) {
+        return DateTimes.utc(timestamp);
+      }
+      try {
+        return new DateTime(value);
+      }
+      catch (Exception e) {
+        // failed
+      }
+    }
+    throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
+  }
 
-    if (value instanceof Number) {
-      dateTime = DateTimes.utc(((Number) value).longValue());
+  private static BigDecimal coerceDecimal(Object value, SqlTypeName sqlType)
+  {
+    final BigDecimal decimal;
+
+    if (value instanceof BigDecimal) {
+      decimal = (BigDecimal) value;
     } else if (value instanceof String) {
-      dateTime = DateTimes.utc(Long.parseLong((String) value));
-    } else if (value instanceof DateTime) {
-      dateTime = (DateTime) value;
+      decimal = new BigDecimal((String) value);
+    } else if (value instanceof Short || value instanceof Integer) {
+      decimal = new BigDecimal(((Number) value).intValue());
+    } else if (value instanceof Long) {
+      decimal = new BigDecimal((Long) value);
+    } else if (value instanceof Float) {
+      decimal = new BigDecimal((Float) value);
+    } else if (value instanceof Double) {
+      decimal = new BigDecimal((Double) value);
     } else {
       throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
     }
-    return dateTime;
+    return decimal;
   }
 }

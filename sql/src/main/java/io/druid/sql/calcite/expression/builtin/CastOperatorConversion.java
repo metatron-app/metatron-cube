@@ -21,49 +21,48 @@ package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.ISE;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.PeriodGranularity;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.apache.calcite.sql.type.SqlTypeName;
+import io.druid.java.util.common.ISE;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.Period;
 
 import java.util.Map;
-import java.util.function.Function;
 
 public class CastOperatorConversion implements SqlOperatorConversion
 {
-  private static final Map<SqlTypeName, ValueType> EXPRESSION_TYPES;
+  private static final Map<SqlTypeName, ValueDesc> EXPRESSION_TYPES;
 
   static {
-    final ImmutableMap.Builder<SqlTypeName, ValueType> builder = ImmutableMap.builder();
+    final ImmutableMap.Builder<SqlTypeName, ValueDesc> builder = ImmutableMap.builder();
 
-    builder.put(SqlTypeName.BOOLEAN, ValueType.BOOLEAN);
-    builder.put(SqlTypeName.FLOAT, ValueType.FLOAT);
-    builder.put(SqlTypeName.DOUBLE, ValueType.DOUBLE);
-    builder.put(SqlTypeName.REAL, ValueType.DOUBLE);
-    builder.put(SqlTypeName.DECIMAL, ValueType.DOUBLE);
+    builder.put(SqlTypeName.BOOLEAN, ValueDesc.BOOLEAN);
+    builder.put(SqlTypeName.FLOAT, ValueDesc.FLOAT);
+    builder.put(SqlTypeName.DOUBLE, ValueDesc.DOUBLE);
+    builder.put(SqlTypeName.REAL, ValueDesc.DOUBLE);
+    builder.put(SqlTypeName.DECIMAL, ValueDesc.DECIMAL);
 
     for (SqlTypeName type : SqlTypeName.INT_TYPES) {
-      builder.put(type, ValueType.LONG);
+      builder.put(type, ValueDesc.LONG);
     }
 
     for (SqlTypeName type : SqlTypeName.STRING_TYPES) {
-      builder.put(type, ValueType.STRING);
+      builder.put(type, ValueDesc.STRING);
     }
 
     // Timestamps are treated as longs (millis since the epoch) in Druid expressions.
-    builder.put(SqlTypeName.TIMESTAMP, ValueType.LONG);
-    builder.put(SqlTypeName.DATE, ValueType.LONG);
+    builder.put(SqlTypeName.TIMESTAMP, ValueDesc.LONG);
+    builder.put(SqlTypeName.DATE, ValueDesc.LONG);
 
     EXPRESSION_TYPES = builder.build();
   }
@@ -101,8 +100,8 @@ public class CastOperatorConversion implements SqlOperatorConversion
       return castDateTimeToChar(plannerContext, operandExpression, fromType);
     } else {
       // Handle other casts.
-      final ValueType fromExprType = EXPRESSION_TYPES.get(fromType);
-      final ValueType toExprType = EXPRESSION_TYPES.get(toType);
+      final ValueDesc fromExprType = EXPRESSION_TYPES.get(fromType);
+      final ValueDesc toExprType = EXPRESSION_TYPES.get(toType);
 
       if (fromExprType == null || toExprType == null) {
         // We have no runtime type for these SQL types.
@@ -111,11 +110,13 @@ public class CastOperatorConversion implements SqlOperatorConversion
 
       final DruidExpression typeCastExpression;
 
-      if (fromExprType != toExprType) {
+      if (!fromExprType.equals(toExprType)) {
         // Ignore casts for simple extractions (use Function.identity) since it is ok in many cases.
         typeCastExpression = operandExpression.map(
-            Function.identity(),
-            expression -> StringUtils.format("CAST(%s, '%s')", expression, toExprType.toString())
+            simpleExtraction -> null,
+            expression -> StringUtils.format(
+                "CAST(%s, '%s')", expression, toExprType.isPrimitive() ? toExprType.type() : toExprType.toString()
+            )
         );
       } else {
         typeCastExpression = operandExpression;

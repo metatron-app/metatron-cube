@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
@@ -274,6 +275,46 @@ final class DoubleExpr implements Constant
   public boolean equals(Object other)
   {
     return other instanceof DoubleExpr && value == ((DoubleExpr) other).value;
+  }
+}
+
+final class DecimalExpr implements Constant
+{
+  private final BigDecimal value;
+
+  public DecimalExpr(String value)
+  {
+    this.value = StringUtils.isNullOrEmpty(value) ? null : new BigDecimal(value);
+  }
+
+  @Override
+  public String toString()
+  {
+    return String.valueOf(value);
+  }
+
+  @Override
+  public ValueDesc returns()
+  {
+    return ValueDesc.DECIMAL;
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    return ExprEval.of(value, ValueDesc.DECIMAL);
+  }
+
+  @Override
+  public Object get()
+  {
+    return value;
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return other instanceof DecimalExpr && Objects.equals(value, ((DecimalExpr) other).value);
   }
 }
 

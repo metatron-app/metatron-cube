@@ -140,7 +140,9 @@ public class Calcites
       return ValueDesc.BOOLEAN;
     } else if (SqlTypeName.FLOAT == sqlTypeName) {
       return ValueDesc.FLOAT;
-    } else if (SqlTypeName.FRACTIONAL_TYPES.contains(sqlTypeName)) {
+    } else if (SqlTypeName.DECIMAL == sqlTypeName) {
+      return ValueDesc.DECIMAL;
+    } else if (SqlTypeName.APPROX_TYPES.contains(sqlTypeName)) {
       return ValueDesc.DOUBLE;
     } else if (SqlTypeName.TIMESTAMP == sqlTypeName
                || SqlTypeName.DATE == sqlTypeName

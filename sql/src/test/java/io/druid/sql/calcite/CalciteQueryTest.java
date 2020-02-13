@@ -2199,9 +2199,7 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .filters(
-                      SELECTOR("cnt", "1.0", null)
-                  )
+                  .filters(EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 1.0B)"))
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -2217,9 +2215,7 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .filters(
-                      SELECTOR("cnt", "100000001.0", null)
-                  )
+                  .filters(EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 100000001.0B)"))
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -2233,7 +2229,10 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .filters(IN("cnt", "1.0", "100000001.0"))
+                  .filters(OR(
+                      EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 1.0B)"),
+                      EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 100000001.0B)")
+                  ))
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -2281,7 +2280,8 @@ public class CalciteQueryTest extends CalciteTestBase
                                 SELECTOR("dim1", "10", null),
                                 AND(
                                     EXPR_FILTER("(CAST(floor(CAST(\"dim1\", 'FLOAT')), 'DOUBLE') == 10.00)"),
-                                    BOUND("dim1", "9", "10.5", true, false, null, StringComparators.NUMERIC_NAME)
+                                    EXPR_FILTER("(CAST(\"dim1\", 'FLOAT') > 9)"),
+                                    EXPR_FILTER("(CAST(\"dim1\", 'FLOAT') <= 10.5B)")
                                 )
                             )
                         )
@@ -2847,7 +2847,7 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
                   .granularity(Granularities.ALL)
-                  .filters(NUMERIC_SELECTOR("dim1", "2", null))
+                  .filters(EXPR_FILTER("(CAST(\"dim1\", 'LONG') == 2)"))
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -4483,7 +4483,7 @@ public class CalciteQueryTest extends CalciteTestBase
                           true
                       )
                   )
-                  .postAggregators(EXPR_POST_AGG("p0", "((1 - (\"a1\" / \"a0\")) * 100)"))
+                  .postAggregators(EXPR_POST_AGG("p0", "((1F - (\"a1\" / \"a0\")) * 100)"))
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
         ),
@@ -4514,7 +4514,8 @@ public class CalciteQueryTest extends CalciteTestBase
                                         .build()
                         )
                         .setGranularity(Granularities.ALL)
-                        .setDimensions(DefaultDimensionSpec.of("a0", "_d0"))
+                        .setVirtualColumns(EXPR_VC("_d0:v", "CAST(\"a0\", 'STRING')"))
+                        .setDimensions(DefaultDimensionSpec.of("_d0:v", "_d0"))
                         .setAggregatorSpecs(CountAggregatorFactory.of("_a0"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
@@ -4550,7 +4551,8 @@ public class CalciteQueryTest extends CalciteTestBase
                                         .build()
                         ))
                         .setGranularity(Granularities.ALL)
-                        .setDimensions(DefaultDimensionSpec.of("a0", "_d0"))
+                        .setVirtualColumns(EXPR_VC("_d0:v", "CAST(\"a0\", 'STRING')"))
+                        .setDimensions(DefaultDimensionSpec.of("_d0:v", "_d0"))
                         .setAggregatorSpecs(CountAggregatorFactory.of("_a0"))
                         .setLimitSpec(
                             LimitSpec.of(

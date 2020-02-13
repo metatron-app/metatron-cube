@@ -84,8 +84,11 @@ public class AvgSqlAggregator implements SqlAggregator
     final ValueDesc sumType;
 
     // Use 64-bit sum regardless of the type of the AVG aggregator.
-    if (SqlTypeName.INT_TYPES.contains(aggregateCall.getType().getSqlTypeName())) {
+    final SqlTypeName typeName = aggregateCall.getType().getSqlTypeName();
+    if (SqlTypeName.INT_TYPES.contains(typeName)) {
       sumType = ValueDesc.LONG;
+    } else if (SqlTypeName.DECIMAL.equals(typeName)) {
+      sumType = ValueDesc.DECIMAL;
     } else {
       sumType = ValueDesc.DOUBLE;
     }

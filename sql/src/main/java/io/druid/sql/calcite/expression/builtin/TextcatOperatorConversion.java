@@ -19,16 +19,16 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlFunctionCategory;
-import org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.calcite.sql.type.SqlTypeName;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 public class TextcatOperatorConversion implements SqlOperatorConversion
 {
@@ -57,10 +57,7 @@ public class TextcatOperatorConversion implements SqlOperatorConversion
         plannerContext,
         rowSignature,
         rexNode,
-        druidExpressions -> DruidExpression.of(
-            null,
-            DruidExpression.functionCall("concat", druidExpressions)
-        )
+        druidExpressions -> DruidExpression.fromFunctionCall("concat", druidExpressions)
     );
   }
 }

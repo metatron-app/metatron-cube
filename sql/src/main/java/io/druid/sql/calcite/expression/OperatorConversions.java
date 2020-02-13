@@ -74,7 +74,7 @@ public class OperatorConversions
         rowSignature,
         rexNode,
         druidExpressions -> DruidExpression.of(
-            simpleExtractionFunction == null ? null : simpleExtractionFunction.apply(druidExpressions),
+            simpleExtractionFunction.apply(druidExpressions),
             DruidExpression.functionCall(functionName, druidExpressions)
         )
     );

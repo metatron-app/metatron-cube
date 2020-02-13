@@ -58,8 +58,7 @@ public class StrposOperatorConversion implements SqlOperatorConversion
         plannerContext,
         rowSignature,
         rexNode,
-        druidExpressions -> DruidExpression.of(
-            null,
+        druidExpressions -> DruidExpression.fromExpression(
             StringUtils.format(
                 "(%s + 1)",
                 DruidExpression.functionCall("indexOf", druidExpressions)

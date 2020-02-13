@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.query.extraction.RegexDimExtractionFn;

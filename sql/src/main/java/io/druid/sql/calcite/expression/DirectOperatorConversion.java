@@ -52,7 +52,7 @@ public class DirectOperatorConversion implements SqlOperatorConversion
         plannerContext,
         rowSignature,
         rexNode,
-        operands -> DruidExpression.fromExpression(DruidExpression.functionCall(druidFunctionName, operands))
+        operands -> DruidExpression.fromFunctionCall(druidFunctionName, operands)
     );
   }
 }

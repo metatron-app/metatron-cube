@@ -38,9 +38,15 @@ public class ParserTest
   public void testNumbers()
   {
     Assert.assertTrue(Parser.parse("1") instanceof LongExpr);
-    Assert.assertTrue(Parser.parse("1d") instanceof DoubleExpr);
     Assert.assertTrue(Parser.parse("1f") instanceof FloatExpr);
+    Assert.assertTrue(Parser.parse("1F") instanceof FloatExpr);
+    Assert.assertTrue(Parser.parse("1d") instanceof DoubleExpr);
+    Assert.assertTrue(Parser.parse("1D") instanceof DoubleExpr);
     Assert.assertTrue(Parser.parse("1.0") instanceof DoubleExpr);
+    Assert.assertTrue(Parser.parse("1.0d") instanceof DoubleExpr);
+    Assert.assertTrue(Parser.parse("1.0D") instanceof DoubleExpr);
+    Assert.assertTrue(Parser.parse("1b") instanceof DecimalExpr);
+    Assert.assertTrue(Parser.parse("1B") instanceof DecimalExpr);
     Assert.assertTrue(Parser.parse("1.00000000000001") instanceof DoubleExpr);
     Assert.assertTrue(Parser.parse("1.00000000000001f") instanceof FloatExpr);
   }

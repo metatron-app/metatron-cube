@@ -33,6 +33,7 @@ import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.TimeUnits;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -84,7 +85,7 @@ public class CeilOperatorConversion implements SqlOperatorConversion
               druidExpression.getExpression(),
               DruidExpression.stringLiteral(granularity.getPeriod().toString()),
               DruidExpression.numberLiteral(
-                  granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis()
+                  granularity.getOrigin() == null ? null : granularity.getOrigin().getMillis(), SqlTypeName.BIGINT
               ),
               DruidExpression.stringLiteral(granularity.getTimeZone().toString())
           ).stream().map(DruidExpression::fromExpression).collect(Collectors.toList())
