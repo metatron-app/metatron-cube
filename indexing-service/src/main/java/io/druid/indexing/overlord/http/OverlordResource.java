@@ -64,7 +64,6 @@ import io.druid.indexer.TaskStatusPlus;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.actions.TaskActionHolder;
-import io.druid.indexing.common.task.HadoopIndexTask;
 import io.druid.indexing.common.task.IndexTask;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;
@@ -1226,7 +1225,9 @@ public class OverlordResource
 
   private String getRunningStatusDetail(String taskId, Task task, String defaultValue)
   {
-    if (task instanceof IndexTask || task instanceof RealtimeIndexTask || task instanceof HadoopIndexTask) {
+    if (task instanceof IndexTask ||
+        task instanceof RealtimeIndexTask ||
+        task.getClass().getName().contains("HadoopIndexTask")) {
       List<TaskLock> locks = taskStorageQueryAdapter.getLocks(taskId);
       if (locks.isEmpty()) {
         return "INITIALIZING";

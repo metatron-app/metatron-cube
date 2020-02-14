@@ -89,11 +89,6 @@ public class Main
            .withDefaultCommand(Help.class)
            .withCommands(CliHadoopIndexer.class);
 
-    builder.withGroup("internal")
-           .withDescription("Processes that Druid runs \"internally\", you should rarely use these directly")
-           .withDefaultCommand(Help.class)
-           .withCommands(CliPeon.class, CliInternalHadoopIndexer.class);
-
     String[] properties = new String[]{};
     if (args.length > 1 && args[0].equals("server")) {
       int index = args[1].indexOf(':');

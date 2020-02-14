@@ -143,7 +143,7 @@ public abstract class HadoopTask extends AbstractTask
       throws MalformedURLException
   {
     final List<URL> jobURLs = Lists.newArrayList(
-        Arrays.asList(((URLClassLoader) HadoopIndexTask.class.getClassLoader()).getURLs())
+        Arrays.asList(((URLClassLoader) HadoopTask.class.getClassLoader()).getURLs())
     );
 
     for (final File extension : Initialization.getExtensionFilesToLoad(extensionsConfig)) {

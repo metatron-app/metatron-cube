@@ -46,7 +46,7 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>app.metatron</groupId>
+            <groupId>app.metatron.extensions</groupId>
             <artifactId>druid-indexing-hadoop</artifactId>
             <version>${project.parent.version}</version>
             <scope>provided</scope>

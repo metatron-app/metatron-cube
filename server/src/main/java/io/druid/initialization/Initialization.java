@@ -255,19 +255,21 @@ public class Initialization
   }
 
   // -_-
-  private static final ImmutableMap<String, String> PARENT_MODULES = ImmutableMap.of(
-      "druid-geotools-extensions", "druid-lucene-extensions"
-  );
+  private static final ImmutableMap<String, String> PARENT_MODULES = ImmutableMap.<String, String>builder()
+      .put("druid-geotools-extensions", "druid-lucene-extensions")
+      .put("druid-hdfs-storage", "druid-indexing-hadoop")
+      .put("druid-hadoop-firehose", "druid-indexing-hadoop")
+      .put("druid-orc-extensions", "druid-indexing-hadoop")
+      .put("druid-parquet-extensions", "druid-indexing-hadoop")
+      .put("druid-hive-extensions", "druid-indexing-hadoop")
+      .build();
 
   private static final String INTERNAL_HADOOP_CLIENT = "$HADOOP_CILENT$";
 
   // -_-;;;
   private static final ImmutableSet<String> HADOOP_DEPENDENT = ImmutableSet.of(
-      "druid-hdfs-storage",
-      "druid-hadoop-firehose",
+      "druid-indexing-hadoop",
       "druid-hive-udf-extensions",
-      "druid-orc-extensions",
-      "druid-parquet-extensions",
       "druid-lucene-extensions"   // for shape formatter
   );
 

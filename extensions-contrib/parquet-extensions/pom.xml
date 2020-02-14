@@ -35,6 +35,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>app.metatron</groupId>
+            <artifactId>druid-services</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>app.metatron.extensions</groupId>
             <artifactId>druid-avro-extensions</artifactId>
             <version>${project.parent.version}</version>
@@ -46,7 +52,7 @@
             <version>1.8.0</version>
         </dependency>
         <dependency>
-            <groupId>app.metatron</groupId>
+            <groupId>app.metatron.extensions</groupId>
             <artifactId>druid-indexing-hadoop</artifactId>
             <version>${project.parent.version}</version>
             <scope>provided</scope>

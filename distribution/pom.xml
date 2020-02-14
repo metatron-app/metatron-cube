@@ -99,6 +99,8 @@
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-geotools-extensions</argument>
                                 <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-indexing-hadoop</argument>
+                                <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-hdfs-storage</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-histogram</argument>

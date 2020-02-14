@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
@@ -69,6 +70,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.SortedSet;
 
+@JsonTypeName("index_hadoop")
 public class HadoopIndexTask extends HadoopTask
 {
   private static final Logger log = new Logger(HadoopIndexTask.class);
@@ -337,7 +339,7 @@ public class HadoopIndexTask extends HadoopTask
       // can be injected based on the configuration given in config.getSchema().getIOConfig().getMetadataUpdateSpec()
       final MetadataStorageUpdaterJobHandler maybeHandler;
       if (config.isUpdaterJobSpecSet()) {
-        maybeHandler = injector.getInstance(MetadataStorageUpdaterJobHandler.class);
+        maybeHandler = HadoopTask.injector.getInstance(MetadataStorageUpdaterJobHandler.class);
       } else {
         maybeHandler = null;
       }

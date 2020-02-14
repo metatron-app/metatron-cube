@@ -111,7 +111,6 @@
         <module>api</module>
         <module>common</module>
         <module>examples</module>
-        <module>indexing-hadoop</module>
         <module>indexing-service</module>
         <module>processing</module>
         <module>server</module>
@@ -125,6 +124,7 @@
         <!-- Core extensions -->
         <module>extensions-core/avro-extensions</module>
         <module>extensions-core/datasketches</module>
+        <module>extensions-core/indexing-hadoop</module>
         <module>extensions-core/hdfs-storage</module>
         <module>extensions-core/histogram</module>
         <module>extensions-core/stats</module>

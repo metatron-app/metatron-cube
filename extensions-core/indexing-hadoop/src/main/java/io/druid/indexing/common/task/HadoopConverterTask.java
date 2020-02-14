@@ -22,6 +22,7 @@ package io.druid.indexing.common.task;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -46,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+@JsonTypeName("hadoop_convert_segment")
 public class HadoopConverterTask extends ConvertSegmentTask
 {
   private static final String TYPE = "hadoop_convert_segment";
@@ -160,6 +162,7 @@ public class HadoopConverterTask extends ConvertSegmentTask
     return TYPE;
   }
 
+  @JsonTypeName("hadoop_convert_segment_sub")
   public static class ConverterSubTask extends HadoopTask
   {
     private final List<DataSegment> segments;
