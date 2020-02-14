@@ -28,12 +28,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
 import io.druid.data.input.ReadConstants;
@@ -42,6 +39,8 @@ import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;
 import io.druid.initialization.Initialization;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DummyQuery;
 import io.druid.query.ForwardingSegmentWalker;
@@ -220,8 +219,21 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
     ).normalize();
   }
 
-  @SuppressWarnings("unchecked")
   public Pair<Query, Sequence> readFrom(ForwardingSegmentWalker walker) throws IOException
+  {
+    final ClassLoader prev = BrokerLoadSpec.class.getClassLoader();
+    final ClassLoader loader = Initialization.getClassLoaderForExtension(extension, prev);
+    Thread.currentThread().setContextClassLoader(loader);
+    try {
+      return read(walker);
+    }
+    finally {
+      Thread.currentThread().setContextClassLoader(prev);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private Pair<Query, Sequence> read(ForwardingSegmentWalker walker) throws IOException
   {
     final InputRowParser parser = getParser();
     final List<URI> locations = getURIs();
@@ -266,12 +278,8 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
     final Map<String, Object> loadContext = Maps.newHashMap(properties);
     loadContext.put(SKIP_FIRST_N, skipFirstN);
     loadContext.put(IGNORE_INVALID_ROWS, tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
+    loadContext.put(INPUT_FORMAT, inputFormat);
 
-    if (inputFormat != null && extension != null) {
-      loadContext.put(INPUT_FORMAT, loadClass(inputFormat, extension));
-    } else {
-      loadContext.put(INPUT_FORMAT, inputFormat);
-    }
     // progressing sequence
     try {
       final Sequence<Row> sequence = handler.read(locations, parser, loadContext);
@@ -279,25 +287,6 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
     }
     catch (InterruptedException e) {
       throw new IOException(e);
-    }
-  }
-
-  private Class loadClass(String className, String extension) throws IOException
-  {
-    ClassLoader prev = Thread.currentThread().getContextClassLoader();
-    ClassLoader loader = BrokerLoadSpec.class.getClassLoader();
-    if (extension != null) {
-      loader = Initialization.getClassLoaderForExtension(extension);
-    }
-    Thread.currentThread().setContextClassLoader(loader);
-    try {
-      return loader.loadClass(className);
-    }
-    catch (Exception ex) {
-      throw Throwables.propagate(ex);
-    }
-    finally {
-      Thread.currentThread().setContextClassLoader(prev);
     }
   }
 

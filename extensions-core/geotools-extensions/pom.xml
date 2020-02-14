@@ -50,6 +50,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>app.metatron</groupId>
+            <artifactId>druid-services</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>app.metatron.extensions</groupId>
             <artifactId>druid-lucene-extensions</artifactId>
             <version>${project.parent.version}</version>

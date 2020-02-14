@@ -21,10 +21,11 @@ package io.druid.segment.indexing;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.segment.IndexSpec;
+import io.druid.segment.incremental.BaseTuningConfig;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = BaseTuningConfig.class)
 public interface TuningConfig
 {
   IndexSpec getIndexSpec();

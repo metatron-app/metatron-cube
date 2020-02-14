@@ -208,7 +208,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
               }
             }.asArray();
 
-            LOG.info("Running streaming subquery with max pages [%d]", maxPages);
+            LOG.debug("Running streaming subquery with max pages [%d]", maxPages);
             return Sequences.map(
                 Sequences.once(iterator),
                 Functions.compose(

@@ -20,7 +20,6 @@
 package io.druid.query.select;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
@@ -100,8 +99,6 @@ public class StreamQueryEngine
       @Override
       public Sequence<Object[]> apply(final Cursor cursor)
       {
-        LOG.info("----------> %s", Lists.newArrayList(cursor.getColumnNames()));
-        LOG.info("----------> %s", query.getColumns());
         int index = 0;
         final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.length];
         for (String column : columns) {

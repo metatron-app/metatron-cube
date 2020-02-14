@@ -31,10 +31,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
 import com.google.inject.Inject;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
@@ -51,6 +47,10 @@ import io.druid.data.output.Formatters;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.hadoop.HadoopInputUtils;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryResult;
 import io.druid.query.StorageHandler;
 import io.druid.segment.BaseProgressIndicator;
@@ -119,6 +119,7 @@ public class HdfsStorageHandler implements StorageHandler
   public Sequence<Row> read(final List<URI> locations, final InputRowParser parser, final Map<String, Object> context)
       throws IOException, InterruptedException
   {
+    hadoopConfig.setClassLoader(Thread.currentThread().getContextClassLoader());
     final Object inputFormat = context.get(INPUT_FORMAT);
     final Class<?> inputFormatClass;
     if (inputFormat instanceof Class) {
@@ -168,7 +169,7 @@ public class HdfsStorageHandler implements StorageHandler
           final Path path = new Path(input);
           final FileSystem fileSystem = path.getFileSystem(hadoopConfig);
           final FSDataInputStream stream = fileSystem.open(path);
-          Iterator<Row> iterator;
+          final Iterator<Row> iterator;
           if (parser instanceof InputRowParser.Streaming && ((InputRowParser.Streaming) parser).accept(stream)) {
             iterator = ((InputRowParser.Streaming) parser).parseStream(stream);
           } else {
@@ -209,6 +210,7 @@ public class HdfsStorageHandler implements StorageHandler
       throws IOException
   {
     LOG.info("Result will be forwarded to [%s] with context %s", location, context);
+    hadoopConfig.setClassLoader(Thread.currentThread().getContextClassLoader());
     Path nominalPath = new Path(location);
     Path physicalPath = nominalPath;
     if (StorageHandler.FILE_SCHEME.equals(location.getScheme())) {

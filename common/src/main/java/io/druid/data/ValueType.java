@@ -29,6 +29,7 @@ import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
 import javax.annotation.Nullable;
+import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -334,7 +335,10 @@ public enum ValueType
     if (clazz == Boolean.TYPE || clazz == Boolean.class) {
       return BOOLEAN;
     }
-    if (clazz == Long.TYPE || clazz == Long.class) {
+    if (clazz == Byte.TYPE || clazz == Byte.class ||
+        clazz == Short.TYPE || clazz == Short.class ||
+        clazz == Integer.TYPE || clazz == Integer.class ||
+        clazz == Long.TYPE || clazz == Long.class) {
       return LONG;
     }
     if (clazz == Float.TYPE || clazz == Float.class) {
@@ -345,6 +349,9 @@ public enum ValueType
     }
     if (clazz == DateTime.class) {
       return DATETIME;
+    }
+    if (clazz == Timestamp.class) {
+      return LONG;
     }
     return COMPLEX;
   }

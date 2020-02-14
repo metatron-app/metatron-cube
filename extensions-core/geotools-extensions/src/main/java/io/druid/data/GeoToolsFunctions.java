@@ -170,7 +170,7 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
+      if (args.size() < 3) {
         throw new IAE("Function[%s] must have 3 arguments", name());
       }
       final String fromCRS = Evals.getConstantString(args.get(1));
@@ -204,7 +204,7 @@ public class GeoToolsFunctions implements Function.Library
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2) {
-        throw new IAE("Function[%s] must have at 3 arguments", name());
+        throw new IAE("Function[%s] must have at 2 arguments", name());
       }
       return new ShapeChild()
       {

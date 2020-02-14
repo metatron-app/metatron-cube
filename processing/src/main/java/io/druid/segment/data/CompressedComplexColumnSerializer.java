@@ -24,6 +24,7 @@ import com.google.common.primitives.Shorts;
 import io.druid.collections.IntList;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.java.util.common.ISE;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -90,6 +91,9 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   public void add(Object value) throws IOException
   {
     final byte[] bytes = strategy.toBytes(value);
+    if (bytes.length > CompressedPools.BUFFER_SIZE) {
+      throw new ISE("Cannot compress column value exceeding %d bytes", CompressedPools.BUFFER_SIZE);
+    }
 
     if (endBuffer.remaining() <= bytes.length) {
       endBuffer.flip();

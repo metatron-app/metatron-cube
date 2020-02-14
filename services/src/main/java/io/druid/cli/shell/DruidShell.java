@@ -39,6 +39,7 @@ import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
+import io.druid.initialization.Initialization;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.http.client.HttpClient;
@@ -109,6 +110,10 @@ public class DruidShell extends CommonShell.WithUtils
       return ClientResponse.unfinished(super.handleResponse(response).getObj());
     }
   };
+
+  private static final Map<String, String[]> KNOWN_TOOLS = ImmutableMap.of(
+      "shape.tools", new String[]{"druid-geotools-extensions", "io.druid.data.GeoToolsShell"}
+  );
 
   private final IndexerZkConfig zkPaths;
   private final CuratorFramework curator;
@@ -230,6 +235,7 @@ public class DruidShell extends CommonShell.WithUtils
         "help",
         "sql",
         "index",
+        "run",
         "quit",
         "exit"
     );
@@ -545,7 +551,36 @@ public class DruidShell extends CommonShell.WithUtils
       if (line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit")) {
         break;
       }
-      Cursor cursor = new Cursor(reader.getParser().parse(line, 0).words());
+      List<String> params = reader.getParser().parse(line, 0).words();
+      if (params.isEmpty()) {
+        continue;
+      }
+      if (params.get(0).equals("run")) {
+        String[] known = KNOWN_TOOLS.get(params.get(1));
+        if (known == null) {
+          continue;
+        }
+        final ClassLoader loader = Initialization.getClassLoaderForExtension(known[0]);
+        if (loader == null) {
+          LOG.info("Extension [%s] is not configured?..", known[0]);
+          continue;
+        }
+        ClassLoader prev = DruidShell.class.getClassLoader();
+        Thread.currentThread().setContextClassLoader(loader);
+        try {
+          CommonShell shell = (CommonShell) loader.loadClass(known[1]).newInstance();
+          shell.run(params.subList(2, params.size()));
+        }
+        catch (NoClassDefFoundError e) {
+          LOG.info(e, "Cannot find class.. %s", known[1]);
+          throw e;
+        }
+        finally {
+          Thread.currentThread().setContextClassLoader(prev);
+        }
+        continue;
+      }
+      Cursor cursor = new Cursor(params);
       try {
         handleCommand(coordinatorURL, overlordURL, brokerURLs, writer, cursor);
       }

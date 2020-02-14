@@ -88,6 +88,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 
@@ -96,7 +97,7 @@ import java.util.Set;
 public class Initialization
 {
   private static final Logger log = new Logger(Initialization.class);
-  private static final Map<String, URLClassLoader> loadersMap = Maps.newHashMap();
+  private static final Map<String, ClassLoader> loadersMap = Maps.newHashMap();
 
   private static final Map<Class, Set> extensionsMap = Maps.<Class, Set>newHashMap();
   private static final Set<String> failed = new ConcurrentHashSet<>();
@@ -127,7 +128,7 @@ public class Initialization
   /**
    * Used for testing only
    */
-  static Map<String, URLClassLoader> getLoadersMap()
+  static Map<String, ClassLoader> getLoadersMap()
   {
     return loadersMap;
   }
@@ -166,7 +167,7 @@ public class Initialization
     for (File extension : getExtensionFilesToLoad(config)) {
       log.debug("Loading extension [%s] for service type [%s]", extension.getName(), clazz.getName());
       try {
-        final URLClassLoader loader = getClassLoaderForExtension(config, extension);
+        final ClassLoader loader = getClassLoaderForExtension(config, extension);
         for (T module : ServiceLoader.load(clazz, loader)) {
           if (module.getClass().getClassLoader() != loader) {
             continue;
@@ -343,11 +344,11 @@ public class Initialization
    *
    * @throws MalformedURLException
    */
-  public static URLClassLoader getClassLoaderForExtension(ExtensionsConfig config, File extension)
+  public static ClassLoader getClassLoaderForExtension(ExtensionsConfig config, File extension)
       throws MalformedURLException
   {
     String extensionName = extension.getName();
-    URLClassLoader loader = getClassLoaderForExtension(extensionName);
+    ClassLoader loader = getClassLoaderForExtension(extensionName);
     if (loader == null) {
       ClassLoader parent;
       if (HADOOP_DEPENDENT.contains(extensionName)) {
@@ -378,15 +379,20 @@ public class Initialization
     return urls.toArray(new URL[0]);
   }
 
-  public static URLClassLoader getClassLoaderForExtension(String extensionName)
+  public static ClassLoader getClassLoaderForExtension(String extensionName, ClassLoader defaultLoader)
   {
-    return loadersMap.get(extensionName);
+    return Optional.ofNullable(getClassLoaderForExtension(extensionName)).orElse(defaultLoader);
+  }
+
+  public static ClassLoader getClassLoaderForExtension(String extensionName)
+  {
+    return extensionName == null ? null : loadersMap.get(extensionName);
   }
 
   private static ClassLoader getHadoopLoader(ExtensionsConfig config) throws MalformedURLException
   {
     ClassLoader parent = Initialization.class.getClassLoader();
-    URLClassLoader hadoop = getClassLoaderForExtension(INTERNAL_HADOOP_CLIENT);
+    ClassLoader hadoop = getClassLoaderForExtension(INTERNAL_HADOOP_CLIENT);
     if (hadoop == null) {
       hadoop = new URLClassLoader(toURLs(getHadoopDependencyFilesToLoad(config), false), parent);
       loadersMap.put(INTERNAL_HADOOP_CLIENT, hadoop);

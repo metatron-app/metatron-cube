@@ -99,8 +99,11 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
     return splits;
   }
 
-  private FileStatus findFile(FileStatus[] files, String postFix)
+  public static FileStatus findFile(FileStatus[] files, String postFix)
   {
+    if (files == null) {
+      return null;
+    }
     for (FileStatus status : files) {
       if (status.getPath().getName().endsWith(postFix)) {
         return status;
@@ -169,10 +172,11 @@ public class ShapeFileInputFormat extends InputFormat<Void, Map<String, Object>>
       fieldTypes[i] = header.getFieldClass(i).getSimpleName();
     }
     final int numRecords = header.getNumRecords();
-    final MathTransform transform = makeTransformer(writer.toString());
     LOG.info("Field Names %s", Arrays.toString(fieldNames));
     LOG.info("Field Types %s", Arrays.toString(fieldTypes));
     LOG.info("Num Records %,d", numRecords);
+
+    final MathTransform transform = makeTransformer(writer.toString());
 
     return new RecordReader<Void, Map<String, Object>>()
     {

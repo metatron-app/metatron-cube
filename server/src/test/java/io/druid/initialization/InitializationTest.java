@@ -28,11 +28,11 @@ import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import io.druid.java.util.common.ISE;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Self;
+import io.druid.java.util.common.ISE;
 import io.druid.server.DruidNode;
 import org.junit.Assert;
 import org.junit.FixMethodOrder;
@@ -113,7 +113,7 @@ public class InitializationTest
   @Test
   public void test04DuplicateClassLoaderExtensions() throws Exception
   {
-    Initialization.getLoadersMap().put("xyz", (URLClassLoader) Initialization.class.getClassLoader());
+    Initialization.getLoadersMap().put("xyz", Initialization.class.getClassLoader());
 
     Collection<DruidModule> modules = Initialization.getFromExtensions(new ExtensionsConfig(), DruidModule.class);
 
@@ -157,11 +157,11 @@ public class InitializationTest
     a_jar.createNewFile();
     b_jar.createNewFile();
     c_jar.createNewFile();
-    final URLClassLoader loader = Initialization.getClassLoaderForExtension(null, some_extension_dir);
+    final ClassLoader loader = Initialization.getClassLoaderForExtension(null, some_extension_dir);
     final URL[] expectedURLs = new URL[]{
         a_jar.toURI().toURL(), b_jar.toURI().toURL(), c_jar.toURI().toURL(), some_extension_dir.toURI().toURL()
     };
-    final URL[] actualURLs = loader.getURLs();
+    final URL[] actualURLs = ((URLClassLoader) loader).getURLs();
     Assert.assertArrayEquals(expectedURLs, actualURLs);
   }
 

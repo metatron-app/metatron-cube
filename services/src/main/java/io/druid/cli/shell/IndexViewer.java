@@ -121,6 +121,7 @@ public class IndexViewer extends CommonShell.WithUtils
     this.jsonMapper = indexIO.getObjectMapper();
   }
 
+  @Override
   public void run(List<String> arguments) throws Exception
   {
     String prompt = DEFAULT_PROMPT;
