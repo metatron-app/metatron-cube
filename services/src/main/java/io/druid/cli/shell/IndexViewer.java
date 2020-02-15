@@ -63,11 +63,9 @@ import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
 import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
-import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.ParsedLine;
-import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
@@ -312,30 +310,6 @@ public class IndexViewer extends CommonShell.WithUtils
         continue;
       }
       writer.println("Cannot find the segment or even datasource of it");
-    }
-  }
-
-  private String readLine(LineReader reader, String prompt)
-  {
-    while (true) {
-      String line = null;
-      try {
-        line = reader.readLine(prompt);
-      }
-      catch (UserInterruptException e) {
-        // Ignore
-      }
-      catch (EndOfFileException e) {
-        return null;
-      }
-      if (line == null) {
-        continue;
-      }
-      line = line.trim();
-      if (line.isEmpty()) {
-        continue;
-      }
-      return line;
     }
   }
 

@@ -30,6 +30,9 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceInstance;
+import org.jline.reader.EndOfFileException;
+import org.jline.reader.LineReader;
+import org.jline.reader.UserInterruptException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -133,6 +136,30 @@ public interface CommonShell
               }
           )
       );
+    }
+
+    protected String readLine(LineReader reader, String prompt)
+    {
+      while (true) {
+        String line = null;
+        try {
+          line = reader.readLine(prompt);
+        }
+        catch (UserInterruptException e) {
+          // Ignore
+        }
+        catch (EndOfFileException e) {
+          return null;
+        }
+        if (line == null) {
+          continue;
+        }
+        line = line.trim();
+        if (line.isEmpty()) {
+          continue;
+        }
+        return line;
+      }
     }
   }
 }

@@ -65,12 +65,10 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
-import org.jline.reader.EndOfFileException;
 import org.jline.reader.History;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.ParsedLine;
-import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.reader.impl.completer.AggregateCompleter;
 import org.jline.reader.impl.history.DefaultHistory;
@@ -112,6 +110,7 @@ public class DruidShell extends CommonShell.WithUtils
   };
 
   private static final Map<String, String[]> KNOWN_TOOLS = ImmutableMap.of(
+      "expr.repl", new String[]{null, "io.druid.cli.shell.ExprRepl"},
       "shape.tools", new String[]{"druid-geotools-extensions", "io.druid.data.GeoToolsShell"}
   );
 
@@ -560,12 +559,12 @@ public class DruidShell extends CommonShell.WithUtils
         if (known == null) {
           continue;
         }
-        final ClassLoader loader = Initialization.getClassLoaderForExtension(known[0]);
+        final ClassLoader prev = DruidShell.class.getClassLoader();
+        final ClassLoader loader = known[0] == null ? prev : Initialization.getClassLoaderForExtension(known[0]);
         if (loader == null) {
           LOG.info("Extension [%s] is not configured?..", known[0]);
           continue;
         }
-        ClassLoader prev = DruidShell.class.getClassLoader();
         Thread.currentThread().setContextClassLoader(loader);
         try {
           CommonShell shell = (CommonShell) loader.loadClass(known[1]).newInstance();
@@ -591,29 +590,6 @@ public class DruidShell extends CommonShell.WithUtils
         LOG.info(e, "Failed..");
       }
       writer.flush();
-    }
-  }
-
-  private String readLine(LineReader reader, String prompt)
-  {
-    while (true) {
-      String line = null;
-      try {
-        line = reader.readLine(prompt);
-      }
-      catch (UserInterruptException e) {
-        // Ignore
-      }
-      catch (EndOfFileException e) {
-        return null;
-      }
-      if (line == null) {
-        continue;
-      }
-      line = line.trim();
-      if (!line.isEmpty()) {
-        return line;
-      }
     }
   }
 
