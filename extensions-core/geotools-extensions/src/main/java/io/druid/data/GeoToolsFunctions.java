@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.google.common.base.Throwables;
 import com.google.common.primitives.Longs;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Evals;
@@ -29,9 +30,13 @@ import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
 import io.druid.query.GeomUtils;
+import net.sf.geographiclib.Geodesic;
+import net.sf.geographiclib.GeodesicMask;
+import net.sf.geographiclib.PolygonArea;
 import org.geotools.geometry.DirectPosition2D;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.operation.buffer.BufferParameters;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -170,11 +175,18 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 3) {
-        throw new IAE("Function[%s] must have 3 arguments", name());
+      final int fromCRS;
+      if (args.size() == 2) {
+        fromCRS = GeomUtils.getSRID(args.get(0).returns());
+      } else if (args.size() == 3) {
+        fromCRS = Evals.getConstantInt(args.get(1));
+      } else {
+        throw new IAE("Function[%s] must have 2 or 3 arguments", name());
       }
-      final String fromCRS = Evals.getConstantString(args.get(1));
-      final String toCRS = Evals.getConstantString(args.get(2));
+      if (fromCRS <= 0) {
+        throw new IAE("Function[%s] cannot resolve srid from geometry", name());
+      }
+      final int toCRS = Evals.getConstantInt(GuavaUtils.lastOf(args));
       final MathTransform transform = GeoToolsUtils.getTransform(fromCRS, toCRS);
 
       return new GeomChild()
@@ -187,7 +199,9 @@ public class GeoToolsFunctions implements Function.Library
             return null;
           }
           try {
-            return JTS.transform(geometry, transform);
+            Geometry transformed = JTS.transform(geometry, transform);
+            transformed.setSRID(toCRS);
+            return transformed;
           }
           catch (Exception e) {
             throw Throwables.propagate(e);
@@ -206,17 +220,97 @@ public class GeoToolsFunctions implements Function.Library
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have at 2 arguments", name());
       }
+      final double fit = Evals.getConstantNumber(args.get(1)).doubleValue();
       return new GeomChild()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = GeoToolsUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          Geometry geometry = GeoToolsUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return null;
           }
-          final double fit = Evals.evalDouble(args.get(1), bindings);
-          return JTS.smooth(geometry, fit);
+          Geometry smooth = JTS.smooth(geometry, fit);
+          smooth.setSRID(geometry.getSRID());
+          return smooth;
+        }
+      };
+    }
+  }
+
+  @Function.Named("geo_length")
+  public static class GeoLength extends NamedFactory.DoubleType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      final Geodesic fixed = GeoToolsUtils.getGeodesic(GeomUtils.getSRID(args.get(0).returns()));
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(-1D);
+          }
+          final Geodesic geod = fixed != null ? fixed : GeoToolsUtils.getGeodesic(geometry.getSRID());
+          if (geod == null) {
+            throw new IAE("Cannot resolve geodesic for %s", geometry.getSRID());
+          }
+          final Coordinate[] coordinates = geometry.getCoordinates();
+          if (coordinates.length < 2) {
+            return ExprEval.of(0D);
+          }
+          final int caps = GeodesicMask.DISTANCE_IN | GeodesicMask.LATITUDE | GeodesicMask.LONGITUDE;
+          double x = coordinates[0].x;
+          double y = coordinates[0].y;
+          double d = 0;
+          for (int i = 1; i < coordinates.length; i++) {
+            Coordinate coordinate = coordinates[i];
+            d += geod.InverseLine(y, x, coordinate.y, coordinate.x, caps).Distance();
+            x = coordinate.x;
+            y = coordinate.y;
+          }
+          return ExprEval.of(d);
+        }
+      };
+    }
+  }
+
+  @Function.Named("geo_area")
+  public static class GeoArea extends NamedFactory.DoubleType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      final Geodesic fixed = GeoToolsUtils.getGeodesic(GeomUtils.getSRID(args.get(0).returns()));
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry == null) {
+            return ExprEval.of(-1D);
+          }
+          final Geodesic geod = fixed != null ? fixed : GeoToolsUtils.getGeodesic(geometry.getSRID());
+          if (geod == null) {
+            throw new IAE("Cannot resolve geodesic for %s", geometry.getSRID());
+          }
+          // todo handle holes
+          final PolygonArea area = new PolygonArea(geod, false);
+          final Coordinate[] coordinates = geometry.getCoordinates();
+          for (Coordinate coordinate : coordinates) {
+            area.AddPoint(coordinate.y, coordinate.x);
+          }
+          return ExprEval.of(Math.abs(area.Compute().area));
         }
       };
     }

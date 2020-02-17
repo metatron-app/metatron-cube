@@ -70,7 +70,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     final ValueDesc type = selector.type();
-    if (ValueDesc.SHAPE.equals(type) || ValueDesc.GEOMETRY.equals(type)) {
+    if (ValueDesc.isShape(type) || ValueDesc.isGeom(type)) {
       return new Aggregator.Abstract<Envelope>()
       {
         @Override
@@ -107,7 +107,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     final ValueDesc type = selector.type();
-    if (ValueDesc.SHAPE.equals(type) || ValueDesc.GEOMETRY.equals(type)) {
+    if (ValueDesc.isShape(type) || ValueDesc.isGeom(type)) {
       return new BufferAggregator.Abstract()
       {
         @Override

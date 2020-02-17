@@ -22,11 +22,17 @@ package io.druid.data;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import org.locationtech.jts.geom.Geometry;
 import io.druid.query.GeomUtils;
+import net.sf.geographiclib.Geodesic;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
+import org.geotools.referencing.cs.DefaultEllipsoidalCS;
+import org.geotools.referencing.datum.DefaultEllipsoid;
+import org.locationtech.jts.geom.Geometry;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.crs.GeodeticCRS;
+import org.opengis.referencing.cs.CoordinateSystem;
+import org.opengis.referencing.datum.Ellipsoid;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
 
@@ -91,6 +97,11 @@ public class GeoToolsUtils extends GeomUtils
     }
   }
 
+  static CoordinateReferenceSystem getCRS(int srid)
+  {
+    return getCRS(String.format("EPSG:%d", srid));
+  }
+
   static CoordinateReferenceSystem getCRS(String name)
   {
     return CRSS.computeIfAbsent(name, new Function<String, CoordinateReferenceSystem>()
@@ -108,7 +119,29 @@ public class GeoToolsUtils extends GeomUtils
     });
   }
 
-  static MathTransform getTransform(String fromCRS, String toCRS)
+  static Geodesic getGeodesic(int srid)
+  {
+    if (srid <= 0) {
+      return null;
+    }
+    CoordinateSystem coordinate = getCRS(srid).getCoordinateSystem();
+    if (coordinate == null) {
+      return null;
+    }
+    if (coordinate instanceof DefaultEllipsoidalCS) {
+      return Geodesic.WGS84;
+    }
+    if (coordinate instanceof GeodeticCRS) {
+      Ellipsoid ellipsoid = ((GeodeticCRS) coordinate).getDatum().getEllipsoid();
+      if (DefaultEllipsoid.WGS84.equals(ellipsoid)) {
+        return Geodesic.WGS84;
+      }
+      return new Geodesic(ellipsoid.getSemiMajorAxis(), 1D / ellipsoid.getInverseFlattening());
+    }
+    return null;
+  }
+
+  static MathTransform getTransform(int fromCRS, int toCRS)
   {
     final CoordinateReferenceSystem sourceCRS = getCRS(fromCRS);
     final CoordinateReferenceSystem targetCRS = getCRS(toCRS);

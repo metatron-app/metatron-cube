@@ -60,14 +60,39 @@ public class GeoToolsFunctionsTest
     // meter
     Assert.assertEquals(
         723.8190929240968,
-        evalDouble("geom_length(geom_transform(geom_fromWKT('%s'), 'EPSG:4326', 'EPSG:3857'))", 서초대로64),
+        evalDouble("geom_length(geom_transform(geom_fromWKT('%s'), 4326, 3857))", 서초대로64),
         0.00001
     );
     Assert.assertEquals(
         279.8709702117309,
-        evalDouble("geom_length(geom_transform(geom_fromWKT('%s'), 'EPSG:4326', 'EPSG:3857'))", 사임당로23),
+        evalDouble("geom_length(geom_transform(geom_fromWKT('%s'), 4326, 3857))", 사임당로23),
         0.00001
     );
+
+    // geo-length (meter)
+    Assert.assertEquals(572.7960789173679, evalDouble("geo_length(geom_fromWKT('%s', 4326))", 서초대로64), 0.00001);
+    Assert.assertEquals(221.5000950858483, evalDouble("geo_length(geom_fromWKT('%s', 4326))", 사임당로23), 0.00001);
+  }
+
+  @Test
+  public void testArea()
+  {
+    String 서초대로_box = String.format("geom_bbox(geom_fromWKT('%s', 4326))", 서초대로64);
+    String 사임당로_box = String.format("geom_bbox(geom_fromWKT('%s', 4326))", 사임당로23);
+
+    // radian
+    Assert.assertEquals(9.517031999977973E-6, evalDouble("geom_area(%s)", 서초대로_box), 0.00000001);
+    Assert.assertEquals(1.5743970000116268E-6, evalDouble("geom_area(%s)", 사임당로_box), 0.00000001);
+
+    // meter
+    Assert.assertEquals(148640.5999259968, evalDouble("geom_area(geom_transform(%s, 4326, 3857))", 서초대로_box), 0.00001);
+    Assert.assertEquals(24589.27126645974, evalDouble("geom_area(geom_transform(%s, 4326, 3857))", 사임당로_box), 0.00001);
+    Assert.assertEquals(93338.72460017737, evalDouble("geom_area(geom_transform(%s, 5179))", 서초대로_box), 0.00001);
+    Assert.assertEquals(15441.12946147171, evalDouble("geom_area(geom_transform(%s, 5179))", 사임당로_box), 0.00001);
+
+    // geo-length (meter)
+    Assert.assertEquals(93409.31993067265, evalDouble("geo_area(%s)", 서초대로_box), 0.00001);
+    Assert.assertEquals(15452.80673867464, evalDouble("geo_area(%s)", 사임당로_box), 0.00001);
   }
 
   @Test

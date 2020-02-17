@@ -237,25 +237,14 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   @Override
   protected RelDataType deriveRowType()
   {
-    if (flip) {
-      return SqlValidatorUtil.deriveJoinRowType(
-          boundary.getRowType(),
-          query.getRowType(),
-          JoinRelType.INNER,
-          getCluster().getTypeFactory(),
-          null,
-          ImmutableList.of()
-      );
-    } else {
-      return SqlValidatorUtil.deriveJoinRowType(
-          query.getRowType(),
-          boundary.getRowType(),
-          JoinRelType.INNER,
-          getCluster().getTypeFactory(),
-          null,
-          ImmutableList.of()
-      );
-    }
+    return SqlValidatorUtil.deriveJoinRowType(
+        flip ? boundary.getRowType() : query.getRowType(),
+        flip ? query.getRowType() : boundary.getRowType(),
+        JoinRelType.INNER,
+        getCluster().getTypeFactory(),
+        null,
+        ImmutableList.of()
+    );
   }
 
   @Override
@@ -300,7 +289,10 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   {
     return super.explainTerms(pw)
                 .input("query", query)
-                .input("boundary", boundary);
+                .input("boundary", boundary)
+                .item("queryIx", queryIx)
+                .item("boundaryIx", boundaryIx)
+                .item("flip", flip);
   }
 
   @Override

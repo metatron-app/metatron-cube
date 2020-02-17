@@ -29,6 +29,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import org.locationtech.jts.algorithm.match.HausdorffSimilarityMeasure;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -111,19 +112,28 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
+      if (args.size() != 1 && args.size() != 2) {
+        throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
+      final int srid = args.size() > 1 ? Evals.getConstantInt(args.get(1)) : 0;
       return new GeomChild()
       {
         private final ShapeReader reader = newReader();
 
         @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.ofGeom(srid);
+        }
+
+        @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return GeomUtils.toGeometry(
+          Geometry geometry = GeomUtils.toGeometry(
               reader.readIfSupported(Evals.evalString(args.get(0), bindings))
           );
+          geometry.setSRID(srid);
+          return geometry;
         }
       };
     }
@@ -213,13 +223,27 @@ public class GeomFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
+      final int srid = args.size() > 1 ? Evals.getConstantInt(args.get(1)) : GeomUtils.getSRID(args.get(0).returns());
       return new GeomChild()
       {
+        @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.ofGeom(srid);
+        }
+
         @Override
         protected Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          return geometry == null ? null : op(geometry);
+          if (geometry == null) {
+            return null;
+          }
+          final Geometry converted = op(geometry);
+          if (converted != null) {
+            converted.setSRID(geometry.getSRID());
+          }
+          return converted;
         }
       };
     }
@@ -248,6 +272,37 @@ public class GeomFunctions implements Function.Library
     }
 
     protected abstract Geometry op(Geometry geom1, Geometry geom2);
+  }
+
+  @Function.Named("geom_srid")
+  public static class SRID extends GeomUtils.GeomFuncFactory
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 2) {
+        throw new IAE("Function[%s] must have 2 arguments", name());
+      }
+      final int srid = Evals.getConstantInt(args.get(1));
+      return new GeomChild()
+      {
+        @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.ofGeom(srid);
+        }
+
+        @Override
+        protected Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          if (geometry != null) {
+            geometry.setSRID(srid);
+          }
+          return geometry;
+        }
+      };
+    }
   }
 
   @Function.Named("geom_bbox")
@@ -337,6 +392,31 @@ public class GeomFunctions implements Function.Library
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           return ExprEval.of(geometry == null ? -1D : geometry.getLength());
+        }
+      };
+    }
+  }
+
+  @Function.Named("geom_hausdorff_similarity")
+  public static class HausdorffSimilarity extends NamedFactory.DoubleType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 2) {
+        throw new IAE("Function[%s] must have 2 arguments", name());
+      }
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
+          if (geom1 == null || geom2 == null) {
+            return ExprEval.of(null, ValueDesc.DOUBLE);
+          }
+          return ExprEval.of(new HausdorffSimilarityMeasure().measure(geom1, geom2));
         }
       };
     }

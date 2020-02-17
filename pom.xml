@@ -69,6 +69,11 @@
             <name>Central Repository</name>
             <url>http://repo.maven.apache.org/maven2</url>
         </repository>
+        <repository>
+            <id>central-2</id>
+            <name>Central Repository</name>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
     </repositories>
 
     <scm>

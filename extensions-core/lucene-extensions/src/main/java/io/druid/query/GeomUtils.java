@@ -37,10 +37,12 @@ import org.locationtech.spatial4j.shape.jts.JtsShapeFactory;
 
 import java.text.ParseException;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GeomUtils
 {
-  public static final ValueDesc GEOM_TYPE = ValueDesc.of("GEOMETRY", Geometry.class);
+  public static final ValueDesc GEOM_TYPE = ValueDesc.of(ValueDesc.GEOMETRY.typeName(), Geometry.class);
   public static final JtsShapeFactory SHAPE_FACTORY = JtsSpatialContext.GEO.getShapeFactory();
 
   // srid 0
@@ -120,9 +122,9 @@ public class GeomUtils
   {
     if (eval.isNull()) {
       return null;
-    } else if (ValueDesc.GEOMETRY.equals(eval.type())) {
+    } else if (ValueDesc.isGeom(eval.type())) {
       return (Geometry) eval.value();
-    } else if (ValueDesc.SHAPE.equals(eval.type())) {
+    } else if (ValueDesc.isShape(eval.type())) {
       return SHAPE_FACTORY.getGeometryFrom((Shape) eval.value());
     }
     return null;
@@ -146,6 +148,17 @@ public class GeomUtils
       return SHAPE_FACTORY.makeShape(geometry, false, SHAPE_FACTORY.isAllowMultiOverlap());
     }
     return SHAPE_FACTORY.makeShape(geometry);
+  }
+
+  private static final Pattern PATTERN = Pattern.compile("geometry\\((\\d+)\\)");
+
+  public static int getSRID(ValueDesc type)
+  {
+    final Matcher matcher = PATTERN.matcher(type.typeName());
+    if (matcher.matches()) {
+      return Integer.valueOf(matcher.group(1));
+    }
+    return -1;
   }
 
   public static String fromString(ShapeFormat shapeFormat, String shapeString)

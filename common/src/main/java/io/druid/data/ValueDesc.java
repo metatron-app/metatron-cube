@@ -116,10 +116,10 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
   public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
 
-  public static ValueDesc SHAPE = new ValueDesc("SHAPE");
-  public static ValueDesc GEOMETRY = new ValueDesc("GEOMETRY");
-  public static ValueDesc OGC_GEOMETRY = new ValueDesc("OGC_GEOMETRY");
-  public static ValueDesc INTERVAL = new ValueDesc("INTERVAL", Interval.class);
+  public static ValueDesc SHAPE = new ValueDesc("shape");
+  public static ValueDesc GEOMETRY = new ValueDesc("geometry");
+  public static ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
+  public static ValueDesc INTERVAL = new ValueDesc("interval", Interval.class);
 
   public static ValueDesc ofArray(ValueDesc valueType)
   {
@@ -141,14 +141,24 @@ public class ValueDesc implements Serializable, Cacheable
     return ValueDesc.of(ARRAY_PREFIX + typeName);
   }
 
+  public static ValueDesc ofDecimal(BigDecimal decimal)
+  {
+    return ValueDesc.of(String.format("%s(%d,%d)", DECIMAL_TYPE, decimal.precision(), decimal.scale()));
+  }
+
   public static ValueDesc ofList(String element)
   {
-    return ValueDesc.of(LIST_TYPE + "(" + element + ")");
+    return ValueDesc.of(String.format("%s(%s)", LIST_TYPE, element));
   }
 
   public static ValueDesc ofStruct(String elements)
   {
-    return of(STRUCT_TYPE + "(" + elements + ")");
+    return of(String.format("%s(%s)", STRUCT_TYPE, elements));
+  }
+
+  public static ValueDesc ofGeom(int srid)
+  {
+    return srid > 0 ? of(String.format("%s(%d)", GEOMETRY.typeName, srid)) : GEOMETRY;
   }
 
   public static ValueDesc ofStruct(String[] names, ValueDesc[] types)
@@ -172,11 +182,6 @@ public class ValueDesc implements Serializable, Cacheable
     return of(DIMENSION_PREFIX + valueType.getName());
   }
 
-  public static ValueDesc ofDecimal(BigDecimal decimal)
-  {
-    return ValueDesc.of(DECIMAL_TYPE + "(" + decimal.precision() + "," + decimal.scale() + ")");
-  }
-
   public static ValueDesc ofMultiValued(ValueType valueType)
   {
     return ValueDesc.of(MULTIVALUED_PREFIX + valueType.getName());
@@ -190,6 +195,16 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc ofIndexedId(ValueType valueType)
   {
     return ValueDesc.of(INDEXED_ID_PREFIX + valueType.getName());
+  }
+
+  public static boolean isShape(ValueDesc valueType)
+  {
+    return isPrefixed(valueType.typeName, SHAPE.typeName);
+  }
+
+  public static boolean isGeom(ValueDesc valueType)
+  {
+    return isPrefixed(valueType.typeName, GEOMETRY.typeName);
   }
 
   public static boolean isArray(ValueDesc valueType)
