@@ -40,9 +40,9 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
   final StreamQuery boundary = new Druids.SelectQueryBuilder()
       .dataSource("seoul_roads")
       .virtualColumns(
-          new ExprVirtualColumn("shape_fromWKT(geom)", "shape"),
-          new ExprVirtualColumn("shape_toWKT(shape_buffer(shape, 100, endCapStyle=2))", "geom_buf"),
-          new ExprVirtualColumn("shape_length(shape)", "length")
+          new ExprVirtualColumn("geom_fromWKT(geom)", "shape"),
+          new ExprVirtualColumn("geom_toWKT(geom_buffer(shape, 100, endCapStyle=2))", "geom_buf"),
+          new ExprVirtualColumn("geom_length(shape)", "length")
       )
       .columns("geom_buf", "name", "length")
       .streaming();

@@ -25,8 +25,8 @@ import com.google.common.collect.Iterables;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
-import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.query.filter.LuceneShapeFilter;
+import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ExprVirtualColumn;
@@ -44,7 +44,7 @@ import java.util.Map;
 public class TestShapeQuery extends QueryRunnerTestHelper
 {
   static {
-    Parser.register(ShapeFunctions.class);
+    Parser.register(GeomFunctions.class);
 
     ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerSubtypes(ShapeIndexingStrategy.class);
@@ -178,7 +178,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .columns("point", "gis.addr")
-        .virtualColumns(new ExprVirtualColumn("shape_toWKT(shape_fromLatLon(gis.lat, gis.lon))", "point"))
+        .virtualColumns(new ExprVirtualColumn("geom_toWKT(geom_fromLatLon(gis.lat, gis.lon))", "point"))
         .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", "__time"));
 
     List<Map<String, Object>> expected = createExpectedMaps(

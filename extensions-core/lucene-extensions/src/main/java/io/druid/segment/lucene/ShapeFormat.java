@@ -21,7 +21,7 @@ package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import io.druid.query.ShapeUtils;
+import io.druid.query.GeomUtils;
 import org.apache.lucene.geo.Polygon;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -64,7 +64,7 @@ public enum ShapeFormat
     @Override
     public ShapeReader newReader(SpatialContext context)
     {
-      return ShapeUtils.newWKTReader(context);
+      return GeomUtils.newWKTReader(context);
     }
 
     @Override
@@ -167,7 +167,7 @@ public enum ShapeFormat
       return Polygon.fromGeoJSON(shapeString);
     }
     final Shape shape = WKT.newReader(context).read(shapeString);
-    final Geometry geometry = ShapeUtils.toGeometry(shape);
+    final Geometry geometry = GeomUtils.toGeometry(shape);
     if (geometry != null) {
       if (geometry instanceof org.locationtech.jts.geom.Polygon) {
         return new Polygon[]{toLucenePolygon((org.locationtech.jts.geom.Polygon) geometry)};

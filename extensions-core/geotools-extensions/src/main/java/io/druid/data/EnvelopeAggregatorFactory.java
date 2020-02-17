@@ -33,7 +33,6 @@ import io.druid.segment.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.spatial4j.shape.Shape;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -71,13 +70,13 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     final ValueDesc type = selector.type();
-    if (ValueDesc.SHAPE.equals(type)) {
+    if (ValueDesc.SHAPE.equals(type) || ValueDesc.GEOMETRY.equals(type)) {
       return new Aggregator.Abstract<Envelope>()
       {
         @Override
         public Envelope aggregate(Envelope envelope)
         {
-          final Geometry geometry = GeoToolsUtils.toGeometry((Shape) selector.get());
+          final Geometry geometry = GeoToolsUtils.toGeometry(selector.get());
           if (geometry != null) {
             if (envelope == null) {
               envelope = new Envelope();
@@ -108,7 +107,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     final ValueDesc type = selector.type();
-    if (ValueDesc.SHAPE.equals(type)) {
+    if (ValueDesc.SHAPE.equals(type) || ValueDesc.GEOMETRY.equals(type)) {
       return new BufferAggregator.Abstract()
       {
         @Override
@@ -121,7 +120,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         @Override
         public void aggregate(ByteBuffer buf, int position)
         {
-          final Geometry geometry = GeoToolsUtils.toGeometry((Shape) selector.get());
+          final Geometry geometry = GeoToolsUtils.toGeometry(selector.get());
           if (geometry == null) {
             return;
           }

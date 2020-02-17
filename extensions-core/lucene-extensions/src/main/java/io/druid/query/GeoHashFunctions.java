@@ -77,7 +77,7 @@ public class GeoHashFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.LONG);
           }
@@ -149,7 +149,7 @@ public class GeoHashFunctions implements Function.Library
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           Point point = GeohashUtils.decode(Evals.evalString(args.get(0), bindings), JtsSpatialContext.GEO);
-          return ExprEval.of("POINT(" + point.getX() + " " + point.getY() + ")");
+          return ExprEval.of(String.format("POINT(%s %s)", point.getX(), point.getY()));
         }
       };
     }
@@ -210,13 +210,15 @@ public class GeoHashFunctions implements Function.Library
               Evals.evalString(args.get(0), bindings),
               JtsSpatialContext.GEO
           );
-          return ExprEval.of("POLYGON((" +
-              boundary.getMinX() + ' ' + boundary.getMinY() + ", " +
-              boundary.getMinX() + ' ' + boundary.getMaxY() + ", " +
-              boundary.getMaxX() + ' ' + boundary.getMaxY() + ", " +
-              boundary.getMaxX() + ' ' + boundary.getMinY() + ", " +
-              boundary.getMinX() + ' ' + boundary.getMinY() + "))"
+          String polygon = String.format(
+              "POLYGON((%s %s, %s %s, %s %s, %s %s, %s %s))",
+              boundary.getMinX(), boundary.getMinY(),
+              boundary.getMinX(), boundary.getMaxY(),
+              boundary.getMaxX(), boundary.getMaxY(),
+              boundary.getMaxX(), boundary.getMinY(),
+              boundary.getMinX(), boundary.getMinY()
           );
+          return ExprEval.of(polygon);
         }
       };
     }

@@ -31,7 +31,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ParsingFail;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.query.ShapeUtils;
+import io.druid.query.GeomUtils;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 import org.apache.lucene.document.Field;
@@ -61,7 +61,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       boolean validate(Shape shape)
       {
         if (shape instanceof JtsGeometry) {
-          Geometry geometry = ShapeUtils.toGeometry(shape);
+          Geometry geometry = GeomUtils.toGeometry(shape);
           return geometry instanceof org.locationtech.jts.geom.Point ||
                  geometry instanceof org.locationtech.jts.geom.MultiPoint;
         }
@@ -72,7 +72,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       @Override
       boolean validate(Shape shape)
       {
-        Geometry geometry = ShapeUtils.toGeometry(shape);
+        Geometry geometry = GeomUtils.toGeometry(shape);
         return geometry instanceof org.locationtech.jts.geom.LineString ||
                geometry instanceof org.locationtech.jts.geom.MultiLineString;
       }
@@ -81,7 +81,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
       @Override
       boolean validate(Shape shape)
       {
-        Geometry geometry = ShapeUtils.toGeometry(shape);
+        Geometry geometry = GeomUtils.toGeometry(shape);
         return geometry instanceof org.locationtech.jts.geom.Polygon ||
                geometry instanceof org.locationtech.jts.geom.MultiPolygon;
       }

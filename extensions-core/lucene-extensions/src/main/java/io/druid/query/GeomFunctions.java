@@ -38,17 +38,15 @@ import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.ShapeWriter;
 import org.locationtech.spatial4j.io.jts.JtsGeoJSONWriter;
 import org.locationtech.spatial4j.io.jts.JtsWKTWriter;
-import org.locationtech.spatial4j.shape.Rectangle;
-import org.locationtech.spatial4j.shape.Shape;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.List;
 
-public class ShapeFunctions implements Function.Library
+public class GeomFunctions implements Function.Library
 {
-  @Function.Named("shape_fromLatLon")
-  public static class FromLatLon extends ShapeUtils.ShapeFuncFactory
+  @Function.Named("geom_fromLatLon")
+  public static class FromLatLon extends GeomUtils.GeomFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -56,10 +54,10 @@ public class ShapeFunctions implements Function.Library
       if (args.size() != 1 && args.size() != 2) {
         throw new IAE("Function[%s] must have 1 or 2 arguments", name());
       }
-      return new ShapeChild()
+      return new GeomChild()
       {
         @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           double first;
           double second;
@@ -92,23 +90,23 @@ public class ShapeFunctions implements Function.Library
       };
     }
 
-    protected Shape makeJtsGeometry(double latitude, double longitude)
+    protected Geometry makeJtsGeometry(double latitude, double longitude)
     {
-      return ShapeUtils.SHAPE_FACTORY.pointXY(longitude, latitude);
+      return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(longitude, latitude));
     }
   }
 
-  @Function.Named("shape_fromLonLat")
+  @Function.Named("geom_fromLonLat")
   public static class FromLonLat extends FromLatLon
   {
     @Override
-    protected Shape makeJtsGeometry(double longitude, double latitude)
+    protected Geometry makeJtsGeometry(double longitude, double latitude)
     {
-      return ShapeUtils.SHAPE_FACTORY.pointXY(longitude, latitude);
+      return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(longitude, latitude));
     }
   }
 
-  public static abstract class ShapeFrom extends ShapeUtils.ShapeFuncFactory
+  public static abstract class GeomFrom extends GeomUtils.GeomFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -116,14 +114,16 @@ public class ShapeFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new ShapeChild()
+      return new GeomChild()
       {
         private final ShapeReader reader = newReader();
 
         @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return reader.readIfSupported(Evals.evalString(args.get(0), bindings));
+          return GeomUtils.toGeometry(
+              reader.readIfSupported(Evals.evalString(args.get(0), bindings))
+          );
         }
       };
     }
@@ -131,27 +131,27 @@ public class ShapeFunctions implements Function.Library
     protected abstract ShapeReader newReader();
   }
 
-  @Function.Named("shape_fromWKT")
-  public static class FromWKT extends ShapeFrom
+  @Function.Named("geom_fromWKT")
+  public static class FromWKT extends GeomFrom
   {
     @Override
     protected ShapeReader newReader()
     {
-      return ShapeUtils.newWKTReader();
+      return GeomUtils.newWKTReader();
     }
   }
 
-  @Function.Named("shape_fromGeoJson")
-  public static class FromGeoJson extends ShapeFrom
+  @Function.Named("geom_fromGeoJson")
+  public static class FromGeoJson extends GeomFrom
   {
     @Override
     protected ShapeReader newReader()
     {
-      return ShapeUtils.newGeoJsonReader();
+      return GeomUtils.newGeoJsonReader();
     }
   }
 
-  public static abstract class ShapeTo extends NamedFactory.StringType
+  public static abstract class GeomTo extends NamedFactory.StringType
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -167,11 +167,11 @@ public class ShapeFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry != null) {
             buffer.getBuffer().setLength(0);
             try {
-              writer.write(buffer, ShapeUtils.toShape(geometry));
+              writer.write(buffer, GeomUtils.toShape(geometry));
               return ExprEval.of(buffer.toString());
             }
             catch (IOException e) {
@@ -185,8 +185,8 @@ public class ShapeFunctions implements Function.Library
     protected abstract ShapeWriter newWriter();
   }
 
-  @Function.Named("shape_toWKT")
-  public static class ToWKT extends ShapeTo
+  @Function.Named("geom_toWKT")
+  public static class ToWKT extends GeomTo
   {
     @Override
     protected ShapeWriter newWriter()
@@ -195,8 +195,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_toGeoJson")
-  public static class ToGeoJson extends ShapeTo
+  @Function.Named("geom_toGeoJson")
+  public static class ToGeoJson extends GeomTo
   {
     @Override
     protected ShapeWriter newWriter()
@@ -205,7 +205,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  public abstract static class FromGeom extends ShapeUtils.ShapeFuncFactory
+  public abstract static class FromGeom extends GeomUtils.GeomFuncFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
@@ -213,43 +213,21 @@ public class ShapeFunctions implements Function.Library
       if (args.size() != 1) {
         throw new IAE("Function[%s] must have 1 argument", name());
       }
-      return new ShapeChild()
+      return new GeomChild()
       {
         @Override
-        protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        protected Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           return geometry == null ? null : op(geometry);
         }
       };
     }
 
-    protected abstract Shape op(Geometry geometry);
+    protected abstract Geometry op(Geometry geometry);
   }
 
-  public abstract static class FromShape extends ShapeUtils.ShapeFuncFactory
-  {
-    @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
-    {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
-      return new ShapeChild()
-      {
-        @Override
-        protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          final Shape shape = ShapeUtils.toShape(Evals.eval(args.get(0), bindings));
-          return shape == null ? null : op(shape);
-        }
-      };
-    }
-
-    protected abstract Shape op(Shape shape);
-  }
-
-  public abstract static class BinaryShapeFunc extends ShapeUtils.ShapeFuncFactory
+  public abstract static class BinaryGeomFunc extends GeomUtils.GeomFuncFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
@@ -257,77 +235,72 @@ public class ShapeFunctions implements Function.Library
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
-      return new ShapeChild()
+      return new GeomChild()
       {
         @Override
-        protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        protected Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geom1 = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          final Geometry geom2 = ShapeUtils.toGeometry(Evals.eval(args.get(1), bindings));
+          final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
           return op(geom1, geom2);
         }
       };
     }
 
-    protected abstract Shape op(Geometry geom1, Geometry geom2);
+    protected abstract Geometry op(Geometry geom1, Geometry geom2);
   }
 
-  @Function.Named("shape_bbox")
-  public static class BoundingBox extends FromShape
+  @Function.Named("geom_bbox")
+  public static class BoundingBox extends FromGeom
   {
     @Override
-    protected Shape op(Shape shape)
+    protected Geometry op(Geometry geometry)
     {
-      Rectangle boundingBox = shape.getBoundingBox();
-      if (boundingBox.getMinX() > boundingBox.getMaxX()) {
-        // strange result for (180.0 -90.0), (-180.0 90.0)
-        boundingBox.reset(boundingBox.getMaxX(), boundingBox.getMinX(), boundingBox.getMinY(), boundingBox.getMaxY());
-      }
-      return boundingBox;
+      return geometry.getEnvelope();
     }
   }
 
-  @Function.Named("shape_boundary")
+  @Function.Named("geom_boundary")
   public static class Boundary extends FromGeom
   {
     @Override
-    protected Shape op(Geometry geometry)
+    protected Geometry op(Geometry geometry)
     {
-      return ShapeUtils.boundary(geometry);
+      return geometry.getBoundary();
     }
   }
 
-  @Function.Named("shape_convexHull")
+  @Function.Named("geom_convexHull")
   public static class ConvexHull extends FromGeom
   {
     @Override
-    protected Shape op(Geometry geometry)
+    protected Geometry op(Geometry geometry)
     {
-      return ShapeUtils.convexHull(geometry);
+      return geometry.convexHull();
     }
   }
 
-  @Function.Named("shape_envelop")
+  @Function.Named("geom_envelop")
   public static class Envelop extends FromGeom
   {
     @Override
-    protected Shape op(Geometry geometry)
+    protected Geometry op(Geometry geometry)
     {
-      return ShapeUtils.envelop(geometry);
+      return geometry.getEnvelope();
     }
   }
 
-  @Function.Named("shape_reverse")
+  @Function.Named("geom_reverse")
   public static class Reverse extends FromGeom
   {
     @Override
-    protected Shape op(Geometry geometry)
+    protected Geometry op(Geometry geometry)
     {
-      return ShapeUtils.toShape(geometry.reverse());
+      return geometry.reverse();
     }
   }
 
-  @Function.Named("shape_area")
+  @Function.Named("geom_area")
   public static class Area extends NamedFactory.DoubleType
   {
     @Override
@@ -341,14 +314,14 @@ public class ShapeFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          return ExprEval.of(geometry == null ? -1D : ShapeUtils.area(geometry));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          return ExprEval.of(geometry == null ? -1D : geometry.getArea());
         }
       };
     }
   }
 
-  @Function.Named("shape_length")
+  @Function.Named("geom_length")
   public static class Length extends NamedFactory.DoubleType
   {
     @Override
@@ -362,14 +335,14 @@ public class ShapeFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          return ExprEval.of(geometry == null ? -1D : ShapeUtils.length(geometry));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          return ExprEval.of(geometry == null ? -1D : geometry.getLength());
         }
       };
     }
   }
 
-  @Function.Named("shape_centroid_XY")
+  @Function.Named("geom_centroid_XY")
   public static class CentroidXY extends NamedFactory.DoubleArrayType
   {
     @Override
@@ -383,7 +356,7 @@ public class ShapeFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
           }
@@ -399,7 +372,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_centroid_YX")
+  @Function.Named("geom_centroid_YX")
   public static class CentroidYX extends CentroidXY
   {
     @Override
@@ -409,7 +382,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_coordinates_XY")
+  @Function.Named("geom_coordinates_XY")
   public static class CoordinatesXY extends NamedFactory.DoubleArrayType
   {
     @Override
@@ -423,7 +396,7 @@ public class ShapeFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
           }
@@ -446,7 +419,7 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_coordinates_YX")
+  @Function.Named("geom_coordinates_YX")
   public static class CoordinatesYX extends CoordinatesXY
   {
     @Override
@@ -458,38 +431,38 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_difference")
-  public static class Difference extends BinaryShapeFunc
+  @Function.Named("geom_difference")
+  public static class Difference extends BinaryGeomFunc
   {
     @Override
-    protected Shape op(Geometry geom1, Geometry geom2)
+    protected Geometry op(Geometry geom1, Geometry geom2)
     {
       if (geom1 == null) {
         return null;
       } else if (geom2 == null) {
-        return ShapeUtils.toShape(geom1);
+        return geom1;
       }
-      return ShapeUtils.toShape(geom1.difference(geom2));
+      return geom1.difference(geom2);
     }
   }
 
-  @Function.Named("shape_intersection")
-  public static class Intersection extends BinaryShapeFunc
+  @Function.Named("geom_intersection")
+  public static class Intersection extends BinaryGeomFunc
   {
     @Override
-    protected Shape op(Geometry geom1, Geometry geom2)
+    protected Geometry op(Geometry geom1, Geometry geom2)
     {
       if (geom1 == null) {
         return null;
       } else if (geom2 == null) {
-        return ShapeUtils.toShape(geom1);
+        return geom1;
       }
-      return ShapeUtils.toShape(geom1.intersection(geom2));
+      return geom1.intersection(geom2);
     }
   }
 
-  @Function.Named("shape_union")
-  public static class ShapeUnion extends ShapeUtils.ShapeFuncFactory
+  @Function.Named("geom_union")
+  public static class GeomUnion extends GeomUtils.GeomFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -497,14 +470,14 @@ public class ShapeFunctions implements Function.Library
       if (args.size() < 2) {
         throw new IAE("Function[%s] must have at least 2 arguments", name());
       }
-      return new ShapeChild()
+      return new GeomChild()
       {
         @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           List<Geometry> geometries = Lists.newArrayList();
           for (Expr expr : args) {
-            Geometry geom = ShapeUtils.toGeometry(Evals.eval(expr, bindings));
+            Geometry geom = GeomUtils.toGeometry(Evals.eval(expr, bindings));
             if (geom != null) {
               geometries.add(geom);
             }
@@ -512,19 +485,19 @@ public class ShapeFunctions implements Function.Library
           if (geometries.isEmpty()) {
             return null;
           } else if (geometries.size() == 1) {
-            return ShapeUtils.toShape(Iterables.getOnlyElement(geometries));
+            return Iterables.getOnlyElement(geometries);
           } else {
             GeometryCollection collection = new GeometryCollection(
-                geometries.toArray(new Geometry[0]), ShapeUtils.GEOM_FACTORY
+                geometries.toArray(new Geometry[0]), GeomUtils.GEOM_FACTORY
             );
-            return ShapeUtils.toShape(collection.union());
+            return collection.union();
           }
         }
       };
     }
   }
 
-  static abstract class ShapeRelational extends NamedFactory.BooleanType
+  static abstract class GeometryRelational extends NamedFactory.BooleanType
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -537,8 +510,8 @@ public class ShapeFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geom1 = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          final Geometry geom2 = ShapeUtils.toGeometry(Evals.eval(args.get(1), bindings));
+          final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
           if (geom1 == null || geom2 == null) {
             return ExprEval.of(false);
           }
@@ -550,8 +523,8 @@ public class ShapeFunctions implements Function.Library
     protected abstract boolean execute(Geometry geom1, Geometry geom2);
   }
 
-  @Function.Named("shape_intersects")
-  public static class ShapeIntersects extends ShapeRelational
+  @Function.Named("geom_intersects")
+  public static class GeometryIntersects extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -560,8 +533,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_covers")
-  public static class ShapeCovers extends ShapeRelational
+  @Function.Named("geom_covers")
+  public static class GeometryCovers extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -570,8 +543,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_coveredBy")
-  public static class ShapeCoveredBy extends ShapeRelational
+  @Function.Named("geom_coveredBy")
+  public static class GeometryCoveredBy extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -580,8 +553,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_contains")
-  public static class ShapeContains extends ShapeRelational
+  @Function.Named("geom_contains")
+  public static class GeometryContains extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -590,8 +563,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_overlaps")
-  public static class ShapeOverlaps extends ShapeRelational
+  @Function.Named("geom_overlaps")
+  public static class GeometryOverlaps extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -600,8 +573,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_within")
-  public static class ShapeWithin extends ShapeRelational
+  @Function.Named("geom_within")
+  public static class GeometryWithin extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -610,8 +583,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_touches")
-  public static class ShapeTouches extends ShapeRelational
+  @Function.Named("geom_touches")
+  public static class GeometryTouches extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -620,8 +593,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_crosses")
-  public static class ShapeCrosses extends ShapeRelational
+  @Function.Named("geom_crosses")
+  public static class GeometryCrosses extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -630,8 +603,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_disjoint")
-  public static class ShapeDisjoint extends ShapeRelational
+  @Function.Named("geom_disjoint")
+  public static class GeometryDisjoint extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -640,8 +613,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_equals")
-  public static class ShapeEquals extends ShapeRelational
+  @Function.Named("geom_equals")
+  public static class GeometryEquals extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -650,8 +623,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_equalsExact")
-  public static class ShapeEqualsExact extends ShapeRelational
+  @Function.Named("geom_equalsExact")
+  public static class GeometryEqualsExact extends GeometryRelational
   {
     @Override
     protected boolean execute(Geometry geom1, Geometry geom2)
@@ -660,8 +633,8 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_withinDistance")
-  public static class WithinDistance extends NamedFactory.BooleanType
+  @Function.Named("geom_dwithin")
+  public static class GeometryDWithin extends NamedFactory.BooleanType
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -674,8 +647,8 @@ public class ShapeFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geom1 = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          final Geometry geom2 = ShapeUtils.toGeometry(Evals.eval(args.get(1), bindings));
+          final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
           if (geom1 == null || geom2 == null) {
             return ExprEval.of(false);
           }

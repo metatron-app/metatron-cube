@@ -23,7 +23,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.locationtech.jts.geom.Geometry;
-import io.druid.query.ShapeUtils;
+import io.druid.query.GeomUtils;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -33,7 +33,7 @@ import org.opengis.referencing.operation.TransformException;
 import java.util.Map;
 import java.util.function.Function;
 
-public class GeoToolsUtils extends ShapeUtils
+public class GeoToolsUtils extends GeomUtils
 {
   static final CoordinateReferenceSystem EPSG_4326;
   static final CoordinateReferenceSystem EPSG_3857;

@@ -27,7 +27,7 @@ import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.query.ShapeUtils;
+import io.druid.query.GeomUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.PointQueryType;
@@ -229,10 +229,10 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   @Override
   public DimFilter toExprFilter(String columnName)
   {
-    String columnReader = ShapeUtils.fromColumn(shapeFormat, columnName);
-    String shapeReader = ShapeUtils.fromString(shapeFormat, shapeString);
+    String columnReader = GeomUtils.fromColumn(shapeFormat, columnName);
+    String shapeReader = GeomUtils.fromString(shapeFormat, shapeString);
     if (operation == SpatialOperations.BBOX_WITHIN || operation == SpatialOperations.BBOX_INTERSECTS) {
-      shapeReader = String.format("shape_bbox(%s)", shapeReader);
+      shapeReader = String.format("geom_bbox(%s)", shapeReader);
     }
     return new MathExprFilter(
         String.format("%s(%s, %s)", toShapeOp(operation), columnReader, shapeReader)
@@ -245,17 +245,17 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
     switch (operation) {
       case INTERSECTS:
       case BBOX_INTERSECTS:
-        return "shape_intersects";
+        return "geom_intersects";
       case BBOX_WITHIN:
-        return "shape_within";
+        return "geom_within";
       case COVERS:
-        return "shape_covers";
+        return "geom_covers";
       case COVEREDBY:
-        return "shape_coveredBy";
+        return "geom_coveredBy";
       case EQUALTO:
-        return "shape_equals";
+        return "geom_equals";
       case OVERLAPS:
-        return "shape_overlaps";
+        return "geom_overlaps";
       default:
         throw new UnsupportedOperationException("cannot find compatible expression for " + operation);
     }

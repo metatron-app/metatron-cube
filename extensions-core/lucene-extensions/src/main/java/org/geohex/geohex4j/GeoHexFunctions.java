@@ -27,7 +27,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
-import io.druid.query.ShapeUtils;
+import io.druid.query.GeomUtils;
 import org.locationtech.jts.geom.Geometry;
 
 import java.util.List;
@@ -71,7 +71,7 @@ public class GeoHexFunctions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.LONG);
           }

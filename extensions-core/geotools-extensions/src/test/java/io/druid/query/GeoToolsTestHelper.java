@@ -38,7 +38,7 @@ public class GeoToolsTestHelper extends QueryRunnerTestHelper
   static TestQuerySegmentWalker segmentWalker;
 
   static {
-    Parser.register(ShapeFunctions.class);
+    Parser.register(GeomFunctions.class);
     Parser.register(GeoToolsFunctions.class);
 
     ObjectMapper mapper = new DefaultObjectMapper();

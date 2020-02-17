@@ -405,7 +405,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     }
     final List<Object[]> rows = Lists.newArrayList();
     final List<Geometry> geometries = Lists.newArrayList();
-    final ShapeReader reader = ShapeUtils.newWKTReader();
+    final ShapeReader reader = GeomUtils.newWKTReader();
     final Map<String, Object> context = BaseQuery.copyContextForMeta(getContext());
     final ArrayOutputSupport runner = (ArrayOutputSupport) boundary.withOverriddenContext(context);
     final Sequence<Object[]> array = runner.array(QueryRunners.run(runner, segmentWalker));
@@ -415,7 +415,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
         Shape shape = reader.readIfSupported(boundary);
         if (shape != null) {
           geometries.add(Preconditions.checkNotNull(
-              ShapeUtils.toGeometry(shape), "cannot convert shape [%s] to geometry", shape
+              GeomUtils.toGeometry(shape), "cannot convert shape [%s] to geometry", shape
           ));
           rows.add(row);
         }

@@ -27,7 +27,7 @@ import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.query.ShapeUtils;
+import io.druid.query.GeomUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.ShapeFormat;
@@ -161,9 +161,9 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   @Override
   public DimFilter toExprFilter(String columnName)
   {
-    final String expression = ShapeUtils.fromString(shapeFormat, shapeString);
+    final String expression = GeomUtils.fromString(shapeFormat, shapeString);
     return new MathExprFilter(
-        String.format("shape_contains(%s, shape_fromLatLon(\"%s\"))", expression, columnName)
+        String.format("geom_contains(%s, geom_fromLatLon(\"%s\"))", expression, columnName)
     );
   }
 

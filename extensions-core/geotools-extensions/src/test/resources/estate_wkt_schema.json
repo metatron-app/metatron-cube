@@ -12,7 +12,7 @@
     "dimensions": ["idx", "gu"]
   },
   "evaluations":[
-    { "outputName": "gis", "expressions": [ "shape_centroid_YX(shape_fromWKT(wkt))", "struct(\"_\"[0],\"_\"[1],addr)" ] }
+    { "outputName": "gis", "expressions": [ "geom_centroid_YX(geom_fromWKT(wkt))", "struct(\"_\"[0],\"_\"[1],addr)" ] }
   ],
   "metricsSpec": [
     {"type": "relay", "name": "py", "typeName": "float"},

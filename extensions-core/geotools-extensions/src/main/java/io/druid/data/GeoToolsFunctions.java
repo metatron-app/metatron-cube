@@ -28,12 +28,12 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import io.druid.query.GeomUtils;
 import org.geotools.geometry.DirectPosition2D;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.operation.buffer.BufferParameters;
-import org.locationtech.spatial4j.shape.Shape;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
@@ -93,13 +93,13 @@ public class GeoToolsFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_buffer")
+  @Function.Named("geom_buffer")
   public static class Buffer extends BuiltinFunctions.NamedParams implements Function.FixedTyped
   {
     @Override
     public ValueDesc returns()
     {
-      return GeoToolsUtils.SHAPE_TYPE;
+      return GeoToolsUtils.GEOM_TYPE;
     }
 
     @Override
@@ -143,7 +143,7 @@ public class GeoToolsFunctions implements Function.Library
         @Override
         public ValueDesc returns()
         {
-          return GeoToolsUtils.SHAPE_TYPE;
+          return GeoToolsUtils.GEOM_TYPE;
         }
 
         @Override
@@ -151,21 +151,21 @@ public class GeoToolsFunctions implements Function.Library
         {
           final Geometry geometry = GeoToolsUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return GeoToolsUtils.asShapeEval((Shape) null);
+            return GeoToolsUtils.asGeomEval(null);
           }
           try {
-            return GeoToolsUtils.asShapeEval(GeoToolsUtils.buffer(geometry, distance, quadrantSegments, endCapStyle));
+            return GeoToolsUtils.asGeomEval(GeoToolsUtils.buffer(geometry, distance, quadrantSegments, endCapStyle));
           }
           catch (TransformException e) {
-            return GeoToolsUtils.asShapeEval((Shape) null);
+            return GeoToolsUtils.asGeomEval(null);
           }
         }
       };
     }
   }
 
-  @Function.Named("shape_transform")
-  public static class Transform extends GeoToolsUtils.ShapeFuncFactory
+  @Function.Named("geom_transform")
+  public static class Transform extends GeomUtils.GeomFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -177,17 +177,17 @@ public class GeoToolsFunctions implements Function.Library
       final String toCRS = Evals.getConstantString(args.get(2));
       final MathTransform transform = GeoToolsUtils.getTransform(fromCRS, toCRS);
 
-      return new ShapeChild()
+      return new GeomChild()
       {
         @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           Geometry geometry = GeoToolsUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return null;
           }
           try {
-            return GeoToolsUtils.toShape(JTS.transform(geometry, transform));
+            return JTS.transform(geometry, transform);
           }
           catch (Exception e) {
             throw Throwables.propagate(e);
@@ -197,8 +197,8 @@ public class GeoToolsFunctions implements Function.Library
     }
   }
 
-  @Function.Named("shape_smooth")
-  public static class Smooth extends GeoToolsUtils.ShapeFuncFactory
+  @Function.Named("geom_smooth")
+  public static class Smooth extends GeomUtils.GeomFuncFactory
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
@@ -206,17 +206,17 @@ public class GeoToolsFunctions implements Function.Library
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have at 2 arguments", name());
       }
-      return new ShapeChild()
+      return new GeomChild()
       {
         @Override
-        public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeoToolsUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return null;
           }
           final double fit = Evals.evalDouble(args.get(1), bindings);
-          return GeoToolsUtils.toShape(JTS.smooth(geometry, fit));
+          return JTS.smooth(geometry, fit);
         }
       };
     }

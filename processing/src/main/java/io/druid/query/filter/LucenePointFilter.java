@@ -208,7 +208,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
       case DISTANCE:
         return new MathExprFilter(
             String.format(
-                "shape_contains(shape_buffer(shape_fromLatLon(%f, %f), %f), shape_fromLatLon(\"%s\"))",
+                "geom_contains(geom_buffer(geom_fromLatLon(%f, %f), %f), geom_fromLatLon(\"%s\"))",
                 latitudes[0], longitudes[0], radiusMeters, columnName
             )
         );
@@ -223,7 +223,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
         }
         return new MathExprFilter(
             String.format(
-                "shape_contains(shape_envelop('MULTIPOINT (%s)'), shape_fromLatLon(\"%s\"))", multiPoint, columnName
+                "geom_contains(geom_envelop('MULTIPOINT (%s)'), geom_fromLatLon(\"%s\"))", multiPoint, columnName
             )
         );
       default:

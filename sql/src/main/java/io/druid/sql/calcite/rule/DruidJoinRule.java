@@ -93,7 +93,7 @@ public class DruidJoinRule extends RelOptRule
   private static final Logger LOG = new Logger(DruidJoinRule.class);
 
   private static final Set<String> SUPPORTED = ImmutableSet.of(
-      "ST_CONTAINS", "ST_WITHIN", "SHAPE_CONTAINS", "SHAPE_WITHIN"
+      "ST_CONTAINS", "ST_WITHIN", "GEOM_CONTAINS", "GEOM_WITHIN"
   );
 
   private RelNode trySpatialJoin(DruidRel left, DruidRel right, RexNode condition)

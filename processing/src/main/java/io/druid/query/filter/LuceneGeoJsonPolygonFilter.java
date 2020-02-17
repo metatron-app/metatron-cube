@@ -141,7 +141,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   public DimFilter toExprFilter(String columnName)
   {
     return new MathExprFilter(
-        String.format("shape_contains(shape_fromGeoJson('%s'), shape_fromLatLon(\"%s\"))", geoJson, columnName)
+        String.format("geom_contains(geom_fromGeoJson('%s'), geom_fromLatLon(\"%s\"))", geoJson, columnName)
     );
   }
 

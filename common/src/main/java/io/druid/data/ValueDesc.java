@@ -117,8 +117,9 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
 
   public static ValueDesc SHAPE = new ValueDesc("SHAPE");
-  public static ValueDesc INTERVAL = new ValueDesc("INTERVAL", Interval.class);
+  public static ValueDesc GEOMETRY = new ValueDesc("GEOMETRY");
   public static ValueDesc OGC_GEOMETRY = new ValueDesc("OGC_GEOMETRY");
+  public static ValueDesc INTERVAL = new ValueDesc("INTERVAL", Interval.class);
 
   public static ValueDesc ofArray(ValueDesc valueType)
   {

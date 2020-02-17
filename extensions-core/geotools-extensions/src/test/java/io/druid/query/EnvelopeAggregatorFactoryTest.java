@@ -71,7 +71,7 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
     GroupByQuery query = GroupByQuery
         .builder()
         .setDataSource("seoul_roads")
-        .virtualColumns(new ExprVirtualColumn("shape_fromWKT(geom)", "shape"))
+        .virtualColumns(new ExprVirtualColumn("geom_fromWKT(geom)", "shape"))
         .setAggregatorSpecs(new EnvelopeAggregatorFactory("envelope", "shape"))
         .addContext(QueryContextKeys.GBY_CONVERT_TIMESERIES, false)
         .build();
@@ -90,7 +90,7 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
     GroupByQuery query = GroupByQuery
         .builder()
         .setDataSource("seoul_roads")
-        .virtualColumns(new ExprVirtualColumn("shape_fromWKT(geom)", "shape"))
+        .virtualColumns(new ExprVirtualColumn("geom_fromWKT(geom)", "shape"))
         .setAggregatorSpecs(new EnvelopeAggregatorFactory("envelope", "shape"))
         .addContext(QueryContextKeys.GBY_CONVERT_TIMESERIES, true)
         .build();

@@ -95,7 +95,7 @@ public class H3Functions implements Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final Geometry geometry = ShapeUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
             return ExprEval.of(null, ValueDesc.LONG);
           }
@@ -181,7 +181,7 @@ public class H3Functions implements Function.Library
           } else {
             point = instance.h3ToGeo(eval.asString());
           }
-          return ExprEval.of("POINT(" + point.lng + " " + point.lat + ")");
+          return ExprEval.of(String.format("POINT(%s %s)", point.lng, point.lat));
         }
       };
     }

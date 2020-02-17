@@ -24,8 +24,6 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.segment.lucene.ShapeFormat;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.spatial4j.context.SpatialContext;
@@ -33,57 +31,49 @@ import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeoJSONReader;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.WKTReader;
-import org.locationtech.spatial4j.shape.Rectangle;
 import org.locationtech.spatial4j.shape.Shape;
 import org.locationtech.spatial4j.shape.ShapeFactory;
-import org.locationtech.spatial4j.shape.jts.JtsGeometry;
-import org.locationtech.spatial4j.shape.jts.JtsPoint;
 import org.locationtech.spatial4j.shape.jts.JtsShapeFactory;
 
 import java.text.ParseException;
 import java.util.List;
 
-public class ShapeUtils
+public class GeomUtils
 {
-  public static final ValueDesc SHAPE_TYPE = ValueDesc.of("SHAPE", Shape.class);
+  public static final ValueDesc GEOM_TYPE = ValueDesc.of("GEOMETRY", Geometry.class);
   public static final JtsShapeFactory SHAPE_FACTORY = JtsSpatialContext.GEO.getShapeFactory();
 
   // srid 0
-  public static final GeometryFactory GEOM_FACTORY = new GeometryFactory();
+  public static final GeometryFactory GEOM_FACTORY = SHAPE_FACTORY.getGeometryFactory();
 
-  public static ExprEval asShapeEval(Geometry geometry)
+  public static ExprEval asGeomEval(Geometry geometry)
   {
-    return asShapeEval(ShapeUtils.toShape(geometry));
+    return ExprEval.of(geometry, GeomUtils.GEOM_TYPE);
   }
 
-  public static ExprEval asShapeEval(Shape shape)
-  {
-    return ExprEval.of(shape, ShapeUtils.SHAPE_TYPE);
-  }
-
-  public static abstract class ShapeFuncFactory extends Function.NamedFactory implements Function.FixedTyped
+  public static abstract class GeomFuncFactory extends Function.NamedFactory implements Function.FixedTyped
   {
     @Override
     public ValueDesc returns()
     {
-      return ShapeUtils.SHAPE_TYPE;
+      return GeomUtils.GEOM_TYPE;
     }
 
-    public abstract class ShapeChild extends Child
+    public abstract class GeomChild extends Child
     {
       @Override
       public ValueDesc returns()
       {
-        return ShapeUtils.SHAPE_TYPE;
+        return GeomUtils.GEOM_TYPE;
       }
 
       @Override
       public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
       {
-        return asShapeEval(_eval(args, bindings));
+        return asGeomEval(_eval(args, bindings));
       }
 
-      protected abstract Shape _eval(List<Expr> args, Expr.NumericBinding bindings);
+      protected abstract Geometry _eval(List<Expr> args, Expr.NumericBinding bindings);
     }
   }
 
@@ -113,61 +103,38 @@ public class ShapeUtils
     return new GeoJSONReader(JtsSpatialContext.GEO, null);
   }
 
-  public static Shape toShape(ExprEval eval)
+  public static Geometry toGeometry(Object value)
   {
-    if (ValueDesc.SHAPE.equals(eval.type())) {
-      return (Shape) eval.value();
+    if (value == null) {
+      return null;
+    } else if (value instanceof Geometry) {
+      return (Geometry) value;
+    } else if (value instanceof Shape) {
+      return SHAPE_FACTORY.getGeometryFrom((Shape) value);
+    } else {
+      return null;
     }
-    return null;
   }
 
   public static Geometry toGeometry(ExprEval eval)
   {
-    return ShapeUtils.toGeometry(toShape(eval));
-  }
-
-  public static Geometry toGeometry(Shape shape)
-  {
-    if (shape instanceof JtsGeometry) {
-      return ((JtsGeometry) shape).getGeom();
-    } else if (shape instanceof JtsPoint) {
-      return ((JtsPoint) shape).getGeom();
-    } else if (shape instanceof Rectangle) {
-      Rectangle rect = (Rectangle) shape;
-      Coordinate[] coordinates = new Coordinate[5];
-      coordinates[0] = new Coordinate(rect.getMinX(), rect.getMinY());
-      coordinates[1] = new Coordinate(rect.getMaxX(), rect.getMinY());
-      coordinates[2] = new Coordinate(rect.getMaxX(), rect.getMaxY());
-      coordinates[3] = new Coordinate(rect.getMinX(), rect.getMaxY());
-      coordinates[4] = new Coordinate(rect.getMinX(), rect.getMinY());
-      return GEOM_FACTORY.createPolygon(coordinates);
+    if (eval.isNull()) {
+      return null;
+    } else if (ValueDesc.GEOMETRY.equals(eval.type())) {
+      return (Geometry) eval.value();
+    } else if (ValueDesc.SHAPE.equals(eval.type())) {
+      return SHAPE_FACTORY.getGeometryFrom((Shape) eval.value());
     }
     return null;
   }
 
-  static Shape boundary(Geometry geometry)
+  public static Geometry toGeometry(Shape shape)
   {
-    return toShape(geometry.getBoundary());
-  }
-
-  static Shape convexHull(Geometry geometry)
-  {
-    return toShape(geometry.convexHull());
-  }
-
-  static Shape envelop(Geometry geometry)
-  {
-    return toShape(geometry.getEnvelope());
-  }
-
-  static double area(Geometry geometry)
-  {
-    return geometry.getArea();
-  }
-
-  static double length(Geometry geometry)
-  {
-    return geometry.getLength();
+    if (shape != null) {
+      return SHAPE_FACTORY.getGeometryFrom(shape);
+    } else {
+      return null;
+    }
   }
 
   public static Shape toShape(Geometry geometry)
@@ -181,22 +148,17 @@ public class ShapeUtils
     return SHAPE_FACTORY.makeShape(geometry);
   }
 
-  public static Object toShape(Envelope envelope)
-  {
-    return toShape(SHAPE_FACTORY.getGeometryFactory().toGeometry(envelope));
-  }
-
   public static String fromString(ShapeFormat shapeFormat, String shapeString)
   {
     return shapeFormat == ShapeFormat.WKT ?
-           String.format("shape_fromWKT('%s')", shapeString) :
-           String.format("shape_fromGeoJson('%s')", shapeString);
+           String.format("geom_fromWKT('%s')", shapeString) :
+           String.format("geom_fromGeoJson('%s')", shapeString);
   }
 
   public static String fromColumn(ShapeFormat shapeFormat, String shapeColumn)
   {
     return shapeFormat == ShapeFormat.WKT ?
-           String.format("shape_fromWKT(\"%s\")", shapeColumn) :
-           String.format("shape_fromGeoJson(\"%s\")", shapeColumn);
+           String.format("geom_fromWKT(\"%s\")", shapeColumn) :
+           String.format("geom_fromGeoJson(\"%s\")", shapeColumn);
   }
 }
