@@ -156,11 +156,6 @@ public class ValueDesc implements Serializable, Cacheable
     return of(String.format("%s(%s)", STRUCT_TYPE, elements));
   }
 
-  public static ValueDesc ofGeom(int srid)
-  {
-    return srid > 0 ? of(String.format("%s(%d)", GEOMETRY.typeName, srid)) : GEOMETRY;
-  }
-
   public static ValueDesc ofStruct(String[] names, ValueDesc[] types)
   {
     Preconditions.checkArgument(names.length == types.length);

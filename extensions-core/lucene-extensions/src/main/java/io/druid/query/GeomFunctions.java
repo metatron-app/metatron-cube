@@ -123,7 +123,7 @@ public class GeomFunctions implements Function.Library
         @Override
         public ValueDesc returns()
         {
-          return ValueDesc.ofGeom(srid);
+          return GeomUtils.ofGeom(srid);
         }
 
         @Override
@@ -229,7 +229,7 @@ public class GeomFunctions implements Function.Library
         @Override
         public ValueDesc returns()
         {
-          return ValueDesc.ofGeom(srid);
+          return GeomUtils.ofGeom(srid);
         }
 
         @Override
@@ -289,7 +289,7 @@ public class GeomFunctions implements Function.Library
         @Override
         public ValueDesc returns()
         {
-          return ValueDesc.ofGeom(srid);
+          return GeomUtils.ofGeom(srid);
         }
 
         @Override
@@ -710,6 +710,31 @@ public class GeomFunctions implements Function.Library
     protected boolean execute(Geometry geom1, Geometry geom2)
     {
       return geom1.equalsExact(geom2);
+    }
+  }
+
+  @Function.Named("geom_distance")
+  public static class GeometryDistance extends NamedFactory.DoubleType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 2) {
+        throw new IAE("Function[%s] must have 2 arguments", name());
+      }
+      return new DoubleChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
+          final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
+          if (geom1 == null || geom2 == null) {
+            return ExprEval.of(null, ValueDesc.DOUBLE);
+          }
+          return ExprEval.of(geom1.distance(geom2));
+        }
+      };
     }
   }
 

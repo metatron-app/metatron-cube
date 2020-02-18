@@ -24,11 +24,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.query.GeomUtils;
 import net.sf.geographiclib.Geodesic;
+import net.sf.geographiclib.PolygonArea;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.cs.DefaultEllipsoidalCS;
 import org.geotools.referencing.datum.DefaultEllipsoid;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.Polygon;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.crs.GeodeticCRS;
 import org.opengis.referencing.cs.CoordinateSystem;
@@ -42,21 +46,21 @@ import java.util.function.Function;
 public class GeoToolsUtils extends GeomUtils
 {
   static final CoordinateReferenceSystem EPSG_4326;
-  static final CoordinateReferenceSystem EPSG_3857;
+  static final CoordinateReferenceSystem EPSG_5179;
 
-  static final MathTransform T_4326_3857;
-  static final MathTransform T_3857_4326;
+  static final MathTransform T_4326_5179;
+  static final MathTransform T_5179_4326;
 
   static final Map<String, CoordinateReferenceSystem> CRSS = Maps.newConcurrentMap();
 
   static {
     try {
       EPSG_4326 = CRS.decode("EPSG:" + 4326);
-      EPSG_3857 = CRS.decode("EPSG:" + 3857);
-      T_4326_3857 = CRS.findMathTransform(EPSG_4326, EPSG_3857, true);
-      T_3857_4326 = CRS.findMathTransform(EPSG_3857, EPSG_4326, true);
+      EPSG_5179 = CRS.decode("EPSG:" + 5179);
+      T_4326_5179 = CRS.findMathTransform(EPSG_4326, EPSG_5179, true);
+      T_5179_4326 = CRS.findMathTransform(EPSG_5179, EPSG_4326, true);
       CRSS.put("EPSG:" + 4326, EPSG_4326);
-      CRSS.put("EPSG:" + 3857, EPSG_3857);
+      CRSS.put("EPSG:" + 5179, EPSG_5179);
     }
     catch (Exception e) {
       throw new RuntimeException(e);
@@ -165,9 +169,46 @@ public class GeoToolsUtils extends GeomUtils
   static Geometry buffer(Geometry geometry, double meter, int quadrantSegments, int endCapStyle)
       throws TransformException
   {
-    Geometry geom3857 = JTS.transform(geometry, T_4326_3857);
-    Geometry buffered = geom3857.buffer(meter, quadrantSegments, endCapStyle);
-    Geometry geom4326 = JTS.transform(buffered, T_3857_4326);
+    Geometry geom5179 = JTS.transform(geometry, T_4326_5179);
+    Geometry buffered = geom5179.buffer(meter, quadrantSegments, endCapStyle);
+    Geometry geom4326 = JTS.transform(buffered, T_5179_4326);
     return geom4326;
+  }
+
+  static double calculateArea(Geometry geometry, Geodesic geod)
+  {
+    if (geometry instanceof GeometryCollection) {
+      double area = 0;
+      int numGeometries = geometry.getNumGeometries();
+      for (int i = 0; i < numGeometries; i++) {
+        double element = calculateArea(geometry.getGeometryN(i), geod);
+        if (element > 0) {
+          area += element;
+        }
+      }
+      return area;
+    } else if (geometry instanceof Polygon) {
+      final Polygon polygon = (Polygon) geometry;
+      final PolygonArea exterior = new PolygonArea(geod, false);
+      for (Coordinate coordinate : polygon.getExteriorRing().getCoordinates()) {
+        exterior.AddPoint(coordinate.y, coordinate.x);
+      }
+      double area = Math.abs(exterior.Compute().area);
+      final int numInteriorRing = polygon.getNumInteriorRing();
+      for (int i = 0; i < numInteriorRing; i++) {
+        final PolygonArea hole = new PolygonArea(geod, false);
+        for (Coordinate coordinate : polygon.getInteriorRingN(i).getCoordinates()) {
+          hole.AddPoint(coordinate.y, coordinate.x);
+        }
+        area -= Math.abs(exterior.Compute().area);
+      }
+      return area;
+    }
+    final PolygonArea area = new PolygonArea(geod, false);
+    final Coordinate[] coordinates = geometry.getCoordinates();
+    for (Coordinate coordinate : coordinates) {
+      area.AddPoint(coordinate.y, coordinate.x);
+    }
+    return Math.abs(area.Compute().area);
   }
 }

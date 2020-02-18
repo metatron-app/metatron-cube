@@ -43,6 +43,9 @@ import java.util.regex.Pattern;
 public class GeomUtils
 {
   public static final ValueDesc GEOM_TYPE = ValueDesc.of(ValueDesc.GEOMETRY.typeName(), Geometry.class);
+  public static final ValueDesc GEOM_TYPE_4326 = ValueDesc.of(String.format("%s(%d)", GEOM_TYPE, 4326), Geometry.class);
+  public static final ValueDesc GEOM_TYPE_5179 = ValueDesc.of(String.format("%s(%d)", GEOM_TYPE, 5179), Geometry.class);
+
   public static final JtsShapeFactory SHAPE_FACTORY = JtsSpatialContext.GEO.getShapeFactory();
 
   // srid 0
@@ -50,7 +53,7 @@ public class GeomUtils
 
   public static ExprEval asGeomEval(Geometry geometry)
   {
-    return ExprEval.of(geometry, GeomUtils.GEOM_TYPE);
+    return ExprEval.of(geometry, geometry == null ? GEOM_TYPE : ofGeom(geometry.getSRID()));
   }
 
   public static abstract class GeomFuncFactory extends Function.NamedFactory implements Function.FixedTyped
@@ -58,7 +61,7 @@ public class GeomUtils
     @Override
     public ValueDesc returns()
     {
-      return GeomUtils.GEOM_TYPE;
+      return GEOM_TYPE;
     }
 
     public abstract class GeomChild extends Child
@@ -66,7 +69,7 @@ public class GeomUtils
       @Override
       public ValueDesc returns()
       {
-        return GeomUtils.GEOM_TYPE;
+        return GEOM_TYPE;
       }
 
       @Override
@@ -151,6 +154,14 @@ public class GeomUtils
   }
 
   private static final Pattern PATTERN = Pattern.compile("geometry\\((\\d+)\\)");
+
+  public static ValueDesc ofGeom(int srid)
+  {
+    return srid <= 0 ? GEOM_TYPE :
+           srid == 4326 ? GEOM_TYPE_4326 :
+           srid == 5179 ? GEOM_TYPE_5179 :
+           ValueDesc.of(String.format("%s(%d)", GEOM_TYPE.typeName(), srid), Geometry.class);
+  }
 
   public static int getSRID(ValueDesc type)
   {

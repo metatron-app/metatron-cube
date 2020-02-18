@@ -32,7 +32,6 @@ import io.druid.math.expr.Function.NamedFactory;
 import io.druid.query.GeomUtils;
 import net.sf.geographiclib.Geodesic;
 import net.sf.geographiclib.GeodesicMask;
-import net.sf.geographiclib.PolygonArea;
 import org.geotools.geometry.DirectPosition2D;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.referencing.CRS;
@@ -304,13 +303,7 @@ public class GeoToolsFunctions implements Function.Library
           if (geod == null) {
             throw new IAE("Cannot resolve geodesic for %s", geometry.getSRID());
           }
-          // todo handle holes
-          final PolygonArea area = new PolygonArea(geod, false);
-          final Coordinate[] coordinates = geometry.getCoordinates();
-          for (Coordinate coordinate : coordinates) {
-            area.AddPoint(coordinate.y, coordinate.x);
-          }
-          return ExprEval.of(Math.abs(area.Compute().area));
+          return ExprEval.of(GeoToolsUtils.calculateArea(geometry, geod));
         }
       };
     }
