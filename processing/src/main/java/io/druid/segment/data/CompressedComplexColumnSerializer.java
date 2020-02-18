@@ -24,7 +24,6 @@ import com.google.common.primitives.Shorts;
 import io.druid.collections.IntList;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
-import io.druid.java.util.common.ISE;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -91,22 +90,25 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   public void add(Object value) throws IOException
   {
     final byte[] bytes = strategy.toBytes(value);
-    if (bytes.length > CompressedPools.BUFFER_SIZE) {
-      throw new ISE("Cannot compress column value exceeding %d bytes", CompressedPools.BUFFER_SIZE);
-    }
-
-    if (endBuffer.remaining() <= bytes.length) {
+    final boolean deficit = endBuffer.remaining() - CompressedPools.RESERVE < bytes.length;
+    if (deficit && offsetInBlock > 0) {
       endBuffer.flip();
       flattener.add(StupidResourceHolder.create(endBuffer));
       mappings.add(rowNum);
       endBuffer.clear();
       offsetInBlock = 0;
     }
-
-    endBuffer.put(bytes);
-    offsetInBlock += bytes.length;
-    offsets.add(offsetInBlock);
     rowNum++;
+
+    if (deficit) {
+      flattener.add(StupidResourceHolder.create(ByteBuffer.wrap(bytes)));
+      offsets.add(CompressedPools.BUFFER_EXCEEDED);   // marker
+      mappings.add(rowNum);
+    } else {
+      endBuffer.put(bytes);
+      offsetInBlock += bytes.length;
+      offsets.add(offsetInBlock);
+    }
   }
 
   @Override

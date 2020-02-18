@@ -319,29 +319,28 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
   @Override
   public ResourceHolder<T> fromByteBuffer(ByteBuffer buffer, int numBytes)
   {
-    final ResourceHolder<ByteBuffer> bufHolder = CompressedPools.getByteBuf(order);
-    final ByteBuffer buf = bufHolder.get();
-
-    decompress(buffer, numBytes, buf);
+    final ResourceHolder<ByteBuffer> holder = decompress(buffer, numBytes);
     return new ResourceHolder<T>()
     {
       @Override
       public T get()
       {
-        return converter.convert(buf);
+        return converter.convert(holder.get());
       }
 
       @Override
       public void close()
       {
-        bufHolder.close();
+        holder.close();
       }
     };
   }
 
-  protected void decompress(ByteBuffer in, int numBytes, ByteBuffer out)
+  protected ResourceHolder<ByteBuffer> decompress(ByteBuffer in, int numBytes)
   {
-    decompressor.decompress(in, numBytes, out);
+    ResourceHolder<ByteBuffer> holder = CompressedPools.getByteBuf(order);
+    decompressor.decompress(in, numBytes, holder.get());
+    return holder;
   }
 
   @Override

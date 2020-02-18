@@ -22,6 +22,8 @@ package io.druid.segment.data;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
+import io.druid.collections.StupidResourceHolder;
+import io.druid.segment.CompressedPools;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -52,8 +54,16 @@ public class SizePrefixedCompressedObjectStrategy extends CompressedObjectStrate
   }
 
   @Override
-  protected final void decompress(ByteBuffer in, int numBytes, ByteBuffer out)
+  protected final ResourceHolder<ByteBuffer> decompress(ByteBuffer in, int numBytes)
   {
-    decompressor.decompress(in, numBytes, out, in.getInt());
+    final int size = in.getInt();
+    final ResourceHolder<ByteBuffer> holder;
+    if (size < CompressedPools.BUFFER_SIZE - CompressedPools.RESERVE) {
+      holder = CompressedPools.getByteBuf(order);
+    } else {
+      holder = StupidResourceHolder.create(ByteBuffer.allocate(size));
+    }
+    decompressor.decompress(in, numBytes - Ints.BYTES, holder.get(), size);
+    return holder;
   }
 }

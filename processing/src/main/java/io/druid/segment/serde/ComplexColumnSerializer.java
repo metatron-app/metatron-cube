@@ -86,7 +86,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
 
   private ColumnPartWriter writer;
 
-  public ComplexColumnSerializer(
+  private ComplexColumnSerializer(
       IOPeon ioPeon,
       String columnName,
       ComplexMetricSerde serde,

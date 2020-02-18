@@ -36,6 +36,10 @@ public class CompressedPools
   private static final Logger log = new Logger(CompressedPools.class);
 
   public static final int BUFFER_SIZE = 0x10000;
+  public static final int RESERVE = 2;  // reserve 0xFFFE, 0xFFFF
+
+  public static final int BUFFER_EXCEEDED = 0xFFFE;
+
   private static final StupidPool<BufferRecycler> bufferRecyclerPool = new StupidPool<BufferRecycler>(
       new Supplier<BufferRecycler>()
       {

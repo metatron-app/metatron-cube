@@ -24,6 +24,7 @@ import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.CompressedPools;
 import io.druid.segment.column.AbstractGenericColumn;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -38,6 +39,8 @@ import java.util.Objects;
 
 public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<GenericColumn>
 {
+  private static final Logger LOG = new Logger(CompressedComplexColumnPartSupplier.class);
+
   private final CompressionStrategy compressionType;
   private final GenericIndexed<ResourceHolder<ByteBuffer>> indexed;
   private final int[] mapping;
@@ -129,15 +132,20 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<G
           cacheId = index;
         }
         final ByteBuffer buffer = cached.get();
-        try {
-          buffer.limit(endOffset);
-          buffer.position(startOffset);
+        if (endOffset == CompressedPools.BUFFER_EXCEEDED) {
+          buffer.limit(buffer.capacity());
+          buffer.position(0);
+        } else {
+          try {
+            buffer.limit(endOffset);
+            buffer.position(startOffset);
+          }
+          catch (IllegalArgumentException e) {
+            LOG.warn("-----> %d = %d ( %d ~ %d )", rowNum, index, startOffset, endOffset);
+            throw e;
+          }
         }
-        catch (RuntimeException e) {
-          new Logger(CompressedComplexColumnPartSupplier.class).warn("-----> %d (%d) = %d ~ %d", rowNum, index, startOffset, endOffset);
-          throw e;
-        }
-
+        // this moves position of buffer
         return strategy.fromByteBuffer(buffer, buffer.remaining());
       }
 
