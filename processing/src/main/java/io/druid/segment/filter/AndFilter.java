@@ -66,7 +66,11 @@ public class AndFilter implements Filter, Expression.AndExpression
 
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (Filter filter : filters) {
-      bitmaps.add(filter.getBitmapIndex(selector, baseBitmap));
+      ImmutableBitmap bitmap = filter.getBitmapIndex(selector, baseBitmap);
+      if (bitmap == null) {
+        return null;
+      }
+      bitmaps.add(bitmap);
     }
 
     return selector.getBitmapFactory().intersection(bitmaps);

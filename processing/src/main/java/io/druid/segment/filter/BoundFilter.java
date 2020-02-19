@@ -84,7 +84,8 @@ public class BoundFilter implements Filter
         toPredicate(
             boundDimFilter.typeOfBound(Filters.asTypeResolver(selector)),
             boundDimFilter.getExtractionFn()
-        )
+        ),
+        baseBitmap
     );
   }
 

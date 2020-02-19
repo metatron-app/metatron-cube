@@ -25,6 +25,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.NotFilter;
 
+import javax.annotation.Nullable;
 import java.util.List;
 
 /**
@@ -32,10 +33,10 @@ import java.util.List;
 public interface Filter extends Expression
 {
   // bitmap based filter will be applied whenever it's possible
-  ImmutableBitmap getValueBitmap(BitmapIndexSelector selector);
+  @Nullable ImmutableBitmap getValueBitmap(BitmapIndexSelector selector);
 
   // bitmap based filter will be applied whenever it's possible
-  ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap);
+  @Nullable ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap);
 
   // used when bitmap filter cannot be applied
   ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory);

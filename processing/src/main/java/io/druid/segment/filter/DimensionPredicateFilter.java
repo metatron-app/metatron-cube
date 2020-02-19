@@ -67,7 +67,7 @@ public class DimensionPredicateFilter implements Filter
   @Override
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
-    return Filters.matchPredicate(dimension, selector, predicate);
+    return Filters.matchPredicate(dimension, selector, predicate, baseBitmap);
   }
 
   @Override

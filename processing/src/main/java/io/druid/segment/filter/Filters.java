@@ -353,7 +353,8 @@ public class Filters
   public static ImmutableBitmap matchPredicate(
       final String dimension,
       final BitmapIndexSelector selector,
-      final Predicate<String> predicate
+      final Predicate<String> predicate,
+      final ImmutableBitmap baseBitmap
   )
   {
     Preconditions.checkNotNull(dimension, "dimension");
@@ -368,6 +369,11 @@ public class Filters
       } else {
         return DimFilters.makeFalse(selector.getBitmapFactory());
       }
+    }
+
+    final int targetRows = baseBitmap == null ? selector.getNumRows() : baseBitmap.size();
+    if (targetRows >> 2 < dimValues.size()) {
+      return null;    // considering the cost of reading and unioning bitmaps, it would be better to use value filter
     }
 
     // Apply predicate to all dimension values and union the matching bitmaps
@@ -647,7 +653,7 @@ public class Filters
       ImmutableBitmap bitmap = toExprBitmap(cnf, context, false);
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
     } else if (filter instanceof DimFilter.LuceneFilter) {
-      // throws exception.. cannot support value matcher
+      // throws exception instead of null.. not supports value matcher
       return BitmapHolder.exact(filter.toFilter(schema).getBitmapIndex(selector, context.baseBitmap));
     }
     Set<String> dependents = Filters.getDependents(filter);
@@ -660,7 +666,8 @@ public class Filters
       return null;
     }
     if (capabilities.hasBitmapIndexes()) {
-      return BitmapHolder.exact(filter.toFilter(schema).getBitmapIndex(selector, context.baseBitmap));
+      ImmutableBitmap bitmap = filter.toFilter(schema).getBitmapIndex(selector, context.baseBitmap);
+      return bitmap == null ? null : BitmapHolder.exact(bitmap);
     }
     if (capabilities.getType() == ValueType.BOOLEAN && filter instanceof DimFilter.BooleanColumnSupport) {
       ImmutableBitmap bitmap = ((DimFilter.BooleanColumnSupport) filter).toBooleanFilter(schema, selector);

@@ -119,7 +119,7 @@ public class ExtractionDimFilterTest
     @Override
     public int getNumRows()
     {
-      return 1;
+      return 100;
     }
 
     @Override
@@ -347,7 +347,7 @@ public class ExtractionDimFilterTest
     );
 
     Assert.assertEquals(
-        1,
+        100,
         Filters.toFilter(
             DimFilters.not(
                 new ExtractionDimFilter(

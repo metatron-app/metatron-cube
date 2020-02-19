@@ -112,11 +112,6 @@ public class DimFilters
     return new NotDimFilter(filter);
   }
 
-  public static RegexDimFilter regex(String dimension, String pattern)
-  {
-    return new RegexDimFilter(dimension, pattern, null);
-  }
-
   public static List<DimFilter> optimize(List<DimFilter> filters)
   {
     return Lists.newArrayList(

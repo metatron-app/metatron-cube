@@ -79,7 +79,11 @@ public class OrFilter implements Filter, Expression.OrExpression
 
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (Filter filter : filters) {
-      bitmaps.add(filter.getBitmapIndex(selector, baseBitmap));
+      ImmutableBitmap bitmap = filter.getBitmapIndex(selector, baseBitmap);
+      if (bitmap == null) {
+        return null;
+      }
+      bitmaps.add(bitmap);
     }
 
     return selector.getBitmapFactory().union(bitmaps);

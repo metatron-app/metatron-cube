@@ -110,7 +110,8 @@ public class InFilter implements Filter
               // InDimFilter converts all null "values" to empty.
               return values.contains(Strings.nullToEmpty(extractionFn.apply(input)));
             }
-          }
+          },
+          baseBitmap
       );
     }
   }

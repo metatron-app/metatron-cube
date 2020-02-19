@@ -74,7 +74,7 @@ public class JavaScriptFilter implements Filter
         }
       };
 
-      return Filters.matchPredicate(dimension, selector, contextualPredicate);
+      return Filters.matchPredicate(dimension, selector, contextualPredicate, baseBitmap);
     }
     finally {
       Context.exit();
