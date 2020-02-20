@@ -67,4 +67,13 @@ public class ImmutableDruidDataSource
   {
     return segmentsMap.values();
   }
+
+  @Override
+  public boolean equals(Object obj)
+  {
+    ImmutableDruidDataSource other = (ImmutableDruidDataSource) obj;
+    return name.equals(other.name) &&
+           properties.equals(other.properties) &&
+           segmentsMap.equals(other.segmentsMap);
+  }
 }

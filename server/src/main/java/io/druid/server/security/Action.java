@@ -19,8 +19,20 @@
 
 package io.druid.server.security;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import io.druid.common.utils.StringUtils;
+
 public enum Action
 {
   READ,
-  WRITE
+  WRITE;
+
+  @JsonCreator
+  public static Action fromString(String name)
+  {
+    if (name == null) {
+      return null;
+    }
+    return valueOf(StringUtils.toUpperCase(name));
+  }
 }

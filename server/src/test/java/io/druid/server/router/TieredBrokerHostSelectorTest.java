@@ -22,12 +22,12 @@ package io.druid.server.router;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.http.client.HttpClient;
 import io.druid.client.DruidServer;
 import io.druid.curator.discovery.ServerDiscoveryFactory;
 import io.druid.curator.discovery.ServerDiscoverySelector;
-import io.druid.guice.annotations.Global;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.guice.annotations.Json;
+import io.druid.java.util.http.client.HttpClient;
 import io.druid.query.Druids;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -243,7 +243,7 @@ public class TieredBrokerHostSelectorTest
   private static class TestRuleManager extends CoordinatorRuleManager
   {
     public TestRuleManager(
-        @Global HttpClient httpClient,
+        @EscalatedGlobal HttpClient httpClient,
         @Json ObjectMapper jsonMapper,
         Supplier<TieredBrokerConfig> config,
         ServerDiscoverySelector selector

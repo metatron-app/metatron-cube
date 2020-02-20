@@ -19,17 +19,12 @@
 
 package io.druid.server;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.client.BrokerServerView;
 import io.druid.client.DruidDataSource;
@@ -37,15 +32,14 @@ import io.druid.client.DruidServer;
 import io.druid.client.FilteredServerInventoryView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.TableDataSource;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.server.http.security.DatasourceResourceFilter;
 import io.druid.server.security.Access;
-import io.druid.server.security.Action;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
-import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceType;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
@@ -63,11 +57,8 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -86,21 +77,21 @@ public class ClientInfoResource
   private FilteredServerInventoryView serverInventoryView;
   private TimelineServerView timelineServerView;
   private SegmentMetadataQueryConfig segmentMetadataQueryConfig;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
   public ClientInfoResource(
       FilteredServerInventoryView serverInventoryView,
       TimelineServerView timelineServerView,
       SegmentMetadataQueryConfig segmentMetadataQueryConfig,
-      AuthConfig authConfig
+      AuthorizerMapper authorizerMapper
   )
   {
     this.serverInventoryView = serverInventoryView;
     this.timelineServerView = timelineServerView;
     this.segmentMetadataQueryConfig = (segmentMetadataQueryConfig == null) ?
                                       new SegmentMetadataQueryConfig() : segmentMetadataQueryConfig;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
   }
 
   private Map<String, List<DataSegment>> getSegmentsForDatasources()
@@ -125,37 +116,11 @@ public class ClientInfoResource
   @Produces(MediaType.APPLICATION_JSON)
   public Iterable<String> getDataSources(@Context final HttpServletRequest request)
   {
-    Set<String> dataSources = getSegmentsForDatasources().keySet();
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      return filterDataSources(request, dataSources);
-    }
-    return dataSources;
-  }
-
-  private Iterable<String> filterDataSources(
-      final HttpServletRequest request,
-      final Collection<String> dataSources
-  )
-  {
-    final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-    final AuthorizationInfo authorizationInfo = (AuthorizationInfo) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-    return Collections2.filter(
-        dataSources,
-        new Predicate<String>()
-        {
-          @Override
-          public boolean apply(String input)
-          {
-            Resource resource = new Resource(input, ResourceType.DATASOURCE);
-            Pair<Resource, Action> key = new Pair<>(resource, Action.READ);
-            Access access = resourceAccessMap.get(key);
-            if (access == null) {
-              resourceAccessMap.put(key, access = authorizationInfo.isAuthorized(key.lhs, key.rhs));
-            }
-            return access.isAllowed();
-          }
-        }
+    return AuthorizationUtils.filterAuthorizedResources(
+        request,
+        getSegmentsForDatasources().keySet(),
+        AuthorizationUtils.DATASOURCE_READ_RAs_GENERATOR,
+        authorizerMapper
     );
   }
 
@@ -329,19 +294,13 @@ public class ClientInfoResource
   public Response dropLocalDataSource(@PathParam("dataSource") String dataSource, @Context final HttpServletRequest req)
   {
     log.debug("Received drop local dataSource [%s]", dataSource);
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
-      Access authResult = authorizationInfo.isAuthorized(
-          new Resource(dataSource, ResourceType.DATASOURCE), Action.WRITE
-      );
-      if (!authResult.isAllowed()) {
-        return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", authResult).build();
-      }
+    Access access = AuthorizationUtils.authorizeAllResourceActions(
+        req,
+        AuthorizationUtils.DATASOURCE_WRITE_RAs_GENERATOR.apply(dataSource),
+        authorizerMapper
+    );
+    if (!access.isAllowed()) {
+      throw new ForbiddenException(access.toString());
     }
     if (((BrokerServerView) timelineServerView).dropLocalDataSource(dataSource)) {
       return Response.ok().build();
@@ -352,13 +311,15 @@ public class ClientInfoResource
   @GET
   @Path("/local")
   @Produces(MediaType.APPLICATION_JSON)
-  public List<String> getLocalDataSources(@Context HttpServletRequest request)
+  public Iterable<String> getLocalDataSources(@Context HttpServletRequest request)
   {
     List<String> dataSources = ((BrokerServerView) timelineServerView).getLocalDataSources();
-    if (authConfig.isEnabled()) {
-      return Lists.newArrayList(filterDataSources(request, dataSources));
-    }
-    return dataSources;
+    return AuthorizationUtils.filterAuthorizedResources(
+        request,
+        dataSources,
+        AuthorizationUtils.DATASOURCE_READ_RAs_GENERATOR,
+        authorizerMapper
+    );
   }
 
   @GET
@@ -369,11 +330,12 @@ public class ClientInfoResource
       @Context HttpServletRequest request
   )
   {
-    if (authConfig.isEnabled() &&
-        Iterables.isEmpty(filterDataSources(request, Arrays.asList(dataSource)))) {
-      return null;
-    }
-    return ((BrokerServerView) timelineServerView).getLocalDataSourceCoverage(dataSource);
+    Access access = AuthorizationUtils.authorizeAllResourceActions(
+        request,
+        AuthorizationUtils.DATASOURCE_READ_RAs_GENERATOR.apply(dataSource),
+        authorizerMapper
+    );
+    return access.isAllowed() ? ((BrokerServerView) timelineServerView).getLocalDataSourceCoverage(dataSource) : null;
   }
 
   @GET
@@ -383,11 +345,13 @@ public class ClientInfoResource
       @PathParam("queryId") String queryId,
       @Context HttpServletRequest request)
   {
-    List<String> dataSources = ((BrokerServerView) timelineServerView).getLocalDataSources();
-    if (authConfig.isEnabled()) {
-      dataSources = Lists.newArrayList(filterDataSources(request, dataSources));
-    }
-    return ((BrokerServerView) timelineServerView).getLocalDataSourceMeta(dataSources, queryId);
+    Iterable<String> authorized = AuthorizationUtils.filterAuthorizedResources(
+        request,
+        ((BrokerServerView) timelineServerView).getLocalDataSources(),
+        AuthorizationUtils.DATASOURCE_READ_RAs_GENERATOR,
+        authorizerMapper
+    );
+    return ((BrokerServerView) timelineServerView).getLocalDataSourceMeta(authorized, queryId);
   }
 
   protected DateTime getCurrentTime()

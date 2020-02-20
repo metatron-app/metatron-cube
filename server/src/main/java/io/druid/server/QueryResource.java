@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
@@ -33,7 +34,6 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.jackson.JodaStuff;
-import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
@@ -46,15 +46,13 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
-import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.security.Access;
-import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
-import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceType;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -106,7 +104,7 @@ public class QueryResource
   protected final QuerySegmentWalker segmentWalker;
   protected final QueryToolChestWarehouse warehouse;
 
-  protected final AuthConfig authConfig;
+  protected final AuthorizerMapper authorizerMapper;
 
   @Inject
   public QueryResource(
@@ -118,7 +116,7 @@ public class QueryResource
       QueryManager queryManager,
       QuerySegmentWalker segmentWalker,
       QueryToolChestWarehouse warehouse,
-      AuthConfig authConfig
+      AuthorizerMapper authorizerMapper
   )
   {
     this.queryLifecycleFactory = queryLifecycleFactory;
@@ -129,7 +127,7 @@ public class QueryResource
     this.queryManager = queryManager;
     this.segmentWalker = segmentWalker;
     this.warehouse = warehouse;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
     this.jsonCustomMapper = JodaStuff.overrideForInternal(jsonMapper);
     this.smileCustomMapper = JodaStuff.overrideForInternal(smileMapper);
   }
@@ -141,11 +139,13 @@ public class QueryResource
   {
     log.info("Received cancel request for query [%s]", queryId);
     Set<String> dataSources = queryManager.getQueryDatasources(queryId);
-    if (dataSources != null && !dataSources.isEmpty()) {
-      Access access = authorizeDS(dataSources, Action.WRITE, req);
-      if (access != null) {
-        return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
-      }
+    Access authResult = AuthorizationUtils.authorizeAllResourceActions(
+        req,
+        Iterables.transform(dataSources, AuthorizationUtils.DATASOURCE_WRITE_RA_GENERATOR),
+        authorizerMapper
+    );
+    if (!authResult.isAllowed()) {
+      throw new ForbiddenException(authResult.toString());
     }
     queryManager.cancelQuery(queryId);
     return Response.status(Response.Status.ACCEPTED).build();
@@ -237,7 +237,7 @@ public class QueryResource
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
       final Query prepared = lifecycle.initialize(prepareQuery(query));
-      final Access access = lifecycle.authorize((AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN));
+      final Access access = lifecycle.authorize(prepared, req);
       if (access != null && !access.isAllowed()) {
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
@@ -376,29 +376,6 @@ public class QueryResource
         MultipleIntervalSegmentSpec.of(JodaUtils.umbrellaInterval(query.getIntervals()))
     );
     return QueryUtils.forLog(query);
-  }
-
-  protected Access authorize(Query query, HttpServletRequest req)
-  {
-    return authorizeDS(query.getDataSource().getNames(), Action.READ, req);
-  }
-
-  protected Access authorizeDS(Iterable<String> dataSources, Action action, HttpServletRequest req)
-  {
-    if (authConfig.isEnabled()) {
-      AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      if (authorizationInfo == null) {
-        throw new ISE("Security is enabled but no authorization info found in the request");
-      }
-      for (String dataSource : dataSources) {
-        Resource resource = new Resource(dataSource, ResourceType.DATASOURCE);
-        Access authResult = authorizationInfo.isAuthorized(resource, action);
-        if (!authResult.isAllowed()) {
-          return authResult;
-        }
-      }
-    }
-    return null;
   }
 
   protected Query prepareQuery(Query query) throws Exception

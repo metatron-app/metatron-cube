@@ -23,13 +23,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
-import io.druid.java.util.http.client.HttpClient;
-import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.ServiceClient;
 import io.druid.curator.discovery.ServerDiscoverySelector;
-import io.druid.guice.annotations.Global;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.guice.annotations.Self;
+import io.druid.java.util.http.client.HttpClient;
+import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.server.DruidNode;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.lang.StringUtils;
@@ -47,7 +47,7 @@ public class CoordinatorClient extends ServiceClient
   @Inject
   public CoordinatorClient(
       @Self DruidNode server,
-      @Global HttpClient client,
+      @EscalatedGlobal HttpClient client,
       ObjectMapper jsonMapper,
       @Coordinator ServerDiscoverySelector selector
   )

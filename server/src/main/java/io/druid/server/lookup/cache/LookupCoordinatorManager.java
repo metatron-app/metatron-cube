@@ -39,6 +39,11 @@ import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
+import io.druid.audit.AuditInfo;
+import io.druid.common.config.JacksonConfigManager;
+import io.druid.concurrent.Execs;
+import io.druid.guice.annotations.EscalatedGlobal;
+import io.druid.guice.annotations.Smile;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StreamUtils;
@@ -51,11 +56,6 @@ import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.ClientResponse;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
 import io.druid.java.util.http.client.response.SequenceInputStreamResponseHandler;
-import io.druid.audit.AuditInfo;
-import io.druid.common.config.JacksonConfigManager;
-import io.druid.concurrent.Execs;
-import io.druid.guice.annotations.Global;
-import io.druid.guice.annotations.Smile;
 import io.druid.query.lookup.LookupModule;
 import io.druid.server.listener.announcer.ListenerDiscoverer;
 import io.druid.server.listener.resource.ListenerResource;
@@ -131,7 +131,7 @@ public class LookupCoordinatorManager
 
   @Inject
   public LookupCoordinatorManager(
-      final @Global HttpClient httpClient,
+      final @EscalatedGlobal HttpClient httpClient,
       final ListenerDiscoverer listenerDiscoverer,
       final @Smile ObjectMapper smileMapper,
       final JacksonConfigManager configManager,

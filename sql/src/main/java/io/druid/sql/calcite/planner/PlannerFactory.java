@@ -26,6 +26,8 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.server.QueryManager;
 import io.druid.server.QueryLifecycleFactory;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
@@ -66,6 +68,7 @@ public class PlannerFactory
   private final QuerySegmentWalker segmentWalker;
   private final QueryManager queryManager;
   private final DruidOperatorTable operatorTable;
+  private final AuthorizerMapper authorizerMapper;
   private final PlannerConfig plannerConfig;
   private final QueryConfig queryConfig;
   private final ObjectMapper jsonMapper;
@@ -78,6 +81,7 @@ public class PlannerFactory
       final QuerySegmentWalker segmentWalker,
       final QueryManager queryManager,
       final DruidOperatorTable operatorTable,
+      final AuthorizerMapper authorizerMapper,
       final PlannerConfig plannerConfig,
       final QueryConfig queryConfig,
       final @Json ObjectMapper jsonMapper
@@ -89,19 +93,21 @@ public class PlannerFactory
     this.segmentWalker = segmentWalker;
     this.queryManager = queryManager;
     this.operatorTable = operatorTable;
+    this.authorizerMapper = authorizerMapper;
     this.plannerConfig = plannerConfig;
     this.queryConfig = queryConfig;
     this.jsonMapper = jsonMapper;
   }
 
-  public DruidPlanner createPlanner(final Map<String, Object> queryContext)
+  public DruidPlanner createPlanner(final Map<String, Object> queryContext, AuthenticationResult authenticationResult)
   {
     final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema, segmentWalker, systemSchema);
     final PlannerContext plannerContext = PlannerContext.create(
         queryManager,
         operatorTable,
         plannerConfig,
-        queryContext
+        queryContext,
+        authenticationResult
     );
     final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, segmentWalker, plannerContext, queryConfig, jsonMapper);
     final SqlToRelConverter.Config sqlToRelConverterConfig = SqlToRelConverter
@@ -152,5 +158,10 @@ public class PlannerFactory
         Frameworks.getPlanner(frameworkConfig),
         plannerContext
     );
+  }
+
+  public AuthorizerMapper getAuthorizerMapper()
+  {
+    return authorizerMapper;
   }
 }

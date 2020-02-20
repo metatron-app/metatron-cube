@@ -20,12 +20,15 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.service.AlertBuilder;
 import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.DruidMetrics;
@@ -38,9 +41,11 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
-import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthenticationResult;
 import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
 import org.eclipse.jetty.io.EofException;
 import org.joda.time.DateTime;
 
@@ -48,7 +53,6 @@ import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -73,10 +77,11 @@ public class QueryLifecycle
     AUTHORIZING,
     AUTHORIZED,
     EXECUTING,
+    UNAUTHORIZED,
     DONE
   }
 
-  private static final EmittingLogger log = new EmittingLogger(QueryLifecycle.class);
+  private static final Logger log = new Logger(QueryLifecycle.class);
 
   private final QueryManager queryManager;
   private final QueryToolChestWarehouse warehouse;
@@ -85,7 +90,7 @@ public class QueryLifecycle
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final ObjectMapper jsonMapper;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
   private final long startMs;
   private final long startNs;
 
@@ -101,7 +106,7 @@ public class QueryLifecycle
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
       final ObjectMapper jsonMapper,
-      final AuthConfig authConfig,
+      final AuthorizerMapper authorizerMapper,
       final long startMs,
       final long startNs
   )
@@ -113,7 +118,7 @@ public class QueryLifecycle
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.jsonMapper = jsonMapper;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
     this.startMs = startMs;
     this.startNs = startNs;
   }
@@ -133,16 +138,16 @@ public class QueryLifecycle
   @SuppressWarnings("unchecked")
   public <T> Sequence<T> runSimple(
       final Query<T> query,
-      @Nullable final AuthorizationInfo authorizationInfo,
+      @Nullable final AuthenticationResult authenticationResult,
       @Nullable final String remoteAddress
   )
   {
     initialize(query);
 
     try {
-      final Access access = authorize(authorizationInfo);
+      final Access access = authorize(query, authenticationResult);
       if (!access.isAllowed()) {
-        throw new ISE("Unauthorized");
+        throw new ForbiddenException(access.toString());
       }
       return execute(Maps.newHashMap());
     }
@@ -169,29 +174,62 @@ public class QueryLifecycle
   /**
    * Authorize the query. Will return an Access object denoting whether the query is authorized or not.
    *
-   * @param authorizationInfo authorization info from the request; or null if none is present. This must be non-null
-   *                          if security is enabled, or the request will be considered unauthorized.
+   * @param authenticationResult authentication result indicating the identity of the requester
    *
    * @return authorization result
-   *
-   * @throws IllegalStateException if security is enabled and authorizationInfo is null
    */
-  public Access authorize(@Nullable final AuthorizationInfo authorizationInfo)
+  public Access authorize(final Query<?> query, final AuthenticationResult authenticationResult)
   {
     transition(State.INITIALIZED, State.AUTHORIZING);
+    return doAuthorize(
+        authenticationResult,
+        AuthorizationUtils.authorizeAllResourceActions(
+            authenticationResult,
+            Iterables.transform(
+                query.getDataSource().getNames(),
+                AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+            ),
+            authorizerMapper
+        )
+    );
+  }
 
-    if (authConfig.isEnabled()) {
-      Access accessAuth = AuthorizationUtils.authorize(authorizationInfo, query.getDataSource().getNames());
-      if (!accessAuth.isAllowed()) {
-        transition(State.AUTHORIZING, State.DONE);
-      } else {
-        transition(State.AUTHORIZING, State.AUTHORIZED);
-      }
-      return accessAuth;
+  /**
+   * Authorize the query. Will return an Access object denoting whether the query is authorized or not.
+   *
+   * @param req HTTP request object of the request. If provided, the auth-related fields in the HTTP request
+   *            will be automatically set.
+   *
+   * @return authorization result
+   */
+  public Access authorize(final Query<?> query, HttpServletRequest req)
+  {
+    transition(State.INITIALIZED, State.AUTHORIZING);
+    return doAuthorize(
+        AuthorizationUtils.authenticationResultFromRequest(req),
+        AuthorizationUtils.authorizeAllResourceActions(
+            req,
+            Iterables.transform(
+                query.getDataSource().getNames(),
+                AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+            ),
+            authorizerMapper
+        )
+    );
+  }
+
+  private Access doAuthorize(final AuthenticationResult authenticationResult, final Access authorizationResult)
+  {
+    Preconditions.checkNotNull(authenticationResult, "authenticationResult");
+    Preconditions.checkNotNull(authorizationResult, "authorizationResult");
+
+    if (!authorizationResult.isAllowed()) {
+      // Not authorized; go straight to Jail, do not pass Go.
+      transition(State.AUTHORIZING, State.UNAUTHORIZED);
     } else {
       transition(State.AUTHORIZING, State.AUTHORIZED);
-      return new Access(true);
     }
+    return authorizationResult;
   }
 
   /**
@@ -240,12 +278,12 @@ public class QueryLifecycle
       log.info("[%s] interrupted[%s]", query.getId(), e.toString());
     } else {
       log.warn(e, "Exception occurred on request [%s]", forLog);
-      // FIXME duplicated logging
-      log.makeAlert(e, "Exception handling request")
-         .addData("exception", e.toString())
-         .addData("query", forLog)
-         .addData("peer", remoteAddress)
-         .emit();
+      emitter.emit(
+          AlertBuilder.create(e, "Exception occurred on request [%s]", forLog)
+                      .addData("exception", e.toString())
+                      .addData("query", forLog)
+                      .addData("peer", remoteAddress)
+      );
     }
 
     try {

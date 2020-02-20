@@ -199,7 +199,7 @@ public class SupervisorManager
     }
 
     if (writeTombstone) {
-      metadataSupervisorManager.insert(id, new NoopSupervisorSpec()); // where NoopSupervisorSpec is a tombstone
+      metadataSupervisorManager.insert(id, new NoopSupervisorSpec(null, pair.rhs.getDataSources()));
     }
     pair.lhs.stop(true);
     supervisors.remove(id);
@@ -234,7 +234,7 @@ public class SupervisorManager
     catch (Exception e) {
       // Supervisor creation or start failed write tombstone only when trying to start a new supervisor
       if (persistSpec) {
-        metadataSupervisorManager.insert(id, new NoopSupervisorSpec());
+        metadataSupervisorManager.insert(id, new NoopSupervisorSpec(null, spec.getDataSources()));
       }
       Throwables.propagate(e);
     }

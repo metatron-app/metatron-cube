@@ -18,6 +18,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.joda.time.DateTime;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Map;
 
 /**
@@ -38,6 +40,19 @@ public class AlertBuilder extends ServiceEventBuilder<AlertEvent>
   public static AlertBuilder createEmittable(ServiceEmitter emitter, String descriptionFormat, Object... objects)
   {
     return new AlertBuilder(String.format(descriptionFormat, objects), emitter);
+  }
+
+  public static AlertBuilder create(Throwable t, String message, Object... objects)
+  {
+    AlertBuilder retVal = AlertBuilder.create(message, objects);
+    if (t != null) {
+      StringWriter trace = new StringWriter();
+      t.printStackTrace(new PrintWriter(trace));
+      retVal.addData("exceptionType", t.getClass());
+      retVal.addData("exceptionMessage", t.getMessage());
+      retVal.addData("exceptionStackTrace", trace.toString());
+    }
+    return retVal;
   }
 
   protected AlertBuilder(

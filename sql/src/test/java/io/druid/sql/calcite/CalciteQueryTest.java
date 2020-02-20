@@ -89,6 +89,9 @@ import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.server.QueryManager;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.ForbiddenException;
+import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.DruidPlanner;
@@ -121,6 +124,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static io.druid.sql.calcite.util.CalciteTests.FORBIDDEN_DATASOURCE;
 
 public class CalciteQueryTest extends CalciteTestBase
 {
@@ -491,7 +496,7 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{"druid", CalciteTests.DATASOURCE1, "TABLE"},
             new Object[]{"druid", CalciteTests.DATASOURCE2, "TABLE"},
             new Object[]{"druid", CalciteTests.DATASOURCE3, "TABLE"},
-            new Object[]{"druid", CalciteTests.FORBIDDEN_DATASOURCE, "TABLE"},
+            new Object[]{"druid", FORBIDDEN_DATASOURCE, "TABLE"},
             new Object[]{"druid", "mmapped", "TABLE"},
             new Object[]{"druid", "mmapped-split", "TABLE"},
             new Object[]{"druid", "mmapped_merged", "TABLE"},
@@ -623,13 +628,20 @@ public class CalciteQueryTest extends CalciteTestBase
   @Test
   public void testSelectStarOnForbiddenTable() throws Exception
   {
+    assertForbidden(
+        "SELECT * FROM druid.forbiddenDatasource",
+        CalciteTests.REGULAR_USER_AUTH_RESULT
+    );
+
     testQuery(
         PLANNER_CONFIG_DEFAULT,
+        QUERY_CONTEXT_DEFAULT,
         "SELECT * FROM druid.forbiddenDatasource",
-        ImmutableList.<Query>of(
+        CalciteTests.SUPER_USER_AUTH_RESULT,
+        ImmutableList.of(
             newScanQueryBuilder()
-                .dataSource(CalciteTests.FORBIDDEN_DATASOURCE)
-                .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
+                .dataSource(FORBIDDEN_DATASOURCE)
+                .columns("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1")
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streaming()
         ),
@@ -6875,6 +6887,24 @@ public class CalciteQueryTest extends CalciteTestBase
     );
   }
 
+  private void assertForbidden(String sql, AuthenticationResult authenticationResult)
+  {
+    assertForbidden(PLANNER_CONFIG_DEFAULT, sql, authenticationResult);
+  }
+
+  private void assertForbidden(PlannerConfig plannerConfig, String sql, AuthenticationResult authenticationResult)
+  {
+    try {
+      testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, authenticationResult, ImmutableList.of(), ImmutableList.of());
+      Assert.fail("Expected ForbiddenException");
+    }
+    catch (Exception e) {
+      Assert.assertTrue(
+          String.format("Expected ForbiddenException but %s", e), e instanceof ForbiddenException
+      );
+    }
+  }
+
   private void testQuery(
       final String sql,
       final List<Query> expectedQueries,
@@ -6897,7 +6927,13 @@ public class CalciteQueryTest extends CalciteTestBase
       final List<Object[]> expectedResults
   ) throws Exception
   {
-    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, expectedQueries, expectedResults);
+    testQuery(
+        plannerConfig,
+        QUERY_CONTEXT_DEFAULT,
+        sql,
+        expectedQueries,
+        expectedResults
+    );
   }
 
   private void testQuery(
@@ -6908,19 +6944,39 @@ public class CalciteQueryTest extends CalciteTestBase
       final List<Object[]> expectedResults
   ) throws Exception
   {
+    testQuery(
+        plannerConfig,
+        queryContext,
+        sql,
+        CalciteTests.REGULAR_USER_AUTH_RESULT,
+        expectedQueries,
+        expectedResults
+    );
+  }
+
+  private void testQuery(
+      final PlannerConfig plannerConfig,
+      final Map<String, Object> queryContext,
+      final String sql,
+      final AuthenticationResult authenticationResult,
+      final List<Query> expectedQueries,
+      final List<Object[]> expectedResults
+  ) throws Exception
+  {
     log.info("SQL: %s", sql);
     queryLogHook.clearRecordedQueries();
-    final List<Object[]> plannerResults = getResults(plannerConfig, queryContext, sql);
+    final List<Object[]> plannerResults = getResults(plannerConfig, queryContext, sql, authenticationResult);
     verifyResults(sql, expectedQueries, expectedResults, plannerResults);
   }
 
-  private List<Object[]> getResults(
+  public List<Object[]> getResults(
       final PlannerConfig plannerConfig,
       final Map<String, Object> queryContext,
-      final String sql
+      final String sql,
+      final AuthenticationResult authenticationResult
   ) throws Exception
   {
-    final InProcessViewManager viewManager = new InProcessViewManager();
+    final InProcessViewManager viewManager = new InProcessViewManager(CalciteTests.TEST_AUTHENTICATOR_ESCALATOR);
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig, viewManager);
     final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(druidSchema, walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
@@ -6932,10 +6988,12 @@ public class CalciteQueryTest extends CalciteTestBase
         walker,
         new QueryManager(),
         operatorTable,
+        CalciteTests.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
         new QueryConfig(),
         CalciteTests.getJsonMapper()
     );
+    final SqlLifecycleFactory sqlLifecycleFactory = CalciteTests.createSqlLifecycleFactory(plannerFactory);
 
     viewManager.createView(
         plannerFactory,
@@ -6950,7 +7008,7 @@ public class CalciteQueryTest extends CalciteTestBase
         + "WHERE __time >= CURRENT_TIMESTAMP + INTERVAL '1' DAY AND __time < TIMESTAMP '2002-01-01 00:00:00'"
     );
 
-    try (DruidPlanner planner = plannerFactory.createPlanner(queryContext)) {
+    try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
       final PlannerResult plan = planner.plan(sql, null);
       List<Object[]> results = Sequences.toList(plan.run(), Lists.newArrayList());
       log.info("result schema " + plan.rowType());

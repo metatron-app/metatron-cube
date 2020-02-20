@@ -21,6 +21,7 @@ package io.druid.sql;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import io.druid.client.BrokerServerView;
 import io.druid.java.util.common.DateTimes;
 import io.druid.java.util.common.ISE;
@@ -34,8 +35,7 @@ import io.druid.server.QueryStats;
 import io.druid.server.RequestLogLine;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthenticationResult;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.ForbiddenException;
 import io.druid.sql.calcite.planner.DruidPlanner;
@@ -48,6 +48,7 @@ import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
 import javax.annotation.Nullable;
+import javax.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -61,10 +62,10 @@ import java.util.concurrent.TimeUnit;
  *
  * <ol>
  * <li>Initialization ({@link #initialize(String, Map)})</li>
- * <li>Planning ({@link #plan()})</li>
- * <li>Authorization ({@link #authorize(AuthorizationInfo)})</li>
+ * <li>Planning ({@link #plan(HttpServletRequest)} or {@link #plan(AuthenticationResult)})</li>
+ * <li>Authorization ({@link #authorize()})</li>
  * <li>Execution ({@link #execute()})</li>
- * <li>Logging ({@link #emitLogsAndMetrics(String, Throwable, String, long, int)})</li>
+ * <li>Logging ({@link #emitLogsAndMetrics(Throwable, String, long)})</li>
  * </ol>
  *
  * <p>Unlike QueryLifecycle, this class is designed to be <b>thread safe</b> so that it can be used in multi-threaded
@@ -89,7 +90,6 @@ public class SqlLifecycle
   private final PlannerFactory plannerFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
-  private final AuthConfig authConfig;
   private final long startMs;
   private final long startNs;
   private final BrokerServerView brokerServerView;
@@ -97,9 +97,11 @@ public class SqlLifecycle
 
   private State state = State.NEW;
 
-  // init during initialize
+  // init during intialize
   private String sql;
   private Map<String, Object> queryContext;
+  // init during plan
+  @Nullable private HttpServletRequest req;
   private PlannerContext plannerContext;
   private PlannerResult plannerResult;
 
@@ -107,7 +109,6 @@ public class SqlLifecycle
       PlannerFactory plannerFactory,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
-      final AuthConfig authConfig,
       long startMs,
       long startNs,
       BrokerServerView brokerServerView
@@ -116,7 +117,6 @@ public class SqlLifecycle
     this.plannerFactory = plannerFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
-    this.authConfig = authConfig;
     this.startMs = startMs;
     this.startNs = startNs;
     this.brokerServerView = brokerServerView;
@@ -138,9 +138,7 @@ public class SqlLifecycle
     if (queryContext != null) {
       newContext.putAll(queryContext);
     }
-    if (!newContext.containsKey(PlannerContext.CTX_SQL_QUERY_ID)) {
-      newContext.put(PlannerContext.CTX_SQL_QUERY_ID, UUID.randomUUID().toString());
-    }
+    newContext.computeIfAbsent(PlannerContext.CTX_SQL_QUERY_ID, k -> UUID.randomUUID().toString());
     return newContext;
   }
 
@@ -149,11 +147,12 @@ public class SqlLifecycle
     return (String) this.queryContext.get(PlannerContext.CTX_SQL_QUERY_ID);
   }
 
-  private PlannerContext plan() throws ValidationException, RelConversionException, SqlParseException
+  public PlannerContext plan(AuthenticationResult authenticationResult)
+      throws ValidationException, RelConversionException, SqlParseException
   {
     synchronized (lock) {
       transition(State.INITIALIZED, State.PLANNED);
-      try (DruidPlanner planner = plannerFactory.createPlanner(queryContext)) {
+      try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
         this.plannerContext = planner.getPlannerContext();
         this.plannerResult = planner.plan(sql, brokerServerView);
       }
@@ -161,39 +160,56 @@ public class SqlLifecycle
     }
   }
 
+  public PlannerContext plan(HttpServletRequest req)
+      throws SqlParseException, RelConversionException, ValidationException
+  {
+    synchronized (lock) {
+      this.req = req;
+      return plan(AuthorizationUtils.authenticationResultFromRequest(req));
+    }
+  }
+
   public RelDataType rowType()
   {
     synchronized (lock) {
       Preconditions.checkState(plannerResult != null,
-                               "must be called after sql has been planned");
+                               "must be called after SQL has been planned");
       return plannerResult.rowType();
     }
   }
 
-  public Access authorize(@Nullable final AuthorizationInfo authorizationInfo)
+  public Access authorize()
   {
+    synchronized (lock) {
+      transition(State.PLANNED, State.AUTHORIZING);
 
-    if (authConfig.isEnabled()) {
-      synchronized (lock) {
-        transition(State.PLANNED, State.AUTHORIZING);
-
-        Access accessAuth;
-        if (authConfig.isEnabled()) {
-          accessAuth = AuthorizationUtils.authorize(authorizationInfo, plannerResult.datasourceNames());
-        } else {
-          accessAuth = new Access(true);
-        }
-        return doAuthorize(accessAuth);
+      if (req != null) {
+        return doAuthorize(
+            AuthorizationUtils.authorizeAllResourceActions(
+                req,
+                Iterables.transform(
+                    plannerResult.datasourceNames(),
+                    AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+                ),
+                plannerFactory.getAuthorizerMapper()
+            )
+        );
       }
-    } else {
-      transition(State.PLANNED, State.AUTHORIZED);
-      return new Access(true);
+
+      return doAuthorize(
+          AuthorizationUtils.authorizeAllResourceActions(
+              plannerContext.getAuthenticationResult(),
+              Iterables.transform(plannerResult.datasourceNames(), AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR),
+              plannerFactory.getAuthorizerMapper()
+          )
+      );
     }
   }
 
   private Access doAuthorize(final Access authorizationResult)
   {
     if (!authorizationResult.isAllowed()) {
+      // Not authorized; go straight to Jail, do not pass Go.
       transition(State.AUTHORIZING, State.UNAUTHORIZED);
     } else {
       transition(State.AUTHORIZING, State.AUTHORIZED);
@@ -201,11 +217,22 @@ public class SqlLifecycle
     return authorizationResult;
   }
 
-  public PlannerContext planAndAuthorize(final AuthorizationInfo authorizationInfo)
+  public PlannerContext planAndAuthorize(final AuthenticationResult authenticationResult)
       throws SqlParseException, RelConversionException, ValidationException
   {
-    PlannerContext plannerContext = plan();
-    Access access = authorize(authorizationInfo);
+    PlannerContext plannerContext = plan(authenticationResult);
+    Access access = authorize();
+    if (!access.isAllowed()) {
+      throw new ForbiddenException(access.toString());
+    }
+    return plannerContext;
+  }
+
+  public PlannerContext planAndAuthorize(final HttpServletRequest req)
+      throws SqlParseException, RelConversionException, ValidationException
+  {
+    PlannerContext plannerContext = plan(req);
+    Access access = authorize();
     if (!access.isAllowed()) {
       throw new ForbiddenException(access.toString());
     }

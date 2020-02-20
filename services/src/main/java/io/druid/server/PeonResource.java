@@ -21,19 +21,19 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.indexing.overlord.TaskRunner;
 import io.druid.indexing.overlord.TaskRunnerWorkItem;
 import io.druid.indexing.overlord.ThreadPoolTaskRunner;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
-import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizerMapper;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -61,7 +61,7 @@ public class PeonResource extends QueryResource
       QuerySegmentWalker texasRanger,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
-      AuthConfig authConfig,
+      AuthorizerMapper authorizerMapper,
       QueryToolChestWarehouse warehouse,
       TaskRunner taskRunner,
       GenericQueryMetricsFactory queryMetricsFactory
@@ -76,7 +76,7 @@ public class PeonResource extends QueryResource
         queryManager,
         texasRanger,
         warehouse,
-        authConfig
+        authorizerMapper
     );
     this.taskRunner = taskRunner;
   }

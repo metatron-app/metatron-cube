@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,16 +19,26 @@
 
 package io.druid.cli;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import com.google.inject.servlet.DelegatedGuiceFilter;
+import com.google.inject.Key;
+import com.google.inject.servlet.GuiceFilter;
+import io.druid.guice.annotations.Json;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.server.GuiceServletConfig;
 import io.druid.server.initialization.jetty.JettyServerInitUtils;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthenticationUtils;
+import io.druid.server.security.Authenticator;
+import io.druid.server.security.AuthenticatorMapper;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -37,9 +47,17 @@ import java.util.List;
 import java.util.Set;
 
 /**
+ *
  */
 public class QueryJettyServerInitializer implements JettyServerInitializer
 {
+  private static final Logger log = new Logger(QueryJettyServerInitializer.class);
+  private static List<String> UNSECURED_PATHS = Lists.newArrayList(
+      "/status/health",
+      "/druid/historical/v1/readiness",
+      "/druid/broker/v1/readiness"
+  );
+
   private final List<Handler> extensionHandlers;
 
   @Inject
@@ -54,9 +72,28 @@ public class QueryJettyServerInitializer implements JettyServerInitializer
     final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
     root.addEventListener(new GuiceServletConfig(injector));
     root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
+
+    final AuthConfig authConfig = injector.getInstance(AuthConfig.class);
+    final ObjectMapper jsonMapper = injector.getInstance(Key.get(ObjectMapper.class, Json.class));
+    final AuthenticatorMapper authenticatorMapper = injector.getInstance(AuthenticatorMapper.class);
+
+    AuthenticationUtils.addSecuritySanityCheckFilter(root, jsonMapper);
+
+    // perform no-op authorization for these resources
+    AuthenticationUtils.addNoopAuthenticationAndAuthorizationFilters(root, UNSECURED_PATHS);
+    AuthenticationUtils.addNoopAuthenticationAndAuthorizationFilters(root, authConfig.getUnsecuredPaths());
+
+    List<Authenticator> authenticators = authenticatorMapper.getAuthenticatorChain();
+    AuthenticationUtils.addAuthenticationFilterChain(root, authenticators);
+
+    AuthenticationUtils.addAllowOptionsFilter(root, authConfig.isAllowUnauthenticatedHttpOptions());
+
     JettyServerInitUtils.addExtensionFilters(root, injector);
 
-    root.addFilter(DelegatedGuiceFilter.class, "/*", null);
+    // Check that requests were authorized before sending responses
+    AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, authenticators, jsonMapper);
+
+    root.addFilter(GuiceFilter.class, "/*", null);
 
     final HandlerList handlerList = new HandlerList();
 
@@ -73,6 +110,9 @@ public class QueryJettyServerInitializer implements JettyServerInitializer
 
     handlerList.addHandler(JettyServerInitUtils.wrapWithDefaultGzipHandler(root));
 
-    server.setHandler(handlerList);
+    final StatisticsHandler statisticsHandler = new StatisticsHandler();
+    statisticsHandler.setHandler(handlerList);
+
+    server.setHandler(statisticsHandler);
   }
 }

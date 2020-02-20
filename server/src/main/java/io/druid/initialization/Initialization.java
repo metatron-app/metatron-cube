@@ -59,15 +59,21 @@ import io.druid.guice.ServerViewModule;
 import io.druid.guice.StartupLoggingModule;
 import io.druid.guice.StorageNodeModule;
 import io.druid.guice.annotations.Client;
+import io.druid.guice.annotations.EscalatedClient;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.HttpClientModule;
+import io.druid.guice.security.AuthenticatorModule;
+import io.druid.guice.security.AuthorizerModule;
 import io.druid.guice.security.DruidAuthModule;
+import io.druid.guice.security.EscalatorModule;
 import io.druid.jackson.FunctionInitializer;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.metadata.storage.derby.DerbyMetadataStorageDruidModule;
 import io.druid.query.ordering.StringComparators;
+import io.druid.server.initialization.AuthenticatorMapperModule;
+import io.druid.server.initialization.AuthorizerMapperModule;
 import io.druid.server.initialization.EmitterModule;
 import io.druid.server.initialization.jetty.JettyServerModule;
 import io.druid.server.metrics.MetricsModule;
@@ -360,7 +366,7 @@ public class Initialization
                  : getClassLoaderForExtension(parentModule);
         Preconditions.checkNotNull(parent, "Cannot find parent module [%s]", parentModule);
       }
-      loader = new URLClassLoader(toURLs(extension, true), parent);
+      loader = new NamedURLCloassLoader(extension.getName(), toURLs(extension, true), parent);
       loadersMap.put(extensionName, loader);
     }
     return loader;
@@ -394,10 +400,29 @@ public class Initialization
     ClassLoader parent = Initialization.class.getClassLoader();
     ClassLoader hadoop = getClassLoaderForExtension(INTERNAL_HADOOP_CLIENT);
     if (hadoop == null) {
-      hadoop = new URLClassLoader(toURLs(getHadoopDependencyFilesToLoad(config), false), parent);
+      File directory = getHadoopDependencyFilesToLoad(config);
+      hadoop = new NamedURLCloassLoader("hadoop-client-" + directory.getName(), toURLs(directory, false), parent);
       loadersMap.put(INTERNAL_HADOOP_CLIENT, hadoop);
     }
     return hadoop;
+  }
+
+  private static class NamedURLCloassLoader extends URLClassLoader
+  {
+    private final String name;
+
+    public NamedURLCloassLoader(String name, URL[] urls, ClassLoader parent)
+    {
+      super(urls, parent);
+      this.name = name;
+      log.debug("Creating class loader for %s (parent = %s)", name, parent);
+    }
+
+    @Override
+    public String toString()
+    {
+      return name;
+    }
   }
 
   public static List<URL> getURLsForClasspath(String cp)
@@ -448,7 +473,9 @@ public class Initialization
         new LifecycleModule(),
         EmitterModule.class,
         HttpClientModule.global(),
+        HttpClientModule.escalatedGlobal(),
         new HttpClientModule("druid.broker.http", Client.class),
+        new HttpClientModule("druid.broker.http", EscalatedClient.class),
         new CuratorModule(),
         new AnnouncerModule(),
         new DruidProcessingModule(),
@@ -470,6 +497,11 @@ public class Initialization
         new FirehoseModule(),
         new ParsersModule(),
         new JavaScriptModule(),
+        new AuthenticatorModule(),
+        new AuthenticatorMapperModule(),
+        new EscalatorModule(),
+        new AuthorizerModule(),
+        new AuthorizerMapperModule(),
         new StartupLoggingModule()
     );
 

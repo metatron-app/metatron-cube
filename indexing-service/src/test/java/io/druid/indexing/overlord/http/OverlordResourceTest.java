@@ -39,7 +39,9 @@ import io.druid.indexing.overlord.TaskStorageQueryAdapter;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Authorizer;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.Resource;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
@@ -79,26 +81,15 @@ public class OverlordResourceTest
         Optional.of(taskRunner)
     ).anyTimes();
 
-    overlordResource = new OverlordResource(
-        taskMaster,
-        taskStorageQueryAdapter,
-        null,
-        null,
-        null,
-        null,
-        new AuthConfig(true),
-        null,
-        null,
-        null
-    );
-
-    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
-        new AuthorizationInfo()
+    AuthorizerMapper authMapper = new AuthorizerMapper(null)
+    {
+      @Override
+      public Authorizer getAuthorizer(String name)
+      {
+        return new Authorizer()
         {
           @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
+          public Access authorize(AuthenticationResult authenticationResult, Resource resource, Action action)
           {
             if (resource.getName().equals("allow")) {
               return new Access(true);
@@ -106,13 +97,29 @@ public class OverlordResourceTest
               return new Access(false);
             }
           }
-        }
-    ).anyTimes();
+
+        };
+      }
+    };
+
+    overlordResource = new OverlordResource(
+        taskMaster,
+        taskStorageQueryAdapter,
+        null,
+        null,
+        null,
+        null,
+        authMapper,
+        null,
+        null,
+        null
+    );
   }
 
   @Test
   public void testSecuredGetWaitingTask()
   {
+    expectAuthorizationTokenCheck();
     EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo(null)).andStubReturn(
         ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
@@ -164,6 +171,7 @@ public class OverlordResourceTest
   @Test
   public void testSecuredGetCompleteTasks()
   {
+    expectAuthorizationTokenCheck();
     List<String> tasksIds = ImmutableList.of("id_1", "id_2", "id_3");
     EasyMock.<Collection<? extends TaskRunnerWorkItem>>expect(taskRunner.getRunningTasks()).andReturn(
         ImmutableList.of(
@@ -210,6 +218,7 @@ public class OverlordResourceTest
   @Test
   public void testSecuredGetRunningTasks()
   {
+    expectAuthorizationTokenCheck();
     List<String> tasksIds = ImmutableList.of("id_1", "id_2");
     EasyMock.<Collection<? extends TaskRunnerWorkItem>>expect(taskRunner.getRunningTasks()).andReturn(
         ImmutableList.of(
@@ -248,6 +257,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasks()
   {
+    expectAuthorizationTokenCheck();
     //completed tasks
     EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
         ImmutableList.<TaskInfo<Task, TaskStatus>>of(
@@ -337,6 +347,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterDataSource()
   {
+    expectAuthorizationTokenCheck();
     //completed tasks
     EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, "allow")).andStubReturn(
         ImmutableList.<TaskInfo<Task, TaskStatus>>of(
@@ -426,6 +437,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterWaitingState()
   {
+    expectAuthorizationTokenCheck();
     //active tasks
     EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo(null)).andStubReturn(
         ImmutableList.<TaskInfo<Task, TaskStatus>>of(
@@ -485,6 +497,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterRunningState()
   {
+    expectAuthorizationTokenCheck();
     EasyMock.expect(taskStorageQueryAdapter.getActiveTaskInfo("allow")).andStubReturn(
         ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
@@ -542,7 +555,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterPendingState()
   {
-
+    expectAuthorizationTokenCheck();
     List<String> tasksIds = ImmutableList.of("id_1", "id_2");
     EasyMock.<Collection<? extends TaskRunnerWorkItem>>expect(taskRunner.getPendingTasks()).andReturn(
         ImmutableList.of(
@@ -599,6 +612,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterCompleteState()
   {
+    expectAuthorizationTokenCheck();
     EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, null, null)).andStubReturn(
         ImmutableList.<TaskInfo<Task, TaskStatus>>of(
             new TaskInfo(
@@ -636,6 +650,7 @@ public class OverlordResourceTest
   @Test
   public void testGetTasksFilterCompleteStateWithInterval()
   {
+    expectAuthorizationTokenCheck();
     List<String> tasksIds = ImmutableList.of("id_1", "id_2", "id_3");
     Duration duration = new Period("PT86400S").toStandardDuration();
     EasyMock.expect(taskStorageQueryAdapter.getRecentlyCompletedTaskInfo(null, duration, null)).andStubReturn(
@@ -690,6 +705,7 @@ public class OverlordResourceTest
   @Test
   public void testSecuredTaskPost()
   {
+    expectAuthorizationTokenCheck();
     EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
     Task task = NoopTask.create();
     Response response = overlordResource.taskPost(task, req);
@@ -757,4 +773,19 @@ public class OverlordResourceTest
 
   }
 
+  private void expectAuthorizationTokenCheck()
+  {
+    AuthenticationResult authenticationResult = new AuthenticationResult("druid", "druid", null, null);
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).atLeastOnce();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(authenticationResult)
+            .atLeastOnce();
+
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, false);
+    EasyMock.expectLastCall().anyTimes();
+
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().anyTimes();
+  }
 }

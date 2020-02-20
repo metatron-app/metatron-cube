@@ -64,7 +64,7 @@ import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
-import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
@@ -108,7 +108,7 @@ public class BrokerQueryResource extends QueryResource
       QueryManager queryManager,
       QuerySegmentWalker segmentWalker,
       QueryToolChestWarehouse warehouse,
-      AuthConfig authConfig,
+      AuthorizerMapper authorizerMapper,
       CoordinatorClient coordinator,
       TimelineServerView brokerServerView,
       @Processing ExecutorService exec
@@ -123,7 +123,7 @@ public class BrokerQueryResource extends QueryResource
         queryManager,
         segmentWalker,
         warehouse,
-        authConfig
+        authorizerMapper
     );
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;

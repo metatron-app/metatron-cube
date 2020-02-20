@@ -21,14 +21,20 @@ package io.druid.server.http;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import io.druid.client.CoordinatorServerView;
 import io.druid.client.DruidDataSource;
 import io.druid.client.DruidServer;
+import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthTestUtils;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Authorizer;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.Resource;
 import io.druid.timeline.DataSegment;
 import org.easymock.EasyMock;
@@ -47,7 +53,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-public class DatasourcesResourceTest
+public class DataSourcesResourceTest
 {
   private CoordinatorServerView inventoryView;
   private DruidServer server;
@@ -129,56 +135,98 @@ public class DatasourcesResourceTest
   @Test
   public void testGetFullQueryableDataSources() throws Exception
   {
+    // first request
     EasyMock.expect(server.getDataSources()).andReturn(
-        ImmutableList.of(listDataSources.get(0), listDataSources.get(1), listDataSources.get(2))
-    ).atLeastOnce();
+        ImmutableList.of(listDataSources.get(0), listDataSources.get(1))
+    ).once();
     EasyMock.expect(inventoryView.getInventory()).andReturn(
         ImmutableList.of(server)
+    ).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT)).andReturn(
+      new AuthenticationResult("druid", "druid", null, null)
     ).atLeastOnce();
-    EasyMock.replay(inventoryView, server);
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getQueryableDataSources("full", null, null, request);
-    Set<DruidDataSource> result = (Set<DruidDataSource>) response.getEntity();
-    DruidDataSource[] resultantDruidDataSources = new DruidDataSource[result.size()];
-    result.toArray(resultantDruidDataSources);
-    Assert.assertEquals(200, response.getStatus());
-    Assert.assertEquals(3, resultantDruidDataSources.length);
-    Assert.assertArrayEquals(listDataSources.toArray(), resultantDruidDataSources);
+    request.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
 
-    response = datasourcesResource.getQueryableDataSources(null, null, null, request);
+    // second request
+    EasyMock.expect(server.getDataSources()).andReturn(
+        ImmutableList.of(listDataSources.get(0), listDataSources.get(1))
+    ).once();
+    EasyMock.expect(inventoryView.getInventory()).andReturn(
+        ImmutableList.of(server)
+    ).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT)).andReturn(
+        new AuthenticationResult("druid", "druid", null, null)
+    ).once();
+    request.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
+    EasyMock.replay(inventoryView, server, request);
+    DataSourcesResource dataSourcesResource =
+        new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
+    Response response = dataSourcesResource.getQueryableDataSources("full", null, null, request);
+    ArrayList<ImmutableDruidDataSource> result = Lists.newArrayList((Set<ImmutableDruidDataSource>) response.getEntity());
+    Assert.assertEquals(200, response.getStatus());
+    Assert.assertEquals(2, result.size());
+    Assert.assertEquals(listDataSources.get(0).toImmutableDruidDataSource(), result.get(0));
+    Assert.assertEquals(listDataSources.get(1).toImmutableDruidDataSource(), result.get(1));
+
+    response = dataSourcesResource.getQueryableDataSources(null, null, null, request);
     List<String> result1 = (List<String>) response.getEntity();
     Assert.assertEquals(200, response.getStatus());
-    Assert.assertEquals(3, result1.size());
+    Assert.assertEquals(2, result1.size());
     Assert.assertTrue(result1.contains("datasource1"));
     Assert.assertTrue(result1.contains("datasource2"));
-    Assert.assertTrue(result1.contains("datasource3"));
-    EasyMock.verify(inventoryView, server);
-
-    response = datasourcesResource.getQueryableDataSources(null, null, "data.*[13]", request);
-    List<String> result2 = (List<String>) response.getEntity();
-    Assert.assertEquals(200, response.getStatus());
-    Assert.assertEquals(2, result2.size());
-    Assert.assertTrue(result2.contains("datasource1"));
-    Assert.assertTrue(result2.contains("datasource3"));
     EasyMock.verify(inventoryView, server);
   }
 
   @Test
   public void testSecuredGetFullQueryableDataSources() throws Exception
   {
+    AuthenticationResult authenticationResult = new AuthenticationResult("druid", "druid", null, null);
+    // first request
     EasyMock.expect(server.getDataSources()).andReturn(
-        ImmutableList.of(listDataSources.get(0), listDataSources.get(1), listDataSources.get(2))
-    ).atLeastOnce();
-    EasyMock.expect(inventoryView.getInventory()).andReturn(
-        ImmutableList.of(server)
-    ).atLeastOnce();
-    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
-        new AuthorizationInfo()
+      ImmutableList.of(listDataSources.get(0), listDataSources.get(1))
+  ).once();
+
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT)).andReturn(
+        authenticationResult
+    ).once();
+    request.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
+    EasyMock.expect(inventoryView.getInventory()).andReturn(ImmutableList.of(server)).once();
+
+    // second request
+    EasyMock.expect(server.getDataSources()).andReturn(
+        ImmutableList.of(listDataSources.get(0), listDataSources.get(1))
+    ).once();
+
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT)).andReturn(
+        authenticationResult
+    ).once();
+    request.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
+
+    EasyMock.expect(inventoryView.getInventory()).andReturn(ImmutableList.of(server)).once();
+    EasyMock.replay(inventoryView, server, request);
+
+    AuthorizerMapper authMapper = new AuthorizerMapper(null) {
+      @Override
+      public Authorizer getAuthorizer(String name)
+      {
+        return new Authorizer()
         {
           @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
+          public Access authorize(AuthenticationResult authenticationResult1, Resource resource, Action action)
           {
             if (resource.getName().equals("datasource1")) {
               return new Access(true);
@@ -186,21 +234,23 @@ public class DatasourcesResourceTest
               return new Access(false);
             }
           }
-        }
-    ).times(2);
-    EasyMock.replay(inventoryView, server, request);
 
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig(true));
-    Response response = datasourcesResource.getQueryableDataSources("full", null, null, request);
-    Set<DruidDataSource> result = (Set<DruidDataSource>) response.getEntity();
-    DruidDataSource[] resultantDruidDataSources = new DruidDataSource[result.size()];
-    result.toArray(resultantDruidDataSources);
+        };
+      }
+    };
+
+    DataSourcesResource dataSourcesResource = new DataSourcesResource(inventoryView, null, null, authMapper);
+    Response response = dataSourcesResource.getQueryableDataSources("full", null, null, request);
+    Set<ImmutableDruidDataSource> result = (Set<ImmutableDruidDataSource>) response.getEntity();
 
     Assert.assertEquals(200, response.getStatus());
-    Assert.assertEquals(1, resultantDruidDataSources.length);
-    Assert.assertArrayEquals(listDataSources.subList(0, 1).toArray(), resultantDruidDataSources);
+    Assert.assertEquals(1, result.size());
+    Assert.assertEquals(
+        listDataSources.get(0).toImmutableDruidDataSource(),
+        Iterables.getOnlyElement(result)
+    );
 
-    response = datasourcesResource.getQueryableDataSources(null, null, null, request);
+    response = dataSourcesResource.getQueryableDataSources(null, null, null, request);
     List<String> result1 = (List<String>) response.getEntity();
 
     Assert.assertEquals(200, response.getStatus());
@@ -213,28 +263,26 @@ public class DatasourcesResourceTest
   @Test
   public void testGetSimpleQueryableDataSources() throws Exception
   {
-    EasyMock.expect(server.getDataSources()).andReturn(
-        listDataSources
-    ).atLeastOnce();
-    EasyMock.expect(server.getDataSource("datasource1")).andReturn(
-        listDataSources.get(0)
-    ).atLeastOnce();
+    EasyMock.expect(server.getDataSources()).andReturn(listDataSources).atLeastOnce();
+    EasyMock.expect(server.getDataSource("datasource1")).andReturn(listDataSources.get(0)).atLeastOnce();
     EasyMock.expect(server.getTier()).andReturn(null).atLeastOnce();
-    EasyMock.expect(server.getDataSource("datasource2")).andReturn(
-        listDataSources.get(1)
-    ).atLeastOnce();
+    EasyMock.expect(server.getDataSource("datasource2")).andReturn(listDataSources.get(1)).atLeastOnce();
     EasyMock.expect(server.getTier()).andReturn(null).atLeastOnce();
-    EasyMock.expect(server.getDataSource("datasource3")).andReturn(
-        listDataSources.get(2)
-    ).atLeastOnce();
+    EasyMock.expect(server.getDataSource("datasource3")).andReturn(listDataSources.get(2)).atLeastOnce();
     EasyMock.expect(server.getTier()).andReturn(null).atLeastOnce();
-    EasyMock.expect(inventoryView.getInventory()).andReturn(
-        ImmutableList.of(server)
+    EasyMock.expect(inventoryView.getInventory()).andReturn(ImmutableList.of(server)).atLeastOnce();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).once();
+    EasyMock.expect(request.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT)).andReturn(
+        new AuthenticationResult("druid", "druid", null, null)
     ).atLeastOnce();
+    request.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().times(1);
 
-    EasyMock.replay(inventoryView, server);
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getQueryableDataSources(null, "simple", null, request);
+    EasyMock.replay(inventoryView, server, request);
+    DataSourcesResource dataSourcesResource =
+        new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
+    Response response = dataSourcesResource.getQueryableDataSources(null, "simple", null, request);
     Assert.assertEquals(200, response.getStatus());
     List<Map<String, Object>> results = (List<Map<String, Object>>) response.getEntity();
     int index = 0;
@@ -260,8 +308,8 @@ public class DatasourcesResourceTest
     ).atLeastOnce();
 
     EasyMock.replay(inventoryView, server);
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getTheDataSource("datasource1", null, "full");
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
+    Response response = datasourcesResource.getDataSource("datasource1", null, "full");
     DruidDataSource result = (DruidDataSource) response.getEntity();
     Assert.assertEquals(200, response.getStatus());
     Assert.assertEquals(dataSource1, result);
@@ -277,8 +325,8 @@ public class DatasourcesResourceTest
     ).atLeastOnce();
 
     EasyMock.replay(inventoryView, server);
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Assert.assertEquals(204, datasourcesResource.getTheDataSource("none", null, null).getStatus());
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
+    Assert.assertEquals(204, datasourcesResource.getDataSource("none", null, null).getStatus());
     EasyMock.verify(inventoryView, server);
   }
 
@@ -298,8 +346,8 @@ public class DatasourcesResourceTest
     ).atLeastOnce();
 
     EasyMock.replay(inventoryView, server);
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getTheDataSource("datasource1", null, null);
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
+    Response response = datasourcesResource.getDataSource("datasource1", null, null);
     Assert.assertEquals(200, response.getStatus());
     Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>) response.getEntity();
     Assert.assertEquals(1, ((Map) (result.get("tiers").get(null))).get("segmentCount"));
@@ -337,8 +385,8 @@ public class DatasourcesResourceTest
     ).atLeastOnce();
 
     EasyMock.replay(inventoryView, server, server2, server3);
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getTheDataSource("datasource1", null, null);
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
+    Response response = datasourcesResource.getDataSource("datasource1", null, null);
     Assert.assertEquals(200, response.getStatus());
     Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>) response.getEntity();
     Assert.assertEquals(2, ((Map) (result.get("tiers").get("cold"))).get("segmentCount"));
@@ -368,7 +416,7 @@ public class DatasourcesResourceTest
     List<Interval> expectedIntervals = new ArrayList<>();
     expectedIntervals.add(new Interval("2010-01-22T00:00:00.000Z/2010-01-23T00:00:00.000Z"));
     expectedIntervals.add(new Interval("2010-01-01T00:00:00.000Z/2010-01-02T00:00:00.000Z"));
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
 
     Response response = datasourcesResource.getSegmentDataSourceIntervals("invalidDataSource", null, null);
     Assert.assertEquals(response.getEntity(), null);
@@ -415,7 +463,7 @@ public class DatasourcesResourceTest
     ).atLeastOnce();
     EasyMock.replay(inventoryView);
 
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, null, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
     Response response = datasourcesResource.getSegmentDataSourceSpecificInterval(
         "invalidDataSource",
         "2010-01-01/P1D",
@@ -482,7 +530,7 @@ public class DatasourcesResourceTest
     EasyMock.expectLastCall().once();
     EasyMock.replay(indexingServiceClient, server);
 
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, indexingServiceClient, new AuthConfig());
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, indexingServiceClient, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
     Response response = datasourcesResource.deleteDataSourceSpecificInterval("datasource1", interval);
 
     Assert.assertEquals(200, response.getStatus());
@@ -494,7 +542,7 @@ public class DatasourcesResourceTest
   public void testDeleteDataSource() {
     IndexingServiceClient indexingServiceClient = EasyMock.createStrictMock(IndexingServiceClient.class);
     EasyMock.replay(indexingServiceClient, server);
-    DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, indexingServiceClient, new AuthConfig());
+    DataSourcesResource datasourcesResource = new DataSourcesResource(inventoryView, null, indexingServiceClient, AuthTestUtils.TEST_AUTHORIZER_MAPPER);
     Response response = datasourcesResource.deleteDataSource("datasource", "true", "???");
     Assert.assertEquals(400, response.getStatus());
     Assert.assertNotNull(response.getEntity());

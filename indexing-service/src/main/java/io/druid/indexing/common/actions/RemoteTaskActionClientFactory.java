@@ -21,12 +21,12 @@ package io.druid.indexing.common.actions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import io.druid.java.util.http.client.HttpClient;
 import io.druid.client.indexing.IndexingService;
 import io.druid.curator.discovery.ServerDiscoverySelector;
-import io.druid.guice.annotations.Global;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.indexing.common.RetryPolicyFactory;
 import io.druid.indexing.common.task.Task;
+import io.druid.java.util.http.client.HttpClient;
 
 /**
  */
@@ -39,7 +39,7 @@ public class RemoteTaskActionClientFactory implements TaskActionClientFactory
 
   @Inject
   public RemoteTaskActionClientFactory(
-      @Global HttpClient httpClient,
+      @EscalatedGlobal HttpClient httpClient,
       @IndexingService ServerDiscoverySelector selector,
       RetryPolicyFactory retryPolicyFactory,
       ObjectMapper jsonMapper

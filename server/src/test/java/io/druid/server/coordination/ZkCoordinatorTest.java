@@ -42,6 +42,7 @@ import io.druid.guice.DruidGuiceExtensions;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.http.HttpClientModule;
+import io.druid.guice.security.EscalatorModule;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
 import io.druid.java.util.common.concurrent.ScheduledExecutors;
@@ -494,7 +495,8 @@ public class ZkCoordinatorTest extends CuratorTestBase
         new ConfigModule(),
         new DiscoveryModule(),
         new CoordinatorDiscoveryModule(),
-        HttpClientModule.global(),
+        new EscalatorModule(),
+        HttpClientModule.escalatedGlobal(),
         new Module()
         {
           @Override

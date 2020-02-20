@@ -25,14 +25,12 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
+import io.druid.common.Yielders;
+import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.common.Yielders;
-import io.druid.guice.annotations.Json;
 import io.druid.query.QueryInterruptedException;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycle;
 import io.druid.sql.SqlLifecycleFactory;
@@ -121,8 +119,7 @@ public class SqlResource
     try {
       currThread.setName(String.format("%s[sql_%s]", currThreadName, sqlQueryId));
 
-      final PlannerContext plannerContext =
-          lifecycle.planAndAuthorize((AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN));
+      final PlannerContext plannerContext = lifecycle.planAndAuthorize(req);
       timeZone = plannerContext.getTimeZone();
 
       // Remember which columns are time-typed, so we can emit ISO8601 instead of millis values.

@@ -20,8 +20,8 @@ package io.druid.server.initialization.jetty;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.java.util.http.client.HttpClient;
-import io.druid.guice.annotations.Global;
 import io.druid.server.security.OAuth.OAuthConfig;
 import io.druid.server.security.OAuth.OAuthFilter;
 
@@ -37,7 +37,7 @@ public class OAuthFilterHolder implements ServletFilterHolder
 
   @Inject
   public OAuthFilterHolder(
-      @Global HttpClient httpClient,
+      @EscalatedGlobal HttpClient httpClient,
       OAuthConfig oAuthConfig
   )
   {

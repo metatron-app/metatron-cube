@@ -22,6 +22,7 @@ package io.druid.client;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
+import io.druid.guice.annotations.EscalatedClient;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.guice.annotations.Client;
@@ -40,7 +41,7 @@ public class HttpServerInventoryViewProvider implements ServerInventoryViewProvi
 {
   @JacksonInject
   @NotNull
-  @Client
+  @EscalatedClient
   HttpClient httpClient = null;
 
   @JacksonInject

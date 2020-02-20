@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,15 +19,13 @@
 
 package io.druid.server.http;
 
-import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import io.druid.client.ImmutableDruidDataSource;
+import io.druid.client.InventoryView;
+import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.MapUtils;
 import io.druid.java.util.common.guava.Comparators;
-import io.druid.client.DruidDataSource;
-import io.druid.client.InventoryView;
-import io.druid.common.utils.JodaUtils;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
@@ -41,8 +39,10 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  */
@@ -50,38 +50,33 @@ import java.util.Set;
 public class IntervalsResource
 {
   private final InventoryView serverInventoryView;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
   public IntervalsResource(
       InventoryView serverInventoryView,
-      AuthConfig authConfig
+      AuthorizerMapper authorizerMapper
   )
   {
     this.serverInventoryView = serverInventoryView;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
   }
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
   public Response getIntervals(@Context final HttpServletRequest req)
   {
-    final Comparator<Interval> comparator = Comparators.inverse(JodaUtils.intervalsByStartThenEnd());
-    final Set<DruidDataSource> datasources = authConfig.isEnabled() ?
-                                             InventoryViewUtils.getSecuredDataSources(
-                                                 serverInventoryView,
-                                                 (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
-                                             ) :
-                                             InventoryViewUtils.getDataSources(serverInventoryView);
+    final Comparator<Interval> comparator = Comparators.intervalsByStartThenEnd().reversed();
+    final Set<ImmutableDruidDataSource> datasources = InventoryViewUtils.getSecuredDataSources(
+        req,
+        serverInventoryView,
+        authorizerMapper
+    );
 
-    final Map<Interval, Map<String, Map<String, Object>>> retVal = Maps.newTreeMap(comparator);
-    for (DruidDataSource dataSource : datasources) {
+    final Map<Interval, Map<String, Map<String, Object>>> retVal = new TreeMap<>(comparator);
+    for (ImmutableDruidDataSource dataSource : datasources) {
       for (DataSegment dataSegment : dataSource.getSegments()) {
-        Map<String, Map<String, Object>> interval = retVal.get(dataSegment.getInterval());
-        if (interval == null) {
-          Map<String, Map<String, Object>> tmp = Maps.newHashMap();
-          retVal.put(dataSegment.getInterval(), tmp);
-        }
+        retVal.computeIfAbsent(dataSegment.getInterval(), i -> new HashMap<>());
         setProperties(retVal, dataSource, dataSegment);
       }
     }
@@ -99,26 +94,21 @@ public class IntervalsResource
       @Context final HttpServletRequest req
   )
   {
-    final Interval theInterval = new Interval(interval.replace("_", "/"));
-    final Set<DruidDataSource> datasources = authConfig.isEnabled() ?
-                                             InventoryViewUtils.getSecuredDataSources(
-                                                 serverInventoryView,
-                                                 (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
-                                             ) :
-                                             InventoryViewUtils.getDataSources(serverInventoryView);
+    final Interval theInterval = Intervals.of(interval.replace('_', '/'));
+    final Set<ImmutableDruidDataSource> datasources = InventoryViewUtils.getSecuredDataSources(
+        req,
+        serverInventoryView,
+        authorizerMapper
+    );
 
-    final Comparator<Interval> comparator = Comparators.inverse(JodaUtils.intervalsByStartThenEnd());
+    final Comparator<Interval> comparator = Comparators.intervalsByStartThenEnd().reversed();
 
     if (full != null) {
-      final Map<Interval, Map<String, Map<String, Object>>> retVal = Maps.newTreeMap(comparator);
-      for (DruidDataSource dataSource : datasources) {
+      final Map<Interval, Map<String, Map<String, Object>>> retVal = new TreeMap<>(comparator);
+      for (ImmutableDruidDataSource dataSource : datasources) {
         for (DataSegment dataSegment : dataSource.getSegments()) {
           if (theInterval.contains(dataSegment.getInterval())) {
-            Map<String, Map<String, Object>> dataSourceInterval = retVal.get(dataSegment.getInterval());
-            if (dataSourceInterval == null) {
-              Map<String, Map<String, Object>> tmp = Maps.newHashMap();
-              retVal.put(dataSegment.getInterval(), tmp);
-            }
+            retVal.computeIfAbsent(dataSegment.getInterval(), k -> new HashMap<>());
             setProperties(retVal, dataSource, dataSegment);
           }
         }
@@ -128,13 +118,13 @@ public class IntervalsResource
     }
 
     if (simple != null) {
-      final Map<Interval, Map<String, Object>> retVal = Maps.newHashMap();
-      for (DruidDataSource dataSource : datasources) {
+      final Map<Interval, Map<String, Object>> retVal = new HashMap<>();
+      for (ImmutableDruidDataSource dataSource : datasources) {
         for (DataSegment dataSegment : dataSource.getSegments()) {
           if (theInterval.contains(dataSegment.getInterval())) {
             Map<String, Object> properties = retVal.get(dataSegment.getInterval());
             if (properties == null) {
-              properties = Maps.newHashMap();
+              properties = new HashMap<>();
               properties.put("size", dataSegment.getSize());
               properties.put("count", 1);
 
@@ -150,8 +140,8 @@ public class IntervalsResource
       return Response.ok(retVal).build();
     }
 
-    final Map<String, Object> retVal = Maps.newHashMap();
-    for (DruidDataSource dataSource : datasources) {
+    final Map<String, Object> retVal = new HashMap<>();
+    for (ImmutableDruidDataSource dataSource : datasources) {
       for (DataSegment dataSegment : dataSource.getSegments()) {
         if (theInterval.contains(dataSegment.getInterval())) {
           retVal.put("size", MapUtils.getLong(retVal, "size", 0L) + dataSegment.getSize());
@@ -165,10 +155,12 @@ public class IntervalsResource
 
   private void setProperties(
       final Map<Interval, Map<String, Map<String, Object>>> retVal,
-      DruidDataSource dataSource, DataSegment dataSegment) {
+      ImmutableDruidDataSource dataSource, DataSegment dataSegment
+  )
+  {
     Map<String, Object> properties = retVal.get(dataSegment.getInterval()).get(dataSource.getName());
     if (properties == null) {
-      properties = Maps.newHashMap();
+      properties = new HashMap<>();
       properties.put("size", dataSegment.getSize());
       properties.put("count", 1);
 

@@ -1,8 +1,8 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
@@ -19,10 +19,12 @@
 
 package io.druid.sql.calcite.view;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.sql.calcite.planner.PlannerFactory;
 import org.apache.calcite.schema.TableMacro;
+import io.druid.java.util.common.ISE;
+import io.druid.server.security.Escalator;
+import io.druid.sql.calcite.planner.PlannerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -35,17 +37,21 @@ import java.util.concurrent.ConcurrentMap;
 public class InProcessViewManager implements ViewManager
 {
   private final ConcurrentMap<String, DruidViewMacro> views;
+  private final Escalator escalator;
 
   @Inject
-  public InProcessViewManager()
+  @VisibleForTesting
+  public InProcessViewManager(Escalator escalator)
   {
     this.views = new ConcurrentHashMap<>();
+    this.escalator = escalator;
   }
 
   @Override
   public void createView(final PlannerFactory plannerFactory, final String viewName, final String viewSql)
   {
-    final TableMacro oldValue = views.putIfAbsent(viewName, new DruidViewMacro(plannerFactory, viewSql));
+    final TableMacro oldValue =
+        views.putIfAbsent(viewName, new DruidViewMacro(plannerFactory, escalator, viewSql));
     if (oldValue != null) {
       throw new ISE("View[%s] already exists", viewName);
     }
@@ -54,7 +60,8 @@ public class InProcessViewManager implements ViewManager
   @Override
   public void alterView(final PlannerFactory plannerFactory, final String viewName, final String viewSql)
   {
-    final TableMacro oldValue = views.replace(viewName, new DruidViewMacro(plannerFactory, viewSql));
+    final TableMacro oldValue =
+        views.replace(viewName, new DruidViewMacro(plannerFactory, escalator, viewSql));
     if (oldValue != null) {
       throw new ISE("View[%s] does not exist", viewName);
     }

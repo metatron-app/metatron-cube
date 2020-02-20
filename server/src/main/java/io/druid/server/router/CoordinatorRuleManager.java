@@ -25,6 +25,12 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import io.druid.client.selector.Server;
+import io.druid.concurrent.Execs;
+import io.druid.curator.discovery.ServerDiscoverySelector;
+import io.druid.guice.ManageLifecycle;
+import io.druid.guice.annotations.EscalatedGlobal;
+import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.concurrent.ScheduledExecutors;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
@@ -33,12 +39,6 @@ import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.FullResponseHandler;
 import io.druid.java.util.http.client.response.FullResponseHolder;
-import io.druid.client.selector.Server;
-import io.druid.concurrent.Execs;
-import io.druid.curator.discovery.ServerDiscoverySelector;
-import io.druid.guice.ManageLifecycle;
-import io.druid.guice.annotations.Global;
-import io.druid.guice.annotations.Json;
 import io.druid.server.coordinator.rules.Rule;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -76,7 +76,7 @@ public class CoordinatorRuleManager
 
   @Inject
   public CoordinatorRuleManager(
-      @Global HttpClient httpClient,
+      @EscalatedGlobal HttpClient httpClient,
       @Json ObjectMapper jsonMapper,
       Supplier<TieredBrokerConfig> config,
       ServerDiscoverySelector selector

@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
@@ -114,7 +115,7 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
   public HttpServerInventoryView(
       final @Json ObjectMapper jsonMapper,
       final @Smile ObjectMapper smileMapper,
-      final @Global HttpClient httpClient,
+      final @EscalatedGlobal HttpClient httpClient,
       final DruidServerDiscovery serverDiscovery,
       final Predicate<Pair<DruidServerMetadata, DataSegment>> defaultFilter,
       final HttpServerInventoryViewConfig config

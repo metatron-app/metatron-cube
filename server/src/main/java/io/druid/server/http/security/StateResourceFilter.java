@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,17 +19,14 @@
 
 package io.druid.server.http.security;
 
-import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ContainerRequest;
 import io.druid.server.security.Access;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
 import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceType;
-
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
+import io.druid.server.security.ResourceAction;
 
 /**
  * Use this ResourceFilter at end points where Druid Cluster State is read or written
@@ -49,49 +46,29 @@ import javax.ws.rs.core.Response;
 public class StateResourceFilter extends AbstractResourceFilter
 {
   @Inject
-  public StateResourceFilter(AuthConfig authConfig)
+  public StateResourceFilter(AuthorizerMapper authorizerMapper)
   {
-    super(authConfig);
+    super(authorizerMapper);
   }
 
   @Override
   public ContainerRequest filter(ContainerRequest request)
   {
-    if (getAuthConfig().isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final String resourceName = "STATE";
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) getReq().getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
+    final ResourceAction resourceAction = new ResourceAction(
+        Resource.STATE_RESOURCE,
+        getAction(request)
+    );
 
-      final Access authResult = authorizationInfo.isAuthorized(
-          new Resource(resourceName, ResourceType.STATE),
-          getAction(request)
-      );
-      if (!authResult.isAllowed()) {
-        throw new WebApplicationException(
-            Response.status(Response.Status.FORBIDDEN)
-                    .entity(String.format("Access-Check-Result: %s", authResult.toString()))
-                    .build()
-        );
-      }
+    final Access authResult = AuthorizationUtils.authorizeResourceAction(
+        getReq(),
+        resourceAction,
+        getAuthorizerMapper()
+    );
+
+    if (!authResult.isAllowed()) {
+      throw new ForbiddenException(authResult.toString());
     }
 
     return request;
-  }
-
-  public boolean isApplicable(String requestPath)
-  {
-    return requestPath.startsWith("druid/broker/v1") ||
-           requestPath.startsWith("druid/coordinator/v1") ||
-           requestPath.startsWith("druid/historical/v1") ||
-           requestPath.startsWith("druid/indexer/v1") ||
-           requestPath.startsWith("druid/coordinator/v1/rules") ||
-           requestPath.startsWith("druid/coordinator/v1/tiers") ||
-           requestPath.startsWith("druid/worker/v1") ||
-           requestPath.startsWith("druid/coordinator/v1/servers") ||
-           requestPath.startsWith("status");
   }
 }

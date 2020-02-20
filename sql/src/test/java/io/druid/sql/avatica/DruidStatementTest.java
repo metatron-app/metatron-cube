@@ -25,6 +25,7 @@ import io.druid.common.DateTimes;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryConfig;
 import io.druid.server.QueryManager;
+import io.druid.server.security.AllowAllAuthenticator;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -85,6 +86,7 @@ public class DruidStatementTest extends CalciteTestBase
         walker,
         new QueryManager(),
         operatorTable,
+        CalciteTests.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
         queryConfig,
         CalciteTests.getJsonMapper()
@@ -103,7 +105,7 @@ public class DruidStatementTest extends CalciteTestBase
   {
     final String sql = "SELECT * FROM druid.foo";
     final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
-    }).prepare(sql, -1);
+    }).prepare(sql, -1, AllowAllAuthenticator.ALLOW_ALL_RESULT);
 
 
     // Check signature.
@@ -144,7 +146,7 @@ public class DruidStatementTest extends CalciteTestBase
   {
     final String sql = "SELECT __time, cnt, dim1, dim2, m1 FROM druid.foo";
     final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
-    }).prepare(sql, -1);
+    }).prepare(sql, -1, AllowAllAuthenticator.ALLOW_ALL_RESULT);
 
     // First frame, ask for all rows.
     Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 6);
@@ -171,7 +173,7 @@ public class DruidStatementTest extends CalciteTestBase
   {
     final String sql = "SELECT __time, cnt, dim1, dim2, m1 FROM druid.foo";
     final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
-    }).prepare(sql, -1);
+    }).prepare(sql, -1, AllowAllAuthenticator.ALLOW_ALL_RESULT);
     
     // First frame, ask for 2 rows.
     Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 2);

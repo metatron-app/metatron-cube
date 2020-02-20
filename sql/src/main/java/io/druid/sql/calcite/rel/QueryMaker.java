@@ -47,6 +47,7 @@ import io.druid.query.UnionAllQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.server.QueryLifecycleFactory;
+import io.druid.server.security.AuthenticationResult;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
@@ -176,7 +177,8 @@ public class QueryMaker
     Query queryWithId = query.withId(queryId)
                  .withSqlQueryId(plannerContext.getSqlQueryId());
 
-    return queryLifecycleFactory.factorize().runSimple(queryWithId, null, null);
+    final AuthenticationResult authenticationResult = plannerContext.getAuthenticationResult();
+    return queryLifecycleFactory.factorize().runSimple(queryWithId, authenticationResult, null);
   }
 
   private Sequence<Object[]> executeRow(final DruidQuery druidQuery, final Query query)

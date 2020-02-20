@@ -22,22 +22,17 @@ package io.druid.indexing.overlord;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.http.client.HttpClient;
 import io.druid.curator.cache.PathChildrenCacheFactory;
-import io.druid.guice.annotations.Global;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.indexing.overlord.autoscaling.NoopResourceManagementStrategy;
 import io.druid.indexing.overlord.autoscaling.ResourceManagementSchedulerConfig;
 import io.druid.indexing.overlord.autoscaling.ResourceManagementStrategy;
-import io.druid.indexing.overlord.autoscaling.SimpleWorkerResourceManagementConfig;
-import io.druid.indexing.overlord.autoscaling.SimpleWorkerResourceManagementStrategy;
 import io.druid.indexing.overlord.config.RemoteTaskRunnerConfig;
 import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
+import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
+import io.druid.java.util.http.client.HttpClient;
 import io.druid.server.initialization.IndexerZkConfig;
 import org.apache.curator.framework.CuratorFramework;
-
-import java.util.concurrent.ScheduledExecutorService;
 
 /**
  */
@@ -60,7 +55,7 @@ public class RemoteTaskRunnerFactory implements TaskRunnerFactory<RemoteTaskRunn
       final RemoteTaskRunnerConfig remoteTaskRunnerConfig,
       final IndexerZkConfig zkPaths,
       final ObjectMapper jsonMapper,
-      @Global final HttpClient httpClient,
+      @EscalatedGlobal final HttpClient httpClient,
       final Supplier<WorkerBehaviorConfig> workerConfigRef,
       final ScheduledExecutorFactory factory,
       final ResourceManagementSchedulerConfig resourceManagementSchedulerConfig,

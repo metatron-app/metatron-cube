@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -22,7 +22,6 @@ package io.druid.sql.avatica;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -32,8 +31,12 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import io.druid.common.DateTimes;
 import io.druid.java.util.common.ISE;
-import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Authenticator;
+import io.druid.server.security.AuthenticatorMapper;
+import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.avatica.MetaImpl;
@@ -50,6 +53,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -62,12 +66,15 @@ public class DruidMeta extends MetaImpl
   private final SqlLifecycleFactory sqlLifecycleFactory;
   private final ScheduledExecutorService exec;
   private final AvaticaServerConfig config;
+  private final List<Authenticator> authenticators;
 
-  // Used to track logical connections.
-  private final Map<String, DruidConnection> connections = new ConcurrentHashMap<>();
+  /** Used to track logical connections. */
+  private final ConcurrentMap<String, DruidConnection> connections = new ConcurrentHashMap<>();
 
-  // Number of connections reserved in "connections". May be higher than the actual number of connections at times,
-  // such as when we're reserving space to open a new one.
+  /**
+   * Number of connections reserved in "connections". May be higher than the actual number of connections at times,
+   * such as when we're reserving space to open a new one.
+   */
   private final AtomicInteger connectionCount = new AtomicInteger();
 
   @Inject
@@ -86,6 +93,9 @@ public class DruidMeta extends MetaImpl
             .setDaemon(true)
             .build()
     );
+
+    final AuthenticatorMapper authenticatorMapper = injector.getInstance(AuthenticatorMapper.class);
+    this.authenticators = authenticatorMapper.getAuthenticatorChain();
   }
 
   @Override
@@ -132,8 +142,19 @@ public class DruidMeta extends MetaImpl
   )
   {
     final StatementHandle statement = createStatement(ch);
-    final DruidStatement druidStatement = getDruidStatement(statement);
-    statement.signature = druidStatement.prepare(sql, maxRowCount).getSignature();
+    final DruidStatement druidStatement;
+    try {
+      druidStatement = getDruidStatement(statement);
+    }
+    catch (NoSuchStatementException e) {
+      throw new IllegalStateException(e);
+    }
+    final DruidConnection druidConnection = getDruidConnection(statement.connectionId);
+    final AuthenticationResult authenticationResult = authenticateConnection(druidConnection);
+    if (authenticationResult == null) {
+      throw new ForbiddenException("Authentication failed.");
+    }
+    statement.signature = druidStatement.prepare(sql, maxRowCount, authenticationResult).getSignature();
     return statement;
   }
 
@@ -144,7 +165,7 @@ public class DruidMeta extends MetaImpl
       final String sql,
       final long maxRowCount,
       final PrepareCallback callback
-  ) throws NoSuchStatementException
+  )
   {
     // Avatica doesn't call this.
     throw new UnsupportedOperationException("Deprecated");
@@ -161,7 +182,12 @@ public class DruidMeta extends MetaImpl
   {
     // Ignore "callback", this class is designed for use with LocalService which doesn't use it.
     final DruidStatement druidStatement = getDruidStatement(statement);
-    final Signature signature = druidStatement.prepare(sql, maxRowCount).getSignature();
+    final DruidConnection druidConnection = getDruidConnection(statement.connectionId);
+    AuthenticationResult authenticationResult = authenticateConnection(druidConnection);
+    if (authenticationResult == null) {
+      throw new ForbiddenException("Authentication failed.");
+    }
+    final Signature signature = druidStatement.prepare(sql, maxRowCount, authenticationResult).getSignature();
     final Frame firstFrame = druidStatement.execute()
                                            .nextFrame(
                                                DruidStatement.START_OFFSET,
@@ -185,7 +211,7 @@ public class DruidMeta extends MetaImpl
   public ExecuteBatchResult prepareAndExecuteBatch(
       final StatementHandle statement,
       final List<String> sqlCommands
-  ) throws NoSuchStatementException
+  )
   {
     // Batch statements are used for bulk updates, but we don't support updates.
     throw new UnsupportedOperationException("Batch statements not supported");
@@ -195,7 +221,7 @@ public class DruidMeta extends MetaImpl
   public ExecuteBatchResult executeBatch(
       final StatementHandle statement,
       final List<List<TypedValue>> parameterValues
-  ) throws NoSuchStatementException
+  )
   {
     // Batch statements are used for bulk updates, but we don't support updates.
     throw new UnsupportedOperationException("Batch statements not supported");
@@ -217,7 +243,7 @@ public class DruidMeta extends MetaImpl
       final StatementHandle statement,
       final List<TypedValue> parameterValues,
       final long maxRowCount
-  ) throws NoSuchStatementException
+  )
   {
     // Avatica doesn't call this.
     throw new UnsupportedOperationException("Deprecated");
@@ -488,6 +514,18 @@ public class DruidMeta extends MetaImpl
     }
   }
 
+  private AuthenticationResult authenticateConnection(final DruidConnection connection)
+  {
+    Map<String, Object> context = connection.context();
+    for (Authenticator authenticator : authenticators) {
+      AuthenticationResult authenticationResult = authenticator.authenticateJDBCContext(context);
+      if (authenticationResult != null) {
+        return authenticationResult;
+      }
+    }
+    return null;
+  }
+
   private DruidConnection openDruidConnection(final String connectionId, final Map<String, Object> context)
   {
     if (connectionCount.incrementAndGet() > config.getMaxConnections()) {
@@ -560,11 +598,13 @@ public class DruidMeta extends MetaImpl
   }
 
   @Nonnull
-  private DruidStatement getDruidStatement(final StatementHandle statement)
+  private DruidStatement getDruidStatement(final StatementHandle statement) throws NoSuchStatementException
   {
     final DruidConnection connection = getDruidConnection(statement.connectionId);
     final DruidStatement druidStatement = connection.getStatement(statement.id);
-    Preconditions.checkState(druidStatement != null, "Statement[%s] does not exist", statement.id);
+    if (druidStatement == null) {
+      throw new NoSuchStatementException(statement);
+    }
     return druidStatement;
   }
 
@@ -580,7 +620,7 @@ public class DruidMeta extends MetaImpl
       return metaResultSet;
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
     finally {
       closeStatement(statement);

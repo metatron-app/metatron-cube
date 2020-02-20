@@ -25,22 +25,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.Pair;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.client.DruidDataSource;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.server.http.security.DatasourceResourceFilter;
-import io.druid.server.security.Access;
-import io.druid.server.security.Action;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
-import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceType;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ResourceAction;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
@@ -59,11 +54,11 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 /**
  */
@@ -72,20 +67,20 @@ public class MetadataResource
 {
   private final MetadataSegmentManager metadataSegmentManager;
   private final IndexerMetadataStorageCoordinator metadataStorageCoordinator;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
   private final ObjectMapper jsonMapper;
 
   @Inject
   public MetadataResource(
       MetadataSegmentManager metadataSegmentManager,
       IndexerMetadataStorageCoordinator metadataStorageCoordinator,
-      AuthConfig authConfig,
+      AuthorizerMapper authorizerMapper,
       ObjectMapper jsonMapper
   )
   {
     this.metadataSegmentManager = metadataSegmentManager;
     this.metadataStorageCoordinator = metadataStorageCoordinator;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
     this.jsonMapper = jsonMapper;
   }
 
@@ -117,37 +112,19 @@ public class MetadataResource
       );
     }
 
-    final Set<String> dataSourceNamesPostAuth;
+    final TreeSet<String> dataSourceNamesPostAuth = new TreeSet<>();
+    Function<String, Iterable<ResourceAction>> raGenerator = datasourceName ->
+        Collections.singletonList(AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR.apply(datasourceName));
 
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      dataSourceNamesPostAuth = ImmutableSet.copyOf(
-          Sets.filter(
-              dataSourceNamesPreAuth,
-              new Predicate<String>()
-              {
-                @Override
-                public boolean apply(String input)
-                {
-                  Resource resource = new Resource(input, ResourceType.DATASOURCE);
-                  Action action = Action.READ;
-                  Pair<Resource, Action> key = new Pair<>(resource, action);
-                  if (resourceAccessMap.containsKey(key)) {
-                    return resourceAccessMap.get(key).isAllowed();
-                  } else {
-                    Access access = authorizationInfo.isAuthorized(key.lhs, key.rhs);
-                    resourceAccessMap.put(key, access);
-                    return access.isAllowed();
-                  }
-                }
-              }
-          )
-      );
-    } else {
-      dataSourceNamesPostAuth = dataSourceNamesPreAuth;
-    }
+    Iterables.addAll(
+        dataSourceNamesPostAuth,
+        AuthorizationUtils.filterAuthorizedResources(
+            req,
+            dataSourceNamesPreAuth,
+            raGenerator,
+            authorizerMapper
+        )
+    );
 
     // Cannot do both includeDisabled and full, let includeDisabled take priority
     // Always use dataSourceNamesPostAuth to determine the set of returned dataSources

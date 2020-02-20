@@ -38,6 +38,7 @@ import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.guice.annotations.Global;
 import io.druid.initialization.Initialization;
 import io.druid.java.util.common.ISE;
@@ -126,7 +127,7 @@ public class DruidShell extends CommonShell.WithUtils
       IndexerZkConfig zkPaths,
       CuratorFramework curator,
       ServiceDiscovery<String> discovery,
-      @Global HttpClient httpClient,
+      @EscalatedGlobal HttpClient httpClient,
       @JacksonInject ObjectMapper jsonMapper
   )
   {

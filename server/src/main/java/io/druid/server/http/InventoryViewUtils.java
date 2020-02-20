@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -20,54 +20,54 @@
 package io.druid.server.http;
 
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
 import io.druid.client.DruidDataSource;
 import io.druid.client.DruidServer;
+import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.InventoryView;
-import io.druid.server.security.Access;
-import io.druid.server.security.Action;
-import io.druid.server.security.AuthorizationInfo;
-import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceType;
+import io.druid.java.util.common.ISE;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
 
+import javax.servlet.http.HttpServletRequest;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.SortedSet;
 import java.util.TreeSet;
 
-public class InventoryViewUtils
+public interface InventoryViewUtils
 {
-
-  public static Set<DruidDataSource> getDataSources(InventoryView serverInventoryView)
+  static Comparator<ImmutableDruidDataSource> comparingByName()
   {
-    TreeSet<DruidDataSource> dataSources = Sets.newTreeSet(
-        new Comparator<DruidDataSource>()
-        {
-          @Override
-          public int compare(DruidDataSource druidDataSource, DruidDataSource druidDataSource1)
-          {
-            return druidDataSource.getName().compareTo(druidDataSource1.getName());
-          }
-        }
-    );
+    return Comparator.comparing(ImmutableDruidDataSource::getName);
+  }
+
+  static SortedSet<ImmutableDruidDataSource> getDataSources(InventoryView serverInventoryView)
+  {
+    TreeSet<ImmutableDruidDataSource> dataSources = Sets.newTreeSet(comparingByName());
     dataSources.addAll(
         Lists.newArrayList(
             Iterables.concat(
                 Iterables.transform(
                     serverInventoryView.getInventory(),
-                    new Function<DruidServer, Iterable<DruidDataSource>>()
+                    new Function<DruidServer, Iterable<ImmutableDruidDataSource>>()
                     {
                       @Override
-                      public Iterable<DruidDataSource> apply(DruidServer input)
+                      public Iterable<ImmutableDruidDataSource> apply(DruidServer input)
                       {
-                        return input.getDataSources();
+                        return Iterables.transform(
+                            input.getDataSources(),
+                            new Function<DruidDataSource, ImmutableDruidDataSource>()
+                            {
+                              @Override
+                              public ImmutableDruidDataSource apply(DruidDataSource dataSource)
+                              {
+                                return dataSource.toImmutableDruidDataSource();
+                              }
+                            }
+                        );
                       }
                     }
                 )
@@ -77,37 +77,25 @@ public class InventoryViewUtils
     return dataSources;
   }
 
-  public static Set<DruidDataSource> getSecuredDataSources(
+  static SortedSet<ImmutableDruidDataSource> getSecuredDataSources(
+      HttpServletRequest request,
       InventoryView inventoryView,
-      final AuthorizationInfo authorizationInfo
+      final AuthorizerMapper authorizerMapper
   )
   {
-    if (authorizationInfo == null) {
-      throw new ISE("Invalid to call a secured method with null AuthorizationInfo!!");
-    } else {
-      final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-      return ImmutableSet.copyOf(
-          Iterables.filter(
-              getDataSources(inventoryView),
-              new Predicate<DruidDataSource>()
-              {
-                @Override
-                public boolean apply(DruidDataSource input)
-                {
-                  Resource resource = new Resource(input.getName(), ResourceType.DATASOURCE);
-                  Action action = Action.READ;
-                  Pair<Resource, Action> key = new Pair<>(resource, action);
-                  if (resourceAccessMap.containsKey(key)) {
-                    return resourceAccessMap.get(key).isAllowed();
-                  } else {
-                    Access access = authorizationInfo.isAuthorized(key.lhs, key.rhs);
-                    resourceAccessMap.put(key, access);
-                    return access.isAllowed();
-                  }
-                }
-              }
-          )
-      );
+    if (authorizerMapper == null) {
+      throw new ISE("No authorization mapper found");
     }
+
+    Iterable<ImmutableDruidDataSource> filteredResources = AuthorizationUtils.filterAuthorizedResources(
+        request,
+        getDataSources(inventoryView),
+        datasource ->
+            Collections.singletonList(AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR.apply(datasource.getName())),
+        authorizerMapper
+    );
+    SortedSet<ImmutableDruidDataSource> set = new TreeSet<>(comparingByName());
+    filteredResources.forEach(set::add);
+    return Collections.unmodifiableSortedSet(set);
   }
 }

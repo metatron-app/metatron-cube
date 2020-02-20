@@ -22,10 +22,8 @@ package io.druid.indexing.overlord.supervisor;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
@@ -33,9 +31,12 @@ import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.http.security.SupervisorResourceFilter;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
-import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
 import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 
 import javax.servlet.http.HttpServletRequest;
@@ -50,6 +51,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,14 +63,28 @@ import java.util.Set;
 @Path("/druid/indexer/v1/supervisor")
 public class SupervisorResource
 {
+  private static final Function<VersionedSupervisorSpec, Iterable<ResourceAction>> SPEC_DATASOURCE_READ_RA_GENERATOR =
+      supervisorSpec -> {
+        if (supervisorSpec.getSpec() == null) {
+          return null;
+        }
+        if (supervisorSpec.getSpec().getDataSources() == null) {
+          return new ArrayList<>();
+        }
+        return Iterables.transform(
+            supervisorSpec.getSpec().getDataSources(),
+            AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
+        );
+      };
+
   private final TaskMaster taskMaster;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
-  public SupervisorResource(TaskMaster taskMaster, AuthConfig authConfig)
+  public SupervisorResource(TaskMaster taskMaster, AuthorizerMapper authorizerMapper)
   {
     this.taskMaster = taskMaster;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
   }
 
   @POST
@@ -77,26 +93,24 @@ public class SupervisorResource
   public Response specPost(final SupervisorSpec spec, @Context final HttpServletRequest req)
   {
     return asLeaderWithSupervisorManager(
-        new Function<SupervisorManager, Response>()
-        {
-          @Override
-          public Response apply(SupervisorManager manager)
-          {
-            if (authConfig.isEnabled()) {
-              // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-              final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-              Preconditions.checkNotNull(
-                  authorizationInfo,
-                  "Security is enabled but no authorization info found in the request"
-              );
-              Access authResult = checkSupervisorAccess(authorizationInfo, spec);
-              if (!authResult.isAllowed()) {
-                return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", authResult).build();
-              }
-            }
-            manager.createOrUpdateAndStartSupervisor(spec);
-            return Response.ok(ImmutableMap.of("id", spec.getId())).build();
+        manager -> {
+          Preconditions.checkArgument(
+              spec.getDataSources() != null && spec.getDataSources().size() > 0,
+              "No dataSources found to perform authorization checks"
+          );
+
+          Access authResult = AuthorizationUtils.authorizeAllResourceActions(
+              req,
+              Iterables.transform(spec.getDataSources(), AuthorizationUtils.DATASOURCE_WRITE_RA_GENERATOR),
+              authorizerMapper
+          );
+
+          if (!authResult.isAllowed()) {
+            throw new ForbiddenException(authResult.toString());
           }
+
+          manager.createOrUpdateAndStartSupervisor(spec);
+          return Response.ok(ImmutableMap.of("id", spec.getId())).build();
         }
     );
   }
@@ -127,53 +141,25 @@ public class SupervisorResource
       @Context final HttpServletRequest req)
   {
     return asLeaderWithSupervisorManager(
-        new Function<SupervisorManager, Response>()
-        {
-          @Override
-          public Response apply(final SupervisorManager manager)
-          {
-            final Set<String> supervisorIds;
-            if (authConfig.isEnabled()) {
-              final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-              Preconditions.checkNotNull(
-                  authorizationInfo,
-                  "Security is enabled but no authorization info found in the request"
-              );
-              supervisorIds = Sets.newHashSet(
-                  Iterables.filter(
-                      manager.getSupervisorIds(),
-                      new Predicate<String>()
-                      {
-                        @Override
-                        public boolean apply(String id)
-                        {
-                          return manager.getSupervisorSpec(id).isPresent() &&
-                                 checkSupervisorAccess(
-                                     authorizationInfo,
-                                     manager.getSupervisorSpec(id).get()
-                                 ).isAllowed();
-                        }
-                      }
-                  )
-              );
-            } else {
-              supervisorIds = manager.getSupervisorIds();
+        manager -> {
+          Set<String> supervisorIds = filterAuthorizedSupervisorIds(
+              req,
+              manager,
+              manager.getSupervisorIds()
+          );
+          if (full == null) {
+            return Response.ok(supervisorIds).build();
+          } else {
+            List<Map<String, ?>> all =
+                new ArrayList<>();
+            for (String x : supervisorIds) {
+              ImmutableMap<String, Object> build = ImmutableMap.<String, Object>builder()
+                  .put("id", x)
+                  .put("spec", manager.getSupervisorSpec(x).get())
+                  .build();
+              all.add(build);
             }
-
-            if (full == null) {
-              return Response.ok(supervisorIds).build();
-            } else {
-              List<Map<String, ?>> all =
-                  new ArrayList<>();
-              for (String x : supervisorIds) {
-                ImmutableMap<String, Object> build = ImmutableMap.<String, Object>builder()
-                    .put("id", x)
-                    .put("spec", manager.getSupervisorSpec(x).get())
-                    .build();
-                all.add(build);
-              }
-              return Response.ok(all).build();
-            }
+            return Response.ok(all).build();
           }
         }
     );
@@ -284,39 +270,14 @@ public class SupervisorResource
   public Response specGetAllHistory(@Context final HttpServletRequest req)
   {
     return asLeaderWithSupervisorManager(
-        new Function<SupervisorManager, Response>()
-        {
-          @Override
-          public Response apply(final SupervisorManager manager)
-          {
-            final Map<String, List<VersionedSupervisorSpec>> supervisorHistory;
-            if (authConfig.isEnabled()) {
-              final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-              Preconditions.checkNotNull(
-                  authorizationInfo,
-                  "Security is enabled but no authorization info found in the request"
-              );
-              supervisorHistory = Maps.filterKeys(
-                  manager.getSupervisorHistory(),
-                  new Predicate<String>()
-                  {
-                    @Override
-                    public boolean apply(String id)
-                    {
-                      return manager.getSupervisorSpec(id).isPresent() &&
-                             checkSupervisorAccess(
-                                 authorizationInfo,
-                                 manager.getSupervisorSpec(id).get()
-                             ).isAllowed();
-                    }
-                  }
-              );
-            } else {
-              supervisorHistory = manager.getSupervisorHistory();
-            }
-            return Response.ok(supervisorHistory).build();
-          }
-        }
+        manager -> Response.ok(
+            AuthorizationUtils.filterAuthorizedResources(
+                req,
+                manager.getSupervisorHistory(),
+                SPEC_DATASOURCE_READ_RA_GENERATOR,
+                authorizerMapper
+            )
+        ).build()
     );
   }
 
@@ -363,5 +324,33 @@ public class SupervisorResource
       // Encourage client to try again soon, when we'll likely have a redirect set up
       return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
     }
+  }
+
+    private Set<String> filterAuthorizedSupervisorIds(
+      final HttpServletRequest req,
+      SupervisorManager manager,
+      Collection<String> supervisorIds
+  )
+  {
+    Function<String, Iterable<ResourceAction>> raGenerator = supervisorId -> {
+      Optional<SupervisorSpec> supervisorSpecOptional = manager.getSupervisorSpec(supervisorId);
+      if (supervisorSpecOptional.isPresent()) {
+        return Iterables.transform(
+            supervisorSpecOptional.get().getDataSources(),
+            AuthorizationUtils.DATASOURCE_WRITE_RA_GENERATOR
+        );
+      } else {
+        return null;
+      }
+    };
+
+    return Sets.newHashSet(
+        AuthorizationUtils.filterAuthorizedResources(
+            req,
+            supervisorIds,
+            raGenerator,
+            authorizerMapper
+        )
+    );
   }
 }

@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -20,26 +20,26 @@
 package io.druid.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import com.google.inject.servlet.DelegatedGuiceFilter;
+import com.google.inject.Key;
 import com.google.inject.servlet.GuiceFilter;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.guice.annotations.Global;
 import io.druid.guice.annotations.Json;
-import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.DruidHttpClientConfig;
-import io.druid.query.QueryToolChestWarehouse;
 import io.druid.server.AsyncManagementForwardingServlet;
 import io.druid.server.AsyncQueryForwardingServlet;
 import io.druid.server.GuiceServletConfig;
 import io.druid.server.initialization.jetty.JettyServerInitUtils;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
-import io.druid.server.log.RequestLogger;
 import io.druid.server.router.ManagementProxyConfig;
-import io.druid.server.router.QueryHostFinder;
 import io.druid.server.router.Router;
+import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthenticationUtils;
+import io.druid.server.security.Authenticator;
+import io.druid.server.security.AuthenticatorMapper;
+import io.druid.sql.avatica.DruidAvaticaHandler;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
@@ -49,51 +49,41 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 
 import javax.servlet.Servlet;
+import java.util.List;
 
-/**
- */
 public class RouterJettyServerInitializer implements JettyServerInitializer
 {
-  private static final EmittingLogger log = new EmittingLogger(RouterJettyServerInitializer.class);
-  private final QueryToolChestWarehouse warehouse;
-  private final ObjectMapper jsonMapper;
-  private final ObjectMapper smileMapper;
-  private final QueryHostFinder hostFinder;
+  private static final List<String> UNSECURED_PATHS = ImmutableList.of(
+      "/status/health",
+      // JDBC authentication uses the JDBC connection context instead of HTTP headers, skip the normal auth checks.
+      // The router will keep the connection context in the forwarded message, and the broker is responsible for
+      // performing the auth checks.
+      DruidAvaticaHandler.AVATICA_PATH
+  );
+
   private final DruidHttpClientConfig routerHttpClientConfig;
   private final DruidHttpClientConfig globalHttpClientConfig;
-  private final ServiceEmitter emitter;
-  private final RequestLogger requestLogger;
   private final ManagementProxyConfig managementProxyConfig;
   private final AsyncQueryForwardingServlet asyncQueryForwardingServlet;
   private final AsyncManagementForwardingServlet asyncManagementForwardingServlet;
-
+  private final AuthConfig authConfig;
 
   @Inject
   public RouterJettyServerInitializer(
-      QueryToolChestWarehouse warehouse,
       @Router DruidHttpClientConfig routerHttpClientConfig,
       @Global DruidHttpClientConfig globalHttpClientConfig,
-      @Json ObjectMapper jsonMapper,
-      @Smile ObjectMapper smileMapper,
-      QueryHostFinder hostFinder,
-      ServiceEmitter emitter,
-      RequestLogger requestLogger,
       ManagementProxyConfig managementProxyConfig,
       AsyncQueryForwardingServlet asyncQueryForwardingServlet,
-      AsyncManagementForwardingServlet asyncManagementForwardingServlet
+      AsyncManagementForwardingServlet asyncManagementForwardingServlet,
+      AuthConfig authConfig
   )
   {
-    this.warehouse = warehouse;
     this.routerHttpClientConfig = routerHttpClientConfig;
     this.globalHttpClientConfig = globalHttpClientConfig;
-    this.jsonMapper = jsonMapper;
-    this.smileMapper = smileMapper;
-    this.hostFinder = hostFinder;
-    this.emitter = emitter;
-    this.requestLogger = requestLogger;
     this.managementProxyConfig = managementProxyConfig;
     this.asyncQueryForwardingServlet = asyncQueryForwardingServlet;
     this.asyncManagementForwardingServlet = asyncManagementForwardingServlet;
+    this.authConfig = authConfig;
   }
 
   @Override
@@ -126,9 +116,27 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
       root.setBaseResource(Resource.newClassPathResource("org/apache/druid/console"));
     }
 
+    final ObjectMapper jsonMapper = injector.getInstance(Key.get(ObjectMapper.class, Json.class));
+    final AuthenticatorMapper authenticatorMapper = injector.getInstance(AuthenticatorMapper.class);
+
+    AuthenticationUtils.addSecuritySanityCheckFilter(root, jsonMapper);
+
+    // perform no-op authorization/authentication for these resources
+    AuthenticationUtils.addNoopAuthenticationAndAuthorizationFilters(root, UNSECURED_PATHS);
+    AuthenticationUtils.addNoopAuthenticationAndAuthorizationFilters(root, authConfig.getUnsecuredPaths());
+
+    final List<Authenticator> authenticators = authenticatorMapper.getAuthenticatorChain();
+    AuthenticationUtils.addAuthenticationFilterChain(root, authenticators);
+
+    AuthenticationUtils.addAllowOptionsFilter(root, authConfig.isAllowUnauthenticatedHttpOptions());
+
     JettyServerInitUtils.addExtensionFilters(root, injector);
+
+    // Check that requests were authorized before sending responses
+    AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, authenticators, jsonMapper);
+
     // Can't use '/*' here because of Guice conflicts with AsyncQueryForwardingServlet path
-    root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
+    root.addFilter(GuiceFilter.class, "/status/*", null);
     root.addFilter(GuiceFilter.class, "/druid/router/*", null);
     root.addFilter(GuiceFilter.class, "/druid-ext/*", null);
 

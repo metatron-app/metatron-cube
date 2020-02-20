@@ -24,7 +24,6 @@ import io.druid.client.BrokerServerView;
 import io.druid.guice.LazySingleton;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.server.log.RequestLogger;
-import io.druid.server.security.AuthConfig;
 import io.druid.sql.calcite.planner.PlannerFactory;
 
 @LazySingleton
@@ -33,7 +32,6 @@ public class SqlLifecycleFactory
   private final PlannerFactory plannerFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
-  private final AuthConfig authConfig;
   private final BrokerServerView brokerServerView;
 
   @Inject
@@ -41,14 +39,12 @@ public class SqlLifecycleFactory
       PlannerFactory plannerFactory,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
-      AuthConfig authConfig,
       BrokerServerView brokerServerView
   )
   {
     this.plannerFactory = plannerFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
-    this.authConfig = authConfig;
     this.brokerServerView = brokerServerView;
   }
 
@@ -58,7 +54,6 @@ public class SqlLifecycleFactory
         plannerFactory,
         emitter,
         requestLogger,
-        authConfig,
         System.currentTimeMillis(),
         System.nanoTime(),
         brokerServerView

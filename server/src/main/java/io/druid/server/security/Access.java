@@ -19,21 +19,28 @@
 
 package io.druid.server.security;
 
+import io.druid.common.utils.StringUtils;
+
 public class Access
 {
+  public static final Access OK = new Access(true);
+
   private final boolean allowed;
   private final String message;
 
-  public Access(boolean allowed) {
+  public Access(boolean allowed)
+  {
     this(allowed, "");
   }
 
-  public Access(boolean allowed, String message) {
+  public Access(boolean allowed, String message)
+  {
     this.allowed = allowed;
     this.message = message;
   }
 
-  public boolean isAllowed() {
+  public boolean isAllowed()
+  {
     return allowed;
   }
 
@@ -45,6 +52,6 @@ public class Access
   @Override
   public String toString()
   {
-    return String.format("Allowed:%s, Message:%s", allowed, message);
+    return StringUtils.format("Allowed:%s, Message:%s", allowed, message);
   }
 }

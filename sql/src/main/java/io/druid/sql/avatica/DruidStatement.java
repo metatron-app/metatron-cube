@@ -29,6 +29,7 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.concurrent.Execs;
+import io.druid.server.security.AuthenticationResult;
 import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycle;
 import io.druid.sql.calcite.rel.QueryMaker;
@@ -156,14 +157,15 @@ public class DruidStatement implements Closeable
 
   public DruidStatement prepare(
       final String query,
-      final long maxRowCount
+      final long maxRowCount,
+      final AuthenticationResult authenticationResult
   )
   {
     synchronized (lock) {
       try {
         ensure(State.NEW);
         sqlLifecycle.initialize(query, queryContext);
-        sqlLifecycle.planAndAuthorize(null);
+        sqlLifecycle.planAndAuthorize(authenticationResult);
         this.maxRowCount = maxRowCount;
         this.query = query;
         this.signature = Meta.Signature.create(

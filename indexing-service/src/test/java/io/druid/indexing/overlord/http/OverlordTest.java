@@ -26,10 +26,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.concurrent.Execs;
 import io.druid.curator.PotentiallyGzippedCompressionProvider;
 import io.druid.curator.discovery.NoopServiceAnnouncer;
@@ -54,11 +50,17 @@ import io.druid.indexing.overlord.autoscaling.ScalingStats;
 import io.druid.indexing.overlord.config.TaskQueueConfig;
 import io.druid.indexing.overlord.helpers.OverlordHelperManager;
 import io.druid.indexing.overlord.supervisor.SupervisorManager;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.server.DruidNode;
 import io.druid.server.initialization.IndexerZkConfig;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthTestUtils;
+import io.druid.server.security.AuthenticationResult;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryOneTime;
@@ -125,26 +127,33 @@ public class OverlordTest
   @Before
   public void setUp() throws Exception
   {
-    req = EasyMock.createStrictMock(HttpServletRequest.class);
+    req = EasyMock.createMock(HttpServletRequest.class);
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT)).andReturn(
+        new AuthenticationResult("druid", "druid", null, null)
+    ).anyTimes();
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().anyTimes();
     supervisorManager = EasyMock.createMock(SupervisorManager.class);
     taskLockbox = EasyMock.createStrictMock(TaskLockbox.class);
     taskLockbox.syncFromStorage();
     EasyMock.expectLastCall().atLeastOnce();
-    taskLockbox.add(EasyMock.<Task>anyObject());
+    taskLockbox.add(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
-    taskLockbox.remove(EasyMock.<Task>anyObject());
+    taskLockbox.remove(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
 
     // for second Noop Task directly added to deep storage.
-    taskLockbox.add(EasyMock.<Task>anyObject());
+    taskLockbox.add(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
-    taskLockbox.remove(EasyMock.<Task>anyObject());
+    taskLockbox.remove(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
 
     taskActionClientFactory = EasyMock.createStrictMock(TaskActionClientFactory.class);
-    EasyMock.expect(taskActionClientFactory.create(EasyMock.<Task>anyObject()))
+    EasyMock.expect(taskActionClientFactory.create(EasyMock.anyObject()))
             .andReturn(null).anyTimes();
-    EasyMock.replay(taskLockbox, taskActionClientFactory);
+    EasyMock.replay(taskLockbox, taskActionClientFactory, req);
 
     taskStorage = new HeapMemoryTaskStorage(new TaskStorageConfig(null));
     runTaskCountDownLatches = new CountDownLatch[2];
@@ -213,7 +222,7 @@ public class OverlordTest
         null,
         null,
         null,
-        new AuthConfig(),
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
         null,
         null,
         null
@@ -276,6 +285,9 @@ public class OverlordTest
     // should return number of tasks which are not in running state
     response = overlordResource.getCompleteTasks(null, req);
     Assert.assertEquals(2, (((List) response.getEntity()).size()));
+
+    response = overlordResource.getCompleteTasks(1, req);
+    Assert.assertEquals(1, (((List) response.getEntity()).size()));
     taskMaster.stop();
     Assert.assertFalse(taskMaster.isLeading());
     EasyMock.verify(taskLockbox, taskActionClientFactory);

@@ -45,6 +45,7 @@ import io.druid.server.QueryManager;
 import io.druid.server.log.NoopRequestLogger;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthTestUtils;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -159,6 +160,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
         walker,
         new QueryManager(),
         operatorTable,
+        AuthTestUtils.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
         queryConfig,
         CalciteTests.getJsonMapper()
@@ -169,7 +171,6 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
             plannerFactory,
             new NoopServiceEmitter(),
             new NoopRequestLogger(),
-            new AuthConfig(),
             null
         ),
         AVATICA_CONFIG,
@@ -737,6 +738,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
                 walker,
                 new QueryManager(),
                 operatorTable,
+                AuthTestUtils.TEST_AUTHORIZER_MAPPER,
                 plannerConfig,
                 queryConfig,
                 CalciteTests.getJsonMapper()

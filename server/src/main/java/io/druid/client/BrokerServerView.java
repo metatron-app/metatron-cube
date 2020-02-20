@@ -36,6 +36,7 @@ import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Client;
+import io.druid.guice.annotations.EscalatedClient;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
@@ -136,7 +137,7 @@ public class BrokerServerView implements TimelineServerView
       QueryWatcher queryWatcher,
       @Smile ObjectMapper smileMapper,
       @Json ObjectMapper jsonMapper,
-      @Client HttpClient httpClient,
+      @EscalatedClient HttpClient httpClient,
       FilteredServerInventoryView baseView,
       ServiceEmitter emitter,
       final BrokerSegmentWatcherConfig segmentWatcherConfig,

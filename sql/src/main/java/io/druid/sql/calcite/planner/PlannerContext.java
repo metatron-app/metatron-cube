@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.server.QueryManager;
+import io.druid.server.security.AuthenticationResult;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.linq4j.QueryProvider;
@@ -55,6 +56,7 @@ public class PlannerContext
   private final DateTime localNow;
   private final long queryStartTimeMillis;
   private final Map<String, Object> queryContext;
+  private final AuthenticationResult authenticationResult;
   private final String sqlQueryId;
   private final List<String> nativeQueryIds = new CopyOnWriteArrayList<>();
 
@@ -63,7 +65,8 @@ public class PlannerContext
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
       final DateTime localNow,
-      final Map<String, Object> queryContext
+      final Map<String, Object> queryContext,
+      final AuthenticationResult authenticationResult
   )
   {
     this.queryManager = queryManager;
@@ -72,6 +75,7 @@ public class PlannerContext
     this.queryContext = queryContext != null ? Maps.newHashMap(queryContext) : Maps.newHashMap();
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
     this.queryStartTimeMillis = System.currentTimeMillis();
+    this.authenticationResult = authenticationResult;
     this.queryContext.put(BaseAggregationQuery.SORT_ON_TIME, false);
 
     String sqlQueryId = (String) this.queryContext.get(CTX_SQL_QUERY_ID);
@@ -86,7 +90,8 @@ public class PlannerContext
       final QueryManager queryManager,
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
-      final Map<String, Object> queryContext
+      final Map<String, Object> queryContext,
+      final AuthenticationResult authenticationResult
   )
   {
     final DateTime utcNow;
@@ -117,7 +122,8 @@ public class PlannerContext
         operatorTable,
         plannerConfig.withOverrides(queryContext),
         utcNow.withZone(timeZone),
-        queryContext
+        queryContext,
+        authenticationResult
     );
   }
 
@@ -149,6 +155,11 @@ public class PlannerContext
   public Map<String, Object> getQueryContext()
   {
     return queryContext;
+  }
+
+  public AuthenticationResult getAuthenticationResult()
+  {
+    return authenticationResult;
   }
 
   public String getSqlQueryId()

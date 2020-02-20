@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -32,10 +32,13 @@ import com.google.inject.Module;
 import com.sun.jersey.spi.container.ContainerRequest;
 import com.sun.jersey.spi.container.ResourceFilter;
 import com.sun.jersey.spi.container.ResourceFilters;
+import io.druid.java.util.common.StringUtils;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Authorizer;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.Resource;
 import org.easymock.EasyMock;
 
@@ -46,6 +49,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.PathSegment;
+import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,18 +59,19 @@ import java.util.List;
 public class ResourceFilterTestHelper
 {
   public HttpServletRequest req;
-  public AuthorizationInfo authorizationInfo;
+  public AuthorizerMapper authorizerMapper;
   public ContainerRequest request;
 
-  public void setUp(ResourceFilter resourceFilter) throws Exception
+  public void setUp(ResourceFilter resourceFilter)
   {
     req = EasyMock.createStrictMock(HttpServletRequest.class);
     request = EasyMock.createStrictMock(ContainerRequest.class);
-    authorizationInfo = EasyMock.createStrictMock(AuthorizationInfo.class);
+    authorizerMapper = EasyMock.createStrictMock(AuthorizerMapper.class);
 
     // Memory barrier
     synchronized (this) {
       ((AbstractResourceFilter) resourceFilter).setReq(req);
+      ((AbstractResourceFilter) resourceFilter).setAuthorizerMapper(authorizerMapper);
     }
   }
 
@@ -106,19 +111,32 @@ public class ResourceFilterTestHelper
         )
     ).anyTimes();
     EasyMock.expect(request.getMethod()).andReturn(requestMethod).anyTimes();
-    EasyMock.expect(req.getAttribute(EasyMock.anyString())).andReturn(authorizationInfo).atLeastOnce();
-    EasyMock.expect(authorizationInfo.isAuthorized(
-        EasyMock.anyObject(Resource.class),
-        EasyMock.anyObject(Action.class)
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED)).andReturn(null).anyTimes();
+    AuthenticationResult authenticationResult = new AuthenticationResult("druid", "druid", null, null);
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(authenticationResult)
+            .atLeastOnce();
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, authCheckResult);
+    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expect(authorizerMapper.getAuthorizer(
+        EasyMock.anyString()
     )).andReturn(
-        new Access(authCheckResult)
-    ).atLeastOnce();
+        new Authorizer()
+        {
+          @Override
+          public Access authorize(AuthenticationResult authenticationResult1, Resource resource, Action action)
+          {
+            return new Access(authCheckResult);
+          }
 
+        }
+    ).atLeastOnce();
   }
 
-  public static Collection<Object[]> getRequestPaths(final Class clazz)
+  public static Collection<Object[]> getRequestPathsWithAuthorizer(final AnnotatedElement classOrMethod)
   {
-    return getRequestPaths(clazz, ImmutableList.<Class<?>>of(), ImmutableList.<Key<?>>of());
+    return getRequestPaths(classOrMethod, ImmutableList.of(AuthorizerMapper.class), ImmutableList.of());
   }
 
   public static Collection<Object[]> getRequestPaths(
@@ -126,21 +144,21 @@ public class ResourceFilterTestHelper
       final Iterable<Class<?>> mockableInjections
   )
   {
-    return getRequestPaths(clazz, mockableInjections, ImmutableList.<Key<?>>of());
+    return getRequestPaths(clazz, mockableInjections, ImmutableList.of());
   }
 
   public static Collection<Object[]> getRequestPaths(
-      final Class clazz,
+      final AnnotatedElement classOrMethod,
       final Iterable<Class<?>> mockableInjections,
       final Iterable<Key<?>> mockableKeys
   )
   {
-    return getRequestPaths(clazz, mockableInjections, mockableKeys, ImmutableList.of());
+    return getRequestPaths(classOrMethod, mockableInjections, mockableKeys, ImmutableList.of());
   }
 
   // Feeds in an array of [ PathName, MethodName, ResourceFilter , Injector]
   public static Collection<Object[]> getRequestPaths(
-      final Class clazz,
+      final AnnotatedElement classOrMethod,
       final Iterable<Class<?>> mockableInjections,
       final Iterable<Key<?>> mockableKeys,
       final Iterable<?> injectedObjs
@@ -161,15 +179,21 @@ public class ResourceFilterTestHelper
             for (Key<?> key : mockableKeys) {
               binder.bind((Key<Object>) key).toInstance(EasyMock.createNiceMock(key.getTypeLiteral().getRawType()));
             }
-            binder.bind(AuthConfig.class).toInstance(new AuthConfig(true));
+            binder.bind(AuthConfig.class).toInstance(new AuthConfig());
           }
         }
     );
-    final String basepath = ((Path) clazz.getAnnotation(Path.class)).value().substring(1); //Ignore the first "/"
+    final String basepath = classOrMethod.getAnnotation(Path.class).value().substring(1); //Ignore the first "/"
     final List<Class<? extends ResourceFilter>> baseResourceFilters =
-        clazz.getAnnotation(ResourceFilters.class) == null ? Collections.<Class<? extends ResourceFilter>>emptyList() :
-        ImmutableList.copyOf(((ResourceFilters) clazz.getAnnotation(ResourceFilters.class)).value());
+        classOrMethod.getAnnotation(ResourceFilters.class) == null ? Collections.emptyList() :
+        ImmutableList.copyOf(classOrMethod.getAnnotation(ResourceFilters.class).value());
 
+    List<Method> methods;
+    if (classOrMethod instanceof Class<?>) {
+      methods = ImmutableList.copyOf(((Class<?>) classOrMethod).getDeclaredMethods());
+    } else {
+      methods = Collections.singletonList((Method) classOrMethod);
+    }
     return ImmutableList.copyOf(
         Iterables.concat(
             // Step 3 - Merge all the Objects arrays for each endpoints
@@ -184,7 +208,7 @@ public class ResourceFilterTestHelper
                     // Filter out non resource endpoint methods
                     // and also the endpoints that does not have any
                     // ResourceFilters applied to them
-                    ImmutableList.copyOf(clazz.getDeclaredMethods()),
+                    methods,
                     new Predicate<Method>()
                     {
                       @Override
@@ -216,19 +240,15 @@ public class ResourceFilterTestHelper
                           {
                             if (method.getAnnotation(Path.class) != null) {
                               return new Object[]{
-                                  String.format("%s%s", basepath, method.getAnnotation(Path.class).value()),
-                                  input.getAnnotation(GET.class) == null ? (method.getAnnotation(DELETE.class) == null
-                                                                            ? "POST"
-                                                                            : "DELETE") : "GET",
+                                  StringUtils.format("%s%s", basepath, method.getAnnotation(Path.class).value()),
+                                  httpMethodFromAnnotation(input, method),
                                   injector.getInstance(input),
                                   injector
                               };
                             } else {
                               return new Object[]{
                                   basepath,
-                                  input.getAnnotation(GET.class) == null ? (method.getAnnotation(DELETE.class) == null
-                                                                            ? "POST"
-                                                                            : "DELETE") : "GET",
+                                  httpMethodFromAnnotation(input, method),
                                   injector.getInstance(input),
                                   injector
                               };
@@ -241,5 +261,14 @@ public class ResourceFilterTestHelper
             )
         )
     );
+  }
+
+  private static String httpMethodFromAnnotation(Class<? extends ResourceFilter> input, Method method)
+  {
+    if (input.getAnnotation(GET.class) != null) {
+      return "GET";
+    } else {
+      return method.getAnnotation(DELETE.class) != null ? "DELETE" : "POST";
+    }
   }
 }

@@ -31,10 +31,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import io.druid.jackson.DefaultObjectMapper;
-import io.druid.java.util.emitter.core.NoopEmitter;
-import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.http.client.HttpClient;
 import io.druid.client.DruidLeaderClient;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
@@ -50,6 +46,10 @@ import io.druid.guice.GuiceAnnotationIntrospector;
 import io.druid.guice.GuiceInjectableValues;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
+import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.emitter.core.NoopEmitter;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.http.client.HttpClient;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -69,7 +69,17 @@ import io.druid.server.DruidNode;
 import io.druid.server.QueryLifecycleFactory;
 import io.druid.server.QueryManager;
 import io.druid.server.log.NoopRequestLogger;
+import io.druid.server.security.Access;
+import io.druid.server.security.AllowAllAuthenticator;
 import io.druid.server.security.AuthConfig;
+import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Authenticator;
+import io.druid.server.security.AuthenticatorMapper;
+import io.druid.server.security.Authorizer;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.Escalator;
+import io.druid.server.security.NoopEscalator;
+import io.druid.server.security.ResourceType;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -87,6 +97,7 @@ import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
 import java.io.File;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -98,16 +109,76 @@ import java.util.concurrent.ExecutorService;
  */
 public class CalciteTests
 {
+  public static final String TEST_SUPERUSER_NAME = "testSuperuser";
+
+  public static final AuthorizerMapper TEST_AUTHORIZER_MAPPER = new AuthorizerMapper(null)
+  {
+    @Override
+    public Authorizer getAuthorizer(String name)
+    {
+      return (authenticationResult, resource, action) -> {
+        if (authenticationResult.getIdentity().equals(TEST_SUPERUSER_NAME)) {
+          return Access.OK;
+        }
+
+        if (resource.getType() == ResourceType.DATASOURCE && resource.getName().equals(FORBIDDEN_DATASOURCE)) {
+          return new Access(false);
+        } else {
+          return Access.OK;
+        }
+      };
+    }
+  };
+  public static final AuthenticatorMapper TEST_AUTHENTICATOR_MAPPER;
+
+  static {
+    final Map<String, Authenticator> defaultMap = new HashMap<>();
+    defaultMap.put(
+        AuthConfig.ALLOW_ALL_NAME,
+        new AllowAllAuthenticator()
+        {
+          @Override
+          public AuthenticationResult authenticateJDBCContext(Map<String, Object> context)
+          {
+            return new AuthenticationResult((String) context.get("user"), AuthConfig.ALLOW_ALL_NAME, null, null);
+          }
+        }
+    );
+    TEST_AUTHENTICATOR_MAPPER = new AuthenticatorMapper(defaultMap);
+  }
+
+  public static final Escalator TEST_AUTHENTICATOR_ESCALATOR;
+
+  static {
+    TEST_AUTHENTICATOR_ESCALATOR = new NoopEscalator()
+    {
+
+      @Override
+      public AuthenticationResult createEscalatedAuthenticationResult()
+      {
+        return SUPER_USER_AUTH_RESULT;
+      }
+    };
+  }
+
+  public static final AuthenticationResult REGULAR_USER_AUTH_RESULT = new AuthenticationResult(
+      AuthConfig.ALLOW_ALL_NAME,
+      AuthConfig.ALLOW_ALL_NAME,
+      null, null
+  );
+
+  public static final AuthenticationResult SUPER_USER_AUTH_RESULT = new AuthenticationResult(
+      TEST_SUPERUSER_NAME,
+      AuthConfig.ALLOW_ALL_NAME,
+      null, null
+  );
+
   public static final String DATASOURCE1 = "foo";
   public static final String DATASOURCE2 = "foo2";
   public static final String DATASOURCE3 = "foo3";
   public static final String FORBIDDEN_DATASOURCE = "forbiddenDatasource";
 
-  public static final String TEST_SUPERUSER_NAME = "testSuperuser";
-
   private static final String TIMESTAMP_COLUMN = "t";
-
-  public static final String SUPER_USER_AUTH_RESULT = "SUPER_USER_AUTH_RESULT";
 
   private static final ObjectMapper jsonMapper = new DefaultObjectMapper();
 
@@ -233,7 +304,7 @@ public class CalciteTests
         new ServiceEmitter("dummy", "dummy", new NoopEmitter()),
         new NoopRequestLogger(),
         jsonMapper,
-        new AuthConfig()
+        TEST_AUTHORIZER_MAPPER
     );
   }
 
@@ -243,7 +314,6 @@ public class CalciteTests
         plannerFactory,
         new ServiceEmitter("dummy", "dummy", new NoopEmitter()),
         new NoopRequestLogger(),
-        new AuthConfig(),
         null
     );
   }

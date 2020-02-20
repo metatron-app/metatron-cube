@@ -24,8 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.Pair;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryConfig;
@@ -34,11 +34,8 @@ import io.druid.query.sql.SQLFunctions;
 import io.druid.server.QueryManager;
 import io.druid.server.log.NoopRequestLogger;
 import io.druid.server.metrics.NoopServiceEmitter;
-import io.druid.server.security.Access;
-import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
-import io.druid.server.security.Resource;
+import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -104,19 +101,22 @@ public class SqlResourceTest extends CalciteTestBase
     final SystemSchema systemSchema =CalciteTests.createMockSystemSchema(druidSchema, walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     req = EasyMock.createStrictMock(HttpServletRequest.class);
-    EasyMock.expect(req.getRemoteAddr()).andReturn("localhost").anyTimes();
-    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(
-        new AuthorizationInfo()
-        {
-          @Override
-          public Access isAuthorized(
-              Resource resource, Action action
-          )
-          {
-            return new Access(true);
-          }
-        }
-    ).anyTimes();
+    EasyMock.expect(req.getRemoteAddr()).andReturn(null).once();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(CalciteTests.REGULAR_USER_AUTH_RESULT)
+            .anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED))
+            .andReturn(null)
+            .anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(CalciteTests.REGULAR_USER_AUTH_RESULT)
+            .anyTimes();
+    req.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, true);
+    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(CalciteTests.REGULAR_USER_AUTH_RESULT)
+            .anyTimes();
     EasyMock.replay(req);
 
     final PlannerFactory plannerFactory = new PlannerFactory(
@@ -126,6 +126,7 @@ public class SqlResourceTest extends CalciteTestBase
         walker,
         new QueryManager(),
         operatorTable,
+        CalciteTests.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
         queryConfig,
         CalciteTests.getJsonMapper()
@@ -137,7 +138,6 @@ public class SqlResourceTest extends CalciteTestBase
             plannerFactory,
             new NoopServiceEmitter(),
             new NoopRequestLogger(),
-            new AuthConfig(),
             null
         )
     );
@@ -147,6 +147,37 @@ public class SqlResourceTest extends CalciteTestBase
   public void tearDown() throws Exception
   {
     walker = null;
+  }
+
+    @Test
+  public void testUnauthorized() throws Exception
+  {
+    HttpServletRequest testRequest = EasyMock.createStrictMock(HttpServletRequest.class);
+    EasyMock.expect(testRequest.getRemoteAddr()).andReturn(null).once();
+    EasyMock.expect(testRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(CalciteTests.REGULAR_USER_AUTH_RESULT)
+            .anyTimes();
+    EasyMock.expect(testRequest.getAttribute(AuthConfig.DRUID_ALLOW_UNSECURED_PATH)).andReturn(null).anyTimes();
+    EasyMock.expect(testRequest.getAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED))
+            .andReturn(null)
+            .anyTimes();
+    EasyMock.expect(testRequest.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
+            .andReturn(CalciteTests.REGULAR_USER_AUTH_RESULT)
+            .anyTimes();
+    testRequest.setAttribute(AuthConfig.DRUID_AUTHORIZATION_CHECKED, false);
+    EasyMock.expectLastCall().once();
+    EasyMock.replay(testRequest);
+
+    try {
+      resource.doPost(
+          new SqlQuery("select count(*) from forbiddenDatasource", null, false, null),
+          testRequest
+      );
+      Assert.fail("doPost did not throw ForbiddenException for an unauthorized query");
+    }
+    catch (ForbiddenException e) {
+      // expected
+    }
   }
 
   @Test

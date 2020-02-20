@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
@@ -37,13 +36,6 @@ import com.google.common.io.ByteSource;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.http.client.HttpClient;
-import io.druid.java.util.http.client.Request;
-import io.druid.java.util.http.client.response.StatusResponseHandler;
-import io.druid.java.util.http.client.response.StatusResponseHolder;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.audit.AuditInfo;
 import io.druid.audit.AuditManager;
@@ -53,7 +45,7 @@ import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
-import io.druid.guice.annotations.Global;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.guice.annotations.Self;
 import io.druid.indexer.RunnerTaskState;
 import io.druid.indexer.TaskInfo;
@@ -78,6 +70,12 @@ import io.druid.indexing.overlord.WorkerTaskRunner;
 import io.druid.indexing.overlord.autoscaling.ScalingStats;
 import io.druid.indexing.overlord.http.security.TaskResourceFilter;
 import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.http.client.HttpClient;
+import io.druid.java.util.http.client.Request;
+import io.druid.java.util.http.client.response.StatusResponseHandler;
+import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.metadata.EntryExistsException;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.server.DruidNode;
@@ -85,8 +83,8 @@ import io.druid.server.http.security.ConfigResourceFilter;
 import io.druid.server.http.security.StateResourceFilter;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
@@ -128,6 +126,7 @@ import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -143,7 +142,7 @@ public class OverlordResource
   private final TaskLogStreamer taskLogStreamer;
   private final JacksonConfigManager configManager;
   private final AuditManager auditManager;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
   private final HttpClient client;
   private final DruidNode node;
   private final ObjectMapper jsonMapper;
@@ -160,8 +159,8 @@ public class OverlordResource
       TaskLogStreamer taskLogStreamer,
       JacksonConfigManager configManager,
       AuditManager auditManager,
-      AuthConfig authConfig,
-      @Global HttpClient client,
+      AuthorizerMapper authorizerMapper,
+      @EscalatedGlobal HttpClient client,
       @Self DruidNode node,
       ObjectMapper jsonMapper
   )
@@ -172,7 +171,7 @@ public class OverlordResource
     this.taskLogStreamer = taskLogStreamer;
     this.configManager = configManager;
     this.auditManager = auditManager;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
     this.client = client;
     this.node = node;
     this.jsonMapper = jsonMapper;
@@ -187,21 +186,15 @@ public class OverlordResource
       @Context final HttpServletRequest req
   )
   {
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final String dataSource = task.getDataSource();
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
-      Access authResult = authorizationInfo.isAuthorized(
-          new Resource(dataSource, ResourceType.DATASOURCE),
-          Action.WRITE
-      );
-      if (!authResult.isAllowed()) {
-        return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", authResult).build();
-      }
+    final String dataSource = task.getDataSource();
+    final ResourceAction resourceAction = ResourceAction.write(Resource.dataSource(dataSource));
+    final Access authResult = AuthorizationUtils.authorizeResourceAction(
+        req,
+        resourceAction,
+        authorizerMapper
+    );
+    if (!authResult.isAllowed()) {
+      return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", authResult).build();
     }
 
     return asLeaderWith(
@@ -590,17 +583,13 @@ public class OverlordResource
 
     // early authorization check if datasource != null
     // fail fast if user not authorized to access datasource
-    if (dataSource != null && authConfig.isEnabled()) {
-      AuthorizationInfo authorization = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(authorization, "Security is enabled but no authorization info found in the request");
+    if (dataSource != null) {
+      final ResourceAction resourceAction = ResourceAction.read(Resource.dataSource(dataSource));
 
-      final ResourceAction resourceAction = new ResourceAction(
-          new Resource(dataSource, ResourceType.DATASOURCE),
-          Action.READ
-      );
-      final Access authResult = authorization.isAuthorized(
-          resourceAction.getResource(),
-          resourceAction.getAction()
+      final Access authResult = AuthorizationUtils.authorizeResourceAction(
+          req,
+          resourceAction,
+          authorizerMapper
       );
       if (!authResult.isAllowed()) {
         throw new WebApplicationException(
@@ -717,54 +706,6 @@ public class OverlordResource
       return Response.ok(ids).build();
     }
     return Response.ok(authorizedList).build();
-  }
-
-  @GET
-  @Path("/knownTasks")
-  @Produces(MediaType.APPLICATION_JSON)
-  @Deprecated
-  public Response getAllTasks(@Context final HttpServletRequest req)
-  {
-    return workItemsResponse(
-        new Function<TaskRunner, Collection<? extends TaskRunnerWorkItem>>()
-        {
-          @Override
-          public Collection<? extends TaskRunnerWorkItem> apply(TaskRunner taskRunner)
-          {
-            return getTaskWorkItems(taskRunner, Mode.KNOWN, req);
-          }
-        }
-    );
-  }
-
-  private static enum Mode
-  {
-    RUNNING, PENDING, KNOWN
-  }
-
-  @Deprecated
-  private Collection<TaskRunnerWorkItem> getTaskWorkItems(TaskRunner taskRunner, Mode mode, HttpServletRequest req)
-  {
-    if (taskRunner == null) {
-      return Collections.emptyList();
-    }
-    List<TaskRunnerWorkItem> tasks;
-    switch (mode) {
-      case RUNNING:
-        tasks = GuavaUtils.cast(taskRunner.getRunningTasks());
-        break;
-      case PENDING:
-        tasks = GuavaUtils.cast(taskRunner.getPendingTasks());
-        break;
-      default:
-        tasks = GuavaUtils.cast(taskRunner.getKnownTasks());
-    }
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      return securedTaskRunnerWorkItem(tasks, req);
-    } else {
-      return tasks;
-    }
   }
 
   @GET
@@ -905,135 +846,94 @@ public class OverlordResource
   }
 
   private List<AnyTask> filterActiveTasks(
-    RunnerTaskState state,
-    List<OverlordResource.AnyTask> allTasks
-)
-{
-  //divide active tasks into 3 lists : running, pending, waiting
-  Optional<TaskRunner> taskRunnerOpt = taskMaster.getTaskRunner();
-  if (!taskRunnerOpt.isPresent()) {
-    throw new WebApplicationException(
-        Response.serverError().entity("No task runner found").build()
-    );
-  }
-  TaskRunner runner = taskRunnerOpt.get();
-  // the order of tasks below is waiting, pending, running to prevent
-  // skipping a task, it's the order in which tasks will change state
-  // if they do while this is code is executing, so a task might be
-  // counted twice but never skipped
-  if (RunnerTaskState.WAITING.equals(state)) {
-    Collection<? extends TaskRunnerWorkItem> runnersKnownTasks = runner.getKnownTasks();
-    Set<String> runnerKnownTaskIds = new HashSet<>();
-    for(TaskRunnerWorkItem workItem: runnersKnownTasks) {
-      runnerKnownTaskIds.add(workItem.getTaskId());
-    }
-    final List<OverlordResource.AnyTask> waitingTasks = Lists.newArrayList();
-    for (TaskRunnerWorkItem task : allTasks) {
-      if (!runnerKnownTaskIds.contains(task.getTaskId())) {
-        waitingTasks.add(((OverlordResource.AnyTask) task).withTaskState(
-            TaskState.RUNNING,
-            RunnerTaskState.WAITING,
-            task.getCreatedTime(),
-            task.getQueueInsertionTime(),
-            task.getLocation()
-        ));
-      }
-    }
-    return waitingTasks;
-  }
-
-  if (RunnerTaskState.PENDING.equals(state)) {
-    Collection<? extends TaskRunnerWorkItem> knownPendingTasks = runner.getPendingTasks();
-    Set<String> pendingTaskIds = new HashSet<>();
-    for(TaskRunnerWorkItem workItem: knownPendingTasks) {
-      pendingTaskIds.add(workItem.getTaskId());
-    }
-    Map<String, TaskRunnerWorkItem> workItemIdMap = new HashMap<>();
-    for (TaskRunnerWorkItem knownPendingTask: knownPendingTasks) {
-      workItemIdMap.put(knownPendingTask.getTaskId(), knownPendingTask);
-    }
-    final List<OverlordResource.AnyTask> pendingTasks = Lists.newArrayList();
-    for (TaskRunnerWorkItem task : allTasks) {
-      if (pendingTaskIds.contains(task.getTaskId())) {
-        pendingTasks.add(((OverlordResource.AnyTask) task).withTaskState(
-            TaskState.RUNNING,
-            RunnerTaskState.PENDING,
-            workItemIdMap.get(task.getTaskId()).getCreatedTime(),
-            workItemIdMap.get(task.getTaskId()).getQueueInsertionTime(),
-            workItemIdMap.get(task.getTaskId()).getLocation()
-        ));
-      }
-    }
-    return pendingTasks;
-  }
-
-  if (RunnerTaskState.RUNNING.equals(state)) {
-    Collection<? extends TaskRunnerWorkItem> knownRunningTasks = runner.getRunningTasks();
-    Set<String> runningTaskIds = new HashSet<>();
-    for (TaskRunnerWorkItem knownRunningTask : knownRunningTasks) {
-      String taskId = knownRunningTask.getTaskId();
-      runningTaskIds.add(taskId);
-    }
-    Map<String, TaskRunnerWorkItem> workItemIdMap = new HashMap<>();
-    for (TaskRunnerWorkItem knownRunningTask : knownRunningTasks) {
-      workItemIdMap.put(knownRunningTask.getTaskId(), knownRunningTask);
-    }
-    final List<OverlordResource.AnyTask> runningTasks = Lists.newArrayList();
-    for (TaskRunnerWorkItem task : allTasks) {
-      if (runningTaskIds.contains(task.getTaskId())) {
-        runningTasks.add(((OverlordResource.AnyTask) task).withTaskState(
-            TaskState.RUNNING,
-            RunnerTaskState.RUNNING,
-            workItemIdMap.get(task.getTaskId()).getCreatedTime(),
-            workItemIdMap.get(task.getTaskId()).getQueueInsertionTime(),
-            workItemIdMap.get(task.getTaskId()).getLocation()
-        ));
-      }
-    }
-    return runningTasks;
-  }
-  return allTasks;
-}
-
-
-  @Deprecated
-  private Collection<TaskRunnerWorkItem> securedTaskRunnerWorkItem(
-      Collection<TaskRunnerWorkItem> collectionToFilter,
-      HttpServletRequest req
+      RunnerTaskState state,
+      List<OverlordResource.AnyTask> allTasks
   )
   {
-    final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-    final AuthorizationInfo authorizationInfo =
-        (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-    return Collections2.filter(
-        collectionToFilter,
-        new Predicate<TaskRunnerWorkItem>()
-        {
-          @Override
-          public boolean apply(TaskRunnerWorkItem input)
-          {
-            final String taskId = input.getTaskId();
-            final Optional<Task> optionalTask = taskStorageQueryAdapter.getTask(taskId);
-            if (!optionalTask.isPresent()) {
-              throw new WebApplicationException(
-                  Response.serverError().entity(
-                      String.format("No task information found for task with id: [%s]", taskId)
-                  ).build()
-              );
-            }
-            Resource resource = new Resource(optionalTask.get().getDataSource(), ResourceType.DATASOURCE);
-            Action action = Action.READ;
-            Pair<Resource, Action> key = new Pair<>(resource, action);
-            if (resourceAccessMap.containsKey(key)) {
-              return resourceAccessMap.get(key).isAllowed();
-            } else {
-              Access access = authorizationInfo.isAuthorized(key.lhs, key.rhs);
-              resourceAccessMap.put(key, access);
-              return access.isAllowed();
-            }
-          }
+    //divide active tasks into 3 lists : running, pending, waiting
+    Optional<TaskRunner> taskRunnerOpt = taskMaster.getTaskRunner();
+    if (!taskRunnerOpt.isPresent()) {
+      throw new WebApplicationException(
+          Response.serverError().entity("No task runner found").build()
+      );
+    }
+    TaskRunner runner = taskRunnerOpt.get();
+    // the order of tasks below is waiting, pending, running to prevent
+    // skipping a task, it's the order in which tasks will change state
+    // if they do while this is code is executing, so a task might be
+    // counted twice but never skipped
+    if (RunnerTaskState.WAITING.equals(state)) {
+      Collection<? extends TaskRunnerWorkItem> runnersKnownTasks = runner.getKnownTasks();
+      Set<String> runnerKnownTaskIds = new HashSet<>();
+      for (TaskRunnerWorkItem workItem : runnersKnownTasks) {
+        runnerKnownTaskIds.add(workItem.getTaskId());
+      }
+      final List<OverlordResource.AnyTask> waitingTasks = Lists.newArrayList();
+      for (TaskRunnerWorkItem task : allTasks) {
+        if (!runnerKnownTaskIds.contains(task.getTaskId())) {
+          waitingTasks.add(((OverlordResource.AnyTask) task).withTaskState(
+              TaskState.RUNNING,
+              RunnerTaskState.WAITING,
+              task.getCreatedTime(),
+              task.getQueueInsertionTime(),
+              task.getLocation()
+          ));
         }
-    );
+      }
+      return waitingTasks;
+    }
+
+    if (RunnerTaskState.PENDING.equals(state)) {
+      Collection<? extends TaskRunnerWorkItem> knownPendingTasks = runner.getPendingTasks();
+      Set<String> pendingTaskIds = new HashSet<>();
+      for (TaskRunnerWorkItem workItem : knownPendingTasks) {
+        pendingTaskIds.add(workItem.getTaskId());
+      }
+      Map<String, TaskRunnerWorkItem> workItemIdMap = new HashMap<>();
+      for (TaskRunnerWorkItem knownPendingTask : knownPendingTasks) {
+        workItemIdMap.put(knownPendingTask.getTaskId(), knownPendingTask);
+      }
+      final List<OverlordResource.AnyTask> pendingTasks = Lists.newArrayList();
+      for (TaskRunnerWorkItem task : allTasks) {
+        if (pendingTaskIds.contains(task.getTaskId())) {
+          pendingTasks.add(((OverlordResource.AnyTask) task).withTaskState(
+              TaskState.RUNNING,
+              RunnerTaskState.PENDING,
+              workItemIdMap.get(task.getTaskId()).getCreatedTime(),
+              workItemIdMap.get(task.getTaskId()).getQueueInsertionTime(),
+              workItemIdMap.get(task.getTaskId()).getLocation()
+          ));
+        }
+      }
+      return pendingTasks;
+    }
+
+    if (RunnerTaskState.RUNNING.equals(state)) {
+      Collection<? extends TaskRunnerWorkItem> knownRunningTasks = runner.getRunningTasks();
+      Set<String> runningTaskIds = new HashSet<>();
+      for (TaskRunnerWorkItem knownRunningTask : knownRunningTasks) {
+        String taskId = knownRunningTask.getTaskId();
+        runningTaskIds.add(taskId);
+      }
+      Map<String, TaskRunnerWorkItem> workItemIdMap = new HashMap<>();
+      for (TaskRunnerWorkItem knownRunningTask : knownRunningTasks) {
+        workItemIdMap.put(knownRunningTask.getTaskId(), knownRunningTask);
+      }
+      final List<OverlordResource.AnyTask> runningTasks = Lists.newArrayList();
+      for (TaskRunnerWorkItem task : allTasks) {
+        if (runningTaskIds.contains(task.getTaskId())) {
+          runningTasks.add(((OverlordResource.AnyTask) task).withTaskState(
+              TaskState.RUNNING,
+              RunnerTaskState.RUNNING,
+              workItemIdMap.get(task.getTaskId()).getCreatedTime(),
+              workItemIdMap.get(task.getTaskId()).getQueueInsertionTime(),
+              workItemIdMap.get(task.getTaskId()).getLocation()
+          ));
+        }
+      }
+      return runningTasks;
+    }
+    return allTasks;
   }
 
   private List<TaskStatusPlus> securedTaskStatusPlus(
@@ -1043,83 +943,40 @@ public class OverlordResource
       HttpServletRequest req
   )
   {
-    if (!authConfig.isEnabled()) {
-      return collectionToFilter;
-    }
-
-    // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-    final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-    final AuthorizationInfo authorizationInfo =
-        (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-
-    final Function<TaskStatusPlus, Iterable<ResourceAction>> raGenerator = new Function<TaskStatusPlus, Iterable<ResourceAction>>()
-    {
-      @Nullable
-      @Override
-      public Iterable<ResourceAction> apply(@Nullable TaskStatusPlus taskStatusPlus)
-      {
-        final String taskId = taskStatusPlus.getId();
-        final String taskDatasource = taskStatusPlus.getDataSource();
-        if (taskDatasource == null) {
-          throw new WebApplicationException(
-              Response.serverError().entity(
-                  StringUtils.format("No task information found for task with id: [%s]", taskId)
-              ).build()
-          );
-        }
-        return Lists.newArrayList(
-            new ResourceAction(
-                new Resource(taskDatasource, ResourceType.DATASOURCE),
-                Action.READ
-            )
+    Function<TaskStatusPlus, Iterable<ResourceAction>> raGenerator = taskStatusPlus -> {
+      final String taskId = taskStatusPlus.getId();
+      final String taskDatasource = taskStatusPlus.getDataSource();
+      if (taskDatasource == null) {
+        throw new WebApplicationException(
+            Response.serverError().entity(
+                StringUtils.format("No task information found for task with id: [%s]", taskId)
+            ).build()
         );
       }
+      return Collections.singletonList(
+          new ResourceAction(new Resource(taskDatasource, ResourceType.DATASOURCE), Action.READ)
+      );
     };
-
     List<TaskStatusPlus> optionalTypeFilteredList = collectionToFilter;
     if (type != null) {
-      List<TaskStatusPlus> list = new ArrayList<>();
-      for (TaskStatusPlus task : collectionToFilter) {
-        if (task.getType().equals(type)) {
-          list.add(task);
-        }
-      }
-      optionalTypeFilteredList = list;
+      optionalTypeFilteredList = collectionToFilter
+          .stream()
+          .filter(task -> type.equals(task.getType()))
+          .collect(Collectors.toList());
     }
     if (dataSource != null) {
       //skip auth check here, as it's already done in getTasks
       return optionalTypeFilteredList;
     }
-
-    Iterable<TaskStatusPlus> list = Iterables.filter(optionalTypeFilteredList, new Predicate<TaskStatusPlus>()
-    {
-      @Override
-      public boolean apply(@Nullable TaskStatusPlus input)
-      {
-        final Iterable<ResourceAction> resourceActions = raGenerator.apply(input);
-        if (resourceActions == null) {
-          return false;
-        }
-        for (ResourceAction resourceAction: resourceActions) {
-          Pair<Resource, Action> key = new Pair<>(resourceAction.getResource(), resourceAction.getAction());
-          if (!resourceAccessMap.containsKey(key)) {
-            Access access = authorizationInfo.isAuthorized(resourceAction.getResource(), resourceAction.getAction());
-            resourceAccessMap.put(key, access);
-          }
-
-          Access access = resourceAccessMap.get(key);
-          if (access == null || !access.isAllowed()) {
-            return false;
-          }
-        }
-        return true;
-      }
-    });
-
-    // Use AuthorizationUtils.filterAuthorizedResources if authorization needed.
-    return Lists.newArrayList(list);
+    return Lists.newArrayList(
+        AuthorizationUtils.filterAuthorizedResources(
+            req,
+            optionalTypeFilteredList,
+            raGenerator,
+            authorizerMapper
+        )
+    );
   }
-
 
   /**
    * Use {@link TaskStatusPlus}

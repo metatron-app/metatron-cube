@@ -46,7 +46,6 @@ import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
 import io.druid.query.TableDataSource;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
-import io.druid.server.security.AuthConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.NumberedShardSpec;
@@ -411,7 +410,12 @@ public class ClientInfoResourceTest
       SegmentMetadataQueryConfig segmentMetadataQueryConfig
   )
   {
-    return new ClientInfoResource(serverInventoryView, timelineServerView, segmentMetadataQueryConfig, new AuthConfig())
+    return new ClientInfoResource(
+        serverInventoryView,
+        timelineServerView,
+        segmentMetadataQueryConfig,
+        null
+    )
     {
       @Override
       protected DateTime getCurrentTime()

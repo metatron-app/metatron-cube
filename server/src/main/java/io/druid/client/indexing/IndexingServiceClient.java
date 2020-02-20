@@ -23,14 +23,14 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
+import io.druid.client.ServiceClient;
+import io.druid.curator.discovery.ServerDiscoverySelector;
+import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
-import io.druid.client.ServiceClient;
-import io.druid.curator.discovery.ServerDiscoverySelector;
-import io.druid.guice.annotations.Global;
 import io.druid.timeline.DataSegment;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -45,7 +45,7 @@ public class IndexingServiceClient extends ServiceClient
 {
   @Inject
   public IndexingServiceClient(
-      @Global HttpClient client,
+      @EscalatedGlobal HttpClient client,
       ObjectMapper jsonMapper,
       @IndexingService ServerDiscoverySelector selector
   )

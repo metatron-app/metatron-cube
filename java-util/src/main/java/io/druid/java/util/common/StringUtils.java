@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.IllegalFormatException;
@@ -80,6 +81,20 @@ public class StringUtils
     catch (UnsupportedEncodingException e) {
       // Should never happen
       throw Throwables.propagate(e);
+    }
+  }
+
+  @Nullable
+  public static String urlDecode(String s)
+  {
+    if (s == null) {
+      return null;
+    }
+    try {
+      return URLDecoder.decode(s, "UTF-8");
+    }
+    catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);
     }
   }
 

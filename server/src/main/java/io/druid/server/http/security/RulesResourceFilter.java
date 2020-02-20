@@ -1,11 +1,11 @@
 /*
- * Licensed to SK Telecom Co., LTD. (SK Telecom) under one
+ * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
- * regarding copyright ownership.  SK Telecom licenses this file
+ * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -21,20 +21,18 @@ package io.druid.server.http.security;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ContainerRequest;
 import io.druid.server.security.Access;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
 import io.druid.server.security.Resource;
+import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
 
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.PathSegment;
-import javax.ws.rs.core.Response;
-import java.util.List;
 
 
 /**
@@ -46,61 +44,47 @@ import java.util.List;
 public class RulesResourceFilter extends AbstractResourceFilter
 {
   @Inject
-  public RulesResourceFilter(AuthConfig authConfig)
+  public RulesResourceFilter(
+      AuthorizerMapper authorizerMapper
+  )
   {
-    super(authConfig);
+    super(authorizerMapper);
   }
 
   @Override
   public ContainerRequest filter(ContainerRequest request)
   {
-    if (getAuthConfig().isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final String dataSourceName = request.getPathSegments()
-                                           .get(
-                                               Iterables.indexOf(
-                                                   request.getPathSegments(),
-                                                   new Predicate<PathSegment>()
+    final String dataSourceName = request.getPathSegments()
+                                         .get(
+                                             Iterables.indexOf(
+                                                 request.getPathSegments(),
+                                                 new Predicate<PathSegment>()
+                                                 {
+                                                   @Override
+                                                   public boolean apply(PathSegment input)
                                                    {
-                                                     @Override
-                                                     public boolean apply(PathSegment input)
-                                                     {
-                                                       return input.getPath().equals("rules");
-                                                     }
+                                                     return "rules".equals(input.getPath());
                                                    }
-                                               ) + 1
-                                           ).getPath();
-      Preconditions.checkNotNull(dataSourceName);
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) getReq().getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
-      final Access authResult = authorizationInfo.isAuthorized(
-          new Resource(dataSourceName, ResourceType.DATASOURCE),
-          getAction(request)
-      );
-      if (!authResult.isAllowed()) {
-        throw new WebApplicationException(
-            Response.status(Response.Status.FORBIDDEN)
-                    .entity(String.format("Access-Check-Result: %s", authResult.toString()))
-                    .build()
-        );
-      }
+                                                 }
+                                             ) + 1
+                                         ).getPath();
+    Preconditions.checkNotNull(dataSourceName);
+
+    final ResourceAction resourceAction = new ResourceAction(
+        new Resource(dataSourceName, ResourceType.DATASOURCE),
+        getAction(request)
+    );
+
+    final Access authResult = AuthorizationUtils.authorizeResourceAction(
+        getReq(),
+        resourceAction,
+        getAuthorizerMapper()
+    );
+
+    if (!authResult.isAllowed()) {
+      throw new ForbiddenException(authResult.toString());
     }
 
     return request;
-  }
-
-  @Override
-  public boolean isApplicable(String requestPath)
-  {
-    List<String> applicablePaths = ImmutableList.of("druid/coordinator/v1/rules/");
-    for (String path : applicablePaths) {
-      if(requestPath.startsWith(path) && !requestPath.equals(path)) {
-        return true;
-      }
-    }
-    return false;
   }
 }

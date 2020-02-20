@@ -64,7 +64,7 @@ import io.druid.server.http.CoordinatorCompactionConfigsResource;
 import io.druid.server.http.CoordinatorDynamicConfigsResource;
 import io.druid.server.http.CoordinatorRedirectInfo;
 import io.druid.server.http.CoordinatorResource;
-import io.druid.server.http.DatasourcesResource;
+import io.druid.server.http.DataSourcesResource;
 import io.druid.server.http.IntervalsResource;
 import io.druid.server.http.LookupCoordinatorResource;
 import io.druid.server.http.MetadataResource;
@@ -174,13 +174,13 @@ public class CliCoordinator extends ServerRunnable
             Jerseys.addResource(binder, TiersResource.class);
             Jerseys.addResource(binder, RulesResource.class);
             Jerseys.addResource(binder, ServersResource.class);
-            Jerseys.addResource(binder, DatasourcesResource.class);
+            Jerseys.addResource(binder, DataSourcesResource.class);
             Jerseys.addResource(binder, MetadataResource.class);
             Jerseys.addResource(binder, IntervalsResource.class);
             Jerseys.addResource(binder, LookupCoordinatorResource.class);
 
             LifecycleModule.register(binder, Server.class);
-            LifecycleModule.register(binder, DatasourcesResource.class);
+            LifecycleModule.register(binder, DataSourcesResource.class);
 
             ConditionalMultibind.create(
                 properties,

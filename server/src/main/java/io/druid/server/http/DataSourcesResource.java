@@ -29,27 +29,27 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.MapUtils;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Comparators;
-import io.druid.java.util.common.logger.Logger;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.client.CoordinatorServerView;
 import io.druid.client.DruidDataSource;
 import io.druid.client.DruidServer;
+import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.SegmentLoadInfo;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.Intervals;
 import io.druid.common.utils.JodaUtils;
+import io.druid.java.util.common.MapUtils;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Comparators;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.metadata.ColumnDesc;
 import io.druid.metadata.DescExtractor;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.metadata.TableDesc;
 import io.druid.query.TableDataSource;
 import io.druid.server.http.security.DatasourceResourceFilter;
-import io.druid.server.security.AuthConfig;
-import io.druid.server.security.AuthorizationInfo;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
@@ -81,27 +81,27 @@ import java.util.regex.Pattern;
 /**
  */
 @Path("/druid/coordinator/v1/datasources")
-public class DatasourcesResource
+public class DataSourcesResource
 {
-  private static final Logger log = new Logger(DatasourcesResource.class);
+  private static final Logger log = new Logger(DataSourcesResource.class);
 
   private final CoordinatorServerView serverInventoryView;
   private final MetadataSegmentManager databaseSegmentManager;
   private final IndexingServiceClient indexingServiceClient;
-  private final AuthConfig authConfig;
+  private final AuthorizerMapper authorizerMapper;
 
   @Inject
-  public DatasourcesResource(
+  public DataSourcesResource(
       CoordinatorServerView serverInventoryView,
       MetadataSegmentManager databaseSegmentManager,
       @Nullable IndexingServiceClient indexingServiceClient,
-      AuthConfig authConfig
+      AuthorizerMapper authorizerMapper
   )
   {
     this.serverInventoryView = serverInventoryView;
     this.databaseSegmentManager = databaseSegmentManager;
     this.indexingServiceClient = indexingServiceClient;
-    this.authConfig = authConfig;
+    this.authorizerMapper = authorizerMapper;
   }
 
   @GET
@@ -114,23 +114,20 @@ public class DatasourcesResource
   )
   {
     Response.ResponseBuilder builder = Response.ok();
-    Set<DruidDataSource> datasources = authConfig.isEnabled() ?
-                                             InventoryViewUtils.getSecuredDataSources(
-                                                 serverInventoryView,
-                                                 (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)
-                                             ) :
-                                             InventoryViewUtils.getDataSources(serverInventoryView);
+    Set<ImmutableDruidDataSource> datasources =
+        InventoryViewUtils.getSecuredDataSources(req, serverInventoryView, authorizerMapper);
+
     if (!Strings.isNullOrEmpty(regex)) {
-      Set<DruidDataSource> filtered = Sets.newLinkedHashSet();
+      Set<ImmutableDruidDataSource> filtered = Sets.newLinkedHashSet();
       for (String part : regex.split(",")) {
         final Matcher matcher = Pattern.compile(part.trim()).matcher("");
         filtered.addAll(
             Sets.filter(
                 datasources,
-                new Predicate<DruidDataSource>()
+                new Predicate<ImmutableDruidDataSource>()
                 {
                   @Override
-                  public boolean apply(DruidDataSource input)
+                  public boolean apply(ImmutableDruidDataSource input)
                   {
                     return matcher.reset(input.getName()).matches();
                   }
@@ -148,10 +145,10 @@ public class DatasourcesResource
           Lists.newArrayList(
               Iterables.transform(
                   datasources,
-                  new Function<DruidDataSource, Map<String, Object>>()
+                  new Function<ImmutableDruidDataSource, Map<String, Object>>()
                   {
                     @Override
-                    public Map<String, Object> apply(DruidDataSource dataSource)
+                    public Map<String, Object> apply(ImmutableDruidDataSource dataSource)
                     {
                       return makeSimpleDatasource(dataSource);
                     }
@@ -165,10 +162,10 @@ public class DatasourcesResource
         Lists.newArrayList(
             Iterables.transform(
                 datasources,
-                new Function<DruidDataSource, String>()
+                new Function<ImmutableDruidDataSource, String>()
                 {
                   @Override
-                  public String apply(DruidDataSource dataSource)
+                  public String apply(ImmutableDruidDataSource dataSource)
                   {
                     return dataSource.getName();
                   }
@@ -182,7 +179,7 @@ public class DatasourcesResource
   @Path("/{dataSourceName}")
   @Produces(MediaType.APPLICATION_JSON)
   @ResourceFilters(DatasourceResourceFilter.class)
-  public Response getTheDataSource(
+  public Response getDataSource(
       @PathParam("dataSourceName") final String dataSourceName,
       @QueryParam("lastUpdated") final String lastUpdated,
       @QueryParam("full") final String full
@@ -223,7 +220,7 @@ public class DatasourcesResource
   @Path("/{dataSourceName}/desc/{descType}")
   @Produces(MediaType.APPLICATION_JSON)
   @ResourceFilters(DatasourceResourceFilter.class)
-  public Response getTheDataSourceDesc(
+  public Response getDataSourceDesc(
       @PathParam("dataSourceName") String dataSourceName,
       @PathParam("descType") String descType,
       @QueryParam("column") String columnName,
@@ -731,7 +728,7 @@ public class DatasourcesResource
     return new Pair<>(theSegment, servers);
   }
 
-  private Map<String, Object> makeSimpleDatasource(DruidDataSource input)
+  private Map<String, Object> makeSimpleDatasource(ImmutableDruidDataSource input)
   {
     return new ImmutableMap.Builder<String, Object>()
         .put("name", input.getName())
