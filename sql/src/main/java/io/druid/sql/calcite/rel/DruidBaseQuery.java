@@ -245,7 +245,7 @@ public class DruidBaseQuery implements DruidQuery
     int virtualColumnNameCounter = 0;
 
     for (DruidExpression expression : expressions) {
-      if (expression.isDirectColumnAccess() && !rowOrder.contains(expression.getDirectColumn())) {
+      if (expression.isDirectColumnAccess()) {
         directColumns.add(expression.getDirectColumn());
         rowOrder.add(expression.getDirectColumn());
       } else {

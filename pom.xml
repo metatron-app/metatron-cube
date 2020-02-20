@@ -99,8 +99,8 @@
         <lucene.version>7.7.2</lucene.version>
         <hive.version>2.0.0</hive.version>
 
-        <avatica.version>1.12.0</avatica.version>
-        <calcite.version>1.17.0</calcite.version>
+        <avatica.version>1.15.0</avatica.version>
+        <calcite.version>1.21.0</calcite.version>
         <!-- HttpClient has not yet been ported to Netty 4.x -->
         <netty3.version>3.10.6.Final</netty3.version>
         <netty.version>4.1.11.Final</netty.version>

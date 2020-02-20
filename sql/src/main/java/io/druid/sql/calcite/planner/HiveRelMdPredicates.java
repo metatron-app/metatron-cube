@@ -40,7 +40,6 @@ import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.core.SemiJoin;
 import org.apache.calcite.rel.core.Union;
 import org.apache.calcite.rel.metadata.BuiltInMetadata;
 import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
@@ -324,7 +323,7 @@ public class HiveRelMdPredicates implements MetadataHandler<BuiltInMetadata.Pred
 
     public JoinConditionBasedPredicateInference(Join joinRel,
             RexNode lPreds, RexNode rPreds) {
-      this(joinRel, joinRel instanceof SemiJoin, lPreds, rPreds);
+      this(joinRel, joinRel.getJoinType() == JoinRelType.SEMI, lPreds, rPreds);
     }
 
     private JoinConditionBasedPredicateInference(Join joinRel, boolean isSemiJoin,

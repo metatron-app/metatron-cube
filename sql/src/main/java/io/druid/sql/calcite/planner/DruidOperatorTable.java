@@ -109,6 +109,7 @@ import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.commons.lang.StringEscapeUtils;
 
 import javax.annotation.Nullable;
@@ -467,7 +468,8 @@ public class DruidOperatorTable implements SqlOperatorTable
       final SqlIdentifier opName,
       final SqlFunctionCategory category,
       final SqlSyntax syntax,
-      final List<SqlOperator> operatorList
+      final List<SqlOperator> operatorList,
+      final SqlNameMatcher sqlNameMatcher
   )
   {
     if (opName.names.size() != 1) {
@@ -496,7 +498,7 @@ public class DruidOperatorTable implements SqlOperatorTable
     }
 
     if (operatorList.isEmpty()) {
-      STD.lookupOperatorOverloads(opName, category, syntax, operatorList);
+      STD.lookupOperatorOverloads(opName, category, syntax, operatorList, sqlNameMatcher);
     }
   }
 

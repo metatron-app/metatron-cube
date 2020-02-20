@@ -204,6 +204,9 @@ public class Calcites
             SqlCollation.IMPLICIT
         );
         break;
+      case ARRAY:
+        dataType = typeFactory.createArrayType(typeFactory.createSqlType(SqlTypeName.OTHER), -1);
+        break;
       default:
         dataType = typeFactory.createSqlType(typeName);
     }
