@@ -29,7 +29,6 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptCostFactory;
@@ -183,21 +182,6 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   public DruidQuery toDruidQueryForExplaining()
   {
     return toDruidQuery(false);
-  }
-
-  @Override
-  public DruidSpatialJoinRel asBindable()
-  {
-    return new DruidSpatialJoinRel(
-        getCluster(),
-        getTraitSet().replace(BindableConvention.INSTANCE),
-        RelOptRule.convert(query, BindableConvention.INSTANCE),
-        queryIx,
-        RelOptRule.convert(boundary, BindableConvention.INSTANCE),
-        boundaryIx,
-        flip,
-        getQueryMaker()
-    );
   }
 
   @Override

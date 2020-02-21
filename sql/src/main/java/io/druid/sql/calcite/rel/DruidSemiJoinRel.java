@@ -28,7 +28,6 @@ import io.druid.java.util.common.guava.Accumulator;
 import io.druid.common.ResourceLimitExceededException;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.Utils;
-import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -153,21 +152,6 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
   public DruidQuery toDruidQueryForExplaining()
   {
     return left.toDruidQueryForExplaining();
-  }
-
-  @Override
-  public DruidSemiJoinRel asBindable()
-  {
-    return new DruidSemiJoinRel(
-        getCluster(),
-        getTraitSet().replace(BindableConvention.INSTANCE),
-        left,
-        RelOptRule.convert(right, BindableConvention.INSTANCE),
-        leftExpressions,
-        rightKeys,
-        maxSemiJoinRowsInMemory,
-        getQueryMaker()
-    );
   }
 
   @Override

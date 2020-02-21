@@ -31,7 +31,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptCostFactory;
@@ -177,21 +176,6 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   public DruidQuery toDruidQueryForExplaining()
   {
     return toDruidQuery(false);
-  }
-
-  @Override
-  public DruidJoinRel asBindable()
-  {
-    return new DruidJoinRel(
-        getCluster(),
-        getTraitSet().replace(BindableConvention.INSTANCE),
-        joinType,
-        RelOptRule.convert(left, BindableConvention.INSTANCE),
-        RelOptRule.convert(right, BindableConvention.INSTANCE),
-        leftExpressions,
-        rightExpressions,
-        getQueryMaker()
-    );
   }
 
   @Override

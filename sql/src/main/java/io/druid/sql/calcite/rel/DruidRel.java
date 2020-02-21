@@ -143,8 +143,6 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
    */
   public abstract DruidQuery toDruidQueryForExplaining();
 
-  public abstract T asBindable();
-
   public QueryMaker getQueryMaker()
   {
     return queryMaker;

@@ -30,7 +30,6 @@ public class PlannerConfig
 {
   public static final String CTX_KEY_USE_APPROXIMATE_COUNT_DISTINCT = "useApproximateCountDistinct";
   public static final String CTX_KEY_USE_APPROXIMATE_TOPN = "useApproximateTopN";
-  public static final String CTX_KEY_USE_FALLBACK = "useFallback";
   public static final String CTX_KEY_USE_JOIN = "useJoin";
   public static final String CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN = "useTransitiveFilterOnjoin";
   public static final String CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE = "useProjectJoinTranspose";
@@ -55,9 +54,6 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean useApproximateTopN = true;
-
-  @JsonProperty
-  private boolean useFallback = false;
 
   @JsonProperty
   private boolean requireTimeCondition = false;
@@ -111,11 +107,6 @@ public class PlannerConfig
   public boolean isUseApproximateTopN()
   {
     return useApproximateTopN;
-  }
-
-  public boolean isUseFallback()
-  {
-    return useFallback;
   }
 
   public boolean isJoinEnabled()
@@ -178,11 +169,6 @@ public class PlannerConfig
         context,
         CTX_KEY_USE_APPROXIMATE_TOPN,
         isUseApproximateTopN()
-    );
-    newConfig.useFallback = getContextBoolean(
-        context,
-        CTX_KEY_USE_FALLBACK,
-        isUseFallback()
     );
     newConfig.joinEnabled = getContextBoolean(
         context,
@@ -249,7 +235,6 @@ public class PlannerConfig
            selectThreshold == that.selectThreshold &&
            useApproximateCountDistinct == that.useApproximateCountDistinct &&
            useApproximateTopN == that.useApproximateTopN &&
-           useFallback == that.useFallback &&
            joinEnabled == that.joinEnabled &&
            transitiveFilterOnjoinEnabled == that.transitiveFilterOnjoinEnabled &&
            projectJoinTransposeEnabled == that.projectJoinTransposeEnabled &&
@@ -271,7 +256,6 @@ public class PlannerConfig
         selectThreshold,
         useApproximateCountDistinct,
         useApproximateTopN,
-        useFallback,
         joinEnabled,
         transitiveFilterOnjoinEnabled,
         projectJoinTransposeEnabled,
@@ -293,7 +277,6 @@ public class PlannerConfig
            ", selectThreshold=" + selectThreshold +
            ", useApproximateCountDistinct=" + useApproximateCountDistinct +
            ", useApproximateTopN=" + useApproximateTopN +
-           ", useFallback=" + useFallback +
            ", joinEnabled=" + joinEnabled +
            ", transitiveFilterOnjoinEnabled=" + transitiveFilterOnjoinEnabled +
            ", projectJoinTransposeEnabled=" + projectJoinTransposeEnabled +

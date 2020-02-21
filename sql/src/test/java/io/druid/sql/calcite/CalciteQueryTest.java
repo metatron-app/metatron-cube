@@ -148,14 +148,6 @@ public class CalciteQueryTest extends CalciteTestBase
       return false;
     }
   };
-  private static final PlannerConfig PLANNER_CONFIG_FALLBACK = new PlannerConfig()
-  {
-    @Override
-    public boolean isUseFallback()
-    {
-      return true;
-    }
-  };
   private static final PlannerConfig PLANNER_CONFIG_SINGLE_NESTING_ONLY = new PlannerConfig()
   {
     @Override
@@ -888,31 +880,6 @@ public class CalciteQueryTest extends CalciteTestBase
   public void testSelfJoinWithFallback() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_FALLBACK,
-        "SELECT x.dim1, y.dim1, y.dim2\n"
-        + "FROM\n"
-        + "  druid.foo x INNER JOIN druid.foo y ON x.dim1 = y.dim2\n"
-        + "WHERE\n"
-        + "  x.dim1 <> ''",
-        ImmutableList.of(
-            newScanQueryBuilder()
-                .dataSource(CalciteTests.DATASOURCE1)
-                .columns(Arrays.asList("dim1"))
-                .filters(NOT(SELECTOR("dim1", "", null)))
-                .context(QUERY_CONTEXT_DEFAULT)
-                .streaming(),
-            newScanQueryBuilder()
-                .dataSource(CalciteTests.DATASOURCE1)
-                .columns(Arrays.asList("dim1", "dim2"))
-                .filters(NOT(SELECTOR("dim2", "", null)))
-                .context(QUERY_CONTEXT_DEFAULT)
-                .streaming()
-        ),
-        ImmutableList.of(
-            new Object[]{"abc", "def", "abc"}
-        )
-    );
-    testQuery(
         PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT x.dim1, y.dim1, y.dim2\n"
         + "FROM\n"
@@ -945,29 +912,6 @@ public class CalciteQueryTest extends CalciteTestBase
         ),
         ImmutableList.of(
             new Object[]{"abc", "def", "abc"}
-        )
-    );
-  }
-
-  @Test
-  public void testExplainSelfJoinWithFallback() throws Exception
-  {
-    final String explanation =
-        "BindableJoin(condition=[=($0, $2)], joinType=[inner])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"columns\":[\"dim1\"],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string}])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim2\",\"value\":\"\"}},\"columns\":[\"dim1\",\"dim2\"],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n";
-
-    testQuery(
-        PLANNER_CONFIG_FALLBACK,
-        "EXPLAIN PLAN FOR\n"
-        + "SELECT x.dim1, y.dim1, y.dim2\n"
-        + "FROM\n"
-        + "  druid.foo x INNER JOIN druid.foo y ON x.dim1 = y.dim2\n"
-        + "WHERE\n"
-        + "  x.dim1 <> ''",
-        ImmutableList.of(),
-        ImmutableList.of(
-            new Object[]{explanation}
         )
     );
   }
@@ -1288,7 +1232,6 @@ public class CalciteQueryTest extends CalciteTestBase
   public void testHavingOnFloatSum() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_FALLBACK,
         "SELECT dim1, CAST(SUM(m1) AS FLOAT) AS m1_sum FROM druid.foo GROUP BY dim1 HAVING CAST(SUM(m1) AS FLOAT) > 1",
         ImmutableList.of(
             GroupByQuery.builder()
@@ -1311,7 +1254,6 @@ public class CalciteQueryTest extends CalciteTestBase
     );
 
     testQuery(
-        PLANNER_CONFIG_FALLBACK,
         "SELECT dim1, SUM(m1) AS m1_sum FROM druid.foo GROUP BY dim1 HAVING CAST(SUM(m1) AS FLOAT) > 1",
         ImmutableList.of(
             GroupByQuery.builder()
@@ -6011,30 +5953,14 @@ public class CalciteQueryTest extends CalciteTestBase
   @Test
   public void testUsingSubqueryAsPartOfOrFilter() throws Exception
   {
-    // This query should ideally be plannable without fallback, but it's not. The "OR" means it isn't really
+    // This query should ideally be plannable, but it's not. The "OR" means it isn't really
     // a semiJoin and so the filter condition doesn't get converted.
 
-    final String explanation =
-        "BindableSort(sort0=[$1], dir0=[ASC])\n"
-        + "  BindableAggregate(group=[{0, 1}], EXPR$2=[COUNT()])\n"
-        + "    BindableFilter(condition=[OR(=($0, 'xxx'), AND(<>($2, 0), IS NOT NULL($4), IS NOT NULL($1)))])\n"
-        + "      BindableJoin(condition=[=($1, $3)], joinType=[left])\n"
-        + "        BindableJoin(condition=[true], joinType=[inner])\n"
-        + "          DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim1\",\"dim2\"],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim1:string, dim2:string}])\n"
-        + "          DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"filter\":{\"type\":\"like\",\"dimension\":\"dim1\",\"pattern\":\"%bc\",\"escape\":null,\"extractionFn\":null},\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n"
-        + "        DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"filter\":{\"type\":\"like\",\"dimension\":\"dim1\",\"pattern\":\"%bc\",\"escape\":null,\"extractionFn\":null},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim1\",\"outputName\":\"d0\"},{\"type\":\"default\",\"dimension\":\"d1:v\",\"outputName\":\"d1\"}],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"true\",\"outputName\":\"d1:v\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, d1:boolean}])\n";
     final String theQuery = "SELECT dim1, dim2, COUNT(*) FROM druid.foo\n"
                             + "WHERE dim1 = 'xxx' OR dim2 IN (SELECT dim1 FROM druid.foo WHERE dim1 LIKE '%bc')\n"
                             + "group by dim1, dim2 ORDER BY dim2";
 
     assertQueryIsUnplannable(theQuery);
-
-    testQuery(
-        PLANNER_CONFIG_FALLBACK,
-        "EXPLAIN PLAN FOR " + theQuery,
-        ImmutableList.of(),
-        ImmutableList.of(new Object[]{explanation})
-    );
   }
 
   @Test

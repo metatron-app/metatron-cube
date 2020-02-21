@@ -28,7 +28,6 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.TableDataSource;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.interpreter.BindableConvention;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -139,18 +138,6 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
         getPlannerContext(),
         getCluster().getRexBuilder(),
         false
-    );
-  }
-
-  @Override
-  public DruidOuterQueryRel asBindable()
-  {
-    return new DruidOuterQueryRel(
-        getCluster(),
-        getTraitSet().plus(BindableConvention.INSTANCE),
-        sourceRel,
-        partialQuery,
-        getQueryMaker()
     );
   }
 

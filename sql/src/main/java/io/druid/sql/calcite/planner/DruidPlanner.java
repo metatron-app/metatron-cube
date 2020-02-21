@@ -118,7 +118,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
       return planWithDruidConvention(source, root);
     }
     catch (RelOptPlanner.CannotPlanException e) {
-      // Try again with BINDABLE convention. Used for querying Values, metadata tables, and fallback.
+      // Try again with BINDABLE convention. Used for querying Values and metadata tables.
       try {
         if (!SqlKind.DML.contains(source.getKind())) {
           return planWithBindableConvention(source, root);
