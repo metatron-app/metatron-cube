@@ -33,6 +33,7 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_JOIN = "useJoin";
   public static final String CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN = "useTransitiveFilterOnjoin";
   public static final String CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE = "useProjectJoinTranspose";
+  public static final String CTX_KEY_USE_JOIN_COMMUTE = "useJoinCommute";
   public static final String CTX_KEY_USE_JOIN_REORDERING = "useJoinReordering";
   public static final String CTX_KEY_USE_JOIN_REORDERING_BUSH = "useJoinReorderingBush";
   public static final String CTX_KEY_DUMP_PLAN = "dumpPlan";
@@ -69,6 +70,9 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean projectJoinTransposeEnabled = false;  // should fix a bug (try tpch-7)
+
+  @JsonProperty
+  private boolean joinCommuteEnabled = false;
 
   @JsonProperty
   private boolean joinReorderingEnabled = false;
@@ -116,17 +120,22 @@ public class PlannerConfig
 
   public boolean isTransitiveFilterOnjoinEnabled()
   {
-    return transitiveFilterOnjoinEnabled;
+    return isJoinEnabled() && transitiveFilterOnjoinEnabled;
   }
 
   public boolean isProjectJoinTransposeEnabled()
   {
-    return projectJoinTransposeEnabled;
+    return isJoinEnabled() && projectJoinTransposeEnabled;
+  }
+
+  public boolean isJoinCommuteEnabled()
+  {
+    return isJoinEnabled() && joinCommuteEnabled;
   }
 
   public boolean isJoinReorderingEnabled()
   {
-    return joinReorderingEnabled;
+    return isJoinEnabled() && joinReorderingEnabled;
   }
 
   public boolean isJoinReorderingBush()
@@ -185,6 +194,11 @@ public class PlannerConfig
         CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE,
         isProjectJoinTransposeEnabled()
     );
+    newConfig.joinCommuteEnabled = getContextBoolean(
+        context,
+        CTX_KEY_USE_JOIN_COMMUTE,
+        isJoinCommuteEnabled()
+    );
     newConfig.joinReorderingEnabled = getContextBoolean(
         context,
         CTX_KEY_USE_JOIN_REORDERING,
@@ -238,6 +252,7 @@ public class PlannerConfig
            joinEnabled == that.joinEnabled &&
            transitiveFilterOnjoinEnabled == that.transitiveFilterOnjoinEnabled &&
            projectJoinTransposeEnabled == that.projectJoinTransposeEnabled &&
+           joinCommuteEnabled == that.joinCommuteEnabled &&
            joinReorderingEnabled == that.joinReorderingEnabled &&
            joinReorderingBush == that.joinReorderingBush &&
            requireTimeCondition == that.requireTimeCondition &&
@@ -259,6 +274,7 @@ public class PlannerConfig
         joinEnabled,
         transitiveFilterOnjoinEnabled,
         projectJoinTransposeEnabled,
+        joinCommuteEnabled,
         joinReorderingEnabled,
         joinReorderingBush,
         requireTimeCondition,
@@ -280,6 +296,7 @@ public class PlannerConfig
            ", joinEnabled=" + joinEnabled +
            ", transitiveFilterOnjoinEnabled=" + transitiveFilterOnjoinEnabled +
            ", projectJoinTransposeEnabled=" + projectJoinTransposeEnabled +
+           ", joinCommuteEnabled=" + joinCommuteEnabled +
            ", joinReorderingEnabled=" + joinReorderingEnabled +
            ", joinReorderingBush=" + joinReorderingBush +
            ", requireTimeCondition=" + requireTimeCondition +

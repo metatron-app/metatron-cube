@@ -21,7 +21,6 @@ package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.DruidJoinRule;
@@ -36,11 +35,7 @@ import org.apache.calcite.plan.RelOptLattice;
 import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
-import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.hep.HepMatchOrder;
-import org.apache.calcite.plan.hep.HepProgram;
-import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -68,9 +63,6 @@ import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
-import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
-import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
-import org.apache.calcite.rel.rules.MultiJoinOptimizeBushyRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
@@ -198,7 +190,12 @@ public class Rules
   private static final boolean NO_DAG = true;
   private static final int MIN_JOIN_REORDER = 4;
 
-  public static List<Program> programs(final PlannerContext plannerContext, final QueryMaker queryMaker)
+  public static List<Program> programs(PlannerContext context, QueryMaker queryMaker)
+  {
+    return ImmutableList.of(druidPrograms(context, queryMaker), bindablePrograms(context));
+  }
+
+  private static Program druidPrograms(PlannerContext plannerContext, QueryMaker queryMaker)
   {
     PlannerConfig config = plannerContext.getPlannerConfig();
 
@@ -206,52 +203,6 @@ public class Rules
     programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
-    Program druidConvention = Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker));
-    Program bindableConvention = Programs.ofRules(bindableConventionRuleSet(plannerContext));
-
-    Program program1 = Programs.sequence(
-        GuavaUtils.concatArray(GuavaUtils.concat(druidPrograms(config), programs), druidConvention)
-    );
-    Program program2 = Programs.sequence(GuavaUtils.concatArray(programs, bindableConvention));
-
-    return ImmutableList.of(config.isDumpPlan() ? Dump.wrap(program1) : program1, program2);
-  }
-
-  private static List<Program> druidPrograms(PlannerConfig config)
-  {
-    if (!config.isJoinEnabled()) {
-      return ImmutableList.of();
-    }
-    final List<Program> programs = Lists.newArrayList();
-    if (config.isJoinReorderingEnabled()) {
-      RelOptRule reordering =
-          config.isJoinReorderingBush() ? MultiJoinOptimizeBushyRule.INSTANCE : LoptOptimizeJoinRule.INSTANCE;
-      programs.add(new Program()
-      {
-        @Override
-        public RelNode run(
-            RelOptPlanner planner,
-            RelNode rel,
-            RelTraitSet requiredOutputTraits,
-            List<RelOptMaterialization> materializations,
-            List<RelOptLattice> lattices
-        )
-        {
-          // copied from Programs.heuristicJoinOrder()
-          if (RelOptUtil.countJoins(rel) < MIN_JOIN_REORDER) {
-            return rel;
-          }
-          final HepProgram hep = new HepProgramBuilder()
-              .addRuleInstance(FilterJoinRule.FILTER_ON_JOIN)
-              .addMatchOrder(HepMatchOrder.BOTTOM_UP)
-              .addRuleInstance(JoinToMultiJoinRule.INSTANCE)
-              .addRuleInstance(reordering)
-              .build();
-          final Program program = Programs.of(hep, false, DefaultRelMetadataProvider.INSTANCE);
-          return program.run(planner, rel, requiredOutputTraits, materializations, lattices);
-        }
-      });
-    }
     if (config.isTransitiveFilterOnjoinEnabled()) {
       RelMetadataProvider provider = JaninoRelMetadataProvider.of(ChainedRelMetadataProvider.of(
           ImmutableList.of(HiveRelMdPredicates.SOURCE, DefaultRelMetadataProvider.INSTANCE)
@@ -261,7 +212,25 @@ public class Rules
           NO_DAG, provider
       ));
     }
-    return programs;
+
+    List<RelOptRule> druidConvention = druidConventionRuleSet(plannerContext, queryMaker);
+    if (config.isJoinReorderingEnabled()) {
+      programs.add(Programs.heuristicJoinOrder(druidConvention, config.isJoinReorderingBush(), MIN_JOIN_REORDER));
+    } else {
+      programs.add(Programs.ofRules(druidConvention));
+    }
+    Program program = Programs.sequence(programs.toArray(new Program[0]));
+    return config.isDumpPlan() ? Dump.wrap(program) : program;
+  }
+
+  private static Program bindablePrograms(PlannerContext plannerContext)
+  {
+    List<Program> programs = Lists.newArrayList();
+    programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
+    programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
+    programs.add(Programs.ofRules(bindableConventionRuleSet(plannerContext)));
+
+    return Programs.sequence(programs.toArray(new Program[0]));
   }
 
   private static class Delegated implements Program
@@ -327,6 +296,9 @@ public class Rules
       rules.add(DruidJoinRule.instance());
       if (plannerConfig.isProjectJoinTransposeEnabled()) {
         rules.add(ProjectJoinTransposeRule.INSTANCE);
+      }
+      if (plannerConfig.isJoinCommuteEnabled()) {
+        rules.add(JoinCommuteRule.INSTANCE);
       }
     }
     return rules.build();
