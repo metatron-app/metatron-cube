@@ -20,11 +20,10 @@
 package io.druid.sql.calcite.rule;
 
 import com.google.common.collect.ImmutableList;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
-import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
+import io.druid.sql.calcite.rel.DruidUnionRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -34,8 +33,11 @@ import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.Union;
 import org.apache.calcite.rel.core.Window;
+import org.apache.calcite.rex.RexLiteral;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -48,26 +50,29 @@ import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.WINDOW;
 
 public class DruidRules
 {
-  private static final Logger LOG = new Logger(DruidRules.class);
+  public static List<RelOptRule> rules()
+  {
+    return RULES;
+  }
+
+  private static final List<RelOptRule> RULES = ImmutableList.of(
+      DruidRule.of(Filter.class, FILTER, PartialDruidQuery::withFilter),
+      DruidRule.of(Project.class, PROJECT, PartialDruidQuery::withProject),
+      DruidRule.of(Aggregate.class, AGGREGATE, PartialDruidQuery::withAggregate),
+      DruidRule.of(Window.class, WINDOW, PartialDruidQuery::withWindow),
+      DruidRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
+      DruidUnionRule.INSTANCE,
+      DruidSortUnionRule.INSTANCE
+  );
 
   static RelOptRuleOperand anyDruid()
   {
     return ofDruidRel(druidRel -> true);
   }
 
-  static RelOptRuleOperand canBuildOn(PartialDruidQuery.Operator operator)
-  {
-    return ofDruidRel(druidRel -> druidRel.canAccept(operator));
-  }
-
   static RelOptRuleOperand ofDruidRel(Predicate<DruidRel> predicate)
   {
     return ofDruidRel(DruidRel.class, predicate);
-  }
-
-  static RelOptRuleOperand ofDruidQueryRel(Predicate<DruidRel> predicate)
-  {
-    return ofDruidRel(DruidQueryRel.class, predicate);
   }
 
   static <T extends DruidRel> RelOptRuleOperand ofDruidRel(Class<T> relClass, Predicate<DruidRel> predicate)
@@ -80,34 +85,15 @@ public class DruidRules
     // No instantiation.
   }
 
-  public static List<RelOptRule> rules()
+  private static class DruidRule
   {
-    return ImmutableList.of(
-        DruidQueryRule.of(Filter.class, FILTER, PartialDruidQuery::withFilter),
-        DruidQueryRule.of(Project.class, PROJECT, PartialDruidQuery::withProject),
-        DruidQueryRule.of(Aggregate.class, AGGREGATE, PartialDruidQuery::withAggregate),
-        DruidQueryRule.of(Window.class, WINDOW, PartialDruidQuery::withWindow),
-        DruidQueryRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
-        DruidOuterQueryRule.of(Filter.class, PartialDruidQuery::withFilter),
-        DruidOuterQueryRule.of(Project.class, PartialDruidQuery::withProject),
-        DruidOuterQueryRule.of(Aggregate.class, PartialDruidQuery::withAggregate),
-        DruidOuterQueryRule.of(Window.class, PartialDruidQuery::withWindow),
-        DruidOuterQueryRule.of(Sort.class, PartialDruidQuery::withSort),
-        DruidUnionRule.instance(),
-        DruidSortUnionRule.instance()
-    );
-  }
-
-  static class DruidQueryRule
-  {
-    static <RelType extends RelNode> RelOptRule of(
+    private static <RelType extends RelNode> RelOptRule of(
         final Class<RelType> relClass,
         final PartialDruidQuery.Operator operator,
         final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
     )
     {
-      final String description = StringUtils.format("DruidQueryRule(%s)", operator);
-      return new RelOptRule(RelOptRule.operand(relClass, canBuildOn(operator)), description)
+      return new RelOptRule(RelOptRule.operand(relClass, anyDruid()), StringUtils.format("DruidRule(%s)", operator))
       {
         @Override
         public void onMatch(final RelOptRuleCall call)
@@ -115,51 +101,116 @@ public class DruidRules
           final RelType otherRel = call.rel(0);
           final DruidRel druidRel = call.rel(1);
 
-          final PartialDruidQuery druidQuery = druidRel.getPartialDruidQuery();
-          final PartialDruidQuery newDruidQuery = f.apply(druidQuery, otherRel);
-          if (newDruidQuery == null) {
-//            LOG.info(" %s + %s ---> x", druidQuery.stage(), operator);
-            return;   // quick check
+          DruidRel newDruidRel = tryQueryRel(otherRel, druidRel);
+          if (newDruidRel == null) {
+            newDruidRel = tryOuterRel(otherRel, druidRel);
           }
-          final DruidRel newDruidRel = druidRel.withPartialQuery(newDruidQuery);
-
-          if (newDruidRel.isValidDruidQuery()) {
-//            LOG.info(" %s + %s ---> %s", druidQuery.stage(), operator, newDruidQuery.stage());
+          if (newDruidRel != null) {
             call.transformTo(newDruidRel);
           }
+        }
+
+        private DruidRel tryQueryRel(RelType otherRel, DruidRel druidRel)
+        {
+          final PartialDruidQuery druidQuery = druidRel.getPartialDruidQuery();
+          if (druidQuery != null) {
+            final PartialDruidQuery newDruidQuery = f.apply(druidQuery, otherRel);
+            if (newDruidQuery != null) {
+              final DruidRel newDruidRel = druidRel.withPartialQuery(newDruidQuery);
+              if (newDruidRel.isValidDruidQuery()) {
+                return newDruidRel;
+              }
+            }
+          }
+          return null;
+        }
+
+        private DruidRel tryOuterRel(RelType otherRel, DruidRel druidRel)
+        {
+          final PartialDruidQuery newDruidQuery = f.apply(PartialDruidQuery.create(druidRel.getLeafRel()), otherRel);
+          if (newDruidQuery != null) {
+            final DruidRel newDruidRel = DruidOuterQueryRel.create(druidRel, newDruidQuery);
+            if (newDruidRel.isValidDruidQuery()) {
+              return newDruidRel;
+            }
+          }
+          return null;
         }
       };
     }
   }
 
-  static class DruidOuterQueryRule
+  private static class DruidUnionRule extends RelOptRule
   {
-    static <RelType extends RelNode> RelOptRule of(
-        final Class<RelType> relClass,
-        final BiFunction<PartialDruidQuery, RelType, PartialDruidQuery> f
-    )
+    private static final DruidUnionRule INSTANCE = new DruidUnionRule();
+
+    private DruidUnionRule()
     {
-      final String description = StringUtils.format("DruidOuterQueryRule(%s)", relClass.getSimpleName());
-      return new RelOptRule(RelOptRule.operand(relClass, anyDruid()), description)
-      {
-        @Override
-        public void onMatch(final RelOptRuleCall call)
-        {
-          final RelType otherRel = call.rel(0);
-          final DruidRel druidRel = call.rel(1);
+      super(operand(Union.class, unordered(operand(DruidRel.class, any()))));
+    }
 
-          final RelNode leafRel = druidRel.getLeafRel();
-          final PartialDruidQuery newPartialDruidQuery = f.apply(PartialDruidQuery.create(leafRel), otherRel);
-          if (newPartialDruidQuery == null) {
-            return;
-          }
-          final DruidRel newDruidRel = DruidOuterQueryRel.create(druidRel, newPartialDruidQuery);
+    @Override
+    public void onMatch(final RelOptRuleCall call)
+    {
+      final Union unionRel = call.rel(0);
+      final DruidRel someDruidRel = call.rel(1);
+      final List<RelNode> inputs = unionRel.getInputs();
 
-          if (newDruidRel.isValidDruidQuery()) {
-            call.transformTo(newDruidRel);
-          }
-        }
-      };
+      if (unionRel.all) {
+        // Can only do UNION ALL.
+        call.transformTo(DruidUnionRel.create(
+            someDruidRel.getQueryMaker(),
+            unionRel.getRowType(),
+            inputs,
+            -1
+        ));
+      }
+    }
+  }
+
+  private static class DruidSortUnionRule extends RelOptRule
+  {
+    private static final DruidSortUnionRule INSTANCE = new DruidSortUnionRule();
+
+    private DruidSortUnionRule()
+    {
+      super(operand(Sort.class, operand(DruidUnionRel.class, any())));
+    }
+
+    @Override
+    public boolean matches(final RelOptRuleCall call)
+    {
+      // LIMIT, no ORDER BY
+      final Sort sort = call.rel(0);
+      return sort.collation.getFieldCollations().isEmpty() && sort.fetch != null;
+    }
+
+    @Override
+    public void onMatch(final RelOptRuleCall call)
+    {
+      final Sort sort = call.rel(0);
+      final DruidUnionRel unionRel = call.rel(1);
+
+      final int limit = RexLiteral.intValue(sort.fetch);
+      final int offset = sort.offset != null ? RexLiteral.intValue(sort.offset) : 0;
+
+      final DruidUnionRel newUnionRel = DruidUnionRel.create(
+          unionRel.getQueryMaker(),
+          unionRel.getRowType(),
+          unionRel.getInputs(),
+          unionRel.getLimit() >= 0 ? Math.min(limit + offset, unionRel.getLimit()) : limit + offset
+      );
+
+      if (offset == 0) {
+        call.transformTo(newUnionRel);
+      } else {
+        call.transformTo(
+            call.builder()
+                .push(newUnionRel)
+                .sortLimit(offset, -1, Collections.emptyList())
+                .build()
+        );
+      }
     }
   }
 }

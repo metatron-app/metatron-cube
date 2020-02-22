@@ -60,8 +60,8 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   )
   {
     super(cluster, traitSet, queryMaker);
-    this.sourceRel = sourceRel;
-    this.partialQuery = partialQuery;
+    this.sourceRel = Preconditions.checkNotNull(sourceRel);
+    this.partialQuery = Preconditions.checkNotNull(partialQuery);
   }
 
   public static DruidOuterQueryRel create(

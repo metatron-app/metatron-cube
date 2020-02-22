@@ -3763,17 +3763,15 @@ public class CalciteQueryTest extends CalciteTestBase
                                         )
                                         .setDimFilter(SELECTOR("m1", "5.0", null))
                                         .setAggregatorSpecs(GenericMaxAggregatorFactory.ofLong("a0", "__time"))
-                                        .setContext(QUERY_CONTEXT_DEFAULT)
+                                        .setPostAggregatorSpecs(EXPR_POST_AGG("p0", "timestamp_floor(\"a0\",'PT1H','','UTC')"))
                                         .build()
                         )
                         .setGranularity(Granularities.ALL)
                         .setDimensions(
-                            DefaultDimensionSpec.of("_d0:v", "_d0"),
+                            DefaultDimensionSpec.of("p0", "_d0"),
                             DefaultDimensionSpec.of("d1", "_d1")
                         )
-                        .setVirtualColumns(EXPR_VC("_d0:v", "timestamp_floor(\"a0\",'PT1H','','UTC')"))
-                        .setAggregatorSpecs(CountAggregatorFactory.of("_a0"))
-                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .setAggregatorSpecs(CountAggregatorFactory.of("a0"))
                         .build()
         ),
         ImmutableList.of(
@@ -4459,13 +4457,13 @@ public class CalciteQueryTest extends CalciteTestBase
                                         .setGranularity(Granularities.ALL)
                                         .setDimensions(DefaultDimensionSpec.of("dim2", "d0"))
                                         .setAggregatorSpecs(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+                                        .setPostAggregatorSpecs(EXPR_POST_AGG("p0", "CAST(\"a0\", 'STRING')"))
                                         .setContext(QUERY_CONTEXT_DEFAULT)
                                         .build()
                         )
                         .setGranularity(Granularities.ALL)
-                        .setVirtualColumns(EXPR_VC("_d0:v", "CAST(\"a0\", 'STRING')"))
-                        .setDimensions(DefaultDimensionSpec.of("_d0:v", "_d0"))
-                        .setAggregatorSpecs(CountAggregatorFactory.of("_a0"))
+                        .setDimensions(DefaultDimensionSpec.of("p0", "d0"))
+                        .setAggregatorSpecs(CountAggregatorFactory.of("a0"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -4496,16 +4494,16 @@ public class CalciteQueryTest extends CalciteTestBase
                                         .setAggregatorSpecs(
                                             GenericSumAggregatorFactory.ofLong("a0", "cnt")
                                         )
+                                        .setPostAggregatorSpecs(EXPR_POST_AGG("p0", "CAST(\"a0\", 'STRING')"))
                                         .setContext(QUERY_CONTEXT_DEFAULT)
                                         .build()
                         ))
                         .setGranularity(Granularities.ALL)
-                        .setVirtualColumns(EXPR_VC("_d0:v", "CAST(\"a0\", 'STRING')"))
-                        .setDimensions(DefaultDimensionSpec.of("_d0:v", "_d0"))
-                        .setAggregatorSpecs(CountAggregatorFactory.of("_a0"))
+                        .setDimensions(DefaultDimensionSpec.of("p0", "d0"))
+                        .setAggregatorSpecs(CountAggregatorFactory.of("a0"))
                         .setLimitSpec(
                             LimitSpec.of(
-                                2, OrderByColumnSpec.asc("_d0", StringComparators.LEXICOGRAPHIC_NAME)
+                                2, OrderByColumnSpec.asc("d0")
                             )
                         )
                         .setContext(QUERY_CONTEXT_DEFAULT)
