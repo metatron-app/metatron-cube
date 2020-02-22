@@ -115,14 +115,7 @@ public class GroupByQueryEngine
           @Override
           public Sequence<Object[]> apply(final Cursor cursor)
           {
-            return Sequences.simple(new Iterable<Object[]>()
-            {
-              @Override
-              public Iterator<Object[]> iterator()
-              {
-                return new RowIterator(query, cursor, intermediateResultsBufferPool, 1).asArray();
-              }
-            });
+            return new RowIterator(query, cursor, intermediateResultsBufferPool, 1).asArray();
           }
         });
 
@@ -146,15 +139,7 @@ public class GroupByQueryEngine
           @Override
           public Sequence<Rowboat> apply(final Cursor cursor)
           {
-            // should return sequence for proper cleaup of resources in cursor
-            return Sequences.simple(new Iterable<Rowboat>()
-            {
-              @Override
-              public Iterator<Rowboat> iterator()
-              {
-                return new RowIterator(query, cursor, intermediateResultsBufferPool, Cuboids.PAGES).asRowboat();
-              }
-            });
+            return new RowIterator(query, cursor, intermediateResultsBufferPool, Cuboids.PAGES).asRowboat();
           }
         }
     );
@@ -231,9 +216,9 @@ public class GroupByQueryEngine
       delegate = Iterators.emptyIterator();
     }
 
-    public Iterator<Object[]> asArray()
+    public Sequence<Object[]> asArray()
     {
-      return Iterators.transform(this, new Function<Map.Entry<IntArray, int[]>, Object[]>()
+      return Sequences.once(GuavaUtils.map(this, new Function<Map.Entry<IntArray, int[]>, Object[]>()
       {
         private final int numColumns = dimensions.length + aggregators.length + 1;
         private final DateTime timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getTime();
@@ -261,12 +246,12 @@ public class GroupByQueryEngine
           array[0] = timestamp.getMillis();
           return array;
         }
-      });
+      }));
     }
 
-    public Iterator<Rowboat> asRowboat()
+    public Sequence<Rowboat> asRowboat()
     {
-      return Iterators.transform(this, new Function<Map.Entry<IntArray, int[]>, Rowboat>()
+      return Sequences.once(GuavaUtils.map(this, new Function<Map.Entry<IntArray, int[]>, Rowboat>()
       {
         private final DateTime timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getTime();
 
@@ -282,7 +267,7 @@ public class GroupByQueryEngine
           }
           return new Rowboat(timestamp.getMillis(), dims, metrics, -1);
         }
-      });
+      }));
     }
 
     @Override

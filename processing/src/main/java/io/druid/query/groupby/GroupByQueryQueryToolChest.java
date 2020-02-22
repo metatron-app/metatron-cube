@@ -196,7 +196,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
           @Override
           public Sequence<Row> apply(Cursor cursor)
           {
-            Iterator<Object[]> iterator = new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPages)
+            Sequence<Object[]> iterator = new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPages)
             {
               @Override
               protected void nextIteration(long start, List<int[]> unprocessedKeys)
@@ -210,7 +210,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
 
             LOG.debug("Running streaming subquery with max pages [%d]", maxPages);
             return Sequences.map(
-                Sequences.once(iterator),
+                iterator,
                 Functions.compose(
                     toPostAggregator(groupBy),
                     GroupByQueryEngine.arrayToRow(groupBy.withPostAggregatorSpecs(null), false)
