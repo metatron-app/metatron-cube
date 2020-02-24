@@ -22,7 +22,7 @@ package io.druid.sql.http;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import io.druid.common.Yielders;
@@ -57,6 +57,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
@@ -81,12 +82,24 @@ public class SqlResource
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.TEXT_PLAIN)
+  @Path("/explain")
+  public Response explain(
+      String sqlQuery,
+      @Context HttpServletRequest req
+  ) throws SQLException, IOException
+  {
+    return execute(new SqlQuery(String.format("DESCRIBE %s", sqlQuery), null, false, contextFromParam(req)), req);
+  }
+
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.TEXT_PLAIN)
   public Response doPost(
       String sqlQuery,
       @Context HttpServletRequest req
   ) throws SQLException, IOException
   {
-    return execute(new SqlQuery(sqlQuery, null, false, null), ImmutableMap.of(), req);
+    return execute(new SqlQuery(sqlQuery, null, false, contextFromParam(req)), req);
   }
 
   @POST
@@ -97,17 +110,17 @@ public class SqlResource
       @Context HttpServletRequest req
   ) throws SQLException, IOException
   {
-    return execute(sqlQuery, sqlQuery.getContext(), req);
+    return execute(sqlQuery, req);
   }
 
   private Response execute(
       final SqlQuery sqlQuery,
-      final Map<String, Object> context,
       final HttpServletRequest req
   ) throws SQLException, IOException
   {
     final DateTimeZone timeZone;
 
+    final Map<String, Object> context = sqlQuery.getContext();
     final SqlLifecycle lifecycle = sqlLifecycleFactory.factorize();
     final String sqlQueryId = lifecycle.initialize(sqlQuery.getQuery(), sqlQuery.getContext());
     final String remoteAddr = req.getRemoteAddr();
@@ -186,7 +199,6 @@ public class SqlResource
                   writer.writeResponseEnd();
                 }
                 catch (Exception ex) {
-                  e = ex;
                   log.error(ex, "Unable to send sql response [%s]", sqlQueryId);
                   throw Throwables.propagate(ex);
                 }
@@ -236,5 +248,16 @@ public class SqlResource
       thread.setName(currThreadName = currThreadName.substring(0, index));
     }
     return currThreadName;
+  }
+
+  private Map<String, Object> contextFromParam(HttpServletRequest req)
+  {
+    Map<String, Object> context = Maps.newHashMap();
+    Enumeration<String> names = req.getParameterNames();
+    while (names.hasMoreElements()) {
+      String name = names.nextElement();
+      context.put(name, req.getParameter(name));
+    }
+    return context;
   }
 }
