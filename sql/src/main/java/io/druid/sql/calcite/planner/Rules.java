@@ -28,6 +28,7 @@ import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
 import io.druid.sql.calcite.rule.DruidSemiJoinRule;
 import io.druid.sql.calcite.rule.DruidTableScanRule;
+import io.druid.sql.calcite.rule.DruidValuesRule;
 import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
 import io.druid.sql.calcite.rule.SortCollapseRule;
 import org.apache.calcite.interpreter.Bindables;
@@ -36,6 +37,9 @@ import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.hep.HepMatchOrder;
+import org.apache.calcite.plan.hep.HepProgram;
+import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -187,8 +191,9 @@ public class Rules
     // No instantiation.
   }
 
+  private static final boolean DAG = false;
   private static final boolean NO_DAG = true;
-  private static final int MIN_JOIN_REORDER = 4;
+  private static final int MIN_JOIN_REORDER = 6;
 
   public static List<Program> programs(PlannerContext context, QueryMaker queryMaker)
   {
@@ -204,21 +209,26 @@ public class Rules
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
     if (config.isTransitiveFilterOnjoinEnabled()) {
+      List<RelOptRule> rules = Arrays.asList(
+          FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
+      );
       RelMetadataProvider provider = JaninoRelMetadataProvider.of(ChainedRelMetadataProvider.of(
           ImmutableList.of(HiveRelMdPredicates.SOURCE, DefaultRelMetadataProvider.INSTANCE)
       ));
-      programs.add(Programs.hep(
-          Arrays.asList(FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE),
-          NO_DAG, provider
-      ));
+      programs.add(Programs.hep(rules, NO_DAG, provider));
     }
-
-    List<RelOptRule> druidConvention = druidConventionRuleSet(plannerContext, queryMaker);
+    if (config.isProjectJoinTransposeEnabled()) {
+      HepProgram hep = new HepProgramBuilder()
+          .addMatchOrder(HepMatchOrder.TOP_DOWN)
+          .addRuleInstance(ProjectJoinTransposeRule.INSTANCE)
+          .build();
+      programs.add(Programs.of(hep, DAG, DefaultRelMetadataProvider.INSTANCE));
+    }
     if (config.isJoinReorderingEnabled()) {
-      programs.add(Programs.heuristicJoinOrder(druidConvention, config.isJoinReorderingBush(), MIN_JOIN_REORDER));
-    } else {
-      programs.add(Programs.ofRules(druidConvention));
+      programs.add(Programs.heuristicJoinOrder(Arrays.asList(), config.isJoinReorderingBush(), MIN_JOIN_REORDER));
     }
+    programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
+
     Program program = Programs.sequence(programs.toArray(new Program[0]));
     return config.isDumpPlan() ? Dump.wrap(program) : program;
   }
@@ -281,12 +291,12 @@ public class Rules
 
   private static List<RelOptRule> druidConventionRuleSet(PlannerContext plannerContext, QueryMaker queryMaker)
   {
-    final ImmutableList.Builder<RelOptRule> rules = ImmutableList.<RelOptRule>builder()
-        .addAll(baseRuleSet(plannerContext))
-        .add(DruidRelToDruidRule.instance())
-        .add(new DruidTableScanRule(queryMaker))
-        .add(ProjectWindowTransposeRule.INSTANCE)
-        .addAll(DruidRules.rules());
+    List<RelOptRule> rules = Lists.newArrayList();
+    rules.addAll(baseRuleSet(plannerContext));
+    rules.add(new DruidTableScanRule(queryMaker));
+    rules.add(new DruidValuesRule(queryMaker));
+    rules.addAll(DruidRules.RULES);
+    rules.add(DruidRelToDruidRule.instance());
 
     final PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
     if (plannerConfig.getMaxSemiJoinRowsInMemory() > 0) {
@@ -294,14 +304,11 @@ public class Rules
     }
     if (plannerConfig.isJoinEnabled()) {
       rules.add(DruidJoinRule.instance());
-      if (plannerConfig.isProjectJoinTransposeEnabled()) {
-        rules.add(ProjectJoinTransposeRule.INSTANCE);
-      }
       if (plannerConfig.isJoinCommuteEnabled()) {
         rules.add(JoinCommuteRule.INSTANCE);
       }
     }
-    return rules.build();
+    return ImmutableList.copyOf(rules);
   }
 
   private static List<RelOptRule> bindableConventionRuleSet(PlannerContext plannerContext)

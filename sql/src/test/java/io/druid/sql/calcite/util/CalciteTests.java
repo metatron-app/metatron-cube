@@ -53,6 +53,7 @@ import io.druid.java.util.http.client.HttpClient;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -296,7 +297,8 @@ public class CalciteTests
           @Override
           public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
           {
-            return QueryRunnerTestHelper.CONGLOMERATE.findFactory(query).getToolchest();
+            final QueryRunnerFactory<T, QueryType> factory = QueryRunnerTestHelper.CONGLOMERATE.findFactory(query);
+            return factory == null ? null : factory.getToolchest();
           }
         },
         walker,

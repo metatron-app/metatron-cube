@@ -19,13 +19,13 @@
 
 package io.druid.sql.calcite.rule;
 
+import io.druid.sql.calcite.rel.DruidQueryRel;
+import io.druid.sql.calcite.rel.QueryMaker;
+import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.logical.LogicalTableScan;
-import io.druid.sql.calcite.rel.DruidQueryRel;
-import io.druid.sql.calcite.rel.QueryMaker;
-import io.druid.sql.calcite.table.DruidTable;
 
 public class DruidTableScanRule extends RelOptRule
 {

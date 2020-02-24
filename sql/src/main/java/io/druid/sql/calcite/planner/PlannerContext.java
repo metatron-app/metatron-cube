@@ -94,27 +94,26 @@ public class PlannerContext
       final AuthenticationResult authenticationResult
   )
   {
-    final DateTime utcNow;
     final DateTimeZone timeZone;
+    final DateTime utcNow;
 
     if (queryContext != null) {
-      final Object tsParam = queryContext.get(CTX_SQL_CURRENT_TIMESTAMP);
       final Object tzParam = queryContext.get(CTX_SQL_TIME_ZONE);
-
-      if (tsParam != null) {
-        utcNow = new DateTime(tsParam, DateTimeZone.UTC);
-      } else {
-        utcNow = new DateTime(DateTimeZone.UTC);
-      }
-
       if (tzParam != null) {
         timeZone = DateTimeZone.forID(String.valueOf(tzParam));
       } else {
         timeZone = DateTimeZone.UTC;
       }
+
+      final Object tsParam = queryContext.get(CTX_SQL_CURRENT_TIMESTAMP);
+      if (tsParam != null) {
+        utcNow = new DateTime(tsParam, timeZone);
+      } else {
+        utcNow = new DateTime(timeZone);
+      }
     } else {
-      utcNow = new DateTime(DateTimeZone.UTC);
       timeZone = DateTimeZone.UTC;
+      utcNow = new DateTime(timeZone);
     }
 
     return new PlannerContext(

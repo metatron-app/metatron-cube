@@ -21,8 +21,8 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;
@@ -31,21 +31,21 @@ import java.util.Map;
  */
 @SuppressWarnings("unchecked")
 @JsonTypeName("dummy")
-public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
+public class DummyQuery<T> extends BaseQuery<T>
 {
-  private final Sequence<T> sequence;
+  protected final Sequence<T> sequence;
 
   public static DummyQuery instance()
   {
     return new DummyQuery<>(TableDataSource.of("<NOT-EXISTING>"), null, false, null, Maps.<String, Object>newHashMap());
   }
 
-  public static <T extends Comparable<T>> DummyQuery of(Sequence<T> sequence)
+  public static <T> DummyQuery of(Sequence<T> sequence)
   {
     return new DummyQuery(TableDataSource.of("<NOT-EXISTING>"), null, false, sequence, Maps.<String, Object>newHashMap());
   }
 
-  private DummyQuery(
+  protected DummyQuery(
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
       boolean descending,

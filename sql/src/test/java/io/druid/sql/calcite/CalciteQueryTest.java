@@ -99,6 +99,7 @@ import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.planner.PlannerFactory;
 import io.druid.sql.calcite.planner.PlannerResult;
+import io.druid.sql.calcite.rel.TypedDummyQuery;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
 import io.druid.sql.calcite.util.CalciteTestBase;
@@ -319,10 +320,8 @@ public class CalciteQueryTest extends CalciteTestBase
   {
     testQuery(
         "SELECT 1 + 1",
-        ImmutableList.of(),
-        ImmutableList.of(
-            new Object[]{2}
-        )
+        ImmutableList.of(TypedDummyQuery.DUMMY),
+        ImmutableList.of(new Object[]{2})
     );
   }
 
@@ -426,7 +425,7 @@ public class CalciteQueryTest extends CalciteTestBase
         "EXPLAIN PLAN FOR SELECT 1 + 1",
         ImmutableList.of(),
         ImmutableList.of(
-            new Object[]{"BindableValues(tuples=[[{ 2 }]])\n"}
+            new Object[]{"DruidValuesRel\n"}
         )
     );
   }
@@ -1871,7 +1870,7 @@ public class CalciteQueryTest extends CalciteTestBase
   {
     testQuery(
         "SELECT COUNT(*), MAX(cnt) FROM druid.foo WHERE 1 = 0",
-        ImmutableList.of(),
+        ImmutableList.of(TypedDummyQuery.DUMMY),
         ImmutableList.of(
             new Object[]{0L, null}
         )
@@ -1883,7 +1882,7 @@ public class CalciteQueryTest extends CalciteTestBase
   {
     testQuery(
         "SELECT COUNT(*), MAX(cnt) FROM druid.foo WHERE 1 = 0 GROUP BY dim1",
-        ImmutableList.of(),
+        ImmutableList.of(TypedDummyQuery.DUMMY),
         ImmutableList.of()
     );
   }
@@ -2722,7 +2721,7 @@ public class CalciteQueryTest extends CalciteTestBase
   {
     testQuery(
         "SELECT COUNT(*) FROM druid.foo WHERE dim2 = 'a' and not (dim1 > 'a' OR dim1 < 'b')",
-        ImmutableList.of(),
+        ImmutableList.of(TypedDummyQuery.DUMMY),
         ImmutableList.of(new Object[]{0L})
     );
   }
@@ -3441,7 +3440,7 @@ public class CalciteQueryTest extends CalciteTestBase
 
     testQuery(
         "SELECT * FROM (SELECT DISTINCT dim2 FROM druid.foo ORDER BY dim2 LIMIT 2 OFFSET 5) OFFSET 2",
-        ImmutableList.of(),
+        ImmutableList.of(TypedDummyQuery.DUMMY),
         ImmutableList.of()
     );
   }
@@ -4809,7 +4808,7 @@ public class CalciteQueryTest extends CalciteTestBase
         PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_LOS_ANGELES,
         "SELECT CURRENT_TIMESTAMP, CURRENT_DATE, CURRENT_DATE + INTERVAL '1' DAY",
-        ImmutableList.of(),
+        ImmutableList.of(TypedDummyQuery.DUMMY),
         ImmutableList.of(
             new Object[]{T("2000-01-01T00Z", LOS_ANGELES), D("1999-12-31"), D("2000-01-01")}
         )
@@ -4827,14 +4826,14 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
-                  .intervals(QSS(Intervals.of("2000-01-02T00Z/2002-01-01T08Z")))
+                  .intervals(QSS(Intervals.of("2000-01-02T08Z/2002-01-01T08Z")))
                   .granularity(Granularities.ALL)
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_LOS_ANGELES)
                   .build()
         ),
         ImmutableList.of(
-            new Object[]{5L}
+            new Object[]{4L}
         )
     );
   }
@@ -4872,14 +4871,14 @@ public class CalciteQueryTest extends CalciteTestBase
         ImmutableList.of(
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(CalciteTests.DATASOURCE1)
-                  .intervals(QSS(Intervals.of("2000-01-02T00Z/2002-01-01T08Z")))
+                  .intervals(QSS(Intervals.of("2000-01-02T08Z/2002-01-01T08Z")))
                   .granularity(Granularities.ALL)
                   .aggregators(CountAggregatorFactory.of("a0"))
                   .context(TIMESERIES_CONTEXT_LOS_ANGELES)
                   .build()
         ),
         ImmutableList.of(
-            new Object[]{5L}
+            new Object[]{4L}
         )
     );
   }

@@ -50,7 +50,7 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
   public static interface LeafRel {
   }
 
-  private final QueryMaker queryMaker;
+  final QueryMaker queryMaker;
 
   protected DruidRel(RelOptCluster cluster, RelTraitSet traitSet, QueryMaker queryMaker)
   {

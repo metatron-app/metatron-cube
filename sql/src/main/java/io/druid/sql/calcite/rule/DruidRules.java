@@ -50,12 +50,7 @@ import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.WINDOW;
 
 public class DruidRules
 {
-  public static List<RelOptRule> rules()
-  {
-    return RULES;
-  }
-
-  private static final List<RelOptRule> RULES = ImmutableList.of(
+  public static final List<RelOptRule> RULES = ImmutableList.of(
       DruidRule.of(Filter.class, FILTER, PartialDruidQuery::withFilter),
       DruidRule.of(Project.class, PROJECT, PartialDruidQuery::withProject),
       DruidRule.of(Aggregate.class, AGGREGATE, PartialDruidQuery::withAggregate),

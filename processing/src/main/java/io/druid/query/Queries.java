@@ -288,6 +288,8 @@ public class Queries
       return ((StreamQuery) subQuery).asRow((Sequence<Object[]>) sequence);
     } else if (subQuery instanceof UnionAllQuery) {
       return ((UnionAllQuery) subQuery).asRow(sequence);
+    } else if (subQuery instanceof Query.RowOutputSupport) {
+      return ((Query.RowOutputSupport) subQuery).asRow(sequence);
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }

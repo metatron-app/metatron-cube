@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Ordering;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
@@ -209,6 +210,11 @@ public interface Query<T> extends QueryContextKeys
     List<String> estimatedOutputColumns();
 
     Sequence<Object[]> array(Sequence<T> sequence);
+  }
+
+  interface RowOutputSupport<T> extends Query<T>
+  {
+    Sequence<Row> asRow(Sequence<T> sequence);
   }
 
   interface OrderingSupport<T> extends Query<T>

@@ -60,6 +60,7 @@ import org.joda.time.DateTime;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -384,6 +385,8 @@ public class QueryMaker
       return (DateTime) value;
     } else if (value instanceof Number) {
       return DateTimes.utc(((Number) value).longValue());
+    } else if (value instanceof Calendar) {
+      return new DateTime(value);
     } else {
       Long timestamp = Rows.parseLong(value, null);
       if (timestamp != null) {

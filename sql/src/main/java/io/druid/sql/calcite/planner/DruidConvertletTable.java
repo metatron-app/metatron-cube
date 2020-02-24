@@ -32,6 +32,7 @@ import org.apache.calcite.sql2rel.SqlRexContext;
 import org.apache.calcite.sql2rel.SqlRexConvertlet;
 import org.apache.calcite.sql2rel.SqlRexConvertletTable;
 import org.apache.calcite.sql2rel.StandardConvertletTable;
+import org.joda.time.DateTimeZone;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -140,20 +141,21 @@ public class DruidConvertletTable implements SqlRexConvertletTable
       final SqlOperator operator = call.getOperator();
       if (operator.equals(SqlStdOperatorTable.CURRENT_TIMESTAMP)
           || operator.equals(SqlStdOperatorTable.LOCALTIMESTAMP)) {
+
         return cx.getRexBuilder().makeTimestampLiteral(
-            Calcites.jodaToCalciteTimestampString(plannerContext.getLocalNow(), plannerContext.getTimeZone()),
+            Calcites.jodaToCalciteTimestampString(plannerContext.getLocalNow(), DateTimeZone.UTC),
             RelDataType.PRECISION_NOT_SPECIFIED
         );
       } else if (operator.equals(SqlStdOperatorTable.CURRENT_TIME) || operator.equals(SqlStdOperatorTable.LOCALTIME)) {
         return cx.getRexBuilder().makeTimeLiteral(
-            Calcites.jodaToCalciteTimeString(plannerContext.getLocalNow(), plannerContext.getTimeZone()),
+            Calcites.jodaToCalciteTimeString(plannerContext.getLocalNow(), DateTimeZone.UTC),
             RelDataType.PRECISION_NOT_SPECIFIED
         );
       } else if (operator.equals(SqlStdOperatorTable.CURRENT_DATE)) {
         return cx.getRexBuilder().makeDateLiteral(
             Calcites.jodaToCalciteDateString(
                 plannerContext.getLocalNow().hourOfDay().roundFloorCopy(),
-                plannerContext.getTimeZone()
+                DateTimeZone.UTC
             )
         );
       } else {
