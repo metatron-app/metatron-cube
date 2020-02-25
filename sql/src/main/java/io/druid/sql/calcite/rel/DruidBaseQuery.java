@@ -50,7 +50,6 @@ import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.ordering.Direction;
-import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.DimensionTopNMetricSpec;
@@ -174,7 +173,6 @@ public class DruidBaseQuery implements DruidQuery
       inputRowSignature = sortProject.getOutputRowSignature();
     }
 
-    // outputRowSignature is used only for scan and select query, and thus sort and grouping must be null
     this.outputRowSignature = inputRowSignature;
     this.query = computeQuery();
   }
@@ -771,7 +769,7 @@ public class DruidBaseQuery implements DruidQuery
 
   /**
    * Return this query as some kind of Druid query. The returned query will either be {@link TopNQuery},
-   * {@link TimeseriesQuery}, {@link GroupByQuery}, {@link ScanQuery}, or {@link SelectQuery}.
+   * {@link TimeseriesQuery}, {@link GroupByQuery}, or {@link StreamQuery}.
    *
    * @return Druid query
    */

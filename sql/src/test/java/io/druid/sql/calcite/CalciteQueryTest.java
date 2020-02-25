@@ -3798,28 +3798,16 @@ public class CalciteQueryTest extends CalciteTestBase
             Druids.newTimeseriesQueryBuilder()
                   .dataSource(
                       GroupByQuery.builder()
-                                  .setDataSource(
-                                      GroupByQuery.builder()
-                                                  .setDataSource(CalciteTests.DATASOURCE1)
-                                                  .setGranularity(Granularities.ALL)
-                                                  .setDimensions(
-                                                      DefaultDimensionSpec.of("dim1", "d0"),
-                                                      DefaultDimensionSpec.of("dim2", "d1")
-                                                  )
-                                                  .setAggregatorSpecs(CountAggregatorFactory.of("a0"))
-                                                  .setContext(QUERY_CONTEXT_DEFAULT)
-                                                  .build()
-                                  )
+                                  .setDataSource(CalciteTests.DATASOURCE1)
                                   .setGranularity(Granularities.ALL)
-                                  .setDimensions(DefaultDimensionSpec.of("d1", "_d0"))
-                                  .setAggregatorSpecs(GenericSumAggregatorFactory.ofLong("_a0", "a0"))
-                                  .setContext(QUERY_CONTEXT_DEFAULT)
+                                  .setDimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                                  .setAggregatorSpecs(CountAggregatorFactory.of("a0"))
                                   .build()
                   )
                   .granularity(Granularities.ALL)
                   .aggregators(
-                      GenericSumAggregatorFactory.ofLong("a0", "_a0"),
-                      CountAggregatorFactory.of("a1")
+                      GenericSumAggregatorFactory.ofLong("_a0", "a0"),
+                      CountAggregatorFactory.of("_a1")
                   )
                   .context(TIMESERIES_CONTEXT_DEFAULT)
                   .build()
@@ -3835,8 +3823,7 @@ public class CalciteQueryTest extends CalciteTestBase
   {
     final String explanation =
         "DruidOuterQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"sum\",\"name\":\"a0\",\"fieldName\":\"cnt\",\"inputType\":\"long\"},{\"type\":\"count\",\"name\":\"a1\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long, a1:long}])\n"
-        + "  DruidOuterQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d0\"}],\"aggregations\":[{\"type\":\"sum\",\"name\":\"a0\",\"fieldName\":\"cnt\",\"inputType\":\"long\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{a0:long}])\n"
-        + "    DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim1\",\"outputName\":\"d0\"},{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d1\"}],\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, d1:string, a0:long}])\n";
+        + "  DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d0\"}],\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, a0:long}])\n";
 
     testQuery(
         "EXPLAIN PLAN FOR SELECT SUM(cnt), COUNT(*) FROM (\n"
@@ -5004,16 +4991,8 @@ public class CalciteQueryTest extends CalciteTestBase
     testQuery(
         "SELECT COUNT(*) FROM druid.foo "
         + "WHERE floor(__time TO month) = TIMESTAMP '2000-01-01 00:00:01'",
-        ImmutableList.of(
-            Druids.newTimeseriesQueryBuilder()
-                  .dataSource(CalciteTests.DATASOURCE1)
-                  .intervals(QSS())
-                  .granularity(Granularities.ALL)
-                  .aggregators(CountAggregatorFactory.of("a0"))
-                  .context(TIMESERIES_CONTEXT_DEFAULT)
-                  .build()
-        ),
-        ImmutableList.of()
+        ImmutableList.of(TypedDummyQuery.DUMMY),
+        ImmutableList.of(new Object[] {0L})
     );
   }
 
@@ -6961,8 +6940,8 @@ public class CalciteQueryTest extends CalciteTestBase
       log.info("#%d: %s", i, Arrays.toString(expectedResults.get(i)));
     }
 
-    Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), results.size());
-    for (int i = 0; i < results.size(); i++) {
+    int compareTo = Math.min(expectedResults.size(), results.size());
+    for (int i = 0; i < compareTo; i++) {
       final Object[] expected = expectedResults.get(i);
       final Object[] actual = results.get(i);
       final int masked = Arrays.asList(expected).indexOf(MASKED);
@@ -6975,6 +6954,7 @@ public class CalciteQueryTest extends CalciteTestBase
           actual
       );
     }
+    Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), results.size());
 
     if (expectedQueries != null) {
       final List<Query> recordedQueries = queryLogHook.getRecordedQueries();

@@ -66,10 +66,10 @@ public class PlannerConfig
   private boolean joinEnabled = false;
 
   @JsonProperty
-  private boolean transitiveFilterOnjoinEnabled = true;
+  private boolean transitiveFilterOnjoinEnabled = false;  // incomplete
 
   @JsonProperty
-  private boolean projectJoinTransposeEnabled = false;  // should fix a bug (try tpch-7)
+  private boolean projectJoinTransposeEnabled = false;
 
   @JsonProperty
   private boolean joinCommuteEnabled = false;

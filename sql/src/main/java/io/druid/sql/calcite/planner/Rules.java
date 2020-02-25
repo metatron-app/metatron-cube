@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.rel.QueryMaker;
+import io.druid.sql.calcite.rule.AggregateMergeRule;
 import io.druid.sql.calcite.rule.DruidJoinRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
@@ -36,6 +37,7 @@ import org.apache.calcite.plan.RelOptLattice;
 import org.apache.calcite.plan.RelOptMaterialization;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.plan.hep.HepProgram;
@@ -44,10 +46,7 @@ import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.RelFactories;
-import org.apache.calcite.rel.metadata.ChainedRelMetadataProvider;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
-import org.apache.calcite.rel.metadata.JaninoRelMetadataProvider;
-import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.rules.AggregateCaseToFilterRule;
 import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
@@ -58,15 +57,19 @@ import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.AggregateStarTableRule;
 import org.apache.calcite.rel.rules.AggregateValuesRule;
 import org.apache.calcite.rel.rules.CalcRemoveRule;
+import org.apache.calcite.rel.rules.DateRangeRules;
+import org.apache.calcite.rel.rules.ExchangeRemoveConstantKeysRule;
 import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMergeRule;
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 import org.apache.calcite.rel.rules.FilterTableScanRule;
+import org.apache.calcite.rel.rules.IntersectToDistinctRule;
 import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
+import org.apache.calcite.rel.rules.MatchRule;
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule;
 import org.apache.calcite.rel.rules.ProjectJoinTransposeRule;
 import org.apache.calcite.rel.rules.ProjectMergeRule;
@@ -78,6 +81,7 @@ import org.apache.calcite.rel.rules.PruneEmptyRules;
 import org.apache.calcite.rel.rules.ReduceExpressionsRule;
 import org.apache.calcite.rel.rules.SortJoinTransposeRule;
 import org.apache.calcite.rel.rules.SortProjectTransposeRule;
+import org.apache.calcite.rel.rules.SortRemoveConstantKeysRule;
 import org.apache.calcite.rel.rules.SortRemoveRule;
 import org.apache.calcite.rel.rules.SortUnionTransposeRule;
 import org.apache.calcite.rel.rules.TableScanRule;
@@ -103,32 +107,34 @@ public class Rules
   public static final int DRUID_CONVENTION_RULES = 0;
   public static final int BINDABLE_CONVENTION_RULES = 1;
 
-  // Rules from CalcitePrepareImpl's DEFAULT_RULES, minus AggregateExpandDistinctAggregatesRule
-  // and AggregateReduceFunctionsRule.
+  // RelOptRules.BASE_RULES
   private static final List<RelOptRule> DEFAULT_RULES =
       ImmutableList.of(
           AggregateStarTableRule.INSTANCE,
           AggregateStarTableRule.INSTANCE2,
           TableScanRule.INSTANCE,
+//          CalciteSystemProperty.COMMUTE.value() ? JoinAssociateRule.INSTANCE :
           ProjectMergeRule.INSTANCE,
           FilterTableScanRule.INSTANCE,
           ProjectFilterTransposeRule.INSTANCE,
           FilterProjectTransposeRule.INSTANCE,
           FilterJoinRule.FILTER_ON_JOIN,
           JoinPushExpressionsRule.INSTANCE,
+//          AggregateExpandDistinctAggregatesRule.INSTANCE,
+//          AggregateCaseToFilterRule.INSTANCE,
+//          AggregateReduceFunctionsRule.INSTANCE,
           FilterAggregateTransposeRule.INSTANCE,
           ProjectWindowTransposeRule.INSTANCE,
+          MatchRule.INSTANCE,
+//          JoinCommuteRule.INSTANCE,
           JoinPushThroughJoinRule.RIGHT,
           JoinPushThroughJoinRule.LEFT,
           SortProjectTransposeRule.INSTANCE,
           SortJoinTransposeRule.INSTANCE,
-          SortUnionTransposeRule.INSTANCE
-      );
-
-  // todo : later..
-  private static final List<RelOptRule> JOIN_COMMUTE_RULES =
-      ImmutableList.of(
-          JoinCommuteRule.INSTANCE
+          SortRemoveConstantKeysRule.INSTANCE,
+          SortUnionTransposeRule.INSTANCE,
+          ExchangeRemoveConstantKeysRule.EXCHANGE_INSTANCE,
+          ExchangeRemoveConstantKeysRule.SORT_EXCHANGE_INSTANCE
       );
 
   // Rules from CalcitePrepareImpl's createPlanner.
@@ -139,41 +145,47 @@ public class Rules
           ProjectTableScanRule.INTERPRETER
       );
 
-  // Rules from CalcitePrepareImpl's CONSTANT_REDUCTION_RULES.
+  // RelOptRules.CONSTANT_REDUCTION_RULES
   private static final List<RelOptRule> CONSTANT_REDUCTION_RULES =
       ImmutableList.of(
           ReduceExpressionsRule.PROJECT_INSTANCE,
-          ReduceExpressionsRule.CALC_INSTANCE,
-          ReduceExpressionsRule.JOIN_INSTANCE,
           ReduceExpressionsRule.FILTER_INSTANCE,
+          ReduceExpressionsRule.CALC_INSTANCE,
+          ReduceExpressionsRule.WINDOW_INSTANCE,
+          ReduceExpressionsRule.JOIN_INSTANCE,
           ValuesReduceRule.FILTER_INSTANCE,
           ValuesReduceRule.PROJECT_FILTER_INSTANCE,
           ValuesReduceRule.PROJECT_INSTANCE,
           AggregateValuesRule.INSTANCE
       );
 
-  // Rules from VolcanoPlanner's registerAbstractRelationalRules.
-  private static final List<RelOptRule> VOLCANO_ABSTRACT_RULES =
+  // RelOptRules.ABSTRACT_RELATIONAL_RULES
+  private static final List<RelOptRule> ABSTRACT_RELATIONAL_RULES =
       ImmutableList.of(
           FilterJoinRule.FILTER_ON_JOIN,
           FilterJoinRule.JOIN,
           AbstractConverter.ExpandConversionRule.INSTANCE,
+//          JoinCommuteRule.INSTANCE,
+//          SemiJoinRule.PROJECT,
+//          SemiJoinRule.JOIN,
           AggregateRemoveRule.INSTANCE,
           UnionToDistinctRule.INSTANCE,
           ProjectRemoveRule.INSTANCE,
           AggregateJoinTransposeRule.INSTANCE,
+          AggregateMergeRule.INSTANCE,    // see ensureTypes()
           AggregateProjectMergeRule.INSTANCE,
           CalcRemoveRule.INSTANCE,
           SortRemoveRule.INSTANCE
       );
 
-  // Rules from RelOptUtil's registerAbstractRels.
-  // Omit DateRangeRules due to https://issues.apache.org/jira/browse/CALCITE-1601
-  private static final List<RelOptRule> RELOPTUTIL_ABSTRACT_RULES =
+  // RelOptRules.ABSTRACT_RULES
+  private static final List<RelOptRule> ABSTRACT_RULES =
       ImmutableList.of(
           AggregateProjectPullUpConstantsRule.INSTANCE2,
           UnionPullUpConstantsRule.INSTANCE,
           PruneEmptyRules.UNION_INSTANCE,
+          PruneEmptyRules.INTERSECT_INSTANCE,
+          PruneEmptyRules.MINUS_INSTANCE,
           PruneEmptyRules.PROJECT_INSTANCE,
           PruneEmptyRules.FILTER_INSTANCE,
           PruneEmptyRules.SORT_INSTANCE,
@@ -182,8 +194,12 @@ public class Rules
           PruneEmptyRules.JOIN_RIGHT_INSTANCE,
           PruneEmptyRules.SORT_FETCH_ZERO_INSTANCE,
           UnionMergeRule.INSTANCE,
+          UnionMergeRule.INTERSECT_INSTANCE,
+          UnionMergeRule.MINUS_INSTANCE,
           ProjectToWindowRule.PROJECT,
-          FilterMergeRule.INSTANCE
+          FilterMergeRule.INSTANCE,
+          DateRangeRules.FILTER_INSTANCE,
+          IntersectToDistinctRule.INSTANCE
       );
 
   private Rules()
@@ -212,10 +228,7 @@ public class Rules
       List<RelOptRule> rules = Arrays.asList(
           FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
       );
-      RelMetadataProvider provider = JaninoRelMetadataProvider.of(ChainedRelMetadataProvider.of(
-          ImmutableList.of(HiveRelMdPredicates.SOURCE, DefaultRelMetadataProvider.INSTANCE)
-      ));
-      programs.add(Programs.hep(rules, NO_DAG, provider));
+      programs.add(Programs.hep(rules, NO_DAG, DefaultRelMetadataProvider.INSTANCE));
     }
     if (config.isProjectJoinTransposeEnabled()) {
       HepProgram hep = new HepProgramBuilder()
@@ -241,6 +254,18 @@ public class Rules
     programs.add(Programs.ofRules(bindableConventionRuleSet(plannerContext)));
 
     return Programs.sequence(programs.toArray(new Program[0]));
+  }
+
+  private static Program relLogProgram(final String subject)
+  {
+    return (planner, rel, requiredOutputTraits, materializations, lattices) -> {
+      LOG.info("<<<< %s >>>>\n%s", subject, new Object()
+      {
+        @Override
+        public String toString() { return RelOptUtil.toString(rel); }
+      });
+      return rel;
+    };
   }
 
   private static class Delegated implements Program
@@ -304,9 +329,9 @@ public class Rules
     }
     if (plannerConfig.isJoinEnabled()) {
       rules.add(DruidJoinRule.instance());
-      if (plannerConfig.isJoinCommuteEnabled()) {
-        rules.add(JoinCommuteRule.INSTANCE);
-      }
+    }
+    if (plannerConfig.isJoinCommuteEnabled()) {
+      rules.add(JoinCommuteRule.INSTANCE);
     }
     return ImmutableList.copyOf(rules);
   }
@@ -329,8 +354,8 @@ public class Rules
     rules.addAll(DEFAULT_RULES);
     rules.addAll(MISCELLANEOUS_RULES);
     rules.addAll(CONSTANT_REDUCTION_RULES);
-    rules.addAll(VOLCANO_ABSTRACT_RULES);
-    rules.addAll(RELOPTUTIL_ABSTRACT_RULES);
+    rules.addAll(ABSTRACT_RELATIONAL_RULES);
+    rules.addAll(ABSTRACT_RULES);
 
     if (!plannerConfig.isUseApproximateCountDistinct()) {
       // We'll need this to expand COUNT DISTINCTs.
