@@ -26,8 +26,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.StringUtils;
 import io.druid.math.expr.Parser;
+import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.sql.SQLFunctions;
@@ -76,7 +76,7 @@ public class SqlResourceTest extends CalciteTestBase
   }
 
   private static final ObjectMapper JSON_MAPPER = new DefaultObjectMapper();
-  private static final String DUMMY_SQL_QUERY_ID = "dummy";
+  private static final String DUMMY_QUERY_ID = "dummy";
 
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -336,7 +336,7 @@ public class SqlResourceTest extends CalciteTestBase
   @Test
   public void testExplainCountStar() throws Exception
   {
-    Map<String, Object> queryContext = ImmutableMap.of(PlannerContext.CTX_SQL_QUERY_ID, DUMMY_SQL_QUERY_ID);
+    Map<String, Object> queryContext = ImmutableMap.of(Query.QUERYID, DUMMY_QUERY_ID);
     final List<Map<String, Object>> rows = doPost(
         new SqlQuery("EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo", ResultFormat.OBJECT, false, queryContext)
     ).rhs;
@@ -345,10 +345,7 @@ public class SqlResourceTest extends CalciteTestBase
         ImmutableList.of(
             ImmutableMap.<String, Object>of(
                 "PLAN",
-                StringUtils.format(
-                    "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlQueryId\":\"%s\"}}], signature=[{a0:long}])\n",
-                    DUMMY_SQL_QUERY_ID
-                )
+                "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false}}], signature=[{a0:long}])\n"
             )
         ),
         rows

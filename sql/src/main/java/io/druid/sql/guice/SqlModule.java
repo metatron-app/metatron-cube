@@ -141,7 +141,7 @@ public class SqlModule implements Module
             }
             b.append(resultSet.getObject(i));
           }
-//          System.out.println(b.toString());
+          System.out.println(b.toString());
           // Do something
         }
         resultSet.close();

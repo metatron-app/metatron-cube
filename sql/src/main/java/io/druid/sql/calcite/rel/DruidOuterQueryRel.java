@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.rel;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -189,19 +188,10 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   @Override
   public RelWriter explainTerms(RelWriter pw)
   {
-    final String queryString;
-    final DruidQuery druidQuery = toDruidQueryForExplaining();
-
-    try {
-      queryString = getQueryMaker().getJsonMapper().writeValueAsString(druidQuery.getQuery());
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-
+    DruidQuery druidQuery = toDruidQueryForExplaining();
     return super.explainTerms(pw)
                 .input("innerQuery", sourceRel)
-                .item("query", queryString)
+                .item("query", toExplainString(druidQuery))
                 .item("signature", druidQuery.getOutputRowSignature());
   }
 

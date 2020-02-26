@@ -21,11 +21,11 @@ package io.druid.sql.avatica;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryConfig;
 import io.druid.server.QueryManager;
-import io.druid.server.security.AllowAllAuthenticator;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -67,6 +67,8 @@ public class DruidStatementTest extends CalciteTestBase
   private TestQuerySegmentWalker walker;
   private SqlLifecycleFactory sqlLifecycleFactory;
 
+  private DruidConnection connection = new DruidConnection("test", -1, Maps.newHashMap());
+
   @Before
   public void setUp() throws Exception
   {
@@ -104,8 +106,7 @@ public class DruidStatementTest extends CalciteTestBase
   public void testSignature() throws Exception
   {
     final String sql = "SELECT * FROM druid.foo";
-    final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
-    }).prepare(sql, -1, AllowAllAuthenticator.ALLOW_ALL_RESULT);
+    final DruidStatement statement = new DruidStatement("", connection.createStatementHandle(), sqlLifecycleFactory.factorize(sql)).prepare();
 
 
     // Check signature.
@@ -145,8 +146,8 @@ public class DruidStatementTest extends CalciteTestBase
   public void testSelectAllInFirstFrame() throws Exception
   {
     final String sql = "SELECT __time, cnt, dim1, dim2, m1 FROM druid.foo";
-    final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
-    }).prepare(sql, -1, AllowAllAuthenticator.ALLOW_ALL_RESULT);
+    final DruidStatement statement = new DruidStatement(
+        "", connection.createStatementHandle(), sqlLifecycleFactory.factorize(sql)).prepare();
 
     // First frame, ask for all rows.
     Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 6);
@@ -172,8 +173,7 @@ public class DruidStatementTest extends CalciteTestBase
   public void testSelectSplitOverTwoFrames() throws Exception
   {
     final String sql = "SELECT __time, cnt, dim1, dim2, m1 FROM druid.foo";
-    final DruidStatement statement = new DruidStatement("", 0, null, sqlLifecycleFactory.factorize(), () -> {
-    }).prepare(sql, -1, AllowAllAuthenticator.ALLOW_ALL_RESULT);
+    final DruidStatement statement = new DruidStatement("", connection.createStatementHandle(), sqlLifecycleFactory.factorize(sql)).prepare();
     
     // First frame, ask for 2 rows.
     Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 2);

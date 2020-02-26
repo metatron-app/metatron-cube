@@ -5,14 +5,12 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.java.util.emitter.core.Event;
 import org.joda.time.DateTime;
 
-import javax.annotation.Nullable;
 import java.util.Map;
 
 public class QueryEvent implements Event
 {
   private final DateTime createdTime;
   private final String id;
-  private final String sqlQueryId;
   private final String remoteAddress;
   private final String query;
   private final String success;
@@ -20,7 +18,6 @@ public class QueryEvent implements Event
   public QueryEvent(
       DateTime createdTime,
       String id,
-      String sqlQueryId,
       String remoteAddress,
       String query,
       String success
@@ -28,7 +25,6 @@ public class QueryEvent implements Event
   {
     this.createdTime = createdTime != null ? createdTime : new DateTime();
     this.id = id;
-    this.sqlQueryId = sqlQueryId;
     this.remoteAddress = remoteAddress;
     this.query = query;
     this.success = success;
@@ -37,12 +33,6 @@ public class QueryEvent implements Event
   public String getId()
   {
     return id;
-  }
-
-  @Nullable
-  public String getSqlQueryId()
-  {
-    return sqlQueryId;
   }
 
   public String getRemoteAddress()
@@ -62,7 +52,6 @@ public class QueryEvent implements Event
         .put("feed", getFeed())
         .put("timestamp", createdTime.toString())
         .put("id", id)
-        .put("sqlQueryId", Strings.nullToEmpty(sqlQueryId))
         .put("remoteAddress", Strings.nullToEmpty(remoteAddress))
         .put("query", query)
         .put("success", success)

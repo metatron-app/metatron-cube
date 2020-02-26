@@ -30,30 +30,27 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.Query;
+import io.druid.server.QueryLifecycle;
 import io.druid.server.QueryStats;
 import io.druid.server.RequestLogLine;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthenticationResult;
 import io.druid.server.security.AuthorizationUtils;
-import io.druid.server.security.ForbiddenException;
 import io.druid.sql.calcite.planner.DruidPlanner;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.planner.PlannerFactory;
 import io.druid.sql.calcite.planner.PlannerResult;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
 
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -75,7 +72,6 @@ public class SqlLifecycle
 {
   enum State
   {
-    NEW,
     INITIALIZED,
     PLANNED,
     AUTHORIZING,
@@ -95,14 +91,11 @@ public class SqlLifecycle
   private final BrokerServerView brokerServerView;
   private final Object lock = new Object();
 
-  private State state = State.NEW;
+  private final String sql;
+  private final Map<String, Object> queryContext;
+  private final DruidPlanner planner;
 
-  // init during intialize
-  private String sql;
-  private Map<String, Object> queryContext;
-  // init during plan
-  @Nullable private HttpServletRequest req;
-  private PlannerContext plannerContext;
+  private State state = State.INITIALIZED;
   private PlannerResult plannerResult;
 
   public SqlLifecycle(
@@ -111,7 +104,10 @@ public class SqlLifecycle
       RequestLogger requestLogger,
       long startMs,
       long startNs,
-      BrokerServerView brokerServerView
+      BrokerServerView brokerServerView,
+      String sql,
+      Map<String, Object> queryContext,
+      AuthenticationResult authenticationResult
   )
   {
     this.plannerFactory = plannerFactory;
@@ -120,61 +116,33 @@ public class SqlLifecycle
     this.startMs = startMs;
     this.startNs = startNs;
     this.brokerServerView = brokerServerView;
+    this.sql = Preconditions.checkNotNull(sql);
+    this.planner = plannerFactory.createPlanner(queryContext, authenticationResult);
+    this.queryContext = planner.getPlannerContext().getQueryContext();
   }
 
-  public String initialize(String sql, Map<String, Object> queryContext)
+  public String getSQL()
   {
-    synchronized (lock) {
-      transition(State.NEW, State.INITIALIZED);
-      this.sql = sql;
-      this.queryContext = contextWithSqlId(queryContext);
-      return sqlQueryId();
-    }
+    return sql;
   }
 
-  private Map<String, Object> contextWithSqlId(Map<String, Object> queryContext)
+  public String getQueryId()
   {
-    Map<String, Object> newContext = new HashMap<>();
-    if (queryContext != null) {
-      newContext.putAll(queryContext);
-    }
-    newContext.computeIfAbsent(PlannerContext.CTX_SQL_QUERY_ID, k -> UUID.randomUUID().toString());
-    return newContext;
+    return (String) queryContext.get(Query.QUERYID);
   }
 
-  private String sqlQueryId()
+  public PlannerContext getPlannerContext()
   {
-    return (String) this.queryContext.get(PlannerContext.CTX_SQL_QUERY_ID);
+    return planner.getPlannerContext();
   }
 
-  public PlannerContext plan(AuthenticationResult authenticationResult)
-      throws ValidationException, RelConversionException, SqlParseException
+  public PlannerResult plan() throws ValidationException, RelConversionException, SqlParseException
   {
     synchronized (lock) {
       transition(State.INITIALIZED, State.PLANNED);
-      try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
-        this.plannerContext = planner.getPlannerContext();
-        this.plannerResult = planner.plan(sql, brokerServerView);
+      try (DruidPlanner planner = this.planner) {
+        return plannerResult = planner.plan(sql, brokerServerView);
       }
-      return plannerContext;
-    }
-  }
-
-  public PlannerContext plan(HttpServletRequest req)
-      throws SqlParseException, RelConversionException, ValidationException
-  {
-    synchronized (lock) {
-      this.req = req;
-      return plan(AuthorizationUtils.authenticationResultFromRequest(req));
-    }
-  }
-
-  public RelDataType rowType()
-  {
-    synchronized (lock) {
-      Preconditions.checkState(plannerResult != null,
-                               "must be called after SQL has been planned");
-      return plannerResult.rowType();
     }
   }
 
@@ -182,61 +150,26 @@ public class SqlLifecycle
   {
     synchronized (lock) {
       transition(State.PLANNED, State.AUTHORIZING);
-
-      if (req != null) {
-        return doAuthorize(
-            AuthorizationUtils.authorizeAllResourceActions(
-                req,
-                Iterables.transform(
-                    plannerResult.datasourceNames(),
-                    AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
-                ),
-                plannerFactory.getAuthorizerMapper()
-            )
-        );
-      }
-
-      return doAuthorize(
-          AuthorizationUtils.authorizeAllResourceActions(
-              plannerContext.getAuthenticationResult(),
-              Iterables.transform(plannerResult.datasourceNames(), AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR),
-              plannerFactory.getAuthorizerMapper()
-          )
-      );
+      return transition(AuthorizationUtils.authorizeAllResourceActions(
+          planner.getPlannerContext().getAuthenticationResult(),
+          Iterables.transform(plannerResult.datasourceNames(), AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR),
+          plannerFactory.getAuthorizerMapper()
+      ));
     }
   }
 
-  private Access doAuthorize(final Access authorizationResult)
-  {
-    if (!authorizationResult.isAllowed()) {
-      // Not authorized; go straight to Jail, do not pass Go.
-      transition(State.AUTHORIZING, State.UNAUTHORIZED);
-    } else {
-      transition(State.AUTHORIZING, State.AUTHORIZED);
-    }
-    return authorizationResult;
-  }
-
-  public PlannerContext planAndAuthorize(final AuthenticationResult authenticationResult)
+  // for sql resource
+  public Access authorize(HttpServletRequest req)
       throws SqlParseException, RelConversionException, ValidationException
   {
-    PlannerContext plannerContext = plan(authenticationResult);
-    Access access = authorize();
-    if (!access.isAllowed()) {
-      throw new ForbiddenException(access.toString());
+    synchronized (lock) {
+      transition(State.PLANNED, State.AUTHORIZING);
+      return transition(AuthorizationUtils.authorizeAllResourceActions(
+          req,
+          Iterables.transform(plannerResult.datasourceNames(), AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR),
+          plannerFactory.getAuthorizerMapper()
+      ));
     }
-    return plannerContext;
-  }
-
-  public PlannerContext planAndAuthorize(final HttpServletRequest req)
-      throws SqlParseException, RelConversionException, ValidationException
-  {
-    PlannerContext plannerContext = plan(req);
-    Access access = authorize();
-    if (!access.isAllowed()) {
-      throw new ForbiddenException(access.toString());
-    }
-    return plannerContext;
   }
 
   public Sequence<Object[]> execute()
@@ -249,13 +182,11 @@ public class SqlLifecycle
 
   /**
    * Emit logs and metrics for this query.
-   *
    * @param e             exception that occurred while processing this query
    * @param remoteAddress remote address, for logging; or null if unknown
    * @param bytesWritten  number of bytes written; will become a query/bytes metric if >= 0
    */
   public void emitLogsAndMetrics(
-      final String forLog,
       @Nullable final Throwable e,
       @Nullable final String remoteAddress,
       final long bytesWritten,
@@ -263,13 +194,9 @@ public class SqlLifecycle
   )
   {
     synchronized (lock) {
-      if (sql == null) {
-        // Never initialized, don't log or emit anything.
-        return;
-      }
 
       if (state == State.DONE) {
-        log.warn("Tried to emit logs and metrics twice for query[%s]!", sqlQueryId());
+        log.warn("Tried to emit logs and metrics twice for query[%s]!", getQueryId());
       }
 
       state = State.DONE;
@@ -279,11 +206,7 @@ public class SqlLifecycle
 
       try {
         ServiceMetricEvent.Builder metricBuilder = ServiceMetricEvent.builder();
-        if (plannerContext != null) {
-          metricBuilder.setDimension("id", plannerContext.getSqlQueryId());
-          metricBuilder.setDimension("sqlQueryId", plannerContext.getSqlQueryId());
-          metricBuilder.setDimension("nativeQueryIds", plannerContext.getNativeQueryIds().toString());
-        }
+        metricBuilder.setDimension("id", getQueryId());
         if (plannerResult != null) {
           metricBuilder.setDimension("dataSource", plannerResult.datasourceNames().toString());
         }
@@ -303,23 +226,16 @@ public class SqlLifecycle
         statsMap.put("rows", rows);
         statsMap.put("success", success);
         statsMap.put("context", queryContext);
-        if (plannerContext != null) {
-          queryContext.put("nativeQueryIds", plannerContext.getNativeQueryIds().toString());
-        }
         if (e != null) {
           statsMap.put("exception", e.toString());
-
-          if (e instanceof QueryInterruptedException) {
-            statsMap.put("interrupted", true);
-            statsMap.put("reason", e.toString());
-          }
+          statsMap.put("interrupted", QueryLifecycle.isInterrupted(e));
         }
 
         requestLogger.log(
             new RequestLogLine(
                 DateTimes.utc(startMs),
                 remoteAddress,
-                forLog,
+                sql,
                 new QueryStats(statsMap)
             )
         );
@@ -328,17 +244,27 @@ public class SqlLifecycle
               new QueryEvent(
                   DateTimes.utc(startMs),
                   Optional.ofNullable(metricBuilder.getDimension("id")).map(Object::toString).orElse(null),
-                  Optional.ofNullable(metricBuilder.getDimension("sqlQueryId")).map(Object::toString).orElse(""),
                   Optional.ofNullable(metricBuilder.getDimension("remoteAddress")).map(Object::toString).orElse(""),
-                  forLog,
+                  sql,
                   String.valueOf(success)
               ));
         }
       }
-      catch (Exception ex) {
+      catch (Throwable ex) {
         log.error(ex, "Unable to log sql [%s]!", sql);
       }
     }
+  }
+
+  private Access transition(final Access authorizationResult)
+  {
+    if (!authorizationResult.isAllowed()) {
+      // Not authorized; go straight to Jail, do not pass Go.
+      transition(State.AUTHORIZING, State.UNAUTHORIZED);
+    } else {
+      transition(State.AUTHORIZING, State.AUTHORIZED);
+    }
+    return authorizationResult;
   }
 
   private void transition(final State from, final State to)

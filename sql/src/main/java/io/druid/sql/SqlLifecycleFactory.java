@@ -19,12 +19,18 @@
 
 package io.druid.sql;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import io.druid.client.BrokerServerView;
 import io.druid.guice.LazySingleton;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.server.log.RequestLogger;
+import io.druid.server.security.AllowAllAuthenticator;
+import io.druid.server.security.AuthenticationResult;
 import io.druid.sql.calcite.planner.PlannerFactory;
+
+import java.util.Map;
 
 @LazySingleton
 public class SqlLifecycleFactory
@@ -48,7 +54,13 @@ public class SqlLifecycleFactory
     this.brokerServerView = brokerServerView;
   }
 
-  public SqlLifecycle factorize()
+  @VisibleForTesting
+  public SqlLifecycle factorize(String sql)
+  {
+    return factorize(sql, Maps.newHashMap(), AllowAllAuthenticator.ALLOW_ALL_RESULT);
+  }
+
+  public SqlLifecycle factorize(String sql, Map<String, Object> context, AuthenticationResult authenticationResult)
   {
     return new SqlLifecycle(
         plannerFactory,
@@ -56,7 +68,10 @@ public class SqlLifecycleFactory
         requestLogger,
         System.currentTimeMillis(),
         System.nanoTime(),
-        brokerServerView
+        brokerServerView,
+        sql,
+        context,
+        authenticationResult
     );
   }
 }

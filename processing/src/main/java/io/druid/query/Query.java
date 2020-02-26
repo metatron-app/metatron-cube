@@ -53,7 +53,6 @@ import io.druid.segment.VirtualColumn;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -145,11 +144,6 @@ public interface Query<T> extends QueryContextKeys
   Query<T> withId(String id);
 
   String getId();
-
-  Query<T> withSqlQueryId(String sqlQueryId);
-
-  @Nullable
-  String getSqlQueryId();
 
   Query<T> withDataSource(DataSource dataSource);
 

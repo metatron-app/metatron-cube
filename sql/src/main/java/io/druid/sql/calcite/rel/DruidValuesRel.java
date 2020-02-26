@@ -89,7 +89,7 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
       public Query getQuery()
       {
         return TypedDummyQuery.of(RowSignature.from(source.getRowType()), values)
-                              .withOverriddenContext(getPlannerContext().getQueryContext());
+                              .withOverriddenContext(getPlannerContext().copyQueryContext());
       }
     };
   }
@@ -104,12 +104,6 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
   public RelNode getLeafRel()
   {
     return source;
-  }
-
-  @Override
-  public DruidQuery toDruidQueryForExplaining()
-  {
-    return toDruidQuery(false);
   }
 
   @Override

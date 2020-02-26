@@ -39,6 +39,7 @@ import io.druid.query.QueryMetrics;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.QueryUtils;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthenticationResult;
@@ -46,11 +47,11 @@ import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.ForbiddenException;
-import org.eclipse.jetty.io.EofException;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
+import java.io.InterruptedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -72,7 +73,6 @@ public class QueryLifecycle
 {
   public static enum State
   {
-    NEW,
     INITIALIZED,
     AUTHORIZING,
     AUTHORIZED,
@@ -83,10 +83,11 @@ public class QueryLifecycle
 
   private static final Logger log = new Logger(QueryLifecycle.class);
 
+  private final Query<?> query;
   private final QueryManager queryManager;
-  private final QueryToolChestWarehouse warehouse;
+  private final QueryToolChest toolChest;
   private final QuerySegmentWalker texasRanger;
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final ObjectMapper jsonMapper;
@@ -94,15 +95,14 @@ public class QueryLifecycle
   private final long startMs;
   private final long startNs;
 
-  private State state = State.NEW;
-  private QueryToolChest toolChest;
-  private Query query;
+  private State state = State.INITIALIZED;
 
   public QueryLifecycle(
+      final Query<?> query,
       final QueryManager queryManager,
       final QueryToolChestWarehouse warehouse,
       final QuerySegmentWalker texasRanger,
-      final GenericQueryMetricsFactory queryMetricsFactory,
+      final GenericQueryMetricsFactory metricsFactory,
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
       final ObjectMapper jsonMapper,
@@ -111,10 +111,11 @@ public class QueryLifecycle
       final long startNs
   )
   {
+    this.query = query;
     this.queryManager = queryManager;
-    this.warehouse = warehouse;
+    this.toolChest = warehouse.getToolChest(query);
     this.texasRanger = texasRanger;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.jsonMapper = jsonMapper;
@@ -131,19 +132,11 @@ public class QueryLifecycle
    * @param query             the query
    * @param authorizationInfo authorization info from the request; or null if none is present. This must be non-null
    *                          if security is enabled, or the request will be considered unauthorized.
-   * @param remoteAddress     remote address, for logging; or null if unknown
-   *
    * @return results
    */
   @SuppressWarnings("unchecked")
-  public <T> Sequence<T> runSimple(
-      final Query<T> query,
-      @Nullable final AuthenticationResult authenticationResult,
-      @Nullable final String remoteAddress
-  )
+  public <T> Sequence<T> runSimple(@Nullable final AuthenticationResult authenticationResult)
   {
-    initialize(query);
-
     try {
       final Access access = authorize(query, authenticationResult);
       if (!access.isAllowed()) {
@@ -152,23 +145,9 @@ public class QueryLifecycle
       return execute(Maps.newHashMap());
     }
     catch (Throwable e) {
-      emitLogsAndMetrics(query, e, remoteAddress, -1, -1);
+      emitLogsAndMetrics(QueryUtils.forLog(query), e, null, -1, -1);
       throw e;
     }
-  }
-
-  /**
-   * Initializes this object to execute a specific query. Does not actually execute the query.
-   *
-   * @param query the query
-   */
-  @SuppressWarnings("unchecked")
-  public Query initialize(final Query query)
-  {
-    transition(State.NEW, State.INITIALIZED);
-    this.query = query;
-    this.toolChest = warehouse.getToolChest(query);
-    return query;
   }
 
   /**
@@ -261,16 +240,13 @@ public class QueryLifecycle
       final int rows
   )
   {
-    if (state == State.NEW) {
-      return;   // nothing to emit
-    }
     if (state == State.DONE) {
       log.warn("Tried to emit logs and metrics twice for query[%s]!", query.getId());
     }
     state = State.DONE;
 
     final boolean success = e == null || queryManager.isCanceled(query);
-    final boolean interrupted = e instanceof QueryInterruptedException || e instanceof EofException;
+    final boolean interrupted = isInterrupted(e);
 
     if (success) {
       log.debug("[%s] success", query.getId());
@@ -289,7 +265,7 @@ public class QueryLifecycle
     try {
       final long queryTimeNs = System.nanoTime() - startNs;
       QueryMetrics metrics = DruidMetrics.makeRequestMetrics(
-          queryMetricsFactory,
+          metricsFactory,
           toolChest,
           query,
           Strings.nullToEmpty(remoteAddress)
@@ -313,11 +289,7 @@ public class QueryLifecycle
       statsMap.put("success", success);
       if (e != null) {
         statsMap.put("exception", e.toString());
-
-        if (interrupted) {
-          statsMap.put("interrupted", true);
-          statsMap.put("reason", e.toString());
-        }
+        statsMap.put("interrupted", interrupted);
       }
 
       requestLogger.log(
@@ -334,7 +306,6 @@ public class QueryLifecycle
             new QueryEvent(
                 DateTimes.utc(startMs),
                 forLog.getId(),
-                forLog.getSqlQueryId(),
                 Strings.nullToEmpty(remoteAddress),
                 queryStr,
                 String.valueOf(success)
@@ -344,6 +315,14 @@ public class QueryLifecycle
     catch (Exception ex) {
       log.error(ex, "Unable to log query [%s]!", forLog);
     }
+  }
+
+  public static boolean isInterrupted(@Nullable Throwable e)
+  {
+    return e != null && (
+        e instanceof QueryInterruptedException || e instanceof InterruptedIOException ||
+        e.getCause() instanceof QueryInterruptedException || e.getCause() instanceof InterruptedIOException
+    );
   }
 
   private void transition(final State from, final State to)

@@ -22,6 +22,7 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
@@ -47,7 +48,6 @@ import io.druid.query.UnionAllQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.server.QueryLifecycleFactory;
-import io.druid.server.security.AuthenticationResult;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
@@ -64,27 +64,26 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public class QueryMaker
 {
   private static final Logger LOG = new Logger(QueryMaker.class);
 
-  private final QueryLifecycleFactory queryLifecycleFactory;
+  private final QueryLifecycleFactory lifecycleFactory;
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
   private final QueryConfig queryConfig;
   private final ObjectMapper jsonMapper;
 
   public QueryMaker(
-      final QueryLifecycleFactory queryLifecycleFactory,
+      final QueryLifecycleFactory lifecycleFactory,
       final QuerySegmentWalker segmentWalker,
       final PlannerContext plannerContext,
       final QueryConfig queryConfig,
       final ObjectMapper jsonMapper
   )
   {
-    this.queryLifecycleFactory = queryLifecycleFactory;
+    this.lifecycleFactory = lifecycleFactory;
     this.segmentWalker = segmentWalker;
     this.plannerContext = plannerContext;
     this.queryConfig = queryConfig;
@@ -121,8 +120,7 @@ public class QueryMaker
   // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
   public Query prepareQuery(Query<?> query)
   {
-    String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
-    Query prepared = QueryUtils.setQueryId(query, queryId);
+    Query prepared = QueryUtils.setQueryId(query, Preconditions.checkNotNull(query.getId()));
     prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker, queryConfig);
     prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
@@ -173,13 +171,7 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private <T> Sequence<T> runQuery(final Query query)
   {
-    final String queryId = UUID.randomUUID().toString();
-    plannerContext.addNativeQueryId(queryId);
-    Query queryWithId = query.withId(queryId)
-                 .withSqlQueryId(plannerContext.getSqlQueryId());
-
-    final AuthenticationResult authenticationResult = plannerContext.getAuthenticationResult();
-    return queryLifecycleFactory.factorize().runSimple(queryWithId, authenticationResult, null);
+    return lifecycleFactory.factorize(query).runSimple(plannerContext.getAuthenticationResult());
   }
 
   private Sequence<Object[]> executeRow(final DruidQuery druidQuery, final Query query)

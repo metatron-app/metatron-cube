@@ -19,6 +19,7 @@
 
 package io.druid.server;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
@@ -49,12 +50,12 @@ import io.druid.query.QueryUtils;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.security.Access;
-import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.ForbiddenException;
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang.mutable.MutableInt;
+import org.eclipse.jetty.io.EofException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -72,6 +73,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.util.Map;
@@ -218,8 +220,6 @@ public class QueryResource
       @Context final HttpServletRequest req // used to get request content-type, remote address and AuthorizationInfo
   ) throws IOException
   {
-    final QueryLifecycle lifecycle = queryLifecycleFactory.factorize();
-
     final String remote = req.getRemoteAddr();
     final RequestContext context = new RequestContext(req, pretty != null, Boolean.valueOf(smile));
     final String contentType = context.getContentType();
@@ -228,6 +228,8 @@ public class QueryResource
     final String currThreadName = resetThreadName(currThread);
 
     final Query query = readQuery(in, context);
+    final QueryLifecycle lifecycle = queryLifecycleFactory.factorize(query);
+
     if (log.isDebugEnabled()) {
       log.info("Got query [%s]", query);
     } else {
@@ -236,7 +238,7 @@ public class QueryResource
     try {
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
-      final Query prepared = lifecycle.initialize(prepareQuery(query));
+      final Query prepared = prepareQuery(query);
       final Access access = lifecycle.authorize(prepared, req);
       if (access != null && !access.isAllowed()) {
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
@@ -306,6 +308,9 @@ public class QueryResource
             // it's not propagated to handlings below. so do it here
             lifecycle.emitLogsAndMetrics(toLoggingQuery(query), t, remote, os.getCount(), counter.intValue());
             currThread.setName(currThreadName);
+            if (QueryLifecycle.isInterrupted(t)) {
+              throw new EofException(t.getCause()); // suppress logging in servlet cotainer (see jetty.ServletHandler)
+            }
             if (t instanceof IOException) {
               throw (IOException) t;
             }

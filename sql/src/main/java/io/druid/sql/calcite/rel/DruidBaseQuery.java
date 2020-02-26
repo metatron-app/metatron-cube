@@ -21,13 +21,10 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
@@ -35,6 +32,8 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Parser;
 import io.druid.query.DataSource;
@@ -89,7 +88,6 @@ import org.apache.calcite.util.ImmutableBitSet;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -844,9 +842,6 @@ public class DruidBaseQuery implements DruidQuery
       postAggregators.add(postAggregator);
     }
 
-    final Map<String, Object> theContext = new HashMap<>();
-    theContext.putAll(plannerContext.getQueryContext());
-
     return new TimeseriesQuery(
         dataSource,
         filtration.getQuerySegmentSpec(),
@@ -860,7 +855,7 @@ public class DruidBaseQuery implements DruidQuery
         limiting == null ? null : limiting.getLimitSpec(),
         null,
         null,
-        ImmutableSortedMap.copyOf(theContext)
+        plannerContext.copyQueryContext()
     );
   }
 
@@ -939,7 +934,7 @@ public class DruidBaseQuery implements DruidQuery
         grouping.getAggregatorFactories(),
         postAggregators,
         null,
-        ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
+        plannerContext.copyQueryContext()
     );
   }
 
@@ -994,7 +989,7 @@ public class DruidBaseQuery implements DruidQuery
         limiting == null ? null : limiting.getLimitSpec(),
         null,
         null,
-        ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
+        plannerContext.copyQueryContext()
     );
   }
 
@@ -1040,7 +1035,7 @@ public class DruidBaseQuery implements DruidQuery
         null,
         limiting == null ? null : limiting.getLimitSpec(),
         sortProject == null ? null : sortProject.getColumns(),
-        ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
+        plannerContext.copyQueryContext()
     );
   }
 }

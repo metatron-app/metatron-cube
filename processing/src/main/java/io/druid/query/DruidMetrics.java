@@ -32,7 +32,6 @@ public class DruidMetrics
   public final static String TYPE = "type";
   public final static String INTERVAL = "interval";
   public final static String ID = "id";
-  public final static String SQL_QUERY_ID = "sqlQueryId";
   public final static String TASK_ID = "taskId";
   public final static String STATUS = "status";
 

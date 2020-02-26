@@ -179,12 +179,6 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   }
 
   @Override
-  public DruidQuery toDruidQueryForExplaining()
-  {
-    return toDruidQuery(false);
-  }
-
-  @Override
   public DruidSpatialJoinRel asDruidConvention()
   {
     return new DruidSpatialJoinRel(

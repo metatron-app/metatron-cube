@@ -23,12 +23,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.server.security.AuthenticationResult;
 import io.druid.sql.SqlLifecycleFactory;
+import org.apache.calcite.avatica.Meta.StatementHandle;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -56,7 +57,7 @@ public class DruidConnection
   private final AtomicReference<Future<?>> timeoutFuture = new AtomicReference<>();
 
   @GuardedBy("statements")
-  private final Map<Integer, DruidStatement> statements;
+  private final Map<Integer, AtomicReference<DruidStatement>> statements;
 
   @GuardedBy("statements")
   private boolean open = true;
@@ -69,60 +70,120 @@ public class DruidConnection
     this.statements = new HashMap<>();
   }
 
-  public DruidStatement createStatement(SqlLifecycleFactory sqlLifecycleFactory)
+  public DruidStatement createStatement(
+      StatementHandle statementHandle,
+      String sql,
+      Map<String, Object> context,
+      AuthenticationResult authenticationResult,
+      SqlLifecycleFactory lifecycleFactory,
+      long maxRowCount
+  )
   {
-    final int statementId = statementCounter.incrementAndGet();
-
     synchronized (statements) {
-      if (statements.containsKey(statementId)) {
-        // Will only happen if statementCounter rolls over before old statements are cleaned up. If this
-        // ever happens then something fishy is going on, because we shouldn't have billions of statements.
-        throw new ISE("Uh oh, too many statements");
+      AtomicReference<DruidStatement> reference = Preconditions.checkNotNull(
+          statements.get(statementHandle.id), "closed?"
+      );
+      if (reference.get() != null) {
+        reference.get().close();
       }
-
-      if (statements.size() >= maxStatements) {
-        throw new ISE("Too many open statements, limit is[%,d]", maxStatements);
-      }
-
-      // remove sensitive fields from the context, only the connection's context needs to have authentication
-      // credentials
-      Map<String, Object> sanitizedContext = Maps.newHashMap();
-      sanitizedContext = Maps.filterEntries(
+      Preconditions.checkArgument(reference != null && reference.get() == null, "invalid state");
+      final DruidStatement statement = _createStatement(
+          sql,
           context,
-          new Predicate<Map.Entry<String, Object>>()
-          {
-            @Override
-            public boolean apply(@Nullable Map.Entry<String, Object> input)
-            {
-              return !SENSITIVE_CONTEXT_FIELDS.contains(input.getKey());
-            }
-          }
+          authenticationResult,
+          lifecycleFactory,
+          statementHandle,
+          maxRowCount
       );
+      reference.set(statement);
 
-      final DruidStatement statement = new DruidStatement(
-          connectionId,
-          statementId,
-          ImmutableSortedMap.copyOf(sanitizedContext),
-          sqlLifecycleFactory.factorize(),
-          () -> {
-            // onClose function for the statement
-            synchronized (statements) {
-              log.debug("Connection[%s] closed statement[%s].", connectionId, statementId);
-              statements.remove(statementId);
-            }
-          }
-      );
-
-      statements.put(statementId, statement);
-      log.debug("Connection[%s] opened statement[%s].", connectionId, statementId);
+      statements.put(statementHandle.id, new AtomicReference<>(statement));
+      log.debug("Connection[%s] opened statement[%s].", connectionId, statementHandle.id);
       return statement;
     }
   }
 
-  public DruidStatement getStatement(final int statementId)
+  public DruidStatement createStatement(
+      String sql,
+      Map<String, Object> context,
+      AuthenticationResult authenticationResult,
+      SqlLifecycleFactory lifecycleFactory,
+      long maxRowCount
+  )
+  {
+    final StatementHandle statementHandle = createStatementHandle();
+    synchronized (statements) {
+      final DruidStatement statement = _createStatement(
+          sql,
+          context,
+          authenticationResult,
+          lifecycleFactory,
+          statementHandle,
+          maxRowCount
+      );
+
+      statements.put(statementHandle.id, new AtomicReference<>(statement));
+      log.debug("Connection[%s] opened statement[%s].", connectionId, statementHandle.id);
+      return statement;
+    }
+  }
+
+  private DruidStatement _createStatement(
+      String sql,
+      Map<String, Object> context,
+      AuthenticationResult authenticationResult,
+      SqlLifecycleFactory lifecycleFactory,
+      StatementHandle statementHandle,
+      long maxRowCount
+  )
+  {
+    if (statements.size() >= maxStatements) {
+      throw new ISE("Too many open statements, limit is[%,d]", maxStatements);
+    }
+
+    // remove sensitive fields from the context, only the connection's context needs to have authentication
+    // credentials
+    Map<String, Object> sanitized = Maps.filterEntries(
+        context,
+        new Predicate<Map.Entry<String, Object>>()
+        {
+          @Override
+          public boolean apply(@Nullable Map.Entry<String, Object> input)
+          {
+            return !SENSITIVE_CONTEXT_FIELDS.contains(input.getKey());
+          }
+        }
+    );
+
+    return new DruidStatement(
+        connectionId,
+        statementHandle,
+        lifecycleFactory.factorize(sql, sanitized, authenticationResult),
+        () -> {
+          // onClose function for the statement
+          synchronized (statements) {
+            log.debug("Connection[%s] closed statement[%s].", connectionId, statementHandle.id);
+            statements.remove(statementHandle.id);
+          }
+        },
+        maxRowCount
+    );
+  }
+
+  public StatementHandle createStatementHandle()
+  {
+    StatementHandle handle = new StatementHandle(connectionId, statementCounter.incrementAndGet(), null);
+    synchronized (statements) {
+      statements.put(handle.id, new AtomicReference<DruidStatement>());
+    }
+    return handle;
+  }
+
+  public DruidStatement getStatement(final StatementHandle handle)
   {
     synchronized (statements) {
-      return statements.get(statementId);
+      AtomicReference<DruidStatement> statement = statements.get(handle.id);
+      return statement == null ? null : statement.get();
     }
   }
 
@@ -147,17 +208,27 @@ public class DruidConnection
   {
     synchronized (statements) {
       // Copy statements before iterating because statement.close() modifies it.
-      for (DruidStatement statement : ImmutableList.copyOf(statements.values())) {
-        try {
-          statement.close();
-        }
-        catch (Exception e) {
-          log.warn("Connection[%s] failed to close statement[%s]!", connectionId, statement.getStatementId());
+      for (AtomicReference<DruidStatement> reference : ImmutableList.copyOf(statements.values())) {
+        DruidStatement statement = reference.get();
+        if (statement != null) {
+          try {
+            statement.close();
+          }
+          catch (Exception e) {
+            log.warn("Connection[%s] failed to close statement[%s]!", connectionId, statement.getStatementHandle());
+          }
         }
       }
 
       log.debug("Connection[%s] closed.", connectionId);
       open = false;
+    }
+  }
+
+  public boolean isOpen()
+  {
+    synchronized (statements) {
+      return open;
     }
   }
 

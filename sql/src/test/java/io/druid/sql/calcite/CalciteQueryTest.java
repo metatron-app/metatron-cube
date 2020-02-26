@@ -125,6 +125,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static io.druid.sql.calcite.util.CalciteTests.FORBIDDEN_DATASOURCE;
 

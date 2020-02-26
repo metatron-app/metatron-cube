@@ -31,11 +31,13 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
+import io.druid.server.security.Access;
+import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycle;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
-import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.planner.PlannerResult;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -67,16 +69,16 @@ public class SqlResource
   private static final Logger log = new Logger(SqlResource.class);
 
   private final ObjectMapper jsonMapper;
-  private final SqlLifecycleFactory sqlLifecycleFactory;
+  private final SqlLifecycleFactory lifecycleFactory;
 
   @Inject
   public SqlResource(
       @Json ObjectMapper jsonMapper,
-      SqlLifecycleFactory sqlLifecycleFactory
+      SqlLifecycleFactory lifecycleFactory
   )
   {
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "jsonMapper");
-    this.sqlLifecycleFactory = Preconditions.checkNotNull(sqlLifecycleFactory, "sqlLifecycleFactory");
+    this.lifecycleFactory = Preconditions.checkNotNull(lifecycleFactory, "sqlLifecycleFactory");
   }
 
   @POST
@@ -118,26 +120,28 @@ public class SqlResource
       final HttpServletRequest req
   ) throws SQLException, IOException
   {
-    final DateTimeZone timeZone;
-
-    final Map<String, Object> context = sqlQuery.getContext();
-    final SqlLifecycle lifecycle = sqlLifecycleFactory.factorize();
-    final String sqlQueryId = lifecycle.initialize(sqlQuery.getQuery(), sqlQuery.getContext());
     final String remoteAddr = req.getRemoteAddr();
+
+    final SqlLifecycle lifecycle = lifecycleFactory.factorize(
+        sqlQuery.getQuery(), sqlQuery.getContext(), AuthorizationUtils.authenticationResultFromRequest(req)
+    );
+    final DateTimeZone timeZone = lifecycle.getPlannerContext().getTimeZone();
 
     final Thread currThread = Thread.currentThread();
     final String currThreadName = resetThreadName(currThread);
 
     final String query = sqlQuery.getQuery();
     try {
-      currThread.setName(String.format("%s[sql_%s]", currThreadName, sqlQueryId));
+      currThread.setName(String.format("%s[sql_%s]", currThreadName, lifecycle.getQueryId()));
 
-      final PlannerContext plannerContext = lifecycle.planAndAuthorize(req);
-      timeZone = plannerContext.getTimeZone();
-
+      PlannerResult result = lifecycle.plan();
+      Access access = lifecycle.authorize(req);
+      if (!access.isAllowed()) {
+        throw new ForbiddenException(access.toString());
+      }
       // Remember which columns are time-typed, so we can emit ISO8601 instead of millis values.
       // Also store list of all column names, for X-Druid-Sql-Columns header.
-      final List<RelDataTypeField> fieldList = lifecycle.rowType().getFieldList();
+      final List<RelDataTypeField> fieldList = result.rowType().getFieldList();
       final boolean[] timeColumns = new boolean[fieldList.size()];
       final boolean[] dateColumns = new boolean[fieldList.size()];
       final String[] columnNames = new String[fieldList.size()];
@@ -199,13 +203,13 @@ public class SqlResource
                   writer.writeResponseEnd();
                 }
                 catch (Exception ex) {
-                  log.error(ex, "Unable to send sql response [%s]", sqlQueryId);
+                  log.error(ex, "Unable to send sql response [%s]", lifecycle.getQueryId());
                   throw Throwables.propagate(ex);
                 }
                 finally {
                   yielder.close();
                 }
-                lifecycle.emitLogsAndMetrics(query, e, remoteAddr, os.getCount(), counter.intValue());
+                lifecycle.emitLogsAndMetrics(e, remoteAddr, os.getCount(), counter.intValue());
                 currThread.setName(currThreadName);
               }
             }
@@ -221,8 +225,8 @@ public class SqlResource
       throw e; // let ForbiddenExceptionMapper handle this
     }
     catch (Throwable e) {
-      log.warn(e, "Failed to handle query: %s %s", query, context);
-      lifecycle.emitLogsAndMetrics(query, e, remoteAddr, -1, -1);
+      log.warn(e, "Failed to handle query: %s %s", query, sqlQuery.getContext());
+      lifecycle.emitLogsAndMetrics(e, remoteAddr, -1, -1);
       currThread.setName(currThreadName);
       final Throwable exceptionToReport;
 

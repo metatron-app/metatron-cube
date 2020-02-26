@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -63,7 +64,7 @@ public class DruidMeta extends MetaImpl
 {
   private static final Logger log = new Logger(DruidMeta.class);
 
-  private final SqlLifecycleFactory sqlLifecycleFactory;
+  private final SqlLifecycleFactory lifecycleFactory;
   private final ScheduledExecutorService exec;
   private final AvaticaServerConfig config;
   private final List<Authenticator> authenticators;
@@ -79,13 +80,13 @@ public class DruidMeta extends MetaImpl
 
   @Inject
   public DruidMeta(
-      final SqlLifecycleFactory sqlLifecycleFactory,
+      final SqlLifecycleFactory lifecycleFactory,
       final AvaticaServerConfig config,
       final Injector injector
   )
   {
     super(null);
-    this.sqlLifecycleFactory = Preconditions.checkNotNull(sqlLifecycleFactory, "sqlLifecycleFactory");
+    this.lifecycleFactory = Preconditions.checkNotNull(lifecycleFactory, "sqlLifecycleFactory");
     this.config = config;
     this.exec = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder()
@@ -130,32 +131,22 @@ public class DruidMeta extends MetaImpl
   @Override
   public StatementHandle createStatement(final ConnectionHandle ch)
   {
-    final DruidStatement druidStatement = getDruidConnection(ch.id).createStatement(sqlLifecycleFactory);
-    return new StatementHandle(ch.id, druidStatement.getStatementId(), null);
+    return getDruidConnection(ch.id).createStatementHandle();
   }
 
   @Override
-  public StatementHandle prepare(
-      final ConnectionHandle ch,
-      final String sql,
-      final long maxRowCount
-  )
+  public StatementHandle prepare(final ConnectionHandle ch, final String sql, final long maxRowCount)
   {
-    final StatementHandle statement = createStatement(ch);
-    final DruidStatement druidStatement;
-    try {
-      druidStatement = getDruidStatement(statement);
-    }
-    catch (NoSuchStatementException e) {
-      throw new IllegalStateException(e);
-    }
-    final DruidConnection druidConnection = getDruidConnection(statement.connectionId);
+    final DruidConnection druidConnection = getDruidConnection(ch.id);
     final AuthenticationResult authenticationResult = authenticateConnection(druidConnection);
     if (authenticationResult == null) {
       throw new ForbiddenException("Authentication failed.");
     }
-    statement.signature = druidStatement.prepare(sql, maxRowCount, authenticationResult).getSignature();
-    return statement;
+    final DruidStatement druidStatement = druidConnection.createStatement(
+        sql, Maps.newHashMap(), authenticationResult, lifecycleFactory, maxRowCount
+    );
+    druidStatement.prepare();
+    return druidStatement.getStatementHandle();
   }
 
   @Deprecated
@@ -180,14 +171,15 @@ public class DruidMeta extends MetaImpl
       final PrepareCallback callback
   ) throws NoSuchStatementException
   {
-    // Ignore "callback", this class is designed for use with LocalService which doesn't use it.
-    final DruidStatement druidStatement = getDruidStatement(statement);
-    final DruidConnection druidConnection = getDruidConnection(statement.connectionId);
+    DruidConnection druidConnection = getDruidConnection(statement.connectionId);
     AuthenticationResult authenticationResult = authenticateConnection(druidConnection);
     if (authenticationResult == null) {
       throw new ForbiddenException("Authentication failed.");
     }
-    final Signature signature = druidStatement.prepare(sql, maxRowCount, authenticationResult).getSignature();
+    DruidStatement druidStatement = druidConnection.createStatement(
+        statement, sql, Maps.newHashMap(), authenticationResult, lifecycleFactory, maxRowCount
+    );
+    final Signature signature = druidStatement.prepare().getSignature();
     final Frame firstFrame = druidStatement.execute()
                                            .nextFrame(
                                                DruidStatement.START_OFFSET,
@@ -298,7 +290,7 @@ public class DruidMeta extends MetaImpl
     // connections.get, not getDruidConnection, since we want to silently ignore nonexistent statements
     final DruidConnection druidConnection = connections.get(h.connectionId);
     if (druidConnection != null) {
-      final DruidStatement druidStatement = druidConnection.getStatement(h.id);
+      final DruidStatement druidStatement = druidConnection.getStatement(h);
       if (druidStatement != null) {
         druidStatement.close();
       }
@@ -601,7 +593,7 @@ public class DruidMeta extends MetaImpl
   private DruidStatement getDruidStatement(final StatementHandle statement) throws NoSuchStatementException
   {
     final DruidConnection connection = getDruidConnection(statement.connectionId);
-    final DruidStatement druidStatement = connection.getStatement(statement.id);
+    final DruidStatement druidStatement = connection.getStatement(statement);
     if (druidStatement == null) {
       throw new NoSuchStatementException(statement);
     }

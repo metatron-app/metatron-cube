@@ -135,7 +135,8 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
       @Override
       public Query getQuery()
       {
-        return UnionAllQuery.union(queries, limit);
+        return UnionAllQuery.union(queries, limit)
+                            .withOverriddenContext(getPlannerContext().copyQueryContext());
       }
     };
   }

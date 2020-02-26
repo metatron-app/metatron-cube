@@ -20,10 +20,10 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.Query;
 import io.druid.server.QueryManager;
 import io.druid.server.security.AuthenticationResult;
 import org.apache.calcite.DataContext;
@@ -34,10 +34,9 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Like {@link PlannerConfig}, but that has static configuration and this class contains dynamic, per-query
@@ -46,7 +45,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class PlannerContext
 {
   // query context keys
-  public static final String CTX_SQL_QUERY_ID = "sqlQueryId";
   public static final String CTX_SQL_CURRENT_TIMESTAMP = "sqlCurrentTimestamp";
   public static final String CTX_SQL_TIME_ZONE = "sqlTimeZone";
 
@@ -54,11 +52,8 @@ public class PlannerContext
   private final DruidOperatorTable operatorTable;
   private final PlannerConfig plannerConfig;
   private final DateTime localNow;
-  private final long queryStartTimeMillis;
   private final Map<String, Object> queryContext;
   private final AuthenticationResult authenticationResult;
-  private final String sqlQueryId;
-  private final List<String> nativeQueryIds = new CopyOnWriteArrayList<>();
 
   private PlannerContext(
       final QueryManager queryManager,
@@ -74,16 +69,8 @@ public class PlannerContext
     this.plannerConfig = Preconditions.checkNotNull(plannerConfig, "plannerConfig");
     this.queryContext = queryContext != null ? Maps.newHashMap(queryContext) : Maps.newHashMap();
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
-    this.queryStartTimeMillis = System.currentTimeMillis();
     this.authenticationResult = authenticationResult;
     this.queryContext.put(BaseAggregationQuery.SORT_ON_TIME, false);
-
-    String sqlQueryId = (String) this.queryContext.get(CTX_SQL_QUERY_ID);
-    // special handling for DruidViewMacro, normal client will allocate sqlid in SqlLifecyle
-    if (Strings.isNullOrEmpty(sqlQueryId)) {
-      sqlQueryId = UUID.randomUUID().toString();
-    }
-    this.sqlQueryId = sqlQueryId;
   }
 
   public static PlannerContext create(
@@ -94,34 +81,34 @@ public class PlannerContext
       final AuthenticationResult authenticationResult
   )
   {
-    final DateTimeZone timeZone;
-    final DateTime utcNow;
-
+    Map<String, Object> context = new HashMap<>();
     if (queryContext != null) {
-      final Object tzParam = queryContext.get(CTX_SQL_TIME_ZONE);
-      if (tzParam != null) {
-        timeZone = DateTimeZone.forID(String.valueOf(tzParam));
-      } else {
-        timeZone = DateTimeZone.UTC;
-      }
+      context.putAll(queryContext);
+    }
+    context.computeIfAbsent(Query.QUERYID, k -> UUID.randomUUID().toString());
 
-      final Object tsParam = queryContext.get(CTX_SQL_CURRENT_TIMESTAMP);
-      if (tsParam != null) {
-        utcNow = new DateTime(tsParam, timeZone);
-      } else {
-        utcNow = new DateTime(timeZone);
-      }
+    final DateTimeZone timeZone;
+    final Object tzParam = context.get(CTX_SQL_TIME_ZONE);
+    if (tzParam != null) {
+      timeZone = DateTimeZone.forID(String.valueOf(tzParam));
     } else {
       timeZone = DateTimeZone.UTC;
-      utcNow = new DateTime(timeZone);
+    }
+
+    final DateTime utcNow;
+    final Object tsParam = context.get(CTX_SQL_CURRENT_TIMESTAMP);
+    if (tsParam != null) {
+      utcNow = new DateTime(tsParam, timeZone);
+    } else {
+      utcNow = DateTime.now(timeZone);
     }
 
     return new PlannerContext(
         queryManager,
         operatorTable,
-        plannerConfig.withOverrides(queryContext),
+        plannerConfig.withOverrides(context),
         utcNow.withZone(timeZone),
-        queryContext,
+        context,
         authenticationResult
     );
   }
@@ -156,29 +143,14 @@ public class PlannerContext
     return queryContext;
   }
 
+  public Map<String, Object> copyQueryContext()
+  {
+    return ImmutableMap.copyOf(queryContext);
+  }
+
   public AuthenticationResult getAuthenticationResult()
   {
     return authenticationResult;
-  }
-
-  public String getSqlQueryId()
-  {
-    return sqlQueryId;
-  }
-
-  public List<String> getNativeQueryIds()
-  {
-    return nativeQueryIds;
-  }
-
-  public void addNativeQueryId(String queryId)
-  {
-    this.nativeQueryIds.add(queryId);
-  }
-
-  public long getQueryStartTimeMillis()
-  {
-    return queryStartTimeMillis;
   }
 
   public DataContext createDataContext(final JavaTypeFactory typeFactory)
@@ -214,7 +186,7 @@ public class PlannerContext
       }
 
       @Override
-      public Object get(final String name)
+      public Object get(String name)
       {
         return context.get(name);
       }

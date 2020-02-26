@@ -142,6 +142,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         .dataSource(leftAlias, QueryDataSource.of(leftDruid))
         .dataSource(rightAlias, QueryDataSource.of(rightDruid))
         .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
+        .context(getPlannerContext().copyQueryContext())
         .asArray(true)
         .build();
 
@@ -170,12 +171,6 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   private String toAlias(Query query)
   {
     return StringUtils.join(query.getDataSource().getNames(), '+');
-  }
-
-  @Override
-  public DruidQuery toDruidQueryForExplaining()
-  {
-    return toDruidQuery(false);
   }
 
   @Override

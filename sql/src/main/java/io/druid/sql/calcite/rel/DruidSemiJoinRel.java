@@ -19,14 +19,13 @@
 
 package io.druid.sql.calcite.rel;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Accumulator;
 import io.druid.common.ResourceLimitExceededException;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Accumulator;
 import io.druid.sql.calcite.Utils;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -226,18 +225,10 @@ public class DruidSemiJoinRel extends DruidRel<DruidSemiJoinRel>
   @Override
   public RelWriter explainTerms(RelWriter pw)
   {
-    final String queryString;
-
-    try {
-      queryString = getQueryMaker().getJsonMapper().writeValueAsString(toDruidQueryForExplaining().getQuery());
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-
+    DruidQuery query = toDruidQueryForExplaining();
     return super.explainTerms(pw)
                 .input("right", right)
-                .item("query", queryString)
+                .item("query", toExplainString(query))
                 .item("leftExpressions", leftExpressions)
                 .item("rightKeys", rightKeys);
   }

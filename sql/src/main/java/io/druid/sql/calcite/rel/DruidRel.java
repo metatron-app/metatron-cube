@@ -19,10 +19,13 @@
 
 package io.druid.sql.calcite.rel;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.BaseQuery;
+import io.druid.query.Query;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.interpreter.BindableRel;
@@ -141,7 +144,10 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
    *
    * @throws CannotBuildQueryException
    */
-  public abstract DruidQuery toDruidQueryForExplaining();
+  public DruidQuery toDruidQueryForExplaining()
+  {
+    return toDruidQuery(false);
+  }
 
   public QueryMaker getQueryMaker()
   {
@@ -193,5 +199,16 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
   public Enumerable<Object[]> bind(final DataContext dataContext)
   {
     throw new UnsupportedOperationException();
+  }
+
+  protected String toExplainString(DruidQuery druidQuery)
+  {
+    Query query = druidQuery.getQuery().withOverriddenContext(BaseQuery.contextRemover(Query.QUERYID));
+    try {
+      return getObjectMapper().writeValueAsString(query);
+    }
+    catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

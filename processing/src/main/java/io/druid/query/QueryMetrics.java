@@ -23,8 +23,6 @@ import io.druid.granularity.Granularity;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import org.joda.time.Interval;
 
-import java.util.Map;
-
 /**
  * Abstraction wrapping {@link com.metamx.emitter.service.ServiceMetricEvent.Builder} and allowing to control what
  * metrics are actually emitted, what dimensions do they have, etc.
@@ -177,11 +175,6 @@ public interface QueryMetrics<QueryType extends Query<?>>
    * Sets {@link Query#getId()} of the given query as dimension.
    */
   void queryId(QueryType query);
-
-  /**
-   * Sets {@link Query#getSqlQueryId()} of the given query as dimension
-   */
-  void sqlQueryId(QueryType query);
 
   /**
    * Sets {@link Query#getContext()} of the given query as dimension.

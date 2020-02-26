@@ -19,22 +19,24 @@
 
 package io.druid.sql.avatica;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.ISE;
 import io.druid.common.Yielders;
 import io.druid.common.utils.StringUtils;
+import io.druid.concurrent.Execs;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
-import io.druid.concurrent.Execs;
-import io.druid.server.security.AuthenticationResult;
+import io.druid.server.security.Access;
 import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycle;
+import io.druid.sql.calcite.planner.PlannerResult;
 import io.druid.sql.calcite.rel.QueryMaker;
 import org.apache.calcite.avatica.ColumnMetaData;
 import org.apache.calcite.avatica.Meta;
+import org.apache.calcite.avatica.Meta.StatementHandle;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 
@@ -43,7 +45,6 @@ import java.io.Closeable;
 import java.sql.DatabaseMetaData;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -62,10 +63,11 @@ public class DruidStatement implements Closeable
   }
 
   private final String connectionId;
-  private final int statementId;
-  private final Map<String, Object> queryContext;
-  private final SqlLifecycle sqlLifecycle;
+  private final StatementHandle handle;
+  private final SqlLifecycle lifecycle;
   private final Runnable onClose;
+  private final long maxRowCount;
+
   private final Object lock = new Object();
 
   /**
@@ -86,8 +88,6 @@ public class DruidStatement implements Closeable
   private final ExecutorService yielderOpenCloseExecutor;
 
   private State state = State.NEW;
-  private String query;
-  private long maxRowCount;
   private Meta.Signature signature;
   private Yielder<Object[]> yielder;
   private int offset = 0;
@@ -95,20 +95,26 @@ public class DruidStatement implements Closeable
 
   public DruidStatement(
       final String connectionId,
-      final int statementId,
-      final Map<String, Object> queryContext,
-      final SqlLifecycle sqlLifecycle,
-      final Runnable onClose
+      final StatementHandle handle,
+      final SqlLifecycle lifecycle,
+      final Runnable onClose,
+      final long maxRowCount
   )
   {
     this.connectionId = Preconditions.checkNotNull(connectionId, "connectionId");
-    this.statementId = statementId;
-    this.queryContext = queryContext == null ? ImmutableMap.of() : queryContext;
-    this.sqlLifecycle = Preconditions.checkNotNull(sqlLifecycle, "sqlLifecycle");
+    this.handle = handle;
+    this.lifecycle = Preconditions.checkNotNull(lifecycle, "sqlLifecycle");
     this.onClose = Preconditions.checkNotNull(onClose, "onClose");
     this.yielderOpenCloseExecutor = Execs.singleThreaded(
-        StringUtils.format("JDBCYielderOpenCloseExecutor-connection-%s-statement-%d", connectionId, statementId)
+        StringUtils.format("JDBCYielderOpenCloseExecutor-connection-%s-statement-%d", connectionId, handle.id)
     );
+    this.maxRowCount = maxRowCount;
+  }
+
+  @VisibleForTesting
+  DruidStatement(final String connectionId, final StatementHandle handle, final SqlLifecycle lifecycle)
+  {
+    this(connectionId, handle, lifecycle, () -> { }, -1);
   }
 
   public static List<ColumnMetaData> createColumnMetaData(final RelDataType rowType)
@@ -155,22 +161,19 @@ public class DruidStatement implements Closeable
     return columns;
   }
 
-  public DruidStatement prepare(
-      final String query,
-      final long maxRowCount,
-      final AuthenticationResult authenticationResult
-  )
+  public DruidStatement prepare()
   {
     synchronized (lock) {
       try {
         ensure(State.NEW);
-        sqlLifecycle.initialize(query, queryContext);
-        sqlLifecycle.planAndAuthorize(authenticationResult);
-        this.maxRowCount = maxRowCount;
-        this.query = query;
-        this.signature = Meta.Signature.create(
-            createColumnMetaData(sqlLifecycle.rowType()),
-            query,
+        PlannerResult result = lifecycle.plan();
+        Access access = lifecycle.authorize();
+        if (!access.isAllowed()) {
+          throw new ForbiddenException(access.toString());
+        }
+        signature = Meta.Signature.create(
+            createColumnMetaData(result.rowType()),
+            lifecycle.getSQL(),
             new ArrayList<>(),
             Meta.CursorFactory.ARRAY,
             Meta.StatementType.SELECT // We only support SELECT
@@ -198,9 +201,7 @@ public class DruidStatement implements Closeable
       ensure(State.PREPARED);
 
       try {
-        final Sequence<Object[]> baseSequence = yielderOpenCloseExecutor.submit(
-            () -> sqlLifecycle.execute()
-        ).get();
+        final Sequence<Object[]> baseSequence = yielderOpenCloseExecutor.submit(() -> lifecycle.execute()).get();
 
         // We can't apply limits greater than Integer.MAX_VALUE, ignore them.
         final Sequence<Object[]> retSequence =
@@ -231,17 +232,9 @@ public class DruidStatement implements Closeable
     return connectionId;
   }
 
-  public int getStatementId()
+  public StatementHandle getStatementHandle()
   {
-    return statementId;
-  }
-
-  public String getQuery()
-  {
-    synchronized (lock) {
-      ensure(State.PREPARED, State.RUNNING, State.DONE);
-      return query;
-    }
+    return handle;
   }
 
   public Meta.Signature getSignature()
@@ -249,14 +242,6 @@ public class DruidStatement implements Closeable
     synchronized (lock) {
       ensure(State.PREPARED, State.RUNNING, State.DONE);
       return signature;
-    }
-  }
-
-  public RelDataType getRowType()
-  {
-    synchronized (lock) {
-      ensure(State.PREPARED, State.RUNNING, State.DONE);
-      return sqlLifecycle.rowType();
     }
   }
 
@@ -313,6 +298,9 @@ public class DruidStatement implements Closeable
   public void close()
   {
     synchronized (lock) {
+      if (state == State.DONE) {
+        return;
+      }
       final State oldState = state;
       state = State.DONE;
 
@@ -332,33 +320,21 @@ public class DruidStatement implements Closeable
 
           yielderOpenCloseExecutor.shutdownNow();
         }
+        if (!(throwable instanceof ForbiddenException)) {
+          lifecycle.emitLogsAndMetrics(throwable, null, -1, offset);
+        }
       }
       catch (Throwable t) {
-        if (oldState != State.DONE) {
-          // First close. Run the onClose function.
-          try {
-            onClose.run();
-            sqlLifecycle.emitLogsAndMetrics(query, t, null, -1, -1);
-          }
-          catch (Throwable t1) {
-            t.addSuppressed(t1);
-          }
+        try {
+          lifecycle.emitLogsAndMetrics(t, null, -1, offset);
         }
-
+        catch (Throwable t1) {
+          t.addSuppressed(t1);
+        }
         throw Throwables.propagate(t);
       }
-
-      if (oldState != State.DONE) {
-        // First close. Run the onClose function.
-        try {
-          if (!(this.throwable instanceof ForbiddenException)) {
-            sqlLifecycle.emitLogsAndMetrics(query, this.throwable, null, -1, -1);
-          }
-          onClose.run();
-        }
-        catch (Throwable t) {
-          throw Throwables.propagate(t);
-        }
+      finally {
+        onClose.run();
       }
     }
   }

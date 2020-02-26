@@ -24,6 +24,7 @@ import com.google.inject.Inject;
 import io.druid.guice.LazySingleton;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.server.log.RequestLogger;
@@ -63,9 +64,10 @@ public class QueryLifecycleFactory
     this.authorizerMapper = authorizerMapper;
   }
 
-  public QueryLifecycle factorize()
+  public QueryLifecycle factorize(Query<?> query)
   {
     return new QueryLifecycle(
+        query,
         queryManager,
         warehouse,
         texasRanger,

@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.rel;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Preconditions;
 import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.Convention;
@@ -94,12 +93,6 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
   }
 
   @Override
-  public DruidQuery toDruidQueryForExplaining()
-  {
-    return toDruidQuery(false);
-  }
-
-  @Override
   public DruidQueryRel asDruidConvention()
   {
     return new DruidQueryRel(
@@ -156,20 +149,12 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
   }
 
   @Override
-  public RelWriter explainTerms(final RelWriter pw)
+  public RelWriter explainTerms(RelWriter pw)
   {
-    final String queryString;
-    final DruidQuery druidQuery = toDruidQueryForExplaining();
-
-    try {
-      queryString = getQueryMaker().getJsonMapper().writeValueAsString(druidQuery.getQuery());
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-
-    return pw.item("query", queryString)
-             .item("signature", druidQuery.getOutputRowSignature());
+    DruidQuery druidQuery = toDruidQueryForExplaining();
+    return super.explainTerms(pw)
+                .item("query", toExplainString(druidQuery))
+                .item("signature", druidQuery.getOutputRowSignature());
   }
 
   @Override
