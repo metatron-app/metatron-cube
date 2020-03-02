@@ -19,18 +19,18 @@
 
 package io.druid.sql.calcite.table;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
-import io.druid.math.expr.ExprType;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import io.druid.sql.calcite.expression.SimpleExtraction;
@@ -47,13 +47,14 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Type signature for a row in a Druid dataSource ("DruidTable") or query result. Rows have an ordering and every
  * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
  * well defined types) but we do impose types for the SQL layer.
  */
-public class RowSignature implements TypeResolver
+public class RowSignature implements io.druid.query.RowSignature
 {
   private final Map<String, ValueDesc> columnTypes;
   private final List<String> columnNames;
@@ -78,20 +79,10 @@ public class RowSignature implements TypeResolver
     this.columnNames = columnNamesBuilder.build();
   }
 
-  public static RowSignature from(final List<String> rowOrder, final List<ValueDesc> rowType)
-  {
-    return new RowSignature(GuavaUtils.zip(rowOrder, rowType));
-  }
-
   public static RowSignature from(final RelDataType rowType)
   {
-    return from(rowType.getFieldList());
-  }
-
-  public static RowSignature from(final Iterable<RelDataTypeField> fieldList)
-  {
     final Builder rowSignatureBuilder = builder();
-    for (RelDataTypeField field : fieldList) {
+    for (RelDataTypeField field : rowType.getFieldList()) {
       final String columnName = field.getName();
       final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
       final ValueDesc valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
@@ -236,24 +227,7 @@ public class RowSignature implements TypeResolver
     return builder.build();
   }
 
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    RowSignature that = (RowSignature) o;
-
-    if (columnTypes != null ? !columnTypes.equals(that.columnTypes) : that.columnTypes != null) {
-      return false;
-    }
-    return columnNames != null ? columnNames.equals(that.columnNames) : that.columnNames == null;
-  }
-
+  // todo remove this
   public io.druid.query.RowSignature asSchema()
   {
     List<String> newColumnNames = Lists.newArrayList();
@@ -272,26 +246,53 @@ public class RowSignature implements TypeResolver
     return new io.druid.query.RowSignature.Simple(newColumnNames, newColumnTypes);
   }
 
-  public String asTypeString()
+  @Override
+  public List<String> getColumnNames()
   {
-    final StringBuilder s = new StringBuilder();
-    for (int i = 0; i < columnNames.size(); i++) {
-      if (i > 0) {
-        s.append(',');
+    return columnNames;
+  }
+
+  @Override
+  public List<ValueDesc> getColumnTypes()
+  {
+    return Lists.newArrayList(Iterables.transform(columnNames, new Function<String, ValueDesc>()
+    {
+      @Override
+      public ValueDesc apply(String input)
+      {
+        return resolve(input, ValueDesc.UNKNOWN);
       }
-      final String columnName = columnNames.get(i);
-      final ValueDesc columnType = columnTypes.getOrDefault(columnName, ValueDesc.UNKNOWN);
-      s.append(columnName).append(':').append(ExprType.toTypeString(columnType));
-    }
-    return s.toString();
+    }));
+  }
+
+  @Override
+  public int size()
+  {
+    return columnNames.size();
   }
 
   @Override
   public int hashCode()
   {
-    int result = columnTypes != null ? columnTypes.hashCode() : 0;
-    result = 31 * result + (columnNames != null ? columnNames.hashCode() : 0);
-    return result;
+    return Objects.hash(columnNames, columnTypes);
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    RowSignature that = (RowSignature) o;
+
+    if (!Objects.equals(columnTypes, that.columnTypes)) {
+      return false;
+    }
+    return Objects.equals(columnNames, that.columnNames);
   }
 
   @Override
@@ -314,19 +315,12 @@ public class RowSignature implements TypeResolver
     return columnTypes.get(column);
   }
 
-  @Override
-  public ValueDesc resolve(String column, ValueDesc defaultType)
+  public RowSignature replaceColumnNames(List<String> newColumnNames)
   {
-    final ValueDesc resolved = resolve(column);
-    return resolved != null ? resolved : defaultType;
-  }
-
-  public RowSignature replaceColumnNames(List<String> fieldNames)
-  {
-    Preconditions.checkArgument(columnNames.size() == fieldNames.size(), "inconsistent");
+    Preconditions.checkArgument(columnNames.size() == newColumnNames.size(), "inconsistent");
     Builder builder = new Builder();
-    for (int i = 0; i < fieldNames.size(); i++) {
-      builder.add(fieldNames.get(i), columnTypes.getOrDefault(columnNames.get(i), ValueDesc.UNKNOWN));
+    for (int i = 0; i < newColumnNames.size(); i++) {
+      builder.add(newColumnNames.get(i), resolve(columnNames.get(i), ValueDesc.UNKNOWN));
     }
     return builder.build();
   }

@@ -507,6 +507,7 @@ public class HdfsStorageHandler implements StorageHandler
     parameter.put("outputPath", dataFile.toString());
     parameter.put("inputColumns", result.getInputColumns());
     parameter.put("typeString", result.getTypeString());
+    parameter.put("geomColumn", context.get("geomColumn"));     // todo
     final Formatter formatter = jsonMapper.convertValue(parameter, Formatter.class);
     if (formatter != null) {
       return Formatters.wrapToExporter(formatter);

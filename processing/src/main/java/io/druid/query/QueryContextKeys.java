@@ -88,6 +88,7 @@ public interface QueryContextKeys
 
   // generic
   public static final String MAX_RESULTS = "maxResults";
+  public static final String DECORATOR_CONTEXT = "decoratorContext";
 
   public static final List<String> FOR_META = Arrays.asList(
       QUERYID,

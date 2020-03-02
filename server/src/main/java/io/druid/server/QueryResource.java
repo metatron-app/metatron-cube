@@ -19,9 +19,13 @@
 
 package io.druid.server;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleSerializers;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -29,8 +33,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
+import io.druid.data.output.OutputDecorator;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
@@ -40,6 +47,7 @@ import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
@@ -73,7 +81,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.util.Map;
@@ -91,6 +98,7 @@ public class QueryResource
   protected static final EmittingLogger log = new EmittingLogger(QueryResource.class);
   @Deprecated // use SmileMediaTypes.APPLICATION_JACKSON_SMILE
   protected static final String APPLICATION_SMILE = "application/smile";
+  protected static final String GET_FEATURE = "GetFeature";
 
   protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7 * 1024;
 
@@ -283,8 +291,12 @@ public class QueryResource
           }
       );
 
+      OutputDecorator decorator = null;
+      if (context.request.getAttribute(GET_FEATURE) != null) {
+        decorator = jsonMapper.convertValue(BaseQuery.removeDecoratorContext(prepared), OutputDecorator.class);
+      }
       final ObjectWriter jsonWriter = context.getOutputWriter(
-          prepared.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
+          prepared.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false), decorator
       );
 
       final StreamingOutput output = new StreamingOutput()
@@ -349,7 +361,7 @@ public class QueryResource
     }
   }
 
-  private Query readQuery(InputStream in, RequestContext context) throws IOException
+  protected Query readQuery(InputStream in, RequestContext context) throws IOException
   {
     Query query = context.getInputMapper(false).readValue(in, Query.class);
     Map<String, Object> adding = Maps.newHashMap();
@@ -399,6 +411,7 @@ public class QueryResource
     final boolean isPretty;
     final boolean isSmileOut;
     final String contentType;
+    final HttpServletRequest request;
 
     RequestContext(HttpServletRequest request, boolean pretty)
     {
@@ -413,6 +426,7 @@ public class QueryResource
       isPretty = pretty;
       isSmileOut = smileOut;
       contentType = isSmile ? SmileMediaTypes.APPLICATION_JACKSON_SMILE : MediaType.APPLICATION_JSON;
+      this.request = request;
     }
 
     String getContentType()
@@ -427,7 +441,7 @@ public class QueryResource
              isSmile ? smileMapper : jsonMapper;
     }
 
-    ObjectWriter getOutputWriter(boolean useCustomSerdeForDateTime)
+    ObjectWriter getOutputWriter(final boolean useCustomSerdeForDateTime, final OutputDecorator decorator)
     {
       ObjectMapper mapper;
       if (isSmileOut) {
@@ -435,12 +449,40 @@ public class QueryResource
       } else {
         mapper = getInputMapper(useCustomSerdeForDateTime);
       }
+      if (decorator != null) {
+        ObjectMapper copy = mapper.copy();
+        SimpleSerializers serializers = new SimpleSerializers();
+        serializers.addSerializer(Yielder.class, new JsonSerializer<Yielder>()
+        {
+          @Override
+          public void serialize(Yielder yielder, JsonGenerator jgen, SerializerProvider provider)
+              throws IOException, JsonProcessingException
+          {
+            try {
+              decorator.start(jgen, provider);
+              for (;!yielder.isDone(); yielder = yielder.next(null)) {
+                decorator.serialize(jgen, provider, yielder.get());
+              }
+              decorator.end(jgen, provider);
+            }
+            finally {
+              yielder.close();
+            }
+          }
+        });
+        mapper = copy.setSerializerFactory(mapper.getSerializerFactory().withAdditionalSerializers(serializers));
+      }
       return isPretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
+    }
+
+    ObjectWriter getOutputWriter()
+    {
+      return getOutputWriter(false, null);
     }
 
     Response ok(Object object) throws IOException
     {
-      return Response.ok(getOutputWriter(false).writeValueAsString(object), contentType).build();
+      return Response.ok(getOutputWriter().writeValueAsString(object), contentType).build();
     }
 
     Response gotError(Throwable e) throws IOException
@@ -448,7 +490,7 @@ public class QueryResource
       return Response.serverError()
                      .type(contentType)
                      .entity(
-                         getOutputWriter(false).writeValueAsBytes(
+                         getOutputWriter().writeValueAsBytes(
                              QueryInterruptedException.wrapIfNeeded(e, node.getHostAndPort(), node.getServiceName())
                          )
                      )

@@ -22,15 +22,13 @@ package io.druid.sql.http;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.List;
 
 public class ObjectWriter implements ResultFormat.Writer
 {
-  private final JsonGenerator jsonGenerator;
-  private final OutputStream outputStream;
+  final JsonGenerator jsonGenerator;
+  final OutputStream outputStream;
 
   public ObjectWriter(final OutputStream outputStream, final ObjectMapper jsonMapper) throws IOException
   {
@@ -39,50 +37,37 @@ public class ObjectWriter implements ResultFormat.Writer
   }
 
   @Override
-  public void writeResponseStart() throws IOException
+  public void start() throws IOException
   {
     jsonGenerator.writeStartArray();
   }
 
   @Override
-  public void writeResponseEnd() throws IOException
-  {
-    jsonGenerator.writeEndArray();
-
-    // End with LF.
-    jsonGenerator.flush();
-    outputStream.write('\n');
-  }
-
-  @Override
-  public void writeHeader(final List<String> columnNames) throws IOException
+  public void writeHeader(final String[] columnNames) throws IOException
   {
     jsonGenerator.writeStartObject();
-
     for (String columnName : columnNames) {
       jsonGenerator.writeNullField(columnName);
     }
-
     jsonGenerator.writeEndObject();
   }
 
   @Override
-  public void writeRowStart() throws IOException
+  public void writeRow(final String[] columnNames, final Object[] value) throws IOException
   {
     jsonGenerator.writeStartObject();
-  }
-
-  @Override
-  public void writeRowField(final String name, @Nullable final Object value) throws IOException
-  {
-    jsonGenerator.writeFieldName(name);
-    jsonGenerator.writeObject(value);
-  }
-
-  @Override
-  public void writeRowEnd() throws IOException
-  {
+    for (int i = 0; i < value.length; i++) {
+      jsonGenerator.writeObjectField(columnNames[i], value[i]);
+    }
     jsonGenerator.writeEndObject();
+  }
+
+  @Override
+  public void end() throws IOException
+  {
+    jsonGenerator.writeEndArray();
+    jsonGenerator.flush();
+    outputStream.write('\n');
   }
 
   @Override

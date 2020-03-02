@@ -191,6 +191,7 @@ public class Schema implements TypeResolver, RowSignature
     return descriptors;
   }
 
+  @Override
   public int size()
   {
     return columnTypes.size();
@@ -336,6 +337,7 @@ public class Schema implements TypeResolver, RowSignature
     return new Schema(mergedDimensions, mergedMetrics, mergedTypes, mergedAggregators, capabilitiesMap, mergedDescs);
   }
 
+  @Override
   public Schema resolve(Query<?> query, boolean finalzed)
   {
     List<String> dimensions = Lists.newArrayList();

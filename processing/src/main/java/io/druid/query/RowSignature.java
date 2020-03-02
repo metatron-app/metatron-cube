@@ -26,11 +26,11 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
-import io.druid.math.expr.ExprType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 
@@ -41,6 +41,8 @@ public interface RowSignature extends TypeResolver
   List<String> getColumnNames();
 
   List<ValueDesc> getColumnTypes();
+
+  int size();
 
   default Iterable<Pair<String, ValueDesc>> columnAndTypes()
   {
@@ -139,18 +141,6 @@ public interface RowSignature extends TypeResolver
     return predicated;
   }
 
-  default String asTypeString()
-  {
-    final StringBuilder s = new StringBuilder();
-    for (Pair<String, ValueDesc> pair : columnAndTypes()) {
-      if (s.length() > 0) {
-        s.append(',');
-      }
-      s.append(pair.lhs).append(':').append(ExprType.toTypeString(pair.rhs));
-    }
-    return s.toString();
-  }
-
   // for streaming sub query.. we don't have index
   default RowSignature replaceDimensionToString()
   {
@@ -176,6 +166,7 @@ public interface RowSignature extends TypeResolver
     return columnTypes;
   }
 
+  // todo remove this fuck
   default RowSignature resolve(Query<?> query, boolean finalzed)
   {
     List<String> newColumnNames = Lists.newArrayList();
@@ -213,8 +204,32 @@ public interface RowSignature extends TypeResolver
     return new RowSignature.Simple(newColumnNames, newColumnTypes);
   }
 
+  default String asTypeString()
+  {
+    final StringBuilder s = new StringBuilder();
+    for (Pair<String, ValueDesc> pair : columnAndTypes()) {
+      if (s.length() > 0) {
+        s.append(',');
+      }
+      s.append(pair.lhs).append(':').append(ValueDesc.toTypeString(pair.rhs));
+    }
+    return s.toString();
+  }
+
   class Simple implements RowSignature
   {
+    public static RowSignature fromTypeString(String typeString)
+    {
+      List<String> columnNames = Lists.newArrayList();
+      List<ValueDesc> columnTypes = Lists.newArrayList();
+      for (String column : StringUtils.split(typeString, ',')) {
+        final int index = column.indexOf(':');
+        columnNames.add(column.substring(0, index));
+        columnTypes.add(ValueDesc.fromTypeString(column.substring(0, index)));
+      }
+      return new Simple(columnNames, columnTypes);
+    }
+
     private final List<String> columnNames;
     private final List<ValueDesc> columnTypes;
 
@@ -234,6 +249,12 @@ public interface RowSignature extends TypeResolver
     public List<ValueDesc> getColumnTypes()
     {
       return columnTypes;
+    }
+
+    @Override
+    public int size()
+    {
+      return columnTypes.size();
     }
 
     @Override

@@ -205,6 +205,19 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
+
+    builder.virtualColumns(new ExprVirtualColumn("geom_toGeoJson(geom_fromLatLon(gis.lat, gis.lon))", "point"));
+    expected = createExpectedMaps(
+        new String[] {"gis.addr", "point"},
+        new Object[]{"서초동 1686-9 서초교대e편한세상", "{\"type\":\"Point\",\"coordinates\":[127.01754,37.496761]}"},
+        new Object[]{"서초동 1310-4 서초두산위브트레지움", "{\"type\":\"Point\",\"coordinates\":[127.023172,37.500506]}"},
+        new Object[]{"서초동 1687 유원서초", "{\"type\":\"Point\",\"coordinates\":[127.018581,37.496136]}"},
+        new Object[]{"서초동 1687 유원서초", "{\"type\":\"Point\",\"coordinates\":[127.018581,37.496136]}"},
+        new Object[]{"서초동 1315 진흥", "{\"type\":\"Point\",\"coordinates\":[127.023676,37.49706]}"},
+        new Object[]{"서초동 1315 진흥", "{\"type\":\"Point\",\"coordinates\":[127.023676,37.49706]}"},
+        new Object[]{"서초동 1315 진흥", "{\"type\":\"Point\",\"coordinates\":[127.023676,37.49706]}"}
+    );
+    Assert.assertEquals(expected, runQuery(builder.streaming()));
   }
 
   @Test

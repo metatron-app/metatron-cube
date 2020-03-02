@@ -19,78 +19,29 @@
 
 package io.druid.sql.http;
 
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.io.SerializedString;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.List;
 
-public class ArrayLinesWriter implements ResultFormat.Writer
+public class ArrayLinesWriter extends ArrayWriter
 {
-  private final OutputStream outputStream;
-  private final JsonGenerator jsonGenerator;
-
   public ArrayLinesWriter(final OutputStream outputStream, final ObjectMapper jsonMapper) throws IOException
   {
-    this.outputStream = outputStream;
-    this.jsonGenerator = jsonMapper.writer().getFactory().createGenerator(outputStream);
+    super(outputStream, jsonMapper);
     jsonGenerator.setRootValueSeparator(new SerializedString("\n"));
   }
 
   @Override
-  public void writeResponseStart()
+  public void start() throws IOException
   {
-    // Do nothing.
   }
 
   @Override
-  public void writeResponseEnd() throws IOException
+  public void end() throws IOException
   {
     jsonGenerator.flush();
-
-    // Terminate the last output line, then write an extra blank line, so users can tell the response was not cut off.
     outputStream.write(new byte[]{'\n', '\n'});
-    outputStream.flush();
-  }
-
-  @Override
-  public void writeHeader(final List<String> columnNames) throws IOException
-  {
-    jsonGenerator.writeStartArray();
-
-    for (String columnName : columnNames) {
-      jsonGenerator.writeString(columnName);
-    }
-
-    jsonGenerator.writeEndArray();
-  }
-
-
-
-  @Override
-  public void writeRowStart() throws IOException
-  {
-    jsonGenerator.writeStartArray();
-  }
-
-  @Override
-  public void writeRowField(final String name, @Nullable final Object value) throws IOException
-  {
-    jsonGenerator.writeObject(value);
-  }
-
-  @Override
-  public void writeRowEnd() throws IOException
-  {
-    jsonGenerator.writeEndArray();
-  }
-
-  @Override
-  public void close() throws IOException
-  {
-    jsonGenerator.close();
   }
 }

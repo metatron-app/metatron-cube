@@ -256,8 +256,8 @@ public class DruidOperatorTable implements SqlOperatorTable
       if (!(factory instanceof AggregatorFactory.SQLSupport)) {
         continue;
       }
-      final Class clazz = Optional.fromNullable(factory.finalizedType()).or(ValueDesc.UNKNOWN).asClass();
-      final SqlReturnTypeInference retType = ReturnTypes.explicit(Utils.asRelDataType(clazz));
+      final ValueDesc type = Optional.fromNullable(factory.finalizedType()).or(ValueDesc.UNKNOWN);
+      final SqlReturnTypeInference retType = ReturnTypes.explicit(Utils.asRelDataType(type));
       final SqlAggFunction function = new DummyAggregatorFunction(named.getKey(), retType);
       final SqlAggregator aggregator = new DummySqlAggregator(function, (AggregatorFactory.SQLSupport) factory);
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction(), true);
@@ -289,7 +289,7 @@ public class DruidOperatorTable implements SqlOperatorTable
         if (type == null || type.asClass() == Object.class) {
           continue;
         }
-        retType = ReturnTypes.explicit(Utils.asRelDataType(type.asClass()));
+        retType = ReturnTypes.explicit(Utils.asRelDataType(type));
       } else {
         retType = new SqlReturnTypeInference()
         {
@@ -316,7 +316,7 @@ public class DruidOperatorTable implements SqlOperatorTable
             }
             ValueDesc type = factory.create(operands, resolver).returns();
             if (type != null && type.asClass() != null) {
-              return Utils.asRelDataType(type.asClass());
+              return Utils.asRelDataType(type);
             }
             return null;
           }

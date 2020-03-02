@@ -142,7 +142,7 @@ public class TypedDummyQuery extends DummyQuery<Object[]>
   @Override
   public io.druid.query.RowSignature schema(QuerySegmentWalker segmentWalker)
   {
-    return signature.asSchema();
+    return signature;
   }
 
   @Override

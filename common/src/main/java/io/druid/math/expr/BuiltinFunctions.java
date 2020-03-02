@@ -1684,7 +1684,7 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() != 2) {
         throw new IAE("function 'cast' needs 2 argument");
       }
-      final ValueDesc castTo = ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
+      final ValueDesc castTo = ValueDesc.fromTypeString(Evals.getConstantString(args.get(1)));
       return new Child()
       {
         @Override

@@ -23,12 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.common.utils.StringUtils;
 
-import javax.annotation.Nullable;
 import javax.ws.rs.core.MediaType;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.List;
 
 public enum ResultFormat
 {
@@ -97,29 +95,19 @@ public enum ResultFormat
     /**
      * Start of the response, called once per writer.
      */
-    void writeResponseStart() throws IOException;
+    void start() throws IOException;
 
-    void writeHeader(List<String> columnNames) throws IOException;
-
-    /**
-     * Start of each result row.
-     */
-    void writeRowStart() throws IOException;
+    void writeHeader(String[] columnNames) throws IOException;
 
     /**
      * Field within a row.
      */
-    void writeRowField(String name, @Nullable Object value) throws IOException;
-
-    /**
-     * End of each result row.
-     */
-    void writeRowEnd() throws IOException;
+    void writeRow(String[] columnNames, Object[] row) throws IOException;
 
     /**
      * End of the response. Must allow the user to know that they have read all data successfully.
      */
-    void writeResponseEnd() throws IOException;
+    void end() throws IOException;
   }
 
   @JsonCreator

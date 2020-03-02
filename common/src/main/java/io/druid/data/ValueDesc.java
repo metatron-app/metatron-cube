@@ -406,6 +406,45 @@ public class ValueDesc implements Serializable, Cacheable
     return ValueDesc.of(DECIMAL_TYPE + "(" + precision + "," + s1 + "," + mode + ")");
   }
 
+  public static String toTypeString(ValueDesc desc)
+  {
+    if (desc == null || desc.isUnknown()) {
+      return STRING_TYPE;
+    }
+    String typeName = desc.typeName();
+    if (desc.isDimension()) {
+      return ValueDesc.subElementOf(typeName);
+    }
+    final int index = typeName.indexOf('(');
+    if (index > 0 && typeName.indexOf(index + 1, ')') > 0) {
+      typeName = typeName.substring(0, index);  // remove description
+    }
+    return typeName.toLowerCase();
+  }
+
+  public static ValueDesc fromTypeString(String name)
+  {
+    if (Strings.isNullOrEmpty(name)) {
+      return ValueDesc.STRING;
+    }
+    switch (name.toUpperCase()) {
+      case "BOOLEAN":
+        return ValueDesc.BOOLEAN;
+      case "FLOAT":
+        return ValueDesc.FLOAT;
+      case "DOUBLE":
+        return ValueDesc.DOUBLE;
+      case "BYTE":
+      case "SHORT":
+      case "INT":
+      case "INTEGER":
+      case "LONG":
+      case "BIGINT":
+        return ValueDesc.LONG;
+    }
+    return ValueDesc.of(name);
+  }
+
   public static boolean isSameCategory(ValueDesc type1, ValueDesc type2)
   {
     if (type1.isPrimitive()) {

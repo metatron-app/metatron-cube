@@ -22,15 +22,13 @@ package io.druid.sql.http;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.List;
 
 public class ArrayWriter implements ResultFormat.Writer
 {
-  private final JsonGenerator jsonGenerator;
-  private final OutputStream outputStream;
+  final JsonGenerator jsonGenerator;
+  final OutputStream outputStream;
 
   public ArrayWriter(final OutputStream outputStream, final ObjectMapper jsonMapper) throws IOException
   {
@@ -39,49 +37,29 @@ public class ArrayWriter implements ResultFormat.Writer
   }
 
   @Override
-  public void writeResponseStart() throws IOException
+  public void start() throws IOException
   {
     jsonGenerator.writeStartArray();
   }
 
   @Override
-  public void writeResponseEnd() throws IOException
+  public void writeHeader(final String[] columnNames) throws IOException
   {
-    jsonGenerator.writeEndArray();
-
-    // End with LF.
-    jsonGenerator.flush();
-    outputStream.write('\n');
+    jsonGenerator.writeObject(columnNames);
   }
 
   @Override
-  public void writeHeader(final List<String> columnNames) throws IOException
-  {
-    jsonGenerator.writeStartArray();
-
-    for (String columnName : columnNames) {
-      jsonGenerator.writeString(columnName);
-    }
-
-    jsonGenerator.writeEndArray();
-  }
-
-  @Override
-  public void writeRowStart() throws IOException
-  {
-    jsonGenerator.writeStartArray();
-  }
-
-  @Override
-  public void writeRowField(final String name, @Nullable final Object value) throws IOException
+  public void writeRow(final String[] columnNames, final Object[] value) throws IOException
   {
     jsonGenerator.writeObject(value);
   }
 
   @Override
-  public void writeRowEnd() throws IOException
+  public void end() throws IOException
   {
     jsonGenerator.writeEndArray();
+    jsonGenerator.flush();
+    outputStream.write('\n');
   }
 
   @Override

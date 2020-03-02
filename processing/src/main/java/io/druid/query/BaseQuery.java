@@ -131,6 +131,12 @@ public abstract class BaseQuery<T> implements Query<T>
     return query.getContextValue(FORWARD_CONTEXT, Maps.<String, Object>newHashMap());
   }
 
+  @SuppressWarnings("unchecked")
+  public static <T> Map<String, Object> removeDecoratorContext(Query<T> query)
+  {
+    return (Map<String, Object>) query.getContext().remove(DECORATOR_CONTEXT);
+  }
+
   public static <T> boolean isParallelForwarding(Query<T> query)
   {
     return !Strings.isNullOrEmpty(getResultForwardURL(query)) &&

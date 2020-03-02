@@ -20,14 +20,17 @@
 package io.druid.sql.http;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import io.druid.common.Yielders;
+import io.druid.common.utils.Sequences;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
@@ -43,6 +46,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
 import javax.servlet.http.HttpServletRequest;
@@ -58,7 +62,6 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
-import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -146,14 +149,37 @@ public class SqlResource
       final boolean[] dateColumns = new boolean[fieldList.size()];
       final String[] columnNames = new String[fieldList.size()];
 
+      boolean needTypeConversion = false;
       for (int i = 0; i < fieldList.size(); i++) {
         final SqlTypeName sqlTypeName = fieldList.get(i).getType().getSqlTypeName();
         timeColumns[i] = sqlTypeName == SqlTypeName.TIMESTAMP;
         dateColumns[i] = sqlTypeName == SqlTypeName.DATE;
         columnNames[i] = fieldList.get(i).getName();
+        needTypeConversion |= timeColumns[i] || dateColumns[i];
       }
 
-      final Yielder<Object[]> yielder0 = Yielders.each(lifecycle.execute());
+      Sequence<Object[]> sequence = lifecycle.execute();
+      if (needTypeConversion) {
+        sequence = Sequences.map(sequence, new Function<Object[], Object[]>()
+        {
+          private final DateTimeFormatter formatter = ISODateTimeFormat.dateTime();
+
+          @Override
+          public Object[] apply(Object[] input)
+          {
+            for (int i = 0; i < fieldList.size(); i++) {
+              if (timeColumns[i]) {
+                input[i] = formatter.print(Calcites.calciteTimestampToJoda((long) input[i], timeZone));
+              } else if (dateColumns[i]) {
+                input[i] = formatter.print(Calcites.calciteDateToJoda((int) input[i], timeZone));
+              }
+            }
+            return input;
+          }
+        });
+      }
+
+      final Yielder<Object[]> yielder0 = Yielders.each(sequence);
 
       try {
         return Response.ok(
@@ -169,38 +195,15 @@ public class SqlResource
                 final CountingOutputStream os = new CountingOutputStream(outputStream);
                 try (final ResultFormat.Writer writer = sqlQuery.getResultFormat()
                                                                 .createFormatter(os, jsonMapper)) {
-                  writer.writeResponseStart();
-
+                  writer.start();
                   if (sqlQuery.includeHeader()) {
-                    writer.writeHeader(Arrays.asList(columnNames));
+                    writer.writeHeader(columnNames);
                   }
-
-                  while (!yielder.isDone()) {
-                    final Object[] row = yielder.get();
-                    writer.writeRowStart();
-                    for (int i = 0; i < fieldList.size(); i++) {
-                      final Object value;
-
-                      if (timeColumns[i]) {
-                        value = ISODateTimeFormat.dateTime().print(
-                            Calcites.calciteTimestampToJoda((long) row[i], timeZone)
-                        );
-                      } else if (dateColumns[i]) {
-                        value = ISODateTimeFormat.dateTime().print(
-                            Calcites.calciteDateToJoda((int) row[i], timeZone)
-                        );
-                      } else {
-                        value = row[i];
-                      }
-
-                      writer.writeRowField(fieldList.get(i).getName(), value);
-                    }
-                    writer.writeRowEnd();
-                    yielder = yielder.next(null);
+                  for (;!yielder.isDone(); yielder = yielder.next(null)) {
+                    writer.writeRow(columnNames, yielder.get());
                     counter.increment();
                   }
-
-                  writer.writeResponseEnd();
+                  writer.end();
                 }
                 catch (Exception ex) {
                   log.error(ex, "Unable to send sql response [%s]", lifecycle.getQueryId());

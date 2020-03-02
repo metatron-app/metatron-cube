@@ -22,6 +22,7 @@ package io.druid.sql.calcite;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
+import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -135,8 +136,12 @@ public class Utils
     return rel instanceof DruidRel ? (DruidRel) rel : null;
   }
 
-  public static RelDataType asRelDataType(Class clazz)
+  public static RelDataType asRelDataType(ValueDesc valueDesc)
   {
+    if (ValueDesc.GEOMETRY.equals(valueDesc)) {
+      return TYPE_FACTORY.createJavaType(valueDesc.asClass());
+    }
+    Class clazz = valueDesc.asClass();
     return clazz != null && clazz != Object.class ? TYPE_FACTORY.createType(clazz) : TYPE_FACTORY.createUnknownType();
   }
 

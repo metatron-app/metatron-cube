@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * with the License. You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,32 +17,12 @@
  * under the License.
  */
 
-package io.druid.sql.http;
+package io.druid.data.output;
 
-import com.fasterxml.jackson.core.io.SerializedString;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.query.Query;
+import io.druid.query.QueryToolChest;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
-public class ObjectLinesWriter extends ObjectWriter
+public interface SelectiveDecorator<T> extends OutputDecorator<T>
 {
-  public ObjectLinesWriter(final OutputStream outputStream, final ObjectMapper jsonMapper) throws IOException
-  {
-    super(outputStream, jsonMapper);
-    jsonGenerator.setRootValueSeparator(new SerializedString("\n"));
-  }
-
-  @Override
-  public void start() throws IOException
-  {
-    // Do nothing.
-  }
-
-  @Override
-  public void end() throws IOException
-  {
-    jsonGenerator.flush();
-    outputStream.write(new byte[]{'\n', '\n'});
-  }
+  boolean accepts(Query query, QueryToolChest toolChest);
 }

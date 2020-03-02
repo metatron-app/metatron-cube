@@ -37,6 +37,7 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.Pair;
+import io.druid.data.ValueDesc;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
@@ -56,6 +57,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
 import io.druid.query.RegexDataSource;
+import io.druid.query.RowSignature;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionDataSource;
@@ -175,6 +177,38 @@ public class BrokerQueryResource extends QueryResource
     catch (Exception e) {
       return context.gotError(e);
     }
+  }
+
+  @POST
+  @Path("/geojson")
+  @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
+  @Consumes({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE, APPLICATION_SMILE})
+  public Response getFeatures(
+      InputStream in,
+      @QueryParam("pretty") String pretty,
+      @QueryParam("smile") String smile,
+      @Context final HttpServletRequest req // used to get request content-type, remote address and AuthorizationInfo
+  ) throws IOException
+  {
+    req.setAttribute(GET_FEATURE, true);    // marker
+    return doPost(in, pretty, smile, req);
+  }
+
+  @Override
+  protected Query readQuery(InputStream in, RequestContext context) throws IOException
+  {
+    Query query = super.readQuery(in, context);
+    if (context.request.getAttribute(GET_FEATURE) != null) {
+      RowSignature signature = Queries.relaySchema(query, segmentWalker);
+      int geomIndex = signature.getColumnTypes().indexOf(ValueDesc.GEOMETRY);
+      Map<String, Object> decorator = ImmutableMap.of(
+          "format", "geojson",
+          "geomIndex", geomIndex,
+          "columnNames", signature.getColumnNames()
+      );
+      query = query.withOverriddenContext(ImmutableMap.of(Query.DECORATOR_CONTEXT, decorator));
+    }
+    return query;
   }
 
   private List<LocatedSegmentDescriptor> getTargetLocations(DataSource datasource, List<Interval> intervals)
