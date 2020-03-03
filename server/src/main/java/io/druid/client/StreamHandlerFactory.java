@@ -23,10 +23,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.http.client.response.ClientResponse;
-import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryMetrics;
@@ -91,7 +91,14 @@ public class StreamHandlerFactory
       this.query = query;
       this.disableLog = query.getContextBoolean(Query.DISABLE_LOG, false);
       this.url = url;
-      this.queue = new LinkedBlockingDeque<>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize);
+      this.queue = new LinkedBlockingDeque<InputStream>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize)
+      {
+        @Override
+        public void put(InputStream e) throws InterruptedException
+        {
+          if (!done.get()) { super.put(e); }
+        }
+      };
     }
 
     @Override

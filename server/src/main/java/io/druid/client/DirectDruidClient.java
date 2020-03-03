@@ -52,6 +52,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import org.apache.commons.io.IOUtils;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
@@ -145,7 +146,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     final URL url;
     final URL cancelUrl;
     final ListenableFuture<InputStream> future;
-
+    final StreamHandler handler;
     try {
       url = new URL(String.format("http://%s/druid/v2/", host));
       cancelUrl = new URL(String.format("http://%s/druid/v2/%s", host, query.getId()));
@@ -158,11 +159,12 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       queryMetrics.server(host);
 
       final long start = System.currentTimeMillis();
+      handler = handlerFactory.create(query, url, ioConfig.getQueueSize(), queryMetrics, context);
       future = httpClient.go(
           new Request(HttpMethod.POST, url)
               .setContent(objectMapper.writeValueAsBytes(query))
               .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
-          handlerFactory.create(query, url, ioConfig.getQueueSize(), queryMetrics, context)
+          handler
       );
       final long elapsed = System.currentTimeMillis() - start;
       if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
@@ -239,13 +241,19 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                     @Override
                     public StatusResponseHolder call() throws Exception
                     {
-                      return httpClient.go(
-                          new Request(HttpMethod.DELETE, cancelUrl),
-                          new StatusResponseHandler(Charsets.UTF_8)
-                      ).get();
+                      try {
+                        return httpClient.go(
+                            new Request(HttpMethod.DELETE, cancelUrl),
+                            new StatusResponseHandler(Charsets.UTF_8)
+                        ).get();
+                      }
+                      finally {
+                        IOUtils.closeQuietly(handler);
+                      }
                     }
                   }
               );
+              IOUtils.closeQuietly(handler);
             }
           }
         }
