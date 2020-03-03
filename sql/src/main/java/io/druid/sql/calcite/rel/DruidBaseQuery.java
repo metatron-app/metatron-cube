@@ -531,8 +531,7 @@ public class DruidBaseQuery implements DruidQuery
         throw new CannotBuildQueryException(aggregate, rexNode);
       }
 
-      final SqlTypeName sqlTypeName = rexNode.getType().getSqlTypeName();
-      final ValueDesc outputType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      final ValueDesc outputType = Calcites.getValueDescForRelDataType(rexNode.getType());
       if (!ValueDesc.isPrimitive(outputType)) {
         // Can't group on unknown or COMPLEX types.
         throw new CannotBuildQueryException(aggregate, rexNode);

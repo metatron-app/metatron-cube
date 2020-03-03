@@ -19,8 +19,10 @@
 
 package io.druid.query;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
@@ -60,40 +62,68 @@ public class GeomFunctions implements Function.Library
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          double first;
-          double second;
+          double[] coordinates;
           if (args.size() == 2) {
-            first = Evals.evalDouble(args.get(0), bindings);
-            second = Evals.evalDouble(args.get(1), bindings);
+            coordinates = new double[2];
+            coordinates[0] = Evals.evalDouble(args.get(0), bindings);
+            coordinates[1] = Evals.evalDouble(args.get(1), bindings);
           } else {
             final ExprEval eval = Evals.eval(args.get(0), bindings);
             final Object value = eval.value();
             if (value instanceof double[]) {
-              double[] array = (double[]) value;
-              first = array[0];
-              second = array[1];
+              coordinates = (double[]) value;
             } else if (value instanceof Object[]) {
               // struct
               Object[] array = (Object[]) value;
-              first = ((Number) array[0]).doubleValue();
-              second = ((Number) array[1]).doubleValue();
+              coordinates = new double[array.length];
+              for (int i = 0; i < coordinates.length; i++) {
+                coordinates[i] = ((Number) array[i]).doubleValue();
+              }
             } else if (value instanceof List) {
               // struct or list
               List list = (List) value;
-              first = ((Number) list.get(0)).doubleValue();
-              second = ((Number) list.get(1)).doubleValue();
+              coordinates = new double[list.size()];
+              for (int i = 0; i < coordinates.length; i++) {
+                coordinates[i] = ((Number) list.get(i)).doubleValue();
+              }
+            } else if (value instanceof String) {
+              // simple string
+              String string = (String) value;
+              String[] coords = string.trim().split(",");
+              coordinates = new double[coords.length];
+              for (int i = 0; i < coordinates.length; i++) {
+                coordinates[i] = Rows.parseDouble(coords[i].trim());
+              }
+            } else if (value == null) {
+              return null;
             } else {
               throw new UnsupportedOperationException();
             }
           }
-          return makeJtsGeometry(first, second);
+          if (coordinates.length == 0) {
+            return null;
+          }
+          Preconditions.checkArgument(coordinates.length % 2 == 0, "odd number ?");
+          return makeJtsGeometry(coordinates);
         }
       };
     }
 
-    protected Geometry makeJtsGeometry(double latitude, double longitude)
+    // single geometry without holes..
+    protected Geometry makeJtsGeometry(double[] coord)
     {
-      return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(longitude, latitude));
+      if (coord.length == 2) {
+        return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(coord[1], coord[0]));
+      }
+      Coordinate[] coordinates = new Coordinate[coord.length / 2];
+      for (int i = 0; i < coordinates.length; i++) {
+        coordinates[i] = new Coordinate(coord[i * 2 + 1], coord[i * 2]);
+      }
+      if (coord[0] == coord[coord.length - 2] && coord[1] == coord[coord.length - 1]) {
+        return GeomUtils.GEOM_FACTORY.createPolygon(coordinates);
+      } else {
+        return GeomUtils.GEOM_FACTORY.createLineString(coordinates);
+      }
     }
   }
 
@@ -101,9 +131,20 @@ public class GeomFunctions implements Function.Library
   public static class FromLonLat extends FromLatLon
   {
     @Override
-    protected Geometry makeJtsGeometry(double longitude, double latitude)
+    protected Geometry makeJtsGeometry(double[] coord)
     {
-      return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(longitude, latitude));
+      if (coord.length == 2) {
+        return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(coord[0], coord[1]));
+      }
+      Coordinate[] coordinates = new Coordinate[coord.length / 2];
+      for (int i = 0; i < coordinates.length; i++) {
+        coordinates[i] = new Coordinate(coord[i * 2], coord[i * 2 + 1]);
+      }
+      if (coord[0] == coord[coord.length - 2] && coord[1] == coord[coord.length - 1]) {
+        return GeomUtils.GEOM_FACTORY.createPolygon(coordinates);
+      } else {
+        return GeomUtils.GEOM_FACTORY.createLineString(coordinates);
+      }
     }
   }
 

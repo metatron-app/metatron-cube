@@ -29,6 +29,7 @@ import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.ShapeFormat;
 import io.druid.segment.lucene.SpatialOperations;
 
+import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.util.Map;
 import java.util.Objects;
@@ -84,17 +85,28 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   }
 
   @Override
-  protected DimFilter toOptimizedFilter(@NotNull Map<String, String> descriptor, @NotNull String fieldName)
+  protected DimFilter toOptimizedFilter(
+      @NotNull String columnName, @Nullable String fieldName, @NotNull String descriptor
+  )
   {
-    if (descriptor.containsKey(fieldName)) {
-      String desc = descriptor.get(fieldName);
-      if (desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) && operation == SpatialOperations.COVEREDBY) {
-        return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString);
-      } else if (desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC)) {
-        return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
-      }
+    String field = fieldName == null ? columnName : String.format("%s.%s", columnName, fieldName);
+    if (descriptor.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) && operation == SpatialOperations.COVEREDBY) {
+      return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString);
+    } else if (descriptor.startsWith(LuceneIndexingStrategy.SHAPE_DESC)) {
+      return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
     }
-    return super.toOptimizedFilter(descriptor, fieldName);
+    return null;
+  }
+
+  @Nullable
+  private DimFilter optimizeWith(String field, String desc)
+  {
+    if (desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) && operation == SpatialOperations.COVEREDBY) {
+      return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString);
+    } else if (desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC)) {
+      return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
+    }
+    return null;
   }
 
   @Override

@@ -19,7 +19,6 @@
 
 package io.druid.data;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import java.util.List;
@@ -30,7 +29,9 @@ public class TypeUtils
 {
   public static String[] splitDescriptiveType(String string)
   {
-    Preconditions.checkNotNull(string);
+    if (string == null) {
+      return null;
+    }
     string = string.trim();
     int index1 = string.indexOf('(');
     if (index1 < 0 || !string.endsWith(")")) {

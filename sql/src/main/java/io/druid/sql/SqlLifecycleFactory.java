@@ -54,6 +54,11 @@ public class SqlLifecycleFactory
     this.brokerServerView = brokerServerView;
   }
 
+  public PlannerFactory getPlannerFactory()
+  {
+    return plannerFactory;
+  }
+
   @VisibleForTesting
   public SqlLifecycle factorize(String sql)
   {

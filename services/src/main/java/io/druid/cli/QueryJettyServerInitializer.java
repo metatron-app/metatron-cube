@@ -29,6 +29,7 @@ import com.google.inject.servlet.GuiceFilter;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.GuiceServletConfig;
+import io.druid.server.initialization.ServerConfig;
 import io.druid.server.initialization.jetty.JettyServerInitUtils;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.security.AuthConfig;
@@ -40,9 +41,13 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.DefaultServlet;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.CrossOriginFilter;
 
+import javax.servlet.DispatcherType;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -70,6 +75,16 @@ public class QueryJettyServerInitializer implements JettyServerInitializer
   public void initialize(Server server, Injector injector)
   {
     final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
+
+    for (String path : injector.getInstance(ServerConfig.class).getAllowCorsPaths()) {
+      FilterHolder holder = root.addFilter(CrossOriginFilter.class, path, EnumSet.allOf(DispatcherType.class));
+      holder.setInitParameter(CrossOriginFilter.ALLOWED_ORIGINS_PARAM, "*");
+      holder.setInitParameter(CrossOriginFilter.ALLOWED_HEADERS_PARAM, "Content-Type,Authorization,X-Requested-With,Content-Length,Accept,Origin");
+      holder.setInitParameter(CrossOriginFilter.ALLOWED_METHODS_PARAM, "GET,PUT,POST,DELETE,OPTIONS");
+      holder.setInitParameter(CrossOriginFilter.PREFLIGHT_MAX_AGE_PARAM, "5184000");
+      holder.setInitParameter(CrossOriginFilter.ALLOW_CREDENTIALS_PARAM, "true");
+    }
+
     root.addEventListener(new GuiceServletConfig(injector));
     root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
 

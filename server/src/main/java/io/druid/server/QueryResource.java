@@ -95,10 +95,11 @@ import java.util.function.ToIntFunction;
 @Path("/druid/v2/")
 public class QueryResource
 {
+  public static final String GET_FEATURE = "GetFeature";
+
   protected static final EmittingLogger log = new EmittingLogger(QueryResource.class);
   @Deprecated // use SmileMediaTypes.APPLICATION_JACKSON_SMILE
   protected static final String APPLICATION_SMILE = "application/smile";
-  protected static final String GET_FEATURE = "GetFeature";
 
   protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7 * 1024;
 

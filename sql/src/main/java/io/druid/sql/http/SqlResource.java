@@ -23,17 +23,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import io.druid.common.Yielders;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
+import io.druid.data.output.OutputDecorator;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
+import io.druid.server.QueryResource;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.ForbiddenException;
@@ -41,6 +45,7 @@ import io.druid.sql.SqlLifecycle;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerResult;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -99,6 +104,19 @@ public class SqlResource
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.TEXT_PLAIN)
+  @Path("/geojson")
+  public Response getFeature(
+      String sqlQuery,
+      @Context HttpServletRequest req
+  ) throws SQLException, IOException
+  {
+    req.setAttribute(QueryResource.GET_FEATURE, true);
+    return execute(new SqlQuery(sqlQuery, null, false, contextFromParam(req)), req);
+  }
+
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.TEXT_PLAIN)
   public Response doPost(
       String sqlQuery,
       @Context HttpServletRequest req
@@ -108,7 +126,7 @@ public class SqlResource
   }
 
   @POST
-  @Produces(MediaType.APPLICATION_JSON)
+  @Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN})
   @Consumes(MediaType.APPLICATION_JSON)
   public Response doPost(
       SqlQuery sqlQuery,
@@ -186,6 +204,7 @@ public class SqlResource
             new StreamingOutput()
             {
               @Override
+              @SuppressWarnings("unchecked")
               public void write(final OutputStream outputStream) throws IOException, WebApplicationException
               {
                 Exception e = null;
@@ -193,8 +212,25 @@ public class SqlResource
 
                 final MutableInt counter = new MutableInt();
                 final CountingOutputStream os = new CountingOutputStream(outputStream);
-                try (final ResultFormat.Writer writer = sqlQuery.getResultFormat()
-                                                                .createFormatter(os, jsonMapper)) {
+
+                final ResultFormat.Writer formatter;
+                if (req.getAttribute(QueryResource.GET_FEATURE) == null) {
+                  formatter = sqlQuery.getResultFormat().createFormatter(os, jsonMapper);
+                } else {
+                  RowSignature signature = RowSignature.from(result.rowType());
+                  int geomIndex = signature.getColumnTypes().indexOf(ValueDesc.GEOMETRY);
+                  OutputDecorator<Object[]> decorator = jsonMapper.convertValue(
+                      ImmutableMap.of(
+                          "format", "geojson",
+                          "geomIndex", geomIndex,
+                          "columnNames", signature.getColumnNames()
+                      ),
+                      OutputDecorator.class
+                  );
+                  formatter = new DelegatedWriter(jsonMapper.getFactory().createGenerator(os), decorator);
+                }
+
+                try (final ResultFormat.Writer writer = formatter) {
                   writer.start();
                   if (sqlQuery.includeHeader()) {
                     writer.writeHeader(columnNames);

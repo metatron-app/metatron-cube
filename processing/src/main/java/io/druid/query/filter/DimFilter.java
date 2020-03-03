@@ -21,10 +21,14 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression;
 import io.druid.query.Query;
@@ -32,12 +36,15 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.lucene.LuceneIndexingStrategy;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  */
@@ -170,40 +177,117 @@ public interface DimFilter extends Expression, Cacheable
       }
       String field = getField();
       StorageAdapter adapter = segment.asStorageAdapter(false);
+
       String columnName = field;
-      String fieldName = field;
-      Map<String, String> descriptor = adapter.getColumnDescriptor(columnName);
-      for (int index = field.indexOf('.'); descriptor == null && index > 0; index = field.indexOf('.', index + 1)) {
-        columnName = field.substring(0, index);
-        fieldName = field.substring(index + 1);
-        descriptor = adapter.getColumnDescriptor(columnName);
+      String fieldName = null;
+      String descriptor = null;
+
+      DimFilter optimized = null;
+      if (optimized == null) {
+        Map<String, String> descriptors = adapter.getColumnDescriptor(columnName);
+        if (descriptors != null && descriptors.containsKey(columnName)) {
+          optimized = toOptimizedFilter(columnName, null, descriptor = descriptors.get(columnName));
+        }
       }
-      if (descriptor != null && fieldName != null) {
-        DimFilter optimized = toOptimizedFilter(descriptor, fieldName);
+      if (optimized == null) {
+        for (int index = field.indexOf('.'); optimized == null && index > 0; index = field.indexOf('.', index + 1)) {
+          columnName = field.substring(0, index);
+          fieldName = field.substring(index + 1);
+          Map<String, String> descriptors = adapter.getColumnDescriptor(columnName);
+          if (descriptors != null && descriptors.containsKey(fieldName)) {
+            optimized = toOptimizedFilter(columnName, fieldName, descriptor = descriptors.get(fieldName));
+          }
+        }
+      }
+      // regard invalid field name (calcite replaces struct to first field of struct. what the..)
+      if (optimized == null) {
+        for (int index = field.length(); optimized == null && index > 0; index = field.lastIndexOf('.', index - 1)) {
+          columnName = field.substring(0, index);
+          Map.Entry<String, String> first = getAnyFirst(adapter.getColumnDescriptor(columnName));
+          if (first != null) {
+            fieldName = columnName.equals(first.getKey()) ? null : first.getKey();
+            optimized = toOptimizedFilter(columnName, fieldName, descriptor = first.getValue());
+          }
+        }
+      }
+      if (optimized != null) {
         if (!segment.isIndexed() && optimized instanceof LuceneFilter) {
-          optimized = ((LuceneFilter) optimized).toExprFilter(columnName);
+          optimized = ((LuceneFilter) optimized).toExprFilter(columnName, fieldName, descriptor);
         }
         return optimized;
       }
+      // find any column exists
       columnName = field;
       ColumnCapabilities capabilities = adapter.getColumnCapabilities(columnName);
       for (int index = field.indexOf('.'); capabilities == null && index > 0; index = field.indexOf('.', index + 1)) {
         columnName = field.substring(0, index);
         capabilities = adapter.getColumnCapabilities(columnName);
       }
-      return columnName == null ? DimFilters.NONE : toExprFilter(columnName);
+      return columnName == null ? DimFilters.NONE : toExprFilter(columnName, null, null);
+    }
+
+    public Map.Entry<String, String> getAnyFirst(Map<String, String> descriptors)
+    {
+      if (!GuavaUtils.isNullOrEmpty(descriptors)) {
+        return Iterables.getFirst(
+            Maps.filterValues(descriptors, new Predicate<String>()
+            {
+              @Override
+              public boolean apply(String desc)
+              {
+                return desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) ||
+                       desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC);
+              }
+            }).entrySet(), null);
+      }
+      return null;
     }
 
     // just best-effort conversion.. instead of 'no lucene index' exception
-    protected DimFilter toExprFilter(@NotNull String columnName)
+
+    protected DimFilter toOptimizedFilter(
+        @NotNull String columnName, @Nullable String fieldName, @NotNull String descriptor
+    )
+    {
+      return this;
+    }
+
+    protected DimFilter toExprFilter(
+        @NotNull String columnName, @Nullable String fieldName, @Nullable String descriptor
+    )
     {
       // return MathExprFilter with shape or esri expressions
       throw new UnsupportedOperationException(String.format("not supports rewritting %s", getClass().getSimpleName()));
     }
 
-    protected DimFilter toOptimizedFilter(@NotNull Map<String, String> descriptor, @NotNull String fieldName)
+    // see LatLonPointIndexingStrategy : point(latitude=%s,longitude=%s)
+    static final Pattern LATLON_PATTERN = Pattern.compile("^point\\(latitude=([^,]+),longitude=([^,]+)\\)$");
+
+    protected String toLatLonField(String columnName, String fieldName, String descriptor)
     {
-      return this;
+      if (descriptor != null) {
+        Matcher matcher = LATLON_PATTERN.matcher(descriptor);
+        if (matcher.matches()) {
+          return String.format("\"%s.%s\", \"%s.%s\"", columnName, matcher.group(1), columnName, matcher.group(2));
+        }
+      }
+      return fieldName == null
+             ? String.format("\"%s\"", columnName)
+             : String.format("\"%s.%s\"", columnName, fieldName);
+    }
+
+    // see ShapeIndexingStrategy : shape(format=%s)
+    static final Pattern SHAPE_PATTERN = Pattern.compile("^shape\\(format=([^,]+)\\)$");
+
+    protected String getShapeFormat(String descriptor)
+    {
+      if (descriptor != null) {
+        Matcher matcher = SHAPE_PATTERN.matcher(descriptor);
+        if (matcher.matches()) {
+          return matcher.group(1);
+        }
+      }
+      return null;
     }
   }
 

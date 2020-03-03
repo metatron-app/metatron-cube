@@ -103,7 +103,9 @@ public class DruidRexExecutor implements RexExecutor
           }
 
           literal = rexBuilder.makeLiteral(bigDecimal, constExp.getType(), true);
-        } else if (!ValueDesc.SHAPE.equals(exprResult.type()) && !ValueDesc.OGC_GEOMETRY.equals(exprResult.type())) {
+        } else if (!ValueDesc.GEOMETRY.equals(exprResult.type()) &&
+                   !ValueDesc.SHAPE.equals(exprResult.type()) &&
+                   !ValueDesc.OGC_GEOMETRY.equals(exprResult.type())) {
           // hack.. skip shapes & geometries
           literal = rexBuilder.makeLiteral(exprResult.value(), constExp.getType(), true);
         } else {

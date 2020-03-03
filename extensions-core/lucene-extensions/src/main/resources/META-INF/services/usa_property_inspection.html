@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 700px;
+        width: 100%;
+      }
+    </style>
+    <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol.js"></script>
+    <title>OpenLayers example</title>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
+      inspection_style = function (feature, resolution) {
+        sum = feature.get('inspection_score');
+        if (sum > 95) {
+          color = [255, 0, 0, 0.9];
+        } else if (sum > 80) {
+          color = [255, 64, 0, 0.8]
+        } else if (sum > 70) {
+          color = [255, 128, 0, 0.7]
+        } else {
+          color = [255, 255, 0, 0.5]
+        }
+        return new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 3,
+            fill: new ol.style.Fill({
+              color: color
+            })
+          })
+        });
+      };
+
+      var CQL = new Map();
+
+
+      // var states_source = new ol.source.Vector({
+      //   format: new ol.format.GeoJSON(),
+      //   url: function (extent) {
+      //     var strUrl = 'http://localhost:8080/geoserver/wfs?service=WFS&' +
+      //               'version=1.1.0&request=GetFeature&typename=topp:states&' +
+      //               'maxFeatures=1000&outputFormat=application/json&' +
+      //               'bbox=' + extent.join(',') + ',EPSG:3857';
+      //
+      //     return strUrl;
+      //   },
+      //   strategy: ol.loadingstrategy.bbox
+      // });
+      // states = new ol.layer.Vector({
+      //   source: states_source
+      // });
+
+      var inspection_source = new ol.source.Vector({
+        format: new ol.format.GeoJSON(),
+        loader: function(extent, resolution, projection) {
+           var proj = projection.getCode();
+           // var url = 'https://ahocevar.com/geoserver/wfs?service=WFS&' +
+           //     'version=1.1.0&request=GetFeature&typename=osm:water_areas&' +
+           //     'outputFormat=application/json&srsname=' + proj + '&' +
+           //     'bbox=' + extent.join(',') + ',' + proj;
+           var xhr = new XMLHttpRequest();
+           xhr.onerror = function() { inspection_source.removeLoadedExtent(extent); };
+           xhr.onload = function() {
+             if (xhr.status === 200) {
+               var format = new ol.format.GeoJSON();
+               // console.log('inspection_source ---> ' + xhr.responseText);
+               var features = inspection_source.getFormat().readFeatures(xhr.responseText);
+               // features.forEach(function (f) {
+                    // console.log(f.getGeometry().getCoordinates()); // features are parsed correctly
+                // });
+               inspection_source.addFeatures(features);
+             } else {
+               xhr.onerror();
+             }
+           };
+           var url = 'http://localhost:8082/druid/v2/sql/geojson';
+           xhr.open('POST', url);
+           xhr.setRequestHeader('Content-type', 'text/plain');
+           var wkt = format.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
+                dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
+           });
+           var sql = 'SELECT city, inspection_score, geom_transform(geom_fromlatlon(gis.lat, gis.lon), 4326, 3857) as geom ' +
+                     'FROM property_inspect WHERE lucene_shape(gis, \'' + wkt + '\') LIMIT 2000';
+           console.log(' extent : ' + extent + " --> " + wkt);
+           console.log('inspection_source fire!! ---> ' + sql);
+           xhr.send(sql);
+        },
+        strategy: ol.loadingstrategy.bbox
+      });
+      var inspection = new ol.layer.Vector({source: inspection_source, style: inspection_style});
+      var heatmap = new ol.layer.Heatmap({
+          source: inspection_source, opacity: 0.3, gradient: ['#00f', '#0ff', '#0f0', '#ff0', '#f00'], blur : 50
+      });
+
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+          osm = new ol.layer.Tile({source: new ol.source.OSM()}),
+          inspection, heatmap
+          // new ol.layer.Tile({
+          //   source: new ol.source.TileWMS({
+          //     url: 'http://localhost:8080/geoserver/wms',
+          //     params: {
+          //         'LAYERS': 'cite:property_inspect',
+          //         'TILED': true
+          //     },
+          //     serverType: 'geoserver'
+          //   })
+          // }),
+          // states = new ol.layer.Tile({
+          //   source: new ol.source.TileWMS({
+          //     url: 'http://localhost:8080/geoserver/wms',
+          //     params: {
+          //         'LAYERS': 'topp:states',
+          //         'TILED': true
+          //     },
+          //     serverType: 'geoserver',
+          //     transition: 0
+          //   }),
+          //   opacity: 0.2
+          // }),
+          // states,
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([-73.967173, 40.780101]),
+          zoom: 8
+        })
+      });
+      // hoverInteraction = new ol.interaction.Select({
+      //   condition: ol.events.condition.pointerMove,
+      //   layers:[b]
+      // });
+      // map.addInteraction(hoverInteraction);
+      //
+      // map.on('pointermove', function(evt) {
+      //   if (evt.dragging) {
+      //     return;
+      //   }
+      //   var pixel = map.getEventPixel(evt.originalEvent);
+      //   displayFeatureInfo(pixel);
+      // });
+      var format = new ol.format.WKT();
+      var selectInteraction = new ol.interaction.Select({
+        condition: ol.events.condition.click,
+        // layers:[states, map],
+        // layers: function(layer) {
+        //   return layer === states;
+        // },
+        filter: function(feature, layer) {
+          if (layer === states) {
+            var stateName = feature.get('STATE_NAME');
+            if (CQL.has(stateName)) {
+              console.log('x ---> ' + stateName);
+              CQL.delete(stateName);
+              inspection_source.clear();
+              return false;
+            } else {
+              console.log('o ---> ' + stateName);
+              var predicate = 'WITHIN("gis.coord",' + format.writeFeature(feature, {dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'}) + ')';
+              CQL.set(stateName, predicate);
+              inspection_source.clear();
+              return true
+              }
+          } else {
+            console.info('? ---> deselect');
+            CQL.clear();
+          }
+          return true
+        },
+        style: new ol.style.Style({
+          fill: new ol.style.Fill({
+              color: 'rgba(255, 100, 50, 0.3)'
+          }),
+          // stroke: new ol.style.Stroke({
+          //     width: 2,
+          //     color: 'rgba(255, 100, 50, 0.8)'
+          // }),
+          // image: new ol.style.Circle({
+          //     fill: new ol.style.Fill({
+          //         color: 'rgba(255, 100, 50, 0.5)'
+          //     }),
+          //     stroke: new ol.style.Stroke({
+          //         width: 2,
+          //         color: 'rgba(255, 100, 50, 0.8)'
+          //     }),
+          //     radius: 7
+          // })
+        }),
+        // toggleCondition: ol.events.condition.never,
+        // addCondition: ol.events.condition.altKeyOnly,
+        // removeCondition: ol.events.condition.shiftKeyOnly
+      });
+      map.addInteraction(selectInteraction);
+      // map.on('singleclick',function(event) {console.info("????")});
+    </script>
+  </body>
+</html>

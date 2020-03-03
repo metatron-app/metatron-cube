@@ -38,6 +38,7 @@ import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nonnull;
@@ -84,10 +85,10 @@ public class RowSignature implements io.druid.query.RowSignature
     final Builder rowSignatureBuilder = builder();
     for (RelDataTypeField field : rowType.getFieldList()) {
       final String columnName = field.getName();
-      final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
-      final ValueDesc valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      final RelDataType dataType = field.getType();
+      final ValueDesc valueType = Calcites.getValueDescForRelDataType(dataType);
       if (valueType == null) {
-        throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, columnName);
+        throw new ISE("Cannot translate dataType[%s] to Druid type for field[%s]", dataType, columnName);
       }
       rowSignatureBuilder.add(columnName, valueType);
     }
@@ -118,7 +119,7 @@ public class RowSignature implements io.druid.query.RowSignature
           continue;
         }
       }
-      final ValueDesc valueType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      final ValueDesc valueType = Calcites.getValueDescForRelDataType(field.getType());
       if (valueType == null) {
         throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, rowOrder.get(i));
       }
@@ -184,47 +185,55 @@ public class RowSignature implements io.druid.query.RowSignature
       if (ValueDesc.isDimension(columnType)) {
         columnType = columnType.subElement();
       }
-      final RelDataType type;
-
+      RelDataType type;
       if (Row.TIME_COLUMN_NAME.equals(columnName)) {
         type = Calcites.createSqlType(typeFactory, SqlTypeName.TIMESTAMP);
       } else {
-        switch (columnType.type()) {
-          case STRING:
-            // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
-            type = Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.VARCHAR, true);
-            break;
-          case BOOLEAN:
-            type = Calcites.createSqlType(typeFactory, SqlTypeName.BOOLEAN);
-            break;
-          case LONG:
-            type = Calcites.createSqlType(typeFactory, SqlTypeName.BIGINT);
-            break;
-          case FLOAT:
-            type = Calcites.createSqlType(typeFactory, SqlTypeName.FLOAT);
-            break;
-          case DOUBLE:
-            type = Calcites.createSqlType(typeFactory, SqlTypeName.DOUBLE);
-            break;
-          case COMPLEX:
-            // Loses information about exactly what kind of complex column this is.
-            SqlTypeName typeName = SqlTypeName.OTHER;
-            if (columnType.isMap()) {
-              typeName = SqlTypeName.MAP;
-            } else if (columnType.isList() || columnType.isStruct()) {
-              typeName = SqlTypeName.ARRAY;
-            }
-            type = Calcites.createSqlTypeWithNullability(typeFactory, typeName, true);
-            break;
-          default:
-            throw new ISE("valueType[%s] not translatable?", columnType);
-        }
+        type = toRelDataType(typeFactory, columnType);
       }
-
       builder.add(columnName, type);
     }
 
     return builder.build();
+  }
+
+  public RelDataType toRelDataType(RelDataTypeFactory typeFactory, ValueDesc columnType)
+  {
+    switch (columnType.type()) {
+      case STRING:
+        // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
+        return Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.VARCHAR, true);
+      case BOOLEAN:
+        return Calcites.createSqlType(typeFactory, SqlTypeName.BOOLEAN);
+      case LONG:
+        return Calcites.createSqlType(typeFactory, SqlTypeName.BIGINT);
+      case FLOAT:
+        return Calcites.createSqlType(typeFactory, SqlTypeName.FLOAT);
+      case DOUBLE:
+        return Calcites.createSqlType(typeFactory, SqlTypeName.DOUBLE);
+      case COMPLEX:
+        final String[] description = columnType.getDescription();
+        if (columnType.isStruct() && description != null) {
+          final List<String> fieldNames = Lists.newArrayList();
+          final List<RelDataType> fieldTypes = Lists.newArrayList();
+          for (int i = 1; i < description.length; i++) {
+            int index = description[i].indexOf(':');
+            fieldNames.add(description[i].substring(0, index));
+            fieldTypes.add(toRelDataType(typeFactory, ValueDesc.of(description[i].substring(index + 1))));
+          }
+          return typeFactory.createStructType(StructKind.PEEK_FIELDS, fieldTypes, fieldNames);
+        }
+        // Loses information about exactly what kind of complex column this is.
+        SqlTypeName typeName = SqlTypeName.OTHER;
+        if (columnType.isMap()) {
+          typeName = SqlTypeName.MAP;
+        } else if (columnType.isList() || columnType.isStruct()) {
+          typeName = SqlTypeName.ARRAY;
+        }
+        return Calcites.createSqlTypeWithNullability(typeFactory, typeName, true);
+      default:
+        throw new ISE("valueType[%s] not translatable?", columnType);
+    }
   }
 
   // todo remove this

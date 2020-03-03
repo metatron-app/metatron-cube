@@ -22,10 +22,10 @@ package io.druid.sql.calcite.planner;
 import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
-import io.druid.java.util.common.IAE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ordering.StringComparators;
 import io.druid.sql.calcite.schema.DruidSchema;
@@ -131,11 +131,7 @@ public class Calcites
 
   public static ValueDesc getValueDescForRelDataType(RelDataType dataType)
   {
-    return getValueDescForSqlTypeName(dataType.getSqlTypeName());
-  }
-
-  public static ValueDesc getValueDescForSqlTypeName(SqlTypeName sqlTypeName)
-  {
+    final SqlTypeName sqlTypeName = dataType.getSqlTypeName();
     if (SqlTypeName.BOOLEAN == sqlTypeName) {
       return ValueDesc.BOOLEAN;
     } else if (SqlTypeName.FLOAT == sqlTypeName) {
@@ -150,13 +146,19 @@ public class Calcites
       return ValueDesc.LONG;
     } else if (SqlTypeName.CHAR_TYPES.contains(sqlTypeName)) {
       return ValueDesc.STRING;
+    } else if (SqlTypeName.GEOMETRY == sqlTypeName) {
+      return ValueDesc.GEOMETRY;    // it's not working (todo)
+    }
+    // hack
+    if (dataType.getFullTypeString().contains("class org.locationtech.jts.geom.Geometry")) {
+      return ValueDesc.GEOMETRY;
     }
     return ValueDesc.of(sqlTypeName.getName());
   }
 
-  public static String getStringComparatorForSqlTypeName(SqlTypeName sqlTypeName)
+  public static String getStringComparatorForDataType(RelDataType dataType)
   {
-    final ValueDesc valueType = getValueDescForSqlTypeName(sqlTypeName);
+    final ValueDesc valueType = getValueDescForRelDataType(dataType);
     return getStringComparatorForValueType(valueType);
   }
 

@@ -107,7 +107,7 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
                             return exec.submit(
                                 new AbstractPrioritizedCallable<Iterable<T>>(priority)
-                                {
+                                 {
                                   @Override
                                   public Iterable<T> call() throws Exception
                                   {

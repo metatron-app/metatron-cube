@@ -22,6 +22,7 @@ package io.druid.sql.guice;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
+import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 
 public class SqlBindings
@@ -40,5 +41,13 @@ public class SqlBindings
   )
   {
     Multibinder.newSetBinder(binder, SqlOperatorConversion.class).addBinding().to(clazz);
+  }
+
+  public static void addDimFilterConversion(
+      final Binder binder,
+      final Class<? extends DimFilterConversion> clazz
+  )
+  {
+    Multibinder.newSetBinder(binder, DimFilterConversion.class).addBinding().to(clazz);
   }
 }

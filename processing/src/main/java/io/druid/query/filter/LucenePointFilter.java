@@ -202,32 +202,33 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName)
+  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
   {
+    final String latlon = toLatLonField(columnName, fieldName, descriptor);
     switch (query) {
       case DISTANCE:
         return new MathExprFilter(
             String.format(
-                "geom_contains(geom_buffer(geom_fromLatLon(%f, %f), %f), geom_fromLatLon(\"%s\"))",
-                latitudes[0], longitudes[0], radiusMeters, columnName
+                "geom_contains(geom_buffer(geom_fromLatLon(%f, %f), %f), geom_fromLatLon(%s))",
+                latitudes[0], longitudes[0], radiusMeters, latlon
             )
         );
       case BBOX:
       case POLYGON:
-        StringBuilder multiPoint = new StringBuilder();
+        StringBuilder points = new StringBuilder();
         for (int i = 0; i < longitudes.length; i++) {
-          if (multiPoint.length() > 0) {
-            multiPoint.append(", ");
+          if (points.length() > 0) {
+            points.append(", ");
           }
-          multiPoint.append('(').append(longitudes[i]).append(' ').append(latitudes[i]).append(')');
+          points.append(longitudes[i]).append(' ').append(latitudes[i]);
         }
-        return new MathExprFilter(
-            String.format(
-                "geom_contains(geom_envelop('MULTIPOINT (%s)'), geom_fromLatLon(\"%s\"))", multiPoint, columnName
-            )
-        );
+        String polygon = query == PointQueryType.POLYGON
+                         ? String.format("geom_fromWKT('POLYGON ((%s))')", points)
+                         : String.format("geom_envelop(geom_fromWKT('MULTIPOINT (%s)'))", points);
+
+        return new MathExprFilter(String.format("geom_contains(%s, geom_fromLatLon(%s))", polygon, latlon));
       default:
-        return super.toExprFilter(columnName);
+        return super.toExprFilter(columnName, fieldName, descriptor);
     }
   }
 

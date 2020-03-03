@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -38,6 +39,7 @@ import java.util.Set;
 
 /**
  */
+@JsonTypeName("lucene.geojson")
 public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
 {
   private final String field;
@@ -138,10 +140,11 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName)
+  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
   {
+    final String latLon = toLatLonField(columnName, fieldName, descriptor);
     return new MathExprFilter(
-        String.format("geom_contains(geom_fromGeoJson('%s'), geom_fromLatLon(\"%s\"))", geoJson, columnName)
+        String.format("geom_contains(geom_fromGeoJson('%s'), geom_fromLatLon(%s))", geoJson, latLon)
     );
   }
 

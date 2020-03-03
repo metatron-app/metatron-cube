@@ -33,7 +33,9 @@ import io.druid.query.GeometrySerializer;
 import io.druid.query.H3Functions;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneShapeFilter;
+import io.druid.query.filter.LuceneShapeFilterConversion;
 import io.druid.query.filter.LuceneSpatialFilter;
+import io.druid.sql.guice.SqlBindings;
 import org.geohex.geohex4j.GeoHexFunctions;
 import org.locationtech.jts.geom.Geometry;
 
@@ -67,5 +69,6 @@ public class LuceneExtensionModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
+    SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.class);
   }
 }

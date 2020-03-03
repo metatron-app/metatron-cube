@@ -50,6 +50,7 @@ import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -199,6 +200,15 @@ public class Expressions
           return null;
         }
       }
+    } else if (kind == SqlKind.FIELD_ACCESS) {
+      RexFieldAccess fieldAccess = (RexFieldAccess) rexNode;
+      DruidExpression expression = toDruidExpression(plannerContext, rowSignature, fieldAccess.getReferenceExpr());
+      if (expression != null && expression.isDirectColumnAccess()) {
+        return DruidExpression.fromExpression(
+            String.format("\"%s.%s\"", expression.getDirectColumn(), fieldAccess.getField().getName())
+        );
+      }
+      return null;
     } else {
       // Can't translate.
       return null;
@@ -464,7 +474,7 @@ public class Expressions
       }
 
       // Numeric lhs needs a numeric comparison.
-      final String comparator = Calcites.getStringComparatorForSqlTypeName(lhs.getType().getSqlTypeName());
+      final String comparator = Calcites.getStringComparatorForDataType(lhs.getType());
       final BoundRefKey boundRefKey = new BoundRefKey(column, extractionFn, comparator);
       final DimFilter filter;
 

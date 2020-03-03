@@ -45,6 +45,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQuery;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.server.QueryLifecycleFactory;
@@ -52,6 +53,7 @@ import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.avatica.ColumnMetaData;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.runtime.Hook;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -191,7 +193,7 @@ public class QueryMaker
 
             for (final RelDataTypeField field : fieldList) {
               final String outputName = rowOrder.get(field.getIndex());
-              retVal[field.getIndex()] = coerce(row.getRaw(outputName), field.getType().getSqlTypeName());
+              retVal[field.getIndex()] = coerce(row.getRaw(outputName), field.getType());
             }
 
             return retVal;
@@ -221,7 +223,7 @@ public class QueryMaker
               final Object[] retVal = new Object[fieldList.size()];
               for (final RelDataTypeField field : fieldList) {
                 final String outputName = druidQuery.getOutputRowSignature().getRowOrder().get(field.getIndex());
-                retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
+                retVal[field.getIndex()] = coerce(row.get(outputName), field.getType());
               }
 
               retVals.add(retVal);
@@ -266,7 +268,7 @@ public class QueryMaker
             if (index < 0) {
               continue;
             }
-            retVal[field.getIndex()] = coerce(row[index], field.getType().getSqlTypeName());
+            retVal[field.getIndex()] = coerce(row[index], field.getType());
           }
           return retVal;
         }
@@ -300,37 +302,36 @@ public class QueryMaker
     }
   }
 
-  private Object coerce(final Object value, final SqlTypeName sqlType)
+  private Object coerce(final Object value, final RelDataType dataType)
   {
-    final Object coercedValue;
-
+    final SqlTypeName sqlType = dataType.getSqlTypeName();
     if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
       if (value == null || value instanceof String) {
-        coercedValue = StringUtils.nullToEmpty((String) value);
+        return StringUtils.nullToEmpty((String) value);
       } else if (value instanceof NlsString) {
-        coercedValue = ((NlsString) value).getValue();
+        return ((NlsString) value).getValue();
       } else if (value instanceof Number) {
-        coercedValue = String.valueOf(value);
+        return String.valueOf(value);
       } else if (value instanceof Collection) {
-        coercedValue = GuavaUtils.arrayToString(((Collection) value).toArray());
+        return GuavaUtils.arrayToString(((Collection) value).toArray());
       } else if (value instanceof Object[]) {
-        coercedValue = GuavaUtils.arrayToString((Object[]) value);
+        return GuavaUtils.arrayToString((Object[]) value);
       } else {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
-    } else if (value == null) {
-      coercedValue = null;
+    } else if (sqlType == SqlTypeName.NULL || value == null) {
+      return null;
     } else if (sqlType == SqlTypeName.DATE) {
       return Calcites.jodaToCalciteDate(coerceDateTime(value, sqlType), plannerContext.getTimeZone());
     } else if (sqlType == SqlTypeName.TIMESTAMP) {
       return Calcites.jodaToCalciteTimestamp(coerceDateTime(value, sqlType), plannerContext.getTimeZone());
     } else if (sqlType == SqlTypeName.BOOLEAN) {
       if (value instanceof String) {
-        coercedValue = Evals.asBoolean(((String) value));
+        return Evals.asBoolean(((String) value));
       } else if (value instanceof Boolean) {
-        coercedValue = value != null && (Boolean) value;
+        return value != null && (Boolean) value;
       } else if (value instanceof Number) {
-        coercedValue = Evals.asBoolean((Number) value);
+        return Evals.asBoolean((Number) value);
       } else {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
@@ -339,36 +340,33 @@ public class QueryMaker
       if (longValue == null) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
-      coercedValue = longValue.intValue();
+      return longValue.intValue();
     } else if (sqlType == SqlTypeName.BIGINT) {
-      coercedValue = Rows.parseLong(value, null);
+      Long coercedValue = Rows.parseLong(value, null);
       if (coercedValue == null) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
+      return coercedValue;
     } else if (sqlType == SqlTypeName.FLOAT) {
-      coercedValue = Rows.parseFloat(value, null);
+      Float coercedValue = Rows.parseFloat(value, null);
       if (coercedValue == null) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
+      return coercedValue;
     } else if (sqlType == SqlTypeName.DECIMAL) {
-      coercedValue = coerceDecimal(value, sqlType);
+      return coerceDecimal(value, sqlType);
     } else if (SqlTypeName.APPROX_TYPES.contains(sqlType)) {
       try {
-        coercedValue = Rows.parseDouble(value);
+        return Rows.parseDouble(value);
       }
       catch (Exception e) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
-    } else if (sqlType == SqlTypeName.NULL) {
-      coercedValue = value;
-    } else if (sqlType == SqlTypeName.OTHER) {
-      // Complex type got out somehow.
-      coercedValue = value.getClass().getName();
+    } else if (value instanceof HyperLogLogCollector) {
+      return value.getClass().getName();  // for test.. I'm lazy
     } else {
-      coercedValue = value;   // return as-is... it seemed better than exception
+      return value;   // return as-is... it seemed better than exception
     }
-
-    return coercedValue;
   }
 
   private static DateTime coerceDateTime(Object value, SqlTypeName sqlType)

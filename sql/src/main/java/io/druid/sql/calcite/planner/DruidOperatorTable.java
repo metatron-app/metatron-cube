@@ -37,9 +37,6 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.LuceneNearestFilter;
-import io.druid.query.filter.LuceneQueryFilter;
 import io.druid.query.groupby.orderby.WindowContext;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
@@ -91,8 +88,6 @@ import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunction;
@@ -107,7 +102,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.commons.lang.StringEscapeUtils;
@@ -230,7 +224,8 @@ public class DruidOperatorTable implements SqlOperatorTable
   public DruidOperatorTable(
       final Set<SqlAggregator> userAggregators,
       final Set<AggregatorFactory.WithName> userAggregatorFactories,
-      final Set<SqlOperatorConversion> userOperatorConversions
+      final Set<SqlOperatorConversion> userOperatorConversions,
+      final Set<DimFilterConversion> userDimFilterConversions
   )
   {
     this.aggregators = new HashMap<>();
@@ -269,6 +264,10 @@ public class DruidOperatorTable implements SqlOperatorTable
       if (aggregators.containsKey(operatorKey) || operatorConversions.put(operatorKey, operatorConversion) != null) {
         throw new ISE("Cannot have two operators with key[%s]", operatorKey);
       }
+    }
+
+    for (DimFilterConversion conversion : userDimFilterConversions) {
+      dimFilterConversions.putIfAbsent(OperatorKey.of(conversion.calciteOperator(), true), conversion);
     }
 
     for (SqlOperatorConversion operatorConversion : STANDARD_OPERATOR_CONVERSIONS) {
@@ -336,73 +335,9 @@ public class DruidOperatorTable implements SqlOperatorTable
         operatorConversions.putIfAbsent(operatorKey, new DirectOperatorConversion(operator, name));
       }
     }
-    addLuceneQuery();
-    addLuceneNearest();
   }
 
-  private void addLuceneQuery()
-  {
-    final String name = "lucene_query";
-    final SqlReturnTypeInference retType = ReturnTypes.explicit(SqlTypeName.BOOLEAN);
-    final SqlOperator operator = new DummySqlFunction(name, retType);
-    final OperatorKey operatorKey = OperatorKey.of(operator, true);
-    dimFilterConversions.putIfAbsent(operatorKey, new DimFilterConversion()
-    {
-      @Override
-      public SqlOperator calciteOperator()
-      {
-        return operator;
-      }
-
-      @Override
-      public DimFilter toDruidFilter(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
-      {
-        final RexCall call = (RexCall) rexNode;
-        final List<RexNode> operands = call.getOperands();
-        if (operands.size() != 2 && operands.size() != 3) {
-          return null;
-        }
-        // field, expression, analyzer (not like param order of LuceneQueryFilter)
-        String field = getFieldName(operands.get(0), plannerContext, rowSignature);
-        String expression = RexLiteral.stringValue(operands.get(1));
-        String analyzer = operands.size() == 3 ? RexLiteral.stringValue(operands.get(2)) : null;
-        return new LuceneQueryFilter(field, analyzer, expression);
-      }
-    });
-  }
-
-  private void addLuceneNearest()
-  {
-    final String name = "lucene_nearest";
-    final SqlReturnTypeInference retType = ReturnTypes.explicit(SqlTypeName.BOOLEAN);
-    final SqlOperator operator = new DummySqlFunction(name, retType);
-    final OperatorKey operatorKey = OperatorKey.of(operator, true);
-    dimFilterConversions.putIfAbsent(operatorKey, new DimFilterConversion()
-    {
-      @Override
-      public SqlOperator calciteOperator()
-      {
-        return operator;
-      }
-
-      @Override
-      public DimFilter toDruidFilter(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
-      {
-        final RexCall call = (RexCall) rexNode;
-        final List<RexNode> operands = call.getOperands();
-        if (operands.size() != 4) {
-          return null;
-        }
-        String field = getFieldName(operands.get(0), plannerContext, rowSignature);
-        double latitude = ((Number) RexLiteral.value(operands.get(1))).doubleValue();
-        double longitude = ((Number) RexLiteral.value(operands.get(2))).doubleValue();
-        int count = RexLiteral.intValue(operands.get(3));
-        return new LuceneNearestFilter(field, latitude, longitude, count);
-      }
-    });
-  }
-
-  private String getFieldName(RexNode operand, PlannerContext plannerContext, RowSignature rowSignature)
+  public static String getFieldName(RexNode operand, PlannerContext plannerContext, RowSignature rowSignature)
   {
     DruidExpression expression = Expressions.toDruidExpression(plannerContext, rowSignature, operand);
     if (expression.isDirectColumnAccess()) {
@@ -597,6 +532,11 @@ public class DruidOperatorTable implements SqlOperatorTable
         return Aggregation.create(virtualColumns, rewritten);
       }
     }
+  }
+
+  public static SqlFunction dummy(String name, SqlReturnTypeInference retType)
+  {
+    return new DummySqlFunction(name, retType);
   }
 
   private static class DummySqlFunction extends SqlFunction

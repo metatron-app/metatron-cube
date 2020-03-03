@@ -24,6 +24,8 @@ import org.joda.time.Period;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  */
@@ -37,6 +39,9 @@ public class ServerConfig
   @NotNull
   private Period maxIdleTime = new Period("PT5m");
 
+  @JsonProperty
+  private List<String> allowCorsPaths = Arrays.asList();
+
   public int getNumThreads()
   {
     return numThreads;
@@ -45,6 +50,11 @@ public class ServerConfig
   public Period getMaxIdleTime()
   {
     return maxIdleTime;
+  }
+
+  public List<String> getAllowCorsPaths()
+  {
+    return allowCorsPaths;
   }
 
   @Override

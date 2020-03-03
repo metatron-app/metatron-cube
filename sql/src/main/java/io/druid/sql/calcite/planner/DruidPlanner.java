@@ -197,7 +197,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         return Sequences.withBaggage(sequence, future);
       }
     };
-    return new PlannerResult(resultsSupplier, root.validatedRowType, datasourceNames);
+    return new PlannerResult(query, resultsSupplier, root.validatedRowType, datasourceNames);
   }
 
   private PlannerResult planWithBindableConvention(final SqlNode source, final RelRoot root)

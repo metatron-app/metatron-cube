@@ -227,9 +227,13 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName)
+  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
   {
-    String columnReader = GeomUtils.fromColumn(shapeFormat, columnName);
+    String format = getShapeFormat(descriptor);
+    ShapeFormat shapeFormat = format == null ? this.shapeFormat : ShapeFormat.fromString(format);
+
+    String column = fieldName == null ? columnName : String.format("%s.%s", columnName, fieldName);
+    String columnReader = GeomUtils.fromColumn(shapeFormat, column);
     String shapeReader = GeomUtils.fromString(shapeFormat, shapeString);
     if (operation == SpatialOperations.BBOX_WITHIN || operation == SpatialOperations.BBOX_INTERSECTS) {
       shapeReader = String.format("geom_bbox(%s)", shapeReader);

@@ -35,9 +35,12 @@ import io.druid.sql.avatica.AvaticaMonitor;
 import io.druid.sql.avatica.AvaticaServerConfig;
 import io.druid.sql.avatica.DruidAvaticaHandler;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
+import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.builtin.LookupOperatorConversion;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
+import io.druid.sql.calcite.planner.LuceneNearestFilterConversion;
+import io.druid.sql.calcite.planner.LuceneQueryFilterConversion;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.view.NoopViewManager;
@@ -81,8 +84,14 @@ public class SqlModule implements Module
       // Add empty AggregatorFactory binder.
       Multibinder.newSetBinder(binder, AggregatorFactory.WithName.class);
 
+      // Add empty DimFilterConversion binder.
+      Multibinder.newSetBinder(binder, DimFilterConversion.class);
+
       // LookupOperatorConversion isn't in DruidOperatorTable since it needs a LookupReferencesManager injected.
       SqlBindings.addOperatorConversion(binder, LookupOperatorConversion.class);
+
+      SqlBindings.addDimFilterConversion(binder, LuceneQueryFilterConversion.class);
+      SqlBindings.addDimFilterConversion(binder, LuceneNearestFilterConversion.class);
 
       binder.bind(DruidOperatorTable.class).in(LazySingleton.class);
 

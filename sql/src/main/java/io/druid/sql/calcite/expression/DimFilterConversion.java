@@ -20,19 +20,32 @@
 package io.druid.sql.calcite.expression;
 
 import io.druid.query.filter.DimFilter;
+import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 public interface DimFilterConversion
 {
+  /**
+   * Name of function
+   *
+   * @return
+   */
+  String name();
+
   /**
    * Returns the SQL operator corresponding to this function. Should be a singleton.
    *
    * @return operator
    */
-  SqlOperator calciteOperator();
+  default SqlOperator calciteOperator()
+  {
+    return DruidOperatorTable.dummy(name(), ReturnTypes.explicit(SqlTypeName.BOOLEAN));
+  }
 
   /**
    * Translate a Calcite {@code RexNode} to a Druid expression.

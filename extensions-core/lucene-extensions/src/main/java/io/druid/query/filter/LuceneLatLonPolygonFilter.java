@@ -159,11 +159,12 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName)
+  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
   {
-    final String expression = GeomUtils.fromString(shapeFormat, shapeString);
+    final String polygon = GeomUtils.fromString(shapeFormat, shapeString);
+    final String latLon = toLatLonField(columnName, fieldName, descriptor);
     return new MathExprFilter(
-        String.format("geom_contains(%s, geom_fromLatLon(\"%s\"))", expression, columnName)
+        String.format("geom_contains(%s, geom_fromLatLon(%s))", polygon, latLon)
     );
   }
 

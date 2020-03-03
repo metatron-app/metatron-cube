@@ -22,13 +22,16 @@ package io.druid.sql.calcite.planner;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.query.Query;
 import org.apache.calcite.rel.type.RelDataType;
 
+import javax.annotation.Nullable;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PlannerResult
 {
+  private final Query<?> query;
   private final Supplier<Sequence<Object[]>> resultsSupplier;
   private final RelDataType rowType;
   private final Set<String> datasourceNames;
@@ -36,14 +39,17 @@ public class PlannerResult
 
   public PlannerResult(final Supplier<Sequence<Object[]>> resultsSupplier, final RelDataType rowType)
   {
-    this(resultsSupplier, rowType, ImmutableSet.of());
+    this(null, resultsSupplier, rowType, ImmutableSet.of());
   }
 
   public PlannerResult(
+      final Query<?> query,
       final Supplier<Sequence<Object[]>> resultsSupplier,
       final RelDataType rowType,
-      final Set<String> datasourceNames)
+      final Set<String> datasourceNames
+  )
   {
+    this.query = query;
     this.resultsSupplier = resultsSupplier;
     this.rowType = rowType;
     this.datasourceNames = ImmutableSet.copyOf(datasourceNames);
@@ -56,6 +62,12 @@ public class PlannerResult
       throw new IllegalStateException("Cannot run more than once");
     }
     return resultsSupplier.get();
+  }
+
+  @Nullable
+  public Query<?> query()
+  {
+    return query;
   }
 
   public RelDataType rowType()

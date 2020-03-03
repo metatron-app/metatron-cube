@@ -32,6 +32,7 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.sql.SQLFunctions;
 import io.druid.server.QueryManager;
+import io.druid.server.QueryResource;
 import io.druid.server.log.NoopRequestLogger;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.server.security.AuthConfig;
@@ -117,6 +118,10 @@ public class SqlResourceTest extends CalciteTestBase
     EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTHENTICATION_RESULT))
             .andReturn(CalciteTests.REGULAR_USER_AUTH_RESULT)
             .anyTimes();
+    EasyMock.expect(req.getAttribute(QueryResource.GET_FEATURE))
+            .andReturn(null)
+            .anyTimes();
+
     EasyMock.replay(req);
 
     final PlannerFactory plannerFactory = new PlannerFactory(
