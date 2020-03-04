@@ -22,14 +22,15 @@ package io.druid.query.aggregation.datasketches.theta;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.Util;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.sketch.ThetaOperations;
 import org.joda.time.DateTime;
 
@@ -38,9 +39,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class SketchSetPostAggregator implements PostAggregator
+public class SketchSetPostAggregator extends PostAggregator.Abstract
 {
-
   private static final Logger LOG = new Logger(SketchSetPostAggregator.class);
 
   private final String name;
@@ -90,14 +90,22 @@ public class SketchSetPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(DateTime timestamp, final Map<String, Object> combinedAggregators)
+  public Processor processor()
   {
-    Sketch[] sketches = new Sketch[fields.size()];
-    for (int i = 0; i < sketches.length; i++) {
-      sketches[i] = toSketch(fields.get(i).compute(timestamp, combinedAggregators));
-    }
+    return new AbstractProcessor()
+    {
+      private final List<Processor> processors = PostAggregators.toProcessors(fields);
 
-    return ThetaOperations.sketchSetOperation(func, maxSketchSize, sketches);
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        Sketch[] sketches = new Sketch[fields.size()];
+        for (int i = 0; i < sketches.length; i++) {
+          sketches[i] = toSketch(processors.get(i).compute(timestamp, combinedAggregators));
+        }
+        return ThetaOperations.sketchSetOperation(func, maxSketchSize, sketches);
+      }
+    };
   }
 
   static Sketch toSketch(Object obj)

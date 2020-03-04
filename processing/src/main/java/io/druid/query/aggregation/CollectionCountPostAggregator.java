@@ -20,37 +20,29 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 /**
  */
-public class CollectionCountPostAggregator implements PostAggregator
+public class CollectionCountPostAggregator extends PostAggregator.Stateless
 {
   private final String name;
   private final String field;
   private final String expression;
-
-  @JsonIgnore private final Expr parsed;
-  @JsonIgnore private final boolean identifier;
-  @JsonIgnore private final List<String> dependentFields;
 
   @JsonCreator
   public CollectionCountPostAggregator(
@@ -65,10 +57,6 @@ public class CollectionCountPostAggregator implements PostAggregator
     this.name = Preconditions.checkNotNull(name, "name should not be null");
     this.field = field;
     this.expression = expression;
-
-    this.parsed = expression == null ? null : Parser.parse(expression);
-    this.identifier = expression != null && Evals.isIdentifier(parsed);
-    this.dependentFields = expression == null ? ImmutableList.of(field) : Parser.findRequiredBindings(parsed);
   }
 
   @JsonProperty
@@ -92,7 +80,7 @@ public class CollectionCountPostAggregator implements PostAggregator
   @Override
   public Set<String> getDependentFields()
   {
-    return ImmutableSet.copyOf(dependentFields);
+    return expression == null ? ImmutableSet.of(field) : ImmutableSet.copyOf(Parser.findRequiredBindings(expression));
   }
 
   @Override
@@ -102,23 +90,37 @@ public class CollectionCountPostAggregator implements PostAggregator
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  protected Processor createStateless()
   {
-    return ValueDesc.LONG;
+    if (field != null) {
+      return new AbstractProcessor()
+      {
+        @Override
+        public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+        {
+          final Object value = combinedAggregators.get(field);
+          return value instanceof Collection ? ((Collection) value).size() : null;
+        }
+      };
+    } else {
+      return new AbstractProcessor()
+      {
+        private final Expr parsed = Parser.parse(expression);
+
+        @Override
+        public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+        {
+          final Object value = parsed.eval(Parser.withMap(combinedAggregators)).value();
+          return value instanceof Collection ? ((Collection) value).size() : null;
+        }
+      };
+    }
   }
 
   @Override
-  public final Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    Object value;
-    if (field != null) {
-      value = combinedAggregators.get(field);
-    } else if (identifier) {
-      value = combinedAggregators.get(expression);
-    } else {
-      value = parsed.eval(Parser.withMap(combinedAggregators)).value();
-    }
-    return value instanceof Collection ? ((Collection) value).size() : null;
+    return ValueDesc.LONG;
   }
 
   @Override

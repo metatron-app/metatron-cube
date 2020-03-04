@@ -24,10 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
 
 import java.util.Comparator;
-import java.util.Map;
 
 /**
  */
@@ -44,21 +42,21 @@ public class MedianPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
+  public Comparator getComparator()
+  {
+    return QuantilePostAggregator.COMPARATOR;
+  }
+
+  @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
     return ValueDesc.FLOAT;
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
+  protected Object computeFrom(ApproximateHistogramHolder holder)
   {
-    return ((ApproximateHistogramHolder) values.get(this.getFieldName())).getMedian();
-  }
-
-  @Override
-  public Comparator getComparator()
-  {
-    return QuantilePostAggregator.COMPARATOR;
+    return holder.getMedian();
   }
 
   @Override

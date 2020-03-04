@@ -24,9 +24,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.Set;
 
 
-public class JavaScriptPostAggregator implements PostAggregator
+public class JavaScriptPostAggregator extends PostAggregator.Stateless
 {
   private static final Comparator COMPARATOR = new Comparator()
   {
@@ -88,7 +88,7 @@ public class JavaScriptPostAggregator implements PostAggregator
   private final List<String> fieldNames;
   private final String function;
 
-  private final Function fn;
+  private final JavaScriptConfig config;
 
   @JsonCreator
   public JavaScriptPostAggregator(
@@ -105,12 +105,7 @@ public class JavaScriptPostAggregator implements PostAggregator
     this.name = name;
     this.fieldNames = fieldNames;
     this.function = function;
-
-    if (config.isDisabled()) {
-      this.fn = null;
-    } else {
-      this.fn = compile(function);
-    }
+    this.config = config;
   }
 
   @Override
@@ -126,24 +121,32 @@ public class JavaScriptPostAggregator implements PostAggregator
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  protected Processor createStateless()
   {
-    return ValueDesc.UNKNOWN;
+    if (config.isDisabled()) {
+      throw new ISE("JavaScript is disabled");
+    }
+    return new AbstractProcessor()
+    {
+      private final Function fn = compile(function);
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        final Object[] args = new Object[fieldNames.size()];
+        int i = 0;
+        for (String field : fieldNames) {
+          args[i++] = combinedAggregators.get(field);
+        }
+        return fn.apply(args);
+      }
+    };
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    if (fn == null) {
-      throw new ISE("JavaScript is disabled");
-    }
-
-    final Object[] args = new Object[fieldNames.size()];
-    int i = 0;
-    for (String field : fieldNames) {
-      args[i++] = combinedAggregators.get(field);
-    }
-    return fn.apply(args);
+    return ValueDesc.UNKNOWN;
   }
 
   @JsonProperty
@@ -180,9 +183,6 @@ public class JavaScriptPostAggregator implements PostAggregator
     if (fieldNames != null ? !fieldNames.equals(that.fieldNames) : that.fieldNames != null) {
       return false;
     }
-    if (fn != null ? !fn.equals(that.fn) : that.fn != null) {
-      return false;
-    }
     if (function != null ? !function.equals(that.function) : that.function != null) {
       return false;
     }
@@ -199,7 +199,6 @@ public class JavaScriptPostAggregator implements PostAggregator
     int result = name != null ? name.hashCode() : 0;
     result = 31 * result + (fieldNames != null ? fieldNames.hashCode() : 0);
     result = 31 * result + (function != null ? function.hashCode() : 0);
-    result = 31 * result + (fn != null ? fn.hashCode() : 0);
     return result;
   }
 }

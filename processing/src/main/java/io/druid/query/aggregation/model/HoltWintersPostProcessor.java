@@ -55,6 +55,7 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.ObjectArray;
@@ -162,7 +163,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     this.useLastN = useLastN == null ? DEFAULT_USE_LAST_N : useLastN;
     this.numPrediction = numPrediction == null ? DEFAULT_NUM_PREDICTION : numPrediction;
     this.confidence = confidence == null ? DEFAULT_CONFIDENCE : confidence;
-    this.postAggregations = postAggregations == null ? ImmutableList.<PostAggregator>of() : postAggregations;
+    this.postAggregations = postAggregations;
     this.timeExpression = timeExpression;
     this.timeColumn = timeColumn;
     this.timeLocale = timeLocale;
@@ -217,6 +218,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   {
     return new QueryRunner()
     {
+      private final List<PostAggregator.Processor> postProcessors = PostAggregators.toProcessors(postAggregations);
       @Override
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map responseContext)
@@ -278,14 +280,14 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                 }
               }
               lastTimestamp.setValue(timestamp.getMillis());
-              if (!keepValuesOnly && postAggregations.isEmpty()) {
+              if (!keepValuesOnly && postProcessors.isEmpty()) {
                 return in;
               }
               Map<String, Object> event = Rows.asMap(in);
               if (keepValuesOnly) {
                 event = Rows.retain(event, values);
               }
-              for (PostAggregator postAggregator : postAggregations) {
+              for (PostAggregator.Processor postAggregator : postProcessors) {
                 event.put(postAggregator.getName(), postAggregator.compute(timestamp, event));
               }
               return new MapBasedRow(in.getTimestamp(), event);
@@ -304,7 +306,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                       dimensions,
                       numbersMap,
                       lastTimestamp.longValue(),
-                      granularity
+                      granularity,
+                      postProcessors
                   )
               );
             }
@@ -361,7 +364,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       String[] dimensions,
       Map<ObjectArray<Object>, BoundedTimeseries[]> numbersMap,
       long lastTimestamp,
-      Granularity granularity
+      Granularity granularity,
+      List<PostAggregator.Processor> postProcessors
   )
   {
     DateTime timestamp = granularity.toDateTime(lastTimestamp);
@@ -400,7 +404,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
               row.put(metrics[i] + ".params", params[i]);
             }
           }
-          for (PostAggregator postAggregator : postAggregations) {
+          for (PostAggregator.Processor postAggregator : postProcessors) {
             row.put(postAggregator.getName(), postAggregator.compute(timestamp, row));
           }
           rows.add(new PredictedRow(timestamp, row));

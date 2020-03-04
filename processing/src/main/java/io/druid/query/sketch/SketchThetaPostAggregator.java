@@ -39,7 +39,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("sketch.theta")
-public class SketchThetaPostAggregator implements PostAggregator
+public class SketchThetaPostAggregator extends PostAggregator.Stateless
 {
   private final String name;
   private final String fieldName;
@@ -98,26 +98,46 @@ public class SketchThetaPostAggregator implements PostAggregator
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  @SuppressWarnings("unchecked")
+  protected Processor createStateless()
   {
-    return round ? ValueDesc.LONG : ValueDesc.DOUBLE;
+    if (numStdDev > 0) {
+      return new AbstractProcessor()
+      {
+        @Override
+        public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+        {
+          TypedSketch<Sketch> typed = (TypedSketch<Sketch>) combinedAggregators.get(fieldName);
+          return typed == null ? null : toMap(typed.value(), numStdDev, round);
+        }
+      };
+    }
+    if (round) {
+      return new AbstractProcessor()
+      {
+        @Override
+        public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+        {
+          TypedSketch<Sketch> typed = (TypedSketch<Sketch>) combinedAggregators.get(fieldName);
+          return typed == null ? null : Math.round(typed.value().getEstimate());
+        }
+      };
+    }
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        TypedSketch<Sketch> typed = (TypedSketch<Sketch>) combinedAggregators.get(fieldName);
+        return typed == null ? null : typed.value().getEstimate();
+      }
+    };
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    TypedSketch<Sketch> typed = (TypedSketch<Sketch>) combinedAggregators.get(fieldName);
-    if (typed != null) {
-      Sketch sketch = typed.value();
-      if (numStdDev > 0) {
-        return toMap(sketch, numStdDev, round);
-      } else {
-        double estimate = sketch.getEstimate();
-        return round ? Math.round(estimate) : estimate;
-      }
-    }
-    return null;
+    return numStdDev > 0 ? ValueDesc.MAP : round ? ValueDesc.LONG : ValueDesc.DOUBLE;
   }
 
   static Map<String, Object> toMap(Sketch sketch, int numStdDev, boolean round)

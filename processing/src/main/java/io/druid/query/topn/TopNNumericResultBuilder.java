@@ -45,7 +45,7 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
   private final DateTime timestamp;
   private final DimensionSpec dimSpec;
   private final String metricName;
-  private final List<PostAggregator> postAggs;
+  private final List<PostAggregator.Processor> postAggs;
   private final MinMaxPriorityQueue<DimValHolder> pQueue;
   private final Comparator<DimValHolder> dimValComparator;
   private final String[] aggFactoryNames;
@@ -87,9 +87,9 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
     this.metricName = metricName;
     this.aggFactoryNames = AggregatorFactory.toNamesAsArray(aggFactories);
 
-    this.postAggs = PostAggregators.decorate(
-        AggregatorUtil.pruneDependentPostAgg(postAggs, metricName),
-        aggFactories);
+    this.postAggs = PostAggregators.toProcessors(PostAggregators.decorate(
+        AggregatorUtil.pruneDependentPostAgg(postAggs, metricName), aggFactories
+    ));
 
     this.threshold = threshold;
     this.metricComparator = comparator;
@@ -160,7 +160,7 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
     }
 
     // Order matters here, do not unroll
-    for (PostAggregator postAgg : postAggs) {
+    for (PostAggregator.Processor postAgg : postAggs) {
       metricValues.put(postAgg.getName(), postAgg.compute(timestamp, metricValues));
     }
 

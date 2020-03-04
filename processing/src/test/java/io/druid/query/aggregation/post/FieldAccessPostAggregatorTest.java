@@ -21,6 +21,7 @@ package io.druid.query.aggregation.post;
 
 import io.druid.common.DateTimes;
 import io.druid.query.aggregation.CountAggregator;
+import io.druid.query.aggregation.PostAggregator;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -36,9 +37,9 @@ public class FieldAccessPostAggregatorTest
   @Test
   public void testCompute()
   {
-    FieldAccessPostAggregator fieldAccessPostAggregator;
+    PostAggregator.Processor fieldAccessPostAggregator;
 
-    fieldAccessPostAggregator = new FieldAccessPostAggregator("To be, or not to be, that is the question:", "rows");
+    fieldAccessPostAggregator = new FieldAccessPostAggregator("To be, or not to be, that is the question:", "rows").createStateless();
     CountAggregator agg = new CountAggregator();
     Map<String, Object> metricValues = new HashMap<String, Object>();
     MutableLong aggregate = null;

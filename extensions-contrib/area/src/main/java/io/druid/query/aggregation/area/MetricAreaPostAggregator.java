@@ -31,7 +31,7 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
 
-public class MetricAreaPostAggregator implements PostAggregator
+public class MetricAreaPostAggregator extends PostAggregator.Stateless
 {
   private final String name;
   private final String fieldName;
@@ -45,7 +45,6 @@ public class MetricAreaPostAggregator implements PostAggregator
     this.name = name;
     this.fieldName = fieldName;
   }
-
 
   @Override
   public Set<String> getDependentFields()
@@ -66,9 +65,16 @@ public class MetricAreaPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  protected Processor createStateless()
   {
-    return ((MetricArea) combinedAggregators.get(this.getFieldName())).getArea();
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        return ((MetricArea) combinedAggregators.get(fieldName)).getArea();
+      }
+    };
   }
 
   @Override
@@ -88,7 +94,8 @@ public class MetricAreaPostAggregator implements PostAggregator
   public String toString()
   {
     return "MetricAreaPostAggregator{" +
-        "fieldName='" + fieldName + '\'' +
-        '}';
+           "name='" + name + '\'' +
+           "fieldName='" + fieldName + '\'' +
+           '}';
   }
 }

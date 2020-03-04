@@ -36,9 +36,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class SketchEstimatePostAggregator implements PostAggregator
+public class SketchEstimatePostAggregator extends PostAggregator.Abstract
 {
-
   private final String name;
   private final PostAggregator field;
   private final Integer errorBoundsStdDev;
@@ -84,24 +83,34 @@ public class SketchEstimatePostAggregator implements PostAggregator
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  public Processor processor()
   {
-    return errorBoundsStdDev == null ? ValueDesc.DOUBLE_ARRAY : ValueDesc.UNKNOWN;
+    return new AbstractProcessor()
+    {
+      private final Processor processor = field.processor();
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        Sketch sketch = SketchSetPostAggregator.toSketch(processor.compute(timestamp, combinedAggregators));
+        if (errorBoundsStdDev != null) {
+          return new SketchEstimateWithErrorBounds(
+              sketch.getEstimate(),
+              sketch.getUpperBound(errorBoundsStdDev),
+              sketch.getLowerBound(errorBoundsStdDev),
+              errorBoundsStdDev
+          );
+        } else {
+          return sketch.getEstimate();
+        }
+      }
+    };
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    Sketch sketch = SketchSetPostAggregator.toSketch(field.compute(timestamp, combinedAggregators));
-    if (errorBoundsStdDev != null) {
-      return new SketchEstimateWithErrorBounds(
-          sketch.getEstimate(),
-          sketch.getUpperBound(errorBoundsStdDev),
-          sketch.getLowerBound(errorBoundsStdDev),
-          errorBoundsStdDev);
-    } else {
-      return sketch.getEstimate();
-    }
+    return errorBoundsStdDev == null ? ValueDesc.DOUBLE_ARRAY : ValueDesc.UNKNOWN;
   }
 
   @Override
@@ -127,10 +136,10 @@ public class SketchEstimatePostAggregator implements PostAggregator
   public String toString()
   {
     return "SketchEstimatePostAggregator{" +
-        "name='" + name + '\'' +
-        ", field=" + field +
-        ", errorBoundsStdDev=" + errorBoundsStdDev +
-        "}";
+           "name='" + name + '\'' +
+           ", field=" + field +
+           ", errorBoundsStdDev=" + errorBoundsStdDev +
+           "}";
   }
 
   @Override

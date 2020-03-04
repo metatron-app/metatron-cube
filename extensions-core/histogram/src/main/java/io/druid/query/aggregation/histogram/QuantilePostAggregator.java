@@ -22,15 +22,11 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
+import io.druid.java.util.common.IAE;
 
 import java.util.Comparator;
-import java.util.Map;
-import java.util.Set;
 
 @JsonTypeName("quantile")
 public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
@@ -45,7 +41,6 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
   };
 
   private final float probability;
-  private String fieldName;
 
   @JsonCreator
   public QuantilePostAggregator(
@@ -56,36 +51,9 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
   {
     super(name, fieldName);
     this.probability = probability;
-    this.fieldName = fieldName;
-
     if (probability < 0 | probability > 1) {
       throw new IAE("Illegal probability[%s], must be strictly between 0 and 1", probability);
     }
-  }
-
-  @Override
-  public Comparator getComparator()
-  {
-    return COMPARATOR;
-  }
-
-  @Override
-  public Set<String> getDependentFields()
-  {
-    return Sets.newHashSet(fieldName);
-  }
-
-  @Override
-  public ValueDesc resolve(TypeResolver bindings)
-  {
-    return ValueDesc.FLOAT;
-  }
-
-  @Override
-  public Float compute(DateTime timestamp, Map<String, Object> values)
-  {
-    final ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
-    return ah.getQuantiles(new float[]{this.getProbability()})[0];
   }
 
   @JsonProperty
@@ -95,10 +63,29 @@ public class QuantilePostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
+  public Comparator getComparator()
+  {
+    return COMPARATOR;
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.FLOAT;
+  }
+
+  @Override
+  protected Object computeFrom(ApproximateHistogramHolder holder)
+  {
+    return holder.getQuantiles(new float[]{probability})[0];
+  }
+
+  @Override
   public String toString()
   {
     return "QuantilePostAggregator{" +
            "probability=" + probability +
+           ", name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
            '}';
   }

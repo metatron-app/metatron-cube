@@ -27,6 +27,7 @@ import com.yahoo.sketches.hll.Union;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -41,7 +42,7 @@ import java.util.Set;
  * Returns a union of a given list of sketches.
  * @author Alexander Saydakov
  */
-public class HllSketchUnionPostAggregator implements PostAggregator
+public class HllSketchUnionPostAggregator extends PostAggregator.Abstract
 {
 
   private final String name;
@@ -106,13 +107,22 @@ public class HllSketchUnionPostAggregator implements PostAggregator
   }
 
   @Override
-  public HllSketch compute(final DateTime timestamp, final Map<String, Object> combinedAggregators)
+  public Processor processor()
   {
-    final Union union = new Union(lgK);
-    for (PostAggregator field : fields) {
-      union.update((HllSketch) field.compute(timestamp, combinedAggregators));
-    }
-    return union.getResult(tgtHllType);
+    return new AbstractProcessor()
+    {
+      private final List<Processor> processors = PostAggregators.toProcessors(fields);
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        final Union union = new Union(lgK);
+        for (Processor processor : processors) {
+          union.update((HllSketch) processor.compute(timestamp, combinedAggregators));
+        }
+        return union.getResult(tgtHllType);
+      }
+    };
   }
 
   @Override

@@ -37,11 +37,11 @@ import java.util.Set;
  * Returns a human-readable summary of a given {@link HllSketch}.
  * This is a string returned by toString() method of the sketch.
  * This can be useful for debugging.
+ *
  * @author Alexander Saydakov
  */
-public class HllSketchToStringPostAggregator implements PostAggregator
+public class HllSketchToStringPostAggregator extends PostAggregator.Abstract
 {
-
   private final String name;
   private final PostAggregator field;
 
@@ -68,9 +68,18 @@ public class HllSketchToStringPostAggregator implements PostAggregator
   }
 
   @Override
-  public String compute(final DateTime timestamp, final Map<String, Object> combinedAggregators)
+  public Processor processor()
   {
-    return field.compute(timestamp, combinedAggregators).toString();
+    return new AbstractProcessor()
+    {
+      private final Processor processor = field.processor();
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        return processor.compute(timestamp, combinedAggregators).toString();
+      }
+    };
   }
 
   @Override
@@ -96,9 +105,9 @@ public class HllSketchToStringPostAggregator implements PostAggregator
   public String toString()
   {
     return getClass().getSimpleName() + "{" +
-        "name='" + name + '\'' +
-        ", field=" + field +
-        "}";
+           "name='" + name + '\'' +
+           ", field=" + field +
+           "}";
   }
 
   @Override

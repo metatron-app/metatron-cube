@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import io.druid.common.DateTimes;
+import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,9 +40,7 @@ public class HyperUniqueFinalizingPostAggregatorTest
   public void testCompute() throws Exception
   {
     Random random = new Random(0L);
-    HyperUniqueFinalizingPostAggregator postAggregator = new HyperUniqueFinalizingPostAggregator(
-        "uniques", "uniques"
-    );
+    PostAggregator.Processor postAggregator = new HyperUniqueFinalizingPostAggregator("uniques", "uniques").processor();
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
 
     for (int i = 0; i < 100; ++i) {

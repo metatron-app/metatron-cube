@@ -22,22 +22,15 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
-
-import java.util.Map;
-import java.util.Set;
+import io.druid.java.util.common.IAE;
 
 @JsonTypeName("buckets")
 public class BucketsPostAggregator extends ApproximateHistogramPostAggregator
 {
   private final float bucketSize;
   private final float offset;
-
-  private String fieldName;
 
   @JsonCreator
   public BucketsPostAggregator(
@@ -53,26 +46,6 @@ public class BucketsPostAggregator extends ApproximateHistogramPostAggregator
       throw new IAE("Illegal bucketSize [%s], must be > 0", this.bucketSize);
     }
     this.offset = offset;
-    this.fieldName = fieldName;
-  }
-
-  @Override
-  public Set<String> getDependentFields()
-  {
-    return Sets.newHashSet(fieldName);
-  }
-
-  @Override
-  public ValueDesc resolve(TypeResolver bindings)
-  {
-    return ValueDesc.UNKNOWN;   // has no complex serde
-  }
-
-  @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
-  {
-    ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
-    return ah.toHistogram(bucketSize, offset);
   }
 
   @JsonProperty
@@ -85,6 +58,12 @@ public class BucketsPostAggregator extends ApproximateHistogramPostAggregator
   public float getOffset()
   {
     return bucketSize;
+  }
+
+  @Override
+  protected Object computeFrom(ApproximateHistogramHolder holder)
+  {
+    return holder.toHistogram(bucketSize, offset);
   }
 
   @Override

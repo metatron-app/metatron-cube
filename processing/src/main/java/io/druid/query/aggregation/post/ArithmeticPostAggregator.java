@@ -25,10 +25,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import org.joda.time.DateTime;
 
 import java.util.Comparator;
@@ -40,7 +41,7 @@ import java.util.Set;
 
 /**
  */
-public class ArithmeticPostAggregator implements PostAggregator
+public class ArithmeticPostAggregator extends PostAggregator.Abstract
 {
   public static final Comparator DEFAULT_COMPARATOR = new Comparator()
   {
@@ -108,6 +109,36 @@ public class ArithmeticPostAggregator implements PostAggregator
   }
 
   @Override
+  public Processor processor()
+  {
+    if (fields.isEmpty()) {
+      return new AbstractProcessor()
+      {
+        @Override
+        public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+        {
+          return 0.0d;
+        }
+      };
+    }
+    return new AbstractProcessor()
+    {
+      private final List<Processor> processors = PostAggregators.toProcessors(fields);
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> values)
+      {
+        final Iterator<Processor> iterator = processors.iterator();
+        double retVal = ((Number) iterator.next().compute(timestamp, values)).doubleValue();
+        while (iterator.hasNext()) {
+          retVal = op.compute(retVal, ((Number) iterator.next().compute(timestamp, values)).doubleValue());
+        }
+        return retVal;
+      }
+    };
+  }
+
+  @Override
   public ValueDesc resolve(TypeResolver bindings)
   {
     ValueDesc type = null;
@@ -115,20 +146,6 @@ public class ArithmeticPostAggregator implements PostAggregator
       type = ValueDesc.toCommonType(type, field.resolve(bindings));
     }
     return Optional.ofNullable(type).orElse(ValueDesc.UNKNOWN);
-  }
-
-  @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
-  {
-    Iterator<PostAggregator> fieldsIter = fields.iterator();
-    double retVal = 0.0;
-    if (fieldsIter.hasNext()) {
-      retVal = ((Number) fieldsIter.next().compute(timestamp, values)).doubleValue();
-      while (fieldsIter.hasNext()) {
-        retVal = op.compute(retVal, ((Number) fieldsIter.next().compute(timestamp, values)).doubleValue());
-      }
-    }
-    return retVal;
   }
 
   @Override

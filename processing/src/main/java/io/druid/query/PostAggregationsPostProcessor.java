@@ -34,6 +34,7 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.select.Schema;
 
 import java.util.List;
@@ -69,6 +70,7 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
     }
     return new QueryRunner<Row>()
     {
+      private final List<PostAggregator.Processor> postProcessors = PostAggregators.toProcessors(postAggregations);
       @Override
       @SuppressWarnings("unchecked")
       public Sequence<Row> run(Query query, Map responseContext)
@@ -82,7 +84,7 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
                   public Row apply(Row input)
                   {
                     Map<String, Object> event = Rows.asMap(input);
-                    for (PostAggregator postAggregator : postAggregations) {
+                    for (PostAggregator.Processor postAggregator : postProcessors) {
                       event.put(postAggregator.getName(), postAggregator.compute(input.getTimestamp(), event));
                     }
                     return new MapBasedRow(input.getTimestamp(), event);

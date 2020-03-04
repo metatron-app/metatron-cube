@@ -22,6 +22,7 @@ package io.druid.query.aggregation.post;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -35,7 +36,7 @@ import java.util.Set;
 
 /**
  */
-public class ConstantPostAggregator implements PostAggregator
+public class ConstantPostAggregator extends PostAggregator.Stateless
 {
   private final String name;
   private final Number constantValue;
@@ -60,12 +61,18 @@ public class ConstantPostAggregator implements PostAggregator
   @Override
   public Comparator getComparator()
   {
-    return new Comparator()
+    return Ordering.allEqual();
+  }
+
+  @Override
+  protected Processor createStateless()
+  {
+    return new AbstractProcessor()
     {
       @Override
-      public int compare(Object o1, Object o2)
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
       {
-        return 0;
+        return constantValue;
       }
     };
   }
@@ -74,12 +81,6 @@ public class ConstantPostAggregator implements PostAggregator
   public ValueDesc resolve(TypeResolver bindings)
   {
     return RowResolver.toValueType(constantValue);
-  }
-
-  @Override
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
-  {
-    return constantValue;
   }
 
   @Override

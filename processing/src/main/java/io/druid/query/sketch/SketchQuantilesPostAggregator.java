@@ -38,7 +38,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("sketch.quantiles")
-public class SketchQuantilesPostAggregator implements PostAggregator
+public class SketchQuantilesPostAggregator extends PostAggregator.Stateless
 {
   public static SketchQuantilesPostAggregator fraction(String name, String fieldName, double fraction)
   {
@@ -145,9 +145,16 @@ public class SketchQuantilesPostAggregator implements PostAggregator
 
   @Override
   @SuppressWarnings("unchecked")
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  protected Processor createStateless()
   {
-    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) combinedAggregators.get(fieldName);
-    return sketch == null ? null : op.calculate(sketch.value(), parameter);
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) combinedAggregators.get(fieldName);
+        return sketch == null ? null : op.calculate(sketch.value(), parameter);
+      }
+    };
   }
 }

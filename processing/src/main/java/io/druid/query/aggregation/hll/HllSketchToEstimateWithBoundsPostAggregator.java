@@ -21,10 +21,10 @@ package io.druid.query.aggregation.hll;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.java.util.common.IAE;
 import com.yahoo.sketches.hll.HllSketch;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -43,7 +43,7 @@ import java.util.Set;
  *
  * @author Alexander Saydakov
  */
-public class HllSketchToEstimateWithBoundsPostAggregator implements PostAggregator
+public class HllSketchToEstimateWithBoundsPostAggregator extends PostAggregator.Abstract
 {
 
   private final String name;
@@ -94,10 +94,19 @@ public class HllSketchToEstimateWithBoundsPostAggregator implements PostAggregat
   }
 
   @Override
-  public double[] compute(final DateTime timestamp, final Map<String, Object> combinedAggregators)
+  public Processor processor()
   {
-    final HllSketch sketch = (HllSketch) field.compute(timestamp, combinedAggregators);
-    return new double[]{sketch.getEstimate(), sketch.getLowerBound(numStdDevs), sketch.getUpperBound(numStdDevs)};
+    return new AbstractProcessor()
+    {
+      private final Processor processor = field.processor();
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        final HllSketch sketch = (HllSketch) processor.compute(timestamp, combinedAggregators);
+        return new double[]{sketch.getEstimate(), sketch.getLowerBound(numStdDevs), sketch.getUpperBound(numStdDevs)};
+      }
+    };
   }
 
   @Override

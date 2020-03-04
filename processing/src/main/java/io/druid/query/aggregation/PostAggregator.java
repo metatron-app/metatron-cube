@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import io.druid.data.TypeResolver;
 import org.joda.time.DateTime;
 
@@ -31,11 +33,48 @@ import java.util.Set;
  */
 public interface PostAggregator extends TypeResolver.Resolvable
 {
-  public Set<String> getDependentFields();
+  String getName();
 
-  public Comparator getComparator();
+  Set<String> getDependentFields();
 
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators);
+  Comparator getComparator();
 
-  public String getName();
+  Processor processor();
+
+  interface Processor
+  {
+    String getName();
+
+    Object compute(DateTime timestamp, Map<String, Object> combinedAggregators);
+  }
+
+  interface Decorating extends PostAggregator
+  {
+    PostAggregator decorate(Map<String, AggregatorFactory> aggregators);
+  }
+
+  abstract class Abstract implements PostAggregator
+  {
+    protected abstract class AbstractProcessor implements Processor
+    {
+      @Override
+      public String getName()
+      {
+        return Abstract.this.getName();
+      }
+    }
+  }
+
+  abstract class Stateless extends Abstract
+  {
+    private final Supplier<Processor> supplier = Suppliers.memoize(() -> createStateless());
+
+    @Override
+    public final Processor processor()
+    {
+      return supplier.get();
+    }
+
+    protected abstract Processor createStateless();
+  }
 }

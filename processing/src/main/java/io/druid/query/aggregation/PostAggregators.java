@@ -19,9 +19,12 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 
 import java.util.AbstractMap;
 import java.util.Arrays;
@@ -63,12 +66,30 @@ public class PostAggregators
     }
     List<PostAggregator> decorated = Lists.newArrayListWithExpectedSize(aggregators.size());
     for (PostAggregator aggregator : aggregators) {
-      if (aggregator instanceof DecoratingPostAggregator) {
-        aggregator = ((DecoratingPostAggregator) aggregator).decorate(mapping);
+      if (aggregator instanceof PostAggregator.Decorating) {
+        aggregator = ((PostAggregator.Decorating) aggregator).decorate(mapping);
       }
       decorated.add(aggregator);
     }
     return decorated;
+  }
+
+  public static List<PostAggregator.Processor> toProcessors(List<PostAggregator> postAggregators)
+  {
+    if (GuavaUtils.isNullOrEmpty(postAggregators)) {
+      return ImmutableList.of();
+    }
+    return ImmutableList.copyOf(Iterables.transform(
+        postAggregators,
+        new Function<PostAggregator, PostAggregator.Processor>()
+        {
+          @Override
+          public PostAggregator.Processor apply(PostAggregator postAggregator)
+          {
+            return postAggregator.processor();
+          }
+        }
+    ));
   }
 
   public abstract static class MapAccess extends AbstractMap<String, Object>

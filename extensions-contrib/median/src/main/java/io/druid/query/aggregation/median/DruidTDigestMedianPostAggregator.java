@@ -33,11 +33,10 @@ import java.util.Map;
 import java.util.Set;
 
 @JsonTypeName("digestMedian")
-public class DruidTDigestMedianPostAggregator implements PostAggregator
+public class DruidTDigestMedianPostAggregator extends PostAggregator.Stateless
 {
-
-  private String name;
-  private String fieldName;
+  final String name;
+  final String fieldName;
 
   @JsonCreator
   public DruidTDigestMedianPostAggregator(
@@ -68,9 +67,20 @@ public class DruidTDigestMedianPostAggregator implements PostAggregator
   }
 
   @Override
-  public Double compute(DateTime timestamp, Map<String, Object> values)
+  protected Processor createStateless()
   {
-    final DruidTDigest digest = (DruidTDigest) values.get(this.getFieldName());
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> values)
+      {
+        return computeFrom((DruidTDigest) values.get(fieldName));
+      }
+    };
+  }
+
+  protected Object computeFrom(DruidTDigest digest)
+  {
     return digest.median();
   }
 
@@ -80,6 +90,7 @@ public class DruidTDigestMedianPostAggregator implements PostAggregator
     return name;
   }
 
+  @JsonProperty
   public String getFieldName()
   {
     return fieldName;
@@ -89,7 +100,8 @@ public class DruidTDigestMedianPostAggregator implements PostAggregator
   public String toString()
   {
     return "DruidTDigestMedianPostAggregator{" +
-        "fieldName='" + fieldName + '\'' +
-        '}';
+           "name='" + name + '\'' +
+           ", fieldName='" + fieldName + '\'' +
+           '}';
   }
 }

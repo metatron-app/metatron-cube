@@ -22,29 +22,14 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
 
 import java.util.Comparator;
-import java.util.Map;
-import java.util.Set;
 
 @JsonTypeName("max")
 public class MaxPostAggregator extends ApproximateHistogramPostAggregator
 {
-  static final Comparator COMPARATOR = new Comparator()
-  {
-    @Override
-    public int compare(Object o, Object o1)
-    {
-      return Double.compare(((Number) o).doubleValue(), ((Number) o1).doubleValue());
-    }
-  };
-
-  private String fieldName;
-
   @JsonCreator
   public MaxPostAggregator(
       @JsonProperty("name") String name,
@@ -52,19 +37,12 @@ public class MaxPostAggregator extends ApproximateHistogramPostAggregator
   )
   {
     super(name, fieldName);
-    this.fieldName = fieldName;
   }
 
   @Override
   public Comparator getComparator()
   {
-    return COMPARATOR;
-  }
-
-  @Override
-  public Set<String> getDependentFields()
-  {
-    return Sets.newHashSet(fieldName);
+    return QuantilePostAggregator.COMPARATOR;
   }
 
   @Override
@@ -74,17 +52,17 @@ public class MaxPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
+  protected Object computeFrom(ApproximateHistogramHolder holder)
   {
-    final ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
-    return ah.getMax();
+    return holder.getMax();
   }
 
   @Override
   public String toString()
   {
-    return "QuantilePostAggregator{" +
-           "fieldName='" + fieldName + '\'' +
+    return "MaxPostAggregator{" +
+           "name='" + name + '\'' +
+           ", fieldName='" + fieldName + '\'' +
            '}';
   }
 }

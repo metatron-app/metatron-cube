@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.histogram;
 
 import io.druid.common.DateTimes;
+import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.TestFloatColumnSelector;
 import io.druid.query.filter.ValueMatcher;
 import org.junit.Assert;
@@ -58,11 +59,7 @@ public class ApproximateHistogramPostAggregatorTest
     Map<String, Object> metricValues = new HashMap<String, Object>();
     metricValues.put(agg.getName(), agg.get(aggregate));
 
-    ApproximateHistogramPostAggregator approximateHistogramPostAggregator = new EqualBucketsPostAggregator(
-        "approxHist",
-        "price",
-        5
-    );
+    PostAggregator.Processor approximateHistogramPostAggregator = new EqualBucketsPostAggregator("approxHist", "price", 5).processor();
     Assert.assertEquals(ah.toHistogram(5), approximateHistogramPostAggregator.compute(DateTimes.nowUtc(), metricValues));
   }
 

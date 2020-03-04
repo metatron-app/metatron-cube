@@ -20,7 +20,10 @@
 package io.druid.query.aggregation.histogram;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 
@@ -28,20 +31,17 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
 
-public abstract class ApproximateHistogramPostAggregator implements PostAggregator
+public abstract class ApproximateHistogramPostAggregator extends PostAggregator.Stateless
 {
   private static final Comparator COMPARATOR = ApproximateHistogramAggregator.COMPARATOR;
 
-  private final String name;
-  private final String fieldName;
+  final String name;
+  final String fieldName;
 
-  public ApproximateHistogramPostAggregator(
-      String name,
-      String fieldName
-  )
+  public ApproximateHistogramPostAggregator(String name, String fieldName)
   {
-    this.name = name;
-    this.fieldName = fieldName;
+    this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
+    this.fieldName = Preconditions.checkNotNull(fieldName, "'fieldName' cannot be null");
   }
 
   @Override
@@ -57,9 +57,6 @@ public abstract class ApproximateHistogramPostAggregator implements PostAggregat
   }
 
   @Override
-  public abstract Object compute(DateTime timestamp, Map<String, Object> values);
-
-  @Override
   @JsonProperty
   public String getName()
   {
@@ -70,6 +67,27 @@ public abstract class ApproximateHistogramPostAggregator implements PostAggregat
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @Override
+  protected final Processor createStateless()
+  {
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> values)
+      {
+        return computeFrom((ApproximateHistogramHolder) values.get(fieldName));
+      }
+    };
+  }
+
+  protected abstract Object computeFrom(ApproximateHistogramHolder holder);
+
+  @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.UNKNOWN;
   }
 
   @Override

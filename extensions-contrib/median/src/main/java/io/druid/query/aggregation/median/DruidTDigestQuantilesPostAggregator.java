@@ -23,22 +23,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.aggregation.PostAggregator;
-import org.joda.time.DateTime;
 
+import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Map;
-import java.util.Set;
 
 @JsonTypeName("digestQuantiles")
-public class DruidTDigestQuantilesPostAggregator implements PostAggregator
+public class DruidTDigestQuantilesPostAggregator extends DruidTDigestMedianPostAggregator
 {
-
-  private final String name;
-  private final String fieldName;
   private final double[] probabilities;
 
   @JsonCreator
@@ -48,8 +41,7 @@ public class DruidTDigestQuantilesPostAggregator implements PostAggregator
       @JsonProperty("probabilities") double[] probabilities
   )
   {
-    this.name = name;
-    this.fieldName = fieldName;
+    super(name, fieldName);
     double prev = 0;
     for (double probability: probabilities) {
       Preconditions.checkArgument(prev <= probability, "probabilities should be sorted");
@@ -58,16 +50,16 @@ public class DruidTDigestQuantilesPostAggregator implements PostAggregator
     this.probabilities = probabilities;
   }
 
-  @Override
-  public Comparator getComparator()
+  @JsonProperty
+  public double[] getProbabilities()
   {
-    return DruidTDigestAggregator.COMPARATOR;
+    return probabilities;
   }
 
   @Override
-  public Set<String> getDependentFields()
+  public Comparator getComparator()
   {
-    return Sets.newHashSet(fieldName);
+    throw new UnsupportedOperationException("getComparator");
   }
 
   @Override
@@ -77,29 +69,18 @@ public class DruidTDigestQuantilesPostAggregator implements PostAggregator
   }
 
   @Override
-  public double[] compute(DateTime timestamp, Map<String, Object> values)
+  protected double[] computeFrom(DruidTDigest digest)
   {
-    final DruidTDigest digest = (DruidTDigest) values.get(this.getFieldName());
     return digest.quantiles(probabilities);
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
-  }
-
-  public String getFieldName()
-  {
-    return fieldName;
   }
 
   @Override
   public String toString()
   {
     return "DruidTDigestQuantilesPostAggregator{" +
-        "fieldName='" + fieldName + '\'' +
-        "probabilities=" + probabilities +
-        '}';
+           "name='" + name + '\'' +
+           ", fieldName='" + fieldName + '\'' +
+           ", probabilities=" + Arrays.toString(probabilities) +
+           '}';
   }
 }

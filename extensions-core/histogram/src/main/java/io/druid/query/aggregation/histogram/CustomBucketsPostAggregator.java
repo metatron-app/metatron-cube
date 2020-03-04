@@ -22,20 +22,13 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Sets;
-import io.druid.data.TypeResolver;
-import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
 
 import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
 
 @JsonTypeName("customBuckets")
 public class CustomBucketsPostAggregator extends ApproximateHistogramPostAggregator
 {
   private final float[] breaks;
-  private String fieldName;
 
   @JsonCreator
   public CustomBucketsPostAggregator(
@@ -46,26 +39,12 @@ public class CustomBucketsPostAggregator extends ApproximateHistogramPostAggrega
   {
     super(name, fieldName);
     this.breaks = breaks;
-    this.fieldName = fieldName;
   }
 
   @Override
-  public Set<String> getDependentFields()
+  protected Object computeFrom(ApproximateHistogramHolder holder)
   {
-    return Sets.newHashSet(fieldName);
-  }
-
-  @Override
-  public ValueDesc resolve(TypeResolver bindings)
-  {
-    return ValueDesc.UNKNOWN;   // has no complex serde
-  }
-
-  @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
-  {
-    ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
-    return ah.toHistogram(breaks);
+    return holder.toHistogram(breaks);
   }
 
   @JsonProperty

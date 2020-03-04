@@ -21,6 +21,7 @@ package io.druid.query.aggregation.post;
 
 import io.druid.common.DateTimes;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -34,15 +35,13 @@ public class ConstantPostAggregatorTest
   @Test
   public void testCompute()
   {
-    ConstantPostAggregator constantPostAggregator;
-
-    constantPostAggregator = new ConstantPostAggregator("shichi", 7);
+    PostAggregator.Processor constantPostAggregator = new ConstantPostAggregator("shichi", 7).processor();
 
     DateTime timestamp = DateTimes.nowUtc();
     Assert.assertEquals(7, constantPostAggregator.compute(timestamp, null));
-    constantPostAggregator = new ConstantPostAggregator("rei", 0.0);
+    constantPostAggregator = new ConstantPostAggregator("rei", 0.0).processor();
     Assert.assertEquals(0.0, constantPostAggregator.compute(timestamp, null));
-    constantPostAggregator = new ConstantPostAggregator("ichi", 1.0);
+    constantPostAggregator = new ConstantPostAggregator("ichi", 1.0).processor();
     Assert.assertNotSame(1, constantPostAggregator.compute(timestamp, null));
   }
 
@@ -54,7 +53,7 @@ public class ConstantPostAggregatorTest
     Comparator comp = constantPostAggregator.getComparator();
 
     DateTime timestamp = DateTimes.nowUtc();
-    Assert.assertEquals(0, comp.compare(0, constantPostAggregator.compute(timestamp, null)));
+    Assert.assertEquals(0, comp.compare(0, constantPostAggregator.processor().compute(timestamp, null)));
     Assert.assertEquals(0, comp.compare(0, 1));
     Assert.assertEquals(0, comp.compare(1, 0));
   }

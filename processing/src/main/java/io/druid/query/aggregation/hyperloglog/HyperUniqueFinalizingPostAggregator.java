@@ -36,7 +36,7 @@ import java.util.Set;
 
 /**
  */
-public class HyperUniqueFinalizingPostAggregator implements PostAggregator
+public class HyperUniqueFinalizingPostAggregator extends PostAggregator.Stateless
 {
   private static final Comparator DOUBLE_COMPARATOR = Ordering.from(new Comparator<Number>()
   {
@@ -92,15 +92,22 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver bindings)
+  protected Processor createStateless()
   {
-    return round ? ValueDesc.LONG : ValueDesc.DOUBLE;
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        return HyperUniquesAggregatorFactory.estimateCardinality(combinedAggregators.get(fieldName), round);
+      }
+    };
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  public ValueDesc resolve(TypeResolver bindings)
   {
-    return HyperUniquesAggregatorFactory.estimateCardinality(combinedAggregators.get(fieldName), round);
+    return round ? ValueDesc.LONG : ValueDesc.DOUBLE;
   }
 
   @Override

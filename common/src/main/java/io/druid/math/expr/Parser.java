@@ -146,7 +146,7 @@ public class Parser
   // this can be used whenever return type is not important
   public static Expr parse(String in)
   {
-    return parse(in, functions, null, io.druid.data.TypeResolver.UNKNOWN, true);
+    return parse(in, functions, null, TypeResolver.UNKNOWN, true);
   }
 
   public static Expr parse(String in, TypeResolver resolver)
@@ -161,7 +161,7 @@ public class Parser
 
   public static Expr parse(String in, boolean flatten)
   {
-    return parse(in, functions, null, io.druid.data.TypeResolver.UNKNOWN, flatten);
+    return parse(in, functions, null, TypeResolver.UNKNOWN, flatten);
   }
 
   private static Expr parse(

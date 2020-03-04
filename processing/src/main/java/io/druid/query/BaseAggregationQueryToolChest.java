@@ -143,10 +143,10 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   protected Function<Row, Row> toPostAggregator(final T query)
   {
     final Granularity granularity = query.getGranularity();
-    final List<PostAggregator> postAggregators = PostAggregators.decorate(
+    final List<PostAggregator.Processor> postAggregators = PostAggregators.toProcessors(PostAggregators.decorate(
         query.getPostAggregatorSpecs(),
         query.getAggregatorSpecs()
-    );
+    ));
     if (postAggregators.isEmpty() && granularity.isUTC()) {
       return GuavaUtils.identity("postAggr");
     }
@@ -157,7 +157,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       {
         final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
 
-        for (PostAggregator postAggregator : postAggregators) {
+        for (PostAggregator.Processor postAggregator : postAggregators) {
           newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
         }
         final DateTime current = row.getTimestamp();

@@ -159,10 +159,10 @@ public class TopNQueryQueryToolChest
     if (GuavaUtils.isNullOrEmpty(topN.getPostAggregatorSpecs())) {
       return IdentityFunction.INSTANCE;
     }
-    final List<PostAggregator> postAggregators = PostAggregators.decorate(
+    final List<PostAggregator.Processor> postAggregators = PostAggregators.toProcessors(PostAggregators.decorate(
         topN.getPostAggregatorSpecs(),
         topN.getAggregatorSpecs()
-    );
+    ));
 
     return new IdentityFunction<Result<TopNResultValue>>()
     {
@@ -177,11 +177,10 @@ public class TopNQueryQueryToolChest
                 holder.getValue(),
                 new Function<Map<String, Object>, Map<String, Object>>()
                 {
-
                   @Override
                   public Map<String, Object> apply(Map<String, Object> input)
                   {
-                    for (PostAggregator postAgg : postAggregators) {
+                    for (PostAggregator.Processor postAgg : postAggregators) {
                       input.put(postAgg.getName(), postAgg.compute(timestamp, input));
                     }
                     return input;
@@ -297,14 +296,14 @@ public class TopNQueryQueryToolChest
     return new CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery>()
     {
       private final List<AggregatorFactory> aggs = Lists.newArrayList(query.getAggregatorSpecs());
-      private final List<PostAggregator> postAggs = PostAggregators.decorate(
+      private final List<PostAggregator.Processor> postAggs = PostAggregators.toProcessors(PostAggregators.decorate(
           AggregatorUtil.pruneDependentPostAgg(
               query.getPostAggregatorSpecs(),
               query.getTopNMetricSpec()
                    .getMetricName(query.getDimensionSpec())
           ),
           query.getAggregatorSpecs()
-      );
+      ));
 
       @Override
       public byte[] computeCacheKey(TopNQuery query)
@@ -385,7 +384,7 @@ public class TopNQueryQueryToolChest
                 vals.put(factory.getName(), factory.deserialize(resultIter.next()));
               }
 
-              for (PostAggregator postAgg : postAggs) {
+              for (PostAggregator.Processor postAgg : postAggs) {
                 vals.put(postAgg.getName(), postAgg.compute(timestamp, vals));
               }
 

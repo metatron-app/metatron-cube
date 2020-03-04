@@ -22,22 +22,17 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
+import io.druid.java.util.common.IAE;
 
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Map;
-import java.util.Set;
 
 @JsonTypeName("quantiles")
 public class QuantilesPostAggregator extends ApproximateHistogramPostAggregator
 {
   private final float[] probabilities;
-  private String fieldName;
 
   @JsonCreator
   public QuantilesPostAggregator(
@@ -48,39 +43,11 @@ public class QuantilesPostAggregator extends ApproximateHistogramPostAggregator
   {
     super(name, fieldName);
     this.probabilities = probabilities;
-    this.fieldName = fieldName;
-
     for (float p : probabilities) {
       if (p < 0 | p > 1) {
         throw new IAE("Illegal probability[%s], must be strictly between 0 and 1", p);
       }
     }
-  }
-
-  @Override
-  public Comparator getComparator()
-  {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public Set<String> getDependentFields()
-  {
-    return Sets.newHashSet(fieldName);
-  }
-
-  @Override
-  public ValueDesc resolve(TypeResolver bindings)
-  {
-    return ValueDesc.UNKNOWN;   // has no complex serde
-  }
-
-  @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
-  {
-    final ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
-
-    return new Quantiles(this.getProbabilities(), ah.getQuantiles(this.getProbabilities()), ah.getMin(), ah.getMax());
   }
 
   @JsonProperty
@@ -90,12 +57,30 @@ public class QuantilesPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
+  public ValueDesc resolve(TypeResolver bindings)
+  {
+    return ValueDesc.FLOAT_ARRAY;
+  }
+
+  @Override
+  public Comparator getComparator()
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  protected Object computeFrom(ApproximateHistogramHolder holder)
+  {
+    return new Quantiles(probabilities, holder.getQuantiles(probabilities), holder.getMin(), holder.getMax());
+  }
+
+  @Override
   public String toString()
   {
-    return "EqualBucketsPostAggregator{" +
-           "name='" + this.getName() + '\'' +
-           ", fieldName='" + this.getFieldName() + '\'' +
-           ", probabilities=" + Arrays.toString(this.getProbabilities()) +
+    return "QuantilesPostAggregator{" +
+           "name='" + name + '\'' +
+           ", fieldName='" + fieldName + '\'' +
+           ", probabilities=" + Arrays.toString(probabilities) +
            '}';
   }
 }

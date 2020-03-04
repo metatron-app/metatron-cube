@@ -74,7 +74,7 @@ public abstract class AggregatorFactory implements Cacheable
    * produced via factorize().  Note, even though this is called combine, this method's contract *does*
    * allow for mutation of the input objects.  Thus, any use of lhs or rhs after calling this method is
    * highly discouraged.
-   *
+   * <p>
    * Mostly, it's not dependent to inner state of AggregatorFactory. So I've changed to return function
    *
    * @param lhs The left hand side of the combine
@@ -437,8 +437,14 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static PostAggregator asFinalizer(final AggregatorFactory factory)
   {
-    return new PostAggregator()
+    return new PostAggregator.Abstract()
     {
+      @Override
+      public String getName()
+      {
+        return factory.getName();
+      }
+
       @Override
       public Set<String> getDependentFields()
       {
@@ -452,15 +458,16 @@ public abstract class AggregatorFactory implements Cacheable
       }
 
       @Override
-      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      public Processor processor()
       {
-        return factory.finalizeComputation(combinedAggregators.get(factory.getName()));
-      }
-
-      @Override
-      public String getName()
-      {
-        return factory.getName();
+        return new AbstractProcessor()
+        {
+          @Override
+          public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+          {
+            return factory.finalizeComputation(combinedAggregators.get(factory.getName()));
+          }
+        };
       }
 
       @Override

@@ -25,28 +25,26 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import io.druid.data.Pair;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.DecoratingPostAggregator;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 /**
  */
-public class MathPostAggregator implements DecoratingPostAggregator
+public class MathPostAggregator extends PostAggregator.Stateless implements PostAggregator.Decorating
 {
   private final String name;
   private final String expression;
@@ -54,8 +52,6 @@ public class MathPostAggregator implements DecoratingPostAggregator
   private final boolean finalize;
 
   private final Comparator comparator;
-  private final Expr parsed;
-  private final List<String> dependentFields;
 
   public MathPostAggregator(String expression)
   {
@@ -76,17 +72,14 @@ public class MathPostAggregator implements DecoratingPostAggregator
   )
   {
     this.expression = Preconditions.checkNotNull(expression, "'expression' cannot not be null");
-    Expr expr = Parser.parse(expression);
-    if (Evals.isAssign(expr)) {
-      Pair<String, Expr> assign = Evals.splitSimpleAssign(expression);
-      this.name = assign.lhs;
-      this.parsed = assign.rhs;
+    if (name == null) {
+      Expr expr = Parser.parse(expression);
+      Preconditions.checkArgument(Evals.isAssign(expr), "should be assign expression if name is null");
+      this.name = Evals.splitSimpleAssign(expression).lhs;
     } else {
-      this.name = Preconditions.checkNotNull(name, "'name' cannot not be null");
-      this.parsed = expr;
+      this.name = name;
     }
     this.finalize = finalize;
-    this.dependentFields = Parser.findRequiredBindings(parsed);
     this.ordering = ordering;
     this.comparator = ordering == null ? Ordering.natural() : NumericOrdering.valueOf(ordering);
   }
@@ -94,7 +87,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
   @Override
   public Set<String> getDependentFields()
   {
-    return Sets.newHashSet(dependentFields);
+    return Sets.newHashSet(Parser.findRequiredBindings(expression));
   }
 
   @Override
@@ -103,24 +96,34 @@ public class MathPostAggregator implements DecoratingPostAggregator
     return comparator;
   }
 
-  @Override
-  public ValueDesc resolve(TypeResolver resolver)
+  private static Expr parseExpr(String expression, TypeResolver resolver)
   {
-    ValueDesc type = parsed.returns();
-    if (type.isUnknown()) {
-      Expr expr = Parser.parse(expression, resolver);
-      if (Evals.isAssign(expr)) {
-        expr = Evals.splitAssign(expr).rhs;
-      }
-      type = expr.returns();
+    Expr expr = Parser.parse(expression, resolver);
+    if (Evals.isAssign(expr)) {
+      expr = Evals.splitSimpleAssign(expression).rhs;
     }
-    return type;
+    return expr;
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
+  protected Processor createStateless()
   {
-    return parsed.eval(Parser.withTimeAndMap(timestamp, values)).value();
+    return new AbstractProcessor()
+    {
+      private final Expr parsed = parseExpr(expression, TypeResolver.UNKNOWN);
+
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> values)
+      {
+        return parsed.eval(Parser.withTimeAndMap(timestamp, values)).value();
+      }
+    };
+  }
+
+  @Override
+  public ValueDesc resolve(TypeResolver resolver)
+  {
+    return parseExpr(expression, resolver).returns();
   }
 
   @Override
@@ -150,47 +153,12 @@ public class MathPostAggregator implements DecoratingPostAggregator
   }
 
   @Override
-  public PostAggregator decorate(final Map<String, AggregatorFactory> aggregators)
+  public PostAggregator decorate(Map<String, AggregatorFactory> aggregators)
   {
-    if (!finalize || aggregators == null || aggregators.isEmpty() || dependentFields.isEmpty()) {
-      return this;
+    if (finalize && !GuavaUtils.isNullOrEmpty(aggregators)) {
+      return new Finalizing(name, expression, ordering, aggregators);
     }
-    return new MathPostAggregator(name, expression, false, ordering)
-    {
-      @Override
-      public ValueDesc resolve(final TypeResolver resolver)
-      {
-        return MathPostAggregator.this.resolve(resolver);
-      }
-
-      @Override
-      public Object compute(final DateTime timestamp, final Map<String, Object> values)
-      {
-        Expr.NumericBinding binding = new Expr.NumericBinding()
-        {
-          @Override
-          public Collection<String> names()
-          {
-            return values.keySet();
-          }
-
-          @Override
-          public Object get(final String name)
-          {
-            if (name.equals(Column.TIME_COLUMN_NAME)) {
-              return timestamp;
-            }
-            final Object value = values.get(name);
-            if (value == null) {
-              return null;
-            }
-            AggregatorFactory factory = aggregators.get(name);
-            return factory == null ? value : factory.finalizeComputation(value);
-          }
-        };
-        return parsed.eval(binding).value();
-      }
-    };
+    return this;
   }
 
   public enum NumericOrdering implements Comparator<Number>
@@ -264,5 +232,53 @@ public class MathPostAggregator implements DecoratingPostAggregator
            ", finalize=" + finalize +
            (ordering == null ? "" : ", ordering=" + ordering) +
            '}';
+  }
+
+  private static class Finalizing extends MathPostAggregator
+  {
+    private final Map<String, AggregatorFactory> aggregators;
+
+    public Finalizing(String name, String expression, String ordering, Map<String, AggregatorFactory> aggregators)
+    {
+      super(name, expression, false, ordering);
+      this.aggregators = aggregators;
+    }
+
+    @Override
+    public Processor createStateless()
+    {
+      return new AbstractProcessor()
+      {
+        private final Expr parsed = parseExpr(getExpression(), TypeResolver.UNKNOWN);
+
+        @Override
+        public Object compute(DateTime timestamp, Map<String, Object> values)
+        {
+          final Expr.NumericBinding binding = new Expr.NumericBinding()
+          {
+            @Override
+            public Collection<String> names()
+            {
+              return values.keySet();
+            }
+
+            @Override
+            public Object get(final String name)
+            {
+              if (name.equals(Column.TIME_COLUMN_NAME)) {
+                return timestamp;
+              }
+              final Object value = values.get(name);
+              if (value == null) {
+                return null;
+              }
+              AggregatorFactory factory = aggregators.get(name);
+              return factory == null ? value : factory.finalizeComputation(value);
+            }
+          };
+          return parsed.eval(binding).value();
+        }
+      };
+    }
   }
 }

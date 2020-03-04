@@ -37,7 +37,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("stddev")
-public class StandardDeviationPostAggregator implements PostAggregator
+public class StandardDeviationPostAggregator extends PostAggregator.Stateless
 {
   protected final String name;
   protected final String fieldName;
@@ -76,15 +76,23 @@ public class StandardDeviationPostAggregator implements PostAggregator
     return ValueDesc.DOUBLE;
   }
 
+
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  protected Processor createStateless()
   {
-    final VarianceAggregatorCollector collector = (VarianceAggregatorCollector) combinedAggregators.get(fieldName);
-    if (collector == null) {
-      return null;
-    }
-    final Double variance = collector.getVariance(isVariancePop);
-    return variance == null ? null : Math.sqrt(variance);
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        final VarianceAggregatorCollector collector = (VarianceAggregatorCollector) combinedAggregators.get(fieldName);
+        if (collector == null) {
+          return null;
+        }
+        final Double variance = collector.getVariance(isVariancePop);
+        return variance == null ? null : Math.sqrt(variance);
+      }
+    };
   }
 
   @Override

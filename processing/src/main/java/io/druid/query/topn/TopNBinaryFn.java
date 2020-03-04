@@ -50,6 +50,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
   private final String[] metrics;
   private final AggregatorFactory.Combiner[] combiners;
   private final List<PostAggregator> postAggregations;
+  private final List<PostAggregator.Processor> postProcessors;
   private final Comparator comparator;
 
   public TopNBinaryFn(
@@ -77,7 +78,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
         ),
         aggregations
     );
-
+    this.postProcessors = PostAggregators.toProcessors(this.postAggregations);
     this.dimension = dimSpec.getOutputName();
     this.comparator = topNMetricSpec.getComparator(aggregatorSpecs, postAggregatorSpecs);
   }
@@ -114,7 +115,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
           retVal.put(metrics[i], combiners[i].combine(arg1Val.get(metrics[i]), arg2Val.get(metrics[i])));
         }
 
-        for (PostAggregator pf : postAggregations) {
+        for (PostAggregator.Processor pf : postProcessors) {
           retVal.put(pf.getName(), pf.compute(arg1.getTimestamp(), retVal));
         }
 

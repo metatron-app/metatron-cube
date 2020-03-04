@@ -22,20 +22,12 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.Sets;
 import io.druid.java.util.common.IAE;
-import io.druid.data.TypeResolver;
-import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
-
-import java.util.Map;
-import java.util.Set;
 
 @JsonTypeName("equalBuckets")
 public class EqualBucketsPostAggregator extends ApproximateHistogramPostAggregator
 {
   private final int numBuckets;
-  private String fieldName;
 
   @JsonCreator
   public EqualBucketsPostAggregator(
@@ -49,32 +41,18 @@ public class EqualBucketsPostAggregator extends ApproximateHistogramPostAggregat
     if (this.numBuckets <= 1) {
       throw new IAE("Illegal number of buckets[%s], must be > 1", this.numBuckets);
     }
-    this.fieldName = fieldName;
-  }
-
-  @Override
-  public Set<String> getDependentFields()
-  {
-    return Sets.newHashSet(fieldName);
-  }
-
-  @Override
-  public ValueDesc resolve(TypeResolver bindings)
-  {
-    return ValueDesc.UNKNOWN;   // has no complex serde
-  }
-
-  @Override
-  public Object compute(DateTime timestamp, Map<String, Object> values)
-  {
-    ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
-    return ah.toHistogram(numBuckets);
   }
 
   @JsonProperty
   public int getNumBuckets()
   {
     return numBuckets;
+  }
+
+  @Override
+  protected Object computeFrom(ApproximateHistogramHolder holder)
+  {
+    return holder.toHistogram(numBuckets);
   }
 
   @Override

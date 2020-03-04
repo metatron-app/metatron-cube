@@ -33,7 +33,7 @@ import java.util.Set;
 
 /**
  */
-public class FieldAccessPostAggregator implements PostAggregator
+public class FieldAccessPostAggregator extends PostAggregator.Stateless
 {
   private final String name;
   private final String fieldName;
@@ -67,9 +67,16 @@ public class FieldAccessPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+  protected Processor createStateless()
   {
-    return combinedAggregators.get(fieldName);
+    return new AbstractProcessor()
+    {
+      @Override
+      public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
+      {
+        return combinedAggregators.get(fieldName);
+      }
+    };
   }
 
   @Override

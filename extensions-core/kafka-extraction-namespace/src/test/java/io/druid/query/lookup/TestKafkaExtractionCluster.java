@@ -27,6 +27,7 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
+import io.druid.common.utils.SocketUtil;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
@@ -125,6 +126,7 @@ public class TestKafkaExtractionCluster
     serverProperties.put("log.dir", temporaryFolder.newFolder().getAbsolutePath());
     serverProperties.put("log.cleaner.enable", "true");
     serverProperties.put("host.name", "127.0.0.1");
+    serverProperties.put("port", String.valueOf(SocketUtil.findOpenPort(9092)));
     serverProperties.put("zookeeper.connect", zkTestServer.getConnectString() + zkKafkaPath);
     serverProperties.put("zookeeper.session.timeout.ms", "10000");
     serverProperties.put("zookeeper.sync.time.ms", "200");
