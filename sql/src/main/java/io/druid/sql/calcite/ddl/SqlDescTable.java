@@ -50,7 +50,8 @@ public class SqlDescTable
     List<SqlNode> select = Arrays.asList(
         Utils.zero(InformationSchema.COLUMN_NAME),
         Utils.zero(InformationSchema.DATA_TYPE),
-        Utils.zero(InformationSchema.IS_NULLABLE)
+        Utils.zero(InformationSchema.IS_NULLABLE),
+        Utils.zero(InformationSchema.COLUMN_DESCS)
     );
 
     SqlNode fromClause = new SqlIdentifier(

@@ -34,6 +34,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.jmx.JMXQuery;
+import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -57,6 +58,7 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public class InformationSchema extends AbstractSchema
@@ -114,6 +116,8 @@ public class InformationSchema extends AbstractSchema
   public static final String COLLATION_NAME = "COLLATION_NAME";
   public static final String JDBC_TYPE = "JDBC_TYPE";
 
+  public static final String COLUMN_DESCS = "DESCS";
+
   public static final String DRUID_CATALOG = "druid";    // empty string is not recognized by tableau
   public static final String SCHEMATA_TABLE = "SCHEMATA";
   public static final String TABLES_TABLE = "TABLES";
@@ -157,6 +161,7 @@ public class InformationSchema extends AbstractSchema
       .add(CHARACTER_SET_NAME, ValueDesc.STRING)
       .add(COLLATION_NAME, ValueDesc.STRING)
       .add(JDBC_TYPE, ValueDesc.LONG)
+      .add(COLUMN_DESCS, ValueDesc.STRING)
       .build();
   private static final RelDataTypeSystem TYPE_SYSTEM = RelDataTypeSystem.DEFAULT;
 
@@ -458,15 +463,20 @@ public class InformationSchema extends AbstractSchema
                 @Override
                 public Object[] apply(final RelDataTypeField field)
                 {
+                  final String name = field.getName();
                   final RelDataType type = field.getType();
                   boolean isNumeric = SqlTypeName.NUMERIC_TYPES.contains(type.getSqlTypeName());
                   boolean isCharacter = SqlTypeName.CHAR_TYPES.contains(type.getSqlTypeName());
                   boolean isDateTime = SqlTypeName.DATETIME_TYPES.contains(type.getSqlTypeName());
+                  String descriptor = null;
+                  if (table instanceof DruidTable) {
+                    descriptor = Objects.toString(((DruidTable) table).getDescriptors().get(name), "");
+                  }
                   return new Object[]{
                       DRUID_CATALOG, // TABLE_CATALOG
                       schemaName, // TABLE_SCHEMA
                       tableName, // TABLE_NAME
-                      field.getName(), // COLUMN_NAME
+                      name, // COLUMN_NAME
                       String.valueOf(field.getIndex()), // ORDINAL_POSITION
                       "", // COLUMN_DEFAULT
                       type.isNullable() ? "YES" : "NO", // IS_NULLABLE
@@ -479,7 +489,8 @@ public class InformationSchema extends AbstractSchema
                       isDateTime ? String.valueOf(type.getPrecision()) : null, // DATETIME_PRECISION
                       isCharacter ? type.getCharset().name() : null, // CHARACTER_SET_NAME
                       isCharacter ? type.getCollation().getCollationName() : null, // COLLATION_NAME
-                      type.getSqlTypeName().getJdbcOrdinal() // JDBC_TYPE (Druid extension)
+                      type.getSqlTypeName().getJdbcOrdinal(), // JDBC_TYPE (Druid extension)
+                      descriptor
                   };
                 }
               }

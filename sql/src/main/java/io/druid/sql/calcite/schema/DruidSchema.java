@@ -31,6 +31,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.client.ServerView;
 import io.druid.client.TimelineServerView;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.guice.ManageLifecycle;
@@ -159,15 +160,19 @@ public class DruidSchema extends AbstractSchema
 
     long numRows = 0;
     Set<String> columns = Sets.newHashSet();
+    Map<String, Map<String, String>> descriptors = Maps.newHashMap();
     RowSignature.Builder builder = RowSignature.builder();
     for (SegmentAnalysis schema : Lists.reverse(schemas)) {
       for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
         if (columns.add(entry.getKey())) {
           builder.add(entry.getKey(), ValueDesc.of(entry.getValue().getType()));
+          if (!GuavaUtils.isNullOrEmpty(entry.getValue().getDescriptor())) {
+            descriptors.put(entry.getKey(), entry.getValue().getDescriptor());
+          }
         }
       }
       numRows += schema.getNumRows();
     }
-    return new WithTimestamp(dataSource, builder.sort().build(), numRows);
+    return new WithTimestamp(dataSource, builder.sort().build(), descriptors, numRows);
   }
 }

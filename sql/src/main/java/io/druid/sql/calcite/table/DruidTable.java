@@ -35,18 +35,26 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
+import java.util.Map;
 import java.util.Objects;
 
 public class DruidTable implements TranslatableTable
 {
   private final DataSource dataSource;
   private final RowSignature signature;
+  private final Map<String, Map<String, String>> descriptors;
   private final long rowNum;
 
-  public DruidTable(DataSource dataSource, RowSignature signature, long rowNum)
+  public DruidTable(
+      DataSource dataSource,
+      RowSignature signature,
+      Map<String, Map<String, String>> descriptors,
+      long rowNum
+  )
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
     this.signature = Preconditions.checkNotNull(signature, "signature");
+    this.descriptors = descriptors;
     this.rowNum = rowNum;
   }
 
@@ -58,6 +66,11 @@ public class DruidTable implements TranslatableTable
   public RowSignature getRowSignature()
   {
     return signature;
+  }
+
+  public Map<String, Map<String, String>> getDescriptors()
+  {
+    return descriptors;
   }
 
   @Override
@@ -126,6 +139,7 @@ public class DruidTable implements TranslatableTable
     return "DruidTable{" +
            "dataSource=" + dataSource +
            ", rowSignature=" + signature +
+           ", descriptors=" + descriptors +
            ", rowNum=" + rowNum +
            '}';
   }
@@ -134,9 +148,14 @@ public class DruidTable implements TranslatableTable
   {
     private final long timestamp;
 
-    public WithTimestamp(DataSource dataSource, RowSignature signature, long rowNum)
+    public WithTimestamp(
+        DataSource dataSource,
+        RowSignature signature,
+        Map<String, Map<String, String>> descriptors,
+        long rowNum
+    )
     {
-      super(dataSource, signature, rowNum);
+      super(dataSource, signature, descriptors, rowNum);
       this.timestamp = System.currentTimeMillis();
     }
 

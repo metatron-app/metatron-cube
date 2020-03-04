@@ -295,22 +295,22 @@ public class CalciteQueryTest extends CalciteTestBase
         "DESC foo",
         ImmutableList.of(),
         ImmutableList.of(
-            new Object[]{"__time", "TIMESTAMP", "NO"},
-            new Object[]{"cnt", "BIGINT", "NO"},
-            new Object[]{"dim1", "VARCHAR", "YES"},
-            new Object[]{"dim2", "VARCHAR", "YES"},
-            new Object[]{"m1", "DOUBLE", "NO"},
-            new Object[]{"m2", "DOUBLE", "NO"},
-            new Object[]{"unique_dim1", "OTHER", "YES"}
+            new Object[]{"__time", "TIMESTAMP", "NO", ""},
+            new Object[]{"cnt", "BIGINT", "NO", ""},
+            new Object[]{"dim1", "VARCHAR", "YES", ""},
+            new Object[]{"dim2", "VARCHAR", "YES", ""},
+            new Object[]{"m1", "DOUBLE", "NO", ""},
+            new Object[]{"m2", "DOUBLE", "NO", ""},
+            new Object[]{"unique_dim1", "OTHER", "YES", ""}
         )
     );
     testQuery(
         "DESCRIBE foo2 '%1'",
         ImmutableList.of(),
         ImmutableList.of(
-            new Object[]{"dim1", "VARCHAR", "YES"},
-            new Object[]{"m1", "DOUBLE", "NO"},
-            new Object[]{"unique_dim1", "OTHER", "YES"}
+            new Object[]{"dim1", "VARCHAR", "YES", ""},
+            new Object[]{"m1", "DOUBLE", "NO", ""},
+            new Object[]{"unique_dim1", "OTHER", "YES", ""}
         )
     );
   }

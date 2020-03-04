@@ -192,13 +192,18 @@ public class ColumnAnalysis
     if (!Objects.equals(type, rhs.getType())) {
       return ColumnAnalysis.error("cannot_merge_diff_types");
     }
-    if (!Objects.equals(descriptor, rhs.descriptor)) {
+    Map<String, String> mergedDescriptor;
+    if (descriptor == null) {
+      mergedDescriptor = rhs.descriptor;
+    } else if (rhs.descriptor == null || Objects.equals(descriptor, rhs.descriptor)) {
+      mergedDescriptor = descriptor;
+    } else {
       return ColumnAnalysis.error("cannot_merge_diff_descs");
     }
 
     return new ColumnAnalysis(
         type,
-        descriptor,
+        mergedDescriptor,
         hasMultipleValues || rhs.isHasMultipleValues(),
         serializedSize < 0 || rhs.serializedSize < 0 ? -1 : serializedSize + rhs.serializedSize,
         cardinality < 0 || rhs.cardinality < 0 ? -1 : Math.max(cardinality, rhs.cardinality),
