@@ -39,6 +39,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.Segment;
 import io.druid.segment.filter.Filters;
 
 import javax.annotation.Nullable;
@@ -112,7 +113,7 @@ public class DimFilters
     return new NotDimFilter(filter);
   }
 
-  public static List<DimFilter> optimize(List<DimFilter> filters)
+  public static List<DimFilter> optimize(List<DimFilter> filters, final Segment segment)
   {
     return Lists.newArrayList(
         Lists.transform(
@@ -121,7 +122,7 @@ public class DimFilters
               @Override
               public DimFilter apply(DimFilter input)
               {
-                return input.optimize(null);
+                return input.optimize(segment);
               }
             }
         )

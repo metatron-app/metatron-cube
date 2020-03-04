@@ -104,16 +104,22 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
   }
 
   @Override
-  @JsonProperty("name")
+  @JsonProperty
   public String getName()
   {
     return name;
   }
 
-  @JsonProperty("fieldName")
+  @JsonProperty
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @JsonProperty
+  public boolean isRound()
+  {
+    return round;
   }
 
   @Override

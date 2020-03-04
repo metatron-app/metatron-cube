@@ -69,7 +69,7 @@ public class AndDimFilter implements DimFilter, AndExpression
   @Override
   public DimFilter optimize(Segment segment)
   {
-    return DimFilters.and(DimFilters.optimize(fields));
+    return DimFilters.and(DimFilters.optimize(fields, segment));
   }
 
   @Override

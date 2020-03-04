@@ -69,7 +69,7 @@ public class OrDimFilter implements DimFilter, OrExpression
   @Override
   public DimFilter optimize(Segment segment)
   {
-    return DimFilters.or(DimFilters.optimize(fields));
+    return DimFilters.or(DimFilters.optimize(fields, segment));
   }
 
   @Override

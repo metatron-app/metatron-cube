@@ -63,7 +63,7 @@ public class NotDimFilter implements DimFilter, NotExpression
   @Override
   public DimFilter optimize(Segment segment)
   {
-    return DimFilters.not(field.optimize(null));
+    return DimFilters.not(field.optimize(segment));
   }
 
   @Override

@@ -98,17 +98,6 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
     return null;
   }
 
-  @Nullable
-  private DimFilter optimizeWith(String field, String desc)
-  {
-    if (desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) && operation == SpatialOperations.COVEREDBY) {
-      return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString);
-    } else if (desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC)) {
-      return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
-    }
-    return null;
-  }
-
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
