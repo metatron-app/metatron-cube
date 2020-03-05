@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -119,22 +118,6 @@ public class Queries
     }
   }
 
-  public static List<AggregatorFactory> getAggregators(Query query)
-  {
-    if (query instanceof Query.AggregationsSupport) {
-      return ((Query.AggregationsSupport<?>) query).getAggregatorSpecs();
-    }
-    return ImmutableList.of();
-  }
-
-  public static List<PostAggregator> getPostAggregators(Query query)
-  {
-    if (query instanceof Query.AggregationsSupport) {
-      return ((Query.AggregationsSupport<?>) query).getPostAggregatorSpecs();
-    }
-    return ImmutableList.of();
-  }
-
   public static <T> T convert(Object object, ObjectMapper jsonMapper, Class<T> expected)
   {
     try {
@@ -144,11 +127,6 @@ public class Queries
       LOG.warn(ex, "Failed to convert to " + expected.getClass().getSimpleName());
     }
     return null;
-  }
-
-  public static Query toQuery(Map<String, Object> object, ObjectMapper jsonMapper)
-  {
-    return convert(object, jsonMapper, Query.class);
   }
 
   public static RowSignature relaySchema(Query query, QuerySegmentWalker segmentWalker)
@@ -345,21 +323,6 @@ public class Queries
       return Sequences.map(sequence, GuavaUtils.<Row, I>caster());
     }
     throw new UnsupportedOperationException("cannot convert to " + subQuery.getType() + " result");
-  }
-
-  public static Map<String, Object> extractContext(Query<?> query, String... keys)
-  {
-    Map<String, Object> context = query.getContext();
-    if (context == null) {
-      return Maps.newHashMap();
-    }
-    Map<String, Object> extracted = Maps.newHashMap();
-    for (String key : keys) {
-      if (context.containsKey(key)) {
-        extracted.put(key, context.get(key));
-      }
-    }
-    return extracted;
   }
 
   public static Query iterate(Query query, Function<Query, Query> function)

@@ -46,6 +46,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.BaseFilteredDimensionSpec;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -100,7 +101,7 @@ public class QueryUtils
         EnumSet.of(AnalysisType.INTERVAL),
         false,
         false,
-        Queries.extractContext(query, BaseQuery.QUERYID)
+        BaseQuery.copyContextForMeta(query)
     );
     return Sequences.only(QueryRunners.run(metaQuery, segmentWalker)).getIntervals();
   }
@@ -279,77 +280,109 @@ public class QueryUtils
     return (T) input;
   }
 
-  public static Query resolveRecursively(final Query query, final QuerySegmentWalker segmentWalker)
+  // called by Broker or QueryMaker (resolves leaf queries)
+  public static Query resolveRecursively(final Query query, final QuerySegmentWalker walker)
   {
     return Queries.iterate(
         query, new IdentityFunction<Query>()
         {
           @Override
+          @SuppressWarnings("unchecked")
           public Query apply(Query input)
           {
-            return resolve(input, segmentWalker);
+            return resolve(input, walker);
           }
         }
     );
   }
 
-  @SuppressWarnings("unchecked")
-  public static <T> Query<T> resolve(Query<T> query, QuerySegmentWalker segmentWalker)
+  // called by QueryRunners.getSubQueryResolver
+  public static <T> Query<T> resolve(Query<T> query, QuerySegmentWalker walker)
   {
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getSchema() == null) {
-      // cannot be resolved before sub-query is resolved (see FluentQueryRunnerBuilder.applySubQueryResolver)
+      // cannot be resolved before sub-query is resolved
       return query;
     }
     if (dataSource instanceof UnionDataSource) {
-      return query; // cannot
+      return query; // todo
     }
+
     ViewDataSource view = ViewDataSource.of("dummy");
     if (dataSource instanceof ViewDataSource) {
       view = (ViewDataSource) dataSource;
       query = query.withDataSource(TableDataSource.of(view.getName()));
     }
-    if (query instanceof Query.VCSupport && !view.getVirtualColumns().isEmpty()) {
-      Query.VCSupport<T> vcSupport = (Query.VCSupport) query;
+    if (query instanceof Query.VCSupport && !GuavaUtils.isNullOrEmpty(view.getVirtualColumns())) {
+      Query.VCSupport<T> vcSupport = (Query.VCSupport<T>) query;
       query = vcSupport.withVirtualColumns(
           VirtualColumns.override(view.getVirtualColumns(), vcSupport.getVirtualColumns())
       );
     }
     if (query instanceof Query.FilterSupport && view.getFilter() != null) {
-      Query.FilterSupport<T> filterSupport = (Query.FilterSupport) query;
+      Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
       query = filterSupport.withFilter(DimFilters.and(view.getFilter(), filterSupport.getFilter()));
     }
 
-    Supplier<RowResolver> schema = QueryUtils.resolverSupplier(query, segmentWalker);
-    query = query.resolveQuery(schema);
+    Supplier<RowResolver> resolver = QueryUtils.asResolverSupplier(query, walker);
+    if (dataSource instanceof QueryDataSource) {
+      resolver = Suppliers.ofInstance(
+          RowResolver.of(((QueryDataSource) dataSource).getSchema(), BaseQuery.getVirtualColumns(query))
+      );
+    }
+    query = ColumnExpander.expand(query, resolver);
 
+    List<String> viewColumns = view.getColumns();
+    if (!viewColumns.isEmpty()) {
+      query = retainViewColumns(query, viewColumns);
+    }
+    return query.resolveQuery(resolver, false);   // already expanded
+  }
+
+  private static <T> Query<T> retainViewColumns(Query<T> query, List<String> view)
+  {
     if (query instanceof Query.ColumnsSupport) {
-      Query.ColumnsSupport<T> columnsSupport = (Query.ColumnsSupport) query;
-      if (GuavaUtils.isNullOrEmpty(columnsSupport.getColumns())) {
-        query = view.getColumns().isEmpty() ?
-                columnsSupport.withColumns(schema.get().getColumnNames()) :
-                columnsSupport.withColumns(view.getColumns());
+      Query.ColumnsSupport<T> columnsSupport = (Query.ColumnsSupport<T>) query;
+      List<String> columns = columnsSupport.getColumns();
+      if (columns.isEmpty()) {
+        query = columnsSupport.withColumns(view);
+      } else {
+        List<String> retained = GuavaUtils.retain(columns, view);
+        if (retained.size() != columns.size()) {
+          query = columnsSupport.withColumns(retained);
+        }
       }
     }
     if (query instanceof Query.DimensionSupport) {
-      Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport) query;
-      if (dimSupport.getDimensions().isEmpty() && dimSupport.allDimensionsForEmpty()) {
-        List<String> dimensions = GuavaUtils.retain(schema.get().getDimensionNamesExceptTime(), view.getColumns());
-        query = dimSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(dimensions));
+      Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport<T>) query;
+      List<DimensionSpec> dimensions = dimSupport.getDimensions();
+      if (dimensions.isEmpty()) {
+        query = dimSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(view));
+      } else {
+        List<DimensionSpec> retained = DimensionSpecs.retain(dimensions, view);
+        if (dimensions.size() != retained.size()) {
+          query = dimSupport.withDimensionSpecs(retained);
+        }
       }
     }
     if (query instanceof Query.MetricSupport) {
-      Query.MetricSupport<T> metricSupport = (Query.MetricSupport) query;
-      if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
-        List<String> metrics = GuavaUtils.retain(schema.get().getMetricNames(), view.getColumns());
-        query = metricSupport.withMetrics(metrics);
+      Query.MetricSupport<T> metricSupport = (Query.MetricSupport<T>) query;
+      List<String> metrics = metricSupport.getMetrics();
+      if (metrics.isEmpty()) {
+        query = metricSupport.withMetrics(view);
+      } else {
+        List<String> retained = GuavaUtils.retain(metrics, view);
+        if (metrics.size() != retained.size()) {
+          query = metricSupport.withMetrics(retained);
+        }
       }
     }
     if (query instanceof Query.AggregationsSupport) {
-      Query.AggregationsSupport<T> aggrSupport = (Query.AggregationsSupport) query;
-      if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        Map<String, AggregatorFactory> factories = GuavaUtils.retain(schema.get().getAggregators(), view.getColumns());
-        query = aggrSupport.withAggregatorSpecs(Lists.newArrayList(factories.values()));
+      Query.AggregationsSupport<T> aggrSupport = (Query.AggregationsSupport<T>) query;
+      List<AggregatorFactory> aggregators = aggrSupport.getAggregatorSpecs();
+      List<AggregatorFactory> retained = AggregatorFactory.retain(aggregators, view);
+      if (aggregators.size() != retained.size()) {
+        query = aggrSupport.withAggregatorSpecs(retained);
       }
     }
     return query;
@@ -370,7 +403,7 @@ public class QueryUtils
     }
     for (DimensionSpec dimension : BaseQuery.getDimensions(query)) {
       if (dimension instanceof BaseFilteredDimensionSpec) {
-        dimension = ((BaseFilteredDimensionSpec)dimension).getDelegate();
+        dimension = ((BaseFilteredDimensionSpec) dimension).getDelegate();
       }
       if (dimension instanceof DefaultDimensionSpec) {
         if (!dimension.getOutputName().equals(dimension.getDimension())) {
@@ -381,7 +414,7 @@ public class QueryUtils
     return mapping;
   }
 
-  public static Supplier<RowResolver> resolverSupplier(final Query query, final QuerySegmentWalker segmentWalker)
+  private static Supplier<RowResolver> asResolverSupplier(final Query query, final QuerySegmentWalker segmentWalker)
   {
     return Suppliers.memoize(
         new Supplier<RowResolver>()

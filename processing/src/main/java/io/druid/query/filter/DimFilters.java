@@ -198,13 +198,13 @@ public class DimFilters
   }
 
   // called for non-historical nodes (see QueryResource.prepareQuery)
-  public static <T> Query<T> rewrite(Query<T> query, Expressions.Rewriter<DimFilter> visitor)
+  public static Query rewrite(Query query, Expressions.Rewriter<DimFilter> visitor)
   {
     final DimFilter filter = BaseQuery.getDimFilter(query);
     if (filter != null) {
       DimFilter rewritten = Expressions.rewrite(filter, FACTORY, visitor);
       if (filter != rewritten) {
-        query = ((Query.FilterSupport<T>) query).withFilter(rewritten);
+        query = ((Query.FilterSupport) query).withFilter(rewritten);
       }
     }
     return query;

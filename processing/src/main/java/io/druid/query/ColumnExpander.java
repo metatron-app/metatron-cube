@@ -17,13 +17,14 @@
  * under the License.
  */
 
-package io.druid.query.select;
+package io.druid.query;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.query.Query;
-import io.druid.query.RowResolver;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 
@@ -32,31 +33,40 @@ import java.util.Map;
 
 /**
  */
-public class ViewSupportHelper
+public class ColumnExpander
 {
-  public static <T> Query<T> rewrite(Query<T> query, Supplier<RowResolver> resolver)
+  @VisibleForTesting
+  static <T> Query<T> expand(Query<T> query, RowResolver resolver)
   {
-    return query instanceof Query.VCSupport ? rewrite((Query.VCSupport<T>) query, resolver) : query;
+    return expand(query, Suppliers.ofInstance(resolver));
   }
 
-  public static <T> Query.VCSupport<T> rewrite(Query.VCSupport<T> query, RowResolver resolver)
+  public static <T> Query<T> expand(Query<T> query, Supplier<RowResolver> supplier)
   {
-    return rewrite(query, Suppliers.ofInstance(resolver));
-  }
-
-  private static <T> Query.VCSupport<T> rewrite(Query.VCSupport<T> query, Supplier<RowResolver> supplier)
-  {
+    if (query instanceof Query.ColumnsSupport) {
+      Query.ColumnsSupport<T> columnsSupport = (Query.ColumnsSupport<T>) query;
+      if (GuavaUtils.isNullOrEmpty(columnsSupport.getColumns())) {
+        query = columnsSupport.withColumns(ImmutableList.copyOf(supplier.get().getAllColumnNames()));
+      }
+    }
     if (query instanceof Query.DimensionSupport) {
-      Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>)query;
-      if (dimensionSupport.getDimensions().isEmpty() && dimensionSupport.allDimensionsForEmpty()) {
+      Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>) query;
+      if (GuavaUtils.isNullOrEmpty(dimensionSupport.getDimensions()) && dimensionSupport.allDimensionsForEmpty()) {
         query = dimensionSupport.withDimensionSpecs(
             DefaultDimensionSpec.toSpec(supplier.get().getDimensionNamesExceptTime())
         );
       }
     }
+    if (query instanceof Query.MetricSupport) {
+      Query.MetricSupport<T> metricSupport = (Query.MetricSupport<T>) query;
+      if (GuavaUtils.isNullOrEmpty(metricSupport.getMetrics()) && metricSupport.allMetricsForEmpty()) {
+        RowResolver resolver = supplier.get();
+        query = metricSupport.withMetrics(Lists.newArrayList(resolver.getMetricNames()));
+      }
+    }
     if (query instanceof Query.AggregationsSupport) {
-      Query.AggregationsSupport<T> aggrSupport = (Query.AggregationsSupport<T>)query;
-      if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
+      Query.AggregationsSupport<T> aggrSupport = (Query.AggregationsSupport<T>) query;
+      if (GuavaUtils.isNullOrEmpty(aggrSupport.getAggregatorSpecs()) && aggrSupport.allMetricsForEmpty()) {
         RowResolver resolver = supplier.get();
         List<AggregatorFactory> aggregators = Lists.newArrayList();
         Map<String, AggregatorFactory> aggregatorsMap = resolver.getAggregators();
@@ -67,13 +77,6 @@ public class ViewSupportHelper
           }
         }
         query = aggrSupport.withAggregatorSpecs(aggregators);
-      }
-    }
-    if (query instanceof Query.MetricSupport) {
-      Query.MetricSupport<T> metricSupport = (Query.MetricSupport<T>)query;
-      if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
-        RowResolver resolver = supplier.get();
-        query = metricSupport.withMetrics(Lists.newArrayList(resolver.getMetricNames()));
       }
     }
     return query;

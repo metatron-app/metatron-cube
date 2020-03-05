@@ -146,7 +146,7 @@ public class DistinctCountGroupByQueryTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(
         factory,
         factory.createRunner(incrementalIndexSegment, null),
-        query.resolveQuery(null)    // fudge timestamp
+        query.resolveQuery(null, true)    // fudge timestamp
     );
 
     List<Row> expectedResults = Arrays.asList(

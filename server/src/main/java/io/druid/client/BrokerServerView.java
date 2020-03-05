@@ -35,7 +35,6 @@ import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
-import io.druid.guice.annotations.Client;
 import io.druid.guice.annotations.EscalatedClient;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
@@ -528,14 +527,7 @@ public class BrokerServerView implements TimelineServerView
     if (queryableServer == null || !server.equals(node)) {
       return null;
     }
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return toRunner(query, queryableServer.getLocalTimelineView()).run(query, responseContext);
-      }
-    };
+    return toRunner(query, queryableServer.getLocalTimelineView());
   }
 
   private <T> T execute(DruidServer server, String resource, TypeReference<T> resultType) throws Exception
@@ -613,7 +605,7 @@ public class BrokerServerView implements TimelineServerView
     final ExecutorService exec = Execs.singleThreaded("BrokerLocalProcessor-%s");
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, true);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
     final CPUTimeMetricBuilder<T> reporter = new CPUTimeMetricBuilder<>(toolChest, emitter);

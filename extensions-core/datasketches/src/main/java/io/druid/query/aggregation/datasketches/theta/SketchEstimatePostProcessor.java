@@ -25,7 +25,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.guava.Sequence;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
 import io.druid.common.guava.GuavaUtils;
@@ -33,9 +32,10 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperator;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
@@ -67,14 +67,14 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
       public Sequence run(Query query, Map responseContext)
       {
         final Set<String> targetColumns = Sets.newHashSet();
-        for (AggregatorFactory aggregator : Queries.getAggregators(query)) {
+        for (AggregatorFactory aggregator : BaseQuery.getAggregators(query)) {
           if (aggregator instanceof SketchMergeAggregatorFactory) {
             if (!((SketchMergeAggregatorFactory)aggregator).getShouldFinalize()) {
               targetColumns.add(aggregator.getName());
             }
           }
         }
-        for (PostAggregator aggregator : Queries.getPostAggregators(query)) {
+        for (PostAggregator aggregator : BaseQuery.getPostAggregators(query)) {
           targetColumns.remove(aggregator.getName());
         }
         Sequence sequence = baseQueryRunner.run(query, responseContext);

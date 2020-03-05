@@ -19,7 +19,6 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import io.druid.data.TypeResolver;
@@ -54,12 +53,6 @@ public interface ColumnSelectorFactory extends TypeResolver
     public ValueMatcher makePredicateMatcher(DimFilter filter)
     {
       return filter.toFilter(this).makeMatcher(this);
-    }
-
-    @Override
-    public ValueDesc resolve(String column, ValueDesc defaultType)
-    {
-      return Optional.fromNullable(resolve(column)).or(defaultType);
     }
   }
 

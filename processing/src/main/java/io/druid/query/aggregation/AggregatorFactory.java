@@ -317,6 +317,18 @@ public abstract class AggregatorFactory implements Cacheable
     return types;
   }
 
+  public static List<AggregatorFactory> retain(List<AggregatorFactory> aggregators, List<String> retainer)
+  {
+    Set<String> set = Sets.newHashSet(retainer);
+    List<AggregatorFactory> retained = Lists.newArrayList();
+    for (AggregatorFactory aggregator : aggregators) {
+      if (set.contains(aggregator.getName())) {
+        retained.add(aggregator);
+      }
+    }
+    return retained;
+  }
+
   public static Map<String, AggregatorFactory> getAggregatorsFromMeta(Metadata metadata)
   {
     if (metadata != null && metadata.getAggregators() != null) {

@@ -242,9 +242,9 @@ public class StreamQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public StreamQuery resolveQuery(Supplier<RowResolver> resolver)
+  public StreamQuery resolveQuery(Supplier<RowResolver> resolver, boolean expand)
   {
-    StreamQuery resolved = (StreamQuery) super.resolveQuery(resolver);
+    StreamQuery resolved = (StreamQuery) super.resolveQuery(resolver, expand);
     if (!GuavaUtils.isNullOrEmpty(resolved.getLimitSpec().getWindowingSpecs())) {
       resolved = resolved.withLimitSpec(limitSpec.withResolver(resolver));
     }

@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
@@ -192,7 +193,9 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     final List<String> dimensions = schema.getDimensionNames();
     final int index = dimensions.indexOf(Row.TIME_COLUMN_NAME);
     if (index >= 0) {
-      dimensions.remove(index);
+      List<String> copy = Lists.newArrayList(dimensions);
+      copy.remove(index);
+      return copy;
     }
     return dimensions;
   }
@@ -222,9 +225,15 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return schema instanceof Schema ? ((Schema) schema).getAggregators() : Collections.emptyMap();
   }
 
-  public VirtualColumns getVirtualColumns()
+  public Iterable<String> getAllColumnNames()
   {
-    return virtualColumns;
+    final Set<String> virtualColumnNames = virtualColumns.getVirtualColumnNames();
+    if (!virtualColumnNames.isEmpty()) {
+      Set<String> names = Sets.newLinkedHashSet(virtualColumnNames);
+      names.addAll(schema.getColumnNames()); // override
+      return names;
+    }
+    return schema.getColumnNames();
   }
 
   public VirtualColumn getVirtualColumn(String columnName)
@@ -241,12 +250,6 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   @Override
   public ValueDesc resolve(String column)
   {
-    return resolve(column, null);
-  }
-
-  @Override
-  public ValueDesc resolve(String column, ValueDesc defaultType)
-  {
     ValueDesc resolved = schema.resolve(column);
     if (resolved != null) {
       return resolved;
@@ -258,30 +261,12 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     VirtualColumn vc = virtualColumns.getVirtualColumn(column);
     if (vc != null) {
       ValueDesc valueType = vc.resolveType(column, this);
-      if (valueType != null) {
+      if (valueType != null && !valueType.isUnknown()) {
         virtualColumnTypes.put(column, Pair.of(vc, valueType));
         return valueType;
       }
-    }
-    return defaultType;
-  }
-
-  public VirtualColumn resolveVC(String column)
-  {
-    if (resolve(column) == null) {
-      return null;
-    }
-    Pair<VirtualColumn, ValueDesc> resolved = virtualColumnTypes.get(column);
-    if (resolved != null && resolved.lhs != null) {
-      return resolved.lhs;
+      return ValueDesc.UNKNOWN;
     }
     return null;
-  }
-
-  public Iterable<String> getAllColumnNames()
-  {
-    Set<String> names = Sets.newLinkedHashSet(virtualColumns.getVirtualColumnNames());
-    names.addAll(schema.getColumnNames()); // override
-    return names;
   }
 }

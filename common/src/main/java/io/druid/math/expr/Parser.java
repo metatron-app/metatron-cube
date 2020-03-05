@@ -467,13 +467,6 @@ public class Parser
       }
 
       @Override
-      public ValueDesc resolve(String column, ValueDesc defaultType)
-      {
-        DSuppliers.TypedSupplier supplier = bindings.get(column);
-        return supplier == null ? defaultType : supplier.type();
-      }
-
-      @Override
       public Collection<String> names()
       {
         return bindings.keySet();

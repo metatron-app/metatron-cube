@@ -418,7 +418,11 @@ public class ColumnSelectorFactories
     @SuppressWarnings("unchecked")
     public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
     {
+      // creates VC if possible in here
       final ValueDesc resolved = resolver.resolve(columnName);
+      if (resolved == null) {
+        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      }
       if (resolver.isDimension(columnName) || resolver.isMetric(columnName)) {
         return new ObjectColumnSelector()
         {
@@ -435,10 +439,7 @@ public class ColumnSelectorFactories
           }
         };
       }
-      if (resolved == null) {
-        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
-      }
-      return resolver.resolveVC(columnName).asMetric(columnName, this);
+      return resolver.getVirtualColumn(columnName).asMetric(columnName, this);
     }
 
     @Override

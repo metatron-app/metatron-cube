@@ -249,13 +249,6 @@ public class Schema implements TypeResolver, RowSignature
     return index < 0 ? null : columnTypes.get(index);
   }
 
-  @Override
-  public ValueDesc resolve(String column, ValueDesc defaultType)
-  {
-    final ValueDesc resolved = resolve(column);
-    return resolved == null ? defaultType : resolved;
-  }
-
   public Schema merge(Schema other)
   {
     List<String> mergedDimensions = Lists.newArrayList(dimensionNames);

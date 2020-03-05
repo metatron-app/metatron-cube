@@ -472,7 +472,7 @@ public class ServerManager implements ForwardingSegmentWalker
     }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, true);
 
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
@@ -500,9 +500,9 @@ public class ServerManager implements ForwardingSegmentWalker
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         log.info("Split segments into %d groups", splits.size());
-        return reporter.report(
+        return QueryRunners.runWith(resolved, reporter.report(
             QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
-        );
+        ));
       }
     }
 

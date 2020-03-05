@@ -287,7 +287,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   {
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
     query = QueryUtils.setQueryId(query, queryId);
-    query = QueryUtils.rewriteRecursively(query, TestQuerySegmentWalker.this, queryConfig);
+    query = QueryUtils.rewriteRecursively(query, this, queryConfig);
     return QueryUtils.resolveRecursively(query, this);
   }
 
@@ -498,7 +498,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return PostProcessingOperators.wrap(QueryRunners.<T>empty(), objectMapper);
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, true);
     final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, executor);
 
     final Function<Iterable<Segment>, QueryRunner<T>> function = new Function<Iterable<Segment>, QueryRunner<T>>()
@@ -534,7 +534,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     if (splitable != null) {
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
-        return QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)));
+        return QueryRunners.runWith(
+            resolved, QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
+        );
       }
     }
 
@@ -545,7 +547,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         return QueryRunners.concat(runner, splits);
       }
     }
-    return runner;
+    return QueryRunners.runWith(resolved, runner);
   }
 
   @Override

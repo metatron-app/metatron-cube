@@ -419,10 +419,10 @@ public class AppenderatorImpl implements Appenderator
       return NoopQueryRunner.instance();
     }
 
-    return toQuery(query, specs);
+    return toQueryRunner(query, specs);
   }
 
-  private <T> QueryRunner<T> toQuery(final Query<T> query, Iterable<SegmentDescriptor> specs)
+  private <T> QueryRunner<T> toQueryRunner(final Query<T> query, Iterable<SegmentDescriptor> specs)
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
@@ -480,14 +480,14 @@ public class AppenderatorImpl implements Appenderator
       Collections.reverse(segments);
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
-    final Query<T> resolved = query.resolveQuery(resolver);
+    final Query<T> resolved = query.resolveQuery(resolver, true);
     final Future<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);
 
     final List<Pair<SegmentDescriptor, Sink>> targets = GuavaUtils.zip(descriptors, sinks);
 
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
-    return CPUTimeMetricQueryRunner.safeBuild(
+    return QueryRunners.runWith(resolved, CPUTimeMetricQueryRunner.safeBuild(
         toolchest.mergeResults(
             factory.mergeRunners(
                 queryExecutorService,
@@ -588,7 +588,7 @@ public class AppenderatorImpl implements Appenderator
         emitter,
         cpuTimeAccumulator,
         true
-    );
+    ));
   }
 
   /**

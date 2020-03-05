@@ -288,9 +288,9 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   }
 
   @Override
-  public Query<Row> resolveQuery(Supplier<RowResolver> resolver)
+  public Query<Row> resolveQuery(Supplier<RowResolver> resolver, boolean expand)
   {
-    return BaseQuery.setUniversalTimestamp(super.resolveQuery(resolver));
+    return BaseQuery.setUniversalTimestamp(super.resolveQuery(resolver, expand));
   }
 
   @Override

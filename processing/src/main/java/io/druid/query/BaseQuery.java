@@ -44,7 +44,6 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
@@ -188,7 +187,7 @@ public abstract class BaseQuery<T> implements Query<T>
   public boolean hasFilters()
   {
     if (this instanceof Query.FilterSupport) {
-      if (((FilterSupport)this).getFilter() != null) {
+      if (((FilterSupport) this).getFilter() != null) {
         return true;
       }
     }
@@ -249,7 +248,9 @@ public abstract class BaseQuery<T> implements Query<T>
   @SuppressWarnings("unchecked")
   public static List<PostAggregator> getPostAggregators(Query query)
   {
-    return query instanceof AggregationsSupport ? ((AggregationsSupport) query).getPostAggregatorSpecs() : Arrays.asList();
+    return query instanceof AggregationsSupport
+           ? ((AggregationsSupport) query).getPostAggregatorSpecs()
+           : Arrays.asList();
   }
 
   public static ViewDataSource asView(Query query, List<String> columns)
@@ -265,9 +266,9 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
-  public Query<T> resolveQuery(Supplier<RowResolver> resolver)
+  public Query<T> resolveQuery(Supplier<RowResolver> resolver, boolean expand)
   {
-    Query<T> query = ViewSupportHelper.rewrite(this, resolver);
+    Query<T> query = expand ? ColumnExpander.expand(this, resolver) : this;
     if (query instanceof AggregationsSupport) {
       AggregationsSupport<T> aggregationsSupport = (AggregationsSupport<T>) query;
       boolean changed = false;

@@ -17,13 +17,12 @@
  * under the License.
  */
 
-package io.druid.query.select;
+package io.druid.query;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
@@ -31,12 +30,7 @@ import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.query.BaseQuery;
-import io.druid.query.Druids;
-import io.druid.query.QueryContextKeys;
-import io.druid.query.RowResolver;
-import io.druid.query.TableDataSource;
-import io.druid.query.ViewDataSource;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
@@ -44,6 +38,8 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.select.Schema;
+import io.druid.query.select.SelectQuery;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
 import io.druid.segment.CursorFactory;
@@ -66,7 +62,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-public class ViewSupportHelperTest
+public class ColumnExpanderTest
 {
   public static class TestStorageAdapter extends CursorFactory.Abstract implements StorageAdapter
   {
@@ -249,7 +245,7 @@ public class ViewSupportHelperTest
         .build();
 
     RowResolver resolver = RowResolver.of(adapter, view.getVirtualColumns());
-    GroupByQuery x = (GroupByQuery) ViewSupportHelper.rewrite(base, resolver);
+    GroupByQuery x = (GroupByQuery) ColumnExpander.expand(base, resolver);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());
@@ -261,7 +257,7 @@ public class ViewSupportHelperTest
     );
     RowResolver r0 = RowResolver.of(adapter, q0.getVirtualColumns());
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q0, r0);
+    x = (GroupByQuery) ColumnExpander.expand(q0, r0);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());  // dimension from segment
@@ -271,7 +267,7 @@ public class ViewSupportHelperTest
     GroupByQuery q1 = q0.withDimensionSpecs(DefaultDimensionSpec.toSpec("dim2"));
     RowResolver r1 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q1));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q1, r1);
+    x = (GroupByQuery) ColumnExpander.expand(q1, r1);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim2"), x.getDimensions());  // do not modify
@@ -283,7 +279,7 @@ public class ViewSupportHelperTest
     );
     RowResolver r2 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q2));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q2, r2);
+    x = (GroupByQuery) ColumnExpander.expand(q2, r2);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());  // dimension from segment
@@ -293,7 +289,7 @@ public class ViewSupportHelperTest
     GroupByQuery q3 = q2.withAggregatorSpecs(Arrays.<AggregatorFactory>asList(met3));
     RowResolver r3 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q3));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q3, r3);
+    x = (GroupByQuery) ColumnExpander.expand(q3, r3);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());  // dimension from segment
@@ -303,7 +299,7 @@ public class ViewSupportHelperTest
     GroupByQuery q4 = base.withVirtualColumns(Arrays.<VirtualColumn>asList(vc3));
     RowResolver r4 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q4));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q4, r4);
+    x = (GroupByQuery) ColumnExpander.expand(q4, r4);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2, vc3), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());
@@ -328,7 +324,7 @@ public class ViewSupportHelperTest
         .build();
     RowResolver resolver = RowResolver.of(adapter, BaseQuery.getVirtualColumns(base));
 
-    SelectQuery x = (SelectQuery) ViewSupportHelper.rewrite(base, resolver);
+    SelectQuery x = (SelectQuery) ColumnExpander.expand(base, resolver);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());
@@ -338,7 +334,7 @@ public class ViewSupportHelperTest
     SelectQuery q1 = base.withDimensionSpecs(DefaultDimensionSpec.toSpec("dim2"));
     RowResolver r1 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q1));
 
-    x = (SelectQuery) ViewSupportHelper.rewrite(q1, r1);
+    x = (SelectQuery) ColumnExpander.expand(q1, r1);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim2"), x.getDimensions());
@@ -348,7 +344,7 @@ public class ViewSupportHelperTest
     SelectQuery q2 = base.withVirtualColumns(Arrays.<VirtualColumn>asList(vc3));
     RowResolver r2 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q2));
 
-    x = (SelectQuery) ViewSupportHelper.rewrite(q2, r2);
+    x = (SelectQuery) ColumnExpander.expand(q2, r2);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2, vc3), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());
@@ -357,7 +353,7 @@ public class ViewSupportHelperTest
     SelectQuery q3 = base.withMetrics(Arrays.<String>asList("met2"));
     RowResolver r3 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q3));
 
-    x = (SelectQuery) ViewSupportHelper.rewrite(q3, r3);
+    x = (SelectQuery) ColumnExpander.expand(q3, r3);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());

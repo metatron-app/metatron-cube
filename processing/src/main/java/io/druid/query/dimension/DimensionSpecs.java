@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -35,6 +36,7 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -139,6 +141,18 @@ public class DimensionSpecs
       }
     }
     return directions;
+  }
+
+  public static List<DimensionSpec> retain(List<DimensionSpec> dimensionSpecs, List<String> retainer)
+  {
+    Set<String> set = Sets.newHashSet(retainer);
+    List<DimensionSpec> retained = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (set.contains(dimensionSpec.getOutputName())) {
+        retained.add(dimensionSpec);
+      }
+    }
+    return retained;
   }
 
   public static final Function<DimensionSpec, String> INPUT_NAME = new Function<DimensionSpec, String>()

@@ -724,25 +724,35 @@ public class QueryRunnerTestHelper
     );
   }
 
+  @SuppressWarnings("unchecked")
   private static <T, QueryType extends Query<T>> QueryRunner<T> makeLocalQueryRunner(
-      QueryRunnerFactory<T, QueryType> factory,
-      String segmentId,
-      Segment adapter
+      final QueryRunnerFactory<T, QueryType> factory,
+      final String segmentId,
+      final Segment segment
   )
   {
-    @SuppressWarnings("unchecked")
-    QueryToolChest<T, Query<T>> toolchest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
-    return toolchest.finalQueryDecoration(
+    final QueryToolChest<T, Query<T>> toolchest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
+    final QueryRunner<T> runner = toolchest.finalQueryDecoration(
         toolchest.finalizeResults(
             toolchest.mergeResults(
                 factory.mergeRunners(
                     MoreExecutors.sameThreadExecutor(),
-                    ImmutableList.<QueryRunner<T>>of(makeSegmentQueryRunner(factory, segmentId, adapter)),
+                    ImmutableList.<QueryRunner<T>>of(makeSegmentQueryRunner(factory, segmentId, segment)),
                     null
                 )
             )
         )
     );
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        final Supplier<RowResolver> resolver = RowResolver.supplier(Arrays.asList(segment), query);
+        final Query<T> resolved = query.resolveQuery(resolver, true);
+        return runner.run(resolved, responseContext);
+      }
+    };
   }
 
   public static <T> QueryRunner<T> toBrokerRunner(
@@ -791,7 +801,7 @@ public class QueryRunnerTestHelper
           {
             // this should be done at the most outer side (see server manager).. but who cares?
             final Supplier<RowResolver> resolver = RowResolver.supplier(Arrays.asList(segment), query);
-            final QueryType resolved = (QueryType) query.resolveQuery(resolver);
+            final QueryType resolved = (QueryType) query.resolveQuery(resolver, true);
             final Future<Object> optimizer = factory.preFactoring(
                 resolved,
                 Arrays.asList(segment),
