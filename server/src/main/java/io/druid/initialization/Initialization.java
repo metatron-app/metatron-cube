@@ -270,6 +270,7 @@ public class Initialization
       .put("druid-hadoop-firehose", "druid-indexing-hadoop")
       .put("druid-parquet-extensions", "druid-indexing-hadoop")
       .put("druid-hive-extensions", "druid-indexing-hadoop")
+      .put("druid-kafka-eight-simple-consumer", "druid-kafka-extraction-namespace")
       .build();
 
   private static final String INTERNAL_HADOOP_CLIENT = "$HADOOP_CILENT$";
