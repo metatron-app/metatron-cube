@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
 
 /**
  */
-public class RegexDimFilter extends DimFilter.NotOptimizable
+public class RegexDimFilter implements DimFilter
 {
   private final String dimension;
   private final String pattern;

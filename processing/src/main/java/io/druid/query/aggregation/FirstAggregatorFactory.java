@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * with the License. You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,22 +17,17 @@
  * under the License.
  */
 
-package io.druid.sql.calcite.rel;
+package io.druid.query.aggregation;
 
-import io.druid.query.Query;
-import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rel.type.RelDataType;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 
-public interface DruidQuery
+import static io.druid.query.aggregation.Aggregators.RELAY_TYPE.FIRST;
+
+@JsonTypeName("first")
+public class FirstAggregatorFactory extends RelayAggregatorFactory
 {
-  RelDataType getOutputRowType();
-
-  default RowSignature getInputRowSignature()
+  public FirstAggregatorFactory(String name, String columnName, String typeName)
   {
-    return null;    // todo
+    super(name, columnName, typeName, FIRST.name());
   }
-
-  RowSignature getOutputRowSignature();
-
-  Query getQuery();
 }

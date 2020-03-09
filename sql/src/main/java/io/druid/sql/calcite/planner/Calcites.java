@@ -52,8 +52,11 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 import org.joda.time.format.ISODateTimeFormat;
 
+import java.lang.reflect.Type;
 import java.nio.charset.Charset;
 import java.util.NavigableSet;
+
+import static io.druid.sql.calcite.Utils.TYPE_FACTORY;
 
 /**
  * Utility functions for Calcite.
@@ -150,7 +153,8 @@ public class Calcites
       return ValueDesc.GEOMETRY;    // it's not working (todo)
     }
     // hack
-    if (dataType.getFullTypeString().contains("class org.locationtech.jts.geom.Geometry")) {
+    Type type = TYPE_FACTORY.getJavaClass(dataType);
+    if (type != null && type.getTypeName().startsWith("org.locationtech.jts.geom.")) {
       return ValueDesc.GEOMETRY;
     }
     return ValueDesc.of(sqlTypeName.getName());

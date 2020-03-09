@@ -19,12 +19,10 @@
 
 package io.druid.sql.calcite.table;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -45,9 +43,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -55,35 +51,23 @@ import java.util.Objects;
  * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
  * well defined types) but we do impose types for the SQL layer.
  */
-public class RowSignature implements io.druid.query.RowSignature
+public class RowSignature extends io.druid.query.RowSignature.Simple
 {
-  private final Map<String, ValueDesc> columnTypes;
-  private final List<String> columnNames;
-
-  private RowSignature(final List<Pair<String, ValueDesc>> columnTypeList)
+  public RowSignature(List<String> columnNames, List<ValueDesc> columnTypes)
   {
-    final Map<String, ValueDesc> columnTypes0 = new HashMap<>();
-    final ImmutableList.Builder<String> columnNamesBuilder = ImmutableList.builder();
-
-    int i = 0;
-    for (Pair<String, ValueDesc> pair : columnTypeList) {
-      final ValueDesc existingType = columnTypes0.get(pair.lhs);
-      if (existingType != null && existingType != pair.rhs) {
-        throw new IAE("Column[%s] has conflicting types [%s] and [%s]", pair.lhs, existingType, pair.rhs);
-      }
-
-      columnTypes0.put(pair.lhs, pair.rhs);
-      columnNamesBuilder.add(pair.lhs);
-    }
-
-    this.columnTypes = ImmutableMap.copyOf(columnTypes0);
-    this.columnNames = columnNamesBuilder.build();
+    super(columnNames, columnTypes);
   }
 
+  // this is only possible on array output functions.. so it's not right for using for Windowing (todo)
   public static RowSignature from(final RelDataType rowType)
   {
+    return from(rowType.getFieldList());
+  }
+
+  public static RowSignature from(final List<RelDataTypeField> fieldList)
+  {
     final Builder rowSignatureBuilder = builder();
-    for (RelDataTypeField field : rowType.getFieldList()) {
+    for (RelDataTypeField field : fieldList) {
       final String columnName = field.getName();
       final RelDataType dataType = field.getType();
       final ValueDesc valueType = Calcites.getValueDescForRelDataType(dataType);
@@ -135,21 +119,6 @@ public class RowSignature implements io.druid.query.RowSignature
     return new Builder();
   }
 
-  public ValueDesc getColumnType(final String name)
-  {
-    return columnTypes.get(name);
-  }
-
-  /**
-   * Returns the rowOrder for this signature, which is the list of column names in row order.
-   *
-   * @return row order
-   */
-  public List<String> getRowOrder()
-  {
-    return columnNames;
-  }
-
   /**
    * Return the "natural" {@link StringComparator} for an extraction from this row signature. This will be a
    * lexicographic comparator for String types and a numeric comparator for Number types.
@@ -163,7 +132,7 @@ public class RowSignature implements io.druid.query.RowSignature
   {
     Preconditions.checkNotNull(simpleExtraction, "simpleExtraction");
     if (simpleExtraction.getExtractionFn() != null
-        || ValueDesc.isStringOrDimension(getColumnType(simpleExtraction.getColumn()))) {
+        || ValueDesc.isStringOrDimension(resolve(simpleExtraction.getColumn()))) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
       return StringComparators.NUMERIC_NAME;
@@ -177,11 +146,12 @@ public class RowSignature implements io.druid.query.RowSignature
    *
    * @return Calcite row type
    */
-  public RelDataType getRelDataType(final RelDataTypeFactory typeFactory)
+  public RelDataType toRelDataType(final RelDataTypeFactory typeFactory)
   {
     final RelDataTypeFactory.Builder builder = typeFactory.builder();
-    for (final String columnName : columnNames) {
-      ValueDesc columnType = getColumnType(columnName);
+    for (int i = 0; i < columnNames.size(); i++) {
+      String columnName = columnNames.get(i);
+      ValueDesc columnType = columnTypes.get(i);
       if (ValueDesc.isDimension(columnType)) {
         columnType = columnType.subElement();
       }
@@ -197,7 +167,7 @@ public class RowSignature implements io.druid.query.RowSignature
     return builder.build();
   }
 
-  public RelDataType toRelDataType(RelDataTypeFactory typeFactory, ValueDesc columnType)
+  private static RelDataType toRelDataType(RelDataTypeFactory typeFactory, ValueDesc columnType)
   {
     switch (columnType.type()) {
       case STRING:
@@ -236,50 +206,6 @@ public class RowSignature implements io.druid.query.RowSignature
     }
   }
 
-  // todo remove this
-  public io.druid.query.RowSignature asSchema()
-  {
-    List<String> newColumnNames = Lists.newArrayList();
-    List<ValueDesc> newColumnTypes = Lists.newArrayList();
-    for (String columnName : columnNames) {
-      if (columnName.equals(Row.TIME_COLUMN_NAME)) {
-        continue;
-      }
-      ValueDesc columnType = columnTypes.get(columnName);
-      if (columnType.isDimension()) {
-        columnType = columnType.subElement();
-      }
-      newColumnNames.add(columnName);
-      newColumnTypes.add(columnType);
-    }
-    return new io.druid.query.RowSignature.Simple(newColumnNames, newColumnTypes);
-  }
-
-  @Override
-  public List<String> getColumnNames()
-  {
-    return columnNames;
-  }
-
-  @Override
-  public List<ValueDesc> getColumnTypes()
-  {
-    return Lists.newArrayList(Iterables.transform(columnNames, new Function<String, ValueDesc>()
-    {
-      @Override
-      public ValueDesc apply(String input)
-      {
-        return resolve(input, ValueDesc.UNKNOWN);
-      }
-    }));
-  }
-
-  @Override
-  public int size()
-  {
-    return columnNames.size();
-  }
-
   @Override
   public int hashCode()
   {
@@ -313,15 +239,10 @@ public class RowSignature implements io.druid.query.RowSignature
         s.append(", ");
       }
       final String columnName = columnNames.get(i);
-      s.append(columnName).append(":").append(getColumnType(columnName));
+      final ValueDesc columnType = columnTypes.get(i);
+      s.append(columnName).append(":").append(columnType);
     }
     return s.append("}").toString();
-  }
-
-  @Override
-  public ValueDesc resolve(String column)
-  {
-    return columnTypes.get(column);
   }
 
   public RowSignature replaceColumnNames(List<String> newColumnNames)
@@ -329,9 +250,17 @@ public class RowSignature implements io.druid.query.RowSignature
     Preconditions.checkArgument(columnNames.size() == newColumnNames.size(), "inconsistent");
     Builder builder = new Builder();
     for (int i = 0; i < newColumnNames.size(); i++) {
-      builder.add(newColumnNames.get(i), resolve(columnNames.get(i), ValueDesc.UNKNOWN));
+      builder.add(newColumnNames.get(i), columnTypes.get(i));
     }
     return builder.build();
+  }
+
+  public RowSignature concat(RowSignature concat)
+  {
+    return new RowSignature(
+        GuavaUtils.concat(columnNames, concat.columnNames),
+        GuavaUtils.concat(columnTypes, concat.columnTypes)
+    );
   }
 
   public static class Builder
@@ -367,7 +296,9 @@ public class RowSignature implements io.druid.query.RowSignature
 
     public RowSignature build()
     {
-      return new RowSignature(columnTypeList);
+      List<String> columnNames = Lists.newArrayList(Iterables.transform(columnTypeList, Pair.lhsFn()));
+      List<ValueDesc> columnTypes = Lists.newArrayList(Iterables.transform(columnTypeList, Pair.rhsFn()));
+      return new RowSignature(columnNames, columnTypes);
     }
   }
 }

@@ -26,8 +26,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
+import io.druid.math.expr.Parser;
 import io.druid.query.GeomUtils;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.ShapeFormat;
@@ -159,19 +163,17 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
+  public DimFilter toExprFilter(RowResolver resolver, String columnName, String fieldName, String descriptor)
   {
     final String polygon = GeomUtils.fromString(shapeFormat, shapeString);
-    final String latLon = toLatLonField(columnName, fieldName, descriptor);
-    return new MathExprFilter(
-        String.format("geom_contains(%s, geom_fromLatLon(%s))", polygon, latLon)
-    );
+    final String point = toPointExpr(resolver, columnName, fieldName, descriptor);
+    return new MathExprFilter(String.format("geom_contains(%s, %s)", polygon, point));
   }
 
   @Override
   public DimFilter forLog()
   {
-    return new LuceneLatLonPolygonFilter(field, shapeFormat, "<shape>");
+    return new LuceneLatLonPolygonFilter(field, shapeFormat, StringUtils.forLog(shapeString));
   }
 
   @Override
@@ -179,8 +181,8 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   {
     return "LuceneLatLonPolygonFilter{" +
            "field='" + field + '\'' +
-           ", shapeFormat='" + shapeFormat + '\'' +
-           ", shapeString='" + shapeString + '\'' +
+           ", shapeFormat=" + shapeFormat +
+           ", shapeString=" + StringUtils.forLog(shapeString) +
            '}';
   }
 

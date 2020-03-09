@@ -40,6 +40,7 @@ import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.Filters;
 
 import javax.annotation.Nullable;
@@ -113,7 +114,11 @@ public class DimFilters
     return new NotDimFilter(filter);
   }
 
-  public static List<DimFilter> optimize(List<DimFilter> filters, final Segment segment)
+  public static List<DimFilter> optimize(
+      final List<DimFilter> filters,
+      final Segment segment,
+      final List<VirtualColumn> virtualColumns
+  )
   {
     return Lists.newArrayList(
         Lists.transform(
@@ -122,7 +127,7 @@ public class DimFilters
               @Override
               public DimFilter apply(DimFilter input)
               {
-                return input.optimize(segment);
+                return input.optimize(segment, virtualColumns);
               }
             }
         )
@@ -192,7 +197,7 @@ public class DimFilters
     } else if (equalValues.size() == 1) {
       dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
     }
-    DimFilter filter = DimFilters.or(dimFilters).optimize(null);
+    DimFilter filter = DimFilters.or(dimFilters).optimize(null, null);
     LOG.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);
     return filter;
   }
@@ -273,7 +278,7 @@ public class DimFilters
 
   public static DimFilter NONE = new None();
 
-  public static class None extends DimFilter.NotOptimizable
+  public static class None implements DimFilter
   {
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)
@@ -305,7 +310,7 @@ public class DimFilters
 
   public static DimFilter ALL = new All();
 
-  public static class All extends DimFilter.NotOptimizable
+  public static class All implements DimFilter
   {
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)

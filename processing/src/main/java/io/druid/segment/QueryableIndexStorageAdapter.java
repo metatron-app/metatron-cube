@@ -184,9 +184,10 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   }
 
   @Override
-  public ColumnCapabilities getColumnCapabilities(String column)
+  public ColumnCapabilities getColumnCapabilities(String columnName)
   {
-    return index.getColumn(column).getCapabilities();
+    Column column = index.getColumn(columnName);
+    return column == null ? null : column.getCapabilities();
   }
 
   @Override

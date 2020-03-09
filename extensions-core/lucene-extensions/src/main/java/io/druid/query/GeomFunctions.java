@@ -26,6 +26,7 @@ import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -48,6 +49,8 @@ import java.util.List;
 
 public class GeomFunctions implements Function.Library
 {
+  private static final Logger LOG = new Logger(GeomFunctions.class);
+
   @Function.Named("geom_fromLatLon")
   public static class FromLatLon extends GeomUtils.GeomFuncFactory
   {

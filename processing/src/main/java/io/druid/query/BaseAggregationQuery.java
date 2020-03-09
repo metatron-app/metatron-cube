@@ -566,6 +566,11 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       return this;
     }
 
+    public Builder<T> outputColumns(String... outputColumns)
+    {
+      return setOutputColumns(Arrays.asList(outputColumns));
+    }
+
     public Builder<T> outputColumns(List<String> outputColumns)
     {
       return setOutputColumns(outputColumns);

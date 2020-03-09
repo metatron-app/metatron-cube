@@ -81,13 +81,11 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.BitSets;
 import org.apache.calcite.util.ImmutableBitSet;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -236,7 +234,7 @@ public class DruidBaseQuery implements DruidQuery
 
     final String virtualColumnPrefix = Calcites.findUnusedPrefix(
         "v",
-        new TreeSet<>(sourceRowSignature.getRowOrder())
+        new TreeSet<>(sourceRowSignature.getColumnNames())
     );
     int virtualColumnNameCounter = 0;
 
@@ -339,7 +337,7 @@ public class DruidBaseQuery implements DruidQuery
       final RowSignature sourceRowSignature
   )
   {
-    final List<String> rowOrdering = sourceRowSignature.getRowOrder();
+    final List<String> rowOrdering = sourceRowSignature.getColumnNames();
     final List<Windowing> windowings = Lists.newArrayList();
 
     int counter = 0;
@@ -429,7 +427,7 @@ public class DruidBaseQuery implements DruidQuery
     if (sortProject == null) {
       return null;
     } else {
-      List<String> sourceRows = inputRowSignature.getRowOrder();
+      List<String> sourceRows = inputRowSignature.getColumnNames();
       List<String> targetRows = Lists.newArrayList();
       for (RexNode rexNode : sortProject.getChildExps()) {
         int index = ((RexInputRef) rexNode).getIndex();
@@ -462,7 +460,7 @@ public class DruidBaseQuery implements DruidQuery
     final List<PostAggregator> aggregations = new ArrayList<>();
     final String outputNamePrefix = Calcites.findUnusedPrefix(
         basePrefix,
-        new TreeSet<>(inputRowSignature.getRowOrder())
+        new TreeSet<>(inputRowSignature.getColumnNames())
     );
 
     int outputNameCounter = 0;
@@ -515,7 +513,7 @@ public class DruidBaseQuery implements DruidQuery
   {
     final Aggregate aggregate = Preconditions.checkNotNull(partialQuery.getAggregate());
     final List<DimensionExpression> dimensions = new ArrayList<>();
-    final String outputNamePrefix = Calcites.findUnusedPrefix("d", new TreeSet<>(sourceRowSignature.getRowOrder()));
+    final String outputNamePrefix = Calcites.findUnusedPrefix("d", new TreeSet<>(sourceRowSignature.getColumnNames()));
     int outputNameCounter = 0;
 
     for (int i : aggregate.getGroupSet()) {
@@ -568,7 +566,7 @@ public class DruidBaseQuery implements DruidQuery
   {
     final Aggregate aggregate = Preconditions.checkNotNull(partialQuery.getAggregate());
     final List<Aggregation> aggregations = new ArrayList<>();
-    final String outputNamePrefix = Calcites.findUnusedPrefix("a", new TreeSet<>(sourceRowSignature.getRowOrder()));
+    final String outputNamePrefix = Calcites.findUnusedPrefix("a", new TreeSet<>(sourceRowSignature.getColumnNames()));
 
     for (int i = 0; i < aggregate.getAggCallList().size(); i++) {
       final String aggName = outputNamePrefix + i;
@@ -673,8 +671,8 @@ public class DruidBaseQuery implements DruidQuery
         throw new CannotBuildQueryException(sort, sortExpression);
       }
       final RexInputRef ref = (RexInputRef) sortExpression;
-      final String fieldName = rowSignature.getRowOrder().get(ref.getIndex());
-      final ValueDesc type = rowSignature.getColumnType(fieldName);
+      final String fieldName = rowSignature.getColumnNames().get(ref.getIndex());
+      final ValueDesc type = rowSignature.resolve(fieldName);
 
       final Direction direction;
 
@@ -713,7 +711,7 @@ public class DruidBaseQuery implements DruidQuery
     }
 
     // Check if a cast is necessary.
-    final ValueDesc toExprType = aggregateRowSignature.getColumnType(expression.getDirectColumn());
+    final ValueDesc toExprType = aggregateRowSignature.resolve(expression.getDirectColumn());
 
     final ValueDesc fromExprType = Calcites.getValueDescForRelDataType(rexNode.getType());
 
@@ -750,6 +748,12 @@ public class DruidBaseQuery implements DruidQuery
   public RelDataType getOutputRowType()
   {
     return outputRowType;
+  }
+
+  @Override
+  public RowSignature getInputRowSignature()
+  {
+    return sourceRowSignature;
   }
 
   @Override
@@ -852,7 +856,7 @@ public class DruidBaseQuery implements DruidQuery
         postAggregators,
         grouping.getHavingFilter(),
         limiting == null ? null : limiting.getLimitSpec(),
-        null,
+        ImmutableList.copyOf(outputRowSignature.getColumnNames()),
         null,
         plannerContext.copyQueryContext()
     );
@@ -882,14 +886,13 @@ public class DruidBaseQuery implements DruidQuery
     final DimensionExpression dimensionExpr = Iterables.getOnlyElement(grouping.getDimensions());
     final DimensionSpec dimensionSpec = dimensionExpr.toDimensionSpec();
     if (!dimensionSpec.getDimension().equals(Row.TIME_COLUMN_NAME) &&
-        !ValueDesc.isDimension(sourceRowSignature.getColumnType(dimensionSpec.getDimension()))) {
+        !ValueDesc.isDimension(sourceRowSignature.resolve(dimensionSpec.getDimension()))) {
       return null;
     }
     final OrderByColumnSpec limitColumn;
     if (limiting.getColumns().isEmpty()) {
-      limitColumn = new OrderByColumnSpec(
+      limitColumn = OrderByColumnSpec.asc(
           dimensionSpec.getOutputName(),
-          Direction.ASCENDING,
           Calcites.getStringComparatorForValueType(dimensionExpr.getOutputType())
       );
     } else {
@@ -932,7 +935,7 @@ public class DruidBaseQuery implements DruidQuery
         Granularities.ALL,
         grouping.getAggregatorFactories(),
         postAggregators,
-        null,
+        ImmutableList.copyOf(outputRowSignature.getColumnNames()),
         plannerContext.copyQueryContext()
     );
   }
@@ -986,7 +989,7 @@ public class DruidBaseQuery implements DruidQuery
         postAggregators,
         grouping.getHavingFilter(),
         limiting == null ? null : limiting.getLimitSpec(),
-        null,
+        ImmutableList.copyOf(outputRowSignature.getColumnNames()),
         null,
         plannerContext.copyQueryContext()
     );
@@ -1014,21 +1017,17 @@ public class DruidBaseQuery implements DruidQuery
     if (selectProjection != null) {
       source = selectProjection.getOutputRowSignature();
     }
-    final List<String> rowOrder = source.getRowOrder();
+    final List<String> rowOrder = source.getColumnNames();
     if (rowOrder.isEmpty()) {
       // Should never do a scan query without any columns that we're interested in. This is probably a planner bug.
       throw new ISE("Attempting to convert to Scan query without any columns?");
     }
-
-    final List<String> columns = Lists.newArrayList(rowOrder);
-    Collections.sort(columns);
-
     return new StreamQuery(
         dataSource,
         filtration.getQuerySegmentSpec(),
         descending,
         filtration.getDimFilter(),
-        columns,
+        ImmutableList.copyOf(rowOrder),
         selectProjection == null ? null : selectProjection.getVirtualColumns(),
         null,
         null,

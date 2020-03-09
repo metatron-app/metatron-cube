@@ -91,7 +91,7 @@ public class Expressions
   {
     if (project == null) {
       // I don't think the factory impl matters here.
-      return RexInputRef.of(fieldNumber, rowSignature.getRelDataType(Utils.TYPE_FACTORY));
+      return RexInputRef.of(fieldNumber, rowSignature.toRelDataType(Utils.TYPE_FACTORY));
     } else {
       return project.getChildExps().get(fieldNumber);
     }
@@ -148,10 +148,7 @@ public class Expressions
     if (kind == SqlKind.INPUT_REF) {
       // Translate field references.
       final RexInputRef ref = (RexInputRef) rexNode;
-      final List<String> rowOrder = rowSignature.getRowOrder();
-      if (ref.getIndex() >= rowOrder.size()) {
-        System.out.println();
-      }
+      final List<String> rowOrder = rowSignature.getColumnNames();
       final String columnName = rowOrder.get(ref.getIndex());
       if (columnName == null) {
         throw new ISE("Expression referred to nonexistent index[%d]", ref.getIndex());

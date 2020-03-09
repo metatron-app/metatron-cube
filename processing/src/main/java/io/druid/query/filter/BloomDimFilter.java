@@ -50,7 +50,6 @@ import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.Segment;
 
 import java.util.Arrays;
 import java.util.List;
@@ -98,12 +97,6 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
                   .append(hash.asBytes());
   }
 
-
-  @Override
-  public DimFilter optimize(Segment segment)
-  {
-    return this;
-  }
 
   @Override
   public DimFilter withRedirection(Map<String, String> mapping)

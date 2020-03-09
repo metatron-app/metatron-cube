@@ -40,6 +40,7 @@ import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.select.Schema;
+import io.druid.segment.column.Column;
 
 import java.util.Arrays;
 import java.util.List;
@@ -65,13 +66,17 @@ public class IncrementalIndexSchema
   public static IncrementalIndexSchema from(RowSignature signature, Map<String, String> mapping)
   {
     List<DimensionSchema> dimensionSchemas = Lists.newArrayList();
-    for (Pair<String, ValueDesc> pair : signature.dimensionAndTypes()) {
-      ValueType type = pair.rhs.isStringOrDimension() ? ValueType.STRING : pair.rhs.type();
-      dimensionSchemas.add(DimensionSchema.of(mapping.get(pair.lhs), pair.lhs, type));
+    for (String dimension : signature.getDimensionNames()) {
+      String outputName = mapping.getOrDefault(dimension, dimension);
+      dimensionSchemas.add(DimensionSchema.of(outputName, dimension, ValueType.STRING));
     }
     List<AggregatorFactory> merics = Lists.newArrayList();
-    for (Pair<String, ValueDesc> pair : signature.columnAndTypes()) {
-      merics.add(new RelayAggregatorFactory(mapping.get(pair.lhs), pair.lhs, pair.rhs.typeName()));
+    for (Pair<String, ValueDesc> pair : signature.metricAndTypes()) {
+      String metricName = pair.lhs;
+      if (!metricName.equals(Column.TIME_COLUMN_NAME)) {
+        String outputName = mapping.getOrDefault(metricName, metricName);
+        merics.add(new RelayAggregatorFactory(outputName, metricName, pair.rhs.typeName()));
+      }
     }
     return new IncrementalIndexSchema.Builder()
         .withMinTimestamp(Long.MIN_VALUE)

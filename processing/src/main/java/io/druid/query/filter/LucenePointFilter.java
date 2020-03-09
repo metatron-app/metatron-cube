@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.PointQueryType;
@@ -202,15 +203,15 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
+  public DimFilter toExprFilter(RowResolver resolver, String columnName, String fieldName, String descriptor)
   {
-    final String latlon = toLatLonField(columnName, fieldName, descriptor);
+    final String point = toPointExpr(resolver, columnName, fieldName, descriptor);
     switch (query) {
       case DISTANCE:
         return new MathExprFilter(
             String.format(
-                "geom_contains(geom_buffer(geom_fromLatLon(%f, %f), %f), geom_fromLatLon(%s))",
-                latitudes[0], longitudes[0], radiusMeters, latlon
+                "geom_contains(geom_buffer(geom_fromLatLon(%f, %f), %f), %s)",
+                latitudes[0], longitudes[0], radiusMeters, point
             )
         );
       case BBOX:
@@ -226,9 +227,9 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
                          ? String.format("geom_fromWKT('POLYGON ((%s))')", points)
                          : String.format("geom_envelop(geom_fromWKT('MULTIPOINT (%s)'))", points);
 
-        return new MathExprFilter(String.format("geom_contains(%s, geom_fromLatLon(%s))", polygon, latlon));
+        return new MathExprFilter(String.format("geom_contains(%s, %s)", polygon, point));
       default:
-        return super.toExprFilter(columnName, fieldName, descriptor);
+        return super.toExprFilter(resolver, columnName, fieldName, descriptor);
     }
   }
 

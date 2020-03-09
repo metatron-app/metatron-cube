@@ -67,6 +67,29 @@ public class PartialDruidQuery
   private final Sort sort;
   private final Project sortProject;        // mapped to PostAggregator with Sort, 'OutputColumns' with other
 
+  public RexNode push(RexNode rexNode)
+  {
+    if (sortProject != null) {
+      rexNode = RelOptUtil.pushPastProject(rexNode, sortProject);
+    }
+    if (window != null) {
+      return null;  // todo
+    }
+    if (aggregateProject != null) {
+      rexNode = RelOptUtil.pushPastProject(rexNode, aggregateProject);
+    }
+    if (aggregate != null) {
+      int rex = Utils.getInputRef(rexNode);
+      if (rex < 0 || !aggregate.getGroupSet().get(rex)) {
+        return null;
+      }
+    }
+    if (scanProject != null) {
+      rexNode = RelOptUtil.pushPastProject(rexNode, scanProject);
+    }
+    return rexNode;
+  }
+
   public enum Operator
   {
     SCAN,
@@ -505,7 +528,7 @@ public class PartialDruidQuery
   {
     double base = COST_BASE;
 
-    List<String> columns = table.getRowSignature().getRowOrder();
+    List<String> columns = table.getRowSignature().getColumnNames();
     if (scanProject != null) {
       base *= scanProject.getChildExps().size() / (double) columns.size();
     }
@@ -587,14 +610,14 @@ public class PartialDruidQuery
   {
     return "PartialDruidQuery{" +
            "scan=" + scan +
-           ", scanFilter=" + scanFilter +
-           ", scanProject=" + scanProject +
-           ", aggregate=" + aggregate +
-           ", aggregateFilter=" + aggregateFilter +
-           ", aggregateProject=" + aggregateProject +
-           ", window=" + window +
-           ", sort=" + sort +
-           ", sortProject=" + sortProject +
+           (scanFilter == null ? "" : ", scanFilter=" + scanFilter) +
+           (scanProject == null ? "" : ", scanProject=" + scanProject) +
+           (aggregate == null ? "" : ", aggregate=" + aggregate) +
+           (aggregateFilter == null ? "" : ", aggregateFilter=" + aggregateFilter) +
+           (aggregateProject == null ? "" : ", aggregateProject=" + aggregateProject) +
+           (window == null ? "" : ", window=" + window) +
+           (sort == null ? "" : ", sort=" + sort) +
+           (sortProject == null ? "" : ", sortProject=" + sortProject) +
            '}';
   }
 }

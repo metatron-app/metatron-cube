@@ -32,13 +32,12 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 
 import java.io.IOException;
 import java.util.List;
-
-import static io.druid.query.GeoHashFunctions.LATLON;
 
 public class H3Functions implements Function.Library
 {
@@ -144,16 +143,50 @@ public class H3Functions implements Function.Library
       return new LatLonChild()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public double[] _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
+          if (eval.isNull()) {
+            return null;
+          }
           GeoCoord point;
           if (eval.isLong()) {
             point = instance.h3ToGeo(eval.asLong());
           } else {
             point = instance.h3ToGeo(eval.asString());
           }
-          return ExprEval.of(new Object[]{point.lat, point.lng}, LATLON);
+          return new double[]{point.lat, point.lng};
+        }
+      };
+    }
+  }
+
+  @Function.Named("h3_to_center_geom")
+  public static class H3ToCenterGeom extends GeomUtils.GeomPointFuncFactory
+  {
+    @Override
+    public Function create(final List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      final H3Core instance = H3.get();
+      return new GeomPointChild()
+      {
+        @Override
+        protected Point _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final ExprEval eval = Evals.eval(args.get(0), bindings);
+          if (eval.isNull()) {
+            return null;
+          }
+          GeoCoord point;
+          if (eval.isLong()) {
+            point = instance.h3ToGeo(eval.asLong());
+          } else {
+            point = instance.h3ToGeo(eval.asString());
+          }
+          return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(point.lng, point.lat));
         }
       };
     }
@@ -175,6 +208,9 @@ public class H3Functions implements Function.Library
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
+          if (eval.isNull()) {
+            return null;
+          }
           GeoCoord point;
           if (eval.isLong()) {
             point = instance.h3ToGeo(eval.asLong());
@@ -216,6 +252,43 @@ public class H3Functions implements Function.Library
             result[i * 2 + 1] = point.lat;
           }
           return ExprEval.of(result, ValueDesc.DOUBLE_ARRAY);
+        }
+      };
+    }
+  }
+
+  @Function.Named("h3_to_boundary_geom")
+  public static class H3ToBoundaryGeom extends GeomUtils.GeomFuncFactory
+  {
+    @Override
+    public Function create(final List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      final H3Core instance = H3.get();
+      return new GeomChild()
+      {
+        @Override
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final ExprEval eval = Evals.eval(args.get(0), bindings);
+          if (eval.isNull()) {
+            return null;
+          }
+          List<GeoCoord> points;
+          if (eval.isLong()) {
+            points = instance.h3ToGeoBoundary(eval.asLong());
+          } else {
+            points = instance.h3ToGeoBoundary(eval.asString());
+          }
+          Coordinate[] shell = new Coordinate[points.size() + 1];
+          for (int i = 0; i < points.size(); i++) {
+            GeoCoord point = points.get(i);
+            shell[i] = new Coordinate(point.lng, point.lat);
+          }
+          shell[points.size()] = shell[0];
+          return GeomUtils.GEOM_FACTORY.createPolygon(shell);
         }
       };
     }

@@ -270,7 +270,7 @@ public class QueryResource
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
       final Map<String, Object> responseContext = new ConcurrentHashMap<>();
 
-      Sequence<?> sequence = lifecycle.execute(responseContext);
+      Sequence<?> sequence = lifecycle.execute(prepared, responseContext);
       if (toolChest != null) {
         sequence = toolChest.serializeSequence(prepared, sequence, segmentWalker);
       }

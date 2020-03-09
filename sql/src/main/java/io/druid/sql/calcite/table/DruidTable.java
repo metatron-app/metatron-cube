@@ -88,7 +88,7 @@ public class DruidTable implements TranslatableTable
   @Override
   public RelDataType getRowType(final RelDataTypeFactory typeFactory)
   {
-    return getRowSignature().getRelDataType(typeFactory);
+    return getRowSignature().toRelDataType(typeFactory);
   }
 
   @Override

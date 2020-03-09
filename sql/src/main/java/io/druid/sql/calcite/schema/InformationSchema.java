@@ -265,7 +265,7 @@ public class InformationSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(final RelDataTypeFactory typeFactory)
     {
-      return SCHEMATA_SIGNATURE.getRelDataType(typeFactory);
+      return SCHEMATA_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -344,7 +344,7 @@ public class InformationSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(final RelDataTypeFactory typeFactory)
     {
-      return TABLES_SIGNATURE.getRelDataType(typeFactory);
+      return TABLES_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -428,7 +428,7 @@ public class InformationSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(final RelDataTypeFactory typeFactory)
     {
-      return COLUMNS_SIGNATURE.getRelDataType(typeFactory);
+      return COLUMNS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -510,7 +510,7 @@ public class InformationSchema extends AbstractSchema
           Sequences.toList(QueryRunners.run(query, segmentWalker)),
           new Function<Map<String, Object>, Iterable<Object[]>>()
           {
-            private final List<String> rowOrder = SERVERS_SIGNATURE.getRowOrder();
+            private final List<String> rowOrder = SERVERS_SIGNATURE.getColumnNames();
 
             @Override
             public Iterable<Object[]> apply(Map<String, Object> input)
@@ -535,7 +535,7 @@ public class InformationSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(final RelDataTypeFactory typeFactory)
     {
-      return SERVERS_SIGNATURE.getRelDataType(typeFactory);
+      return SERVERS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override

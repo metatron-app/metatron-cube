@@ -520,21 +520,6 @@ public class Filters
     return 0x7f;
   }
 
-  public static Object forLog(final DimFilter filter)
-  {
-    if (!(filter instanceof DimFilter.LogProvider)) {
-      return filter;
-    }
-    return new Object()
-    {
-      @Override
-      public String toString()
-      {
-        return ((DimFilter.LogProvider) filter).forLog().toString();
-      }
-    };
-  }
-
   public static class FilterContext implements Closeable
   {
     protected final BitmapIndexSelector selector;
@@ -553,7 +538,7 @@ public class Filters
       BitmapHolder holder = leafToBitmap(filter, this);
       if (holder != null && logger.isDebugEnabled()) {
         long elapsed = System.currentTimeMillis() - start;
-        logger.debug("%s : %,d / %,d (%,d msec)", forLog(filter), holder.bitmap().size(), getNumRows(), elapsed);
+        logger.debug("%s : %,d / %,d (%,d msec)", filter, holder.bitmap().size(), getNumRows(), elapsed);
       }
       return holder;
     }
@@ -606,7 +591,7 @@ public class Filters
     BitmapHolder baseBitmap = toBitmapHolderRecurse(filter, context);
     if (baseBitmap != null && logger.isDebugEnabled()) {
       long elapsed = System.currentTimeMillis() - start;
-      logger.debug("%s : %,d / %,d (%,d msec)", forLog(filter), baseBitmap.rhs.size(), context.getNumRows(), elapsed);
+      logger.debug("%s : %,d / %,d (%,d msec)", filter, baseBitmap.rhs.size(), context.getNumRows(), elapsed);
     }
     return baseBitmap;
   }

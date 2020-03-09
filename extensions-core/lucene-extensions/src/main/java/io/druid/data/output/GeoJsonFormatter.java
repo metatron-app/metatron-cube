@@ -96,8 +96,7 @@ public class GeoJsonFormatter implements Formatter
     }
     List<ValueDesc> columnTypes = signature.getColumnTypes();
     for (int i = 0; i < signature.size(); i++) {
-      ValueDesc type = columnTypes.get(i);
-      if (type.equals(ValueDesc.GEOMETRY) || type.equals(ValueDesc.SHAPE)) {
+      if (ValueDesc.isGeometry(columnTypes.get(i))) {
         return i;
       }
     }

@@ -31,6 +31,8 @@ import io.druid.query.GeomFunctions;
 import io.druid.query.GeometryDeserializer;
 import io.druid.query.GeometrySerializer;
 import io.druid.query.H3Functions;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.GeomUnionAggregatorFactory;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneShapeFilter;
 import io.druid.query.filter.LuceneShapeFilterConversion;
@@ -61,6 +63,7 @@ public class LuceneExtensionModule implements DruidModule
             .registerSubtypes(GeomFunctions.class)
             .registerSubtypes(GeoJsonDecorator.class)
             .registerSubtypes(GeoJsonFormatter.class)
+            .registerSubtypes(GeomUnionAggregatorFactory.class)
             .addSerializer(Geometry.class, new GeometrySerializer())
             .addDeserializer(Geometry.class, new GeometryDeserializer())
     );
@@ -70,5 +73,8 @@ public class LuceneExtensionModule implements DruidModule
   public void configure(Binder binder)
   {
     SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.class);
+    SqlBindings.addAggregator(binder, AggregatorFactory.fromJsonName(
+        new GeomUnionAggregatorFactory("<name>", "<columnName>"))
+    );
   }
 }

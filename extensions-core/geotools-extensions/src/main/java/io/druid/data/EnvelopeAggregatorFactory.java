@@ -69,8 +69,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    final ValueDesc type = selector.type();
-    if (ValueDesc.isShape(type) || ValueDesc.isGeom(type)) {
+    if (ValueDesc.isGeometry(selector.type())) {
       return new Aggregator.Abstract<Envelope>()
       {
         @Override
@@ -106,8 +105,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    final ValueDesc type = selector.type();
-    if (ValueDesc.isShape(type) || ValueDesc.isGeom(type)) {
+    if (ValueDesc.isGeometry(selector.type())) {
       return new BufferAggregator.Abstract()
       {
         @Override

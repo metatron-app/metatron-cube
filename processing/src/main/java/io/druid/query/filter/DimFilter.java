@@ -30,11 +30,15 @@ import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expression;
+import io.druid.math.expr.Parser;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 
@@ -78,8 +82,12 @@ public interface DimFilter extends Expression, Cacheable
    * @return Returns an optimized filter.
    * returning the same filter can be a straightforward default implementation.
    * @param segment
+   * @param virtualColumns
    */
-  public DimFilter optimize(@Nullable Segment segment);
+  default public DimFilter optimize(@Nullable Segment segment, @Nullable List<VirtualColumn> virtualColumns)
+  {
+    return this;
+  }
 
   /**
    * replaces referencing column names for optimized filtering
@@ -104,12 +112,6 @@ public interface DimFilter extends Expression, Cacheable
   abstract class Abstract implements DimFilter
   {
     @Override
-    public DimFilter optimize(Segment segment)
-    {
-      return this;
-    }
-
-    @Override
     public DimFilter withRedirection(Map<String, String> mapping)
     {
       return this;
@@ -131,15 +133,6 @@ public interface DimFilter extends Expression, Cacheable
     public KeyBuilder getCacheKey(KeyBuilder builder)
     {
       throw new UnsupportedOperationException("getCacheKey");
-    }
-  }
-
-  abstract class NotOptimizable implements DimFilter
-  {
-    @Override
-    public final DimFilter optimize(Segment segment)
-    {
-      return this;
     }
   }
 
@@ -170,7 +163,7 @@ public interface DimFilter extends Expression, Cacheable
     public abstract String getField();
 
     @Override
-    public DimFilter optimize(Segment segment)
+    public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
     {
       if (segment == null) {
         return this;
@@ -212,7 +205,8 @@ public interface DimFilter extends Expression, Cacheable
       }
       if (optimized != null) {
         if (!segment.isIndexed() && optimized instanceof LuceneFilter) {
-          optimized = ((LuceneFilter) optimized).toExprFilter(columnName, fieldName, descriptor);
+          RowResolver resolver = RowResolver.of(adapter, virtualColumns);
+          optimized = ((LuceneFilter) optimized).toExprFilter(resolver, columnName, fieldName, descriptor);
         }
         return optimized;
       }
@@ -223,7 +217,8 @@ public interface DimFilter extends Expression, Cacheable
         columnName = field.substring(0, index);
         capabilities = adapter.getColumnCapabilities(columnName);
       }
-      return columnName == null ? DimFilters.NONE : toExprFilter(columnName, null, null);
+      RowResolver resolver = RowResolver.of(adapter, virtualColumns);
+      return toExprFilter(resolver, columnName == null ? field : columnName, null, null);
     }
 
     public Map.Entry<String, String> getAnyFirst(Map<String, String> descriptors)
@@ -253,7 +248,10 @@ public interface DimFilter extends Expression, Cacheable
     }
 
     protected DimFilter toExprFilter(
-        @NotNull String columnName, @Nullable String fieldName, @Nullable String descriptor
+        @NotNull RowResolver resolver,
+        @NotNull String columnName,
+        @Nullable String fieldName,
+        @Nullable String descriptor
     )
     {
       // return MathExprFilter with shape or esri expressions
@@ -263,17 +261,23 @@ public interface DimFilter extends Expression, Cacheable
     // see LatLonPointIndexingStrategy : point(latitude=%s,longitude=%s)
     static final Pattern LATLON_PATTERN = Pattern.compile("^point\\(latitude=([^,]+),longitude=([^,]+)\\)$");
 
-    protected String toLatLonField(String columnName, String fieldName, String descriptor)
+    protected String toPointExpr(RowResolver resolver, String columnName, String fieldName, String descriptor)
     {
       if (descriptor != null) {
         Matcher matcher = LATLON_PATTERN.matcher(descriptor);
         if (matcher.matches()) {
-          return String.format("\"%s.%s\", \"%s.%s\"", columnName, matcher.group(1), columnName, matcher.group(2));
+          return String.format(
+              "geom_fromLatLon(\"%s.%s\", \"%s.%s\")", columnName, matcher.group(1), columnName, matcher.group(2)
+          );
         }
+     }
+      String field = fieldName == null || fieldName.equals(columnName)
+                     ? String.format("\"%s\"", columnName)
+                     : String.format("\"%s.%s\"", columnName, fieldName);
+      if (ValueDesc.isGeometry(Parser.parse(field, resolver).returns())) {
+        return field;
       }
-      return fieldName == null
-             ? String.format("\"%s\"", columnName)
-             : String.format("\"%s.%s\"", columnName, fieldName);
+      return String.format("geom_fromLatLon(%s)", field);
     }
 
     // see ShapeIndexingStrategy : shape(format=%s)

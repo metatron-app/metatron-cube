@@ -288,7 +288,7 @@ public abstract class BaseQuery<T> implements Query<T>
       Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
       DimFilter filter = filterSupport.getFilter();
       if (filter != null) {
-        DimFilter optimized = DimFilters.convertToCNF(filter).optimize(null);
+        DimFilter optimized = DimFilters.convertToCNF(filter).optimize(null, null);
         Map<String, String> aliasMapping = QueryUtils.aliasMapping(this);
         if (!aliasMapping.isEmpty()) {
           optimized = optimized.withRedirection(aliasMapping);
@@ -307,7 +307,7 @@ public abstract class BaseQuery<T> implements Query<T>
       Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
       DimFilter filter = filterSupport.getFilter();
       if (filter != null) {
-        DimFilter optimized = filter.optimize(segment);
+        DimFilter optimized = filter.optimize(segment, BaseQuery.getVirtualColumns(query));
         if (filter != optimized) {
           query = filterSupport.withFilter(optimized);
         }

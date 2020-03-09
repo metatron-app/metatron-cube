@@ -22,8 +22,8 @@ package io.druid.data;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import io.druid.java.util.common.parsers.ParseException;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.parsers.ParseException;
 import org.joda.time.DateTime;
 
 /**

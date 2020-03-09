@@ -39,7 +39,7 @@ import org.mozilla.javascript.ScriptableObject;
 import java.util.Map;
 import java.util.Set;
 
-public class JavaScriptDimFilter extends DimFilter.NotOptimizable
+public class JavaScriptDimFilter implements DimFilter
 {
   private final String dimension;
   private final String function;

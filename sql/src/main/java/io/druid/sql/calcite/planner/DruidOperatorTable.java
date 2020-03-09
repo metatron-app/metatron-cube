@@ -36,6 +36,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.groupby.orderby.WindowContext;
 import io.druid.segment.ExprVirtualColumn;
@@ -104,6 +105,7 @@ import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
+import org.apache.calcite.util.Optionality;
 import org.apache.commons.lang.StringEscapeUtils;
 
 import javax.annotation.Nullable;
@@ -251,12 +253,15 @@ public class DruidOperatorTable implements SqlOperatorTable
       if (!(factory instanceof AggregatorFactory.SQLSupport)) {
         continue;
       }
+      final String functionName = named.getKey();
       final ValueDesc type = Optional.fromNullable(factory.finalizedType()).or(ValueDesc.UNKNOWN);
       final SqlReturnTypeInference retType = ReturnTypes.explicit(Utils.asRelDataType(type));
-      final SqlAggFunction function = new DummyAggregatorFunction(named.getKey(), retType);
+      final SqlAggFunction function = new DummyAggregatorFunction(functionName, retType);
       final SqlAggregator aggregator = new DummySqlAggregator(function, (AggregatorFactory.SQLSupport) factory);
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction(), true);
-      aggregators.putIfAbsent(operatorKey, aggregator);
+      if (aggregators.putIfAbsent(operatorKey, aggregator) == null) {
+        LOG.info("> UDAF '%s' is registered with '%s'", functionName, factory.getClass().getName());
+      }
     }
 
     for (SqlOperatorConversion operatorConversion : userOperatorConversions) {
@@ -522,15 +527,21 @@ public class DruidOperatorTable implements SqlOperatorTable
           virtualColumns.add(virtualColumn);
         }
       }
-      AggregatorFactory rewritten = factory.rewrite(name, fieldNames, rowSignature);
-      if (rewritten == null) {
-        return null;
+      TypeResolver resolver = rowSignature;
+      if (!virtualColumns.isEmpty()) {
+        resolver = RowResolver.of(rowSignature, virtualColumns);
       }
       if (finalizeAggregations) {
-        return Aggregation.create(virtualColumns, ImmutableList.of(rewritten), AggregatorFactory.asFinalizer(rewritten));
-      } else {
-        return Aggregation.create(virtualColumns, rewritten);
+        final String aggregatorName = Calcites.makePrefixedName(name, "a");
+        final AggregatorFactory rewritten = factory.rewrite(aggregatorName, fieldNames, resolver);
+        if (rewritten != null) {
+          return Aggregation.create(
+              virtualColumns, ImmutableList.of(rewritten), AggregatorFactory.asFinalizer(name, rewritten)
+          );
+        }
       }
+      final AggregatorFactory rewritten = factory.rewrite(name, fieldNames, resolver);
+      return rewritten == null ? null : Aggregation.create(virtualColumns, rewritten);
     }
   }
 
@@ -567,7 +578,8 @@ public class DruidOperatorTable implements SqlOperatorTable
           OperandTypes.VARIADIC,
           SqlFunctionCategory.SYSTEM,
           false,
-          false
+          false,
+          Optionality.FORBIDDEN
       );
     }
   }

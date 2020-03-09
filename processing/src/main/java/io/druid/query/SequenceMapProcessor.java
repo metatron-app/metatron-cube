@@ -47,4 +47,18 @@ public class SequenceMapProcessor extends PostProcessingOperator.Abstract implem
       }
     };
   }
+
+  public static class AsArray extends SequenceMapProcessor implements ReturnRowAs
+  {
+    public AsArray(Function function)
+    {
+      super(function);
+    }
+
+    @Override
+    public Class rowClass()
+    {
+      return Object[].class;
+    }
+  }
 }

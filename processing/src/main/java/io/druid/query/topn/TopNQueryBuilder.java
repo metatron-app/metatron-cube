@@ -331,6 +331,11 @@ public class TopNQueryBuilder
     return this;
   }
 
+  public TopNQueryBuilder outputColumns(String... o)
+  {
+    return outputColumns(Arrays.asList(o));
+  }
+
   public TopNQueryBuilder outputColumns(List<String> o)
   {
     outputColumns = o;

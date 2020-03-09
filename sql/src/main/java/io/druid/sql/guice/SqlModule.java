@@ -29,6 +29,7 @@ import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.server.initialization.jetty.JettyBindings;
 import io.druid.server.metrics.MetricsModule;
 import io.druid.sql.avatica.AvaticaMonitor;
@@ -82,7 +83,11 @@ public class SqlModule implements Module
       Multibinder.newSetBinder(binder, SqlAggregator.class);
 
       // Add empty AggregatorFactory binder.
-      Multibinder.newSetBinder(binder, AggregatorFactory.WithName.class);
+      Multibinder<AggregatorFactory.WithName> set = Multibinder.newSetBinder(binder, AggregatorFactory.WithName.class);
+
+      // for simplicity
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.First("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.Last("<name>", "<columnName>", null));
 
       // Add empty DimFilterConversion binder.
       Multibinder.newSetBinder(binder, DimFilterConversion.class);

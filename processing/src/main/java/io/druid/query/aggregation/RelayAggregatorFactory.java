@@ -22,8 +22,10 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -38,9 +40,28 @@ import java.util.Objects;
 
 /**
  */
-public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
+@JsonTypeName("relay")
+public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving implements AggregatorFactory.SQLSupport
 {
   private static final byte CACHE_TYPE_ID = 0x11;
+
+  @JsonTypeName("firstOf")
+  public static class First extends RelayAggregatorFactory
+  {
+    public First(String name, String columnName, String typeName)
+    {
+      super(name, columnName, typeName, "FIRST");
+    }
+  }
+
+  @JsonTypeName("lastOf")
+  public static class Last extends RelayAggregatorFactory
+  {
+    public Last(String name, String columnName, String typeName)
+    {
+      super(name, columnName, typeName, "LAST");
+    }
+  }
 
   public static AggregatorFactory ofTime()
   {
@@ -109,6 +130,17 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving
   public RelayAggregatorFactory(String name, String columnName, String typeName)
   {
     this(name, columnName, typeName, null);
+  }
+
+  @Override
+  public AggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver)
+  {
+    String fieldName = Iterables.getOnlyElement(fieldNames, null);
+    if (fieldName == null) {
+      return null;
+    }
+    ValueDesc inputType = resolver.resolve(fieldName, ValueDesc.UNKNOWN);
+    return new RelayAggregatorFactory(name, fieldName, inputType.typeName(), relayType);
   }
 
   @Override

@@ -26,6 +26,7 @@ import io.druid.math.expr.Function;
 import io.druid.segment.lucene.ShapeFormat;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.spatial4j.context.SpatialContext;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeoJSONReader;
@@ -43,6 +44,8 @@ import java.util.regex.Pattern;
 public class GeomUtils
 {
   public static final ValueDesc GEOM_TYPE = ValueDesc.of(ValueDesc.GEOMETRY.typeName(), Geometry.class);
+  public static final ValueDesc GEOM_POINT_TYPE = ValueDesc.of(ValueDesc.GEOMETRY.typeName(), Point.class);
+
   public static final ValueDesc GEOM_TYPE_4326 = ValueDesc.of(String.format("%s(%d)", GEOM_TYPE, 4326), Geometry.class);
   public static final ValueDesc GEOM_TYPE_5179 = ValueDesc.of(String.format("%s(%d)", GEOM_TYPE, 5179), Geometry.class);
 
@@ -79,6 +82,32 @@ public class GeomUtils
       }
 
       protected abstract Geometry _eval(List<Expr> args, Expr.NumericBinding bindings);
+    }
+  }
+
+  public static abstract class GeomPointFuncFactory extends Function.NamedFactory implements Function.FixedTyped
+  {
+    @Override
+    public ValueDesc returns()
+    {
+      return GEOM_POINT_TYPE;
+    }
+
+    public abstract class GeomPointChild extends Child
+    {
+      @Override
+      public ValueDesc returns()
+      {
+        return GEOM_POINT_TYPE;
+      }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return asGeomEval(_eval(args, bindings));
+      }
+
+      protected abstract Point _eval(List<Expr> args, Expr.NumericBinding bindings);
     }
   }
 
@@ -125,10 +154,8 @@ public class GeomUtils
   {
     if (eval.isNull()) {
       return null;
-    } else if (ValueDesc.isGeom(eval.type())) {
+    } else if (ValueDesc.isGeometry(eval.type())) {
       return (Geometry) eval.value();
-    } else if (ValueDesc.isShape(eval.type())) {
-      return SHAPE_FACTORY.getGeometryFrom((Shape) eval.value());
     }
     return null;
   }

@@ -79,19 +79,42 @@ public interface PostProcessingOperator<T>
     }
   }
 
-  public abstract class ReturnsMap<T> extends Abstract<T>
+  public interface ReturnRowAs
+  {
+    Class rowClass();
+  }
+
+  public abstract class ReturnsMap<T> extends Abstract<T> implements ReturnRowAs
   {
     public abstract QueryRunner<Map<String, Object>> postProcess(QueryRunner<T> baseQueryRunner);
+
+    @Override
+    public Class rowClass()
+    {
+      return Map.class;
+    }
   }
 
-  public abstract class ReturnsRow<T> extends Abstract<T>
+  public abstract class ReturnsRow<T> extends Abstract<T> implements ReturnRowAs
   {
     public abstract QueryRunner<Row> postProcess(QueryRunner<T> baseQueryRunner);
+
+    @Override
+    public Class rowClass()
+    {
+      return Row.class;
+    }
   }
 
-  public abstract class ReturnsArray<T> extends Abstract<T>
+  public abstract class ReturnsArray<T> extends Abstract<T> implements ReturnRowAs
   {
     public abstract QueryRunner<Object[]> postProcess(QueryRunner<T> baseQueryRunner);
+
+    @Override
+    public Class rowClass()
+    {
+      return Object[].class;
+    }
   }
 
   // marker for not-serializable post processors

@@ -39,12 +39,12 @@ public class GeometryDeserializer extends JsonDeserializer<Geometry>
     return deserialize(jp.getBinaryValue());
   }
 
-  public Geometry deserialize(byte[] bytes) throws IOException
+  public static Geometry deserialize(byte[] bytes) throws IOException
   {
     final BytesInputStream input = new BytesInputStream(bytes);
     final byte code = input.readByte();
     if (code == 0x7f) {
-      final Geometry[] geometries = new Geometry[input.readInt()];
+      final Geometry[] geometries = new Geometry[input.readUnsignedVarInt()];
       for (int i = 0; i < geometries.length; i++) {
         geometries[i] = _deserialize(input.readByte(), input);
       }
@@ -54,7 +54,7 @@ public class GeometryDeserializer extends JsonDeserializer<Geometry>
     }
   }
 
-  private Geometry _deserialize(final int code, final BytesInputStream input) throws IOException
+  private static Geometry _deserialize(final int code, final BytesInputStream input) throws IOException
   {
     if (code == 0x01) {
       final Coordinate coord = new Coordinate(input.readDouble(), input.readDouble(), Double.NaN);

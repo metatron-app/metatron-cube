@@ -34,7 +34,7 @@ import java.util.Set;
 
 /**
  */
-public class SearchQueryDimFilter extends DimFilter.NotOptimizable
+public class SearchQueryDimFilter implements DimFilter
 {
   private final String dimension;
   private final SearchQuerySpec query;

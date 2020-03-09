@@ -21,6 +21,7 @@ package io.druid.sql.guice;
 
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
@@ -33,6 +34,22 @@ public class SqlBindings
   )
   {
     Multibinder.newSetBinder(binder, SqlAggregator.class).addBinding().to(aggregatorClass);
+  }
+
+  public static void addAggregator(
+      final Binder binder,
+      final AggregatorFactory instance
+  )
+  {
+    addAggregator(binder, AggregatorFactory.fromJsonName(instance));
+  }
+
+  public static void addAggregator(
+      final Binder binder,
+      final AggregatorFactory.WithName instance
+  )
+  {
+    Multibinder.newSetBinder(binder, AggregatorFactory.WithName.class).addBinding().toInstance(instance);
   }
 
   public static void addOperatorConversion(

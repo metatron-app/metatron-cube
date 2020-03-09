@@ -33,18 +33,18 @@ import io.druid.query.extraction.ExtractionFn;
  */
 public class SimpleExtraction
 {
-  private final String column;
-  private final ExtractionFn extractionFn;
-
-  public SimpleExtraction(String column, ExtractionFn extractionFn)
-  {
-    this.column = Preconditions.checkNotNull(column, "column");
-    this.extractionFn = extractionFn;
-  }
-
   public static SimpleExtraction of(String column, ExtractionFn extractionFn)
   {
     return new SimpleExtraction(column, extractionFn);
+  }
+
+  private final String column;
+  private final ExtractionFn extractionFn;
+
+  private SimpleExtraction(String column, ExtractionFn extractionFn)
+  {
+    this.column = Preconditions.checkNotNull(column, "column");
+    this.extractionFn = extractionFn;
   }
 
   public String getColumn()

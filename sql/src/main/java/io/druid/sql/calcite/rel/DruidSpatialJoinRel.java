@@ -22,12 +22,15 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.Expressions;
+import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -40,6 +43,7 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
 import java.util.ArrayList;
@@ -55,25 +59,30 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   public static DruidSpatialJoinRel create(
       DruidRel query,
       DruidRel boundary,
-      int queryIx,
-      int boundaryIx,
+      RexNode queryOp,
+      RexNode boundaryOp,
       boolean flip
   )
   {
+    queryOp = query.getPartialDruidQuery().push(queryOp);
+    boundaryOp = boundary.getPartialDruidQuery().push(boundaryOp);
+    if (queryOp == null || boundaryOp == null) {
+      return null;
+    }
     LOG.debug(
         "%s (%s) + %s (%s) : %s",
         query.getDataSourceNames(), boundary.getDataSourceNames(),
-        query.getRowType().getFieldList().get(queryIx),
-        boundary.getRowType().getFieldList().get(boundaryIx),
+        queryOp,
+        boundaryOp,
         flip
     );
     return new DruidSpatialJoinRel(
         query.getCluster(),
         query.getTraitSet(),
         query,
-        queryIx,
         boundary,
-        boundaryIx,
+        queryOp,
+        boundaryOp,
         flip,
         query.getQueryMaker()
     );
@@ -81,26 +90,26 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
 
   private RelNode query;
   private RelNode boundary;
-  private final int queryIx;
-  private final int boundaryIx;
+  private final RexNode queryOp;
+  private final RexNode boundaryOp;
   private final boolean flip;
 
   private DruidSpatialJoinRel(
       final RelOptCluster cluster,
       final RelTraitSet traitSet,
       final RelNode query,
-      final int queryIx,
       final RelNode boundary,
-      final int boundaryIx,
+      final RexNode queryOp,
+      final RexNode boundaryOp,
       final boolean flip,
       final QueryMaker queryMaker
   )
   {
     super(cluster, traitSet, queryMaker);
     this.query = query;
-    this.queryIx = queryIx;
     this.boundary = boundary;
-    this.boundaryIx = boundaryIx;
+    this.queryOp = queryOp;
+    this.boundaryOp = boundaryOp;
     this.flip = flip;
   }
 
@@ -113,9 +122,8 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   @Override
   public DruidQuery toDruidQuery(boolean finalizeAggregations)
   {
-    final RelDataType rowType = getRowType();
-    final DruidRel queryRel = Utils.getDruidRel(query);
-    final DruidRel boundaryRel = Utils.getDruidRel(boundary);
+    final DruidQueryRel queryRel = Utils.findRel(query, DruidQueryRel.class);
+    final DruidQueryRel boundaryRel = Utils.findRel(boundary, DruidQueryRel.class);
     if (queryRel == null || boundaryRel == null) {
       return null;
     }
@@ -124,50 +132,75 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
     if (query == null || boundary == null) {
       return null;
     }
-    final List<String> queryOrder = query.getOutputRowSignature().getRowOrder();
-    final List<String> boundaryOrder = boundary.getOutputRowSignature().getRowOrder();
-
-    final String queryColumn = queryOrder.get(queryIx);
-    final String boundaryColumn = boundaryOrder.get(boundaryIx);
-    final List<String> rowOrder =
-        flip ? Queries.uniqueNames(boundaryOrder, queryOrder) : Queries.uniqueNames(queryOrder, boundaryOrder);
-    final RowSignature outRowSignature = RowSignature.from(rowOrder, rowType);
-
+    PlannerContext context = getPlannerContext();
+    RowSignature querySignature = query.getInputRowSignature();
+    DruidExpression queryExpr = Expressions.toDruidExpression(context, querySignature, queryOp);
+    if (queryExpr == null) {
+      return null;
+    }
+    String queryColumn;
+    Query sourceQuery = query.getQuery();
+    if (queryExpr.isDirectColumnAccess()) {
+      queryColumn = queryExpr.getDirectColumn();
+    } else if (sourceQuery instanceof Query.VCSupport) {
+      Query.VCSupport<?> vcSupport = (Query.VCSupport) sourceQuery;
+      VirtualColumn vc = queryExpr.toVirtualColumn(queryColumn = "__vc");
+      sourceQuery = vcSupport.withVirtualColumns(GuavaUtils.concat(vcSupport.getVirtualColumns(), vc));
+    } else {
+      return null;
+    }
+    RowSignature boundarySignature = boundary.getInputRowSignature();
+    DruidExpression boundaryExpr = Expressions.toDruidExpression(context, boundarySignature, boundaryOp);
+    if (boundaryExpr == null) {
+      return null;
+    }
+    Query boundaryQuery = boundary.getQuery();
+    RelDataType boundaryRows = boundary.getOutputRowType();
+    String boundaryColumn;
+    if (boundaryExpr.isDirectColumnAccess()) {
+      boundaryColumn = boundaryExpr.getDirectColumn();
+    } else if (boundaryQuery instanceof Query.VCSupport) {
+      Query.VCSupport<?> vcSupport = (Query.VCSupport) boundaryQuery;
+      VirtualColumn vc = boundaryExpr.toVirtualColumn(boundaryColumn = "__vc");
+      boundaryQuery = vcSupport.withVirtualColumns(GuavaUtils.concat(vcSupport.getVirtualColumns(), vc));
+    } else {
+      return null;
+    }
     final ObjectMapper mapper = getObjectMapper();
     final Map<String, Object> queryMap = Maps.newHashMap();
     queryMap.put("queryType", "geo.boundary");
-    queryMap.put("query", mapper.convertValue(query.getQuery(), Map.class));
+    queryMap.put("query", mapper.convertValue(sourceQuery, Map.class));
     queryMap.put("queryColumn", queryColumn);
-    queryMap.put("boundary", mapper.convertValue(boundary.getQuery(), Map.class));
+    queryMap.put("boundary", mapper.convertValue(boundaryQuery, Map.class));
     queryMap.put("boundaryColumn", boundaryColumn);
+    queryMap.put("boundaryJoin", ImmutableList.copyOf(boundaryRows.getFieldNames()));
     queryMap.put("boundaryUnion", false);   // todo
     queryMap.put("flip", flip);
-
-    List<String> boundaryJoin = Lists.newArrayList();
-    boundaryJoin.add(boundaryColumn);
-    for (int i = 0; i < boundaryOrder.size(); i++) {
-      if (i != boundaryIx) {
-        boundaryJoin.add(boundaryOrder.get(i));
-      }
-    }
-    queryMap.put("boundaryJoin", boundaryJoin);
+    queryMap.put("context", context.copyQueryContext());
 
     final Query.ArrayOutputSupport<?> converted = mapper.convertValue(queryMap, Query.ArrayOutputSupport.class);
     if (converted == null) {
       return null;
     }
+    List<String> queryOrder = query.getOutputRowSignature().getColumnNames();
+    List<String> boundaryOrder = boundary.getOutputRowSignature().getColumnNames();
+    List<String> outputColumns = flip
+                                 ? GuavaUtils.concat(boundaryOrder, queryOrder)
+                                 : GuavaUtils.concat(queryOrder, boundaryOrder);
+    final RowSignature signature = RowSignature.from(outputColumns, getRowType());
+
     return new DruidQuery()
     {
       @Override
       public RelDataType getOutputRowType()
       {
-        return rowType;
+        return getRowType();
       }
 
       @Override
       public RowSignature getOutputRowSignature()
       {
-        return outRowSignature;
+        return signature;
       }
 
       @Override
@@ -185,9 +218,9 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
         getCluster(),
         getTraitSet().replace(DruidConvention.instance()),
         RelOptRule.convert(query, DruidConvention.instance()),
-        queryIx,
         RelOptRule.convert(boundary, DruidConvention.instance()),
-        boundaryIx,
+        queryOp,
+        boundaryOp,
         flip,
         getQueryMaker()
     );
@@ -254,9 +287,9 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
         getCluster(),
         traitSet,
         inputs.get(0),
-        queryIx,
         inputs.get(1),
-        boundaryIx,
+        queryOp,
+        boundaryOp,
         flip,
         getQueryMaker()
     );
@@ -268,8 +301,8 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
     return super.explainTerms(pw)
                 .input("query", query)
                 .input("boundary", boundary)
-                .item("queryIx", queryIx)
-                .item("boundaryIx", boundaryIx)
+                .item("queryOp", queryOp)
+                .item("boundaryOp", boundaryOp)
                 .item("flip", flip);
   }
 

@@ -19,7 +19,9 @@
 
 package io.druid.query.aggregation;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -439,22 +441,30 @@ public abstract class AggregatorFactory implements Cacheable
     }
   }
 
+  public static WithName fromJsonName(AggregatorFactory instance)
+  {
+    JsonTypeName typeName = Preconditions.checkNotNull(
+        instance.getClass().getAnnotation(JsonTypeName.class), "missing @JsonTypeName in %s", instance.getClass()
+    );
+    return new WithName(typeName.value(), instance);
+  }
+
   public static class WithName extends Tagged.Entity<AggregatorFactory>
   {
     public WithName(String tag, AggregatorFactory factory)
     {
-      super(tag, factory);
+      super(Preconditions.checkNotNull(tag), Preconditions.checkNotNull(factory));
     }
   }
 
-  public static PostAggregator asFinalizer(final AggregatorFactory factory)
+  public static PostAggregator asFinalizer(final String outputName, final AggregatorFactory factory)
   {
     return new PostAggregator.Abstract()
     {
       @Override
       public String getName()
       {
-        return factory.getName();
+        return outputName;
       }
 
       @Override

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.Sequence;
 
 import java.util.Arrays;
@@ -115,20 +114,15 @@ public class PostProcessingOperators
     return processors.size() == 1 ? processors.get(0) : new ListPostProcessingOperator(processors);
   }
 
-  @SuppressWarnings("unchecked")
   public static Class<?> returns(Query query, ObjectMapper mapper)
   {
     return returns(load(query, mapper));
   }
 
-  public static Class<?> returns(PostProcessingOperator processing)
+  private static Class<?> returns(PostProcessingOperator processing)
   {
-    if (processing instanceof PostProcessingOperator.ReturnsArray) {
-      return Object[].class;
-    } else if (processing instanceof PostProcessingOperator.ReturnsRow) {
-      return Row.class;
-    } else if (processing instanceof PostProcessingOperator.ReturnsMap) {
-      return Map.class;
+    if (processing instanceof PostProcessingOperator.ReturnRowAs) {
+      return ((PostProcessingOperator.ReturnRowAs) processing).rowClass();
     } else if (processing instanceof ListPostProcessingOperator) {
       for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processing).getProcessorsInReverse()) {
         Class<?> returns = returns(element);

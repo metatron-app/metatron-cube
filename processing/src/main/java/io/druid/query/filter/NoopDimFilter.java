@@ -30,7 +30,7 @@ import java.util.Set;
 
 /**
  */
-public class NoopDimFilter extends DimFilter.NotOptimizable
+public class NoopDimFilter implements DimFilter
 {
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)

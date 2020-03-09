@@ -24,12 +24,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.InputRow;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -266,10 +266,7 @@ public abstract class BaseFilterTest
 
   private DimFilter maybeOptimize(final DimFilter dimFilter)
   {
-    if (dimFilter == null) {
-      return null;
-    }
-    return optimize ? dimFilter.optimize(null) : dimFilter;
+    return dimFilter == null || !optimize ? dimFilter : dimFilter.optimize(null, null);
   }
 
   protected Sequence<Cursor> makeCursorSequence(final DimFilter filter)

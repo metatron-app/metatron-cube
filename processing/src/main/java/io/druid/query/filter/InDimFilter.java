@@ -38,6 +38,7 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.InFilter;
 
 import java.util.ArrayList;
@@ -109,7 +110,7 @@ public class InDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public DimFilter optimize(Segment segment)
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
     InDimFilter inFilter = optimizeLookup();
     if (inFilter.values.size() == 1) {

@@ -38,6 +38,7 @@ import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
 import io.netty.util.internal.StringUtil;
@@ -98,9 +99,9 @@ public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.Boole
   }
 
   @Override
-  public DimFilter optimize(Segment segment)
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    return new InDimFilter(dimension, ImmutableList.of(value), extractionFn).optimize(null);
+    return new InDimFilter(dimension, ImmutableList.of(value), extractionFn).optimize(segment, virtualColumns);
   }
 
   @Override

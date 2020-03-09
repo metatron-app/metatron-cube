@@ -142,7 +142,7 @@ public class QueryLifecycle
       if (!access.isAllowed()) {
         throw new ForbiddenException(access.toString());
       }
-      return execute(Maps.newHashMap());
+      return execute(query, Maps.newHashMap());
     }
     catch (Throwable e) {
       emitLogsAndMetrics(QueryUtils.forLog(query), e, null, -1, -1);
@@ -218,10 +218,10 @@ public class QueryLifecycle
    *
    * @return result sequence and response context
    */
-  public Sequence execute(Map<String, Object> responseContext)
+  public Sequence execute(Query<?> prepared, Map<String, Object> responseContext)
   {
     transition(State.AUTHORIZED, State.EXECUTING);
-    return query.run(texasRanger, responseContext);
+    return prepared.run(texasRanger, responseContext);
   }
 
   /**
@@ -300,14 +300,13 @@ public class QueryLifecycle
               new QueryStats(statsMap)
           )
       );
-      String queryStr = jsonMapper.writeValueAsString(forLog);
       if ("druid/broker".equals(emitter.getService())) {
         emitter.emit(
             new QueryEvent(
                 DateTimes.utc(startMs),
                 forLog.getId(),
                 Strings.nullToEmpty(remoteAddress),
-                queryStr,
+                jsonMapper.writeValueAsString(forLog),
                 String.valueOf(success)
             ));
       }

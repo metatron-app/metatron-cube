@@ -318,10 +318,10 @@ public class DruidPlanner implements Closeable, ForwardConstants
 
     RowSignature rowSignature = druidQuery.getOutputRowSignature();
     Map<String, String> mapping = null;
-    if (!Iterables.elementsEqual(rowSignature.getRowOrder(), mappedColumns)) {
-      mapping = GuavaUtils.zipAsMap(rowSignature.getRowOrder(), mappedColumns);
+    if (!Iterables.elementsEqual(rowSignature.getColumnNames(), mappedColumns)) {
+      mapping = GuavaUtils.zipAsMap(rowSignature.getColumnNames(), mappedColumns);
     }
-    IncrementalIndexSchema schema = IncrementalIndexSchema.from(rowSignature.asSchema(), mapping);
+    IncrementalIndexSchema schema = IncrementalIndexSchema.from(rowSignature, mapping);
 
     Map<String, Object> context = Maps.newHashMap();
     context.put(Query.FORWARD_URL, LOCAL_TEMP_URL);
@@ -385,10 +385,10 @@ public class DruidPlanner implements Closeable, ForwardConstants
     forwardContext.put(CLEANUP, source.isOverwrite());
 
     RowSignature rowSignature = druidQuery.getOutputRowSignature();
-    forwardContext.put(COLUMNS, rowSignature.getRowOrder());
+    forwardContext.put(COLUMNS, rowSignature.getColumnNames());
     forwardContext.put(MAPPED_COLUMNS, mappedColumns);
 
-    if (!Iterables.elementsEqual(rowSignature.getRowOrder(), mappedColumns)) {
+    if (!Iterables.elementsEqual(rowSignature.getColumnNames(), mappedColumns)) {
       rowSignature = rowSignature.replaceColumnNames(mappedColumns);
     }
 

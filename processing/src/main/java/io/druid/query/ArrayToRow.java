@@ -23,12 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.common.DateTimes;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import org.joda.time.DateTime;
+import io.druid.java.util.common.guava.Sequence;
 
 import java.util.List;
 import java.util.Map;

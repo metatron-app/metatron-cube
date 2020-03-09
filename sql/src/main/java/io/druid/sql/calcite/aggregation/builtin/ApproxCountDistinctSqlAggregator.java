@@ -97,7 +97,7 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     final AggregatorFactory aggregatorFactory;
     final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
 
-    if (arg.isDirectColumnAccess() && ValueDesc.isType(rowSignature.getColumnType(arg.getDirectColumn()), "hyperUnique")) {
+    if (arg.isDirectColumnAccess() && ValueDesc.isType(rowSignature.resolve(arg.getDirectColumn()), "hyperUnique")) {
       aggregatorFactory = new HyperUniquesAggregatorFactory(aggregatorName, arg.getDirectColumn(), null, true);
     } else {
       final RelDataType dataType = rexNode.getType();

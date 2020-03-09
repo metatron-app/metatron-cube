@@ -19,11 +19,9 @@
 
 package io.druid.sql.calcite.rel;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
@@ -51,7 +49,6 @@ import io.druid.query.topn.TopNResultValue;
 import io.druid.server.QueryLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.avatica.ColumnMetaData;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -66,6 +63,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class QueryMaker
 {
@@ -146,28 +144,37 @@ public class QueryMaker
   public Sequence<Object[]> runQuery(DruidQuery druidQuery, Query prepared)
   {
     Query query = druidQuery.getQuery();
-    try {
-      LOG.info("Running.. %s", jsonMapper.writeValueAsString(query));
-    }
-    catch (JsonProcessingException e) {
-      LOG.info("Running.. %s", query);
-    }
+    LOG.info("Running.. %s", toLazyLog(jsonMapper, query));
+
     Hook.QUERY_PLAN.run(query);   // original query
 
-    Query schema = prepared;
-    if (schema instanceof UnionAllQuery) {
-      schema = ((UnionAllQuery) schema).getRepresentative();
-    }
-    Class<?> clazz = PostProcessingOperators.returns(schema, jsonMapper);
-    if (Row.class == clazz || schema instanceof BaseAggregationQuery) {
-      return executeRow(druidQuery, prepared);
-    } else if (schema instanceof TopNQuery) {
-      return executeTopN(druidQuery, (TopNQuery) prepared);
-    } else if (schema instanceof Query.ArrayOutputSupport) {
-      return executeArray(druidQuery, (Query.ArrayOutputSupport) prepared);
-    } else {
+    Sequence<Object[]> sequence = coerce(druidQuery, prepared, runQuery(prepared));
+    if (sequence == null) {
       throw new ISE("Cannot run query of class[%s]", prepared.getClass().getName());
     }
+    return sequence;
+  }
+
+  @SuppressWarnings("unchecked")
+  private Sequence<Object[]> coerce(DruidQuery druidQuery, Query schema, Sequence sequence)
+  {
+    Class<?> clazz = PostProcessingOperators.returns(schema, jsonMapper);
+    if (Row.class == clazz) {
+      return executeRow(druidQuery, sequence);
+    } else if (Map.class == clazz) {
+      return executeRow(druidQuery, Sequences.map(sequence, Rows.mapToRow(null)));
+    } else if (Object[].class == clazz) {
+      return executeArray(druidQuery, sequence);
+    } else if (schema instanceof BaseAggregationQuery) {
+      return executeRow(druidQuery, sequence);
+    } else if (schema instanceof TopNQuery) {
+      return executeTopN(druidQuery, sequence);
+    } else if (schema instanceof Query.ArrayOutputSupport) {
+      return executeArray(druidQuery, ((Query.ArrayOutputSupport) schema).array(sequence));
+    } else if (schema instanceof UnionAllQuery) {
+      return coerce(druidQuery, ((UnionAllQuery) schema).getFirst(), sequence);
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")
@@ -176,14 +183,13 @@ public class QueryMaker
     return lifecycleFactory.factorize(query).runSimple(plannerContext.getAuthenticationResult());
   }
 
-  private Sequence<Object[]> executeRow(final DruidQuery druidQuery, final Query query)
+  private Sequence<Object[]> executeRow(final DruidQuery druidQuery, final Sequence<Row> sequence)
   {
+    final List<String> columnNames = druidQuery.getOutputRowSignature().getColumnNames();
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
 
-    final List<String> rowOrder = druidQuery.getOutputRowSignature().getRowOrder();
-
     return Sequences.map(
-        runQuery(query),
+        sequence,
         new Function<Row, Object[]>()
         {
           @Override
@@ -192,7 +198,7 @@ public class QueryMaker
             final Object[] retVal = new Object[fieldList.size()];
 
             for (final RelDataTypeField field : fieldList) {
-              final String outputName = rowOrder.get(field.getIndex());
+              final String outputName = columnNames.get(field.getIndex());
               retVal[field.getIndex()] = coerce(row.getRaw(outputName), field.getType());
             }
 
@@ -204,13 +210,14 @@ public class QueryMaker
 
   private Sequence<Object[]> executeTopN(
       final DruidQuery druidQuery,
-      final TopNQuery query
+      final Sequence<Result<TopNResultValue>> seqeunce
   )
   {
+    final List<String> columnNames = druidQuery.getOutputRowSignature().getColumnNames();
     final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
 
     return Sequences.explode(
-        runQuery(query),
+        seqeunce,
         new Function<Result<TopNResultValue>, Sequence<Object[]>>()
         {
           @Override
@@ -222,7 +229,7 @@ public class QueryMaker
             for (Map<String, Object> row : rows) {
               final Object[] retVal = new Object[fieldList.size()];
               for (final RelDataTypeField field : fieldList) {
-                final String outputName = druidQuery.getOutputRowSignature().getRowOrder().get(field.getIndex());
+                final String outputName = columnNames.get(field.getIndex());
                 retVal[field.getIndex()] = coerce(row.get(outputName), field.getType());
               }
 
@@ -237,38 +244,16 @@ public class QueryMaker
 
   private <T> Sequence<Object[]> executeArray(
       final DruidQuery druidQuery,
-      final Query.ArrayOutputSupport<?> query
+      final Sequence<Object[]> sequence
   )
   {
-    final List<RelDataTypeField> fieldList = druidQuery.getOutputRowType().getFieldList();
-
-    final RowSignature outputRowSignature = druidQuery.getOutputRowSignature();
-
-    // SQL row column index -> Scan query column index
-    final int[] columnMapping = new int[outputRowSignature.getRowOrder().size()];
-
-    final List<String> columnNames = query.estimatedOutputColumns();
-    final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
-
-    for (int i = 0; i < columnNames.size(); i++) {
-      scanColumnOrder.put(columnNames.get(i), i);
-    }
-
-    for (int i = 0; i < outputRowSignature.getRowOrder().size(); i++) {
-      String columnName = outputRowSignature.getRowOrder().get(i);
-      Integer index = scanColumnOrder.get(columnName);
-      columnMapping[i] = index == null ? -1 : index;
-    }
+    final RelDataTypeField[] fields = druidQuery.getOutputRowType().getFieldList().toArray(new RelDataTypeField[0]);
     return Sequences.map(
-        query.array(runQuery(query)),
+        sequence,
         row -> {
-          final Object[] retVal = new Object[fieldList.size()];
-          for (RelDataTypeField field : fieldList) {
-            int index = columnMapping[field.getIndex()];
-            if (index < 0) {
-              continue;
-            }
-            retVal[field.getIndex()] = coerce(row[index], field.getType());
+          final Object[] retVal = new Object[fields.length];
+          for (int i = 0; i < fields.length; i++) {
+            retVal[fields[i].getIndex()] = coerce(row[fields[i].getIndex()], fields[i].getType());
           }
           return retVal;
         }
@@ -319,7 +304,7 @@ public class QueryMaker
       } else {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
-    } else if (sqlType == SqlTypeName.NULL || value == null) {
+    } else if (value == null) {
       return null;
     } else if (sqlType == SqlTypeName.DATE) {
       return Calcites.jodaToCalciteDate(coerceDateTime(value, sqlType), plannerContext.getTimeZone());
@@ -412,5 +397,22 @@ public class QueryMaker
       throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
     }
     return decimal;
+  }
+
+  private static Object toLazyLog(final ObjectMapper mapper, final Object value)
+  {
+    return new Object()
+    {
+      @Override
+      public String toString()
+      {
+        try {
+          return mapper.writeValueAsString(value);
+        }
+        catch (Exception e) {
+          return Objects.toString(value, null);
+        }
+      }
+    };
   }
 }

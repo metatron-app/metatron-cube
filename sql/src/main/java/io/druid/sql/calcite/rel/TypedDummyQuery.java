@@ -111,7 +111,7 @@ public class TypedDummyQuery extends DummyQuery<Object[]>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    return signature.getRowOrder();
+    return signature.getColumnNames();
   }
 
   @Override
@@ -125,7 +125,7 @@ public class TypedDummyQuery extends DummyQuery<Object[]>
   {
     return Sequences.map(sequence, new Function<Object[], Row>()
     {
-      final List<String> columnNames = signature.getRowOrder();
+      final List<String> columnNames = signature.getColumnNames();
 
       @Override
       public Row apply(Object[] input)

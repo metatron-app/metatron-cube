@@ -26,7 +26,9 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -88,9 +90,9 @@ public class ExtractionDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize(Segment segment)
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    return new SelectorDimFilter(dimension, value, extractionFn).optimize(null);
+    return new SelectorDimFilter(dimension, value, extractionFn).optimize(segment, virtualColumns);
   }
 
   @Override

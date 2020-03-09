@@ -26,7 +26,6 @@ import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.sql.calcite.Utils;
@@ -115,10 +114,10 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
     if (leftQuery == null || rightQuery == null) {
       return null;
     }
-    final List<String> leftOrder = leftQuery.getOutputRowSignature().getRowOrder();
-    final List<String> rightOrder = rightQuery.getOutputRowSignature().getRowOrder();
+    final List<String> leftOrder = leftQuery.getOutputRowSignature().getColumnNames();
+    final List<String> rightOrder = rightQuery.getOutputRowSignature().getColumnNames();
 
-    final RowSignature outRowSignature = RowSignature.from(Queries.uniqueNames(leftOrder, rightOrder), rowType);
+    final RowSignature outRowSignature = RowSignature.from(Utils.uniqueNames(leftOrder, rightOrder), rowType);
 
     final List<String> leftKeys = Lists.newArrayList();
     for (int leftKey : leftExpressions) {

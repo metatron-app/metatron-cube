@@ -28,8 +28,10 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.Filters;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -61,7 +63,7 @@ public class MathExprFilter implements DimFilter
   }
 
   @Override
-  public DimFilter optimize(Segment segment)
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
     final Expr expr = Parser.parse(expression);
     if (Evals.isConstant(expr)) {

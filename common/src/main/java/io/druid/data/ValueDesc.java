@@ -116,7 +116,6 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc FLOAT_ARRAY = new ValueDesc(ARRAY_PREFIX + FLOAT_TYPE);
   public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
 
-  public static ValueDesc SHAPE = new ValueDesc("shape");
   public static ValueDesc GEOMETRY = new ValueDesc("geometry");
   public static ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
   public static ValueDesc INTERVAL = new ValueDesc("interval", Interval.class);
@@ -192,14 +191,14 @@ public class ValueDesc implements Serializable, Cacheable
     return ValueDesc.of(INDEXED_ID_PREFIX + valueType.getName());
   }
 
-  public static boolean isShape(ValueDesc valueType)
-  {
-    return isPrefixed(valueType.typeName, SHAPE.typeName);
-  }
-
-  public static boolean isGeom(ValueDesc valueType)
+  public static boolean isGeometry(ValueDesc valueType)
   {
     return isPrefixed(valueType.typeName, GEOMETRY.typeName);
+  }
+
+  public static boolean isOGCGeometry(ValueDesc valueType)
+  {
+    return isPrefixed(valueType.typeName, OGC_GEOMETRY.typeName);
   }
 
   public static boolean isArray(ValueDesc valueType)

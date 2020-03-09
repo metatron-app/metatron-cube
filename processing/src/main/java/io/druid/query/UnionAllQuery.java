@@ -166,6 +166,11 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     return first;
   }
 
+  public Query getFirst()
+  {
+    return query != null ? query : Iterables.getFirst(queries, null);
+  }
+
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<Query<T>> getQueries()

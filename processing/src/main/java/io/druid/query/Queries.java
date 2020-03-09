@@ -228,13 +228,6 @@ public class Queries
     return new RowSignature.Simple(columnNames, columnTypes);
   }
 
-  // keep the same convention with calcite (see SqlValidatorUtil.addFields)
-  public static List<String> uniqueNames(List<String> names1, List<String> names2)
-  {
-    Set<String> uniqueNames = Sets.newHashSet();
-    return uniqueNames(names2, uniqueNames, uniqueNames(names1, uniqueNames, Lists.<String>newArrayList()));
-  }
-
   public static List<String> uniqueNames(List<String> names, Set<String> uniqueNames, List<String> appendTo)
   {
     for (String name : names) {
@@ -371,11 +364,16 @@ public class Queries
         }
       }
     } else if (query instanceof Query.WrappingQuery) {
-      Query.WrappingQuery wrapping = (Query.WrappingQuery) query;
-      Query source = wrapping.query();
-      Query converted = iterate(source, function);
-      if (source != converted) {
-        return wrapping.withQuery(converted);
+      boolean changed = false;
+      List<Query> queries = Lists.newArrayList();
+      Query.WrappingQuery<?> wrapping = (Query.WrappingQuery) query;
+      for (Query source : wrapping.getQueries()) {
+        Query converted = iterate(source, function);
+        changed |= source != converted;
+        queries.add(converted);
+      }
+      if (changed) {
+        query = wrapping.withQueries(queries);
       }
     }
     return function.apply(query);

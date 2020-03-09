@@ -20,12 +20,15 @@
 package io.druid.sql.calcite;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
@@ -33,7 +36,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.rex.RexSlot;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -41,9 +43,11 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.parser.SqlParserUtil;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import java.util.List;
+import java.util.Set;
 
 public class Utils
 {
@@ -84,12 +88,19 @@ public class Utils
   {
     final int[] inputRefs = new int[nodes.size()];
     for (int i = 0; i < inputRefs.length; i++) {
-      if (!isInputRef(nodes.get(i))) {
+      int ref = getInputRef(nodes.get(i));
+      if (ref < 0) {
         return null;
       }
-      inputRefs[i] = ((RexSlot) nodes.get(i)).getIndex();
+      inputRefs[i] = ref;
     }
     return inputRefs;
+  }
+
+  public static int getInputRef(RexNode node)
+  {
+    ImmutableBitSet bits = RelOptUtil.InputFinder.bits(node);
+    return bits.cardinality() != 1 ? -1 : bits.nextSetBit(0);
   }
 
   public static String opName(RexNode op)
@@ -121,24 +132,51 @@ public class Utils
 
   public static DruidRel getDruidRel(RelNode sourceRel)
   {
+    return findRel(sourceRel, DruidRel.class);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> T findRel(RelNode sourceRel, Class<T> clazz)
+  {
     RelNode rel = sourceRel;
     if (sourceRel instanceof RelSubset) {
       rel = ((RelSubset) sourceRel).getBest();
       if (rel == null) {
         for (RelNode candidate : ((RelSubset) sourceRel).getRelList()) {
-          if (candidate instanceof DruidRel) {
-            rel = candidate;
-            break;
+          if (clazz.isInstance(candidate)) {
+            return (T)candidate;
           }
         }
       }
     }
-    return rel instanceof DruidRel ? (DruidRel) rel : null;
+    return clazz.isInstance(rel) ? (T) rel : null;
+  }
+
+  // keep the same convention with calcite (see SqlValidatorUtil.addFields)
+  public static List<String> uniqueNames(List<String> names1, List<String> names2)
+  {
+    List<String> nameList = Lists.newArrayList();
+    Set<String> uniqueNames = Sets.newHashSet();
+    for (String name : Iterables.concat(names1, names2)) {
+      // Ensure that name is unique from all previous field names
+      if (uniqueNames.contains(name)) {
+        String nameBase = name;
+        for (int i = 0; ; i++) {
+          name = nameBase + i;
+          if (!uniqueNames.contains(name)) {
+            break;
+          }
+        }
+      }
+      nameList.add(name);
+      uniqueNames.add(name);
+    }
+    return nameList;
   }
 
   public static RelDataType asRelDataType(ValueDesc valueDesc)
   {
-    if (ValueDesc.GEOMETRY.equals(valueDesc)) {
+    if (ValueDesc.isGeometry(valueDesc)) {
       return TYPE_FACTORY.createJavaType(valueDesc.asClass());
     }
     Class clazz = valueDesc.asClass();

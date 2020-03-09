@@ -102,7 +102,7 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
         catch (Throwable t) {
           throw ParsingFail.propagate(value, t);
         }
-        Preconditions.checkArgument(shape instanceof Point, "%s is not point", StringUtils.limit(value, 16));
+        Preconditions.checkArgument(shape instanceof Point, "%s is not point", StringUtils.forLog(value));
         Point point = (Point) shape;
         return new Field[]{
             new LatLonPoint(fieldName, point.getY(), point.getX())

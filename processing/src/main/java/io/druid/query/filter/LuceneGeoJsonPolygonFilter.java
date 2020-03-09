@@ -26,7 +26,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import org.apache.lucene.document.LatLonPoint;
@@ -140,18 +142,16 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
+  public DimFilter toExprFilter(RowResolver resolver, String columnName, String fieldName, String descriptor)
   {
-    final String latLon = toLatLonField(columnName, fieldName, descriptor);
-    return new MathExprFilter(
-        String.format("geom_contains(geom_fromGeoJson('%s'), geom_fromLatLon(%s))", geoJson, latLon)
-    );
+    final String point = toPointExpr(resolver, columnName, fieldName, descriptor);
+    return new MathExprFilter(String.format("geom_contains(geom_fromGeoJson('%s'), %s)", geoJson, point));
   }
 
   @Override
   public DimFilter forLog()
   {
-    return new LuceneGeoJsonPolygonFilter(field, "<shape>");
+    return new LuceneGeoJsonPolygonFilter(field, StringUtils.forLog(geoJson));
   }
 
   @Override
@@ -159,7 +159,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   {
     return "LuceneGeoJsonPolygonFilter{" +
            "field='" + field + '\'' +
-           ", geoJson='" + geoJson + '\'' +
+           ", geoJson=" + StringUtils.forLog(geoJson) +
            '}';
   }
 

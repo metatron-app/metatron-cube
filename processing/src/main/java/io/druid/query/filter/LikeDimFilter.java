@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-public class LikeDimFilter extends DimFilter.NotOptimizable
+public class LikeDimFilter implements DimFilter
 {
   // Regex matching characters that are definitely okay to include unescaped in a regex.
   // Leads to excessively paranoid escaping, although shouldn't affect runtime beyond compiling the regex.

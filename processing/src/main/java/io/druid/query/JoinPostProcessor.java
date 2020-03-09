@@ -63,7 +63,8 @@ import java.util.function.BiFunction;
 
 /**
  */
-public class JoinPostProcessor extends PostProcessingOperator.UnionSupport implements PostProcessingOperator.Local
+public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
+    implements PostProcessingOperator.ReturnRowAs, PostProcessingOperator.Local
 {
   private static final Logger log = new Logger(JoinPostProcessor.class);
 
@@ -407,6 +408,12 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         }
       });
     }
+  }
+
+  @Override
+  public Class rowClass()
+  {
+    return asArray ? Object[].class : Map.class;
   }
 
   private static abstract class JoinIterator implements CloseableIterator<Object[]>

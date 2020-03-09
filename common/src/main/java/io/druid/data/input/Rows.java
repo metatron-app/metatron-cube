@@ -136,7 +136,7 @@ public class Rows extends io.druid.data.Rows
       @Override
       public Row apply(Map<String, Object> input)
       {
-        final Object timestamp = input.get(timestampColumn);
+        final Object timestamp = timestampColumn == null ? null : input.get(timestampColumn);
         return new MapBasedRow(timestamp == null ? null : new DateTime(timestamp), input);
       }
     };

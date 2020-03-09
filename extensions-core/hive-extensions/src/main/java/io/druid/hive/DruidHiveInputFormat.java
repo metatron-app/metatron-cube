@@ -121,7 +121,7 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
       }
     }
     if (!filters.isEmpty()) {
-      configuration.set(CONF_DRUID_FILTERS, mapper.writeValueAsString(DimFilters.and(filters).optimize(null)));
+      configuration.set(CONF_DRUID_FILTERS, mapper.writeValueAsString(DimFilters.and(filters).optimize(null, null)));
     }
     return configuration;
   }

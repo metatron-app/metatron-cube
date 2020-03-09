@@ -45,7 +45,7 @@ public class AggregateSortProject
     this.postAggregators = Preconditions.checkNotNull(postAggregators, "postAggregators");
     this.outputRowSignature = Preconditions.checkNotNull(outputRowSignature, "outputRowSignature");
 
-    final Set<String> inputColumnNames = new HashSet<>(inputRowSignature.getRowOrder());
+    final Set<String> inputColumnNames = new HashSet<>(inputRowSignature.getColumnNames());
     final Set<String> postAggregatorNames = postAggregators.stream()
                                                            .map(PostAggregator::getName)
                                                            .collect(Collectors.toSet());
@@ -58,7 +58,7 @@ public class AggregateSortProject
     }
 
     // Verify that items in the output signature exist.
-    outputRowSignature.getRowOrder().forEach(field -> {
+    outputRowSignature.getColumnNames().forEach(field -> {
       if (!inputColumnNames.contains(field) && !postAggregatorNames.contains(field)) {
         throw new ISE("Missing field in rowOrder: %s", field);
       }

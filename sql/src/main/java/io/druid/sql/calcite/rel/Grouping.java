@@ -68,13 +68,14 @@ public class Grouping
           throw new ISE("Duplicate field name: %s", aggregatorFactory.getName());
         }
       }
-      if (aggregation.getPostAggregator() != null && !seen.add(aggregation.getPostAggregator().getName())) {
-        throw new ISE("Duplicate field name: %s", aggregation.getPostAggregator().getName());
+      PostAggregator postAggregator = aggregation.getPostAggregator();
+      if (postAggregator != null && !seen.add(postAggregator.getName())) {
+        throw new ISE("Duplicate field name: %s", postAggregator.getName());
       }
     }
 
     // Verify that items in the output signature exist.
-    for (final String field : outputRowSignature.getRowOrder()) {
+    for (final String field : outputRowSignature.getColumnNames()) {
       if (!seen.contains(field)) {
         throw new ISE("Missing field in rowOrder: %s", field);
       }

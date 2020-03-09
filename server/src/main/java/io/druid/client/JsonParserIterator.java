@@ -100,7 +100,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
         if (nextToken == JsonToken.START_OBJECT) {
           throw jp.getCodec().readValue(jp, QueryInterruptedException.class);
         } else if (nextToken == JsonToken.VALUE_STRING) {
-          throw new IAE("Next token wasn't a START_ARRAY, was string [%s]", StringUtils.limit(jp.getText(), 32));
+          throw new IAE("Next token wasn't a START_ARRAY, was string [%s]", StringUtils.limit(jp.getText(), 256));
         } else if (nextToken != JsonToken.START_ARRAY) {
           throw new IAE("Next token wasn't a START_ARRAY, was[%s]", jp.getCurrentToken());
         } else {

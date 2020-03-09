@@ -153,6 +153,8 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "listFold", value = ListFoldingAggregatorFactory.class),
       @JsonSubTypes.Type(name = "set", value = SetAggregatorFactory.class),
       @JsonSubTypes.Type(name = "relay", value = RelayAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "firstOf", value = RelayAggregatorFactory.First.class),
+      @JsonSubTypes.Type(name = "lastOf", value = RelayAggregatorFactory.Last.class),
       @JsonSubTypes.Type(name = "timeMax", value = TimestampMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "dimArray", value = DimensionArrayAggregatorFactory.class),
       @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class),

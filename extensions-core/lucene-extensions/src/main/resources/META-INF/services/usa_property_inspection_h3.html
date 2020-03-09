@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 700px;
+        width: 100%;
+      }
+    </style>
+    <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol.js"></script>
+    <title>OpenLayers example</title>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
+
+      var format = new ol.format.WKT();
+      var inspection_source = new ol.source.Vector({
+        format: new ol.format.GeoJSON(),
+        loader: function(extent, resolution, projection) {
+           var proj = projection.getCode();
+           // var url = 'https://ahocevar.com/geoserver/wfs?service=WFS&' +
+           //     'version=1.1.0&request=GetFeature&typename=osm:water_areas&' +
+           //     'outputFormat=application/json&srsname=' + proj + '&' +
+           //     'bbox=' + extent.join(',') + ',' + proj;
+           var xhr = new XMLHttpRequest();
+           xhr.onerror = function() { inspection_source.removeLoadedExtent(extent); };
+           xhr.onload = function() {
+             if (xhr.status === 200) {
+               var format = new ol.format.GeoJSON();
+               // console.log('inspection_source ---> ' + xhr.responseText);
+               var features = inspection_source.getFormat().readFeatures(xhr.responseText);
+               // features.forEach(function (f) {
+                    // console.log(f.getGeometry().getCoordinates()); // features are parsed correctly
+                // });
+               inspection_source.addFeatures(features);
+             } else {
+               xhr.onerror();
+             }
+           };
+           var url = 'http://localhost:8082/druid/v2/sql/geojson';
+           xhr.open('POST', url);
+           xhr.setRequestHeader('Content-type', 'text/plain');
+           var wkt = format.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
+                dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
+           });
+           // var sql = 'SELECT geom_transform(h3_to_boundary_geom(h3),4326,3857), number, OpCerts, PFIs FROM (' +
+           //           '  SELECT geom_to_h3(geom_fromWKT(Point), 7) as h3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
+           //           '  FROM nyc_nursing GROUP BY geom_to_h3(geom_fromWKT(Point), 7)' +
+           //           ')';
+           var sql = 'SELECT geom_transform(geom_intersection(h3_to_boundary_geom(h3),(select geom_union(geom_fromWKT(shape)) from nyc_boundaries)),4326,3857), number, OpCerts, PFIs FROM (' +
+                     '  SELECT geom_to_h3(geom_fromWKT(Point), 6) as h3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
+                     '  FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') GROUP BY geom_to_h3(geom_fromWKT(Point), 6)' +
+                     ')';
+            // var sql = 'WITH G AS (' +
+            //           '  SELECT H3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs FROM (' +
+            //           '    SELECT geom_to_h3(geom_fromWKT(Point),6) as H3, OpCert, PFI ' +
+            //           '      FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') ' +
+            //           '  )' +
+            //           '  GROUP BY H3' +
+            //           ')' +
+            //           'SELECT boro_name, number, OpCerts, PFIs, ' +
+            //           '       geom_transform(geom_intersection(geom_fromWKT(shape),h3_to_boundary_geom(H3)),4326,3857) ' +
+            //           'FROM G JOIN nyc_boundaries ON ST_Contains(shape, h3_to_center_geom(H3))';
+           console.log(' extent : ' + extent + " --> " + wkt);
+           console.log('inspection_source fire!! ---> ' + sql);
+           xhr.send(sql);
+        },
+        strategy: ol.loadingstrategy.bbox
+      });
+
+      var inspection = new ol.layer.Vector({
+        source: inspection_source,
+        style: function (feature) {
+          var sum = feature.get('PFIs');
+          // if (sum > 8000) {
+          //   color = [46, 18, 58, 0.6];
+          //   tcolor = [255,255,255,1];
+          // } else if (sum > 5000) {
+          //   color = [96, 38, 99, 0.6];
+          //   tcolor = [255,255,255,1];
+          // } else if (sum > 3000) {
+          //   color = [116, 100, 130, 0.6];
+          //   tcolor = [0,0,0,1];
+          // } else if (sum > 2000) {
+          //   color = [154, 148, 170, 0.6];
+          //   tcolor = [0,0,0,1];
+          // } else {
+          //   color = [215, 222, 231, 0.6];
+          //   tcolor = [0,0,0,1];
+          // }
+          if (sum > 24000) {
+            color = [46, 18, 58, 0.6];
+            tcolor = [255,255,255,1];
+          } else if (sum > 15000) {
+            color = [96, 38, 99, 0.6];
+            tcolor = [255,255,255,1];
+          } else if (sum > 9000) {
+            color = [116, 100, 130, 0.6];
+            tcolor = [0,0,0,1];
+          } else if (sum > 6000) {
+            color = [154, 148, 170, 0.6];
+            tcolor = [0,0,0,1];
+          } else {
+            color = [215, 222, 231, 0.6];
+            tcolor = [0,0,0,1];
+          }
+          return [
+            new ol.style.Style({fill: new ol.style.Fill({color: color})}),
+            new ol.style.Style({stroke: new ol.style.Stroke({color: [0,0,0], width: 0.3})}),
+            new ol.style.Style({text: new ol.style.Text({
+                text: "PFIs=" + feature.get('PFIs'),
+                font: 'plain 10px Arial, Verdana, Helvetica, sans-serif',
+                fill: new ol.style.Fill({color: tcolor})
+              })
+            })
+          ];
+        }
+      });
+
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({source: new ol.source.OSM()}),
+          inspection
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([-73.963136, 40.722619]),
+          zoom: 11
+        })
+      });
+    </script>
+  </body>
+</html>

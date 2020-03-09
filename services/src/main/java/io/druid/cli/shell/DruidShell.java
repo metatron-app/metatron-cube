@@ -39,7 +39,6 @@ import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.EscalatedGlobal;
-import io.druid.guice.annotations.Global;
 import io.druid.initialization.Initialization;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
@@ -90,6 +89,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -1078,7 +1078,7 @@ public class DruidShell extends CommonShell.WithUtils
       case "jmx": {
         List<URL> brokers = brokerURLs.get();
         String query = jsonMapper.writeValueAsString(JMXQuery.of(cursor.hasMore() ? cursor.next() : null));
-        List<String> rowOrder = InformationSchema.SERVERS_SIGNATURE.getRowOrder();
+        List<String> rowOrder = InformationSchema.SERVERS_SIGNATURE.getColumnNames();
         writer.print("  ");
         String columns = rowOrder.toString();
         writer.println(columns);
@@ -1271,8 +1271,17 @@ public class DruidShell extends CommonShell.WithUtils
         writer.println();
         header = true;
       }
-      writer.print("  ");
-      writer.println(row.values().toString());
+      writer.print("  [");
+      boolean first = true;
+      for (Object value : row.values()) {
+        if (!first) {
+          writer.write(", ");
+        }
+        String print = StringUtils.limit(Objects.toString(value, ""), 64);
+        writer.print(print);
+        first = false;
+      }
+      writer.println("]");
       numRow++;
     }
     return numRow;

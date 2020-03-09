@@ -24,7 +24,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
+import io.druid.query.RowResolver;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.ShapeFormat;
 import io.druid.segment.lucene.SpatialOperations;
@@ -99,10 +101,20 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   }
 
   @Override
+  protected DimFilter toExprFilter(RowResolver resolver, String columnName, String fieldName, String descriptor)
+  {
+    // cannot know the type. just try regarding it as point
+    return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString).toExprFilter(
+        resolver, columnName, fieldName, descriptor
+    );
+  }
+
+  @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(DimFilterCacheHelper.LUCENE_WITHIN_CACHE_ID)
                   .append(field)
+                  .append(operation)
                   .append(shapeFormat)
                   .append(shapeString);
   }
@@ -126,13 +138,13 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    throw new UnsupportedOperationException("not supports filtering " + forLog());
+    throw new UnsupportedOperationException("not supports filtering " + this);
   }
 
   @Override
   public DimFilter forLog()
   {
-    return new LuceneShapeFilter(field, operation, shapeFormat, "<shape>");
+    return new LuceneShapeFilter(field, operation, shapeFormat, StringUtils.forLog(shapeString));
   }
 
   @Override
@@ -142,7 +154,7 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
            "field='" + field + '\'' +
            ", operation=" + operation +
            ", shapeFormat=" + shapeFormat +
-           ", shapeString=" + shapeString +
+           ", shapeString=" + StringUtils.forLog(shapeString) +
            '}';
   }
 

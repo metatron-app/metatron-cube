@@ -230,8 +230,8 @@ public interface RowSignature extends TypeResolver
       return new Simple(columnNames, columnTypes);
     }
 
-    private final List<String> columnNames;
-    private final List<ValueDesc> columnTypes;
+    protected final List<String> columnNames;
+    protected final List<ValueDesc> columnTypes;
 
     public Simple(List<String> columnNames, List<ValueDesc> columnTypes)
     {

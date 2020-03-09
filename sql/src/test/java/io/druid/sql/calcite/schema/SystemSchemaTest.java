@@ -614,15 +614,15 @@ public class SystemSchemaTest extends CalciteTestBase
 
   private static void verifyTypes(final List<Object[]> rows, final RowSignature signature)
   {
-    final RelDataType rowType = signature.getRelDataType(new JavaTypeFactoryImpl());
+    final RelDataType rowType = signature.toRelDataType(new JavaTypeFactoryImpl());
 
     for (Object[] row : rows) {
-      Assert.assertEquals(row.length, signature.getRowOrder().size());
+      Assert.assertEquals(row.length, signature.getColumnNames().size());
 
       for (int i = 0; i < row.length; i++) {
         final Class<?> expectedClass;
 
-        final ValueDesc columnType = signature.getColumnType(signature.getRowOrder().get(i));
+        final ValueDesc columnType = signature.resolve(signature.getColumnNames().get(i));
         final boolean nullable = rowType.getFieldList().get(i).getType().isNullable();
 
         switch (columnType.type()) {
@@ -646,7 +646,7 @@ public class SystemSchemaTest extends CalciteTestBase
           Assert.assertTrue(
               StringUtils.format(
                   "Column[%s] is a [%s] or null (was %s)",
-                  signature.getRowOrder().get(i),
+                  signature.getColumnNames().get(i),
                   expectedClass.getName(),
                   row[i] == null ? null : row[i].getClass().getName()
               ),
@@ -656,7 +656,7 @@ public class SystemSchemaTest extends CalciteTestBase
           Assert.assertTrue(
               StringUtils.format(
                   "Column[%s] is a [%s] (was %s)",
-                  signature.getRowOrder().get(i),
+                  signature.getColumnNames().get(i),
                   expectedClass.getName(),
                   row[i] == null ? null : row[i].getClass().getName()
               ),

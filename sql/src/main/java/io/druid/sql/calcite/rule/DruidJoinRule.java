@@ -26,8 +26,8 @@ import io.druid.data.KeyedData.StringKeyed;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidJoinRel;
+import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidRel;
-import io.druid.sql.calcite.rel.DruidSpatialJoinRel;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
@@ -37,10 +37,15 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.rex.RexUtil;
 
 import java.util.List;
 import java.util.Set;
+
+import static io.druid.sql.calcite.rel.DruidSpatialJoinRel.create;
 
 public class DruidJoinRule extends RelOptRule
 {
@@ -73,7 +78,7 @@ public class DruidJoinRule extends RelOptRule
     if (joinInfo.isEqui()) {
       call.transformTo(DruidJoinRel.create(join, joinInfo, left, right));
     } else if (!joinInfo.leftKeys.isEmpty() && join.getJoinType() == JoinRelType.INNER) {
-      RexNode remaining = joinInfo.getRemaining(rexBuilder);
+      RexNode remaining = RexUtil.composeConjunction(rexBuilder, joinInfo.nonEquiConditions);
       DruidRel joinRel = DruidJoinRel.create(join, joinInfo, left, right);
       call.transformTo(new LogicalFilter(
           join.getCluster(),
@@ -83,7 +88,7 @@ public class DruidJoinRule extends RelOptRule
           ImmutableSet.of()
       ));
     } else if (joinInfo.leftKeys.isEmpty() && join.getJoinType() == JoinRelType.INNER) {
-      RelNode transformed = trySpatialJoin(left, right, condition);
+      RelNode transformed = trySpatialJoin(left, right, condition, rexBuilder);
       if (transformed != null) {
         call.transformTo(transformed);
       }
@@ -96,35 +101,54 @@ public class DruidJoinRule extends RelOptRule
       "ST_CONTAINS", "ST_WITHIN", "GEOM_CONTAINS", "GEOM_WITHIN"
   );
 
-  private RelNode trySpatialJoin(DruidRel left, DruidRel right, RexNode condition)
+  private RelNode trySpatialJoin(DruidRel left, DruidRel right, RexNode condition, RexBuilder builder)
   {
+    if (!(left instanceof DruidQueryRel) || !(right instanceof DruidQueryRel)) {
+      // no meaning to filter in broker just use cross join (todo)
+      return null;
+    }
+    if (!(condition instanceof RexCall)) {
+      return null;
+    }
     final String opName = Utils.opName(condition);
-    if (SUPPORTED.contains(opName)) {
-      int[] refs = Utils.getInputRefs(((RexCall) condition).getOperands());
-      if (refs == null || refs.length != 2) {
+    final List<RexNode> operands = ((RexCall) condition).getOperands();
+    if (operands.size() == 2 && SUPPORTED.contains(opName)) {
+      int[] refs = Utils.getInputRefs(operands);
+      if (refs == null) {
         return null;
       }
-
-      final int leftCount = left.getRowType().getFieldList().size();
+      final int shift = left.getRowType().getFieldList().size();
       if (opName.endsWith("CONTAINS")) {
-        // B JOIN N ST_CONTAINS(b, n) --> query N boundary B, flip
-        // N JOIN B ST_CONTAINS(b, n) --> query N boundary B
-        if (refs[0] < leftCount && refs[1] >= leftCount) {
-          return DruidSpatialJoinRel.create(right, left, refs[1] - leftCount, refs[0], true);
-        } else if (refs[0] >= leftCount && refs[1] < leftCount) {
-          return DruidSpatialJoinRel.create(left, right, refs[1], refs[0] - leftCount, false);
+        // B JOIN P ST_CONTAINS(b, p) --> P + B, flip
+        // P JOIN B ST_CONTAINS(b, p) --> P + B
+        if (refs[0] < shift && refs[1] >= shift) {
+          return create(right, left, shift(builder, operands.get(0), shift), operands.get(1), true);
+        } else if (refs[0] >= shift && refs[1] < shift) {
+          return create(left, right, operands.get(1), shift(builder, operands.get(0), shift), false);
         }
       } else {
-        // N JOIN B ST_WITHIN(n, b) --> query N boundary B
-        // B JOIN N ST_WITHIN(n, b) --> query N boundary B, flip
-        if (refs[0] < leftCount && refs[1] >= leftCount) {
-          return DruidSpatialJoinRel.create(left, right, refs[0], refs[1] - leftCount, false);
-        } else if (refs[0] >= leftCount && refs[1] < leftCount) {
-          return DruidSpatialJoinRel.create(right, left, refs[0] - leftCount, refs[1], true);
+        // P JOIN B ST_WITHIN(p, b) --> P + B
+        // B JOIN P ST_WITHIN(p, b) --> P + B, flip
+        if (refs[0] < shift && refs[1] >= shift) {
+          return create(left, right, operands.get(0), shift(builder, operands.get(1), shift), false);
+        } else if (refs[0] >= shift && refs[1] < shift) {
+          return create(right, left, shift(builder, operands.get(1), shift), operands.get(0), true);
         }
       }
     }
     return null;
+  }
+
+  private static RexNode shift(RexBuilder builder, final RexNode node, final int offset)
+  {
+    return node.accept(new RexShuttle()
+    {
+      @Override
+      public RexNode visitInputRef(RexInputRef ref)
+      {
+        return builder.makeInputRef(ref.getType(), ref.getIndex() - offset);
+      }
+    });
   }
 
   // I'm not sure of this

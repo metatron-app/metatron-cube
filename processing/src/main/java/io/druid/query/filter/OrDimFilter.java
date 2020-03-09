@@ -28,6 +28,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.OrExpression;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
 
@@ -67,9 +68,9 @@ public class OrDimFilter implements DimFilter, OrExpression
   }
 
   @Override
-  public DimFilter optimize(Segment segment)
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    return DimFilters.or(DimFilters.optimize(fields, segment));
+    return DimFilters.or(DimFilters.optimize(fields, segment, virtualColumns));
   }
 
   @Override

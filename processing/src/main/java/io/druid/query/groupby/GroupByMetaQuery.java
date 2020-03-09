@@ -22,6 +22,7 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
@@ -34,6 +35,8 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 @JsonTypeName("groupBy.meta")
@@ -61,15 +64,16 @@ public class GroupByMetaQuery extends BaseQuery<Row> implements Query.RewritingQ
   }
 
   @Override
-  public GroupByQuery query()
+  public List<Query> getQueries()
   {
-    return query;
+    return Arrays.asList(query);
   }
 
   @Override
-  public GroupByMetaQuery withQuery(Query query)
+  public GroupByMetaQuery withQueries(List<Query> queries)
   {
-    return new GroupByMetaQuery((GroupByQuery) query);
+    Preconditions.checkArgument(queries.size() == 1);
+    return new GroupByMetaQuery((GroupByQuery) queries.get(0));
   }
 
   @Override

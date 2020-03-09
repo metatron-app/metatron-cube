@@ -26,8 +26,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.GeomUtils;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.lucene.PointQueryType;
@@ -227,7 +229,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   }
 
   @Override
-  public DimFilter toExprFilter(String columnName, String fieldName, String descriptor)
+  public DimFilter toExprFilter(RowResolver resolver, String columnName, String fieldName, String descriptor)
   {
     String format = getShapeFormat(descriptor);
     ShapeFormat shapeFormat = format == null ? this.shapeFormat : ShapeFormat.fromString(format);
@@ -268,7 +270,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   @Override
   public DimFilter forLog()
   {
-    return new LuceneSpatialFilter(field, operation, shapeFormat, "<shape>");
+    return new LuceneSpatialFilter(field, operation, shapeFormat, StringUtils.forLog(shapeString));
   }
 
   @Override
@@ -278,7 +280,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
            "field='" + field + '\'' +
            ", operation=" + operation +
            ", shapeFormat=" + shapeFormat +
-           ", shapeString=" + shapeString +
+           ", shapeString=" + StringUtils.forLog(shapeString) +
            '}';
   }
 

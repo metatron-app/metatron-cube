@@ -304,9 +304,14 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     return sb.toString();
   }
 
+  public static String forLog(String text)
+  {
+    return limit(text, 32);
+  }
+
   public static String limit(String text, int limit)
   {
-    return text == null || text.length() < limit ? text : text.substring(limit) + "...";
+    return text == null || text.length() < limit ? text : text.substring(0, limit) + "...";
   }
 
   public static String identifier(String string)

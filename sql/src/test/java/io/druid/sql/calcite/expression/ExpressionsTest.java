@@ -108,7 +108,7 @@ public class ExpressionsTest extends CalciteTestBase
       .build();
   private final RelDataTypeFactory typeFactory = new JavaTypeFactoryImpl();
   private final RexBuilder rexBuilder = new RexBuilder(typeFactory);
-  private final RelDataType relDataType = rowSignature.getRelDataType(typeFactory);
+  private final RelDataType relDataType = rowSignature.toRelDataType(typeFactory);
 
   @Test
   public void testConcat()
@@ -803,7 +803,7 @@ public class ExpressionsTest extends CalciteTestBase
 
   private RexNode inputRef(final String columnName)
   {
-    final int columnNumber = rowSignature.getRowOrder().indexOf(columnName);
+    final int columnNumber = rowSignature.getColumnNames().indexOf(columnName);
     return rexBuilder.makeInputRef(relDataType.getFieldList().get(columnNumber).getType(), columnNumber);
   }
 

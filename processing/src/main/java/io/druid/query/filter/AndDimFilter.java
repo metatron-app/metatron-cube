@@ -28,6 +28,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expression.AndExpression;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
 
@@ -67,9 +68,9 @@ public class AndDimFilter implements DimFilter, AndExpression
   }
 
   @Override
-  public DimFilter optimize(Segment segment)
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    return DimFilters.and(DimFilters.optimize(fields, segment));
+    return DimFilters.and(DimFilters.optimize(fields, segment, virtualColumns));
   }
 
   @Override

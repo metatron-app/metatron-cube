@@ -196,6 +196,8 @@ public interface Query<T> extends QueryContextKeys
 
     AggregationsSupport<T> withPostAggregatorSpecs(List<PostAggregator> metrics);
 
+    AggregationsSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
+
     boolean allMetricsForEmpty();
   }
 
@@ -246,11 +248,12 @@ public interface Query<T> extends QueryContextKeys
     Classifier toClassifier(Sequence<T> sequence, String tagColumn);
   }
 
+  // for iteration.. (see Queries.iterate)
   interface WrappingQuery<T> extends Query<T>
   {
-    Query query();
+    List<Query> getQueries();
 
-    WrappingQuery<T> withQuery(Query query);
+    WrappingQuery<T> withQueries(List<Query> queries);
   }
 
   interface LogProvider<T> extends Query<T>

@@ -214,7 +214,7 @@ public class SystemSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory)
     {
-      return SEGMENTS_SIGNATURE.getRelDataType(typeFactory);
+      return SEGMENTS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -310,7 +310,7 @@ public class SystemSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory)
     {
-      return SERVERS_SIGNATURE.getRelDataType(typeFactory);
+      return SERVERS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -351,7 +351,7 @@ public class SystemSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory)
     {
-      return SERVER_SEGMENTS_SIGNATURE.getRelDataType(typeFactory);
+      return SERVER_SEGMENTS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -365,7 +365,7 @@ public class SystemSchema extends AbstractSchema
     {
       final List<Object[]> rows = new ArrayList<>();
       final List<ImmutableDruidServer> druidServers = serverView.getDruidServers();
-      final int serverSegmentsTableSize = SERVER_SEGMENTS_SIGNATURE.getRowOrder().size();
+      final int serverSegmentsTableSize = SERVER_SEGMENTS_SIGNATURE.size();
       for (ImmutableDruidServer druidServer : druidServers) {
         final Map<String, DataSegment> segmentMap = druidServer.getSegments();
         for (DataSegment segment : segmentMap.values()) {
@@ -399,7 +399,7 @@ public class SystemSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory)
     {
-      return TASKS_SIGNATURE.getRelDataType(typeFactory);
+      return TASKS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -576,7 +576,7 @@ public class SystemSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory)
     {
-      return LOCKS_SIGNATURE.getRelDataType(typeFactory);
+      return LOCKS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -588,7 +588,7 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      List<String> columns = LOCKS_SIGNATURE.getRowOrder();
+      List<String> columns = LOCKS_SIGNATURE.getColumnNames();
       List<Object[]> rows = Lists.newArrayList();
       for (Map<String, Object> row : druidLeaderClient.execute(HttpMethod.GET, "locks/_/_", ROWS)) {
         Object[] array = new Object[columns.size()];
@@ -615,7 +615,7 @@ public class SystemSchema extends AbstractSchema
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory)
     {
-      return FUNCTIONS_SIGNATURE.getRelDataType(typeFactory);
+      return FUNCTIONS_SIGNATURE.toRelDataType(typeFactory);
     }
 
     @Override
@@ -627,7 +627,6 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      List<String> columns = FUNCTIONS_SIGNATURE.getRowOrder();
       List<Object[]> rows = Lists.newArrayList();
       for (OperatorKey key : operatorTable.getAggregators().keySet()) {
         rows.add(new Object[] {key.getName(), "UDAF", key.isExternal()});

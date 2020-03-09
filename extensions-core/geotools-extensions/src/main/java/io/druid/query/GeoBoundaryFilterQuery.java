@@ -32,6 +32,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.FilterSupport;
@@ -55,7 +56,8 @@ import java.util.Objects;
 
 @JsonTypeName("geo.boundary")
 public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
-    implements RewritingQuery<Object[]>, ArrayOutputSupport<Object[]>, FilterSupport<Object[]>, SchemaProvider
+    implements RewritingQuery<Object[]>, ArrayOutputSupport<Object[]>, FilterSupport<Object[]>,
+    Query.WrappingQuery<Object[]>, SchemaProvider
 {
   private static final int DEFAULT_PARALLELISM = 2;
 
@@ -352,6 +354,32 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @Override
+  public List<Query> getQueries()
+  {
+    return Arrays.<Query>asList(query, boundary);
+  }
+
+  @Override
+  public WrappingQuery<Object[]> withQueries(List<Query> queries)
+  {
+    Preconditions.checkArgument(queries.size() == 2);
+    return new GeoBoundaryFilterQuery(
+        (ArrayOutputSupport) queries.get(0),
+        pointColumn,
+        shapeColumn,
+        queryColumn,
+        (ArrayOutputSupport) queries.get(1),
+        boundaryColumn,
+        boundaryUnion,
+        boundaryJoin,
+        operation,
+        parallelism,
+        flip,
+        getContext()
+    );
+  }
+
+  @Override
   public RowSignature schema(QuerySegmentWalker segmentWalker)
   {
     final RowSignature querySchema = Queries.relaySchema(query, segmentWalker);
@@ -361,9 +389,11 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     final List<String> qnames = Lists.newArrayList();
     final List<ValueDesc> qtypes = Lists.newArrayList();
     for (String column : query.estimatedOutputColumns()) {
-      int index = queryColumns.indexOf(column);
-      qnames.add(column);
-      qtypes.add(queryTypes.get(index));
+      int index = queryColumns.indexOf(column);   // possibly return other columns like '__time'
+      if (index >= 0) {
+        qnames.add(column);
+        qtypes.add(queryTypes.get(index));
+      }
     }
     if (boundaryJoin.isEmpty()) {
       return new RowSignature.Simple(qnames, qtypes);
@@ -440,7 +470,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
               }
             }
             if (joinRow == null) {
-              throw new IllegalStateException("cannot find geometry in " + geometry.toText());
+              throw new IAE("cannot find geometry in %s", StringUtils.forLog(geometry.toText()));
             }
           }
           queries.add(makeQuery(mapper, geometry, joinMapping, joinRow, context));
@@ -470,7 +500,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     Query filtered = filterSupport.withFilter(DimFilters.and(filterSupport.getFilter(), filter))
                                   .withOverriddenContext(context);
     return filtered.withOverriddenContext(
-        Query.POST_PROCESSING, new SequenceMapProcessor(proc(query, geometryWKT, joinMapping, joinRow))
+        Query.POST_PROCESSING, new SequenceMapProcessor.AsArray(proc(query, geometryWKT, joinMapping, joinRow))
     );
   }
 

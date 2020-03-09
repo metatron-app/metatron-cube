@@ -27,6 +27,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
@@ -104,6 +105,14 @@ public class GeoHashFunctions implements Function.Library
       {
         return LATLON;
       }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(_eval(args, bindings), LATLON);
+      }
+
+      protected abstract double[] _eval(List<Expr> args, Expr.NumericBinding bindings);
     }
 
     @Override
@@ -125,10 +134,39 @@ public class GeoHashFunctions implements Function.Library
       return new LatLonChild()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public double[] _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          Point point = GeohashUtils.decode(Evals.evalString(args.get(0), bindings), JtsSpatialContext.GEO);
-          return ExprEval.of(new Object[]{point.getY(), point.getX()}, LATLON);
+          final String address = Evals.evalString(args.get(0), bindings);
+          if (address != null) {
+            Point point = GeohashUtils.decode(address, JtsSpatialContext.GEO);
+            return new double[]{point.getY(), point.getX()};
+          }
+          return null;
+        }
+      };
+    }
+  }
+
+  @Function.Named("geohash_to_center_geom")
+  public static class GeoHashToCenterGeom extends GeomUtils.GeomPointFuncFactory
+  {
+    @Override
+    public Function create(final List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new GeomPointChild()
+      {
+        @Override
+        public org.locationtech.jts.geom.Point _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final String address = Evals.evalString(args.get(0), bindings);
+          if (address != null) {
+            Point point = GeohashUtils.decode(address, JtsSpatialContext.GEO);
+            return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(point.getX(), point.getY()));
+          }
+          return null;
         }
       };
     }
@@ -187,6 +225,37 @@ public class GeoHashFunctions implements Function.Library
           result[7] = boundary.getMinY();
 
           return ExprEval.of(result, ValueDesc.DOUBLE_ARRAY);
+        }
+      };
+    }
+  }
+
+  @Function.Named("geohash_to_boundary_geom")
+  public static class GeoHashToBoundaryGeom extends GeomUtils.GeomFuncFactory
+  {
+    @Override
+    public Function create(final List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new GeomChild()
+      {
+        @Override
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Rectangle boundary = GeohashUtils.decodeBoundary(
+              Evals.evalString(args.get(0), bindings),
+              JtsSpatialContext.GEO
+          );
+          Coordinate[] coordinates = new Coordinate[5];
+          coordinates[0] = new Coordinate(boundary.getMinX(), boundary.getMinY());
+          coordinates[1] = new Coordinate(boundary.getMinX(), boundary.getMaxY());
+          coordinates[2] = new Coordinate(boundary.getMaxX(), boundary.getMaxY());
+          coordinates[3] = new Coordinate(boundary.getMaxX(), boundary.getMinY());
+          coordinates[4] = new Coordinate(boundary.getMinX(), boundary.getMinY());
+
+          return GeomUtils.GEOM_FACTORY.createPolygon(coordinates);
         }
       };
     }

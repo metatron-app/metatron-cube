@@ -80,6 +80,12 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
       }
 
       @Override
+      public RowSignature getInputRowSignature()
+      {
+        return RowSignature.from(source.getRowType());
+      }
+
+      @Override
       public RowSignature getOutputRowSignature()
       {
         return RowSignature.from(source.getRowType());
