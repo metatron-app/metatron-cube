@@ -20,10 +20,9 @@
 package io.druid.sql.calcite.rule;
 
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.Queries;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.rel.DruidQuery;
 import io.druid.sql.calcite.rel.DruidQueryRel;
@@ -170,17 +169,13 @@ public class DruidSemiJoinRule extends RelOptRule
       }
       final int maxSegmiJoinRows = left.getPlannerContext().getPlannerConfig().getMaxSemiJoinRowsInMemory();
       final QueryMaker queryMaker = right.getQueryMaker();
-      if (query instanceof GroupByQuery) {
-        GroupByQuery groupBy = (GroupByQuery) query.toLocalQuery();
+      if (query instanceof BaseAggregationQuery) {
+        BaseAggregationQuery groupBy = (BaseAggregationQuery) query.toLocalQuery();
         Query prepared = queryMaker.prepareQuery(groupBy);
-        if (prepared instanceof GroupByQuery) {
-          long cardinality = Queries.estimateCardinality(
-              (GroupByQuery) prepared,
-              queryMaker.getSegmentWalker(),
-              queryMaker.getQueryConfig()
-          );
+        if (prepared instanceof BaseAggregationQuery) {
+          long cardinality = queryMaker.estimateCardinality((BaseAggregationQuery) prepared);
           if (cardinality < 0 || cardinality > maxSegmiJoinRows) {
-            LOG.info("Estimated cardinality [%d] is exceeding maxSegmiJoinRows [%d]", cardinality, maxSegmiJoinRows);
+            LOG.debug("Estimated cardinality [%d] is exceeding maxSegmiJoinRows [%d]", cardinality, maxSegmiJoinRows);
             return;
           }
         }

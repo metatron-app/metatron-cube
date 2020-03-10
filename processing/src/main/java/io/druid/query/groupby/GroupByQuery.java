@@ -916,13 +916,13 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
       return toWorstCase(query, mapper);
     }
     List<String> outputNames = DimensionSpecs.toOutputNames(query.getDimensions());
-    List<String> metrics = GuavaUtils.concat(
-        AggregatorFactory.toNames(query.getAggregatorSpecs()),
-        PostAggregators.toNames(query.getPostAggregatorSpecs())
-    );
     LimitSpec limitSpec = query.getLimitSpec();
     List<String> candidate = outputNames;
     if (limitSpec != null && !GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      List<String> metrics = GuavaUtils.concat(
+          AggregatorFactory.toNames(query.getAggregatorSpecs()),
+          PostAggregators.toNames(query.getPostAggregatorSpecs())
+      );
       for (WindowingSpec windowingSpec : limitSpec.getWindowingSpecs()) {
         List<String> partitionColumns = windowingSpec.getPartitionColumns();
         if (windowingSpec.getPivotSpec() != null || windowingSpec.getFlattenSpec() != null) {

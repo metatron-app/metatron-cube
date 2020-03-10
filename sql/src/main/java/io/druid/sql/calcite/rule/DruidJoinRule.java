@@ -107,14 +107,11 @@ public class DruidJoinRule extends RelOptRule
       // no meaning to filter in broker just use cross join (todo)
       return null;
     }
-    if (!(condition instanceof RexCall)) {
-      return null;
-    }
     final String opName = Utils.opName(condition);
-    final List<RexNode> operands = ((RexCall) condition).getOperands();
-    if (operands.size() == 2 && SUPPORTED.contains(opName)) {
-      int[] refs = Utils.getInputRefs(operands);
-      if (refs == null) {
+    if (SUPPORTED.contains(opName)) {
+      final List<RexNode> operands = ((RexCall) condition).getOperands();
+      final int[] refs = Utils.getInputRefs(operands);
+      if (refs == null || refs.length != 2) {
         return null;
       }
       final int shift = left.getRowType().getFieldList().size();

@@ -71,6 +71,9 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
   @Override
   public DruidQuery toDruidQuery(boolean finalizeAggregations)
   {
+    final RowSignature signature = RowSignature.from(source.getRowType());
+    final TypedDummyQuery query = TypedDummyQuery.of(signature, values)
+                                                 .withOverriddenContext(getPlannerContext().copyQueryContext());
     return new DruidQuery()
     {
       @Override
@@ -82,20 +85,19 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
       @Override
       public RowSignature getInputRowSignature()
       {
-        return RowSignature.from(source.getRowType());
+        return signature;
       }
 
       @Override
       public RowSignature getOutputRowSignature()
       {
-        return RowSignature.from(source.getRowType());
+        return signature;
       }
 
       @Override
       public Query getQuery()
       {
-        return TypedDummyQuery.of(RowSignature.from(source.getRowType()), values)
-                              .withOverriddenContext(getPlannerContext().copyQueryContext());
+        return query;
       }
     };
   }

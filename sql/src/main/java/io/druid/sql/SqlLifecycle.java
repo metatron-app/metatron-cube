@@ -30,7 +30,6 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
-import io.druid.query.Query;
 import io.druid.server.QueryLifecycle;
 import io.druid.server.QueryStats;
 import io.druid.server.RequestLogLine;
@@ -38,9 +37,9 @@ import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthenticationResult;
 import io.druid.server.security.AuthorizationUtils;
+import io.druid.server.security.AuthorizerMapper;
 import io.druid.sql.calcite.planner.DruidPlanner;
 import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.planner.PlannerFactory;
 import io.druid.sql.calcite.planner.PlannerResult;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.tools.RelConversionException;
@@ -50,7 +49,6 @@ import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -83,42 +81,40 @@ public class SqlLifecycle
 
   private static final Logger log = new Logger(SqlLifecycle.class);
 
-  private final PlannerFactory plannerFactory;
+  private final String sql;
+  private final BrokerServerView brokerServerView;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
+  private final DruidPlanner planner;
+  private final PlannerContext plannerContext;
+  private final AuthorizerMapper authorizerMapper;
   private final long startMs;
   private final long startNs;
-  private final BrokerServerView brokerServerView;
+
   private final Object lock = new Object();
-
-  private final String sql;
-  private final Map<String, Object> queryContext;
-  private final DruidPlanner planner;
-
   private State state = State.INITIALIZED;
   private PlannerResult plannerResult;
 
   public SqlLifecycle(
-      PlannerFactory plannerFactory,
+      String sql,
+      BrokerServerView brokerServerView,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
+      DruidPlanner planner,
+      AuthorizerMapper authorizerMapper,
       long startMs,
-      long startNs,
-      BrokerServerView brokerServerView,
-      String sql,
-      Map<String, Object> queryContext,
-      AuthenticationResult authenticationResult
+      long startNs
   )
   {
-    this.plannerFactory = plannerFactory;
+    this.sql = Preconditions.checkNotNull(sql);
+    this.brokerServerView = brokerServerView;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
+    this.planner = planner;
+    this.plannerContext = planner.getPlannerContext();
+    this.authorizerMapper = authorizerMapper;
     this.startMs = startMs;
     this.startNs = startNs;
-    this.brokerServerView = brokerServerView;
-    this.sql = Preconditions.checkNotNull(sql);
-    this.planner = plannerFactory.createPlanner(queryContext, authenticationResult);
-    this.queryContext = planner.getPlannerContext().getQueryContext();
   }
 
   public String getSQL()
@@ -126,14 +122,14 @@ public class SqlLifecycle
     return sql;
   }
 
-  public String getQueryId()
-  {
-    return (String) queryContext.get(Query.QUERYID);
-  }
-
   public PlannerContext getPlannerContext()
   {
-    return planner.getPlannerContext();
+    return plannerContext;
+  }
+
+  public String getQueryId()
+  {
+    return plannerContext.getQueryId();
   }
 
   public PlannerResult plan() throws ValidationException, RelConversionException, SqlParseException
@@ -150,10 +146,10 @@ public class SqlLifecycle
   {
     synchronized (lock) {
       transition(State.PLANNED, State.AUTHORIZING);
-      return transition(AuthorizationUtils.authorizeAllResourceActions(
-          planner.getPlannerContext().getAuthenticationResult(),
+      return doAuthorize(AuthorizationUtils.authorizeAllResourceActions(
+          plannerContext.getAuthenticationResult(),
           Iterables.transform(plannerResult.datasourceNames(), AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR),
-          plannerFactory.getAuthorizerMapper()
+          authorizerMapper
       ));
     }
   }
@@ -164,12 +160,18 @@ public class SqlLifecycle
   {
     synchronized (lock) {
       transition(State.PLANNED, State.AUTHORIZING);
-      return transition(AuthorizationUtils.authorizeAllResourceActions(
+      return doAuthorize(AuthorizationUtils.authorizeAllResourceActions(
           req,
           Iterables.transform(plannerResult.datasourceNames(), AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR),
-          plannerFactory.getAuthorizerMapper()
+          authorizerMapper
       ));
     }
+  }
+
+  private Access doAuthorize(final Access authorizationResult)
+  {
+    transition(State.AUTHORIZING, authorizationResult.isAllowed() ? State.AUTHORIZED : State.UNAUTHORIZED);
+    return authorizationResult;
   }
 
   public Sequence<Object[]> execute()
@@ -201,9 +203,10 @@ public class SqlLifecycle
 
       state = State.DONE;
 
-      final boolean success = e == null;
-      final long queryTimeNs = System.nanoTime() - startNs;
+      final boolean success = e == null || plannerContext.isCanceled();
+      final boolean interrupted = QueryLifecycle.isInterrupted(e);
 
+      final long queryTimeNs = System.nanoTime() - startNs;
       try {
         ServiceMetricEvent.Builder metricBuilder = ServiceMetricEvent.builder();
         metricBuilder.setDimension("id", getQueryId());
@@ -212,9 +215,10 @@ public class SqlLifecycle
         }
         metricBuilder.setDimension("remoteAddress", Strings.nullToEmpty(remoteAddress));
         metricBuilder.setDimension("success", String.valueOf(success));
+
         emitter.emit(metricBuilder.build("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs)));
         if (rows >= 0) {
-          emitter.emit(metricBuilder.build("rows", rows));
+          emitter.emit(metricBuilder.build("query/rows", rows));
         }
         if (bytesWritten >= 0) {
           emitter.emit(metricBuilder.build("query/bytes", bytesWritten));
@@ -223,18 +227,17 @@ public class SqlLifecycle
         final Map<String, Object> statsMap = new LinkedHashMap<>();
         statsMap.put("query/time", TimeUnit.NANOSECONDS.toMillis(queryTimeNs));
         statsMap.put("query/bytes", bytesWritten);
-        statsMap.put("rows", rows);
+        statsMap.put("query/rows", rows);
         statsMap.put("success", success);
-        statsMap.put("context", queryContext);
         if (e != null) {
           statsMap.put("exception", e.toString());
-          statsMap.put("interrupted", QueryLifecycle.isInterrupted(e));
+          statsMap.put("interrupted", interrupted);
         }
 
         requestLogger.log(
             new RequestLogLine(
                 DateTimes.utc(startMs),
-                remoteAddress,
+                Strings.nullToEmpty(remoteAddress),
                 sql,
                 new QueryStats(statsMap)
             )
@@ -243,8 +246,8 @@ public class SqlLifecycle
           emitter.emit(
               new QueryEvent(
                   DateTimes.utc(startMs),
-                  Optional.ofNullable(metricBuilder.getDimension("id")).map(Object::toString).orElse(null),
-                  Optional.ofNullable(metricBuilder.getDimension("remoteAddress")).map(Object::toString).orElse(""),
+                  getQueryId(),
+                  Strings.nullToEmpty(remoteAddress),
                   sql,
                   String.valueOf(success)
               ));
@@ -256,23 +259,11 @@ public class SqlLifecycle
     }
   }
 
-  private Access transition(final Access authorizationResult)
-  {
-    if (!authorizationResult.isAllowed()) {
-      // Not authorized; go straight to Jail, do not pass Go.
-      transition(State.AUTHORIZING, State.UNAUTHORIZED);
-    } else {
-      transition(State.AUTHORIZING, State.AUTHORIZED);
-    }
-    return authorizationResult;
-  }
-
   private void transition(final State from, final State to)
   {
     if (state != from) {
       throw new ISE("Cannot transition from[%s] to[%s] because current state[%s] is not [%s].", from, to, state, from);
     }
-
     state = to;
   }
 }

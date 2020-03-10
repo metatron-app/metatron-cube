@@ -118,6 +118,16 @@ public class PlannerContext
     return queryManager;
   }
 
+  public boolean isCanceled()
+  {
+    return queryManager.isCanceled(getQueryId());
+  }
+
+  public String getQueryId()
+  {
+    return (String) queryContext.get(Query.QUERYID);
+  }
+
   public DruidOperatorTable getOperatorTable()
   {
     return operatorTable;

@@ -21,6 +21,7 @@ package io.druid.common;
 
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
+import org.joda.time.Interval;
 
 import java.util.EnumSet;
 import java.util.Iterator;
@@ -193,6 +194,21 @@ public class KeyBuilder
   public KeyBuilder append(Object value)
   {
     return append(Objects.toString(value, null));
+  }
+
+  public KeyBuilder appendIntervals(List<Interval> intervals)
+  {
+    for (Interval interval : intervals) {
+      appendInterval(interval);
+    }
+    return this;
+  }
+
+  public KeyBuilder appendInterval(Interval interval)
+  {
+    output.writeLong(interval.getStartMillis());
+    output.writeLong(interval.getEndMillis());
+    return this;
   }
 
   public KeyBuilder sp()

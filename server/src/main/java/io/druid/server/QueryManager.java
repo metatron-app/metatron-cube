@@ -29,12 +29,12 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.Progressing;
 import io.druid.common.Tagged;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryWatcher;
@@ -72,9 +72,8 @@ public class QueryManager implements QueryWatcher, Runnable
     return true;
   }
 
-  public boolean isCanceled(Query query)
+  public boolean isCanceled(String id)
   {
-    String id = query.getId();
     if (id == null) {
       return false;
     }

@@ -20,7 +20,6 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -47,7 +46,6 @@ import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.ForbiddenException;
-import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
@@ -161,7 +159,6 @@ public class QueryLifecycle
   {
     transition(State.INITIALIZED, State.AUTHORIZING);
     return doAuthorize(
-        authenticationResult,
         AuthorizationUtils.authorizeAllResourceActions(
             authenticationResult,
             Iterables.transform(
@@ -185,11 +182,10 @@ public class QueryLifecycle
   {
     transition(State.INITIALIZED, State.AUTHORIZING);
     return doAuthorize(
-        AuthorizationUtils.authenticationResultFromRequest(req),
         AuthorizationUtils.authorizeAllResourceActions(
             req,
             Iterables.transform(
-                query.getDataSource().getNames(),
+                QueryUtils.getAllDataSources(query),
                 AuthorizationUtils.DATASOURCE_READ_RA_GENERATOR
             ),
             authorizerMapper
@@ -197,17 +193,9 @@ public class QueryLifecycle
     );
   }
 
-  private Access doAuthorize(final AuthenticationResult authenticationResult, final Access authorizationResult)
+  private Access doAuthorize(final Access authorizationResult)
   {
-    Preconditions.checkNotNull(authenticationResult, "authenticationResult");
-    Preconditions.checkNotNull(authorizationResult, "authorizationResult");
-
-    if (!authorizationResult.isAllowed()) {
-      // Not authorized; go straight to Jail, do not pass Go.
-      transition(State.AUTHORIZING, State.UNAUTHORIZED);
-    } else {
-      transition(State.AUTHORIZING, State.AUTHORIZED);
-    }
+    transition(State.AUTHORIZING, authorizationResult.isAllowed() ? State.AUTHORIZED : State.UNAUTHORIZED);
     return authorizationResult;
   }
 
@@ -245,7 +233,7 @@ public class QueryLifecycle
     }
     state = State.DONE;
 
-    final boolean success = e == null || queryManager.isCanceled(query);
+    final boolean success = e == null || queryManager.isCanceled(query.getId());
     final boolean interrupted = isInterrupted(e);
 
     if (success) {
@@ -262,8 +250,8 @@ public class QueryLifecycle
       );
     }
 
+    final long queryTimeNs = System.nanoTime() - startNs;
     try {
-      final long queryTimeNs = System.nanoTime() - startNs;
       QueryMetrics metrics = DruidMetrics.makeRequestMetrics(
           metricsFactory,
           toolChest,
@@ -294,7 +282,7 @@ public class QueryLifecycle
 
       requestLogger.log(
           new RequestLogLine(
-              new DateTime(startMs),
+              DateTimes.utc(startMs),
               Strings.nullToEmpty(remoteAddress),
               forLog,
               new QueryStats(statsMap)

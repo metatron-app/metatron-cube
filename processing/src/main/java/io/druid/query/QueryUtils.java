@@ -28,6 +28,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
@@ -61,10 +62,12 @@ import io.druid.segment.VirtualColumns;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -206,6 +209,29 @@ public class QueryUtils
         };
       }
     };
+  }
+
+  public static List<String> getAllDataSources(final Query query)
+  {
+    final Set<String> dataSources = Sets.newHashSet();
+    Queries.iterate(
+        query, new IdentityFunction<Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (input.getDataSource() instanceof TableDataSource) {
+              dataSources.add(((TableDataSource) input.getDataSource()).getName());
+            } else if (input.getDataSource() instanceof ViewDataSource) {
+              dataSources.add(((ViewDataSource) input.getDataSource()).getName());
+            }
+            return input;
+          }
+        }
+    );
+    String[] array = dataSources.toArray(new String[0]);
+    Arrays.sort(array);
+    return Arrays.asList(array);
   }
 
   public static Query setQueryId(final Query query, final String queryId)

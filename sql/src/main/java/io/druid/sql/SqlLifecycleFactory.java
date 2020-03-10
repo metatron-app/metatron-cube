@@ -68,15 +68,14 @@ public class SqlLifecycleFactory
   public SqlLifecycle factorize(String sql, Map<String, Object> context, AuthenticationResult authenticationResult)
   {
     return new SqlLifecycle(
-        plannerFactory,
+        sql,
+        brokerServerView,
         emitter,
         requestLogger,
+        plannerFactory.createPlanner(context, authenticationResult),
+        plannerFactory.getAuthorizerMapper(),
         System.currentTimeMillis(),
-        System.nanoTime(),
-        brokerServerView,
-        sql,
-        context,
-        authenticationResult
+        System.nanoTime()
     );
   }
 }

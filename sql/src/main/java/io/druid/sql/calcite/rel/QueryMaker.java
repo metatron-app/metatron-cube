@@ -22,7 +22,10 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
+import io.druid.common.KeyBuilder;
+import io.druid.common.guava.ByteArray;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
@@ -75,6 +78,8 @@ public class QueryMaker
   private final QueryConfig queryConfig;
   private final ObjectMapper jsonMapper;
 
+  private final Map<ByteArray, Long> cardinalityCache = Maps.newHashMap();
+
   public QueryMaker(
       final QueryLifecycleFactory lifecycleFactory,
       final QuerySegmentWalker segmentWalker,
@@ -103,11 +108,6 @@ public class QueryMaker
   public QuerySegmentWalker getSegmentWalker()
   {
     return segmentWalker;
-  }
-
-  public QueryConfig getQueryConfig()
-  {
-    return queryConfig;
   }
 
   public Sequence<Object[]> prepareAndRun(final DruidQuery druidQuery)
@@ -414,5 +414,20 @@ public class QueryMaker
         }
       }
     };
+  }
+
+  public long estimateCardinality(final BaseAggregationQuery query)
+  {
+    final byte[] key = KeyBuilder.get()
+                                 .appendIntervals(query.getIntervals())
+                                 .append(query.getGranularity())
+                                 .append(query.getFilter())
+                                 .append(query.getVirtualColumns())
+                                 .append(query.getDimensions())
+                                 .append(query.getGroupingSets())
+                                 .build();
+    return cardinalityCache.computeIfAbsent(
+        ByteArray.wrap(key), k -> Queries.estimateCardinality(query, segmentWalker, queryConfig)
+    );
   }
 }

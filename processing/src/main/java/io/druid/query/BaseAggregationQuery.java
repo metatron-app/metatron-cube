@@ -46,6 +46,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
@@ -176,6 +177,11 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public LateralViewSpec getLateralView()
   {
     return lateralView;
+  }
+
+  public GroupingSetSpec getGroupingSets()
+  {
+    return null;
   }
 
   public abstract BaseAggregationQuery withGranularity(Granularity granularity);

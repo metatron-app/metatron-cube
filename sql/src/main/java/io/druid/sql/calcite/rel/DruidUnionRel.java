@@ -118,6 +118,8 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
     }
     final RelDataType dataType = dataType0;
     final RowSignature signature = signature0;
+    final Query query = UnionAllQuery.union(queries, limit)
+                                     .withOverriddenContext(getPlannerContext().copyQueryContext());
     return new DruidQuery()
     {
       @Override
@@ -135,8 +137,7 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
       @Override
       public Query getQuery()
       {
-        return UnionAllQuery.union(queries, limit)
-                            .withOverriddenContext(getPlannerContext().copyQueryContext());
+        return query;
       }
     };
   }
