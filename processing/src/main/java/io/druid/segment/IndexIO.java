@@ -53,6 +53,7 @@ import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnPartProvider.DictionarySupport;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
@@ -675,8 +676,7 @@ public class IndexIO
                 bitmaps = GenericIndexed.fromIterable(
                     Iterables.concat(
                         Arrays.asList(
-                            bitmapFactory
-                                .union(Arrays.asList(theNullSet, bitmaps.get(0)))
+                            DimFilters.union(bitmapFactory, Arrays.asList(theNullSet, bitmaps.get(0)))
                         ),
                         Iterables.skip(bitmaps, 1)
                     ),

@@ -182,9 +182,9 @@ public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.Boole
   public String toString()
   {
     if (extractionFn != null) {
-      return String.format("%s(%s) = %s", extractionFn, dimension, value);
+      return String.format("%s(%s) = %s", extractionFn, dimension, Strings.emptyToNull(value));
     } else {
-      return String.format("%s = %s", dimension, value);
+      return String.format("%s = %s", dimension, Strings.emptyToNull(value));
     }
   }
 

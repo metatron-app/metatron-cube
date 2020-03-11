@@ -35,6 +35,7 @@ import io.druid.math.expr.ExprEval;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -86,7 +87,8 @@ public class InFilter implements Filter
         "extractionFn requires bitmap index"
     );
     if (extractionFn == null) {
-      return selector.getBitmapFactory().union(
+      return DimFilters.union(
+          selector.getBitmapFactory(),
           Iterables.transform(
               values, new Function<String, ImmutableBitmap>()
               {

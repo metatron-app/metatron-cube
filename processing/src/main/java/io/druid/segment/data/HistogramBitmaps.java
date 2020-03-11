@@ -35,6 +35,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.Ranges;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.HistogramBitmap;
@@ -274,7 +275,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
     if (from == to) {
       return bins[from];
     }
-    return factory.union(Arrays.asList(bins).subList(from, to + 1));
+    return DimFilters.union(factory, Arrays.asList(bins).subList(from, to + 1));
   }
 
   @Override

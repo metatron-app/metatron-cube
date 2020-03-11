@@ -161,7 +161,7 @@ public class DimFilters
           remainings.add(child);
         }
       }
-      ImmutableBitmap extracted = bitmaps.isEmpty() ? null : context.bitmapFactory().intersection(bitmaps);
+      ImmutableBitmap extracted = bitmaps.isEmpty() ? null : intersection(context.bitmapFactory(), bitmaps);
       return Pair.<ImmutableBitmap, DimFilter>of(extracted, and(remainings));
     } else {
       Filters.BitmapHolder holder = Filters.toBitmapHolder(current, context);
@@ -361,11 +361,26 @@ public class DimFilters
 
   public static ImmutableBitmap makeTrue(BitmapFactory factory, int numRows)
   {
-    return factory.complement(factory.makeEmptyImmutableBitmap(), numRows);
+    return DimFilters.complement(factory, factory.makeEmptyImmutableBitmap(), numRows);
   }
 
   public static ImmutableBitmap makeFalse(BitmapFactory factory)
   {
     return factory.makeEmptyImmutableBitmap();
+  }
+
+  public static ImmutableBitmap union(BitmapFactory factory, Iterable<ImmutableBitmap> bitmaps)
+  {
+    return factory.union(bitmaps);
+  }
+
+  public static ImmutableBitmap intersection(BitmapFactory factory, Iterable<ImmutableBitmap> bitmaps)
+  {
+    return factory.intersection(bitmaps);
+  }
+
+  public static ImmutableBitmap complement(BitmapFactory factory, ImmutableBitmap bitmap, int length)
+  {
+    return factory.complement(bitmap, length);
   }
 }

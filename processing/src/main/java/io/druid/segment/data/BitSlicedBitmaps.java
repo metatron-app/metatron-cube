@@ -32,6 +32,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.Ranges;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -198,7 +199,7 @@ public class BitSlicedBitmaps
         final int normalized = BitSlicer.normalize(query.upperEndpoint());
         bitmaps.add(_lt(normalized, query.upperBoundType() == BoundType.CLOSED, baseBitmap));
       }
-      return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
+      return DimFilters.intersection(factory, bitmaps);
     }
   }
 
@@ -229,7 +230,7 @@ public class BitSlicedBitmaps
         final long normalized = BitSlicer.normalize(query.upperEndpoint());
         bitmaps.add(_lt(normalized, query.upperBoundType() == BoundType.CLOSED, baseBitmap));
       }
-      return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
+      return DimFilters.intersection(factory, bitmaps);
     }
   }
 
@@ -258,7 +259,7 @@ public class BitSlicedBitmaps
         final long normalized = BitSlicer.normalize(query.upperEndpoint());
         bitmaps.add(_lt(normalized, query.upperBoundType() == BoundType.CLOSED, baseBitmap));
       }
-      return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
+      return DimFilters.intersection(factory, bitmaps);
     }
   }
 

@@ -28,7 +28,6 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
@@ -110,7 +109,8 @@ public class BoundFilter implements Filter
     final int startIndex = range[0];
     final int endIndex = range[1];
 
-    return factory.union(
+    return DimFilters.union(
+        factory,
         new Iterable<ImmutableBitmap>()
         {
           @Override

@@ -32,6 +32,7 @@ import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.column.BitmapIndex;
 
 import java.util.Arrays;
@@ -177,7 +178,7 @@ public interface SketchHandler<U>
       if (function == null) {
         for (int i = 0; i < cardinality; ++i) {
           List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
-          ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
+          ImmutableBitmap bitmap = DimFilters.intersection(selector.getBitmapFactory(), intersecting);
           if (!bitmap.isEmpty()) {
             union.value().update(bitmapIndex.getValueAsRaw(i));
           }
@@ -185,7 +186,7 @@ public interface SketchHandler<U>
       } else {
         for (int i = 0; i < cardinality; ++i) {
           List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
-          ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
+          ImmutableBitmap bitmap = DimFilters.intersection(selector.getBitmapFactory(), intersecting);
           if (!bitmap.isEmpty()) {
             union.value().update(function.apply(bitmapIndex.getValue(i)));
           }
@@ -282,7 +283,7 @@ public interface SketchHandler<U>
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
         final List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
-        final ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
+        final ImmutableBitmap bitmap = DimFilters.intersection(selector.getBitmapFactory(), intersecting);
         if (!bitmap.isEmpty()) {
           final String value = extraction.apply(bitmapIndex.getValue(i));
           update(union, value, bitmap.size());

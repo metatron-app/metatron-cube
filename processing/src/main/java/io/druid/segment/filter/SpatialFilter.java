@@ -23,6 +23,7 @@ import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.search.Bound;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -51,8 +52,9 @@ public class SpatialFilter implements Filter
   @Override
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
-    Iterable<ImmutableBitmap> search = selector.getSpatialIndex(dimension).search(bound);
-    return selector.getBitmapFactory().union(search);
+    return DimFilters.union(
+        selector.getBitmapFactory(), selector.getSpatialIndex(dimension).search(bound)
+    );
   }
 
   @Override

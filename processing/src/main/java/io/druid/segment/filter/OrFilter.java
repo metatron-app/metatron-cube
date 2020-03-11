@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -67,7 +68,7 @@ public class OrFilter implements Filter, Expression.OrExpression
       }
       bitmaps.add(valueBitmap);
     }
-    return selector.getBitmapFactory().union(bitmaps);
+    return DimFilters.union(selector.getBitmapFactory(), bitmaps);
   }
 
   @Override
@@ -86,7 +87,7 @@ public class OrFilter implements Filter, Expression.OrExpression
       bitmaps.add(bitmap);
     }
 
-    return selector.getBitmapFactory().union(bitmaps);
+    return DimFilters.union(selector.getBitmapFactory(), bitmaps);
   }
 
   @Override

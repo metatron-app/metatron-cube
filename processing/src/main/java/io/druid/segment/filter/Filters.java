@@ -378,7 +378,8 @@ public class Filters
 
     // Apply predicate to all dimension values and union the matching bitmaps
     final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
-    return selector.getBitmapFactory().union(
+    return DimFilters.union(
+        selector.getBitmapFactory(),
         new Iterable<ImmutableBitmap>()
         {
           @Override
@@ -548,21 +549,6 @@ public class Filters
       return factory;
     }
 
-    public ImmutableBitmap intersection(List<ImmutableBitmap> bitmaps)
-    {
-      return factory.intersection(bitmaps);
-    }
-
-    public ImmutableBitmap union(List<ImmutableBitmap> bitmaps)
-    {
-      return factory.union(bitmaps);
-    }
-
-    public ImmutableBitmap not(ImmutableBitmap bitmaps)
-    {
-      return factory.complement(bitmaps, getNumRows());
-    }
-
     public void setBaseBitmap(ImmutableBitmap baseBitmap)
     {
       this.baseBitmap = baseBitmap;
@@ -570,7 +556,9 @@ public class Filters
 
     public void andBaseBitmap(ImmutableBitmap newBaseBitmap)
     {
-      baseBitmap = baseBitmap == null ? newBaseBitmap : factory.intersection(Arrays.asList(baseBitmap, newBaseBitmap));
+      baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(
+          factory, Arrays.asList(baseBitmap, newBaseBitmap)
+      );
     }
 
     public int getNumRows()
@@ -625,11 +613,12 @@ public class Filters
       if (!bitmaps.isEmpty()) {
         // concise returns 1,040,187,360. roaring returns 0. makes wrong result anyway
         if (dimFilter instanceof AndDimFilter) {
-          return new BitmapHolder(exact, context.intersection(bitmaps));
+          return new BitmapHolder(exact, DimFilters.intersection(context.factory, bitmaps));
         } else if (dimFilter instanceof OrDimFilter) {
-          return new BitmapHolder(exact, context.union(bitmaps));
+          return new BitmapHolder(exact, DimFilters.union(context.factory, bitmaps));
         } else {
-          return new BitmapHolder(exact, context.not(Iterables.getOnlyElement(bitmaps)));
+          final ImmutableBitmap bitmap = Iterables.getOnlyElement(bitmaps);
+          return new BitmapHolder(exact, DimFilters.complement(context.factory, bitmap, context.getNumRows()));
         }
       }
     } else {
@@ -684,7 +673,7 @@ public class Filters
       for (Range range : ((DimFilter.RangeFilter) filter).toRanges(asTypeResolver(selector))) {
         bitmaps.add(index.filterFor(range, context.baseBitmap));
       }
-      ImmutableBitmap bitmap = context.union(bitmaps);
+      ImmutableBitmap bitmap = DimFilters.intersection(context.factory, bitmaps);
       return index.isExact() ? BitmapHolder.exact(bitmap) : BitmapHolder.notExact(bitmap);
     }
     return null;
@@ -700,7 +689,7 @@ public class Filters
           bitmaps.add(extracted);
         }
       }
-      return bitmaps.isEmpty() ? null : context.intersection(bitmaps);
+      return bitmaps.isEmpty() ? null : DimFilters.intersection(context.factory, bitmaps);
     } else if (expr instanceof OrExpression) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((OrExpression) expr).getChildren()) {
@@ -710,7 +699,7 @@ public class Filters
         }
         bitmaps.add(extracted);
       }
-      return bitmaps.isEmpty() ? null : context.union(bitmaps);
+      return DimFilters.union(context.factory, bitmaps);
     } else if (expr instanceof NotExpression) {
       return toExprBitmap(((NotExpression) expr).getChild(), context, !withNot);
     } else {
@@ -760,7 +749,7 @@ public class Filters
         // traverse all possible values
         ImmutableBitmap bitmap = ofExpr((Expr) expr).getBitmapIndex(selector, context.baseBitmap);
         if (bitmap != null && withNot) {
-          bitmap = context.not(bitmap);
+          bitmap = DimFilters.complement(context.factory, bitmap, context.getNumRows());
         }
         return bitmap;
       }
@@ -821,10 +810,7 @@ public class Filters
             }
           }
         }
-        if (!bitmaps.isEmpty()) {
-          return selector.getBitmapFactory().union(bitmaps);
-        }
-        return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+        return DimFilters.union(selector.getBitmapFactory(), bitmaps);
       }
 
       @Override
@@ -906,7 +892,8 @@ public class Filters
                  null;
         case "==":
           if (withNot) {
-            return factory.union(
+            return DimFilters.union(
+                factory,
                 Arrays.asList(
                     metric instanceof SecondaryIndex.WithRange ?
                     metric.filterFor(Range.lessThan(constant), baseBitmap) :
@@ -946,7 +933,8 @@ public class Filters
           value2 = x;
         }
         if (withNot) {
-          return factory.union(
+          return DimFilters.union(
+              factory,
               Arrays.asList(
                   metric instanceof SecondaryIndex.WithRange ?
                   metric.filterFor(Range.lessThan(value1), baseBitmap) :
@@ -979,12 +967,12 @@ public class Filters
               null
           );
         }
-        return bitmaps.isEmpty() ? null : factory.union(bitmaps);
+        return DimFilters.union(factory, bitmaps);
       case "isNull":
         if (metric instanceof SecondaryIndex.SupportNull) {
           ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(baseBitmap);
           if (withNot) {
-            bitmap = context.not(bitmap);
+            bitmap = DimFilters.complement(context.factory, bitmap, context.getNumRows());
           }
           return bitmap;
         }
@@ -993,7 +981,7 @@ public class Filters
         if (metric instanceof SecondaryIndex.SupportNull) {
           ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(baseBitmap);
           if (!withNot) {
-            bitmap = context.not(bitmap);
+            bitmap = DimFilters.complement(context.factory, bitmap, context.getNumRows());
           }
           return bitmap;
         }

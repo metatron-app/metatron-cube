@@ -160,12 +160,14 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
       }
       ImmutableBitmap values = ((BooleanGenericColumn) genericColumn).getValues();
       if (!value) {
-        values = bitmapFactory.complement(values, numRows);
+        values = DimFilters.complement(bitmapFactory, values, numRows);
       }
       if (nulls.isEmpty()) {
         return values;
       }
-      return bitmapFactory.intersection(Arrays.asList(bitmapFactory.complement(nulls, numRows), values));
+      return DimFilters.intersection(
+          bitmapFactory, Arrays.asList(DimFilters.complement(bitmapFactory, nulls, numRows), values)
+      );
     }
     return null;
   }

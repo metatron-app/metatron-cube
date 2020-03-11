@@ -23,13 +23,13 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
-import io.druid.data.Rows;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.data.Pair;
+import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -312,10 +312,11 @@ public class Evals
 
   public static boolean isLeafFunction(Expr expr, String column)
   {
-    if (!(expr instanceof FunctionExpr)) {
+    if (!(expr instanceof Expression.FuncExpression)) {
       return false;
     }
-    for (Expr param : ((FunctionExpr) expr).getChildren()) {
+    for (Expression child : ((Expression.FuncExpression) expr).getChildren()) {
+      Expr param = (Expr) child;
       if (!isConstant(param) && !(isIdentifier(param) && column.equals(param.toString()))) {
         return false;
       }

@@ -22,6 +22,7 @@ package io.druid.segment.filter;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -55,7 +56,7 @@ public class NotFilter implements Filter, Expression.NotExpression
   {
     ImmutableBitmap valueMap = baseFilter.getValueBitmap(selector);
     if (valueMap != null) {
-      return selector.getBitmapFactory().complement(valueMap, selector.getNumRows());
+      return DimFilters.complement(selector.getBitmapFactory(), valueMap, selector.getNumRows());
     }
     return null;
   }
@@ -64,7 +65,7 @@ public class NotFilter implements Filter, Expression.NotExpression
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
     ImmutableBitmap bitmap = baseFilter.getBitmapIndex(selector, baseBitmap);
-    return bitmap == null ? null : selector.getBitmapFactory().complement(bitmap, selector.getNumRows());
+    return bitmap == null ? null : DimFilters.complement(selector.getBitmapFactory(), bitmap, selector.getNumRows());
   }
 
   @Override
