@@ -22,7 +22,6 @@ import com.metamx.collections.bitmap.WrappedImmutableBitSetBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import org.roaringbitmap.IntIterator;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 import org.roaringbitmap.buffer.MutableRoaringArray;
@@ -178,7 +177,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     final MutableRoaringArray roaringArray = mutable.getMappeableRoaringArray();
 
     short current_hb = 0;
-    final IntArrayList values = new IntArrayList();
+    final BitSet values = new BitSet(0xFFFF);
     for (int x = iterator.next(); x >= 0; x = iterator.next()) {
       final short hb = RoaringUtils.highbits(x);
       if (hb != current_hb && !values.isEmpty()) {
@@ -186,7 +185,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
         values.clear();
       }
       current_hb = hb;
-      values.add(x);
+      values.set(x & 0xFFFF);
     }
     if (!values.isEmpty()) {
       RoaringUtils.addContainer(roaringArray, current_hb, values);

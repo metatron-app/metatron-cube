@@ -16,10 +16,11 @@
 
 package org.roaringbitmap.buffer;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntListIterator;
+import com.metamx.collections.bitmap.WrappedImmutableBitSetBitmap;
+import org.roaringbitmap.IntIterator;
 
 import java.nio.ShortBuffer;
+import java.util.BitSet;
 
 // mostly for avoiding package local constrict of some methods
 public class RoaringUtils
@@ -39,26 +40,27 @@ public class RoaringUtils
     return bitmap.highLowContainer.size();
   }
 
-  public static void addContainer(MutableRoaringArray array, short key, IntArrayList values)
+  public static void addContainer(MutableRoaringArray array, short key, BitSet values)
   {
     array.append(key, container(values));
   }
 
-  private static MappeableContainer container(IntArrayList values)
+  private static MappeableContainer container(BitSet bitSet)
   {
-    if (values.size() < MappeableArrayContainer.DEFAULT_MAX_SIZE) {
-      final ShortBuffer buffer = ShortBuffer.allocate(values.size());
-      final IntListIterator iterator = values.iterator();
+    final int cardinality = bitSet.cardinality();
+    if (cardinality < MappeableArrayContainer.DEFAULT_MAX_SIZE) {
+      final ShortBuffer buffer = ShortBuffer.allocate(cardinality);
+      final IntIterator iterator = new WrappedImmutableBitSetBitmap(bitSet).iterator();
       while (iterator.hasNext()) {
-        buffer.put(lowbits(iterator.nextInt()));
+        buffer.put(lowbits(iterator.next()));
       }
-      return new MappeableArrayContainer(buffer, values.size());
+      return new MappeableArrayContainer(buffer, cardinality);
     } else {
       final MappeableBitmapContainer container = new MappeableBitmapContainer();
-      final IntListIterator iterator = values.iterator();
-      while (iterator.hasNext()) {
-        container.add(lowbits(iterator.nextInt()));
+      for (long word : bitSet.toLongArray()) {
+        container.bitmap.put(word);
       }
+      container.cardinality = cardinality;
       return container;
     }
   }
