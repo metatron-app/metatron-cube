@@ -28,6 +28,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.WrappedConciseBitmap;
+import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Pair;
@@ -41,6 +43,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.bitmap.WrappedBitSetBitmap;
 import io.druid.segment.filter.Filters;
 
 import javax.annotation.Nullable;
@@ -369,9 +372,19 @@ public class DimFilters
     return factory.makeEmptyImmutableBitmap();
   }
 
+  public static ImmutableBitmap union(BitmapFactory factory, ImmutableBitmap... bitmaps)
+  {
+    return factory.union(Arrays.asList(bitmaps));
+  }
+
   public static ImmutableBitmap union(BitmapFactory factory, Iterable<ImmutableBitmap> bitmaps)
   {
     return factory.union(bitmaps);
+  }
+
+  public static ImmutableBitmap intersection(BitmapFactory factory, ImmutableBitmap... bitmaps)
+  {
+    return factory.intersection(Arrays.asList(bitmaps));
   }
 
   public static ImmutableBitmap intersection(BitmapFactory factory, Iterable<ImmutableBitmap> bitmaps)
@@ -382,5 +395,34 @@ public class DimFilters
   public static ImmutableBitmap complement(BitmapFactory factory, ImmutableBitmap bitmap, int length)
   {
     return factory.complement(bitmap, length);
+  }
+
+  public static ImmutableBitmap difference(
+      BitmapFactory factory,
+      ImmutableBitmap bitmap1,
+      ImmutableBitmap bitmap2,
+      int length
+  )
+  {
+    if (bitmap1.isEmpty() || bitmap2.isEmpty()) {
+      return bitmap1;
+    } else {
+      return intersection(factory, bitmap1, complement(factory, bitmap2, length));
+    }
+  }
+
+  private static int lastOf(ImmutableBitmap bitmap, int limit)
+  {
+    if (bitmap.isEmpty()) {
+      return -1;
+    }
+    if (bitmap instanceof WrappedImmutableRoaringBitmap) {
+      return ((WrappedImmutableRoaringBitmap) bitmap).getBitmap().getReverseIntIterator().next();
+    } else if (bitmap instanceof WrappedBitSetBitmap) {
+      return ((WrappedBitSetBitmap) bitmap).bitset().previousSetBit(limit);
+    } else if (bitmap instanceof WrappedConciseBitmap) {
+//      return ((WrappedConciseBitmap)bitmap).getBitmap().last();
+    }
+    return limit;
   }
 }

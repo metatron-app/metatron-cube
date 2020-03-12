@@ -22,6 +22,7 @@ import com.metamx.collections.bitmap.WrappedImmutableBitSetBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.java.util.common.logger.Logger;
 import org.roaringbitmap.IntIterator;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 import org.roaringbitmap.buffer.MutableRoaringArray;
@@ -37,6 +38,8 @@ import java.util.Iterator;
 // simply using bitset and return back to roaring bitmap out-performs in the most of real use-cases (it's worse in single threaded micro test)
 public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.RoaringBitmapFactory
 {
+  private static final Logger LOG = new Logger(RoaringBitmapFactory.class);
+
   public RoaringBitmapFactory()
   {
     super();
@@ -113,8 +116,8 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     return finalize(bitSet);
   }
 
-  @Override
-  public ImmutableBitmap intersection(Iterable<ImmutableBitmap> bitmaps)
+  // seemed not effective for small number of large bitmaps
+  public ImmutableBitmap _intersection(Iterable<ImmutableBitmap> bitmaps)
   {
     final Iterator<ImmutableBitmap> iterator = bitmaps.iterator();
     if (!iterator.hasNext()) {

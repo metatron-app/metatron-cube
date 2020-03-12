@@ -34,23 +34,51 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
   private final GenericIndexed<ImmutableBitmap> bitmaps;
   private final ColumnPartProvider<Dictionary<String>> provider;
 
+  private final int[] cumulativeThresholds;
+  private final GenericIndexed<ImmutableBitmap> cumulativeBitmaps;
+
   public BitmapIndexColumnPartSupplier(
       BitmapFactory bitmapFactory,
       GenericIndexed<ImmutableBitmap> bitmaps,
       ColumnPartProvider<Dictionary<String>> provider
   )
   {
+    this(bitmapFactory, bitmaps, provider, null, null);
+  }
+
+  public BitmapIndexColumnPartSupplier(
+      BitmapFactory bitmapFactory,
+      GenericIndexed<ImmutableBitmap> bitmaps,
+      ColumnPartProvider<Dictionary<String>> provider,
+      int[] cumulativeThresholds,
+      GenericIndexed<ImmutableBitmap> cumulativeBitmaps
+  )
+  {
     this.bitmapFactory = bitmapFactory;
     this.bitmaps = bitmaps;
     this.provider = provider;
+    this.cumulativeThresholds = cumulativeThresholds;
+    this.cumulativeBitmaps = cumulativeBitmaps;
   }
 
   @Override
   public BitmapIndex get()
   {
     final Dictionary<String> dictionary = provider.get();
-    return new BitmapIndex()
+    return new BitmapIndex.CumulativeSupport()
     {
+      @Override
+      public int[] thresholds()
+      {
+        return cumulativeThresholds;
+      }
+
+      @Override
+      public ImmutableBitmap getCumultive(int idx)
+      {
+        return getImmutableBitmap(cumulativeBitmaps, idx);
+      }
+
       @Override
       public int getCardinality()
       {
@@ -91,10 +119,14 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
       @Override
       public ImmutableBitmap getBitmap(int idx)
       {
+        return getImmutableBitmap(bitmaps, idx);
+      }
+
+      private ImmutableBitmap getImmutableBitmap(GenericIndexed<ImmutableBitmap> bitmaps, int idx)
+      {
         if (idx < 0) {
           return bitmapFactory.makeEmptyImmutableBitmap();
         }
-
         final ImmutableBitmap bitmap = bitmaps.get(idx);
         return bitmap == null ? bitmapFactory.makeEmptyImmutableBitmap() : bitmap;
       }

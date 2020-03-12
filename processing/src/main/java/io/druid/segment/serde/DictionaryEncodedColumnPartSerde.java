@@ -33,12 +33,14 @@ import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizeIndexedSupplier;
 import io.druid.segment.CompressedVSizeIndexedV3Supplier;
+import io.druid.segment.VLongUtils;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
+import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.DictionarySketch;
 import io.druid.segment.data.GenericIndexed;
@@ -90,7 +92,10 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     MULTI_VALUE,
     MULTI_VALUE_V3,
     NO_DICTIONARY,
-    DICTIONARY_SKETCH;
+    DICTIONARY_SKETCH,
+    CUMULATIVE_BITMAPS,
+    SPATIAL_INDEX     // technically, it's not backward compatible with index v8 but who cares?
+    ;
 
     public static boolean hasAny(int flags, Feature... features)
     {
@@ -197,12 +202,22 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     public SerializerBuilder withBitmapIndex(ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter)
     {
       this.bitmapIndexWriter = bitmapIndexWriter;
+      if (bitmapIndexWriter instanceof CumulativeBitmapWriter) {
+        flags |= Feature.CUMULATIVE_BITMAPS.getMask();
+      } else {
+        flags &= ~Feature.CUMULATIVE_BITMAPS.getMask();
+      }
       return this;
     }
 
     public SerializerBuilder withSpatialIndex(ColumnPartWriter<ImmutableRTree> spatialIndexWriter)
     {
       this.spatialIndexWriter = spatialIndexWriter;
+      if (spatialIndexWriter != null) {
+        flags |= Feature.SPATIAL_INDEX.getMask();
+      } else {
+        flags &= ~Feature.SPATIAL_INDEX.getMask();
+      }
       return this;
     }
 
@@ -341,6 +356,11 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     public LegacySerializerBuilder withSpatialIndex(ImmutableRTree spatialIndex)
     {
       this.spatialIndex = spatialIndex;
+      if (spatialIndex != null) {
+        flags |= Feature.SPATIAL_INDEX.getMask();
+      } else {
+        flags &= ~Feature.SPATIAL_INDEX.getMask();
+      }
       return this;
     }
 
@@ -524,18 +544,30 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                    )
                );
 
-        final GenericIndexed<ImmutableBitmap> rBitmaps = GenericIndexed.read(
-            buffer, bitmapSerdeFactory.getObjectStrategy()
-        );
+        ObjectStrategy<ImmutableBitmap> strategy = bitmapSerdeFactory.getObjectStrategy();
+        GenericIndexed<ImmutableBitmap> rBitmaps = GenericIndexed.read(buffer, strategy);
+
+        int[] cumulativeThresholds = null;
+        GenericIndexed<ImmutableBitmap> cumulativeBitmaps = null;
+        if (Feature.isSet(rFlags, Feature.CUMULATIVE_BITMAPS)) {
+          cumulativeThresholds = new int[VLongUtils.readVInt(buffer)];
+          for (int i = 0; i < cumulativeThresholds.length; i++) {
+            cumulativeThresholds[i] = VLongUtils.readVInt(buffer);
+          }
+          cumulativeBitmaps = GenericIndexed.read(buffer, strategy);
+        }
+
         builder.setBitmapIndex(
             new BitmapIndexColumnPartSupplier(
                 bitmapSerdeFactory.getBitmapFactory(),
                 rBitmaps,
-                rDictionary
+                rDictionary,
+                cumulativeThresholds,
+                cumulativeBitmaps
             )
         );
 
-        if (buffer.hasRemaining()) {
+        if (Feature.isSet(rFlags, Feature.SPATIAL_INDEX)) {
           ImmutableRTree rSpatialIndex = ByteBufferSerializer.read(
               buffer, new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory())
           );

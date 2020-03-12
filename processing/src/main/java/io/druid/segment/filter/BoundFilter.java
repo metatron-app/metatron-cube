@@ -28,6 +28,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
@@ -36,12 +37,16 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.BitmapIndex.CumulativeSupport;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 
 public class BoundFilter implements Filter
 {
+  private static final Logger LOG = new Logger(BoundFilter.class);
+
   private final BoundDimFilter boundDimFilter;
 
   public BoundFilter(final BoundDimFilter boundDimFilter)
@@ -97,20 +102,26 @@ public class BoundFilter implements Filter
     final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
     final int[] range = toRange(bitmapIndex);
 
-    final BitmapFactory factory = selector.getBitmapFactory();
     if (range == ALL) {
-      return DimFilters.makeTrue(factory, selector.getNumRows());
+      return DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
     } else if (range == NONE) {
-      return DimFilters.makeFalse(factory);
+      return DimFilters.makeFalse(selector.getBitmapFactory());
     }
 
-    // search for start, end indexes in the bitmaps; then include all bitmaps between those points
+    if (bitmapIndex instanceof CumulativeSupport) {
+      final ImmutableBitmap bitmap = tryWithCumulative((CumulativeSupport) bitmapIndex, range, selector.getNumRows());
+      if (bitmap != null) {
+        return bitmap;
+      }
+    }
+    return unionOfRange(bitmapIndex, range[0], range[1]);
+  }
 
-    final int startIndex = range[0];
-    final int endIndex = range[1];
-
+  // search for start, end indexes in the bitmaps; then include all bitmaps between those points
+  private static ImmutableBitmap unionOfRange(final BitmapIndex bitmapIndex, final int from, final int to)
+  {
     return DimFilters.union(
-        factory,
+        bitmapIndex.getBitmapFactory(),
         new Iterable<ImmutableBitmap>()
         {
           @Override
@@ -118,12 +129,12 @@ public class BoundFilter implements Filter
           {
             return new Iterator<ImmutableBitmap>()
             {
-              int currIndex = startIndex;
+              int currIndex = from;
 
               @Override
               public boolean hasNext()
               {
-                return currIndex < endIndex;
+                return currIndex < to;
               }
 
               @Override
@@ -182,6 +193,55 @@ public class BoundFilter implements Filter
       }
     }
     return new int[]{startIndex, endIndex};
+  }
+
+  private static ImmutableBitmap tryWithCumulative(CumulativeSupport bitmap, int[] range, int numRows)
+  {
+    final int[] thresholds = bitmap.thresholds();
+    if (thresholds == null || range[1] - range[0] <= thresholds[0] / 2) {
+      return null;    // better to use iteration
+    }
+    final BitmapFactory factory = bitmap.getBitmapFactory();
+
+    final ImmutableBitmap end;
+    if (range[1] < bitmap.getCardinality()) {
+      end = getBitmapUpto(bitmap, range[1], numRows);
+    } else {
+      end = DimFilters.makeTrue(factory, numRows);
+    }
+    if (range[0] == 0) {
+      return end;
+    }
+    ImmutableBitmap start = getBitmapUpto(bitmap, range[0], numRows);
+    return DimFilters.difference(factory, end, start, numRows);
+  }
+
+  private static ImmutableBitmap getBitmapUpto(CumulativeSupport bitmap, int index, int numRows)
+  {
+    final int[] thresholds = bitmap.thresholds();
+    final BitmapFactory factory = bitmap.getBitmapFactory();
+
+    int ix = Arrays.binarySearch(thresholds, index);
+    if (ix < 0) {
+      ix = -ix - 1;
+      final int floorIx = ix == 0 ? 0 : thresholds[ix - 1];
+      final int ceilIx = ix == thresholds.length ? bitmap.getCardinality() : thresholds[ix];
+      if (index - floorIx > ceilIx - index) {
+        // ceil - union(endIndex .. thresholds[index])
+        final ImmutableBitmap ceil = ix < thresholds.length ? bitmap.getCumultive(ix) : DimFilters.makeTrue(factory, numRows);
+        final ImmutableBitmap suplus = unionOfRange(bitmap, index, ceilIx);
+        final ImmutableBitmap difference = DimFilters.difference(factory, ceil, suplus, numRows);
+        return difference;
+      } else {
+        // floor + (union(thresholds[index - 1] .. endIndex))
+        final ImmutableBitmap floor = ix > 0 ? bitmap.getCumultive(ix - 1) : DimFilters.makeFalse(factory);
+        final ImmutableBitmap deficit = unionOfRange(bitmap, floorIx, index);
+        final ImmutableBitmap union = DimFilters.union(factory, floor, deficit);
+        return union;
+      }
+    } else {
+      return bitmap.getCumultive(ix);
+    }
   }
 
   @Override

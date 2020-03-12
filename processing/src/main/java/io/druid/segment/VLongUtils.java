@@ -19,6 +19,9 @@
 
 package io.druid.segment;
 
+import io.druid.data.input.BytesOutputStream;
+
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -90,6 +93,41 @@ public class VLongUtils
     }
   }
 
+  public static void writeVInt(BytesOutputStream stream, int i) throws IOException
+  {
+    writeVLong(stream, i);
+  }
+
+  public static void writeVLong(BytesOutputStream stream, long i)
+  {
+    if (i >= -112 && i <= 127) {
+      stream.writeByte((byte) i);
+      return;
+    }
+
+    int len = -112;
+    if (i < 0) {
+      i ^= -1L; // take one's complement'
+      len = -120;
+    }
+
+    long tmp = i;
+    while (tmp != 0) {
+      tmp = tmp >> 8;
+      len--;
+    }
+
+    stream.writeByte((byte) len);
+
+    len = (len < -120) ? -(len + 120) : -(len + 112);
+
+    for (int idx = len; idx != 0; idx--) {
+      int shiftbits = (idx - 1) * 8;
+      long mask = 0xFFL << shiftbits;
+      stream.writeByte((byte) ((i & mask) >> shiftbits));
+    }
+  }
+
   /**
    * Reads a zero-compressed encoded long from input buffer and returns it.
    *
@@ -148,5 +186,20 @@ public class VLongUtils
       return -119 - value;
     }
     return -111 - value;
+  }
+
+  public static int getVIntSize(long i)
+  {
+    if (i >= -112 && i <= 127) {
+      return 1;
+    }
+
+    if (i < 0) {
+      i ^= -1L; // take one's complement'
+    }
+    // find the number of bytes with non-leading zeros
+    int dataBits = Long.SIZE - Long.numberOfLeadingZeros(i);
+    // find the number of data bytes + length byte
+    return (dataBits + 7) / 8 + 1;
   }
 }

@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -66,6 +67,7 @@ import io.druid.segment.data.ColumnPartWriter.Compressed;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.CompressedVSizeIntWriter;
 import io.druid.segment.data.CompressedVSizeIntsV3Writer;
+import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
@@ -212,7 +214,7 @@ public class IndexMergerV9 extends IndexMerger
 
       /************ Create Inverted Indexes *************/
       final ArrayList<ColumnPartWriter<ImmutableBitmap>> bitmapIndexWriters = setupBitmapIndexWriters(
-          ioPeon, mergedDimensions, indexSpec
+          ioPeon, mergedDimensions, dimCardinalities, indexSpec.getBitmapSerdeFactory()
       );
       final ArrayList<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters = setupSpatialIndexWriters(
           ioPeon, mergedDimensions, indexSpec, dimCapabilities
@@ -349,7 +351,7 @@ public class IndexMergerV9 extends IndexMerger
           }
 
           ArrayList<ColumnPartWriter<ImmutableBitmap>> cubeBitmapWriters = setupBitmapIndexWriters(
-              ioPeon, cubeDims, indexer
+              ioPeon, cubeDims, ImmutableMap.of(), indexer.getBitmapSerdeFactory()
           );
           MutableBitmap[][] bitmaps = new MutableBitmap[cubeDims.size()][];
           for (int dimId = 0; dimId < bitmaps.length; dimId++) {
@@ -701,18 +703,29 @@ public class IndexMergerV9 extends IndexMerger
     progress.stopSection(section);
   }
 
+  private static final double CUMULATIVE_THRESHOLD = 16384;
+
   private ArrayList<ColumnPartWriter<ImmutableBitmap>> setupBitmapIndexWriters(
       final IOPeon ioPeon,
       final List<String> mergedDimensions,
-      final IndexSpec indexSpec
+      final Map<String, Integer> dimCardinalities,
+      final BitmapSerdeFactory serdeFactory
   ) throws IOException
   {
     ArrayList<ColumnPartWriter<ImmutableBitmap>> writers = Lists.newArrayListWithCapacity(mergedDimensions.size());
-    final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
+    BitmapFactory bitmapFactory = serdeFactory.getBitmapFactory();
     for (String dimension : mergedDimensions) {
       ColumnPartWriter<ImmutableBitmap> writer = new GenericIndexedWriter<>(
-          ioPeon, String.format("%s.inverted", dimension), bitmapSerdeFactory.getObjectStrategy()
+          ioPeon, String.format("%s.inverted", dimension), serdeFactory.getObjectStrategy()
       );
+      Integer cardinality = dimCardinalities.get(dimension);
+      if (cardinality != null && cardinality > CUMULATIVE_THRESHOLD) {
+        int group = Math.min(32, (int) Math.ceil(cardinality / CUMULATIVE_THRESHOLD));
+        int threshold = cardinality / group + group;
+        writer = new CumulativeBitmapWriter(
+            ioPeon, String.format("%s.inverted.cumulative", dimension), writer, serdeFactory, threshold
+        );
+      }
       writer.open();
       writers.add(writer);
     }
