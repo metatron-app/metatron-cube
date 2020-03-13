@@ -256,6 +256,19 @@ public class DataSchema
                           jsonMapper);
   }
 
+  public DataSchema withValidations(List<Validation> validations)
+  {
+    return new DataSchema(dataSource,
+                          parser,
+                          aggregators,
+                          enforceType,
+                          granularitySpec,
+                          evaluations,
+                          validations,
+                          dimensionFixed,
+                          jsonMapper);
+  }
+
   @Override
   public String toString()
   {

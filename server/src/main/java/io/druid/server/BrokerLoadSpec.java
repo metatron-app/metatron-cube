@@ -31,11 +31,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
 import io.druid.data.input.ReadConstants;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.data.input.Validation;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;
 import io.druid.initialization.Initialization;
@@ -51,6 +53,7 @@ import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
+import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.net.URI;
@@ -166,7 +169,16 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
   @JsonIgnore
   public InputRowParser getParser()
   {
-    return schema.getParser(tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
+    final boolean ignoreInvalidRows = tuningConfig != null && tuningConfig.isIgnoreInvalidRows();
+    final Interval interval = schema.getGranularitySpec().umbrellaInterval();
+    if (interval == null) {
+      return schema.getParser(ignoreInvalidRows);
+    }
+    final Validation validation = Validation.expr(
+        String.format("!between(__time, %d, %d)", interval.getStartMillis(), interval.getEndMillis())
+    );
+    return schema.withValidations(GuavaUtils.concat(schema.getValidations(), validation))
+                 .getParser(ignoreInvalidRows);
   }
 
   @JsonIgnore
@@ -282,7 +294,7 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
 
     // progressing sequence
     try {
-      final Sequence<Row> sequence = handler.read(locations, parser, loadContext);
+      final Sequence<Row> sequence = Sequences.filterNull(handler.read(locations, parser, loadContext));
       return Pair.of(query, Sequences.map(sequence, Rows.rowToMap(Row.TIME_COLUMN_NAME)));
     }
     catch (InterruptedException e) {

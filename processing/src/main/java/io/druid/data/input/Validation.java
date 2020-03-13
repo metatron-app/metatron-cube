@@ -45,6 +45,11 @@ public class Validation
 {
   static final Logger LOG = new Logger(Validation.class);
 
+  public static Validation expr(String expression)
+  {
+    return new Validation(null, expression, null);
+  }
+
   public static List<RowEvaluator<Boolean>> toValidators(List<Validation> validations, TypeResolver resolver)
   {
     if (GuavaUtils.isNullOrEmpty(validations)) {
