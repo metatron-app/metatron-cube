@@ -225,7 +225,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
     }
     final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
 
-    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index);
+    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index, resolver);
     final FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
 
     final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);

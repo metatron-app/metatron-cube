@@ -21,11 +21,8 @@ package io.druid.segment.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Predicate;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.search.search.SearchQuerySpec;
-
-import javax.annotation.Nullable;
 
 /**
  */
@@ -38,17 +35,6 @@ public class SearchQueryFilter extends DimensionPredicateFilter
       @JsonProperty("extractionFn") final ExtractionFn extractionFn
   )
   {
-    super(
-        dimension,
-        new Predicate<String>()
-        {
-          @Override
-          public boolean apply(@Nullable String input)
-          {
-            return query.accept(input);
-          }
-        },
-        extractionFn
-    );
+    super(dimension, value -> query.accept(value), extractionFn);
   }
 }

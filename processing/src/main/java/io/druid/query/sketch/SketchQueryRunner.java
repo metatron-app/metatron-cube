@@ -140,7 +140,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
 
     OUT:
     if (queryable != null && metrics.isEmpty() && !sketchOp.isCardinalitySensitive()) {
-      final BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(queryable);
+      final BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(queryable, resolver);
       final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.getIdentifier(), filter);
       if (extracted.getValue() != null) {
         break OUT;

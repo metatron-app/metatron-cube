@@ -24,10 +24,11 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.select.Schema;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.BooleanGenericColumn;
 import io.druid.segment.column.Column;
@@ -49,24 +50,26 @@ import java.util.Map;
  */
 public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
 {
-  private final BitmapFactory bitmapFactory;
   private final QueryableIndex index;
+  private final TypeResolver resolver;
+  private final BitmapFactory bitmapFactory;
   private final int numRows;
   private final Map<String, LuceneIndex> luceneIndices = Maps.newHashMap();
   private final Map<String, HistogramBitmap> metricBitmaps = Maps.newHashMap();
   private final Map<String, BitSlicedBitmap> bitSlicedBitmapMaps = Maps.newHashMap();
 
-  public ColumnSelectorBitmapIndexSelector(QueryableIndex index)
+  public ColumnSelectorBitmapIndexSelector(QueryableIndex index, TypeResolver resolver)
   {
     this.index = index;
+    this.resolver = resolver;
     this.bitmapFactory = index.getBitmapFactoryForDimensions();
     this.numRows = index.getNumRows();
   }
 
   @Override
-  public Schema getSchema(boolean prependTime)
+  public ValueDesc resolve(String column)
   {
-    return index.asSchema(prependTime);
+    return resolver.resolve(column);
   }
 
   @Override

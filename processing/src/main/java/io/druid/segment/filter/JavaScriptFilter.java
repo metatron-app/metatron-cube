@@ -40,27 +40,6 @@ public class JavaScriptFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getValueBitmap(final BitmapIndexSelector selector)
-  {
-    final Context cx = Context.enter();
-    try {
-      final Predicate<String> contextualPredicate = new Predicate<String>()
-      {
-        @Override
-        public boolean apply(String input)
-        {
-          return predicate.applyInContext(cx, input);
-        }
-      };
-
-      return Filters.matchPredicateValues(dimension, selector, contextualPredicate);
-    }
-    finally {
-      Context.exit();
-    }
-  }
-
-  @Override
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
     final Context cx = Context.enter();

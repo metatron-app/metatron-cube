@@ -322,12 +322,6 @@ public class DimFilters
     }
 
     @Override
-    public DimFilter withRedirection(Map<String, String> mapping)
-    {
-      return this;
-    }
-
-    @Override
     public void addDependent(Set<String> handler) {}
 
     @Override
@@ -335,11 +329,6 @@ public class DimFilters
     {
       return new Filter()
       {
-        @Override
-        public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-        {
-          return makeTrue(selector.getBitmapFactory(), selector.getNumRows());
-        }
 
         @Override
         public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

@@ -121,11 +121,6 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
   {
     return new Filter()
     {
-      @Override
-      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-      {
-        return null;
-      }
 
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

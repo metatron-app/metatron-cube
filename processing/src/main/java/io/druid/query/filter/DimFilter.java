@@ -92,7 +92,10 @@ public interface DimFilter extends Expression, Cacheable
   /**
    * replaces referencing column names for optimized filtering
    */
-  public DimFilter withRedirection(Map<String, String> mapping);
+  default public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    return this;
+  }
 
   /**
    * @param handler accumulate dependent dimensions
@@ -109,14 +112,32 @@ public interface DimFilter extends Expression, Cacheable
    */
   public Filter toFilter(TypeResolver resolver);
 
-  abstract class Abstract implements DimFilter
+  abstract class SingleInput implements DimFilter
   {
+    protected abstract String getDimension();
+
+    protected abstract DimFilter withDimension(String dimension);
+
     @Override
-    public DimFilter withRedirection(Map<String, String> mapping)
+    public final void addDependent(Set<String> handler)
     {
-      return this;
+      handler.add(getDimension());
     }
 
+    @Override
+    public final DimFilter withRedirection(Map<String, String> mapping)
+    {
+      String field = getDimension();
+      String replaced = mapping.get(field);
+      if (replaced != null && !replaced.equals(field)) {
+        return withDimension(replaced);
+      }
+      return this;
+    }
+  }
+
+  abstract class FilterFactory implements Rewriting
+  {
     @Override
     public void addDependent(Set<String> handler)
     {
@@ -307,7 +328,7 @@ public interface DimFilter extends Expression, Cacheable
     ImmutableBitmap toBooleanFilter(TypeResolver resolver, BitmapIndexSelector selector);
   }
 
-  // marker.. does not use index
+  // marker.. skip trying with index
   interface ValueOnly extends DimFilter
   {
     @Override

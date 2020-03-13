@@ -28,7 +28,6 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
-import io.druid.query.select.Schema;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
@@ -192,25 +191,8 @@ public class BoundFilterBenchmark
         ),
         dictionary.asColumnPartProvider()
     ).get();
-    selector = new BitmapIndexSelector()
+    selector = new BitmapIndexSelector.Abstract()
     {
-      @Override
-      public void close()
-      {
-      }
-
-      @Override
-      public Schema getSchema(boolean prependTime)
-      {
-        return Schema.EMPTY;
-      }
-
-      @Override
-      public Indexed<String> getDimensionValues(String dimension)
-      {
-        return dictionary;
-      }
-
       @Override
       public int getNumRows()
       {
@@ -221,6 +203,12 @@ public class BoundFilterBenchmark
       public BitmapFactory getBitmapFactory()
       {
         return bitmapFactory;
+      }
+
+      @Override
+      public Indexed<String> getDimensionValues(String dimension)
+      {
+        return dictionary;
       }
 
       @Override

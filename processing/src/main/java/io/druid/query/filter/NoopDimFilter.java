@@ -25,7 +25,6 @@ import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.BooleanValueMatcher;
 
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -39,12 +38,6 @@ public class NoopDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
-  {
-    return this;
-  }
-
-  @Override
   public void addDependent(Set<String> handler)
   {
   }
@@ -54,11 +47,6 @@ public class NoopDimFilter implements DimFilter
   {
     return new Filter()
     {
-      @Override
-      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-      {
-        return null;
-      }
 
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

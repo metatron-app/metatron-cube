@@ -22,7 +22,8 @@ package io.druid.query.filter;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
-import io.druid.query.select.Schema;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -35,37 +36,31 @@ import java.io.Closeable;
 
 /**
  */
-public interface BitmapIndexSelector extends Closeable
+public interface BitmapIndexSelector extends TypeResolver, Closeable
 {
-  public Schema getSchema(boolean prependTime);
-  public Indexed<String> getDimensionValues(String dimension);
-  public int getNumRows();
-  public BitmapFactory getBitmapFactory();
-  public BitmapIndex getBitmapIndex(String dimension);
-  public ImmutableBitmap getBitmapIndex(String dimension, String value);
-  public ImmutableBitmap getBitmapIndex(String dimension, Boolean value);
-  public ImmutableRTree getSpatialIndex(String dimension);
-  public LuceneIndex getLuceneIndex(String dimension);
-  public HistogramBitmap getMetricBitmap(String dimension);
-  public BitSlicedBitmap getBitSlicedBitmap(String dimension);
-  public ColumnCapabilities getCapabilities(String dimension);
-  public Column getColumn(String dimension);
-  public void close();
+  int getNumRows();
+  BitmapFactory getBitmapFactory();
+  Indexed<String> getDimensionValues(String dimension);
+  BitmapIndex getBitmapIndex(String dimension);
+  ImmutableBitmap getBitmapIndex(String dimension, String value);
+  ImmutableBitmap getBitmapIndex(String dimension, Boolean value);
+  ImmutableRTree getSpatialIndex(String dimension);
+  LuceneIndex getLuceneIndex(String dimension);
+  HistogramBitmap getMetricBitmap(String dimension);
+  BitSlicedBitmap getBitSlicedBitmap(String dimension);
+  ColumnCapabilities getCapabilities(String dimension);
+  Column getColumn(String dimension);
 
-  class Abstract implements BitmapIndexSelector {
+  default void close() {}
 
-    @Override
-    public Schema getSchema(boolean prependTime)
-    {
-      return null;
-    }
+  default ValueDesc resolve(String column)
+  {
+    final ColumnCapabilities capabilities = getCapabilities(column);
+    return capabilities == null ? null : ValueDesc.of(capabilities.getType());
+  }
 
-    @Override
-    public Indexed<String> getDimensionValues(String dimension)
-    {
-      return null;
-    }
-
+  class Abstract implements BitmapIndexSelector
+  {
     @Override
     public int getNumRows()
     {
@@ -74,6 +69,12 @@ public interface BitmapIndexSelector extends Closeable
 
     @Override
     public BitmapFactory getBitmapFactory()
+    {
+      return null;
+    }
+
+    @Override
+    public Indexed<String> getDimensionValues(String dimension)
     {
       return null;
     }
@@ -130,11 +131,6 @@ public interface BitmapIndexSelector extends Closeable
     public Column getColumn(String dimension)
     {
       return null;
-    }
-
-    @Override
-    public void close()
-    {
     }
   }
 }

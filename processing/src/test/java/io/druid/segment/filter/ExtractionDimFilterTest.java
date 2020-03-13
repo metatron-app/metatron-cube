@@ -34,7 +34,6 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.SelectorDimFilter;
-import io.druid.query.select.Schema;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
@@ -98,17 +97,6 @@ public class ExtractionDimFilterTest
 
   private final BitmapIndexSelector BITMAP_INDEX_SELECTOR = new BitmapIndexSelector()
   {
-    @Override
-    public void close()
-    {
-    }
-
-    @Override
-    public Schema getSchema(boolean prependTime)
-    {
-      return Schema.EMPTY;
-    }
-
     @Override
     public Indexed<String> getDimensionValues(String dimension)
     {

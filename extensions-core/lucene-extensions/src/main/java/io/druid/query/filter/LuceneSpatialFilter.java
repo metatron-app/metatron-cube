@@ -161,11 +161,6 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   {
     return new Filter()
     {
-      @Override
-      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-      {
-        return null;
-      }
 
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

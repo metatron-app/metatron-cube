@@ -23,8 +23,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
-import io.druid.java.util.common.ISE;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -36,7 +34,6 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.lucene.Lucenes;
@@ -55,26 +52,11 @@ public class SelectorFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-  {
-    MutableBitmap bitmap = selector.getBitmapFactory().makeEmptyMutableBitmap();
-    BitmapIndex indexed = selector.getBitmapIndex(dimension);
-    int index = indexed.getIndex(value);
-    if (index >= 0) {
-      bitmap.add(index);
-    }
-    return selector.getBitmapFactory().makeImmutableBitmap(bitmap);
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
     final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
-    if (capabilities == null) {
-      return selector.getBitmapIndex(dimension, value);
-    }
-    if (capabilities.hasBitmapIndexes()) {
+    if (capabilities == null || capabilities.hasBitmapIndexes()) {
       return selector.getBitmapIndex(dimension, value);
     } else if (capabilities.hasLuceneIndex()) {
       return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value), baseBitmap);
@@ -83,7 +65,7 @@ public class SelectorFilter implements Filter
     } else if (capabilities.hasBitSlicedBitmap()) {
       return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value), baseBitmap);
     }
-    throw new ISE("column %s is not indexed", dimension);
+    return null;
   }
 
   @Override

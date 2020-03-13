@@ -52,16 +52,6 @@ public class NotFilter implements Filter, Expression.NotExpression
   }
 
   @Override
-  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-  {
-    ImmutableBitmap valueMap = baseFilter.getValueBitmap(selector);
-    if (valueMap != null) {
-      return DimFilters.complement(selector.getBitmapFactory(), valueMap, selector.getNumRows());
-    }
-    return null;
-  }
-
-  @Override
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
     ImmutableBitmap bitmap = baseFilter.getBitmapIndex(selector, baseBitmap);

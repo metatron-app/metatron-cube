@@ -26,15 +26,13 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.segment.filter.SearchQueryFilter;
 
-import java.util.Map;
-import java.util.Set;
-
 /**
  */
-public class SearchQueryDimFilter implements DimFilter
+public class SearchQueryDimFilter extends SingleInput
 {
   private final String dimension;
   private final SearchQuerySpec query;
@@ -54,6 +52,7 @@ public class SearchQueryDimFilter implements DimFilter
     this.extractionFn = extractionFn;
   }
 
+  @Override
   @JsonProperty
   public String getDimension()
   {
@@ -83,19 +82,9 @@ public class SearchQueryDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
+  protected DimFilter withDimension(String dimension)
   {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
-    return new SearchQueryDimFilter(replaced, query, extractionFn);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
+    return new SearchQueryDimFilter(dimension, query, extractionFn);
   }
 
   @Override

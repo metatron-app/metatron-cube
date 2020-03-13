@@ -19,32 +19,20 @@
 
 package io.druid.segment.filter;
 
-import com.google.common.base.Predicate;
 import io.druid.query.extraction.ExtractionFn;
 
-import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 /**
  */
 public class RegexFilter extends DimensionPredicateFilter
 {
   public RegexFilter(
-      String dimension,
-      final Pattern pattern,
+      final String dimension,
+      final Matcher matcher,
       final ExtractionFn extractionFn
   )
   {
-    super(
-        dimension,
-        new Predicate<String>()
-        {
-          @Override
-          public boolean apply(String input)
-          {
-            return (input != null) && pattern.matcher(input).find();
-          }
-        },
-        extractionFn
-    );
+    super(dimension, value -> value != null && matcher.reset(value).find(), extractionFn);
   }
 }

@@ -24,24 +24,25 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.RegexFilter;
 
-import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  */
-public class RegexDimFilter implements DimFilter
+public class RegexDimFilter extends SingleInput
 {
   private final String dimension;
   private final String pattern;
   private final ExtractionFn extractionFn;
 
-  private final Pattern compiledPattern;
+  private final Supplier<Pattern> patternSupplier;
 
   @JsonCreator
   public RegexDimFilter(
@@ -53,13 +54,20 @@ public class RegexDimFilter implements DimFilter
     this.dimension = Preconditions.checkNotNull(dimension, "dimension must not be null");
     this.pattern = Preconditions.checkNotNull(pattern, "pattern must not be null");
     this.extractionFn = extractionFn;
-    this.compiledPattern = Pattern.compile(pattern);
+    this.patternSupplier = Suppliers.memoize(() -> Pattern.compile(pattern));
   }
 
+  @Override
   @JsonProperty
   public String getDimension()
   {
     return dimension;
+  }
+
+  @Override
+  protected DimFilter withDimension(String dimension)
+  {
+    return new RegexDimFilter(dimension, pattern, extractionFn);
   }
 
   @JsonProperty
@@ -85,25 +93,9 @@ public class RegexDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
-  {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
-    return new RegexDimFilter(replaced, pattern, extractionFn);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
-  }
-
-  @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new RegexFilter(dimension, compiledPattern, extractionFn);
+    return new RegexFilter(dimension, patternSupplier.get().matcher(""), extractionFn);
   }
 
   @Override
@@ -112,7 +104,7 @@ public class RegexDimFilter implements DimFilter
     return "RegexDimFilter{" +
            "dimension='" + dimension + '\'' +
            ", pattern='" + pattern + '\'' +
-           ", extractionFn='" + extractionFn + '\'' +
+           (extractionFn == null ? "" : ", extractionFn='" + extractionFn + '\'') +
            '}';
   }
 

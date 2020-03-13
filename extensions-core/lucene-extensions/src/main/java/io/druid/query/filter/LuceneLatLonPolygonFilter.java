@@ -28,8 +28,6 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
-import io.druid.data.ValueDesc;
-import io.druid.math.expr.Parser;
 import io.druid.query.GeomUtils;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
@@ -119,11 +117,6 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
     }
     return new Filter()
     {
-      @Override
-      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-      {
-        return null;
-      }
 
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

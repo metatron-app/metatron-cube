@@ -28,12 +28,13 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
 import io.druid.common.KeyBuilder;
-import io.druid.common.utils.Ranges;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.RangeFilter;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
@@ -41,11 +42,9 @@ import io.druid.segment.filter.BoundFilter;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
-public class BoundDimFilter implements DimFilter.RangeFilter
+public class BoundDimFilter extends SingleInput implements RangeFilter
 {
   private final String dimension;
   private final String upper;
@@ -157,7 +156,7 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   }
 
   // used in geo-server adapter
-  public List<Range> toRanges(ValueType type, boolean withNot)
+  private List<Range> toRanges(ValueType type, boolean withNot)
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");
     if (StringUtils.isNullOrEmpty(lower) && StringUtils.isNullOrEmpty(upper)) {
@@ -171,8 +170,8 @@ public class BoundDimFilter implements DimFilter.RangeFilter
     if (lower != null && upper != null) {
       if (withNot) {
         return Arrays.<Range>asList(
-            Ranges.of(lower, lowerStrict ? "<=" : "<"),
-            Ranges.of(upper, upperStrict ? ">=" : ">")
+            lowerStrict ? Range.atMost(lower) : Range.lessThan(lower),      // "<=" : "<"
+            upperStrict ? Range.atLeast(upper) : Range.greaterThan(upper)   // ">=" : ">"
         );
       }
       return Arrays.<Range>asList(
@@ -181,19 +180,22 @@ public class BoundDimFilter implements DimFilter.RangeFilter
           upperStrict ? Range.closedOpen(lower, upper) :
           Range.closed(lower, upper)
       );
-    }
-    if (lower != null) {
+    } else if (lower != null) {
       if (withNot) {
-        return Arrays.<Range>asList(Ranges.of(lower, lowerStrict ? "<=" : "<"));
+        return Arrays.<Range>asList(lowerStrict ? Range.atMost(lower) : Range.lessThan(lower));     // "<=" : "<"
+      } else {
+        return Arrays.<Range>asList(lowerStrict ? Range.greaterThan(lower) : Range.atLeast(lower)); // ">" : ">="
       }
-      return Arrays.<Range>asList(Ranges.of(lower, lowerStrict ? ">" : ">="));
+    } else {
+      if (withNot) {
+        return Arrays.<Range>asList(upperStrict ? Range.atLeast(upper) : Range.greaterThan(upper)); // ">=" : ">"
+      } else {
+        return Arrays.<Range>asList(upperStrict ? Range.lessThan(upper) : Range.atMost(upper));     // "<" : "<="
+      }
     }
-    if (withNot) {
-      return Arrays.<Range>asList(Ranges.of(upper, upperStrict ? ">=" : ">"));
-    }
-    return Arrays.<Range>asList(Ranges.of(upper, upperStrict ? "<" : "<="));
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public String getDimension()
@@ -285,14 +287,10 @@ public class BoundDimFilter implements DimFilter.RangeFilter
   }
 
   @Override
-  public BoundDimFilter withRedirection(Map<String, String> mapping)
+  protected DimFilter withDimension(String dimension)
   {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
     return new BoundDimFilter(
-        replaced,
+        dimension,
         lower,
         upper,
         lowerStrict,
@@ -313,12 +311,6 @@ public class BoundDimFilter implements DimFilter.RangeFilter
         type.typeName(),
         extractionFn
     );
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
   }
 
   @Override

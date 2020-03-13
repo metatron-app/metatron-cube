@@ -37,6 +37,9 @@ import io.druid.common.utils.Ranges;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.BooleanColumnSupport;
+import io.druid.query.filter.DimFilter.RangeFilter;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.DimensionPredicateFilter;
@@ -45,13 +48,11 @@ import io.netty.util.internal.StringUtil;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
-public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.BooleanColumnSupport
+public class SelectorDimFilter extends SingleInput implements RangeFilter, BooleanColumnSupport
 {
   public static DimFilter or(final String dimension, String... values)
   {
@@ -105,22 +106,6 @@ public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.Boole
   }
 
   @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
-  {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
-    return new SelectorDimFilter(replaced, value, extractionFn);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
-  }
-
-  @Override
   public Filter toFilter(TypeResolver resolver)
   {
     if (extractionFn == null) {
@@ -146,10 +131,17 @@ public class SelectorDimFilter implements DimFilter.RangeFilter, DimFilter.Boole
     return selector.getBitmapIndex(dimension, bool);
   }
 
+  @Override
   @JsonProperty
   public String getDimension()
   {
     return dimension;
+  }
+
+  @Override
+  protected DimFilter withDimension(String dimension)
+  {
+    return new SelectorDimFilter(dimension, value, extractionFn);
   }
 
   @JsonProperty

@@ -44,12 +44,6 @@ public class SpatialFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-  {
-    return null;  // todo
-  }
-
-  @Override
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
     return DimFilters.union(

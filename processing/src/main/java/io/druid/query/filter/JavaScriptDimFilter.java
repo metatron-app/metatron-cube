@@ -31,15 +31,13 @@ import io.druid.data.TypeResolver;
 import io.druid.java.util.common.ISE;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.JavaScriptFilter;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.ScriptableObject;
 
-import java.util.Map;
-import java.util.Set;
-
-public class JavaScriptDimFilter implements DimFilter
+public class JavaScriptDimFilter extends SingleInput
 {
   private final String dimension;
   private final String function;
@@ -70,10 +68,17 @@ public class JavaScriptDimFilter implements DimFilter
     }
   }
 
+  @Override
   @JsonProperty
   public String getDimension()
   {
     return dimension;
+  }
+
+  @Override
+  protected DimFilter withDimension(String dimension)
+  {
+    return new JavaScriptDimFilter(dimension, function, extractionFn, config);
   }
 
   @JsonProperty
@@ -96,22 +101,6 @@ public class JavaScriptDimFilter implements DimFilter
                   .append(dimension).sp()
                   .append(function).sp()
                   .append(extractionFn);
-  }
-
-  @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
-  {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
-    return new JavaScriptDimFilter(replaced, function, extractionFn, config);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
   }
 
   @Override

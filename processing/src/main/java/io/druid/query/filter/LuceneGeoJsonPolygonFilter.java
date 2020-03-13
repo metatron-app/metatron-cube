@@ -98,11 +98,6 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   {
     return new Filter()
     {
-      @Override
-      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-      {
-        return null;
-      }
 
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

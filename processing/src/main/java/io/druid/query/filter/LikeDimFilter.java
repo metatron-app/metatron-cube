@@ -20,24 +20,27 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import io.druid.common.KeyBuilder;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.filter.DimensionPredicateFilter;
 
 import javax.annotation.Nullable;
-import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
-public class LikeDimFilter implements DimFilter
+public class LikeDimFilter extends SingleInput
 {
   // Regex matching characters that are definitely okay to include unescaped in a regex.
   // Leads to excessively paranoid escaping, although shouldn't affect runtime beyond compiling the regex.
@@ -48,7 +51,7 @@ public class LikeDimFilter implements DimFilter
   private final String pattern;
   private final Character escapeChar;
   private final ExtractionFn extractionFn;
-  private final LikeMatcher likeMatcher;
+  private final Supplier<LikeMatcher> likeMatcherSupplier;
 
   @JsonCreator
   public LikeDimFilter(
@@ -64,11 +67,9 @@ public class LikeDimFilter implements DimFilter
 
     if (escape != null && escape.length() != 1) {
       throw new IllegalArgumentException("Escape must be null or a single character");
-    } else {
-      this.escapeChar = (escape == null || escape.isEmpty()) ? null : escape.charAt(0);
     }
-
-    this.likeMatcher = LikeMatcher.from(pattern, this.escapeChar);
+    this.escapeChar = StringUtils.isNullOrEmpty(escape) ? null : escape.charAt(0);
+    this.likeMatcherSupplier = Suppliers.memoize(() -> LikeMatcher.from(pattern, escapeChar));
   }
 
   public static class LikeMatcher implements Predicate<String>
@@ -192,6 +193,7 @@ public class LikeDimFilter implements DimFilter
     }
   }
 
+  @Override
   @JsonProperty
   public String getDimension()
   {
@@ -205,12 +207,14 @@ public class LikeDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getEscape()
   {
     return escapeChar != null ? escapeChar.toString() : null;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public ExtractionFn getExtractionFn()
   {
     return extractionFn;
@@ -227,25 +231,15 @@ public class LikeDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
+  protected DimFilter withDimension(String dimension)
   {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
-    return new LikeDimFilter(replaced, getPattern(), getEscape(), getExtractionFn());
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
+    return new LikeDimFilter(dimension, getPattern(), getEscape(), getExtractionFn());
   }
 
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new DimensionPredicateFilter(dimension, likeMatcher, extractionFn);
+    return new DimensionPredicateFilter(dimension, likeMatcherSupplier.get(), extractionFn);
   }
 
   @Override

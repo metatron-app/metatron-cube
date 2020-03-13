@@ -35,6 +35,8 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.RangeFilter;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.segment.Segment;
@@ -44,11 +46,10 @@ import io.druid.segment.filter.InFilter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class InDimFilter implements DimFilter.RangeFilter
+public class InDimFilter extends SingleInput implements RangeFilter
 {
   private final ImmutableSortedSet<String> values;
   private final String dimension;
@@ -76,15 +77,21 @@ public class InDimFilter implements DimFilter.RangeFilter
             }
         )
     );
-    Preconditions.checkNotNull(values, "values can not be empty");
     this.dimension = dimension;
     this.extractionFn = extractionFn;
   }
 
+  @Override
   @JsonProperty
   public String getDimension()
   {
     return dimension;
+  }
+
+  @Override
+  protected DimFilter withDimension(String dimension)
+  {
+    return new InDimFilter(dimension, Lists.newArrayList(values), extractionFn);
   }
 
   @JsonProperty
@@ -117,22 +124,6 @@ public class InDimFilter implements DimFilter.RangeFilter
       return new SelectorDimFilter(inFilter.dimension, inFilter.values.first(), inFilter.getExtractionFn());
     }
     return inFilter;
-  }
-
-  @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
-  {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
-    return new InDimFilter(replaced, Lists.newArrayList(values), extractionFn);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
   }
 
   private InDimFilter optimizeLookup()

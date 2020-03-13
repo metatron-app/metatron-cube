@@ -25,7 +25,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.logger.Logger;
@@ -55,26 +54,6 @@ public class BoundFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-  {
-    if (boundDimFilter.getExtractionFn() != null) {
-      return null;
-    }
-    BitmapFactory factory = selector.getBitmapFactory();
-    final int[] range = toRange(selector.getBitmapIndex(boundDimFilter.getDimension()));
-    if (range == ALL) {
-      return DimFilters.makeTrue(factory, selector.getNumRows());
-    } else if (range == NONE) {
-      return DimFilters.makeFalse(factory);
-    }
-    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
-    for (int i = range[0]; i < range[1]; i++) {
-      bitmap.add(i);
-    }
-    return factory.makeImmutableBitmap(bitmap);
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
   {
@@ -86,7 +65,7 @@ public class BoundFilter implements Filter
         boundDimFilter.getDimension(),
         selector,
         toPredicate(
-            boundDimFilter.typeOfBound(Filters.asTypeResolver(selector)),
+            boundDimFilter.typeOfBound(selector),
             boundDimFilter.getExtractionFn()
         ),
         baseBitmap
@@ -129,7 +108,7 @@ public class BoundFilter implements Filter
           {
             return new Iterator<ImmutableBitmap>()
             {
-              int currIndex = from;
+              private int currIndex = from;
 
               @Override
               public boolean hasNext()
@@ -229,8 +208,8 @@ public class BoundFilter implements Filter
       if (index - floorIx > ceilIx - index) {
         // ceil - union(endIndex .. thresholds[index])
         final ImmutableBitmap ceil = ix < thresholds.length ? bitmap.getCumultive(ix) : DimFilters.makeTrue(factory, numRows);
-        final ImmutableBitmap suplus = unionOfRange(bitmap, index, ceilIx);
-        final ImmutableBitmap difference = DimFilters.difference(factory, ceil, suplus, numRows);
+        final ImmutableBitmap surplus = unionOfRange(bitmap, index, ceilIx);
+        final ImmutableBitmap difference = DimFilters.difference(factory, ceil, surplus, numRows);
         return difference;
       } else {
         // floor + (union(thresholds[index - 1] .. endIndex))

@@ -33,9 +33,6 @@ import java.util.List;
 public interface Filter extends Expression
 {
   // bitmap based filter will be applied whenever it's possible
-  @Nullable ImmutableBitmap getValueBitmap(BitmapIndexSelector selector);
-
-  // bitmap based filter will be applied whenever it's possible
   @Nullable ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap);
 
   // used when bitmap filter cannot be applied
@@ -43,11 +40,6 @@ public interface Filter extends Expression
 
   abstract class Abstract implements Filter
   {
-    @Override
-    public final ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-    {
-      return null;
-    }
   }
 
   abstract class ValueOnly extends Abstract

@@ -109,12 +109,6 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
   {
     return new Filter()
     {
-      @Override
-      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-      {
-        // todo values are not included in lucene index itself.. I think we can embed values in LuceneIndex class
-        return null;
-      }
 
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

@@ -53,7 +53,6 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -95,13 +94,6 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
                   .append(fields)
                   .append(groupingSets)
                   .append(hash.asBytes());
-  }
-
-
-  @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
-  {
-    return this;
   }
 
   @Override
@@ -203,7 +195,7 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
   }
 
   @JsonTypeName("bloom.factory")
-  public static class Factory extends DimFilter.Abstract implements DimFilter.Rewriting
+  public static class Factory extends FilterFactory implements DimFilter.Rewriting
   {
     public static BloomDimFilter.Factory fieldNames(List<String> fieldNames, ViewDataSource source, int maxNumEntries)
     {
@@ -310,7 +302,7 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
     }
   }
 
-  public static class Lazy extends DimFilter.Abstract implements DimFilter.Rewriting
+  public static class Lazy extends FilterFactory implements DimFilter.Rewriting
   {
     public static BloomDimFilter.Lazy fieldNames(List<String> fieldNames, Supplier<BloomKFilter> supplier)
     {

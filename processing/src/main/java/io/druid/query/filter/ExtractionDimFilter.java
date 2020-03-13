@@ -25,18 +25,17 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * This class is deprecated, use SelectorDimFilter instead: {@link io.druid.query.filter.SelectorDimFilter}
  */
 @Deprecated
-public class ExtractionDimFilter implements DimFilter
+public class ExtractionDimFilter extends SingleInput
 {
   private final String dimension;
   private final String value;
@@ -62,6 +61,7 @@ public class ExtractionDimFilter implements DimFilter
     this.extractionFn = extractionFn != null ? extractionFn : dimExtractionFn;
   }
 
+  @Override
   @JsonProperty
   public String getDimension()
   {
@@ -96,19 +96,9 @@ public class ExtractionDimFilter implements DimFilter
   }
 
   @Override
-  public DimFilter withRedirection(Map<String, String> mapping)
+  protected DimFilter withDimension(String dimension)
   {
-    String replaced = mapping.get(dimension);
-    if (replaced == null || replaced.equals(dimension)) {
-      return this;
-    }
-    return new SelectorDimFilter(replaced, value, extractionFn);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(dimension);
+    return new SelectorDimFilter(dimension, value, extractionFn);
   }
 
   @Override

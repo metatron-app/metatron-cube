@@ -61,13 +61,16 @@ import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilter.BooleanColumnSupport;
+import io.druid.query.filter.DimFilter.LuceneFilter;
+import io.druid.query.filter.DimFilter.RangeFilter;
+import io.druid.query.filter.DimFilter.ValueOnly;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.select.Schema;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
@@ -371,11 +374,6 @@ public class Filters
       }
     }
 
-    final int targetRows = baseBitmap == null ? selector.getNumRows() : baseBitmap.size();
-    if (targetRows >> 2 < dimValues.size()) {
-      return null;    // considering the cost of reading and unioning bitmaps, it would be better to use value filter
-    }
-
     // Apply predicate to all dimension values and union the matching bitmaps
     final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
     return DimFilters.union(
@@ -631,19 +629,18 @@ public class Filters
   private static BitmapHolder leafToBitmap(DimFilter filter, FilterContext context)
   {
     Preconditions.checkArgument(!(filter instanceof RelationExpression));
-    if (filter instanceof DimFilter.ValueOnly) {
+    if (filter instanceof ValueOnly) {
       return null;
     }
     final BitmapIndexSelector selector = context.selector;
-    final Schema schema = selector.getSchema(true);
     if (filter instanceof MathExprFilter) {
-      Expr expr = Parser.parse(((MathExprFilter) filter).getExpression(), schema);
+      Expr expr = Parser.parse(((MathExprFilter) filter).getExpression(), selector);
       Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
       ImmutableBitmap bitmap = toExprBitmap(cnf, context, false);
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
-    } else if (filter instanceof DimFilter.LuceneFilter) {
+    } else if (filter instanceof LuceneFilter) {
       // throws exception instead of null.. not supports value matcher
-      return BitmapHolder.exact(filter.toFilter(schema).getBitmapIndex(selector, context.baseBitmap));
+      return BitmapHolder.exact(filter.toFilter(selector).getBitmapIndex(selector, context.baseBitmap));
     }
     Set<String> dependents = Filters.getDependents(filter);
     if (dependents.size() != 1) {
@@ -655,22 +652,22 @@ public class Filters
       return null;
     }
     if (capabilities.hasBitmapIndexes()) {
-      ImmutableBitmap bitmap = filter.toFilter(schema).getBitmapIndex(selector, context.baseBitmap);
+      ImmutableBitmap bitmap = filter.toFilter(selector).getBitmapIndex(selector, context.baseBitmap);
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
     }
-    if (capabilities.getType() == ValueType.BOOLEAN && filter instanceof DimFilter.BooleanColumnSupport) {
-      ImmutableBitmap bitmap = ((DimFilter.BooleanColumnSupport) filter).toBooleanFilter(schema, selector);
+    if (capabilities.getType() == ValueType.BOOLEAN && filter instanceof BooleanColumnSupport) {
+      ImmutableBitmap bitmap = ((BooleanColumnSupport) filter).toBooleanFilter(selector, selector);
       if (bitmap != null) {
         return BitmapHolder.exact(bitmap);
       }
     }
-    if (filter instanceof DimFilter.RangeFilter) {
+    if (filter instanceof RangeFilter && ((RangeFilter) filter).possible(selector)) {
       SecondaryIndex.WithRange index = getWhatever(selector, column, SecondaryIndex.WithRange.class);
       if (index == null) {
         return null;
       }
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-      for (Range range : ((DimFilter.RangeFilter) filter).toRanges(asTypeResolver(selector))) {
+      for (Range range : ((RangeFilter) filter).toRanges(selector)) {
         bitmaps.add(index.filterFor(range, context.baseBitmap));
       }
       ImmutableBitmap bitmap = DimFilters.intersection(context.factory, bitmaps);
@@ -761,28 +758,6 @@ public class Filters
   {
     return new Filter()
     {
-      @Override
-      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-      {
-        String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
-        BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
-
-        BitmapFactory factory = selector.getBitmapFactory();
-
-        final int cardinality = bitmapIndex.getCardinality();
-        final DSuppliers.HandOver<String> handOver = new DSuppliers.HandOver<>();
-        final Expr.NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
-
-        final MutableBitmap mutableBitmap = factory.makeEmptyMutableBitmap();
-        for (int i = 0; i < cardinality; i++) {
-          handOver.set(bitmapIndex.getValue(i));
-          if (expr.eval(binding).asBoolean()) {
-            mutableBitmap.add(i);
-          }
-        }
-        handOver.set(null);
-        return factory.makeImmutableBitmap(mutableBitmap);
-      }
 
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
@@ -1020,10 +995,10 @@ public class Filters
     return Expressions.convertToCNF(current, new Filter.Factory());
   }
 
-  public static boolean hasBitmapOrNull(BitmapIndexSelector selector, String dimension)
+  public static boolean isColumnWithoutBitmap(BitmapIndexSelector selector, String dimension)
   {
     ColumnCapabilities capabilities = selector.getCapabilities(dimension);
-    return capabilities == null || capabilities.hasBitmapIndexes();
+    return capabilities != null && !capabilities.hasBitmapIndexes();
   }
 
   public static IntPredicate toMatcher(ImmutableBitmap bitmapIndex, boolean descending)
@@ -1102,26 +1077,8 @@ public class Filters
     return ((WrappedImmutableRoaringBitmap) roaringBitmap).getBitmap().getReverseIntIterator();
   }
 
-  public static TypeResolver asTypeResolver(final BitmapIndexSelector selector)
-  {
-    return new TypeResolver()
-    {
-      @Override
-      public ValueDesc resolve(String column)
-      {
-        final ColumnCapabilities capabilities = selector.getCapabilities(column);
-        return capabilities == null ? null : ValueDesc.of(capabilities.getType());
-      }
-    };
-  }
-
   public static final Filter NONE = new Filter()
   {
-    @Override
-    public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-    {
-      return selector.getBitmapFactory().makeEmptyImmutableBitmap();
-    }
 
     @Override
     public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
@@ -1138,11 +1095,6 @@ public class Filters
 
   public static final Filter ALL = new Filter()
   {
-    @Override
-    public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-    {
-      return DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
-    }
 
     @Override
     public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)

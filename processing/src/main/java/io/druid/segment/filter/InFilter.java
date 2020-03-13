@@ -27,7 +27,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -42,7 +41,6 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedID;
 
 import java.util.Set;
@@ -63,29 +61,11 @@ public class InFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
-  {
-    if (extractionFn == null) {
-      MutableBitmap bitmap = selector.getBitmapFactory().makeEmptyMutableBitmap();
-      BitmapIndex indexed = selector.getBitmapIndex(dimension);
-      for (String value : values) {
-        int index = indexed.getIndex(value);
-        if (index >= 0) {
-          bitmap.add(index);
-        }
-      }
-      return selector.getBitmapFactory().makeImmutableBitmap(bitmap);
-    }
-    return null;
-  }
-
-  @Override
   public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, final ImmutableBitmap baseBitmap)
   {
-    Preconditions.checkArgument(
-        extractionFn == null || Filters.hasBitmapOrNull(selector, dimension),
-        "extractionFn requires bitmap index"
-    );
+    if (extractionFn != null && Filters.isColumnWithoutBitmap(selector, dimension)) {
+      return null;  // extractionFn requires bitmap index
+    }
     if (extractionFn == null) {
       return DimFilters.union(
           selector.getBitmapFactory(),
@@ -123,7 +103,7 @@ public class InFilter implements Filter
   public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
     final boolean allowsNull = values.contains("");
-    ValueDesc type = factory.resolve(dimension);
+    final ValueDesc type = factory.resolve(dimension);
     if (type == null) {
       // should handle extract fn
       return BooleanValueMatcher.of(toPredicate(allowsNull, null).apply(null));
@@ -154,6 +134,7 @@ public class InFilter implements Filter
         {
           private boolean ready;
           private final Set<Integer> find = Sets.newHashSet();
+
           @Override
           public boolean matches()
           {
@@ -209,7 +190,7 @@ public class InFilter implements Filter
     return "InFilter{" +
            "dimension='" + dimension + '\'' +
            ", values=" + values +
-           ", extractionFn=" + extractionFn +
+           (extractionFn == null ? "" : ", extractionFn=" + extractionFn) +
            '}';
   }
 }
