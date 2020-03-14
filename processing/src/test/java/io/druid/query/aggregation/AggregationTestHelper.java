@@ -475,10 +475,10 @@ public class AggregationTestHelper
           String resultStr = mapper.writer().writeValueAsString(yielder);
 
           TypeFactory typeFactory = mapper.getTypeFactory();
-          JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference());
+          JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference(query));
 
           List resultRows = Lists.transform(
-              readQueryResultArrayFromString(resultStr),
+              readQueryResultArrayFromString(resultStr, baseType),
               toolChest.makePreComputeManipulatorFn(
                   query,
                   MetricManipulatorFns.deserializing()
@@ -492,7 +492,7 @@ public class AggregationTestHelper
     };
   }
 
-  private List readQueryResultArrayFromString(String str) throws Exception
+  private List readQueryResultArrayFromString(String str, JavaType baseType) throws Exception
   {
     List result = new ArrayList();
 
@@ -505,7 +505,7 @@ public class AggregationTestHelper
     ObjectCodec objectCodec = jp.getCodec();
 
     while(jp.nextToken() != JsonToken.END_ARRAY) {
-      result.add(objectCodec.readValue(jp, toolChest.getResultTypeReference()));
+      result.add(objectCodec.readValue(jp, baseType));
     }
     return result;
   }

@@ -107,7 +107,7 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
   }
 
   @Override
-  public TypeReference<Map<String, Object>> getResultTypeReference()
+  public TypeReference<Map<String, Object>> getResultTypeReference(JMXQuery query)
   {
     return TYPE_REFERENCE;
   }

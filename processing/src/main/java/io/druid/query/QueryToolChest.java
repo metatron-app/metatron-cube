@@ -43,6 +43,7 @@ import io.druid.timeline.LogicalSegment;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
@@ -130,16 +131,13 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return
    */
-  public Sequence<ResultType> deserializeSequence(QueryType query, Sequence<ResultType> sequence)
+  @SuppressWarnings("unchecked")
+  public Sequence<ResultType> deserializeSequence(QueryType query, Sequence sequence)
   {
     return Sequences.map(sequence, makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing()));
   }
 
-  public Sequence<ResultType> serializeSequence(
-      QueryType query,
-      Sequence<ResultType> sequence,
-      QuerySegmentWalker segmentWalker
-  )
+  public Sequence serializeSequence(QueryType query, Sequence<ResultType> sequence, QuerySegmentWalker segmentWalker)
   {
     return sequence;
   }
@@ -166,10 +164,13 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * the results of this type of query.
    *
    * @return A TypeReference to indicate to Jackson what type of data will exist for this query
+   * @param query
    */
-  public abstract TypeReference<ResultType> getResultTypeReference();
+  public abstract TypeReference<ResultType> getResultTypeReference(@Nullable QueryType query);
 
-  public static QueryMetrics getQueryMetrics(Query query, QueryToolChest toolChest) {
+  @SuppressWarnings("unchecked")
+  public static QueryMetrics getQueryMetrics(Query query, QueryToolChest toolChest)
+  {
     return toolChest.makeMetrics(query);
   }
 
@@ -218,7 +219,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     @Override
     public TypeReference<ResultType> getCacheObjectClazz()
     {
-      return getResultTypeReference();
+      return getResultTypeReference(null);
     }
   }
 

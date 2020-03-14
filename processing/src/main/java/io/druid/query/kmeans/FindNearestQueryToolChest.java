@@ -29,7 +29,6 @@ import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
-import io.druid.query.select.SchemaQuery;
 
 /**
  */
@@ -93,7 +92,7 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
   }
 
   @Override
-  public TypeReference<CentroidDesc> getResultTypeReference()
+  public TypeReference<CentroidDesc> getResultTypeReference(FindNearestQuery query)
   {
     return TYPE_REFERENCE;
   }

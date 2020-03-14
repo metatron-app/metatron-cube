@@ -61,7 +61,7 @@ public class SelectForwardQueryToolChest extends QueryToolChest
   }
 
   @Override
-  public TypeReference<Map<String, Object>> getResultTypeReference()
+  public TypeReference<Map<String, Object>> getResultTypeReference(Query query)
   {
     return TYPE_REFERENCE;
   }

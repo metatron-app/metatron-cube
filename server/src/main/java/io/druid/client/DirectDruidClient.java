@@ -26,14 +26,12 @@ import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.jackson.JodaStuff;
-import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
@@ -71,8 +69,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 {
   private static final Logger log = new Logger(DirectDruidClient.class);
   private static final long WRITE_DELAY_LOG_THRESHOLD = 100;
-
-  private static final Map<Class<? extends Query>, Pair<JavaType, JavaType>> typesMap = Maps.newConcurrentMap();
 
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
@@ -131,17 +127,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
-
-    Pair<JavaType, JavaType> types = typesMap.get(query.getClass());
-    if (types == null) {
-      final TypeFactory typeFactory = objectMapper.getTypeFactory();
-      JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference());
-      JavaType bySegmentType = typeFactory.constructParametricType(
-          Result.class, typeFactory.constructParametricType(BySegmentResultValueClass.class, baseType)
-      );
-      types = Pair.of(baseType, bySegmentType);
-      typesMap.put(query.getClass(), types);
-    }
 
     final URL url;
     final URL cancelUrl;
@@ -219,7 +204,17 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                                 : objectMapper;
 
     final boolean isBySegment = BaseQuery.isBySegment(query);
-    final JavaType typeRef = isBySegment ? types.rhs : types.lhs;
+    final TypeFactory typeFactory = objectMapper.getTypeFactory();
+    final JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference(query));
+
+    final JavaType typeRef;
+    if (isBySegment) {
+      typeRef = typeFactory.constructParametricType(
+          Result.class, typeFactory.constructParametricType(BySegmentResultValueClass.class, baseType)
+      );
+    } else {
+      typeRef = baseType;
+    }
 
     Sequence<T> sequence = new BaseSequence<>(
         new BaseSequence.IteratorMaker<T, JsonParserIterator<T>>()

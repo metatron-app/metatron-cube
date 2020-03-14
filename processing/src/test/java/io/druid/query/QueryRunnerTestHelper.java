@@ -1083,7 +1083,9 @@ public class QueryRunnerTestHelper
         }
 
         @Override
-        public TypeReference getResultTypeReference()
+        public TypeReference getResultTypeReference(
+            Query query
+        )
         {
           return new TypeReference()
           {

@@ -21,13 +21,14 @@ package io.druid.data.input;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import io.druid.common.IntTagged;
+import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingSequenceBase;
-import io.druid.common.guava.BytesRef;
-import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueDesc;
 import io.druid.query.groupby.UTF8Bytes;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -40,33 +41,38 @@ import java.util.List;
 /**
  * Remove type information & apply compresssion if possible
  */
-public class BulkRowSequence extends YieldingSequenceBase<Row>
+public class BulkRowSequence extends YieldingSequenceBase<IntTagged<Object[]>>
 {
   private static final LZ4Compressor LZ4 = LZ4Factory.fastestInstance().fastCompressor();
   private static final int DEFAULT_PAGE_SIZE = 1024;
 
-  private final Sequence<Row> sequence;
+  private final Sequence<Object[]> sequence;
+  private final int timeIndex;
   private final TimestampRLE timestamps;
   private final int[] category;
   private final Object[] page;
   private final BitSet[] nulls;
   private final int max;
 
-  public BulkRowSequence(final Sequence<Row> sequence, final List<ValueDesc> types)
+  public BulkRowSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex)
   {
-    this(sequence, types, DEFAULT_PAGE_SIZE);
+    this(sequence, types, timeIndex, DEFAULT_PAGE_SIZE);
   }
 
-  public BulkRowSequence(final Sequence<Row> sequence, final List<ValueDesc> types, final int max)
+  public BulkRowSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex, final int max)
   {
     Preconditions.checkArgument(max < 0xffff);    // see TimestampRLE
     this.max = max;
     this.sequence = sequence;
-    this.timestamps = new TimestampRLE();
+    this.timeIndex = timeIndex;
+    this.timestamps = timeIndex < 0 ? null : new TimestampRLE();
     this.category = new int[types.size()];
     this.page = new Object[types.size()];
     this.nulls = new BitSet[types.size()];
-    for (int i = 1; i < types.size(); i++) {
+    for (int i = 0; i < types.size(); i++) {
+      if (i == timeIndex) {
+        continue;
+      }
       final ValueDesc valueDesc = types.get(i);
       switch (valueDesc.isDimension() ? ValueDesc.typeOfDimension(valueDesc) : valueDesc.type()) {
         case FLOAT:
@@ -98,7 +104,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
   }
 
   @Override
-  public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, Row> accumulator)
+  public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator)
   {
     BulkYieldingAccumulator<OutType> bulkYielder = new BulkYieldingAccumulator<OutType>(initValue, accumulator);
     return wrapYielder(sequence.toYielder(initValue, bulkYielder), bulkYielder);
@@ -142,14 +148,14 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
     };
   }
 
-  private class BulkYieldingAccumulator<OutType> extends YieldingAccumulator<OutType, Row>
+  private class BulkYieldingAccumulator<OutType> extends YieldingAccumulator<OutType, Object[]>
   {
-    private final YieldingAccumulator<OutType, Row> accumulator;
+    private final YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator;
 
     private int index;
     private OutType retValue;
 
-    public BulkYieldingAccumulator(OutType retValue, YieldingAccumulator<OutType, Row> accumulator)
+    public BulkYieldingAccumulator(OutType retValue, YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator)
     {
       this.accumulator = accumulator;
       this.retValue = retValue;
@@ -174,13 +180,15 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
     }
 
     @Override
-    public OutType accumulate(OutType prevValue, Row current)
+    public OutType accumulate(OutType prevValue, Object[] values)
     {
       final int ix = index++;
-      final Object[] values = ((CompactRow) current).getValues();
 
-      timestamps.add(((Number) values[0]).longValue());
-      for (int i = 1; i < category.length; i++) {
+      for (int i = 0; i < category.length; i++) {
+        if (i == timeIndex) {
+          timestamps.add(((Number) values[i]).longValue());
+          continue;
+        }
         if (values[i] == null && nulls[i] != null) {
           nulls[i].set(ix, true);
           continue;
@@ -206,8 +214,11 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
       final int size = index;
       final Object[] copy = new Object[page.length];
 
-      copy[0] = timestamps.flush();
-      for (int i = 1; i < category.length; i++) {
+      for (int i = 0; i < category.length; i++) {
+        if (i == timeIndex) {
+          copy[i] = timestamps.flush();
+          continue;
+        }
         switch (category[i]) {
           case 0: copy[i] = copy((float[]) page[i], size, nulls[i]); break;
           case 1: copy[i] = copy((long[]) page[i], size, nulls[i]); break;
@@ -227,7 +238,7 @@ public class BulkRowSequence extends YieldingSequenceBase<Row>
         }
       }
       index = 0;
-      return retValue = accumulator.accumulate(retValue, new BulkRow(size, copy));
+      return retValue = accumulator.accumulate(retValue, IntTagged.of(size, copy));
     }
   }
 

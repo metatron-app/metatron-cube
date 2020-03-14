@@ -146,7 +146,7 @@ public class SegmentMetadataQueryQueryToolChest
     return queryMetricsFactory.makeMetrics(query);
   }
 
-  public TypeReference<SegmentAnalysis> getResultTypeReference()
+  public TypeReference<SegmentAnalysis> getResultTypeReference(SegmentMetadataQuery query)
   {
     return TYPE_REFERENCE;
   }

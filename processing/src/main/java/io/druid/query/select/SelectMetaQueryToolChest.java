@@ -151,7 +151,7 @@ public class SelectMetaQueryToolChest
   }
 
   @Override
-  public TypeReference<Result<SelectMetaResultValue>> getResultTypeReference()
+  public TypeReference<Result<SelectMetaResultValue>> getResultTypeReference(SelectMetaQuery query)
   {
     return TYPE_REFERENCE;
   }

@@ -124,7 +124,7 @@ public class TimeBoundaryQueryQueryToolChest
   }
 
   @Override
-  public TypeReference<Result<TimeBoundaryResultValue>> getResultTypeReference()
+  public TypeReference<Result<TimeBoundaryResultValue>> getResultTypeReference(TimeBoundaryQuery query)
   {
     return TYPE_REFERENCE;
   }

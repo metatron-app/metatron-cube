@@ -60,7 +60,7 @@ public class ConfigQueryToolChest extends QueryToolChest<Map<String, Object>, Co
   }
 
   @Override
-  public TypeReference<Map<String, Object>> getResultTypeReference()
+  public TypeReference<Map<String, Object>> getResultTypeReference(ConfigQuery query)
   {
     return TYPE_REFERENCE;
   }

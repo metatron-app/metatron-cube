@@ -21,9 +21,14 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
+import io.druid.data.input.BulkRow;
+import io.druid.data.input.BulkRowSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
@@ -34,21 +39,23 @@ import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.QueryUtils;
+import io.druid.query.RowResolver;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+import java.util.function.ToIntFunction;
 
 /**
  */
 public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
 {
-  private static final TypeReference<Object[]> TYPE_REFERENCE =
-      new TypeReference<Object[]>()
-      {
-      };
+  private static final TypeReference<BulkRow> BULK_REFERENCE = new TypeReference<BulkRow>() {};
+  private static final TypeReference<Object[]> TYPE_REFERENCE = new TypeReference<Object[]>() {};
 
   private final GenericQueryMetricsFactory queryMetricsFactory;
 
@@ -89,9 +96,56 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   }
 
   @Override
-  public TypeReference<Object[]> getResultTypeReference()
+  @SuppressWarnings("unchecked")
+  public TypeReference getResultTypeReference(@Nullable StreamQuery query)
   {
+    if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return BULK_REFERENCE;
+    }
     return TYPE_REFERENCE;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public Sequence<Object[]> deserializeSequence(StreamQuery query, Sequence sequence)
+  {
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> bulk.decompose());
+    }
+    return super.deserializeSequence(query, sequence);
+  }
+
+  @Override
+  public Sequence serializeSequence(StreamQuery query, Sequence<Object[]> sequence, QuerySegmentWalker segmentWalker)
+  {
+    // see CCC.prepareQuery()
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      RowResolver resolver = RowResolver.of(QueryUtils.retrieveSchema(query, segmentWalker), query.getVirtualColumns());
+      List<ValueDesc> columnTypes = ImmutableList.copyOf(
+          Iterables.transform(query.getColumns(), column -> resolver.resolve(column))
+      );
+      return Sequences.map(
+          new BulkRowSequence(sequence, columnTypes, -1),
+          tagged -> new BulkRow(tagged.tag(), tagged.value(), -1)
+      );
+    }
+    return super.serializeSequence(query, sequence, segmentWalker);
+  }
+
+  @Override
+  public ToIntFunction numRows(StreamQuery query)
+  {
+    if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return new ToIntFunction()
+      {
+        @Override
+        public int applyAsInt(Object value)
+        {
+          return ((BulkRow) value).count();
+        }
+      };
+    }
+    return super.numRows(query);
   }
 
   @Override

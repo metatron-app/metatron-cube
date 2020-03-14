@@ -193,7 +193,7 @@ public class SearchQueryQueryToolChest
   }
 
   @Override
-  public TypeReference<Result<SearchResultValue>> getResultTypeReference()
+  public TypeReference<Result<SearchResultValue>> getResultTypeReference(SearchQuery query)
   {
     return TYPE_REFERENCE;
   }

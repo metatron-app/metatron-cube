@@ -60,7 +60,7 @@ public class LoadQueryToolChest extends QueryToolChest<Map<String, Object>, Load
   }
 
   @Override
-  public TypeReference<Map<String, Object>> getResultTypeReference()
+  public TypeReference<Map<String, Object>> getResultTypeReference(LoadQuery query)
   {
     return TYPE_REFERENCE;
   }

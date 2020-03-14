@@ -194,28 +194,29 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  public Sequence<Row> deserializeSequence(T query, Sequence<Row> sequence)
+  @SuppressWarnings("unchecked")
+  public Sequence<Row> deserializeSequence(T query, Sequence sequence)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      sequence = Sequences.explode(sequence, new Function<Row, Sequence<Row>>()
-      {
-        @Override
-        public Sequence<Row> apply(Row input)
-        {
-          return ((BulkRow) input).decompose();
-        }
-      });
+      sequence = Sequences.explode(
+          (Sequence<BulkRow>) sequence, bulk -> Sequences.map(bulk.decompose(), CompactRow.WRAP)
+      );
     }
     return super.deserializeSequence(query, sequence);
   }
 
   @Override
-  public Sequence<Row> serializeSequence(T query, Sequence<Row> sequence, QuerySegmentWalker segmentWalker)
+  public Sequence serializeSequence(T query, Sequence<Row> sequence, QuerySegmentWalker segmentWalker)
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      RowSignature schema = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
-      sequence = new BulkRowSequence(sequence, GuavaUtils.concat(ValueDesc.LONG, schema.getColumnTypes()));
+      List<ValueDesc> schema = GuavaUtils.concat(
+          ValueDesc.LONG, QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false).getColumnTypes()
+      );
+      return Sequences.map(
+          new BulkRowSequence(Sequences.map(sequence, CompactRow.UNWRAP), schema, 0),
+          tagged -> new BulkRow(tagged.tag(), tagged.value(), 0)
+      );
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }
@@ -261,7 +262,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  public TypeReference<Row> getResultTypeReference()
+  public TypeReference<Row> getResultTypeReference(T query)
   {
     return TYPE_REFERENCE;
   }

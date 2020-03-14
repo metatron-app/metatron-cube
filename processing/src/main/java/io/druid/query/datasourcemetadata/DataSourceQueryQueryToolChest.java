@@ -20,16 +20,13 @@
 package io.druid.query.datasourcemetadata;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.Sequences;
 import io.druid.query.BySegmentSkippingQueryRunner;
-import io.druid.query.DataSourceUtil;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
@@ -115,7 +112,7 @@ public class DataSourceQueryQueryToolChest
   }
 
   @Override
-  public TypeReference<Result<DataSourceMetadataResultValue>> getResultTypeReference()
+  public TypeReference<Result<DataSourceMetadataResultValue>> getResultTypeReference(DataSourceMetadataQuery query)
   {
     return TYPE_REFERENCE;
   }

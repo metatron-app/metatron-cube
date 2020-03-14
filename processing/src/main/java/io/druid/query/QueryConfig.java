@@ -29,6 +29,7 @@ import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryConfig;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.topn.TopNQueryConfig;
 
 import javax.validation.constraints.Min;
@@ -121,11 +122,20 @@ public class QueryConfig
     return useHistoricalNodesOnlyForLuceneFilter;
   }
 
-  public boolean useBulkRow(Query query)
+  public boolean useBulkRow(Query<?> query)
   {
-    return !BaseQuery.isBySegment(query) &&
-           query instanceof GroupByQuery &&
-           query.getContextBoolean(Query.GBY_USE_BULK_ROW, groupBy.get().isUseBulkRow());
+    if (BaseQuery.isBySegment(query)) {
+      return false;
+    }
+    if (query instanceof GroupByQuery &&
+        query.getContextBoolean(Query.GBY_USE_BULK_ROW, groupBy.get().isUseBulkRow())) {
+      return true;
+    }
+    if (query instanceof StreamQuery &&
+        query.getContextBoolean(Query.STREAM_USE_BULK_ROW, select.get().isUseBulkRow())) {
+      return true;
+    }
+    return false;
   }
 
   public boolean isUseCuboids()

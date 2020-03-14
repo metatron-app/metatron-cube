@@ -99,7 +99,7 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   }
 
   @Override
-  public TypeReference<Schema> getResultTypeReference()
+  public TypeReference<Schema> getResultTypeReference(SchemaQuery query)
   {
     return TYPE_REFERENCE;
   }

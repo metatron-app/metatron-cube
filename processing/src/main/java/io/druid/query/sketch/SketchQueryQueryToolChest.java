@@ -125,7 +125,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Resul
   }
 
   @Override
-  public TypeReference<Result<Object[]>> getResultTypeReference()
+  public TypeReference<Result<Object[]>> getResultTypeReference(SketchQuery query)
   {
     return TYPE_REFERENCE;
   }

@@ -21,6 +21,7 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
@@ -32,6 +33,9 @@ import java.util.Collection;
  */
 public class CompactRow extends AbstractRow
 {
+  public static Function<Object[], Row> WRAP = array -> new CompactRow(array);
+  public static Function<Row, Object[]> UNWRAP = row -> ((CompactRow) row).values;
+
   private final Object[] values;
 
   @JsonCreator

@@ -254,7 +254,7 @@ public class TopNQueryQueryToolChest
   }
 
   @Override
-  public TypeReference<Result<TopNResultValue>> getResultTypeReference()
+  public TypeReference<Result<TopNResultValue>> getResultTypeReference(TopNQuery query)
   {
     return TYPE_REFERENCE;
   }

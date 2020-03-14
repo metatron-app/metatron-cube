@@ -34,7 +34,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.groupby.orderby.TopNSorter;
 import io.druid.query.ordering.Comparators;
-import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -184,7 +183,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
   }
 
   @Override
-  public TypeReference<Object[]> getResultTypeReference()
+  public TypeReference<Object[]> getResultTypeReference(FrequencyQuery query)
   {
     return TYPE_REFERENCE;
   }

@@ -22,9 +22,9 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
@@ -36,13 +36,19 @@ public class BulkRow extends AbstractRow
 {
   private static final LZ4FastDecompressor LZ4 = LZ4Factory.fastestInstance().fastDecompressor();
 
+  private final int timeIndex;
   private final int count;    // just for counting number of rows in local nodes
   private final Object[] values;
 
   @JsonCreator
-  public BulkRow(@JsonProperty("count") int count, @JsonProperty("values") Object[] values)
+  public BulkRow(
+      @JsonProperty("count") int count,
+      @JsonProperty("values") Object[] values,
+      @JsonProperty("timeIndex") int timeIndex
+  )
   {
     this.count = count;
+    this.timeIndex = timeIndex;
     this.values = values;
   }
 
@@ -53,66 +59,77 @@ public class BulkRow extends AbstractRow
   }
 
   @JsonProperty
-  public Object[] getValues()
+  public int timeIndex()
+  {
+    return timeIndex;
+  }
+
+  @JsonProperty
+  public Object[] values()
   {
     return values;
   }
 
-  public Sequence<Row> decompose()
+  public Sequence<Object[]> decompose()
   {
-    final TimestampRLE timestamps = new TimestampRLE((byte[]) values[0]);
-    for (int i = 1; i < values.length; i++) {
+    final TimestampRLE timestamps;
+    if (timeIndex >= 0) {
+      timestamps = new TimestampRLE((byte[]) values[timeIndex]);
+      values[timeIndex] = null;
+    } else {
+      timestamps = null;
+    }
+    for (int i = 0; i < values.length; i++) {
       if (values[i] instanceof byte[]) {
         final byte[] array = (byte[]) values[i];
-        values[i] = new BytesInputStream(
-            LZ4.decompress(array, Integer.BYTES, Ints.fromByteArray(array))
-        );
+        values[i] = new BytesInputStream(LZ4.decompress(array, Ints.BYTES, Ints.fromByteArray(array)));
       } else if (values[i] instanceof BytesRef) {
         final BytesRef array = (BytesRef) values[i];
-        values[i] = new BytesInputStream(
-            LZ4.decompress(array.bytes, Integer.BYTES, Ints.fromByteArray(array.bytes))
-        );
+        values[i] = new BytesInputStream(LZ4.decompress(array.bytes, Ints.BYTES, Ints.fromByteArray(array.bytes)));
       }
     }
     return Sequences.simple(
-        new Iterable<Row>()
+        new Iterable<Object[]>()
         {
           {
-            for (int i = 1; i < values.length; i++) {
-              if (values[i] instanceof BytesInputStream) {
+            for (int i = 0; i < values.length; i++) {
+              if (i == timeIndex) {
+                values[i] = timestamps.iterator();
+              } else if (values[i] instanceof BytesInputStream) {
                 ((BytesInputStream) values[i]).reset();
               }
             }
           }
 
           @Override
-          public Iterator<Row> iterator()
+          public Iterator<Object[]> iterator()
           {
-            return new Iterator<Row>()
+            return new Iterator<Object[]>()
             {
-              private final Iterator<Long> timestamp = timestamps.iterator();
               private int index;
 
               @Override
               public boolean hasNext()
               {
-                return timestamp.hasNext();
+                return index < count;
               }
 
               @Override
-              public Row next()
+              public Object[] next()
               {
                 final int ix = index++;
                 final Object[] row = new Object[values.length];
-                row[0] = timestamp.next();
-                for (int i = 1; i < row.length; i++) {
-                  if (values[i] instanceof BytesInputStream) {
+                for (int i = 0; i < row.length; i++) {
+                  if (values[i] instanceof Iterator) {
+                    Iterator iterator = (Iterator) values[i];
+                    row[i] = iterator.hasNext() ? iterator.next() : -1;
+                  } else if (values[i] instanceof BytesInputStream) {
                     row[i] = ((BytesInputStream) values[i]).readVarSizeUTF();
                   } else {
                     row[i] = ((List) values[i]).get(ix);
                   }
                 }
-                return new CompactRow(row);
+                return row;
               }
             };
           }

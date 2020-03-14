@@ -36,7 +36,6 @@ import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.EscalatedClient;
-import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
@@ -118,7 +117,6 @@ public class BrokerServerView implements TimelineServerView
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
   private final ObjectMapper smileMapper;
-  private final ObjectMapper jsonMapper;
   private final HttpClient httpClient;
   private final FilteredServerInventoryView baseView;
   private final ServiceEmitter emitter;
@@ -135,7 +133,6 @@ public class BrokerServerView implements TimelineServerView
       QueryToolChestWarehouse warehouse,
       QueryWatcher queryWatcher,
       @Smile ObjectMapper smileMapper,
-      @Json ObjectMapper jsonMapper,
       @EscalatedClient HttpClient httpClient,
       FilteredServerInventoryView baseView,
       ServiceEmitter emitter,
@@ -149,7 +146,6 @@ public class BrokerServerView implements TimelineServerView
     this.warehouse = warehouse;
     this.queryWatcher = queryWatcher;
     this.smileMapper = smileMapper;
-    this.jsonMapper = jsonMapper;
     this.httpClient = httpClient;
     this.baseView = baseView;
     this.emitter = emitter;
@@ -506,7 +502,7 @@ public class BrokerServerView implements TimelineServerView
       if (server.equals(node)) {
         return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, smileMapper);
       }
-      final TypeReference<T> reference = conglomerate.findFactory(query).getToolchest().getResultTypeReference();
+      final TypeReference<T> reference = conglomerate.findFactory(query).getToolchest().getResultTypeReference(query);
       final String prefix = ServiceTypes.TYPE_TO_RESOURCE.getOrDefault(server.getType(), server.getType());
       final String resource = String.format("druid/%s/v1/%s", prefix, query.getType());
       return new QueryRunner<T>()

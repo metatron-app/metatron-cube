@@ -34,6 +34,9 @@ public class SelectQueryConfig
   @JsonProperty
   private int maxThreshold = 1000000;
 
+  @JsonProperty
+  private boolean useBulkRow = false;
+
   public boolean isUseDateTime()
   {
     return useDateTime;
@@ -47,5 +50,15 @@ public class SelectQueryConfig
   public int getMaxThreshold()
   {
     return maxThreshold;
+  }
+
+  public boolean isUseBulkRow()
+  {
+    return useBulkRow;
+  }
+
+  public void setUseBulkRow(boolean useBulkRow)
+  {
+    this.useBulkRow = useBulkRow;
   }
 }

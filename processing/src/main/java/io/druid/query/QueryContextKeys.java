@@ -61,6 +61,7 @@ public interface QueryContextKeys
   public static final String TIMESERIES_MERGE_PARALLELISM = "timeseriesMergeParallelism";
 
   // select.stream.raw
+  public static final String STREAM_USE_BULK_ROW = "streamUseBulkRow";
   public static final String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
   public static final String STREAM_RAW_LOCAL_SPLIT_ROWS = "streamRawLocalSplitRows";
 

@@ -592,11 +592,9 @@ public class ServerManagerTest
     }
 
     @Override
-    public TypeReference<T> getResultTypeReference()
+    public TypeReference<T> getResultTypeReference(QueryType query)
     {
-      return new TypeReference<T>()
-      {
-      };
+      return new TypeReference<T>() {};
     }
   }
 

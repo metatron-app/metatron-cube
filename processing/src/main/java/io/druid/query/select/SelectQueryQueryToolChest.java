@@ -282,7 +282,7 @@ public class SelectQueryQueryToolChest
   }
 
   @Override
-  public TypeReference<Result<SelectResultValue>> getResultTypeReference()
+  public TypeReference<Result<SelectResultValue>> getResultTypeReference(SelectQuery query)
   {
     return TYPE_REFERENCE;
   }

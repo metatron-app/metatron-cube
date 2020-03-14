@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
@@ -164,6 +165,22 @@ public interface RowSignature extends TypeResolver
       columnTypes.add(resolved);
     }
     return columnTypes;
+  }
+
+  default RowSignature retain(List<String> retainers)
+  {
+    List<String> columnNames = getColumnNames();
+    List<ValueDesc> columnTypes = getColumnTypes();
+
+    List<String> newColumnNames = Lists.newArrayList();
+    List<ValueDesc> newColumnTypes = Lists.newArrayList();
+    for (String retainer : retainers) {
+      final int index = columnNames.indexOf(retainer);
+      Preconditions.checkArgument(index >= 0, "cannot find column %s from %s", retainer, columnNames);
+      newColumnNames.add(columnNames.get(index));
+      newColumnTypes.add(columnTypes.get(index));
+    }
+    return new Simple(newColumnNames, newColumnTypes);
   }
 
   // todo remove this fuck
