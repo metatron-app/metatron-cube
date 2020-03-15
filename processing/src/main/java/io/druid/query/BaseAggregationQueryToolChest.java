@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -32,7 +33,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BulkRow;
-import io.druid.data.input.BulkRowSequence;
+import io.druid.data.input.BulkSequence;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -210,13 +211,13 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      List<ValueDesc> schema = GuavaUtils.concat(
-          ValueDesc.LONG, QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false).getColumnTypes()
+      RowResolver resolver = RowResolver.of(
+          QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false), query.getVirtualColumns()
       );
-      return Sequences.map(
-          new BulkRowSequence(Sequences.map(sequence, CompactRow.UNWRAP), schema, 0),
-          tagged -> new BulkRow(tagged.tag(), tagged.value(), 0)
+      List<ValueDesc> schema = ImmutableList.copyOf(
+          Iterables.transform(query.estimatedOutputColumns(), column -> resolver.resolve(column, ValueDesc.UNKNOWN))
       );
+      return BulkSequence.fromRow(sequence, schema, 0);
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

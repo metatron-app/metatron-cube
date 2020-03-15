@@ -23,7 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -58,6 +58,53 @@ public class ConcatSequenceTest
             Arrays.asList(9, 10, 11, 12)
         )
     );
+  }
+
+  @Test
+  public void testLimitOnConcat() throws Exception
+  {
+    Assert.assertEquals(Arrays.asList(1, 2, 3), testLimitOnConcat(3));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5), testLimitOnConcat(5));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), testLimitOnConcat(7));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), testLimitOnConcat(15));
+  }
+
+  @Test
+  public void testConcatOnLimit() throws Exception
+  {
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 9, 10), testConcatOnLimit(3));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 9, 10), testConcatOnLimit(5));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 9, 10), testConcatOnLimit(7));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), testConcatOnLimit(10));
+  }
+
+  private List<Integer> testConcatOnLimit(int limit) throws Exception
+  {
+    Sequence<Integer> sequence = Sequences.withBaggage(Sequences.concat(
+        Sequences.limit(Sequences.concat(
+            Sequences.withBaggage(Sequences.simple(Arrays.asList(1, 2, 3, 4, 5)), () -> {}),
+            Sequences.withBaggage(Sequences.simple(Arrays.asList(6, 7, 8)), () -> {})
+        ), limit),
+        Sequences.simple(Arrays.asList(9, 10))
+    ), () -> {});
+    return Sequences.toList(sequence, Lists.newArrayList());
+  }
+
+  private List<Integer> testLimitOnConcat(int limit)
+  {
+    Sequence<Integer> sequence = Sequences.limit(Sequences.concat(Iterables.transform(Arrays.asList(
+        Arrays.asList(1, 2, 3, 4, 5),
+        Arrays.asList(6, 7, 8),
+        Arrays.asList(9, 10, 11, 12)
+    ), array -> Sequences.simple(array))), limit);
+
+    Yielder<Integer> yielder = Yielders.each(sequence);
+    List<Integer> values = Lists.newArrayList();
+    while (!yielder.isDone()) {
+      values.add(yielder.get());
+      yielder = yielder.next(null);
+    }
+    return values;
   }
 
   @Test
@@ -255,18 +302,7 @@ public class ConcatSequenceTest
         )
     );
 
-    Yielder<Integer> yielder = seq.toYielder(
-        null,
-        new YieldingAccumulator<Integer, Integer>()
-        {
-          @Override
-          public Integer accumulate(Integer accumulated, Integer in)
-          {
-            yield();
-            return in;
-          }
-        }
-    );
+    Yielder<Integer> yielder = Yielders.each(seq);
 
     List<Integer> result = new ArrayList<>();
     while (!yielder.isDone()) {

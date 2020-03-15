@@ -28,7 +28,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BulkRow;
-import io.druid.data.input.BulkRowSequence;
+import io.druid.data.input.BulkSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
@@ -120,14 +120,13 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      RowResolver resolver = RowResolver.of(QueryUtils.retrieveSchema(query, segmentWalker), query.getVirtualColumns());
-      List<ValueDesc> columnTypes = ImmutableList.copyOf(
-          Iterables.transform(query.getColumns(), column -> resolver.resolve(column))
+      RowResolver resolver = RowResolver.of(
+          QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false), query.getVirtualColumns()
       );
-      return Sequences.map(
-          new BulkRowSequence(sequence, columnTypes, -1),
-          tagged -> new BulkRow(tagged.tag(), tagged.value(), -1)
+      List<ValueDesc> schema = ImmutableList.copyOf(
+          Iterables.transform(query.getColumns(), column -> resolver.resolve(column, ValueDesc.UNKNOWN))
       );
+      return BulkSequence.fromArray(sequence, schema, -1);
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

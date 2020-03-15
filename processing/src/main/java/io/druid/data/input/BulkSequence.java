@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.guava.Sequence;
@@ -41,8 +42,21 @@ import java.util.List;
 /**
  * Remove type information & apply compresssion if possible
  */
-public class BulkRowSequence extends YieldingSequenceBase<IntTagged<Object[]>>
+public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
 {
+  public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, List<ValueDesc> schema, int timeIndex)
+  {
+    return fromArray(Sequences.map(sequence, CompactRow.UNWRAP), schema, timeIndex);
+  }
+
+  public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, List<ValueDesc> schema, int timeIndex)
+  {
+    return Sequences.map(
+        new BulkSequence(sequence, schema, timeIndex),
+        tagged -> new BulkRow(tagged.tag(), tagged.value(), timeIndex)
+    );
+  }
+
   private static final LZ4Compressor LZ4 = LZ4Factory.fastestInstance().fastCompressor();
   private static final int DEFAULT_PAGE_SIZE = 1024;
 
@@ -54,12 +68,12 @@ public class BulkRowSequence extends YieldingSequenceBase<IntTagged<Object[]>>
   private final BitSet[] nulls;
   private final int max;
 
-  public BulkRowSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex)
+  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex)
   {
     this(sequence, types, timeIndex, DEFAULT_PAGE_SIZE);
   }
 
-  public BulkRowSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex, final int max)
+  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex, final int max)
   {
     Preconditions.checkArgument(max < 0xffff);    // see TimestampRLE
     this.max = max;
@@ -104,7 +118,10 @@ public class BulkRowSequence extends YieldingSequenceBase<IntTagged<Object[]>>
   }
 
   @Override
-  public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator)
+  public <OutType> Yielder<OutType> toYielder(
+      OutType initValue,
+      YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator
+  )
   {
     BulkYieldingAccumulator<OutType> bulkYielder = new BulkYieldingAccumulator<OutType>(initValue, accumulator);
     return wrapYielder(sequence.toYielder(initValue, bulkYielder), bulkYielder);
@@ -119,7 +136,7 @@ public class BulkRowSequence extends YieldingSequenceBase<IntTagged<Object[]>>
       @Override
       public OutType get()
       {
-        if (yielder.isDone() && accumulator.index > 0) {
+        if (accumulator.index > 0) {
           return accumulator.asBulkRow();
         }
         return yielder.get();
@@ -135,7 +152,7 @@ public class BulkRowSequence extends YieldingSequenceBase<IntTagged<Object[]>>
       @Override
       public boolean isDone()
       {
-        return (yielder == null || yielder.isDone()) && accumulator.index == 0;
+        return accumulator.index == 0 && (yielder == null || yielder.isDone());
       }
 
       @Override

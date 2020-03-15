@@ -20,15 +20,14 @@
 package io.druid.collections;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Ordering;
+import io.druid.common.Yielders;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingAccumulators;
-import io.druid.common.Yielders;
 
 import java.io.IOException;
 import java.util.PriorityQueue;
@@ -97,33 +96,15 @@ public class OrderedMergeSequence<T> implements Sequence<T>
           @Override
           public Yielder<T> accumulate(Yielder<T> accumulated, Sequence<T> in)
           {
-            final Yielder<T> retVal = in.toYielder(
-                null,
-                new YieldingAccumulator<T, T>()
-                {
-                  @Override
-                  public T accumulate(T accumulated, T in)
-                  {
-                    yield();
-                    return in;
-                  }
-                }
-            );
+            final Yielder<T> yielder = Yielders.each(in);
 
-            if (retVal.isDone()) {
-              try {
-                retVal.close();
-              }
-              catch (IOException e) {
-                throw Throwables.propagate(e);
-              }
-              return null;
-            }
-            else {
+            if (yielder.isDone()) {
+              Yielders.close(yielder);
+            } else {
               yield();
             }
 
-            return retVal;
+            return yielder;
           }
         }
     );
@@ -164,12 +145,7 @@ public class OrderedMergeSequence<T> implements Sequence<T>
       retVal = accumulator.accumulate(retVal, yielder.get());
       yielder = yielder.next(null);
       if (yielder.isDone()) {
-        try {
-          yielder.close();
-        }
-        catch (IOException e) {
-          throw Throwables.propagate(e);
-        }
+        Yielders.close(yielder);
       }
       else {
         pQueue.add(yielder);

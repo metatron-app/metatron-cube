@@ -19,58 +19,78 @@
 
 package io.druid.common.guava;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
+import io.druid.common.Yielders;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.nary.BinaryFn;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 public class ComplexSequenceTest
 {
   @Test
+  public void testConcatOnLimit() throws Exception
+  {
+    Assert.assertEquals(Arrays.asList(1, 9, 10, 0b11001), testConcatOnLimit(0));   // is this a bug?
+    Assert.assertEquals(Arrays.asList(1, 9, 10, 0b11001), testConcatOnLimit(1));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 9, 10, 0b11001), testConcatOnLimit(3));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 9, 10, 0b11011), testConcatOnLimit(5));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 9, 0b11111), testConcatOnLimit(7));
+    Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 0b10111), testConcatOnLimit(10));
+  }
+
+  private List<Integer> testConcatOnLimit(int limit) throws Exception
+  {
+    MutableInt counter = new MutableInt();
+    Sequence<Integer> sequence = Sequences.limit(Sequences.withBaggage(Sequences.concat(
+        Sequences.limit(Sequences.concat(
+            Sequences.withEffect(Sequences.simple(Arrays.asList(1, 2, 3)), () -> counter.add(1)),
+            Sequences.withEffect(Sequences.simple(Arrays.asList(4, 5, 6)), () -> counter.add(2)),
+            Sequences.withEffect(Sequences.simple(Arrays.asList(7, 8)), () -> counter.add(4))
+        ), limit),
+        Sequences.withEffect(Sequences.lazy(() -> Sequences.simple(Arrays.asList(9, 10))), () -> counter.add(8))
+    ), () -> counter.add(16)), 8);
+    List<Integer> values = collect(sequence);
+    values.add(counter.intValue());
+    return values;
+  }
+
+  @Test
   public void testComplexSequence()
   {
     Sequence<Integer> complex;
-    check("[3, 5]", complex = concat(combine(simple(3)), combine(simple(5))));
+    check("[3, 5]", complex = Sequences.concat(combine(simple(3)), combine(simple(5))));
     check("[8]", complex = combine(complex));
-    check("[8, 6, 3, 5]", complex = concat(complex, concat(combine(simple(2, 4)), simple(3, 5))));
+    check("[8, 6, 3, 5]", complex = Sequences.concat(complex, Sequences.concat(combine(simple(2, 4)), simple(3, 5))));
     check("[22]", complex = combine(complex));
-    check("[22]", concat(complex, simple()));
+    check("[22]", Sequences.concat(complex, simple()));
   }
 
   private void check(String expected, Sequence<Integer> complex)
   {
     List<Integer> combined = Sequences.toList(complex);
     Assert.assertEquals(expected, combined.toString());
+    Assert.assertEquals(expected, collect(complex).toString());
+  }
 
-    Yielder<Integer> yielder = complex.toYielder(
-        null,
-        new YieldingAccumulator<Integer, Integer>()
-        {
-          @Override
-          public Integer accumulate(Integer accumulated, Integer in)
-          {
-            yield();
-            return in;
-          }
-        }
-    );
-
-    List<Integer> combinedByYielder = new ArrayList<>();
+  private <T> List<T> collect(Sequence<T> sequence)
+  {
+    List<T> values = Lists.newArrayList();
+    Yielder<T> yielder = Yielders.each(sequence);
     while (!yielder.isDone()) {
-      combinedByYielder.add(yielder.get());
+      values.add(yielder.get());
       yielder = yielder.next(null);
     }
-
-    Assert.assertEquals(expected, combinedByYielder.toString());
+    Yielders.close(yielder);
+    return values;
   }
 
   private Sequence<Integer> simple(int... values)
@@ -83,11 +103,6 @@ public class ComplexSequenceTest
     return CombiningSequence.create(sequence, alwaysSame, plus);
   }
 
-  private Sequence<Integer> concat(Sequence<Integer>... sequences)
-  {
-    return Sequences.concat(Arrays.asList(sequences));
-  }
-
   private final Ordering<Integer> alwaysSame = new Ordering<Integer>()
   {
     @Override
@@ -97,7 +112,7 @@ public class ComplexSequenceTest
     }
   };
 
-  private final BinaryFn<Integer, Integer, Integer> plus = new BinaryFn<Integer, Integer, Integer>()
+  private final BinaryFn<Integer, Integer, Integer> plus = new BinaryFn.Identical<Integer>()
   {
     @Override
     public Integer apply(Integer arg1, Integer arg2)

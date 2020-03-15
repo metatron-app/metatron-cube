@@ -15,7 +15,6 @@
 package io.druid.java.util.common.guava;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Ordering;
 
 import java.io.IOException;
@@ -61,28 +60,12 @@ public class MergeSequence<T> extends YieldingSequenceBase<T>
           @Override
           public PriorityQueue<Yielder<T>> accumulate(PriorityQueue<Yielder<T>> queue, Sequence<T> in)
           {
-            final Yielder<T> yielder = in.toYielder(
-                null,
-                new YieldingAccumulator<T, T>()
-                {
-                  @Override
-                  public T accumulate(T accumulated, T in)
-                  {
-                    yield();
-                    return in;
-                  }
-                }
-            );
+            final Yielder<T> yielder = Yielders.each(in);
 
-            if (!yielder.isDone()) {
-              queue.add(yielder);
+            if (yielder.isDone()) {
+              Yielders.close(yielder);
             } else {
-              try {
-                yielder.close();
-              }
-              catch (IOException e) {
-                throw Throwables.propagate(e);
-              }
+              queue.add(yielder);
             }
 
             return queue;
@@ -105,12 +88,7 @@ public class MergeSequence<T> extends YieldingSequenceBase<T>
       retVal = accumulator.accumulate(retVal, yielder.get());
       yielder = yielder.next(null);
       if (yielder.isDone()) {
-        try {
-          yielder.close();
-        }
-        catch (IOException e) {
-          throw Throwables.propagate(e);
-        }
+        Yielders.close(yielder);
       } else {
         pQueue.add(yielder);
       }

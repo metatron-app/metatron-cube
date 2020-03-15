@@ -32,6 +32,7 @@ import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
 import io.druid.common.guava.ExecuteWhenDoneYielder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Accumulators;
 import io.druid.java.util.common.guava.BaseSequence;
@@ -80,6 +81,12 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
           }
         }
     );
+  }
+
+  @SafeVarargs
+  public static <T> Sequence<T> simple(final T a, T... as)
+  {
+    return simple(GuavaUtils.concat(a, Arrays.asList(as)));
   }
 
   public static <T> T accumulate(final Sequence<T> sequence, final BinaryFn<T, T, T> function)

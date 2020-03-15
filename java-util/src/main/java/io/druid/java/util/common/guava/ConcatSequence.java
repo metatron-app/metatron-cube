@@ -28,9 +28,7 @@ public class ConcatSequence<T> implements Sequence<T>
 {
   private final Sequence<Sequence<T>> baseSequences;
 
-  public ConcatSequence(
-      Sequence<Sequence<T>> baseSequences
-  )
+  public ConcatSequence(Sequence<Sequence<T>> baseSequences)
   {
     this.baseSequences = baseSequences;
   }
@@ -40,13 +38,13 @@ public class ConcatSequence<T> implements Sequence<T>
   {
     return baseSequences.accumulate(
         initValue, new Accumulator<OutType, Sequence<T>>()
-    {
-      @Override
-      public OutType accumulate(OutType accumulated, Sequence<T> in)
-      {
-        return in.accumulate(accumulated, accumulator);
-      }
-    }
+        {
+          @Override
+          public OutType accumulate(OutType accumulated, Sequence<T> in)
+          {
+            return in.accumulate(accumulated, accumulator);
+          }
+        }
     );
   }
 
@@ -56,18 +54,7 @@ public class ConcatSequence<T> implements Sequence<T>
       final YieldingAccumulator<OutType, T> accumulator
   )
   {
-    Yielder<Sequence<T>> yielderYielder = baseSequences.toYielder(
-        null,
-        new YieldingAccumulator<Sequence<T>, Sequence<T>>()
-        {
-          @Override
-          public Sequence<T> accumulate(Sequence<T> accumulated, Sequence<T> in)
-          {
-            yield();
-            return in;
-          }
-        }
-    );
+    Yielder<Sequence<T>> yielderYielder = Yielders.each(baseSequences);
 
     try {
       return makeYielder(yielderYielder, initValue, accumulator);
@@ -80,16 +67,12 @@ public class ConcatSequence<T> implements Sequence<T>
     }
   }
 
-  public <OutType> Yielder<OutType> makeYielder(
+  private <OutType> Yielder<OutType> makeYielder(
       Yielder<Sequence<T>> yielderYielder,
       OutType initValue,
       YieldingAccumulator<OutType, T> accumulator
   )
   {
-    if (yielderYielder.isDone()) {
-      return Yielders.done(initValue, yielderYielder);
-    }
-
     while (!yielderYielder.isDone()) {
       Yielder<OutType> yielder = yielderYielder.get().toYielder(initValue, accumulator);
       if (accumulator.yielded()) {
@@ -122,7 +105,12 @@ public class ConcatSequence<T> implements Sequence<T>
       @Override
       public Yielder<OutType> next(OutType initValue)
       {
-        return wrapYielder(yielder.next(initValue), yielderYielder, accumulator);
+        accumulator.reset();
+        if (yielder.isDone()) {
+          return makeYielder(yielderYielder.next(null), Yielders.close(yielder), accumulator);
+        } else {
+          return wrapYielder(yielder.next(initValue), yielderYielder, accumulator);
+        }
       }
 
       @Override

@@ -19,26 +19,8 @@
 
 package io.druid.common;
 
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
-
 /**
  */
 public class Yielders extends io.druid.java.util.common.guava.Yielders
 {
-  public static <T> Yielder<T> each(final Sequence<T> sequence)
-  {
-    return sequence.toYielder(null, new Yielding<T>());
-  }
-
-  public static class Yielding<T> extends YieldingAccumulator<T, T>
-  {
-    @Override
-    public T accumulate(T accumulated, T in)
-    {
-      yield();
-      return in;
-    }
-  }
 }
