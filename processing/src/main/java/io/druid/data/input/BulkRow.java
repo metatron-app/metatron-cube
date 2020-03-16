@@ -19,6 +19,7 @@
 
 package io.druid.data.input;
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -26,7 +27,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
 import com.google.common.base.Preconditions;
@@ -49,6 +49,15 @@ public class BulkRow extends AbstractRow
 {
   private static final LZ4FastDecompressor LZ4 = LZ4Factory.fastestInstance().fastDecompressor();
 
+  private static final ThreadLocal<BytesOutputStream> BUFFERS = new ThreadLocal<BytesOutputStream>()
+  {
+    @Override
+    protected BytesOutputStream initialValue()
+    {
+      return new BytesOutputStream();
+    }
+  };
+
   public static final TypeReference<BulkRow> TYPE_REFERENCE = new TypeReference<BulkRow>() {};
 
   public static final JsonSerializer<BulkRow> SERIALIZER = new JsonSerializer<BulkRow>()
@@ -67,10 +76,10 @@ public class BulkRow extends AbstractRow
     public void serialize(BulkRow bulk, JsonGenerator jgen, SerializerProvider provider) throws IOException
     {
       final BitSet nulls = new BitSet();
-      final BytesOutputStream output = new BytesOutputStream();
-      final ObjectMapper mapper = (ObjectMapper) Preconditions.checkNotNull(jgen.getCodec());
-      final JsonGenerator hack = mapper.getFactory().createGenerator(output);
+      final BytesOutputStream output = BUFFERS.get();
+      final JsonFactory factory = Preconditions.checkNotNull(jgen.getCodec()).getFactory();
 
+      output.clear();
       output.writeUnsignedVarInt(bulk.count);
       output.writeUnsignedVarInt(bulk.category.length);
 
@@ -102,10 +111,10 @@ public class BulkRow extends AbstractRow
             final Long[] longs = (Long[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (longs[x] == null) {
-                output.writeLong(0);
+                output.writeVarLong(0);
                 nulls.set(x);
               } else {
-                output.writeLong(longs[x].longValue());
+                output.writeVarLong(longs[x].longValue());
               }
             }
             if (!nulls.isEmpty()) {
@@ -153,8 +162,11 @@ public class BulkRow extends AbstractRow
             output.writeVarSizeBytes((BytesRef) bulk.values[i]);
             continue;
           case 6:
+            final BytesOutputStream buffer = new BytesOutputStream();
+            final JsonGenerator hack = factory.createGenerator(buffer);
             hack.writeObject(bulk.values[i]);
             hack.flush();
+            output.writeVarSizeBytes(buffer.asRef());
             continue;
           default:
             throw new ISE("invalid type %d", bulk.category[i]);
@@ -174,8 +186,7 @@ public class BulkRow extends AbstractRow
       Preconditions.checkArgument(jp.getCurrentToken() == JsonToken.FIELD_NAME);
       jp.nextToken();
       final BytesInputStream input = new BytesInputStream(jp.getBinaryValue());
-      final ObjectMapper mapper = (ObjectMapper) Preconditions.checkNotNull(jp.getCodec());
-      final JsonParser hack = mapper.getFactory().createParser(input);
+      final JsonFactory factory = Preconditions.checkNotNull(jp.getCodec()).getFactory();
 
       final int count = input.readUnsignedVarInt();
       final int[] category = new int[input.readUnsignedVarInt()];
@@ -201,7 +212,7 @@ public class BulkRow extends AbstractRow
           case 2:
             final Long[] longs = new Long[count];
             for (int x = 0; x < count; x++) {
-              longs[x] = input.readLong();
+              longs[x] = input.readVarLong();
             }
             if (input.readBoolean()) {
               final BitSet bitSet = BitSet.valueOf(input.readVarSizeBytes());
@@ -242,7 +253,8 @@ public class BulkRow extends AbstractRow
             values[i] = new BytesInputStream(LZ4.decompress(array, Ints.BYTES, Ints.fromByteArray(array)));
             continue;
           case 6:
-            values[i] = Iterators.getOnlyElement(hack.readValuesAs(Object[].class));
+            final JsonParser hack = factory.createParser(new BytesInputStream(input.readVarSizeBytes()));
+            values[i] = Iterators.get(hack.readValuesAs(Object[].class), 0);
             continue;
           default:
             throw new ISE("invalid type %d", category[i]);

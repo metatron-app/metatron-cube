@@ -66,7 +66,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
       @JsonProperty("numK") int numK,
       @JsonProperty("maxIteration") Integer maxIteration,
       @JsonProperty("deltaThreshold") Double deltaThreshold,
-      @JsonProperty("maxIteration") Integer minCount,
+      @JsonProperty("minCount") Integer minCount,
       @JsonProperty("measure") String measure,
       @JsonProperty("maxDistance") Double maxDistance,
       @JsonProperty("tagColumn") String tagColumn,

@@ -33,7 +33,6 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.BitmapIndex.CumulativeSupport;
@@ -230,7 +229,7 @@ public class BoundFilter implements Filter
         factory,
         boundDimFilter.getDimension(),
         toPredicate(
-            boundDimFilter.typeOfBound(ColumnSelectorFactories.asTypeResolver(factory)),
+            boundDimFilter.typeOfBound(factory),
             boundDimFilter.getExtractionFn()
         )
     );

@@ -246,7 +246,32 @@ public class Schema implements TypeResolver, RowSignature
         index += dimensionNames.size();
       }
     }
-    return index < 0 ? null : columnTypes.get(index);
+    if (index >= 0) {
+      return columnTypes.get(index);
+    }
+    ValueDesc resolved = null;
+    for (int x = column.lastIndexOf('.'); resolved == null && x > 0; x = column.lastIndexOf('.', x - 1)) {
+      resolved = findElementOfStruct(column.substring(0, x), column.substring(x + 1));
+    }
+    return resolved;
+  }
+
+  private ValueDesc findElementOfStruct(String column, String element)
+  {
+    int index = metricNames.indexOf(column);
+    if (index >= 0) {
+      ValueDesc type = columnTypes.get(dimensionNames.size() + index);
+      String[] description = type.getDescription();
+      if (type.isStruct() && description != null) {
+        for (int i = 1; i < description.length; i++) {
+          int split = description[i].indexOf(':');
+          if (element.equals(description[i].substring(0, split))) {
+            return ValueDesc.of(description[i].substring(split + 1));
+          }
+        }
+      }
+    }
+    return null;
   }
 
   public Schema merge(Schema other)

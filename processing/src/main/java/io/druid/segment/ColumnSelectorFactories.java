@@ -29,7 +29,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
-import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
@@ -64,18 +63,6 @@ import java.util.Set;
  */
 public class ColumnSelectorFactories
 {
-  public static TypeResolver asTypeResolver(final ColumnSelectorFactory factory)
-  {
-    return new TypeResolver()
-    {
-      @Override
-      public ValueDesc resolve(String column)
-      {
-        return factory.resolve(column);
-      }
-    };
-  }
-
   public static class NotSupports extends ColumnSelectorFactory.ExprUnSupport
   {
     @Override
