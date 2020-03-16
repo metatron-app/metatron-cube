@@ -37,10 +37,10 @@ public class TimestampRLE implements Iterable<Long>
   public TimestampRLE(byte[] array)
   {
     final BytesInputStream bin = new BytesInputStream(array);
-    final int numEntries = bin.readUnsignedShort();
+    final int numEntries = bin.readUnsignedVarInt();
     entries = Lists.newArrayListWithCapacity(numEntries);
     for (int i = 0; i < numEntries; i++) {
-      TimeWithCounter entry = new TimeWithCounter(bin.readLong(), bin.readShort());
+      TimeWithCounter entry = new TimeWithCounter(bin.readVarLong(), bin.readUnsignedVarInt());
       entries.add(entry);
     }
   }
@@ -57,10 +57,10 @@ public class TimestampRLE implements Iterable<Long>
   public byte[] flush()
   {
     final BytesOutputStream bout = new BytesOutputStream();
-    bout.writeShort(entries.size());
+    bout.writeUnsignedVarInt(entries.size());
     for (TimeWithCounter pair : entries) {
-      bout.writeLong(pair.timestamp);
-      bout.writeShort(pair.counter);
+      bout.writeVarLong(pair.timestamp);
+      bout.writeUnsignedVarInt(pair.counter);
     }
     current = null;
     entries.clear();

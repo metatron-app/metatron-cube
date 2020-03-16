@@ -54,7 +54,6 @@ import java.util.function.ToIntFunction;
  */
 public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
 {
-  private static final TypeReference<BulkRow> BULK_REFERENCE = new TypeReference<BulkRow>() {};
   private static final TypeReference<Object[]> TYPE_REFERENCE = new TypeReference<Object[]>() {};
 
   private final GenericQueryMetricsFactory queryMetricsFactory;
@@ -100,9 +99,10 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   public TypeReference getResultTypeReference(@Nullable StreamQuery query)
   {
     if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BULK_REFERENCE;
+      return BulkRow.TYPE_REFERENCE;
+    } else {
+      return TYPE_REFERENCE;
     }
-    return TYPE_REFERENCE;
   }
 
   @Override

@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import io.druid.data.UTF8Bytes;
 
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
@@ -96,6 +97,17 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
       }
     }
     return length;
+  }
+
+  public static byte[] toUtf8WithNullToEmpty(final Object value)
+  {
+    if (value == null) {
+      return EMPTY_BYTES;
+    } else if (value instanceof UTF8Bytes) {
+      return ((UTF8Bytes) value).getValue();
+    } else {
+      return toUtf8(Objects.toString(value));
+    }
   }
 
   public static byte[] toUtf8WithNullToEmpty(final String string)

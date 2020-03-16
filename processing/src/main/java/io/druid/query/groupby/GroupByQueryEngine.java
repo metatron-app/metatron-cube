@@ -35,6 +35,7 @@ import io.druid.common.guava.IntArray;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;

@@ -21,6 +21,7 @@ package io.druid.data.input;
 
 import com.google.common.io.ByteArrayDataOutput;
 import io.druid.common.guava.BytesRef;
+import io.druid.data.VLongUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutput;
@@ -224,6 +225,27 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
       value >>>= 7;
     }
     write(value & 127);
+  }
+
+  public void write(BytesRef ref)
+  {
+    write(ref.bytes, 0, ref.length);
+  }
+
+  public void writeVarSizeBytes(BytesRef ref)
+  {
+    writeUnsignedVarInt(ref.length);
+    write(ref.bytes, 0, ref.length);
+  }
+
+  public void writeVarInt(int value)
+  {
+    VLongUtils.writeVInt(this, value);
+  }
+
+  public void writeVarLong(long value)
+  {
+    VLongUtils.writeVLong(this, value);
   }
 
   public BytesRef asRef()

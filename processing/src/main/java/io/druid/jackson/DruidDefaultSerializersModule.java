@@ -29,12 +29,13 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Throwables;
+import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.Sequences;
+import io.druid.data.UTF8Bytes;
+import io.druid.data.input.BulkRow;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
-import io.druid.common.guava.BytesRef;
-import io.druid.common.utils.Sequences;
-import io.druid.query.groupby.UTF8Bytes;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
@@ -189,5 +190,9 @@ public class DruidDefaultSerializersModule extends SimpleModule
           }
         }
     );
+
+    addSerializer(BulkRow.class, BulkRow.SERIALIZER);
+
+    addDeserializer(BulkRow.class, BulkRow.DESERIALIZER);
   }
 }

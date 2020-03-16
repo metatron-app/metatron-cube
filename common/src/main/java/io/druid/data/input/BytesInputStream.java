@@ -21,13 +21,13 @@ package io.druid.data.input;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.ByteArrayDataInput;
+import io.druid.data.VLongUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInput;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 // copied from ByteStreams.ByteArrayDataInputStream
 public class BytesInputStream extends ByteArrayInputStream implements ByteArrayDataInput
@@ -216,6 +216,13 @@ public class BytesInputStream extends ByteArrayInputStream implements ByteArrayD
     return value;
   }
 
+  public byte[] readVarSizeBytes()
+  {
+    final byte[] bytes = new byte[readUnsignedVarInt()];
+    readFully(bytes);
+    return bytes;
+  }
+
   // copied from org.apache.parquet.bytes.BytesUtils
   public int readUnsignedVarInt()
   {
@@ -228,14 +235,13 @@ public class BytesInputStream extends ByteArrayInputStream implements ByteArrayD
     return value | b << i;
   }
 
-  public static int readUnsignedVarInt(ByteBuffer buffer)
+  public int readVarInt()
   {
-    int value = 0;
-    int i;
-    int b;
-    for (i = 0; ((b = buffer.get() & 0xff) & 128) != 0; i += 7) {
-      value |= (b & 127) << i;
-    }
-    return value | b << i;
+    return VLongUtils.readVInt(this);
+  }
+
+  public long readVarLong()
+  {
+    return VLongUtils.readVLong(this);
   }
 }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.groupby;
+package io.druid.data;
 
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.UnsignedBytes;
@@ -33,8 +33,8 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
     return new UTF8Bytes(value);
   }
 
-  public static final Comparator COMPARATOR = UnsignedBytes.lexicographicalComparator();
-  public static final Comparator COMPARATOR_NF = Ordering.from(UnsignedBytes.lexicographicalComparator()).nullsFirst();
+  public static final Comparator<byte[]> COMPARATOR = UnsignedBytes.lexicographicalComparator();
+  public static final Comparator<byte[]> COMPARATOR_NF = Ordering.from(UnsignedBytes.lexicographicalComparator()).nullsFirst();
 
   private final byte[] value;
 

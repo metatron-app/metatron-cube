@@ -24,7 +24,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.ISE;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.groupby.UTF8Bytes;
+import io.druid.data.UTF8Bytes;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 

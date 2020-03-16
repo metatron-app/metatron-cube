@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BytesRef;
+import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector;
@@ -163,7 +164,7 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
     final int[][] multiset = new int[depth][width];
     for (int i = 0; i < depth; i++) {
       for (int j = 0; j < width; j++) {
-        multiset[i][j] = BytesInputStream.readUnsignedVarInt(serialized);
+        multiset[i][j] = VLongUtils.readUnsignedVarInt(serialized);
       }
     }
     return new CountMinSketch(width, depth, multiset);

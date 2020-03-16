@@ -23,8 +23,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
-import io.druid.common.IntTagged;
 import io.druid.common.Yielders;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -46,9 +47,8 @@ public class BulkSequenceTest
   {
     Sequence<Object[]> rows = Sequences.simple(cr(0), cr(1), cr(2), cr(3), cr(4));
 
-    Sequence<BulkRow> bulk = Sequences.map(
-        new BulkSequence(rows, Arrays.asList(ValueDesc.LONG, ValueDesc.STRING), 0, 2),
-        tagged -> new BulkRow(tagged.tag(), tagged.value(), 0)
+    Sequence<BulkRow> bulk = new TestBulkSequence(rows, Arrays.asList(
+        ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 0, 2
     );
 
     final List<long[]> longs = Sequences.toList(Sequences.map(
@@ -69,6 +69,42 @@ public class BulkSequenceTest
     Assert.assertArrayEquals(new long[]{2, 3}, longs.get(1));
     Assert.assertArrayEquals(new long[]{4}, longs.get(2));
 
+    final List<float[]> floats = Sequences.toList(Sequences.map(
+        bulk, new Function<BulkRow, float[]>()
+        {
+          @Override
+          public float[] apply(BulkRow input)
+          {
+            List<Float> floatList = Lists.newArrayList();
+            for (Object[] row : Sequences.toList(input.decompose())) {
+              floatList.add((Float) row[1]);
+            }
+            return Floats.toArray(floatList);
+          }
+        }
+    ));
+    Assert.assertArrayEquals(new float[]{0f, 1f}, floats.get(0), 0.0000000000001f);
+    Assert.assertArrayEquals(new float[]{2f, 3f}, floats.get(1), 0.0000000000001f);
+    Assert.assertArrayEquals(new float[]{4f}, floats.get(2), 0.0000000000001f);
+
+    final List<double[]> doubles = Sequences.toList(Sequences.map(
+        bulk, new Function<BulkRow, double[]>()
+        {
+          @Override
+          public double[] apply(BulkRow input)
+          {
+            List<Double> doubleList = Lists.newArrayList();
+            for (Object[] row : Sequences.toList(input.decompose())) {
+              doubleList.add((Double) row[2]);
+            }
+            return Doubles.toArray(doubleList);
+          }
+        }
+    ));
+    Assert.assertArrayEquals(new double[]{0d, 1d}, doubles.get(0), 0.0000000000001d);
+    Assert.assertArrayEquals(new double[]{2d, 3d}, doubles.get(1), 0.0000000000001d);
+    Assert.assertArrayEquals(new double[]{4d}, doubles.get(2), 0.0000000000001d);
+
     final List<String[]> strings = Sequences.toList(Sequences.map(
         bulk, new Function<BulkRow, String[]>()
         {
@@ -77,7 +113,7 @@ public class BulkSequenceTest
           {
             List<String> strings = Lists.newArrayList();
             for (Object[] row : Sequences.toList(input.decompose())) {
-              strings.add((String)row[1]);
+              strings.add((String) row[3]);
             }
             return strings.toArray(new String[0]);
           }
@@ -87,27 +123,43 @@ public class BulkSequenceTest
     Assert.assertArrayEquals(new String[]{"2", "3"}, strings.get(1));
     Assert.assertArrayEquals(new String[]{"4"}, strings.get(2));
 
-    Yielder<BulkRow> yielder = bulk.toYielder(null, new Yielders.Yielding<BulkRow>());
     List<Long> timestamps = Lists.newArrayList();
+    Yielder<BulkRow> yielder = bulk.toYielder(null, new Yielders.Yielding<BulkRow>());
+    Assert.assertFalse(yielder.isDone());
     for (Object[] row : Sequences.toList(yielder.get().decompose())) {
       timestamps.add((Long) row[0]);
     }
     Assert.assertArrayEquals(new long[]{0, 1}, Longs.toArray(timestamps));
-    yielder = yielder.next(null);
+
     timestamps.clear();
+    yielder = yielder.next(null);
+    Assert.assertFalse(yielder.isDone());
     for (Object[] row : Sequences.toList(yielder.get().decompose())) {
       timestamps.add((Long) row[0]);
     }
     Assert.assertArrayEquals(new long[]{2, 3}, Longs.toArray(timestamps));
-    yielder = yielder.next(null);
+
     timestamps.clear();
+    yielder = yielder.next(null);
+    Assert.assertFalse(yielder.isDone());
     for (Object[] row : Sequences.toList(yielder.get().decompose())) {
       timestamps.add((Long) row[0]);
     }
-    Assert.assertTrue(yielder.isDone());
+    Assert.assertArrayEquals(new long[]{4}, Longs.toArray(timestamps));
 
+    timestamps.clear();
+    Assert.assertTrue(yielder.next(null).isDone());
+  }
+
+  @Test
+  public void testSerde() throws IOException
+  {
+    Sequence<Object[]> rows = Sequences.simple(cr(0), cr(1), cr(2), cr(3), cr(4));
+    Sequence<BulkRow> object = new BulkSequence(rows, Arrays.asList(
+        ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 0, 2
+    );
     DefaultObjectMapper mapper = new DefaultObjectMapper(new SmileFactory());
-    byte[] s = mapper.writeValueAsBytes(bulk);
+    byte[] s = mapper.writeValueAsBytes(object);
     List<Row> deserialized = mapper.readValue(s, new TypeReference<List<Row>>() {});
     Assert.assertEquals(
         GuavaUtils.arrayOfArrayToString(new Object[][]{cr(0), cr(1)}),
@@ -123,11 +175,6 @@ public class BulkSequenceTest
     );
   }
 
-  private Object[] cr(long x)
-  {
-    return new Object[]{x, String.valueOf(x)};
-  }
-
   @Test
   public void testBulkOnConcat() throws IOException
   {
@@ -136,27 +183,27 @@ public class BulkSequenceTest
         Sequences.simple(cr(5), cr(6), cr(7)),
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
-    Sequence<IntTagged<Object[]>> sequence = new BulkSequence(
-        rows, Arrays.asList(ValueDesc.LONG, ValueDesc.STRING), -1, 5
+    Sequence<BulkRow> sequence = new TestBulkSequence(
+        rows, Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), -1, 5
     );
 
-    Yielder<IntTagged<Object[]>> yielder = Yielders.each(sequence);
+    Yielder<BulkRow> yielder = Yielders.each(sequence);
     Assert.assertFalse(yielder.isDone());
-    IntTagged<Object[]> g1 = yielder.get();
-    Assert.assertEquals(5, g1.tag());
-    Assert.assertArrayEquals(new long[]{0, 1, 2, 3, 4}, (long[]) g1.value()[0]);
+    BulkRow g1 = yielder.get();
+    Assert.assertEquals(5, g1.count());
+    Assert.assertArrayEquals(new Long[]{0L, 1L, 2L, 3L, 4L}, (Long[]) g1.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
-    IntTagged<Object[]> g2 = yielder.get();
-    Assert.assertEquals(5, g2.tag());
-    Assert.assertArrayEquals(new long[]{5, 6, 7, 8, 9}, (long[]) g2.value()[0]);
+    BulkRow g2 = yielder.get();
+    Assert.assertEquals(5, g2.count());
+    Assert.assertArrayEquals(new Long[]{5L, 6L, 7L, 8L, 9L}, (Long[]) g2.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
-    IntTagged<Object[]> g3 = yielder.get();
-    Assert.assertEquals(3, g3.tag());
-    Assert.assertArrayEquals(new long[]{10, 11, 12}, (long[]) g3.value()[0]);
+    BulkRow g3 = yielder.get();
+    Assert.assertEquals(3, g3.count());
+    Assert.assertArrayEquals(new Long[]{10L, 11L, 12L}, (Long[]) g3.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertTrue(yielder.isDone());
@@ -170,29 +217,48 @@ public class BulkSequenceTest
         Sequences.simple(cr(5), cr(6), cr(7)),
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
-    Sequence<IntTagged<Object[]>> sequence = new BulkSequence(
-        Sequences.limit(rows, 7), Arrays.asList(ValueDesc.LONG, ValueDesc.STRING), -1, 3
+    Sequence<BulkRow> sequence = new TestBulkSequence(
+        Sequences.limit(rows, 7), Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), -1, 3
     );
 
-    Yielder<IntTagged<Object[]>> yielder = Yielders.each(sequence);
+    Yielder<BulkRow> yielder = Yielders.each(sequence);
     Assert.assertFalse(yielder.isDone());
-    IntTagged<Object[]> g1 = yielder.get();
-    Assert.assertEquals(3, g1.tag());
-    Assert.assertArrayEquals(new long[]{0, 1, 2}, (long[]) g1.value()[0]);
+    BulkRow g1 = yielder.get();
+    Assert.assertEquals(3, g1.count());
+    Assert.assertArrayEquals(new Long[]{0L, 1L, 2L}, (Long[]) g1.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
-    IntTagged<Object[]> g2 = yielder.get();
-    Assert.assertEquals(3, g2.tag());
-    Assert.assertArrayEquals(new long[]{3, 4, 5}, (long[]) g2.value()[0]);
+    BulkRow g2 = yielder.get();
+    Assert.assertEquals(3, g2.count());
+    Assert.assertArrayEquals(new Long[]{3L, 4L, 5L}, (Long[]) g2.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
-    IntTagged<Object[]> g3 = yielder.get();
-    Assert.assertEquals(1, g3.tag());
-    Assert.assertArrayEquals(new long[]{6}, (long[]) g3.value()[0]);
+    BulkRow g3 = yielder.get();
+    Assert.assertEquals(1, g3.count());
+    Assert.assertArrayEquals(new Long[]{6L}, (Long[]) g3.values()[0]);
 
     yielder = yielder.next(null);
     Assert.assertTrue(yielder.isDone());
+  }
+
+  private Object[] cr(long x)
+  {
+    return new Object[]{x, (float) x, (double) x, String.valueOf(x)};
+  }
+
+  private static class TestBulkSequence extends BulkSequence
+  {
+    public TestBulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex, int max)
+    {
+      super(sequence, types, timeIndex, max);
+    }
+
+    @Override
+    protected BulkRow toBulkRow(int size, int[] category, Object[] copy)
+    {
+      return super.toBulkRow(size, category, copy).forTest();
+    }
   }
 }

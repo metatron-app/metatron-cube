@@ -195,7 +195,7 @@ public class SketchHandlerTest
     ItemsSketch sketch = handler.toSketch(union).value();
     System.out.println("Quantiles.. " + Arrays.toString(sketch.getQuantiles(10)));
     System.out.println("Elapsed.. " + (System.currentTimeMillis() - p));
-    Assert.assertTrue((System.currentTimeMillis() - p) < 100);
+    Assert.assertTrue((System.currentTimeMillis() - p) < 150);
 
     sketch1 = writeAndRead(handler, sketch1);
     sketch2 = writeAndRead(handler, sketch2);
@@ -209,7 +209,7 @@ public class SketchHandlerTest
     sketch = handler.toSketch(union).value();
     System.out.println("Quantiles.. " + Arrays.toString(sketch.getQuantiles(10)));
     System.out.println("Elapsed.. " + (System.currentTimeMillis() - p));
-    Assert.assertTrue((System.currentTimeMillis() - p) < 70);
+    Assert.assertTrue((System.currentTimeMillis() - p) < 150);
   }
 
   @Test

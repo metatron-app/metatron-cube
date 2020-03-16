@@ -26,7 +26,7 @@ import io.druid.collections.IntList;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.DimFilters;
-import io.druid.segment.VLongUtils;
+import io.druid.data.VLongUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -114,9 +114,9 @@ public class CumulativeBitmapWriter implements ColumnPartWriter<ImmutableBitmap>
   {
     bitmapWriter.writeToChannel(channel);
     BytesOutputStream output = new BytesOutputStream();
-    VLongUtils.writeVInt(output, thresholds.size());
+    output.writeVarInt(thresholds.size());
     for (int i = 0; i < thresholds.size(); i++) {
-      VLongUtils.writeVInt(output, thresholds.get(i));
+      output.writeVarInt(thresholds.get(i));
     }
     channel.write(ByteBuffer.wrap(output.toByteArray()));
     cumulativeWriter.writeToChannel(channel);

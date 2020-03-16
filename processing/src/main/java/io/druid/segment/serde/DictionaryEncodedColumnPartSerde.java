@@ -33,7 +33,7 @@ import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizeIndexedSupplier;
 import io.druid.segment.CompressedVSizeIndexedV3Supplier;
-import io.druid.segment.VLongUtils;
+import io.druid.data.VLongUtils;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;

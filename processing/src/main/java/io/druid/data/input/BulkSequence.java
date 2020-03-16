@@ -21,28 +21,26 @@ package io.druid.data.input;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
-import io.druid.common.IntTagged;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingSequenceBase;
-import io.druid.query.groupby.UTF8Bytes;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.List;
 
 /**
  * Remove type information & apply compresssion if possible
  */
-public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
+public class BulkSequence extends YieldingSequenceBase<BulkRow>
 {
   public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, List<ValueDesc> schema, int timeIndex)
   {
@@ -51,21 +49,16 @@ public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
 
   public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, List<ValueDesc> schema, int timeIndex)
   {
-    return Sequences.map(
-        new BulkSequence(sequence, schema, timeIndex),
-        tagged -> new BulkRow(tagged.tag(), tagged.value(), timeIndex)
-    );
+    return new BulkSequence(sequence, schema, timeIndex);
   }
 
   private static final LZ4Compressor LZ4 = LZ4Factory.fastestInstance().fastCompressor();
   private static final int DEFAULT_PAGE_SIZE = 1024;
 
   private final Sequence<Object[]> sequence;
-  private final int timeIndex;
   private final TimestampRLE timestamps;
   private final int[] category;
   private final Object[] page;
-  private final BitSet[] nulls;
   private final int max;
 
   public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex)
@@ -78,11 +71,9 @@ public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
     Preconditions.checkArgument(max < 0xffff);    // see TimestampRLE
     this.max = max;
     this.sequence = sequence;
-    this.timeIndex = timeIndex;
     this.timestamps = timeIndex < 0 ? null : new TimestampRLE();
     this.category = new int[types.size()];
     this.page = new Object[types.size()];
-    this.nulls = new BitSet[types.size()];
     for (int i = 0; i < types.size(); i++) {
       if (i == timeIndex) {
         continue;
@@ -90,37 +81,36 @@ public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
       final ValueDesc valueDesc = types.get(i);
       switch (valueDesc.isDimension() ? ValueDesc.typeOfDimension(valueDesc) : valueDesc.type()) {
         case FLOAT:
-          category[i] = 0;
-          page[i] = new float[max];
+          category[i] = 1;
+          page[i] = new Float[max];
           break;
         case LONG:
-          category[i] = 1;
-          page[i] = new long[max];
+          category[i] = 2;
+          page[i] = new Long[max];
           break;
         case DOUBLE:
-          category[i] = 2;
-          page[i] = new double[max];
+          category[i] = 3;
+          page[i] = new Double[max];
           break;
         case BOOLEAN:
-          category[i] = 3;
-          page[i] = new boolean[max];
+          category[i] = 4;
+          page[i] = new Boolean[max];
           break;
         case STRING:
-          category[i] = 4;
+          category[i] = 5;
           page[i] = new BytesOutputStream(4096);
           break;
         default:
-          category[i] = 5;
+          category[i] = 6;
           page[i] = new Object[max];
       }
-      nulls[i] = new BitSet();
     }
   }
 
   @Override
   public <OutType> Yielder<OutType> toYielder(
       OutType initValue,
-      YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator
+      YieldingAccumulator<OutType, BulkRow> accumulator
   )
   {
     BulkYieldingAccumulator<OutType> bulkYielder = new BulkYieldingAccumulator<OutType>(initValue, accumulator);
@@ -167,12 +157,12 @@ public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
 
   private class BulkYieldingAccumulator<OutType> extends YieldingAccumulator<OutType, Object[]>
   {
-    private final YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator;
+    private final YieldingAccumulator<OutType, BulkRow> accumulator;
 
     private int index;
     private OutType retValue;
 
-    public BulkYieldingAccumulator(OutType retValue, YieldingAccumulator<OutType, IntTagged<Object[]>> accumulator)
+    public BulkYieldingAccumulator(OutType retValue, YieldingAccumulator<OutType, BulkRow> accumulator)
     {
       this.accumulator = accumulator;
       this.retValue = retValue;
@@ -200,27 +190,17 @@ public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
     public OutType accumulate(OutType prevValue, Object[] values)
     {
       final int ix = index++;
-
       for (int i = 0; i < category.length; i++) {
-        if (i == timeIndex) {
-          timestamps.add(((Number) values[i]).longValue());
-          continue;
-        }
-        if (values[i] == null && nulls[i] != null) {
-          nulls[i].set(ix, true);
-          continue;
-        }
         switch (category[i]) {
-          case 0: ((float[]) page[i])[ix] = ((Number) values[i]).floatValue(); break;
-          case 1: ((long[]) page[i])[ix] = ((Number) values[i]).longValue(); break;
-          case 2: ((double[]) page[i])[ix] = ((Number) values[i]).doubleValue(); break;
-          case 3: ((boolean[]) page[i])[ix] = (Boolean) values[i]; break;
-          case 4:
-            final byte[] bytes = values[i] instanceof UTF8Bytes ? ((UTF8Bytes) values[i]).getValue()
-                                                                : StringUtils.toUtf8WithNullToEmpty((String) values[i]);
-            ((BytesOutputStream) page[i]).writeVarSizeBytes(bytes);
-            break;
-          default: ((Object[]) page[i])[ix] = values[i]; break;
+          case 0: timestamps.add(Rows.parseLong(values[i])); continue;
+          case 1: ((Float[]) page[i])[ix] = Rows.parseFloat(values[i]); continue;
+          case 2: ((Long[]) page[i])[ix] = Rows.parseLong(values[i]); continue;
+          case 3: ((Double[]) page[i])[ix] = Rows.parseDouble(values[i]); continue;
+          case 4: ((Boolean[]) page[i])[ix] = Rows.parseBoolean(values[i]); continue;
+          case 5: ((BytesOutputStream) page[i]).writeVarSizeBytes(StringUtils.toUtf8WithNullToEmpty(values[i])); continue;
+          case 6: ((Object[]) page[i])[ix] = values[i]; continue;
+          default:
+            throw new ISE("invalid type %d", category[i]);
         }
       }
       return index < max ? prevValue : asBulkRow();
@@ -232,16 +212,13 @@ public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
       final Object[] copy = new Object[page.length];
 
       for (int i = 0; i < category.length; i++) {
-        if (i == timeIndex) {
-          copy[i] = timestamps.flush();
-          continue;
-        }
         switch (category[i]) {
-          case 0: copy[i] = copy((float[]) page[i], size, nulls[i]); break;
-          case 1: copy[i] = copy((long[]) page[i], size, nulls[i]); break;
-          case 2: copy[i] = copy((double[]) page[i], size, nulls[i]); break;
-          case 3: copy[i] = copy((boolean[]) page[i], size, nulls[i]); break;
-          case 4:
+          case 0: copy[i] = timestamps.flush(); continue;
+          case 1: copy[i] = Arrays.copyOf((Float[]) page[i], size); continue;
+          case 2: copy[i] = Arrays.copyOf((Long[]) page[i], size); continue;
+          case 3: copy[i] = Arrays.copyOf((Double[]) page[i], size); continue;
+          case 4: copy[i] = Arrays.copyOf((Boolean[]) page[i], size); continue;
+          case 5:
             final BytesOutputStream stream = (BytesOutputStream) page[i];
             final byte[] compressed = new byte[Integer.BYTES + LZ4.maxCompressedLength(stream.size())];
             System.arraycopy(Ints.toByteArray(stream.size()), 0, compressed, 0, Integer.BYTES);
@@ -250,72 +227,19 @@ public class BulkSequence extends YieldingSequenceBase<IntTagged<Object[]>>
                 Integer.BYTES + LZ4.compress(stream.toByteArray(), 0, stream.size(), compressed, Integer.BYTES)
             );
             stream.clear();
-            break;
-          default: copy[i] = Arrays.copyOf((Object[]) page[i], size); break;
+            continue;
+          case 6: copy[i] = Arrays.copyOf((Object[]) page[i], size); continue;
+          default:
+            throw new ISE("invalid type %d", category[i]);
         }
       }
       index = 0;
-      return retValue = accumulator.accumulate(retValue, IntTagged.of(size, copy));
+      return retValue = accumulator.accumulate(retValue, toBulkRow(size, category, copy));
     }
   }
 
-  private Object copy(final float[] array, final int size, final BitSet nulls)
+  protected BulkRow toBulkRow(int size, int[] category, Object[] copy)
   {
-    if (nulls.isEmpty()) {
-      return Arrays.copyOf(array, size);
-    }
-    final Float[] copy = new Float[size];
-    for (int i = 0; i < copy.length; i++) {
-      if (!nulls.get(i)) {
-        copy[i] = array[i];
-      }
-    }
-    nulls.clear();
-    return copy;
-  }
-
-  private Object copy(final long[] array, final int size, final BitSet nulls)
-  {
-    if (nulls.isEmpty()) {
-      return Arrays.copyOf(array, size);
-    }
-    final Long[] copy = new Long[size];
-    for (int i = 0; i < copy.length; i++) {
-      if (!nulls.get(i)) {
-        copy[i] = array[i];
-      }
-    }
-    nulls.clear();
-    return copy;
-  }
-
-  private Object copy(final double[] array, final int size, final BitSet nulls)
-  {
-    if (nulls.isEmpty()) {
-      return Arrays.copyOf(array, size);
-    }
-    final Double[] copy = new Double[size];
-    for (int i = 0; i < copy.length; i++) {
-      if (!nulls.get(i)) {
-        copy[i] = array[i];
-      }
-    }
-    nulls.clear();
-    return copy;
-  }
-
-  private Object copy(final boolean[] array, final int size, final BitSet nulls)
-  {
-    if (nulls.isEmpty()) {
-      return Arrays.copyOf(array, size);
-    }
-    final Boolean[] copy = new Boolean[size];
-    for (int i = 0; i < copy.length; i++) {
-      if (!nulls.get(i)) {
-        copy[i] = array[i];
-      }
-    }
-    nulls.clear();
-    return copy;
+    return new BulkRow(size, category, copy);
   }
 }

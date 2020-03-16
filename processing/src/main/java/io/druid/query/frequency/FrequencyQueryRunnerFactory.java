@@ -41,7 +41,7 @@ import io.druid.query.aggregation.HashCollector;
 import io.druid.query.aggregation.Murmur3;
 import io.druid.query.aggregation.countmin.CountMinSketch;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.UTF8Bytes;
+import io.druid.data.UTF8Bytes;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectArray;

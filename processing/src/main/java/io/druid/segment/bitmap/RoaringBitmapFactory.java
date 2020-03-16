@@ -20,7 +20,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableBitSetBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
-import io.druid.data.input.BytesInputStream;
+import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.logger.Logger;
 import org.roaringbitmap.IntIterator;
@@ -223,7 +223,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
         @Override
         public int next()
         {
-          return index++ < size ? (prev += BytesInputStream.readUnsignedVarInt(bigEndian)) : -1;
+          return index++ < size ? (prev += VLongUtils.readUnsignedVarInt(bigEndian)) : -1;
         }
       });
     }

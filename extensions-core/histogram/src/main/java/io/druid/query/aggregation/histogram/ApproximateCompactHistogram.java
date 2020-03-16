@@ -21,7 +21,7 @@ package io.druid.query.aggregation.histogram;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
-import io.druid.segment.VLongUtils;
+import io.druid.data.VLongUtils;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;

@@ -17,11 +17,11 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.data;
 
+import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -93,7 +93,7 @@ public class VLongUtils
     }
   }
 
-  public static void writeVInt(BytesOutputStream stream, int i) throws IOException
+  public static void writeVInt(BytesOutputStream stream, int i)
   {
     writeVLong(stream, i);
   }
@@ -149,6 +149,17 @@ public class VLongUtils
     return isNegativeVInt(firstByte) ? ~i : i;
   }
 
+  public static int readUnsignedVarInt(ByteBuffer buffer)
+  {
+    int value = 0;
+    int i;
+    int b;
+    for (i = 0; ((b = buffer.get() & 0xff) & 0x80) != 0; i += 7) {
+      value |= (b & 0x7f) << i;
+    }
+    return value | b << i;
+  }
+
   /**
    * Reads a zero-compressed encoded integer from input buffer and returns it.
    *
@@ -163,6 +174,31 @@ public class VLongUtils
       throw new IllegalStateException("value too long to fit in integer");
     }
     return (int)n;
+  }
+
+  public static long readVLong(BytesInputStream input)
+  {
+    byte firstByte = input.readByte();
+    int len = decodeVIntSize(firstByte);
+    if (len == 1) {
+      return firstByte;
+    }
+    long i = 0;
+    for (int idx = 0; idx < len - 1; idx++) {
+      byte b = input.readByte();
+      i = i << 8;
+      i = i | (b & 0xFF);
+    }
+    return isNegativeVInt(firstByte) ? ~i : i;
+  }
+
+  public static int readVInt(BytesInputStream input)
+  {
+    long n = readVLong(input);
+    if (n > Integer.MAX_VALUE || n < Integer.MIN_VALUE) {
+      throw new IllegalStateException("value too long to fit in integer");
+    }
+    return (int) n;
   }
 
   /**

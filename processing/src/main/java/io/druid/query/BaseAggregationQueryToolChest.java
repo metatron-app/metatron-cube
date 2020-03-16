@@ -263,9 +263,14 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   }
 
   @Override
-  public TypeReference<Row> getResultTypeReference(T query)
+  @SuppressWarnings("unchecked")
+  public TypeReference getResultTypeReference(T query)
   {
-    return TYPE_REFERENCE;
+    if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
+      return BulkRow.TYPE_REFERENCE;
+    } else {
+      return TYPE_REFERENCE;
+    }
   }
 
   @Override
