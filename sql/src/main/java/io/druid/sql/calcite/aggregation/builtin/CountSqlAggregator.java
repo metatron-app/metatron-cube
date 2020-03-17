@@ -77,7 +77,7 @@ public class CountSqlAggregator implements SqlAggregator
 
     if (args.isEmpty()) {
       // COUNT(*)
-      return Aggregation.create(new CountAggregatorFactory(name));
+      return Aggregation.create(rowSignature, CountAggregatorFactory.of(name));
     } else if (aggregateCall.isDistinct()) {
       // COUNT(DISTINCT x)
       if (plannerContext.getPlannerConfig().isUseApproximateCountDistinct()) {
@@ -106,7 +106,7 @@ public class CountSqlAggregator implements SqlAggregator
       if (rexNode.getType().isNullable()) {
         if (args.size() == 1 && args.get(0).isDirectColumnAccess()) {
           // it's fieldName.. fieldExpression later if really needed
-          return Aggregation.create(CountAggregatorFactory.of(name, args.get(0).getDirectColumn()));
+          return Aggregation.create(rowSignature, CountAggregatorFactory.of(name, args.get(0).getDirectColumn()));
         }
         final DimFilter nonNullFilter = Expressions.toFilter(
             plannerContext,
@@ -119,9 +119,9 @@ public class CountSqlAggregator implements SqlAggregator
           throw new ISE("Could not create not-null filter for rexNode[%s]", rexNode);
         }
 
-        return Aggregation.create(new CountAggregatorFactory(name)).filter(rowSignature, nonNullFilter);
+        return Aggregation.create(rowSignature, CountAggregatorFactory.of(name)).filter(rowSignature, nonNullFilter);
       } else {
-        return Aggregation.create(new CountAggregatorFactory(name));
+        return Aggregation.create(rowSignature, CountAggregatorFactory.of(name));
       }
     }
   }

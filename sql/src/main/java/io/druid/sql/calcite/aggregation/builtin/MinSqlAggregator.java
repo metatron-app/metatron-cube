@@ -87,6 +87,6 @@ public class MinSqlAggregator implements SqlAggregator
       fieldName = null;
       expression = arg.getExpression();
     }
-    return Aggregation.create(new GenericMinAggregatorFactory(name, fieldName, expression, null, valueDesc));
+    return Aggregation.create(rowSignature, new GenericMinAggregatorFactory(name, fieldName, expression, null, valueDesc));
   }
 }

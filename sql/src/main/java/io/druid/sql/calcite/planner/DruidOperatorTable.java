@@ -536,12 +536,12 @@ public class DruidOperatorTable implements SqlOperatorTable
         final AggregatorFactory rewritten = factory.rewrite(aggregatorName, fieldNames, resolver);
         if (rewritten != null) {
           return Aggregation.create(
-              virtualColumns, ImmutableList.of(rewritten), AggregatorFactory.asFinalizer(name, rewritten)
+              rowSignature, virtualColumns, ImmutableList.of(rewritten), AggregatorFactory.asFinalizer(name, rewritten)
           );
         }
       }
       final AggregatorFactory rewritten = factory.rewrite(name, fieldNames, resolver);
-      return rewritten == null ? null : Aggregation.create(virtualColumns, rewritten);
+      return rewritten == null ? null : Aggregation.create(rowSignature, virtualColumns, rewritten);
     }
   }
 

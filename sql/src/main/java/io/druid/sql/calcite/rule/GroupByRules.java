@@ -100,6 +100,7 @@ public class GroupByRules
         if (doesMatch) {
           existingAggregationsWithSameFilter.add(
               Aggregation.create(
+                  sourceRowSignature,
                   existingAggregation.getVirtualColumns(),
                   existingAggregation.getAggregatorFactories().stream()
                                      .map(factory -> ((FilteredAggregatorFactory) factory).getAggregator())

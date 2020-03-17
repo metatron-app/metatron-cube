@@ -306,10 +306,14 @@ public class QueryLifecycle
 
   public static boolean isInterrupted(@Nullable Throwable e)
   {
-    return e != null && (
-        e instanceof QueryInterruptedException || e instanceof InterruptedIOException ||
-        e.getCause() instanceof QueryInterruptedException || e.getCause() instanceof InterruptedIOException
-    );
+    for (; e != null; e = e.getCause()) {
+      if (e instanceof QueryInterruptedException ||
+          e instanceof InterruptedIOException ||
+          e instanceof InterruptedException) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void transition(final State from, final State to)

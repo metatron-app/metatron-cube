@@ -88,6 +88,6 @@ public class SumSqlAggregator implements SqlAggregator
       expression = arg.getExpression();
     }
 
-    return Aggregation.create(new GenericSumAggregatorFactory(name, fieldName, expression, null, valueDesc));
+    return Aggregation.create(rowSignature, new GenericSumAggregatorFactory(name, fieldName, expression, null, valueDesc));
   }
 }

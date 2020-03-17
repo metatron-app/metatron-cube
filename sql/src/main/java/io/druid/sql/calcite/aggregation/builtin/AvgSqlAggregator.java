@@ -108,9 +108,10 @@ public class AvgSqlAggregator implements SqlAggregator
     final String countName = Calcites.makePrefixedName(name, "count");
     final AggregatorFactory sum = new GenericSumAggregatorFactory(sumName, fieldName, expression, null, sumType);
 
-    final AggregatorFactory count = new CountAggregatorFactory(countName);
+    final AggregatorFactory count = CountAggregatorFactory.of(countName);
 
     return Aggregation.create(
+        rowSignature,
         ImmutableList.of(sum, count),
         new ArithmeticPostAggregator(
             name,

@@ -286,7 +286,7 @@ public class DruidBaseQuery implements DruidQuery
             )
         ),
         aggregate.getRowType(),
-        asTypeResolver(inputRowSignature, aggregations)
+        getTypeOverrides(aggregations)
     );
 
     final HavingSpec havingFilter = computeHavingFilter(partialQuery, inputRowSignature, plannerContext);
@@ -294,14 +294,15 @@ public class DruidBaseQuery implements DruidQuery
     if (aggregateProject == null) {
       return Grouping.create(dimensions, aggregations, havingFilter, inputRowSignature);
     } else {
+      final RowSignature rowSignature = inputRowSignature;
       final ProjectRowOrderAndPostAggregations projectRowOrderAndPostAggregations = computePostAggregations(
           plannerContext,
-          inputRowSignature,
+          rowSignature,
           aggregateProject,
           "p"
       );
       projectRowOrderAndPostAggregations.postAggregations.forEach(
-          postAggregator -> aggregations.add(Aggregation.create(postAggregator))
+          postAggregator -> aggregations.add(Aggregation.create(rowSignature, postAggregator))
       );
 
       // Remove literal dimensions that did not appear in the projection. This is useful for queries
@@ -310,7 +311,7 @@ public class DruidBaseQuery implements DruidQuery
       final ImmutableBitSet aggregateProjectBits = RelOptUtil.InputFinder.bits(aggregateProject.getChildExps(), null);
       for (int i = dimensions.size() - 1; i >= 0; i--) {
         final DimensionExpression dimension = dimensions.get(i);
-        if (Evals.isConstant(Parser.parse(dimension.getDruidExpression().getExpression(), inputRowSignature)) &&
+        if (Evals.isConstant(Parser.parse(dimension.getDruidExpression().getExpression(), rowSignature)) &&
             !aggregateProjectBits.get(i)) {
           dimensions.remove(i);
         }
@@ -319,7 +320,7 @@ public class DruidBaseQuery implements DruidQuery
       RowSignature outputRowSignature = RowSignature.from(
           projectRowOrderAndPostAggregations.rowOrder,
           aggregateProject.getRowType(),
-          asTypeResolver(inputRowSignature, aggregations)
+          getTypeOverrides(aggregations)
       );
       return Grouping.create(
           dimensions,
@@ -375,11 +376,11 @@ public class DruidBaseQuery implements DruidQuery
     return windowings;
   }
 
-  private static TypeResolver asTypeResolver(RowSignature rowSignature, List<Aggregation> aggregations)
+  private static TypeResolver getTypeOverrides(List<Aggregation> aggregations)
   {
     final Map<String, ValueDesc> overrides = Maps.newHashMap();
     for (Aggregation aggregation : aggregations) {
-      overrides.put(aggregation.getOutputName(), aggregation.getOutputType(rowSignature));
+      overrides.put(aggregation.getOutputName(), aggregation.getOutputType());
     }
     return new TypeResolver.WithMap(overrides);
   }

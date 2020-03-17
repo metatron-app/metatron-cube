@@ -124,6 +124,7 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     }
 
     return Aggregation.create(
+        rowSignature,
         virtualColumns,
         Collections.singletonList(aggregatorFactory),
         finalizeAggregations ? new HyperUniqueFinalizingPostAggregator(name, aggregatorFactory.getName(), true) : null

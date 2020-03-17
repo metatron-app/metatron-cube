@@ -20,6 +20,8 @@
 package io.druid.sql.calcite.aggregation;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -30,15 +32,14 @@ import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.filtration.Filtration;
 import io.druid.sql.calcite.table.RowSignature;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,15 +51,22 @@ public class Aggregation
   private final List<VirtualColumn> virtualColumns;
   private final List<AggregatorFactory> aggregatorFactories;
   private final PostAggregator postAggregator;
+  private final String outputName;
+  private final ValueDesc outputType;
 
   private Aggregation(
+      final RowSignature sourceRowSignature,
       final List<VirtualColumn> virtualColumns,
       final List<AggregatorFactory> aggregatorFactories,
       final PostAggregator postAggregator
   )
   {
+    final Supplier<TypeResolver> resolver = Suppliers.ofInstance(sourceRowSignature);
     this.virtualColumns = Preconditions.checkNotNull(virtualColumns, "virtualColumns");
-    this.aggregatorFactories = Preconditions.checkNotNull(aggregatorFactories, "aggregatorFactories");
+    this.aggregatorFactories = ImmutableList.copyOf(Iterables.transform(
+            Preconditions.checkNotNull(aggregatorFactories, "aggregatorFactories"),
+            aggregator -> aggregator.resolveIfNeeded(resolver)
+    ));
     this.postAggregator = postAggregator;
 
     if (aggregatorFactories.isEmpty()) {
@@ -67,74 +75,71 @@ public class Aggregation
 
     if (postAggregator == null) {
       Preconditions.checkArgument(aggregatorFactories.size() == 1, "aggregatorFactories.size == 1");
+      outputName = Iterables.getOnlyElement(aggregatorFactories).getName();
+      outputType = Iterables.getOnlyElement(aggregatorFactories).getOutputType();
     } else {
       // Verify that there are no "useless" fields in the aggregatorFactories.
       // Don't verify that the PostAggregator inputs are all present; they might not be.
+      final Map<String, ValueDesc> overrides = Maps.newHashMap();
       final Set<String> dependentFields = postAggregator.getDependentFields();
       for (AggregatorFactory aggregatorFactory : aggregatorFactories) {
         if (!dependentFields.contains(aggregatorFactory.getName())) {
           throw new IAE("Unused field[%s] in Aggregation", aggregatorFactory.getName());
         }
+        overrides.put(aggregatorFactory.getName(), aggregatorFactory.getOutputType());
       }
+      outputName = postAggregator.getName();
+      outputType = postAggregator.resolve(TypeResolver.override(sourceRowSignature, overrides));
     }
 
     // Verify that all "internal" aggregator names are prefixed by the output name of this aggregation.
     // This is a sanity check to make sure callers are behaving as they should be.
-    final String name = postAggregator != null
-                        ? postAggregator.getName()
-                        : Iterables.getOnlyElement(aggregatorFactories).getName();
 
     for (VirtualColumn virtualColumn : virtualColumns) {
-      if (!virtualColumn.getOutputName().startsWith(name)) {
-        throw new IAE("VirtualColumn[%s] not prefixed under[%s]", virtualColumn.getOutputName(), name);
+      if (!virtualColumn.getOutputName().startsWith(outputName)) {
+        throw new IAE("VirtualColumn[%s] not prefixed under[%s]", virtualColumn.getOutputName(), outputName);
       }
     }
 
     for (AggregatorFactory aggregatorFactory : aggregatorFactories) {
-      if (!aggregatorFactory.getName().startsWith(name)) {
-        throw new IAE("Aggregator[%s] not prefixed under[%s]", aggregatorFactory.getName(), name);
+      if (!aggregatorFactory.getName().startsWith(outputName)) {
+        throw new IAE("Aggregator[%s] not prefixed under[%s]", aggregatorFactory.getName(), outputName);
       }
     }
   }
 
-  public static Aggregation create(final List<VirtualColumn> virtualColumns, final AggregatorFactory aggregatorFactory)
+  public static Aggregation create(RowSignature rowSignature, AggregatorFactory aggregatorFactory)
   {
-    return new Aggregation(
-        virtualColumns,
-        ImmutableList.of(aggregatorFactory),
-        null
-    );
+    return new Aggregation(rowSignature, ImmutableList.of(), ImmutableList.of(aggregatorFactory), null);
   }
 
-  public static Aggregation create(final AggregatorFactory aggregatorFactory)
+  public static Aggregation create(RowSignature rowSignature, PostAggregator postAggregator)
   {
-    return new Aggregation(
-        ImmutableList.of(),
-        ImmutableList.of(aggregatorFactory),
-        null
-    );
-  }
-
-  public static Aggregation create(final PostAggregator postAggregator)
-  {
-    return new Aggregation(Collections.emptyList(), Collections.emptyList(), postAggregator);
+    return new Aggregation(rowSignature, ImmutableList.of(), ImmutableList.of(), postAggregator);
   }
 
   public static Aggregation create(
-      final List<AggregatorFactory> aggregatorFactories,
-      final PostAggregator postAggregator
+      RowSignature rowSignature, List<AggregatorFactory> aggregatorFactories, PostAggregator postAggregator
   )
   {
-    return new Aggregation(ImmutableList.of(), aggregatorFactories, postAggregator);
+    return new Aggregation(rowSignature, ImmutableList.of(), aggregatorFactories, postAggregator);
   }
 
   public static Aggregation create(
-      final List<VirtualColumn> virtualColumns,
-      final List<AggregatorFactory> aggregatorFactories,
-      final PostAggregator postAggregator
+      RowSignature rowSignature, List<VirtualColumn> virtualColumns, AggregatorFactory aggregatorFactory
   )
   {
-    return new Aggregation(virtualColumns, aggregatorFactories, postAggregator);
+    return new Aggregation(rowSignature, virtualColumns, ImmutableList.of(aggregatorFactory), null);
+  }
+
+  public static Aggregation create(
+      RowSignature rowSignature,
+      List<VirtualColumn> virtualColumns,
+      List<AggregatorFactory> aggregatorFactories,
+      PostAggregator postAggregator
+  )
+  {
+    return new Aggregation(rowSignature, virtualColumns, aggregatorFactories, postAggregator);
   }
 
   public List<VirtualColumn> getVirtualColumns()
@@ -155,21 +160,12 @@ public class Aggregation
 
   public String getOutputName()
   {
-    return postAggregator != null
-           ? postAggregator.getName()
-           : Iterables.getOnlyElement(aggregatorFactories).getName();
+    return outputName;
   }
 
-  public ValueDesc getOutputType(TypeResolver resolver)
+  public ValueDesc getOutputType()
   {
-    if (postAggregator == null) {
-      return resolver.resolve(getOutputName());
-    }
-    final Map<String, ValueDesc> overrides = Maps.newHashMap();
-    for (AggregatorFactory factory : aggregatorFactories) {
-      overrides.put(factory.getName(), factory.getOutputType());
-    }
-    return postAggregator.resolve(TypeResolver.override(resolver, overrides));
+    return outputType;
   }
 
   public Aggregation filter(final RowSignature sourceRowSignature, final DimFilter filter)
@@ -204,7 +200,7 @@ public class Aggregation
         newAggregators.add(
             new FilteredAggregatorFactory(
                 filteredAgg.getAggregator(),
-                Filtration.create(new AndDimFilter(ImmutableList.of(filteredAgg.getFilter(), baseOptimizedFilter)))
+                Filtration.create(DimFilters.and(filteredAgg.getFilter(), baseOptimizedFilter))
                           .optimizeFilterOnly(sourceRowSignature)
                           .getDimFilter()
             )
@@ -214,7 +210,7 @@ public class Aggregation
       }
     }
 
-    return new Aggregation(virtualColumns, newAggregators, postAggregator);
+    return new Aggregation(sourceRowSignature, virtualColumns, newAggregators, postAggregator);
   }
 
   @Override
