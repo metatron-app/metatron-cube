@@ -71,11 +71,21 @@ public interface TypeResolver
     }
   }
 
+  static Overriding override(TypeResolver delegated, Map<String, ValueDesc> overrides)
+  {
+    return override(delegated, new WithMap(overrides));
+  }
+
+  static Overriding override(TypeResolver delegated, TypeResolver overrides)
+  {
+    return new Overriding(delegated, overrides);
+  }
+
   class Overriding extends Delegate
   {
-    private final Map<String, ValueDesc> overrides;
+    private final TypeResolver overrides;
 
-    public Overriding(TypeResolver delegated, Map<String, ValueDesc> overrides)
+    private Overriding(TypeResolver delegated, TypeResolver overrides)
     {
       super(delegated);
       this.overrides = overrides;
@@ -84,13 +94,15 @@ public interface TypeResolver
     @Override
     public ValueDesc resolve(String column)
     {
-      return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column);
+      final ValueDesc resolved = overrides.resolve(column);
+      return resolved != null ? resolved : super.resolve(column);
     }
 
     @Override
     public ValueDesc resolve(String column, ValueDesc defaultType)
     {
-      return overrides.containsKey(column) ? overrides.get(column) : super.resolve(column, defaultType);
+      final ValueDesc resolved = overrides.resolve(column);
+      return resolved != null ? resolved : super.resolve(column, defaultType);
     }
   }
 

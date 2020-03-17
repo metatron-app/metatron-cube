@@ -183,9 +183,15 @@ public class ColumnExpanderTest
     @Override
     public Schema asSchema(boolean prependTime)
     {
-      List<String> dimensions = prependTime ? GuavaUtils.concat(Row.TIME_COLUMN_NAME, this.dimensions) : this.dimensions;
-      List<ValueDesc> types = prependTime ? GuavaUtils.concat(ValueDesc.LONG, this.types) : this.types;
-      return new Schema(dimensions, metrics, types, AggregatorFactory.asMap(metadata.getAggregators()), null, null);
+      List<String> columnNames = Lists.newArrayList();
+      List<ValueDesc> columnTypes = Lists.newArrayList();
+      if (prependTime) {
+        columnNames.add(Row.TIME_COLUMN_NAME);
+        columnTypes.add(ValueDesc.LONG);
+      }
+      columnNames.addAll(GuavaUtils.concat(dimensions, metrics));
+      columnTypes.addAll(types);
+      return new Schema(columnNames, columnTypes, AggregatorFactory.asMap(metadata.getAggregators()), null, null);
     }
 
     @Override
@@ -222,8 +228,8 @@ public class ColumnExpanderTest
         new TestStorageAdapter(Arrays.asList("dim1", "dim3"), Arrays.asList(met1, met2, met3))
     );
     RowResolver merged = RowResolver.of(Arrays.asList(segment1, segment2), ImmutableList.<VirtualColumn>of());
-    Assert.assertEquals(Arrays.asList("__time", "dim1", "dim2", "dim3"), merged.getDimensionNames());
-    Assert.assertEquals(Arrays.asList("met1", "met2", "met3"), merged.getMetricNames());
+    Assert.assertEquals(Arrays.asList("dim1", "dim2", "dim3"), merged.getDimensionNames());
+    Assert.assertEquals(Arrays.asList("__time", "met1", "met2", "met3"), merged.getMetricNames());
   }
 
   @Test

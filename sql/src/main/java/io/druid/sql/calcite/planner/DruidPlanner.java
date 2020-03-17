@@ -388,11 +388,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     forwardContext.put(COLUMNS, rowSignature.getColumnNames());
     forwardContext.put(MAPPED_COLUMNS, mappedColumns);
 
-    if (!Iterables.elementsEqual(rowSignature.getColumnNames(), mappedColumns)) {
-      rowSignature = rowSignature.replaceColumnNames(mappedColumns);
-    }
+    String typeString = rowSignature.replaceColumnNames(mappedColumns).asTypeString();
 
-    forwardContext.put(TYPE_STRING, rowSignature.asTypeString());    // for orc
+    forwardContext.put(TYPE_STRING, typeString);    // for orc
 
     context.put(Query.FORWARD_URL, source.getDirectory());
     context.put(Query.FORWARD_CONTEXT, forwardContext);

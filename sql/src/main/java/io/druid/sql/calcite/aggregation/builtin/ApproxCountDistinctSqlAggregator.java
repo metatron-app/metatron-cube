@@ -22,7 +22,6 @@ package io.druid.sql.calcite.aggregation.builtin;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
@@ -40,7 +39,6 @@ import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlAggFunction;
@@ -100,11 +98,7 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     if (arg.isDirectColumnAccess() && ValueDesc.isType(rowSignature.resolve(arg.getDirectColumn()), "hyperUnique")) {
       aggregatorFactory = new HyperUniquesAggregatorFactory(aggregatorName, arg.getDirectColumn(), null, true);
     } else {
-      final RelDataType dataType = rexNode.getType();
-      final ValueDesc inputType = Calcites.getValueDescForRelDataType(dataType);
-      if (inputType == null) {
-        throw new ISE("Cannot translate dataType[%s] to Druid type for field[%s]", dataType, aggregatorName);
-      }
+      final ValueDesc inputType = Calcites.getValueDescForRelDataType(rexNode);
 
       final DimensionSpec dimensionSpec;
 

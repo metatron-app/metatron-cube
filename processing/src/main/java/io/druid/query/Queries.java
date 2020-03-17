@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -34,6 +35,7 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Union;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -43,8 +45,12 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.Query.ColumnsSupport;
+import io.druid.query.Query.DimensionSupport;
+import io.druid.query.Query.SchemaProvider;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -146,67 +152,25 @@ public class Queries
     return Preconditions.checkNotNull(schema);
   }
 
-  private static RowSignature _relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
+  // best effort.. implement SchemaProvider if not enough
+  private static RowSignature _relaySchema(Query query, QuerySegmentWalker segmentWalker)
   {
     RowSignature schema = null;
-    if (subQuery.getDataSource() instanceof QueryDataSource) {
-      QueryDataSource dataSource = (QueryDataSource) subQuery.getDataSource();
-      schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(subQuery, false);
+    if (query.getDataSource() instanceof QueryDataSource) {
+      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+      schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(query, false);
     }
-    if (schema == null && subQuery instanceof Query.SchemaProvider) {
-      schema = ((Query.SchemaProvider) subQuery).schema(segmentWalker);
+    if (schema == null && query instanceof SchemaProvider) {
+      schema = ((SchemaProvider) query).schema(segmentWalker);
     }
-    if (schema == null && subQuery instanceof Query.ColumnsSupport) {
-      schema = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
+    if (schema == null && query instanceof UnionAllQuery) {
+      schema = ((UnionAllQuery) query).getSchema();
     }
-    if (schema == null && subQuery instanceof UnionAllQuery) {
-      schema = ((UnionAllQuery) subQuery).getSchema();
-    }
-    if (schema != null) {
-      LOG.debug(
-          "%s resolved schema : %s%s",
-          subQuery.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
-      );
-      return schema;
-    }
-    List<String> columnNames = Lists.newArrayList();
-    List<ValueDesc> columnTypes = Lists.newArrayList();
+    if (schema == null && query instanceof JoinQuery.JoinDelegate) {
+      List<String> columnNames = Lists.newArrayList();
+      List<ValueDesc> columnTypes = Lists.newArrayList();
 
-    RowSignature resolver = Schema.EMPTY.resolve(subQuery, false);
-    if (subQuery instanceof Query.DimensionSupport) {
-      List<String> dimensions = DimensionSpecs.toOutputNames(((Query.DimensionSupport<?>) subQuery).getDimensions());
-      List<ValueDesc> types = resolver.tryColumnTypes(dimensions);
-      if (types == null) {
-        resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-        types = resolver.tryColumnTypes(dimensions);
-      }
-      columnNames.addAll(dimensions);
-      columnTypes.addAll(types);
-    }
-    if (subQuery instanceof Query.MetricSupport) {
-      List<String> metrics = ((Query.MetricSupport<?>) subQuery).getMetrics();
-      List<ValueDesc> types = resolver.tryColumnTypes(metrics);
-      if (types == null) {
-        resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-        types = resolver.tryColumnTypes(metrics);
-      }
-      columnNames.addAll(metrics);
-      columnTypes.addAll(Preconditions.checkNotNull(types));
-    } else if (subQuery instanceof Query.AggregationsSupport) {
-      // todo: cannot handle lateral view, windowing, post-processing, etc. should throw exception ?
-      Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
-      List<AggregatorFactory> aggregators = aggrSupport.getAggregatorSpecs();
-      List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
-      List<String> metrics = AggregatorFactory.toNames(aggregators, postAggregators);
-      List<ValueDesc> types = resolver.tryColumnTypes(metrics);
-      if (types == null) {
-        resolver = QueryUtils.retrieveSchema(subQuery, segmentWalker).resolve(subQuery, false);
-        types = resolver.tryColumnTypes(metrics);
-      }
-      columnNames.addAll(metrics);
-      columnTypes.addAll(Preconditions.checkNotNull(types));
-    } else if (subQuery instanceof JoinQuery.JoinDelegate) {
-      final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
+      JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) query;
       List queries = joinQuery.getQueries();
       List<String> aliases = joinQuery.getPrefixAliases();
       Set<String> uniqueNames = Sets.newHashSet();
@@ -218,14 +182,69 @@ public class Queries
           columnTypes.add(pair.rhs);
         }
       }
-    } else {
-      // todo union-all (partitioned-join, etc.)
-      throw new UnsupportedOperationException(
-          String.format("Cannot extract schema from query type [%s]", subQuery.getType())
-      );
+      schema = new RowSignature.Simple(columnNames, columnTypes);
     }
-    LOG.debug("%s resolved schema : %s%s", subQuery.getDataSource().getNames(), columnNames, columnTypes);
-    return new RowSignature.Simple(columnNames, columnTypes);
+    if (schema == null) {
+      schema = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
+    }
+    LOG.debug(
+        "%s resolved schema : %s%s",
+        query.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
+    );
+    return schema;
+  }
+
+  public static RowSignature bestEffortOf(Query<?> query, boolean finalzed)
+  {
+    return bestEffortOf(null, query, finalzed);
+  }
+
+  // best effort without segment walker
+  public static RowSignature bestEffortOf(RowSignature source, Query<?> query, boolean finalzed)
+  {
+    List<String> newColumnNames = Lists.newArrayList();
+    List<ValueDesc> newColumnTypes = Lists.newArrayList();
+
+    RowSignature.Simple resolving = new RowSignature.Simple(newColumnNames, newColumnTypes);
+    TypeResolver resolver;
+    if (source != null) {
+      resolver = TypeResolver.override(RowResolver.of(source, BaseQuery.getVirtualColumns(query)), resolving);
+    } else {
+      resolver = RowResolver.of(resolving, BaseQuery.getVirtualColumns(query));
+    }
+
+    if (query instanceof Query.ColumnsSupport) {
+      final List<String> columns = ((Query.ColumnsSupport<?>) query).getColumns();
+      for (String column : columns) {
+        newColumnTypes.add(resolver.resolve(column));
+        newColumnNames.add(column);
+      }
+      return resolving;
+    }
+    for (DimensionSpec dimensionSpec : BaseQuery.getDimensions(query)) {
+      newColumnTypes.add(dimensionSpec.resolve(resolver));
+      newColumnNames.add(dimensionSpec.getOutputName());
+    }
+    for (String metric : BaseQuery.getMetrics(query)) {
+      newColumnTypes.add(resolver.resolve(metric));
+      newColumnNames.add(metric);
+    }
+    List<AggregatorFactory> aggregators = Lists.newArrayList(BaseQuery.getAggregators(query));
+    List<PostAggregator> postAggregators = BaseQuery.getPostAggregators(query);
+    for (int i = 0; i < aggregators.size(); i++) {
+      AggregatorFactory metric = aggregators.get(i);
+      AggregatorFactory resolved = metric.resolveIfNeeded(Suppliers.ofInstance(resolver));
+      newColumnTypes.add(finalzed ? resolved.finalizedType() : resolved.getOutputType());
+      newColumnNames.add(resolved.getName());
+      if (resolved != metric) {
+        aggregators.set(i, resolved);
+      }
+    }
+    for (PostAggregator postAggregator : PostAggregators.decorate(postAggregators, aggregators)) {
+      newColumnTypes.add(postAggregator.resolve(resolver));
+      newColumnNames.add(postAggregator.getName());
+    }
+    return resolving;
   }
 
   public static List<String> uniqueNames(List<String> names, Set<String> uniqueNames, List<String> appendTo)
@@ -240,8 +259,8 @@ public class Queries
   {
     // Ensure that name is unique from all previous field names
     String nameBase = name;
-    for (int j = 0; !uniqueNames.add(name); j++) {
-      name = nameBase + j;
+    for (int i = 0; !uniqueNames.add(name); i++) {
+      name = nameBase + i;
     }
     return name;
   }
@@ -381,14 +400,14 @@ public class Queries
 
   public static List<DimensionSpec> extractInputFields(Query query, List<String> outputNames)
   {
-    if (query instanceof Query.ColumnsSupport) {
-      Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport<?>) query;
+    if (query instanceof ColumnsSupport) {
+      ColumnsSupport<?> columnsSupport = (ColumnsSupport<?>) query;
       if (columnsSupport.getColumns().containsAll(outputNames)) {
         return DefaultDimensionSpec.toSpec(outputNames);
       }
     }
-    if (query instanceof Query.DimensionSupport) {
-      Query.DimensionSupport<?> dimensionSupport = (Query.DimensionSupport) query;
+    if (query instanceof DimensionSupport) {
+      DimensionSupport<?> dimensionSupport = (DimensionSupport) query;
       List<DimensionSpec> dimensionSpecs = dimensionSupport.getDimensions();
       int[] indices = GuavaUtils.indexOf(DimensionSpecs.toOutputNames(dimensionSpecs), outputNames, true);
       if (indices != null) {

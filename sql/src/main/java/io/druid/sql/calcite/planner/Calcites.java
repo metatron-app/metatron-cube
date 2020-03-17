@@ -132,6 +132,11 @@ public class Calcites
 
   }
 
+  public static ValueDesc getValueDescForRelDataType(RexNode rexNode)
+  {
+    return getValueDescForRelDataType(rexNode.getType());
+  }
+
   public static ValueDesc getValueDescForRelDataType(RelDataType dataType)
   {
     final SqlTypeName sqlTypeName = dataType.getSqlTypeName();

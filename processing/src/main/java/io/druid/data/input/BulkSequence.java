@@ -30,6 +30,7 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingSequenceBase;
+import io.druid.query.RowSignature;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 
@@ -42,14 +43,14 @@ import java.util.List;
  */
 public class BulkSequence extends YieldingSequenceBase<BulkRow>
 {
-  public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, List<ValueDesc> schema, int timeIndex)
+  public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, RowSignature schema)
   {
-    return fromArray(Sequences.map(sequence, CompactRow.UNWRAP), schema, timeIndex);
+    return fromArray(Sequences.map(sequence, CompactRow.UNWRAP), schema);
   }
 
-  public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, List<ValueDesc> schema, int timeIndex)
+  public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema)
   {
-    return new BulkSequence(sequence, schema, timeIndex);
+    return new BulkSequence(sequence, schema.getColumnTypes(), schema.getColumnNames().indexOf(Row.TIME_COLUMN_NAME));
   }
 
   private static final LZ4Compressor LZ4 = LZ4Factory.fastestInstance().fastCompressor();

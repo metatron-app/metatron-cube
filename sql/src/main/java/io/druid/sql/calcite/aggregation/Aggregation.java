@@ -23,10 +23,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -169,7 +169,7 @@ public class Aggregation
     for (AggregatorFactory factory : aggregatorFactories) {
       overrides.put(factory.getName(), factory.getOutputType());
     }
-    return postAggregator.resolve(new TypeResolver.Overriding(resolver, overrides));
+    return postAggregator.resolve(TypeResolver.override(resolver, overrides));
   }
 
   public Aggregation filter(final RowSignature sourceRowSignature, final DimFilter filter)

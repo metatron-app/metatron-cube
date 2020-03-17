@@ -39,7 +39,6 @@ import io.druid.java.util.common.Pair;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.query.select.Schema;
 import io.druid.segment.column.Column;
 
 import java.util.Arrays;
@@ -194,24 +193,6 @@ public class IncrementalIndexSchema
       metricTypes.add(aggregatorFactory.getName() + ":" + aggregatorFactory.getOutputType());
     }
     return metricTypes;
-  }
-
-  public Schema asSchema(final boolean keepDimensionMark)
-  {
-    List<ValueDesc> types = Lists.newArrayList();
-    for (DimensionSchema schema : dimensionsSpec.getDimensions()) {
-      if (keepDimensionMark) {
-        types.add(ValueDesc.ofDimension(ValueType.of(schema.getTypeName())));
-      } else {
-        types.add(ValueDesc.of(schema.getTypeName()));
-      }
-    }
-    for (AggregatorFactory aggregatorFactory : metrics) {
-      types.add(aggregatorFactory.getOutputType());
-    }
-    List<String> dimensions = dimensionsSpec.getDimensionNames();
-    Map<String, AggregatorFactory> aggregators = AggregatorFactory.asMap(metrics);
-    return new Schema(dimensions, getMetricNames(), types, aggregators, null, null);
   }
 
   public IncrementalIndexSchema withRollup(boolean rollup)

@@ -857,27 +857,28 @@ public abstract class IncrementalIndex implements Closeable
 
   public Schema asSchema(boolean prependTime)
   {
-    List<String> dimensionNames = prependTime ? GuavaUtils.concat(Row.TIME_COLUMN_NAME, getDimensionNames()) :
-                                  getDimensionNames();
-    List<String> metricNames = Lists.newArrayList(getMetricNames());
+    List<String> columnNames = Lists.newArrayList();
     List<ValueDesc> columnTypes = Lists.newArrayList();
-    Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
-    Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
-    for (String dimension : dimensionNames) {
-      if (dimension.equals(Row.TIME_COLUMN_NAME)) {
-        columnTypes.add(ValueDesc.LONG);
-        continue;
-      }
-      ColumnCapabilities capabilities = getCapabilities(dimension);
-      columnTypes.add(ValueDesc.ofDimension(capabilities.getType()));
-      columnCapabilities.put(dimension, capabilities);
+    Map<String, ColumnCapabilities> capabilities = Maps.newHashMap();
+    Map<String, Map<String, String>> descriptors = Maps.newHashMap();
+
+    if (prependTime) {
+      columnNames.add(Row.TIME_COLUMN_NAME);
+      columnTypes.add(ValueDesc.LONG);
+    }
+    for (String dimension : getDimensionNames()) {
+      ColumnCapabilities capability = getCapabilities(dimension);
+      columnNames.add(dimension);
+      columnTypes.add(ValueDesc.ofDimension(capability.getType()));
+      capabilities.put(dimension, capability);
     }
     Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
-    for (String metric : metricNames) {
+    for (String metric : getMetricNames()) {
+      columnNames.add(metric);
       columnTypes.add(aggregators.get(metric).getOutputType());
-      columnCapabilities.put(metric, getCapabilities(metric));
+      capabilities.put(metric, getCapabilities(metric));
     }
-    return new Schema(dimensionNames, metricNames, columnTypes, aggregators, columnCapabilities, columnDescriptors);
+    return new Schema(columnNames, columnTypes, aggregators, capabilities, descriptors);
   }
 
   public static final class DimensionDesc

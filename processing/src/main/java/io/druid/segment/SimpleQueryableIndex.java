@@ -87,14 +87,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.cuboids = cuboids == null ? ImmutableMap.of() : cuboids;
     this.fileMapper = fileMapper;
     this.metadata = metadata;
-    this.numRows = Suppliers.memoize(new Supplier<Integer>()
-    {
-      @Override
-      public Integer get()
-      {
-        return columns.get(Column.TIME_COLUMN_NAME).getNumRows();
-      }
-    });
+    this.numRows = Suppliers.memoize(() -> columns.get(Column.TIME_COLUMN_NAME).getNumRows());
   }
 
   @Override
@@ -192,23 +185,28 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public Schema asSchema(boolean prependTime)
   {
-    List<String> dimensionNames = prependTime ? GuavaUtils.concat(Row.TIME_COLUMN_NAME, getAvailableDimensions()) :
-                                  Lists.newArrayList(getAvailableDimensions());
-    List<String> metricNames = Lists.newArrayList(getAvailableMetrics());
+    List<String> columnNames = Lists.newArrayList();
     List<ValueDesc> columnTypes = Lists.newArrayList();
-
     Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
     Map<String, Map<String, String>> columnDescriptors = Maps.newHashMap();
-    for (String columnName : Iterables.concat(dimensionNames, metricNames)) {
-      Column column = Preconditions.checkNotNull(getColumn(columnName));
+    if (prependTime) {
+      columnNames.add(Row.TIME_COLUMN_NAME);
+      columnTypes.add(ValueDesc.LONG);
+    }
+    for (String columnName : Iterables.concat(getAvailableDimensions(), getAvailableMetrics())) {
+      Column column = Preconditions.checkNotNull(getColumn(columnName), "cannot find column %s", columnName);
+      columnNames.add(columnName);
       columnTypes.add(column.getType());
-      columnCapabilities.put(columnName, column.getCapabilities());
+      ColumnCapabilities capabilities = column.getCapabilities();
+      if (capabilities != null) {
+        columnCapabilities.put(columnName, capabilities);
+      }
       Map<String, String> descs = column.getColumnDescs();
       if (!GuavaUtils.isNullOrEmpty(descs)) {
         columnDescriptors.put(columnName, descs);
       }
     }
-    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(metadata);
-    return new Schema(dimensionNames, metricNames, columnTypes, aggregators, columnCapabilities, columnDescriptors);
+    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
+    return new Schema(columnNames, columnTypes, aggregators, columnCapabilities, columnDescriptors);
   }
 }

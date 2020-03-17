@@ -54,8 +54,7 @@ public class TestEstateQuery extends QueryRunnerTestHelper
   public void testSchema()
   {
     Schema schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate")));
-    Assert.assertEquals(Arrays.asList("__time", "idx", "gu"), schema.getDimensionNames());
-    Assert.assertEquals(Arrays.asList("gis", "price", "amt", "py", "hasPrice"), schema.getMetricNames());
+    Assert.assertEquals("[__time, idx, gu, gis, price, amt, py, hasPrice]", schema.getColumnNames().toString());
     Assert.assertEquals(
         "[long, dimension.string, dimension.string, struct(lat:double,lon:double,addr:string), double, long, float, boolean]",
         schema.getColumnTypes().toString()

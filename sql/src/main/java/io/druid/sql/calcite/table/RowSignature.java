@@ -22,7 +22,6 @@ package io.druid.sql.calcite.table;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -44,7 +43,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Type signature for a row in a Druid dataSource ("DruidTable") or query result. Rows have an ordering and every
@@ -53,7 +51,7 @@ import java.util.Objects;
  */
 public class RowSignature extends io.druid.query.RowSignature.Simple
 {
-  public RowSignature(List<String> columnNames, List<ValueDesc> columnTypes)
+  private RowSignature(List<String> columnNames, List<ValueDesc> columnTypes)
   {
     super(columnNames, columnTypes);
   }
@@ -61,19 +59,11 @@ public class RowSignature extends io.druid.query.RowSignature.Simple
   // this is only possible on array output functions.. so it's not right for using for Windowing (todo)
   public static RowSignature from(final RelDataType rowType)
   {
-    return from(rowType.getFieldList());
-  }
-
-  public static RowSignature from(final List<RelDataTypeField> fieldList)
-  {
     final Builder rowSignatureBuilder = builder();
-    for (RelDataTypeField field : fieldList) {
+    for (RelDataTypeField field : rowType.getFieldList()) {
       final String columnName = field.getName();
       final RelDataType dataType = field.getType();
       final ValueDesc valueType = Calcites.getValueDescForRelDataType(dataType);
-      if (valueType == null) {
-        throw new ISE("Cannot translate dataType[%s] to Druid type for field[%s]", dataType, columnName);
-      }
       rowSignatureBuilder.add(columnName, valueType);
     }
     return rowSignatureBuilder.build();
@@ -90,7 +80,7 @@ public class RowSignature extends io.druid.query.RowSignature.Simple
       throw new IAE("Field count %d != %d", rowOrder.size(), rowType.getFieldCount());
     }
 
-    final RowSignature.Builder rowSignatureBuilder = builder();
+    final Builder rowSignatureBuilder = builder();
 
     for (int i = 0; i < rowOrder.size(); i++) {
       final RelDataTypeField field = rowType.getFieldList().get(i);
@@ -104,9 +94,6 @@ public class RowSignature extends io.druid.query.RowSignature.Simple
         }
       }
       final ValueDesc valueType = Calcites.getValueDescForRelDataType(field.getType());
-      if (valueType == null) {
-        throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, rowOrder.get(i));
-      }
 
       rowSignatureBuilder.add(rowOrder.get(i), valueType);
     }
@@ -206,61 +193,10 @@ public class RowSignature extends io.druid.query.RowSignature.Simple
     }
   }
 
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(columnNames, columnTypes);
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    RowSignature that = (RowSignature) o;
-
-    if (!Objects.equals(columnTypes, that.columnTypes)) {
-      return false;
-    }
-    return Objects.equals(columnNames, that.columnNames);
-  }
-
-  @Override
-  public String toString()
-  {
-    final StringBuilder s = new StringBuilder("{");
-    for (int i = 0; i < columnNames.size(); i++) {
-      if (i > 0) {
-        s.append(", ");
-      }
-      final String columnName = columnNames.get(i);
-      final ValueDesc columnType = columnTypes.get(i);
-      s.append(columnName).append(":").append(columnType);
-    }
-    return s.append("}").toString();
-  }
-
   public RowSignature replaceColumnNames(List<String> newColumnNames)
   {
     Preconditions.checkArgument(columnNames.size() == newColumnNames.size(), "inconsistent");
-    Builder builder = new Builder();
-    for (int i = 0; i < newColumnNames.size(); i++) {
-      builder.add(newColumnNames.get(i), columnTypes.get(i));
-    }
-    return builder.build();
-  }
-
-  public RowSignature concat(RowSignature concat)
-  {
-    return new RowSignature(
-        GuavaUtils.concat(columnNames, concat.columnNames),
-        GuavaUtils.concat(columnTypes, concat.columnTypes)
-    );
+    return new RowSignature(newColumnNames, columnTypes);
   }
 
   public static class Builder

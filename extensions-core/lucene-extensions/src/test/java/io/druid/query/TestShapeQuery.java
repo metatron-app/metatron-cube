@@ -37,7 +37,6 @@ import io.druid.segment.lucene.SpatialOperations;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -57,26 +56,19 @@ public class TestShapeQuery extends QueryRunnerTestHelper
   public void testSchema()
   {
     Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("seoul_roads")));
-    Assert.assertEquals(Arrays.asList("__time", "id", "name"), schema.getDimensionNames());
-    Assert.assertEquals(Arrays.asList("geom"), schema.getMetricNames());
-    Assert.assertEquals(
-        "[long, dimension.string, dimension.string, string]", schema.getColumnTypes().toString()
-    );
-    Assert.assertEquals(
-        "{geom={geom=shape(format=WKT)}}", schema.getDescriptors().toString()
-    );
+    Assert.assertEquals("[__time, id, name, geom]", schema.getColumnNames().toString());
+    Assert.assertEquals("[long, dimension.string, dimension.string, string]", schema.getColumnTypes().toString());
+    Assert.assertEquals("{geom={geom=shape(format=WKT)}}", schema.getDescriptors().toString());
 
     schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("world_border")));
-    System.out.println(schema);
-    Assert.assertEquals("[__time, CODE, CNTRY_NAME, CURR_TYPE, CURR_CODE, FIPS]", schema.getDimensionNames().toString());
-    Assert.assertEquals("[POP_CNTRY, WKT]", schema.getMetricNames().toString());
+    Assert.assertEquals(
+        "[__time, CODE, CNTRY_NAME, CURR_TYPE, CURR_CODE, FIPS, POP_CNTRY, WKT]", schema.getColumnNames().toString()
+    );
     Assert.assertEquals(
         "[long, dimension.string, dimension.string, dimension.string, dimension.string, dimension.string, double, string]",
         schema.getColumnTypes().toString()
     );
-    Assert.assertEquals(
-        "{WKT={shape=shape(format=WKT)}}", schema.getDescriptors().toString()
-    );
+    Assert.assertEquals("{WKT={shape=shape(format=WKT)}}", schema.getDescriptors().toString());
   }
 
   @Test

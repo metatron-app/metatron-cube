@@ -442,22 +442,9 @@ public class QueryUtils
 
   private static Supplier<RowResolver> asResolverSupplier(final Query query, final QuerySegmentWalker segmentWalker)
   {
-    return Suppliers.memoize(
-        new Supplier<RowResolver>()
-        {
-          @Override
-          public RowResolver get()
-          {
-            return toResolver(query, segmentWalker);
-          }
-        }
-    );
-  }
-
-  public static RowResolver toResolver(Query query, QuerySegmentWalker segmentWalker)
-  {
-    final RowSignature schema = retrieveSchema(query, segmentWalker);
-    return RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
+    return Suppliers.memoize(() -> {
+      return RowResolver.of(retrieveSchema(query, segmentWalker), BaseQuery.getVirtualColumns(query));
+    });
   }
 
   public static RowSignature retrieveSchema(Query<?> query, QuerySegmentWalker segmentWalker)

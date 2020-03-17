@@ -19,28 +19,28 @@
 
 package io.druid.query;
 
-import com.google.common.base.Preconditions;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
-import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.dimension.DimensionSpec;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
 public interface RowSignature extends TypeResolver
 {
+  @JsonProperty
   List<String> getColumnNames();
 
+  @JsonProperty
   List<ValueDesc> getColumnTypes();
 
   int size();
@@ -52,20 +52,12 @@ public interface RowSignature extends TypeResolver
 
   default Iterable<Pair<String, ValueDesc>> dimensionAndTypes()
   {
-    return columnAndTypes(new Predicate<ValueDesc>()
-    {
-      @Override
-      public boolean apply(ValueDesc input) { return input.isDimension();}
-    });
+    return columnAndTypes(type -> type.isDimension());
   }
 
   default Iterable<Pair<String, ValueDesc>> metricAndTypes()
   {
-    return columnAndTypes(new Predicate<ValueDesc>()
-    {
-      @Override
-      public boolean apply(ValueDesc input) { return !input.isDimension();}
-    });
+    return columnAndTypes(type -> !type.isDimension());
   }
 
   default List<Pair<String, ValueDesc>> columnAndTypes(Predicate<ValueDesc> predicate)
@@ -83,20 +75,12 @@ public interface RowSignature extends TypeResolver
 
   default List<String> getDimensionNames()
   {
-    return columnName(new Predicate<ValueDesc>()
-    {
-      @Override
-      public boolean apply(ValueDesc input) { return input.isDimension();}
-    });
+    return columnName(type -> type.isDimension());
   }
 
   default List<String> getMetricNames()
   {
-    return columnName(new Predicate<ValueDesc>()
-    {
-      @Override
-      public boolean apply(ValueDesc input) { return !input.isDimension();}
-    });
+    return columnName(type -> !type.isDimension());
   }
 
   default List<String> columnName(Predicate<ValueDesc> predicate)
@@ -107,36 +91,6 @@ public interface RowSignature extends TypeResolver
     for (int i = 0; i < columnTypes.size(); i++) {
       if (predicate.apply(columnTypes.get(i))) {
         predicated.add(columnNames.get(i));
-      }
-    }
-    return predicated;
-  }
-
-  default List<ValueDesc> getDimensionTypes()
-  {
-    return columnTypes(new Predicate<ValueDesc>()
-    {
-      @Override
-      public boolean apply(ValueDesc input) { return input.isDimension();}
-    });
-  }
-
-  default List<ValueDesc> getMetricTypes()
-  {
-    return columnTypes(new Predicate<ValueDesc>()
-    {
-      @Override
-      public boolean apply(ValueDesc input) { return !input.isDimension();}
-    });
-  }
-
-  default List<ValueDesc> columnTypes(Predicate<ValueDesc> predicate)
-  {
-    List<ValueDesc> columnTypes = getColumnTypes();
-    List<ValueDesc> predicated = Lists.newArrayList();
-    for (ValueDesc type : getColumnTypes()) {
-      if (predicate.apply(type)) {
-        predicated.add(type);
       }
     }
     return predicated;
@@ -154,71 +108,16 @@ public interface RowSignature extends TypeResolver
     return new Simple(getColumnNames(), replaced);
   }
 
-  default List<ValueDesc> tryColumnTypes(List<String> columns)
+  default RowSignature extract(List<String> columns)
   {
-    List<ValueDesc> columnTypes = Lists.newArrayList();
-    for (String column : columns) {
-      ValueDesc resolved = resolve(column);
-      if (resolved == null || resolved.isUnknown()) {
-        return null;
-      }
-      columnTypes.add(resolved);
-    }
-    return columnTypes;
+    return new Simple(
+        columns, ImmutableList.copyOf(Iterables.transform(columns, name -> resolve(name, ValueDesc.UNKNOWN)))
+    );
   }
 
-  default RowSignature retain(List<String> retainers)
-  {
-    List<String> columnNames = getColumnNames();
-    List<ValueDesc> columnTypes = getColumnTypes();
-
-    List<String> newColumnNames = Lists.newArrayList();
-    List<ValueDesc> newColumnTypes = Lists.newArrayList();
-    for (String retainer : retainers) {
-      final int index = columnNames.indexOf(retainer);
-      Preconditions.checkArgument(index >= 0, "cannot find column %s from %s", retainer, columnNames);
-      newColumnNames.add(columnNames.get(index));
-      newColumnTypes.add(columnTypes.get(index));
-    }
-    return new Simple(newColumnNames, newColumnTypes);
-  }
-
-  // todo remove this fuck
   default RowSignature resolve(Query<?> query, boolean finalzed)
   {
-    List<String> newColumnNames = Lists.newArrayList();
-    List<ValueDesc> newColumnTypes = Lists.newArrayList();
-
-    TypeResolver resolver = RowResolver.of(this, BaseQuery.getVirtualColumns(query));
-
-    if (query instanceof Query.ColumnsSupport) {
-      final List<String> columns = ((Query.ColumnsSupport<?>) query).getColumns();
-      for (String column : columns) {
-        newColumnNames.add(column);
-        newColumnTypes.add(resolver.resolve(column));
-      }
-      return new RowSignature.Simple(newColumnNames, newColumnTypes);
-    }
-    for (DimensionSpec dimensionSpec : BaseQuery.getDimensions(query)) {
-      newColumnNames.add(dimensionSpec.getOutputName());
-      newColumnTypes.add(dimensionSpec.resolve(resolver));
-    }
-    for (String metric : BaseQuery.getMetrics(query)) {
-      newColumnNames.add(metric);
-      newColumnTypes.add(resolver.resolve(metric));
-    }
-    List<AggregatorFactory> aggregators = BaseQuery.getAggregators(query);
-    List<PostAggregator> postAggregators = BaseQuery.getPostAggregators(query);
-    for (AggregatorFactory metric : aggregators) {
-      metric = metric.resolveIfNeeded(Suppliers.ofInstance(resolver));
-      newColumnNames.add(metric.getName());
-      newColumnTypes.add(finalzed ? metric.finalizedType() : metric.getOutputType());
-    }
-    for (PostAggregator postAggregator : PostAggregators.decorate(postAggregators, aggregators)) {
-      newColumnNames.add(postAggregator.getName());
-      newColumnTypes.add(postAggregator.resolve(resolver));
-    }
-    return new RowSignature.Simple(newColumnNames, newColumnTypes);
+    return Queries.bestEffortOf(this, query, finalzed);
   }
 
   default String asTypeString()
@@ -278,7 +177,71 @@ public interface RowSignature extends TypeResolver
     public ValueDesc resolve(String column)
     {
       int index = columnNames.indexOf(column);
-      return index >= 0 ? columnTypes.get(index) : null;
+      if (index >= 0) {
+        return columnTypes.get(index);
+      }
+      ValueDesc resolved = null;
+      for (int x = column.lastIndexOf('.'); resolved == null && x > 0; x = column.lastIndexOf('.', x - 1)) {
+        resolved = findElementOfStruct(column.substring(0, x), column.substring(x + 1));
+      }
+      return resolved;
+    }
+
+    private ValueDesc findElementOfStruct(String column, String element)
+    {
+      int index = columnNames.indexOf(column);
+      if (index >= 0) {
+        ValueDesc type = columnTypes.get(index);
+        String[] description = type.getDescription();
+        if (type.isStruct() && description != null) {
+          for (int i = 1; i < description.length; i++) {
+            int split = description[i].indexOf(':');
+            if (element.equals(description[i].substring(0, split))) {
+              return ValueDesc.of(description[i].substring(split + 1));
+            }
+          }
+        }
+      }
+      return null;
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Objects.hash(columnNames, columnTypes);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof RowSignature)) {
+        return false;
+      }
+
+      RowSignature that = (RowSignature) o;
+
+      if (!Objects.equals(columnTypes, that.getColumnTypes())) {
+        return false;
+      }
+      return Objects.equals(columnNames, that.getColumnNames());
+    }
+
+    @Override
+    public String toString()
+    {
+      final StringBuilder s = new StringBuilder("{");
+      for (int i = 0; i < columnNames.size(); i++) {
+        if (i > 0) {
+          s.append(", ");
+        }
+        final String columnName = columnNames.get(i);
+        final ValueDesc columnType = columnTypes.get(i);
+        s.append(columnName).append(":").append(columnType);
+      }
+      return s.append("}").toString();
     }
   }
 }

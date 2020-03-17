@@ -53,7 +53,7 @@ public class ColumnExpander
       Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>) query;
       if (GuavaUtils.isNullOrEmpty(dimensionSupport.getDimensions()) && dimensionSupport.allDimensionsForEmpty()) {
         query = dimensionSupport.withDimensionSpecs(
-            DefaultDimensionSpec.toSpec(supplier.get().getDimensionNamesExceptTime())
+            DefaultDimensionSpec.toSpec(supplier.get().getDimensionNames())
         );
       }
     }

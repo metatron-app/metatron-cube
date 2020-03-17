@@ -172,32 +172,19 @@ public class ExplodeSpec implements LateralViewSpec
   @Override
   public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
-    List<String> dimensionNames = schema.getDimensionNames();
-    int index = dimensionNames.indexOf(column);
+    int index = schema.getColumnNames().indexOf(column);
     if (index < 0) {
-      List<String> metricNames = schema.getMetricNames();
-      index = metricNames.indexOf(column);
-      if (index < 0) {
-        return schema;
-      }
-      List<ValueDesc> metricTypes = schema.getMetricTypes();
-      ValueDesc type = metricTypes.get(index);
-      if (type.isArray()) {
-        metricTypes.set(index, ValueDesc.elementOfArray(type));
-      } else if (type.isDimension()) {
-        metricTypes.set(index, ValueDesc.of(ValueDesc.typeOfDimension(type)));
-      }
-      metricNames.set(index, alias);
-    } else {
-      List<ValueDesc> dimensionTypes = schema.getDimensionTypes();
-      ValueDesc type = dimensionTypes.get(index);
-      if (type.isArray()) {
-        dimensionTypes.set(index, ValueDesc.elementOfArray(type));
-      } else if (type.isDimension()) {
-        dimensionTypes.set(index, ValueDesc.of(ValueDesc.typeOfDimension(type)));
-      }
-      dimensionNames.set(index, alias);
+      return schema;
     }
-    return schema;
+    List<String> columnNames = Lists.newArrayList(schema.getColumnNames());
+    List<ValueDesc> columnTypes = Lists.newArrayList(schema.getColumnTypes());
+    ValueDesc type = schema.getColumnTypes().get(index);
+    if (type.isArray()) {
+      columnTypes.set(index, ValueDesc.elementOfArray(type));
+    } else if (type.isDimension()) {
+      columnTypes.set(index, ValueDesc.of(ValueDesc.typeOfDimension(type)));
+    }
+    columnNames.set(index, alias);
+    return new RowSignature.Simple(columnNames, columnTypes);
   }
 }

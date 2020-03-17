@@ -53,8 +53,7 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
   public void testSchema()
   {
     Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate_wkt")));
-    Assert.assertEquals(Arrays.asList("__time", "idx", "gu"), schema.getDimensionNames());
-    Assert.assertEquals(Arrays.asList("gis", "amt", "py"), schema.getMetricNames());
+    Assert.assertEquals("[__time, idx, gu, gis, amt, py]", schema.getColumnNames().toString());
     Assert.assertEquals(
         "[long, dimension.string, dimension.string, struct(lat:double,lon:double,addr:string), long, float]",
         schema.getColumnTypes().toString()

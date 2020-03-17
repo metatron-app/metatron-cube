@@ -410,23 +410,25 @@ public class ColumnSelectorFactories
       if (resolved == null) {
         return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
       }
-      if (resolver.isDimension(columnName) || resolver.isMetric(columnName)) {
-        return new ObjectColumnSelector()
-        {
-          @Override
-          public Object get()
-          {
-            return current().getRaw(columnName);
-          }
-
-          @Override
-          public ValueDesc type()
-          {
-            return resolved;
-          }
-        };
+      final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
+      if (virtualColumn != null) {
+        return virtualColumn.asMetric(columnName, this);
       }
-      return resolver.getVirtualColumn(columnName).asMetric(columnName, this);
+      // todo : returns null for struct field access
+      return new ObjectColumnSelector()
+      {
+        @Override
+        public Object get()
+        {
+          return current().getRaw(columnName);
+        }
+
+        @Override
+        public ValueDesc type()
+        {
+          return resolved;
+        }
+      };
     }
 
     @Override

@@ -62,7 +62,7 @@ public class SegmentAnalyzer
     final QueryableIndex index = segment.asQueryableIndex(false);
     final StorageAdapter adapter = segment.asStorageAdapter(false);
 
-    final RowResolver resolver = RowResolver.of(segment.asSchema(true), query.getVirtualColumns());
+    final RowResolver resolver = RowResolver.of(segment, query.getVirtualColumns());
 
     final List<String> columns;
     if (GuavaUtils.isNullOrEmpty(query.getColumns())) {

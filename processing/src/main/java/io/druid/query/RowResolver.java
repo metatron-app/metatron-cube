@@ -20,16 +20,12 @@
 package io.druid.query;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.select.Schema;
@@ -50,20 +46,11 @@ import java.util.Set;
 
 /**
  */
-public class RowResolver implements TypeResolver, Function<String, ValueDesc>
+public class RowResolver implements RowSignature
 {
   public static Supplier<RowResolver> supplier(final List<Segment> segments, final Query query)
   {
-    return Suppliers.memoize(
-        new Supplier<RowResolver>()
-        {
-          @Override
-          public RowResolver get()
-          {
-            return of(segments, BaseQuery.getVirtualColumns(query));
-          }
-        }
-    );
+    return Suppliers.memoize(() -> of(segments, BaseQuery.getVirtualColumns(query)));
   }
 
   public static RowResolver of(List<Segment> segments, List<VirtualColumn> virtualColumns)
@@ -88,34 +75,14 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 
   public static Class<?> toClass(ValueDesc valueDesc)
   {
-    switch (valueDesc.type()) {
-      case BOOLEAN:
-        return Boolean.class;
-      case STRING:
-        return String.class;
-      case FLOAT:
-        return Float.class;
-      case DOUBLE:
-        return Double.class;
-      case LONG:
-        return Long.class;
-      case DATETIME:
-        return DateTime.class;
+    Class clazz = valueDesc.asClass();
+    if (clazz != null && clazz != Object.class) {
+      return clazz;
     }
     String typeName = valueDesc.typeName();
-    switch (typeName.toLowerCase()) {
-      case ValueDesc.MAP_TYPE:
-        return Map.class;
-      case ValueDesc.LIST_TYPE:
-        return List.class;
-      case ValueDesc.UNKNOWN_TYPE:
-        return Object.class;
-    }
-
     if (typeName.startsWith(ValueDesc.INDEXED_ID_PREFIX)) {
       return IndexedID.class;
     }
-
     ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
     if (serde != null) {
       return serde.getObjectStrategy().getClazz();
@@ -183,41 +150,21 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     this.virtualColumns = virtualColumns;
   }
 
-  public List<String> getDimensionNames()
-  {
-    return schema.getDimensionNames();
-  }
-
-  public List<String> getDimensionNamesExceptTime()
-  {
-    final List<String> dimensions = schema.getDimensionNames();
-    final int index = dimensions.indexOf(Row.TIME_COLUMN_NAME);
-    if (index >= 0) {
-      List<String> copy = Lists.newArrayList(dimensions);
-      copy.remove(index);
-      return copy;
-    }
-    return dimensions;
-  }
-
-  public List<String> getMetricNames()
-  {
-    return schema.getMetricNames();
-  }
-
   public List<String> getColumnNames()
   {
     return schema.getColumnNames();
   }
 
-  public boolean isDimension(String columnName)
+  @Override
+  public List<ValueDesc> getColumnTypes()
   {
-    return schema.getDimensionNames().indexOf(columnName) >= 0;
+    return schema.getColumnTypes();
   }
 
-  public boolean isMetric(String columnName)
+  @Override
+  public int size()
   {
-    return schema.getMetricNames().indexOf(columnName) >= 0;
+    return schema.size();
   }
 
   public Map<String, AggregatorFactory> getAggregators()
@@ -239,12 +186,6 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
   public VirtualColumn getVirtualColumn(String columnName)
   {
     return virtualColumns.getVirtualColumn(columnName);
-  }
-
-  @Override
-  public ValueDesc apply(String input)
-  {
-    return resolve(input);
   }
 
   @Override

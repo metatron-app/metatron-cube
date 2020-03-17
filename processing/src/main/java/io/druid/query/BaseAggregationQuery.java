@@ -53,7 +53,6 @@ import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.query.ordering.Direction;
-import io.druid.query.select.Schema;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -214,7 +213,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public Sequence<Row> applyLimit(Sequence<Row> sequence, boolean sortOnTimeForLimit)
   {
     if (havingSpec != null) {
-      Predicate<Row> predicate = havingSpec.toEvaluator(Schema.EMPTY.resolve(this, true));
+      Predicate<Row> predicate = havingSpec.toEvaluator(Queries.bestEffortOf(this, true));
       sequence = Sequences.filter(sequence, predicate);
     }
     Query.AggregationsSupport<?> query = withPostAggregatorSpecs(

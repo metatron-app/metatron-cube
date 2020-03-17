@@ -529,7 +529,7 @@ public class DruidBaseQuery implements DruidQuery
         throw new CannotBuildQueryException(aggregate, rexNode);
       }
 
-      final ValueDesc outputType = Calcites.getValueDescForRelDataType(rexNode.getType());
+      final ValueDesc outputType = Calcites.getValueDescForRelDataType(rexNode);
       if (!ValueDesc.isPrimitive(outputType)) {
         // Can't group on unknown or COMPLEX types.
         throw new CannotBuildQueryException(aggregate, rexNode);
@@ -713,7 +713,7 @@ public class DruidBaseQuery implements DruidQuery
     // Check if a cast is necessary.
     final ValueDesc toExprType = aggregateRowSignature.resolve(expression.getDirectColumn());
 
-    final ValueDesc fromExprType = Calcites.getValueDescForRelDataType(rexNode.getType());
+    final ValueDesc fromExprType = Calcites.getValueDescForRelDataType(rexNode);
 
     return toExprType.equals(fromExprType);
   }

@@ -39,11 +39,11 @@ import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.groupby.GroupByQueryEngine;
-import io.druid.query.select.Schema;
 import io.druid.query.select.StreamQuery;
 
 import java.util.Arrays;
@@ -232,7 +232,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     if (windowingSpecs.isEmpty()) {
       return source.toRowLimitFn(columns, sortOnTimeForLimit, limit);
     }
-    final RowSignature resolver = Schema.EMPTY.resolve(query, true);
+    final RowSignature resolver = Queries.bestEffortOf(query, true);
     final WindowingProcessor processor = new WindowingProcessor(source, resolver, windowingSpecs);
     final Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, LimitSpec.<Row>toList());
     if (columns.isEmpty()) {

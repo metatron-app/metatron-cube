@@ -21,12 +21,9 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
-import io.druid.data.ValueDesc;
 import io.druid.data.input.BulkRow;
 import io.druid.data.input.BulkSequence;
 import io.druid.java.util.common.guava.Sequence;
@@ -40,7 +37,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryUtils;
-import io.druid.query.RowResolver;
+import io.druid.query.RowSignature;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.Cursor;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -120,13 +117,8 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      RowResolver resolver = RowResolver.of(
-          QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false), query.getVirtualColumns()
-      );
-      List<ValueDesc> schema = ImmutableList.copyOf(
-          Iterables.transform(query.getColumns(), column -> resolver.resolve(column, ValueDesc.UNKNOWN))
-      );
-      return BulkSequence.fromArray(sequence, schema, -1);
+      RowSignature resolver = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
+      return BulkSequence.fromArray(sequence, resolver.extract(query.getColumns()));
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

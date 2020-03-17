@@ -80,14 +80,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
       QuerySegmentWalker segmentWalker
   )
   {
-    return union(queries).withSchema(Suppliers.memoize(new Supplier<RowSignature>()
-    {
-      @Override
-      public RowSignature get()
-      {
-        return provider.schema(segmentWalker);
-      }
-    }));
+    return union(queries).withSchema(Suppliers.memoize(() -> provider.schema(segmentWalker)));
   }
 
   // dummy datasource for authorization
@@ -514,7 +507,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
               return query.withDataSource(TableDataSource.of(dataSource));
             }
           }
-      )));
+      ))).withSchema(Suppliers.memoize(() -> Queries.relaySchema(query, segmentWalker)));
     }
     return this;
   }
