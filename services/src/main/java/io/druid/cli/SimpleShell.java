@@ -83,8 +83,10 @@ public class SimpleShell extends GuiceRunnable
     if (properties != null && !properties.isEmpty()) {
       overrideProperties(properties);
     }
+    final Class<? extends CommonShell> clazz = "index".equals(command) ? IndexViewer.class : DruidShell.class;
+
     final Injector injector = makeInjector();
-    final CommonShell shell = injector.getInstance("index".equals(command) ? IndexViewer.class : DruidShell.class);
+    final CommonShell shell = injector.getInstance(clazz);
     final Lifecycle lifeCycle = initLifecycle(injector);
     try {
       shell.run(args);

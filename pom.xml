@@ -121,7 +121,6 @@
         <module>server</module>
         <module>services</module>
         <module>integration-tests</module>
-        <module>benchmarks</module>
         <module>aws-common</module>
         <module>java-util</module>
         <module>sql</module>
@@ -873,6 +872,14 @@
         </plugins>
         <pluginManagement>
             <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <source>${maven.compiler.source}</source>
+                        <target>${maven.compiler.target}</target>
+                    </configuration>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.drill.tools</groupId>
                     <artifactId>drill-fmpp-maven-plugin</artifactId>

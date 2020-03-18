@@ -204,10 +204,8 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    return GuavaUtils.concat(
-        Preconditions.checkNotNull(query.estimatedOutputColumns()),
-        Lists.newArrayList(boundaryJoin.keySet())
-    );
+    final List<String> outputColumns = query.estimatedOutputColumns();
+    return outputColumns == null ? null : GuavaUtils.concat(outputColumns, boundaryJoin.keySet());
   }
 
   @Override

@@ -22,19 +22,30 @@ package io.druid.query.kmeans;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.ClassifyPostProcessor;
 import io.druid.query.DataSource;
+import io.druid.query.PostProcessingOperators;
+import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.Query.ArrayOutputSupport;
+import io.druid.query.Query.RewritingQuery;
+import io.druid.query.Query.SchemaProvider;
+import io.druid.query.Query.WrappingQuery;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.RowSignature;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -44,7 +55,7 @@ import java.util.Map;
 
 @JsonTypeName("kmeans.tagging")
 public class KMeansTaggingQuery extends BaseQuery<Object[]>
-    implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
+    implements RewritingQuery<Object[]>, ArrayOutputSupport<Object[]>, WrappingQuery<Object[]>, SchemaProvider
 {
   private final List<String> metrics;
   private final int numK;
@@ -57,6 +68,9 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   private final List<Centroid> centroids;
   private final String measure;
   private final String tagColumn;
+  private final String geomColumn;
+  private final boolean appendConvexHull;
+  private final String convexExpression;
 
   private final Query<Object[]> query;
 
@@ -70,10 +84,29 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
       @JsonProperty("measure") String measure,
       @JsonProperty("maxDistance") Double maxDistance,
       @JsonProperty("tagColumn") String tagColumn,
+      @JsonProperty("geomColumn") String geomColumn,
+      @JsonProperty("appendConvexHull") boolean appendConvexHull,
+      @JsonProperty("convexExpression") String convexExpression,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    this(query, metrics, numK, maxIteration, deltaThreshold, minCount, measure, maxDistance, tagColumn, null, null, context);
+    this(
+        query,
+        metrics,
+        numK,
+        maxIteration,
+        deltaThreshold,
+        minCount,
+        measure,
+        maxDistance,
+        tagColumn,
+        geomColumn,
+        null,
+        null,
+        appendConvexHull,
+        convexExpression,
+        context
+    );
   }
 
   public KMeansTaggingQuery(
@@ -86,13 +119,16 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
       String measure,
       Double maxDistance,
       String tagColumn,
+      String geomColumn,
       List<Range<Double>> ranges,
       List<Centroid> centroids,
+      boolean appendConvexHull,
+      String convexExpression,
       Map<String, Object> context
   )
   {
     super(query.getDataSource(), query.getQuerySegmentSpec(), query.isDescending(), context);
-    Preconditions.checkArgument(query instanceof Query.ArrayOutputSupport, "not supported type " + query.getType());
+    Preconditions.checkArgument(query instanceof ArrayOutputSupport, "not supported type " + query.getType());
     this.query = Preconditions.checkNotNull(query);
     this.metrics = Preconditions.checkNotNull(metrics, "metric cannot be null");
     this.numK = numK;
@@ -111,8 +147,12 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         Preconditions.checkArgument(metrics.size() == centroid.getCentroid().length);
       }
     }
-    this.tagColumn = tagColumn;
+    this.tagColumn = Preconditions.checkNotNull(tagColumn, "'tagColumn' cannot be null");
+    this.geomColumn = geomColumn;
     this.measure = measure;
+    this.appendConvexHull = appendConvexHull;
+    this.convexExpression = appendConvexHull ? convexExpression : null;
+    Preconditions.checkArgument(!appendConvexHull || geomColumn != null, "'geomColumn' is needed for appendConvexHull");
   }
 
   @Override
@@ -185,11 +225,14 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
     return measure;
   }
 
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public String getTagColumn()
   {
     return tagColumn;
+  }
+
+  public String getGeomColumn()
+  {
+    return geomColumn;
   }
 
   @Override
@@ -205,8 +248,11 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         measure,
         maxDistance,
         tagColumn,
+        geomColumn,
         ranges,
         centroids,
+        appendConvexHull,
+        convexExpression,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -224,8 +270,11 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         measure,
         maxDistance,
         tagColumn,
+        geomColumn,
         ranges,
         centroids,
+        appendConvexHull,
+        convexExpression,
         getContext()
     );
   }
@@ -243,8 +292,40 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         measure,
         maxDistance,
         tagColumn,
+        geomColumn,
         ranges,
         centroids,
+        appendConvexHull,
+        convexExpression,
+        getContext()
+    );
+  }
+
+  @Override
+  public List<Query> getQueries()
+  {
+    return Arrays.asList(query);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public KMeansTaggingQuery withQueries(List<Query> list)
+  {
+    return new KMeansTaggingQuery(
+        Iterables.getOnlyElement(list),
+        metrics,
+        numK,
+        maxIteration,
+        deltaThreshold,
+        minCount,
+        measure,
+        maxDistance,
+        tagColumn,
+        geomColumn,
+        ranges,
+        centroids,
+        appendConvexHull,
+        convexExpression,
         getContext()
     );
   }
@@ -253,7 +334,6 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
-    Map<String, Object> context = getContext();
     Query kMeansQuery = new KMeansQuery(
         getDataSource(),
         getQuerySegmentSpec(),
@@ -268,31 +348,41 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
         maxDistance,
         ranges,
         centroids,
-        context
+        BaseQuery.copyContextForMeta(getContext())
     ).rewriteQuery(segmentWalker, queryConfig);
 
-    Query source = query.getId() == null ? query.withId(getId()) : query;
-    if (source instanceof Query.RewritingQuery) {
-      source = ((Query.RewritingQuery) source).rewriteQuery(segmentWalker, queryConfig);
+    Query source = query;
+    if (source instanceof RewritingQuery) {
+      source = ((RewritingQuery) source).rewriteQuery(segmentWalker, queryConfig);
     }
-    Map<String, Object> postProcessing = ImmutableMap.<String, Object>of(
-        QueryContextKeys.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)
-    );
+    ObjectMapper mapper = segmentWalker.getObjectMapper();
+
+    Map<String, Object> postProcessors = Maps.newHashMap(getContext());
+    PostProcessingOperators.append(postProcessors, mapper, new ClassifyPostProcessor(tagColumn));
+    if (appendConvexHull) {
+      Map<String, Object> convexHull = ImmutableMap.of(
+          "type", "convexHull",
+          "columns", estimatedOutputColumns(),
+          "tagColumn", tagColumn,
+          "geomColumn", geomColumn,
+          "convexExpression", Strings.nullToEmpty(convexExpression)
+      );
+      PostProcessingOperators.append(postProcessors, mapper, convexHull);
+    }
     return new UnionAllQuery(
         null,
         Arrays.asList(kMeansQuery, source),
         false,
         -1,
         1,
-        computeOverriddenContext(postProcessing)
+        postProcessors
     );
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public List<String> estimatedOutputColumns()
   {
-    List<String> outputColumns = ((ArrayOutputSupport) query).estimatedOutputColumns();
+    List<String> outputColumns = ((ArrayOutputSupport<?>) query).estimatedOutputColumns();
     return outputColumns == null ? null : GuavaUtils.concat(outputColumns, tagColumn);
   }
 
@@ -300,6 +390,15 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   public Sequence<Object[]> array(Sequence<Object[]> sequence)
   {
     return sequence;
+  }
+
+  @Override
+  public RowSignature schema(QuerySegmentWalker segmentWalker)
+  {
+    final RowSignature signature = Queries.relaySchema(query, segmentWalker);
+    List<String> columnNames = GuavaUtils.concat(signature.getColumnNames(), tagColumn);
+    List<ValueDesc> columnTypes = GuavaUtils.concat(signature.getColumnTypes(), ValueDesc.LONG);
+    return new RowSignature.Simple(columnNames, columnTypes);
   }
 
   @Override
@@ -318,6 +417,9 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
     }
     if (tagColumn != null) {
       builder.append(", tagColumn=").append(tagColumn);
+    }
+    if (geomColumn != null) {
+      builder.append(", convexHullColumn=").append(geomColumn);
     }
     builder.append(toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT));
     return builder.append('}').toString();

@@ -20,6 +20,7 @@
 package io.druid.query.kmeans;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Rows;
@@ -42,8 +43,14 @@ public class KMeansClassifier implements Classifier
     this.metrics = metrics;
     this.centroids = centroids;
     this.measure = measure;
-    this.tagColumn = tagColumn;
+    this.tagColumn = Preconditions.checkNotNull(tagColumn, "'tagColumn' cannot be null");
     this.point = new double[metrics.size()];
+  }
+
+  @Override
+  public int numClasses()
+  {
+    return centroids.length;
   }
 
   @Override

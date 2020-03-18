@@ -106,11 +106,6 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     return new LazySequence<>(supplier);
   }
 
-  public static <T> Sequence<T> lazy(final Callable<Sequence<T>> callable)
-  {
-    return Sequences.<T>callableToLazy().apply(callable);
-  }
-
   public static <T> Function<Callable<Sequence<T>>, Sequence<T>> callableToLazy()
   {
     return new Function<Callable<Sequence<T>>, Sequence<T>>()

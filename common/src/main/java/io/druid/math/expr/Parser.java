@@ -394,6 +394,25 @@ public class Parser
     });
   }
 
+  // for trivial case
+  public static Expr.NumericBinding returnAlways(Object value)
+  {
+    return new Expr.NumericBinding()
+    {
+      @Override
+      public Collection<String> names()
+      {
+        return ImmutableList.of();
+      }
+
+      @Override
+      public Object get(String name)
+      {
+        return value;
+      }
+    };
+  }
+
   public static Expr.NumericBinding withMap(final Map<String, ?> bindings)
   {
     return new Expr.NumericBinding()

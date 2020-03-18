@@ -26,12 +26,14 @@ import io.druid.data.output.GeoJsonDecorator;
 import io.druid.data.output.GeoJsonFormatter;
 import io.druid.initialization.DruidModule;
 import io.druid.query.ChoroplethMapQuery;
+import io.druid.query.GeoBoundaryFilterQuery;
 import io.druid.query.GeoHashFunctions;
 import io.druid.query.GeomFunctions;
 import io.druid.query.GeometryDeserializer;
 import io.druid.query.GeometrySerializer;
 import io.druid.query.H3Functions;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.GeomConvexHullPostProcessor;
 import io.druid.query.aggregation.GeomUnionAggregatorFactory;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneShapeFilter;
@@ -63,7 +65,9 @@ public class LuceneExtensionModule implements DruidModule
             .registerSubtypes(GeomFunctions.class)
             .registerSubtypes(GeoJsonDecorator.class)
             .registerSubtypes(GeoJsonFormatter.class)
+            .registerSubtypes(GeoBoundaryFilterQuery.class)
             .registerSubtypes(GeomUnionAggregatorFactory.class)
+            .registerSubtypes(GeomConvexHullPostProcessor.class)
             .addSerializer(Geometry.class, new GeometrySerializer())
             .addDeserializer(Geometry.class, new GeometryDeserializer())
     );

@@ -194,23 +194,6 @@ public class BrokerQueryResource extends QueryResource
     return doPost(in, pretty, smile, req);
   }
 
-  @Override
-  protected Query readQuery(InputStream in, RequestContext context) throws IOException
-  {
-    Query query = super.readQuery(in, context);
-    if (context.request.getAttribute(GET_FEATURE) != null) {
-      RowSignature signature = Queries.relaySchema(query, segmentWalker);
-      int geomIndex = signature.getColumnTypes().indexOf(ValueDesc.GEOMETRY);
-      Map<String, Object> decorator = ImmutableMap.of(
-          "format", "geojson",
-          "geomIndex", geomIndex,
-          "columnNames", signature.getColumnNames()
-      );
-      query = query.withOverriddenContext(ImmutableMap.of(Query.DECORATOR_CONTEXT, decorator));
-    }
-    return query;
-  }
-
   private List<LocatedSegmentDescriptor> getTargetLocations(DataSource datasource, List<Interval> intervals)
   {
     TimelineLookup<String, ServerSelector> timeline = brokerServerView.getTimeline(datasource);
@@ -242,9 +225,19 @@ public class BrokerQueryResource extends QueryResource
 
   @Override
   @SuppressWarnings("unchecked")
-  protected Query prepareQuery(Query baseQuery) throws Exception
+  protected Query prepareQuery(Query baseQuery, RequestContext context) throws Exception
   {
-    Query prepared = super.prepareQuery(baseQuery);
+    Query prepared = super.prepareQuery(baseQuery, context);
+    if (context.request.getAttribute(GET_FEATURE) != null) {
+      RowSignature signature = Queries.relaySchema(prepared, segmentWalker);
+      int geomIndex = signature.getColumnTypes().indexOf(ValueDesc.GEOMETRY);
+      Map<String, Object> decorator = ImmutableMap.of(
+          "format", "geojson",
+          "geomIndex", geomIndex,
+          "columnNames", signature.getColumnNames()
+      );
+      prepared = prepared.withOverriddenContext(ImmutableMap.of(Query.DECORATOR_CONTEXT, decorator));
+    }
 
     Query query = rewriteDataSource(prepared);
     query = QueryUtils.rewriteRecursively(query, segmentWalker, warehouse.getQueryConfig());
@@ -274,7 +267,7 @@ public class BrokerQueryResource extends QueryResource
         throw new IllegalArgumentException("parallel forwarding is supported only for hdfs, for now");
       }
       // make a copy
-      Map<String, Object> context = BaseQuery.copyContext(query);
+      Map<String, Object> forward = BaseQuery.copyContext(query);
 
       Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
       forwardContext.put(Query.FORWARD_PARALLEL, false);
@@ -287,9 +280,9 @@ public class BrokerQueryResource extends QueryResource
           )
       );
       // disable forwarding for self
-      context.remove(Query.FORWARD_URL);
-      context.remove(Query.FORWARD_CONTEXT);
-      query = new SelectForwardQuery(query, context);
+      forward.remove(Query.FORWARD_URL);
+      forward.remove(Query.FORWARD_CONTEXT);
+      query = new SelectForwardQuery(query, forward);
     }
     return query;
   }

@@ -247,7 +247,7 @@ public class QueryResource
     try {
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
-      final Query prepared = prepareQuery(query);
+      final Query prepared = prepareQuery(query, context);
       final Access access = lifecycle.authorize(prepared, req);
       if (access != null && !access.isAllowed()) {
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
@@ -396,7 +396,7 @@ public class QueryResource
     return QueryUtils.forLog(query);
   }
 
-  protected Query prepareQuery(Query query) throws Exception
+  protected Query prepareQuery(Query query, RequestContext context) throws Exception
   {
     String queryId = query.getId();
     if (queryId != null) {

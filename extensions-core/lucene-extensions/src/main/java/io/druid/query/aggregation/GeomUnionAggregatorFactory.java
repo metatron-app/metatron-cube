@@ -160,12 +160,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
     } else {
       throw new ISE("?? %s", object.getClass().getSimpleName());
     }
-    try {
-      return GeometryDeserializer.deserialize(buffer);
-    }
-    catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
+    return GeometryDeserializer.deserialize(buffer);
   }
 
   @Override

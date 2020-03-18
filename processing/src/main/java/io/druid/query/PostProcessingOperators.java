@@ -21,9 +21,11 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.query.select.Schema;
 
 import java.util.Arrays;
 import java.util.List;
@@ -50,30 +52,24 @@ public class PostProcessingOperators
     };
   }
 
-  public static Map<String, Object> toMap(final ObjectMapper mapper, final String timestampColumn)
+  public static PostProcessingOperator load(Query<?> query, ObjectMapper mapper)
   {
-    return ImmutableMap.of(
-        Query.POST_PROCESSING,
-        mapper.convertValue(
-            ImmutableMap.of("type", "toMap", "timestampColumn", timestampColumn),
-            new TypeReference<PostProcessingOperator>()
-            {
-            }
-        )
-    );
+    return load(query.getContext(), mapper);
   }
 
-  @SuppressWarnings("unchecked")
-  public static PostProcessingOperator load(Query query, ObjectMapper mapper)
+  public static PostProcessingOperator load(Map<String, Object> context, ObjectMapper mapper)
   {
-    Object value = query.getContextValue(QueryContextKeys.POST_PROCESSING);
-    if (value instanceof PostProcessingOperator) {
+    return toPostProcessor(mapper, context == null ? null : context.get(QueryContextKeys.POST_PROCESSING));
+  }
+
+  public static PostProcessingOperator toPostProcessor(ObjectMapper mapper, Object value)
+  {
+    if (value == null || value instanceof PostProcessingOperator) {
       return (PostProcessingOperator) value;
+    } else {
+      Preconditions.checkNotNull(value, "Cannot convert %s without mapper", value);
+      return mapper.convertValue(value, new TypeReference<PostProcessingOperator>() {});
     }
-    return mapper.convertValue(
-        value,
-        new TypeReference<PostProcessingOperator>() {}
-    );
   }
 
   public static <T> boolean isMapOutput(Query<T> query, ObjectMapper mapper)
@@ -84,15 +80,49 @@ public class PostProcessingOperators
   @SuppressWarnings("unchecked")
   public static <T> Query<T> append(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
   {
-    PostProcessingOperator existing = load(query, mapper);
+    return query.withOverriddenContext(append(query.getContext(), mapper, processor));
+  }
+
+  public static Map<String, Object> append(Map<String, Object> context, ObjectMapper mapper, Object processor)
+  {
+    return append(context, mapper, toPostProcessor(mapper, processor));
+  }
+
+  public static Map<String, Object> append(
+      Map<String, Object> context,
+      ObjectMapper mapper,
+      PostProcessingOperator processor
+  )
+  {
+    if (context == null) {
+      context = Maps.newHashMap();
+    }
+    PostProcessingOperator existing = load(context, mapper);
     if (existing != null) {
       if (existing instanceof ListPostProcessingOperator) {
-        processor = list(GuavaUtils.concat(((ListPostProcessingOperator) existing).getProcessors(), processor));
+        processor = list(GuavaUtils.concat(((ListPostProcessingOperator<?>) existing).getProcessors(), processor));
       } else {
         processor = list(Arrays.asList(existing, processor));
       }
     }
-    return query.withOverriddenContext(Query.POST_PROCESSING, processor);
+    context.put(Query.POST_PROCESSING, processor);
+    return context;
+  }
+
+  public static List<String> estimatedOutputColumns(Query<?> query, ObjectMapper mapper)
+  {
+    if (!(query instanceof Query.ArrayOutputSupport)) {
+      return null;
+    }
+    List<String> outputColumns = ((Query.ArrayOutputSupport<?>) query).estimatedOutputColumns();
+    if (outputColumns == null) {
+      return null;
+    }
+    PostProcessingOperator postProcessor = load(query, mapper);
+    if (postProcessor instanceof Schema.SchemaResolving) {
+      outputColumns = ((Schema.SchemaResolving) postProcessor).resolve(outputColumns);
+    }
+    return outputColumns;
   }
 
   @SuppressWarnings("unchecked")

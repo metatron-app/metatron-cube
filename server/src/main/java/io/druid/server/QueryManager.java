@@ -89,7 +89,7 @@ public class QueryManager implements QueryWatcher, Runnable
   {
     final String id = query.getId();
     if (id == null) {
-      LOG.warn("Query id for %s is null.. fix that", query.getType());
+      LOG.warn("Query id for %s%s is null.. fix that", query.getType(), query.getDataSource().getNames());
       return;
     }
     final QueryStatus status = queries.computeIfAbsent(

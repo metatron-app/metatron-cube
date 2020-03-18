@@ -90,7 +90,7 @@ public class ListPostProcessingOperator<T> extends UnionSupport<T>
   public QueryRunner<T> postProcess(UnionAllQueryRunner baseQueryRunner, ExecutorService exec)
   {
     QueryRunner<T> queryRunner = ((UnionSupport) processors.get(0)).postProcess(baseQueryRunner, exec);
-    for (PostProcessingOperator processor : processors) {
+    for (PostProcessingOperator processor : processors.subList(1, processors.size())) {
       queryRunner = processor.postProcess(queryRunner);
     }
     return queryRunner;

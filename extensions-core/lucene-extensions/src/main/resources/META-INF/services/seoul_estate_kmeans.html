@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 700px;
+        width: 100%;
+      }
+    </style>
+    <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol.js"></script>
+    <title>OpenLayers example</title>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
+      estate_style = function (feature, resolution) {
+        var polygon = feature.getGeometry().getType() === 'Polygon';
+        var alpha = polygon ? 0.1 : 0.6;
+        var group = feature.get('tag');
+        if (group === 0) {
+          color = [160, 20, 20, alpha];
+        } else if (group === 1) {
+          color = [20, 160, 20, alpha]
+        } else if (group === 2) {
+          color = [20, 20, 160, alpha]
+        } else if (group === 3) {
+          color = [160, 10, 160, alpha]
+        } else if (group === 4) {
+          color = [160, 160, 10, alpha]
+        } else {
+          color = [10, 160, 160, alpha]
+        }
+        if (polygon) {
+          return [
+            new ol.style.Style({fill: new ol.style.Fill({color: color})}),
+            new ol.style.Style({stroke: new ol.style.Stroke({color: color.slice(0,3), width: 3})})
+          ];
+        } else {
+          return new ol.style.Style({
+            image: new ol.style.Circle({
+            radius: 2.5,
+            fill: new ol.style.Fill({color: color})
+            })
+          });
+        }
+      };
+      var han_river = 'LINESTRING (' +
+                  '37.603343 126.803580, 37.538551 126.912286, 37.533877 126.936128, 37.520025 126.952270,' +
+                  '37.509739 126.981695, 37.514651 126.996454, 37.538023 127.025470, 37.530044 127.057066,' +
+                  '37.521918 127.077810, 37.523798 127.091702, 37.533463 127.104326, 37.544541 127.113816,' +
+                  '37.564985 127.124523, 37.571161 127.137214, 37.572075 127.149065, 37.583063 127.173098' +
+                  ')';
+      var CQL = ' AND BEYOND ("gis.coord", ' + han_river + ', 3, kilometers)';
+
+      var WKT = new ol.format.WKT();
+      var estate_source = new ol.source.Vector({
+        format: new ol.format.GeoJSON(),
+        loader: function(extent, resolution, projection) {
+           var proj = projection.getCode();
+           // var url = 'https://ahocevar.com/geoserver/wfs?service=WFS&' +
+           //     'version=1.1.0&request=GetFeature&typename=osm:water_areas&' +
+           //     'outputFormat=application/json&srsname=' + proj + '&' +
+           //     'bbox=' + extent.join(',') + ',' + proj;
+           var xhr = new XMLHttpRequest();
+           xhr.onerror = function() { estate_source.removeLoadedExtent(extent); };
+           xhr.onload = function() {
+             if (xhr.status === 200) {
+               // console.log('inspection_source ---> ' + xhr.responseText);
+               var features = estate_source.getFormat().readFeatures(xhr.responseText);
+               // features.forEach(function (f) {
+                    // console.log(f.getGeometry().getCoordinates()); // features are parsed correctly
+                // });
+               estate_source.addFeatures(features);
+             } else {
+               xhr.onerror();
+             }
+           };
+           var url = 'http://localhost:8082/druid/v2/geojson';
+           xhr.open('POST', url);
+           xhr.setRequestHeader('Content-type', 'application/json');
+           var wkt = WKT.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
+                dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
+           });
+           var query =
+               '{' +
+               '  "queryType": "kmeans.tagging"\,' +
+               '  "metrics": [ "gis.lon"\, "gis.lat"]\,' +
+               '  "numK": 6\,' +
+               '  "measure": "haversine"\,' +
+               '  "tagColumn": "tag"\,' +
+               '  "geomColumn": "geom"\,' +
+               '  "appendConvexHull": true\,' +
+               '  "convexExpression": "geom_smooth(geom, 0.1)"\,' +
+               '  "query": {' +
+               '    "queryType": "select.stream"\,' +
+               '    "dataSource": "estate"\,' +
+               '    "virtualColumns": [' +
+               '      {"type": "expression"\, "expression": "geom_transform(geom_fromlatlon(gis.lat\, gis.lon)\, 4326\, 3857)"\, "outputName": "geom" }' +
+               '    ]\,' +
+               '    "filter": { "type": "expr"\, "expression": "amt > 1000" }\,' +
+               '    "intervals": [ "2001-01-01/2019-01-01" ]\,' +
+               '    "columns": [ "gu"\, "idx"\, "py"\, "amt"\, "gis.lat"\, "gis.lon"\, "geom"]' +
+               '  }' +
+               '}';
+           console.log('inspection_source fire!! ---> ' + query);
+           xhr.send(query);
+        }
+      });
+
+      var estate = new ol.layer.Vector({
+        source: estate_source,
+        style: estate_style
+      });
+
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({
+              title: 'test',
+              visible: true,
+              // source: new ol.source.OSM({url: 'https://tiles.wmflabs.org/bw-mapnik/{z}/{x}/{y}.png'})
+              // source: new ol.source.OSM({url: 'https://tiles.wmflabs.org/osm-no-labels/{z}/{x}/{y}.png'})
+              // source: new ol.source.OSM({url: 'http://{a-b}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png'})
+              // source: new ol.source.OSM({url: 'http://tile.stamen.com/terrain/{z}/{x}/{y}.png'})
+              // source: new ol.source.OSM({url: 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png'})
+              source: new ol.source.OSM()
+          }),
+          estate
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([126.988400, 37.565482]),
+          zoom: 11.4
+        })
+      });
+    </script>
+  </body>
+</html>
