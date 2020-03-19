@@ -160,7 +160,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   {
     final String polygon = GeomUtils.fromString(shapeFormat, shapeString);
     final String point = toPointExpr(resolver, columnName, fieldName, descriptor);
-    return new MathExprFilter(String.format("geom_contains(%s, %s)", polygon, point));
+    return new MathExprFilter(String.format("geom_contains_point(%s, %s)", polygon, point));
   }
 
   @Override

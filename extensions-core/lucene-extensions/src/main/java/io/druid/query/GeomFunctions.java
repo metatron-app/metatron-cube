@@ -32,11 +32,16 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import org.locationtech.jts.algorithm.locate.IndexedPointInAreaLocator;
+import org.locationtech.jts.algorithm.locate.PointOnGeometryLocator;
 import org.locationtech.jts.algorithm.match.HausdorffSimilarityMeasure;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
+import org.locationtech.jts.geom.LinearRing;
+import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.ShapeReader;
 import org.locationtech.spatial4j.io.ShapeWriter;
@@ -754,6 +759,59 @@ public class GeomFunctions implements Function.Library
     protected boolean execute(Geometry geom1, Geometry geom2)
     {
       return geom1.equalsExact(geom2);
+    }
+  }
+
+  static abstract class IndexedPointLocator extends NamedFactory.BooleanType
+  {
+    @Override
+    public Function create(final List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 2 || !Evals.isConstant(args.get(0))) {
+        throw new IAE("Function[%s] must have constant polygon and point", name());
+      }
+      final Geometry geom1 = GeomUtils.toGeometry(Evals.getConstantEval(args.get(0)));
+      if (!(geom1 instanceof Polygon) && !(geom1 instanceof LinearRing)) {
+        throw new IAE("First argument of function[%s] must be a polygon or liner-ring", name());
+      }
+      if (!ValueDesc.isGeometry(args.get(1).returns())) {
+        throw new IAE("Second argument of function[%s] must be a point", name());
+      }
+      final PointOnGeometryLocator locator = new IndexedPointInAreaLocator(geom1);
+      return new BooleanChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
+          if (geom2 == null) {
+            return ExprEval.of(false);
+          }
+          return ExprEval.of(execute(locator.locate(geom2.getCoordinate())));
+        }
+      };
+    }
+
+    protected abstract boolean execute(int location);
+  }
+
+  @Function.Named("geom_contains_point")
+  public static class GeomContainsPoint extends IndexedPointLocator
+  {
+    @Override
+    protected boolean execute(int location)
+    {
+      return location == Location.INTERIOR;
+    }
+  }
+
+  @Function.Named("geom_covers_point")
+  public static class GeomCoversPoint extends IndexedPointLocator
+  {
+    @Override
+    protected boolean execute(int location)
+    {
+      return location == Location.INTERIOR || location == Location.BOUNDARY;
     }
   }
 

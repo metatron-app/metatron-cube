@@ -205,7 +205,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
       case DISTANCE:
         return new MathExprFilter(
             String.format(
-                "geom_contains(geom_buffer(geom_fromLatLon(%f, %f), %f), %s)",
+                "geom_contains_point(geom_buffer(geom_fromLatLon(%f, %f), %f), %s)",
                 latitudes[0], longitudes[0], radiusMeters, point
             )
         );
@@ -222,7 +222,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
                          ? String.format("geom_fromWKT('POLYGON ((%s))')", points)
                          : String.format("geom_envelop(geom_fromWKT('MULTIPOINT (%s)'))", points);
 
-        return new MathExprFilter(String.format("geom_contains(%s, %s)", polygon, point));
+        return new MathExprFilter(String.format("geom_contains_point(%s, %s)", polygon, point));
       default:
         return super.toExprFilter(resolver, columnName, fieldName, descriptor);
     }

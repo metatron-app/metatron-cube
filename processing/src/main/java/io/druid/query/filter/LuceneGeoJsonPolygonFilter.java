@@ -140,7 +140,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   public DimFilter toExprFilter(RowResolver resolver, String columnName, String fieldName, String descriptor)
   {
     final String point = toPointExpr(resolver, columnName, fieldName, descriptor);
-    return new MathExprFilter(String.format("geom_contains(geom_fromGeoJson('%s'), %s)", geoJson, point));
+    return new MathExprFilter(String.format("geom_contains_point(geom_fromGeoJson('%s'), %s)", geoJson, point));
   }
 
   @Override
