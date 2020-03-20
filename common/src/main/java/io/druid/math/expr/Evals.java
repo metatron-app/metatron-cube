@@ -115,11 +115,6 @@ public class Evals
     return Objects.equals(leftVal.value(), rightVal.value());
   }
 
-  static boolean hasEq(BinaryOp binary)
-  {
-    return binary instanceof BinEqExpr || binary instanceof BinGeqExpr || binary instanceof BinLeqExpr;
-  }
-
   public static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
   {
     return arg == null ? null : evalString(arg, binding);
@@ -195,7 +190,7 @@ public class Evals
 
   public static io.druid.math.expr.Function getFunction(Expr arg)
   {
-    return arg instanceof FunctionExpr ? ((FunctionExpr)arg).getFunction() : null;
+    return arg instanceof FunctionExpr ? ((FunctionExpr) arg).getFunction() : null;
   }
 
   public static boolean isAssign(Expr arg)
@@ -271,15 +266,7 @@ public class Evals
 
   public static boolean isConstant(Expr arg)
   {
-    if (arg instanceof StringExpr) {
-      return true;
-    } else if (arg instanceof Constant) {
-      // do not allow null constant except string type
-      return ((Constant) arg).get() != null;
-    } else if (arg instanceof UnaryOp) {
-      return isConstant(((UnaryOp) arg).getChild());
-    }
-    return false;
+    return arg instanceof Constant;
   }
 
   public static boolean isAllConstants(Expr... exprs)
@@ -324,13 +311,42 @@ public class Evals
     return true;
   }
 
+  static ExprEval evalMinus(ExprEval ret)
+  {
+    if (ret.isNull()) {
+      return ret;
+    }
+    if (ret.isLong()) {
+      return ExprEval.of(-ret.longValue());
+    }
+    if (ret.isFloat()) {
+      return ExprEval.of(-ret.floatValue());
+    }
+    if (ret.isDouble()) {
+      return ExprEval.of(-ret.doubleValue());
+    }
+    if (ret.isDecimal()) {
+      return ExprEval.of(((BigDecimal) ret.value()).negate());
+    }
+    throw new IllegalArgumentException("unsupported type " + ret.type());
+  }
+
+  static ExprEval evalNot(ExprEval ret)
+  {
+    if (ret.isNull()) {
+      return ExprEval.NULL_BOOL;
+    } else {
+      return ExprEval.of(!ret.asBoolean());
+    }
+  }
+
   // do not use except flattening purpose
   static Expr toConstant(ExprEval eval)
   {
     final ValueDesc type = eval.type();
     switch (type.type()) {
       case BOOLEAN:
-        return new BooleanExpr(eval.asBoolean());
+        return BooleanExpr.of(eval.asBoolean());
       case FLOAT:
         return new FloatExpr(eval.asFloat());
       case DOUBLE:
@@ -340,6 +356,9 @@ public class Evals
       case STRING:
         return new StringExpr(eval.asString());
       default:
+    }
+    if (type.isDecimal()) {
+      return new DecimalExpr((BigDecimal) eval.value());
     }
     return new RelayExpr(eval);
   }

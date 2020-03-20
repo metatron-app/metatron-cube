@@ -98,7 +98,7 @@ public class GeoHashFunctions implements Function.Library
 
   static abstract class LatLonFactory extends NamedFactory implements Function.FixedTyped
   {
-    public abstract class LatLonChild extends Child implements Function.External
+    public abstract class LatLonChild extends Child
     {
       @Override
       public final ValueDesc returns()

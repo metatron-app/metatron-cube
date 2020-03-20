@@ -378,7 +378,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class AbstractRFunc extends NamedFactory
+  abstract class AbstractRFunc extends NamedFactory implements Function.External
   {
     private static final Rengine r;
     private static final Map<String, String> functions = Maps.newHashMap();
@@ -607,7 +607,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class AbstractPythonFunc extends NamedFactory
+  abstract class AbstractPythonFunc extends NamedFactory implements Function.External
   {
     static final boolean init;
 
@@ -1873,7 +1873,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("javascript")
-  final class JavaScriptFunc extends NamedFactory
+  final class JavaScriptFunc extends NamedFactory implements Function.External
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)

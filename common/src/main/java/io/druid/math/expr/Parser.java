@@ -174,7 +174,7 @@ public class Parser
   {
     ParseTree parseTree = parseTree(in);
     ParseTreeWalker walker = new ParseTreeWalker();
-    ExprListenerImpl listener = new ExprListenerImpl(parseTree, func, resolver)
+    ExprListenerImpl listener = new ExprListenerImpl(parseTree, func, resolver, flatten)
     {
       @Override
       protected String normalize(String identifier)
@@ -189,11 +189,7 @@ public class Parser
       }
     };
     walker.walk(listener, parseTree);
-    Expr expr = listener.getAST();
-    if (flatten) {
-      expr = flatten(expr);
-    }
-    return expr;
+    return listener.getAST();
   }
 
   public static ParseTree parseTree(String in)
@@ -237,57 +233,6 @@ public class Parser
       findRequiredBindings(assign.assigned);
     }
     return found;
-  }
-
-  static List<Expr> flatten(List<Expr> expr)
-  {
-    for (int i = 0; i < expr.size(); i++) {
-      expr.set(i, flatten(expr.get(i)));
-    }
-    return expr;
-  }
-
-  static Expr flatten(Expr expr)
-  {
-    if (expr instanceof BinaryOp) {
-      BinaryOp binary = (BinaryOp) expr;
-      Expr left = flatten(binary.left);
-      Expr right = flatten(binary.right);
-      if (Evals.isAllConstants(left, right)) {
-        expr = Evals.toConstant(expr.eval(null));
-      } else if (left.equals(right)) {
-        expr = Evals.hasEq(binary) ? Evals.TRUE : Evals.FALSE;
-      } else if (left != binary.left || right != binary.right) {
-        return Evals.binaryOp(binary, left, right);
-      }
-    } else if (expr instanceof UnaryOp) {
-      UnaryOp unary = (UnaryOp) expr;
-      Expr eval = flatten(unary.getChild());
-      if (eval instanceof Constant) {
-        expr = Evals.toConstant(expr.eval(null));
-      } else if (eval != unary.getChild()) {
-        expr = Evals.unaryOp(unary, expr);
-      }
-    } else if (expr instanceof FunctionExpr) {
-      FunctionExpr functionExpr = (FunctionExpr) expr;
-      if (functionExpr.function instanceof Function.External) {
-        return expr;
-      }
-      List<Expr> flatten = flatten(functionExpr.args);
-      if (Evals.isAllConstants(flatten)) {
-        expr = Evals.toConstant(expr.eval(null));
-      } else if (!Evals.isIdentical(functionExpr.args, flatten)) {
-        expr = functionExpr.with(flatten);
-      }
-    } else if (expr instanceof AssignExpr) {
-      AssignExpr assign = (AssignExpr) expr;
-      Expr assignee = flatten(assign.assignee);
-      Expr assigned = flatten(assign.assigned);
-      if (assignee != assign.assignee || assigned != assign.assigned) {
-        expr = new AssignExpr(assignee, assigned);
-      }
-    }
-    return expr;
   }
 
   public static interface Visitor<T>

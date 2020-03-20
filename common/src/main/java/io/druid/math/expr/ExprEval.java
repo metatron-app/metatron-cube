@@ -186,6 +186,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return rhs.isDouble();
   }
 
+  public boolean isDecimal()
+  {
+    return rhs.isDecimal();
+  }
+
   public boolean booleanValue()
   {
     return lhs != null && (Boolean) lhs;

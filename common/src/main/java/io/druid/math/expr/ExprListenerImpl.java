@@ -19,16 +19,18 @@
 
 package io.druid.math.expr;
 
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.antlr.ExprBaseListener;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.commons.lang.StringEscapeUtils;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -42,13 +44,20 @@ public class ExprListenerImpl extends ExprBaseListener
   private final ParseTree rootNodeKey;
   private final Map<String, Function.Factory> functions;
   private final TypeResolver resolver;
+  private final boolean flatten;
 
-  ExprListenerImpl(ParseTree rootNodeKey, Map<String, Function.Factory> functions, TypeResolver resolver)
+  ExprListenerImpl(
+      ParseTree rootNodeKey,
+      Map<String, Function.Factory> functions,
+      TypeResolver resolver,
+      boolean flatten
+  )
   {
     this.rootNodeKey = rootNodeKey;
     this.functions = functions;
     this.nodes = new HashMap<>();
     this.resolver = resolver;
+    this.flatten = flatten;
   }
 
   Expr getAST()
@@ -56,20 +65,37 @@ public class ExprListenerImpl extends ExprBaseListener
     return (Expr) nodes.get(rootNodeKey);
   }
 
+  private void registerWithFlatten(ExprParser.ExprContext ctx, Expr expr, Expr... params)
+  {
+    registerWithFlatten(ctx, expr, Arrays.asList(params));
+  }
+
+  private void registerWithFlatten(ExprParser.ExprContext ctx, Expr expr, List<Expr> params)
+  {
+    if (flatten && !Evals.isConstant(expr) && Evals.isAllConstants(params)) {
+      expr = Evals.toConstant(expr.eval(null));
+    }
+    nodes.put(ctx, expr);
+  }
+
   @Override
   public void exitUnaryOpExpr(ExprParser.UnaryOpExprContext ctx)
   {
-    int opCode = ((TerminalNode) ctx.getChild(0)).getSymbol().getType();
+    final int opCode = ((TerminalNode) ctx.getChild(0)).getSymbol().getType();
+    final Expr param = (Expr) nodes.get(ctx.getChild(1));
+
+    final Expr expr;
     switch (opCode) {
       case ExprParser.MINUS:
-        nodes.put(ctx, new UnaryMinusExpr((Expr) nodes.get(ctx.getChild(1))));
+        expr = new UnaryMinusExpr(param);
         break;
       case ExprParser.NOT:
-        nodes.put(ctx, new UnaryNotExpr((Expr) nodes.get(ctx.getChild(1))));
+        expr = new UnaryNotExpr(param);
         break;
       default:
         throw new RuntimeException("Unrecognized unary operator " + ctx.getChild(0).getText());
     }
+    registerWithFlatten(ctx, expr, param);
   }
 
   @Override
@@ -77,7 +103,7 @@ public class ExprListenerImpl extends ExprBaseListener
   {
     nodes.put(
         ctx,
-        new BooleanExpr(Boolean.valueOf(ctx.getText()))
+        BooleanExpr.of(Boolean.valueOf(ctx.getText()))
     );
   }
 
@@ -117,70 +143,57 @@ public class ExprListenerImpl extends ExprBaseListener
   public void exitDecimalExpr(ExprParser.DecimalExprContext ctx)
   {
     final String text = ctx.getText();
+    final String value = text.substring(0, text.length() - 1);
     nodes.put(
         ctx,
-        new DecimalExpr(text.substring(0, text.length() - 1))
+        new DecimalExpr(new BigDecimal(value))
     );
   }
 
   @Override
   public void exitAddSubExpr(ExprParser.AddSubExprContext ctx)
   {
-    int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+    final String op = ctx.getChild(1).getText();
+    final Expr left = (Expr) nodes.get(ctx.getChild(0));
+    final Expr right = (Expr) nodes.get(ctx.getChild(2));
+
+    final int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+
+    final Expr expr;
     switch (opCode) {
       case ExprParser.PLUS:
-        nodes.put(
-            ctx,
-            new BinPlusExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = new BinPlusExpr(op, left, right);
         break;
       case ExprParser.MINUS:
-        nodes.put(
-            ctx,
-            new BinMinusExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = new BinMinusExpr(op, left, right);
         break;
       default:
-        throw new RuntimeException("Unrecognized binary operator " + ctx.getChild(1).getText());
+        throw new RuntimeException("Unrecognized binary operator " + op);
     }
+    registerWithFlatten(ctx, expr, left, right);
   }
 
   @Override
   public void exitLogicalAndOrExpr(ExprParser.LogicalAndOrExprContext ctx)
   {
-    int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+    final String op = ctx.getChild(1).getText();
+    final Expr left = (Expr) nodes.get(ctx.getChild(0));
+    final Expr right = (Expr) nodes.get(ctx.getChild(2));
+
+    final int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+
+    final Expr expr;
     switch (opCode) {
       case ExprParser.AND:
-        nodes.put(
-            ctx,
-            new BinAndExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = new BinAndExpr(op, left, right);
         break;
       case ExprParser.OR:
-        nodes.put(
-            ctx,
-            new BinOrExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = new BinOrExpr(op, left, right);
         break;
       default:
-        throw new RuntimeException("Unrecognized binary operator " + ctx.getChild(1).getText());
+        throw new RuntimeException("Unrecognized binary operator " + op);
     }
+    registerWithFlatten(ctx, expr, left, right);
   }
 
   @Override
@@ -204,127 +217,76 @@ public class ExprListenerImpl extends ExprBaseListener
   @Override
   public void exitLogicalOpExpr(ExprParser.LogicalOpExprContext ctx)
   {
-    int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+    final String op = ctx.getChild(1).getText();
+    final Expr left = (Expr) nodes.get(ctx.getChild(0));
+    final Expr right = (Expr) nodes.get(ctx.getChild(2));
+    final boolean equals = left.equals(right);
+
+    final int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+
+    final Expr expr;
     switch (opCode) {
       case ExprParser.LT:
-        nodes.put(
-            ctx,
-            new BinLtExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = equals ? BooleanExpr.FALSE : new BinLtExpr(op, left, right);
         break;
       case ExprParser.LEQ:
-        nodes.put(
-            ctx,
-            new BinLeqExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = equals ? BooleanExpr.TRUE : new BinLeqExpr(op, left, right);
         break;
       case ExprParser.GT:
-        nodes.put(
-            ctx,
-            new BinGtExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = equals ? BooleanExpr.FALSE : new BinGtExpr(op, left, right);
         break;
       case ExprParser.GEQ:
-        nodes.put(
-            ctx,
-            new BinGeqExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = equals ? BooleanExpr.TRUE : new BinGeqExpr(op, left, right);
         break;
       case ExprParser.EQ:
-        nodes.put(
-            ctx,
-            new BinEqExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = equals ? BooleanExpr.TRUE : new BinEqExpr(op, left, right);
         break;
       case ExprParser.NEQ:
-        nodes.put(
-            ctx,
-            new BinNeqExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = equals ? BooleanExpr.FALSE : new BinNeqExpr(op, left, right);
         break;
       default:
-        throw new RuntimeException("Unrecognized binary operator " + ctx.getChild(1).getText());
+        throw new RuntimeException("Unrecognized binary operator " + op);
     }
+    registerWithFlatten(ctx, expr, left, right);
   }
 
   @Override
   public void exitMulDivModuloExpr(ExprParser.MulDivModuloExprContext ctx)
   {
-    int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+    final String op = ctx.getChild(1).getText();
+    final Expr left = (Expr) nodes.get(ctx.getChild(0));
+    final Expr right = (Expr) nodes.get(ctx.getChild(2));
+
+    final int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
+    final Expr expr;
     switch (opCode) {
       case ExprParser.MUL:
-        nodes.put(
-            ctx,
-            new BinMulExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = new BinMulExpr(op, left, right);
         break;
       case ExprParser.DIV:
-        nodes.put(
-            ctx,
-            new BinDivExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = new BinDivExpr(op, left, right);
         break;
       case ExprParser.MODULO:
-        nodes.put(
-            ctx,
-            new BinModuloExpr(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
+        expr = new BinModuloExpr(op, left, right);
         break;
       default:
-        throw new RuntimeException("Unrecognized binary operator " + ctx.getChild(1).getText());
+        throw new RuntimeException("Unrecognized binary operator " + op);
     }
+    registerWithFlatten(ctx, expr, left, right);
   }
 
   @Override
   public void exitPowOpExpr(ExprParser.PowOpExprContext ctx)
   {
-    nodes.put(
-        ctx,
-        new BinPowExpr(
-            ctx.getChild(1).getText(),
-            (Expr) nodes.get(ctx.getChild(0)),
-            (Expr) nodes.get(ctx.getChild(2))
-        )
-    );
+    final Expr left = (Expr) nodes.get(ctx.getChild(0));
+    final Expr right = (Expr) nodes.get(ctx.getChild(2));
+    final BinPowExpr expr = new BinPowExpr(ctx.getChild(1).getText(), left, right);
+
+    registerWithFlatten(ctx, expr, left, right);
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void exitFunctionExpr(ExprParser.FunctionExprContext ctx)
   {
     final String fnName = ctx.getChild(0).getText();
@@ -333,21 +295,16 @@ public class ExprListenerImpl extends ExprBaseListener
       throw new IAE("function '%s' is not defined.", fnName);
     }
 
-    @SuppressWarnings("unchecked")
     final List<Expr> args = ctx.getChildCount() > 3
                             ? (List<Expr>) nodes.get(ctx.getChild(2))
                             : Collections.<Expr>emptyList();
-    nodes.put(
-        ctx,
-        new FunctionExpr(new java.util.function.Function<List<Expr>, Function>()
-        {
-          @Override
-          public Function apply(List<Expr> exprs)
-          {
-            return factory.create(args, resolver);
-          }
-        }, fnName, args)
-    );
+
+    final FunctionExpr expr = new FunctionExpr(exprs -> factory.create(args, resolver), fnName, args);
+    if (factory instanceof Function.External) {
+      nodes.put(ctx, expr);
+    } else {
+      registerWithFlatten(ctx, expr, args);
+    }
   }
 
   @Override

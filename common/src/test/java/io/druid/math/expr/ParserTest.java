@@ -174,79 +174,42 @@ public class ParserTest
   @Test
   public void testSimpleCarrot1()
   {
-    Assert.assertEquals("(1 ^ 2)", Parser.parse("1^2", false).toString());
-    Assert.assertEquals("1", Parser.parse("1^2", true).toString());
+    testFlatten("1^2", "(1 ^ 2)", "1");
   }
 
   @Test
   public void testSimpleCarrot2()
   {
-    Assert.assertEquals("(1 ^ (2 ^ 3))", Parser.parse("1^2^3", false).toString());
-    Assert.assertEquals("1", Parser.parse("1^2^3", true).toString());
+    testFlatten("1^2^3", "(1 ^ (2 ^ 3))", "1");
   }
 
   @Test
   public void testMixed()
   {
-    Expr parse = Parser.parse("1+2*3", false);
-    Assert.assertEquals("(1 + (2 * 3))", parse.toString());
-    Assert.assertEquals("7", Parser.flatten(parse).toString());
+    testFlatten("1+2*3", "(1 + (2 * 3))", "7");
+    testFlatten("1+(2*3)", "(1 + (2 * 3))", "7");
+    testFlatten("(1+2)*3", "((1 + 2) * 3)", "9");
 
-    parse = Parser.parse("1+(2*3)", false);
-    Assert.assertEquals("(1 + (2 * 3))", parse.toString());
-    Assert.assertEquals("7", Parser.flatten(parse).toString());
+    testFlatten("1*2+3", "((1 * 2) + 3)", "5");
+    testFlatten("(1*2)+3", "((1 * 2) + 3)", "5");
+    testFlatten("1*(2+3)", "(1 * (2 + 3))", "5");
 
-    parse = Parser.parse("(1+2)*3", false);
-    Assert.assertEquals("((1 + 2) * 3)", parse.toString());
-    Assert.assertEquals("9", Parser.flatten(parse).toString());
+    testFlatten("1+2^3", "(1 + (2 ^ 3))", "9");
+    testFlatten("1+(2^3)", "(1 + (2 ^ 3))", "9");
+    testFlatten("(1+2)^3", "((1 + 2) ^ 3)", "27");
 
+    testFlatten("1^2+3", "((1 ^ 2) + 3)", "4");
+    testFlatten("(1^2)+3", "((1 ^ 2) + 3)", "4");
+    testFlatten("1^(2+3)", "(1 ^ (2 + 3))", "1");
 
-    parse = Parser.parse("1*2+3", false);
-    Assert.assertEquals("((1 * 2) + 3)", parse.toString());
-    Assert.assertEquals("5", Parser.flatten(parse).toString());
+    testFlatten("1^2*3+4", "(((1 ^ 2) * 3) + 4)", "7");
+    testFlatten("-1^2*-3+-4", "(((-1 ^ 2) * -3) + -4)", "-7");
+  }
 
-    parse = Parser.parse("(1*2)+3", false);
-    Assert.assertEquals("((1 * 2) + 3)", parse.toString());
-    Assert.assertEquals("5", Parser.flatten(parse).toString());
-
-    parse = Parser.parse("1*(2+3)", false);
-    Assert.assertEquals("(1 * (2 + 3))", parse.toString());
-    Assert.assertEquals("5", Parser.flatten(parse).toString());
-
-
-    parse = Parser.parse("1+2^3", false);
-    Assert.assertEquals("(1 + (2 ^ 3))", parse.toString());
-    Assert.assertEquals("9", Parser.flatten(parse).toString());
-
-    parse = Parser.parse("1+(2^3)", false);
-    Assert.assertEquals("(1 + (2 ^ 3))", parse.toString());
-    Assert.assertEquals("9", Parser.flatten(parse).toString());
-
-    parse = Parser.parse("(1+2)^3", false);
-    Assert.assertEquals("((1 + 2) ^ 3)", parse.toString());
-    Assert.assertEquals("27", Parser.flatten(parse).toString());
-
-
-    parse = Parser.parse("1^2+3", false);
-    Assert.assertEquals("((1 ^ 2) + 3)", parse.toString());
-    Assert.assertEquals("4", Parser.flatten(parse).toString());
-
-    parse = Parser.parse("(1^2)+3", false);
-    Assert.assertEquals("((1 ^ 2) + 3)", parse.toString());
-    Assert.assertEquals("4", Parser.flatten(parse).toString());
-
-    parse = Parser.parse("1^(2+3)", false);
-    Assert.assertEquals("(1 ^ (2 + 3))", parse.toString());
-    Assert.assertEquals("1", Parser.flatten(parse).toString());
-
-
-    parse = Parser.parse("1^2*3+4", false);
-    Assert.assertEquals("(((1 ^ 2) * 3) + 4)", parse.toString());
-    Assert.assertEquals("7", Parser.flatten(parse).toString());
-
-    parse = Parser.parse("-1^2*-3+-4", false);
-    Assert.assertEquals("(((-1 ^ 2) * -3) + -4)", parse.toString());
-    Assert.assertEquals("-7", Parser.flatten(parse).toString());
+  private void testFlatten(String expr, String expected1, String expected2)
+  {
+    Assert.assertEquals(expected1, Parser.parse(expr, false).toString());
+    Assert.assertEquals(expected2, Parser.parse(expr).toString());
   }
 
   @Test

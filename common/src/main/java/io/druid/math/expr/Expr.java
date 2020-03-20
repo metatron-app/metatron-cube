@@ -22,7 +22,6 @@ package io.druid.math.expr;
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
 import io.druid.common.DateTimes;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
@@ -80,9 +79,17 @@ interface UnaryOp extends Expr
 
 final class BooleanExpr implements Constant
 {
+  public static BooleanExpr of(boolean bool)
+  {
+    return bool ? TRUE : FALSE;
+  }
+
+  public static final BooleanExpr TRUE = new BooleanExpr(true);
+  public static final BooleanExpr FALSE = new BooleanExpr(false);
+
   private final boolean value;
 
-  public BooleanExpr(boolean value)
+  private BooleanExpr(boolean value)
   {
     this.value = value;
   }
@@ -282,9 +289,9 @@ final class DecimalExpr implements Constant
 {
   private final BigDecimal value;
 
-  public DecimalExpr(String value)
+  public DecimalExpr(BigDecimal value)
   {
-    this.value = StringUtils.isNullOrEmpty(value) ? null : new BigDecimal(value);
+    this.value = value;
   }
 
   @Override
@@ -514,20 +521,7 @@ final class UnaryMinusExpr implements UnaryOp
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    final ExprEval ret = expr.eval(bindings);
-    if (ret.isNull()) {
-      return ret;
-    }
-    if (ret.isLong()) {
-      return ExprEval.of(-ret.longValue());
-    }
-    if (ret.isFloat()) {
-      return ExprEval.of(-ret.floatValue());
-    }
-    if (ret.isDouble()) {
-      return ExprEval.of(-ret.doubleValue());
-    }
-    throw new IllegalArgumentException("unsupported type " + ret.type());
+    return Evals.evalMinus(expr.eval(bindings));
   }
 
   @Override
@@ -561,12 +555,7 @@ final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    final ExprEval ret = expr.eval(bindings);
-    if (ret.isNull()) {
-      return ExprEval.NULL_BOOL;
-    } else {
-      return ExprEval.of(!ret.asBoolean());
-    }
+    return Evals.evalNot(expr.eval(bindings));
   }
 
   @Override

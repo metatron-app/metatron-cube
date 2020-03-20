@@ -164,7 +164,7 @@ public interface Function
       }
     }
 
-    public abstract class ExternalChild extends Child implements External
+    public abstract class ExternalChild extends Child
     {
       @Override
       public final ValueDesc returns()
