@@ -21,6 +21,7 @@ package io.druid.server.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.QueryInterruptedException;
 import io.druid.server.DruidNode;
@@ -47,6 +48,7 @@ import java.util.Set;
  */
 public class PreResponseAuthorizationCheckFilter implements Filter
 {
+  private static final Logger LOG = new Logger(PreResponseAuthorizationCheckFilter.class);
   private static final EmittingLogger log = new EmittingLogger(PreResponseAuthorizationCheckFilter.class);
 
   private final List<Authenticator> authenticators;
@@ -137,7 +139,6 @@ public class PreResponseAuthorizationCheckFilter implements Filter
     OutputStream out = response.getOutputStream();
     sendJsonError(response, HttpServletResponse.SC_UNAUTHORIZED, jsonMapper.writeValueAsString(unauthorizedError), out);
     out.close();
-    return;
   }
 
   private void handleAuthorizationCheckError(
@@ -146,22 +147,33 @@ public class PreResponseAuthorizationCheckFilter implements Filter
       HttpServletResponse servletResponse
   )
   {
-    // Send out an alert so there's a centralized collection point for seeing errors of this nature
-    log.makeAlert(errorMsg)
-       .addData("uri", servletRequest.getRequestURI())
-       .addData("method", servletRequest.getMethod())
-       .addData("remoteAddr", servletRequest.getRemoteAddr())
-       .addData("remoteHost", servletRequest.getRemoteHost())
-       .emit();
-
-    if (servletResponse.isCommitted()) {
-      throw new ISE(errorMsg);
+    if (true) {
+      LOG.warn(
+          "%s : %s[%s] from %s:%s",
+          errorMsg,
+          servletRequest.getRequestURI(),
+          servletRequest.getMethod(),
+          servletRequest.getRemoteAddr(),
+          servletRequest.getRemotePort()
+      );
     } else {
-      try {
-        servletResponse.sendError(HttpServletResponse.SC_FORBIDDEN);
-      }
-      catch (Exception e) {
-        throw new RuntimeException(e);
+      // Send out an alert so there's a centralized collection point for seeing errors of this nature
+      log.makeAlert(errorMsg)
+         .addData("uri", servletRequest.getRequestURI())
+         .addData("method", servletRequest.getMethod())
+         .addData("remoteAddr", servletRequest.getRemoteAddr())
+         .addData("remoteHost", servletRequest.getRemoteHost())
+         .emit();
+
+      if (servletResponse.isCommitted()) {
+        throw new ISE(errorMsg);
+      } else {
+        try {
+          servletResponse.sendError(HttpServletResponse.SC_FORBIDDEN);
+        }
+        catch (Exception e) {
+          throw new RuntimeException(e);
+        }
       }
     }
   }

@@ -175,6 +175,7 @@ public class QueryResource
   @Path("/jmx")
   @Produces(MediaType.APPLICATION_JSON)
   public Response getJMX(
+      @QueryParam("pretty") String pretty,
       @QueryParam("expression") String expression,
       @QueryParam("dumpLongestStack") boolean dumpLongestStack,
       @Context final HttpServletRequest req
@@ -188,7 +189,7 @@ public class QueryResource
       query += ", \"dumpLongestStack\": true";
     }
     query += "}";
-    return doPost(new ReaderInputStream(new StringReader(query)), "pretty", null, req);
+    return doPost(new ReaderInputStream(new StringReader(query)), "pretty", pretty, req);
   }
 
   @GET
