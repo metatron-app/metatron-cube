@@ -146,7 +146,7 @@ public class SelectQueryQueryToolChest
           Map<String, Object> context
       )
       {
-        return super.doRun(baseRunner, query.toLocalQuery(), context);
+        return super.doRun(baseRunner, query, context);
       }
 
       @Override

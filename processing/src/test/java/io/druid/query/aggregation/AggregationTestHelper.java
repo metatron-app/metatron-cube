@@ -34,18 +34,18 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
+import io.druid.java.util.common.guava.Yielder;
+import io.druid.java.util.common.guava.Yielders;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
@@ -53,6 +53,7 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.RowResolver;
 import io.druid.query.groupby.GroupByQueryEngine;
@@ -417,66 +418,59 @@ public class AggregationTestHelper
     }
   }
 
+  @SuppressWarnings("unchecked")
   public Sequence<Row> runQueryOnSegmentsObjs(final List<Segment> segments, final Query<Row> query)
   {
-    final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
-    final QueryRunner baseRunner = toolChest.finalizeResults(
-        toolChest.postMergeQueryDecoration(
-            toolChest.mergeResults(
-                toolChest.preMergeQueryDecoration(
-                    makeStringSerdeQueryRunner(
-                        mapper, toolChest, query,
-                        factory.mergeRunners(
-                            MoreExecutors.sameThreadExecutor(),
-                            Lists.transform(
-                                segments,
-                                new Function<Segment, QueryRunner>()
-                                {
-                                  @Override
-                                  public QueryRunner apply(final Segment segment)
-                                  {
-                                    return factory.createRunner(segment, null);
-                                  }
-                                }
-                            ),
-                            null
-                        )
+    return QueryRunners.run(query, toolChest.finalQueryDecoration(
+        toolChest.finalizeResults(
+            toolChest.postMergeQueryDecoration(
+                toolChest.mergeResults(
+                    toolChest.preMergeQueryDecoration(
+                        makeLocalizedRunner(segments, query)
                     )
                 )
             )
         )
-    );
-
-    Query<Row> resolved = query.resolveQuery(resolver, true);
-    return toolChest.finalQueryDecoration(baseRunner).run(resolved, Maps.newHashMap());
+    ));
   }
 
-  public QueryRunner<Row> makeStringSerdeQueryRunner(final ObjectMapper mapper, final QueryToolChest toolChest, final Query<Row> query, final QueryRunner<Row> baseRunner)
+  @SuppressWarnings("unchecked")
+  private QueryRunner<Row> makeLocalizedRunner(final List<Segment> segments, final Query<Row> query)
   {
+    final Query<Row> localized = query.toLocalQuery();
+    final Supplier<RowResolver> resolver = RowResolver.supplier(segments, localized);
+    final Query<Row> resolved = localized.resolveQuery(resolver, true);
+
+    final QueryRunner<Row> baseRunner = factory.mergeRunners(
+        MoreExecutors.sameThreadExecutor(),
+        Lists.transform(
+            segments,
+            new Function<Segment, QueryRunner>()
+            {
+              @Override
+              public QueryRunner apply(final Segment segment)
+              {
+                return factory.createRunner(segment, null);
+              }
+            }
+        ),
+        null
+    );
+
     return new QueryRunner<Row>()
     {
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> map)
       {
+        Sequence<Row> resultSeq = baseRunner.run(resolved, Maps.<String, Object>newHashMap());
         try {
-          Sequence<Row> resultSeq = baseRunner.run(query, Maps.<String, Object>newHashMap());
-          final Yielder yielder = resultSeq.toYielder(
-              null,
-              new YieldingAccumulator()
-              {
-                @Override
-                public Object accumulate(Object accumulated, Object in)
-                {
-                  yield();
-                  return in;
-                }
-              }
-          );
+          Yielder yielder = Yielders.each(resultSeq);
           String resultStr = mapper.writer().writeValueAsString(yielder);
 
           TypeFactory typeFactory = mapper.getTypeFactory();
-          JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference(query));
+          JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference(resolved));
 
+          // in broker
           List resultRows = Lists.transform(
               readQueryResultArrayFromString(resultStr, baseType),
               toolChest.makePreComputeManipulatorFn(

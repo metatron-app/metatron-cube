@@ -85,7 +85,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       {
         T aggregation = (T) query;
         if (aggregation.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          Sequence<Row> sequence = runner.run(aggregation.toLocalQuery(), responseContext);
+          Sequence<Row> sequence = runner.run(aggregation, responseContext);
           if (BaseQuery.isBySegment(aggregation)) {
             Function function = BySegmentResultValueClass.applyAll(
                 Functions.compose(toPostAggregator(aggregation), toMapBasedRow(aggregation)));

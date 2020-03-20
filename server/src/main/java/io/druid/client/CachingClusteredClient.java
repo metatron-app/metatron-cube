@@ -475,11 +475,11 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           final DruidServer server = entry.getKey();
           final List<SegmentDescriptor> descriptors = entry.getValue();
 
-          Query<T> rewritten = prepared;
+          Query<T> localized = prepared.toLocalQuery();
           if (server.isAssignable() && populateCache) {
-            rewritten = rewritten.withOverriddenContext(contextBuilder.build());
+            localized = localized.withOverriddenContext(contextBuilder.build());
           }
-          final Query<T> running = rewritten.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
+          final Query<T> running = localized.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
           final QueryRunner runner = serverView.getQueryRunner(running, server);
           if (runner == null) {
             log.error("server [%s] has disappeared.. skipping", server);

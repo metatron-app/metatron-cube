@@ -74,7 +74,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       {
         StreamQuery stream = (StreamQuery) query;
         if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          return stream.applyLimit(queryRunner.run(query.toLocalQuery(), responseContext));
+          return stream.applyLimit(queryRunner.run(query, responseContext));
         }
         Sequence<Object[]> sequence = queryRunner.run(query, responseContext);
         LimitSpec limitSpec = stream.getLimitSpec();

@@ -39,7 +39,7 @@ public abstract class ResultMergeQueryRunner<T> extends BySegmentSkippingQueryRu
   public Sequence<T> doRun(QueryRunner<T> baseRunner, Query<T> query, Map<String, Object> context)
   {
     return CombiningSequence.create(
-        baseRunner.run(query.toLocalQuery(), context),
+        baseRunner.run(query, context),
         makeOrdering(query),
         createMergeFn(query)
     );

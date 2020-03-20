@@ -103,7 +103,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
               }
             };
         final Map<ObjectArray, MutableInt> merged = new TreeMap<>();
-        runner.run(query.toLocalQuery(), responseContext).accumulate(
+        runner.run(query, responseContext).accumulate(
             null, new Accumulator<Object, Object[]>()
             {
               @Override

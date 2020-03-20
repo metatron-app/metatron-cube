@@ -42,7 +42,6 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -129,9 +128,6 @@ public class TopNQueryQueryToolChest
       )
       {
         TopNQuery topN = (TopNQuery) query;
-        if (topN.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
-          topN = topN.toLocalQuery();
-        }
         Sequence<Result<TopNResultValue>> sequence = runner.run(topN, responseContext);
         if (BaseQuery.isBySegment(topN)) {
           Function function = BySegmentResultValueClass.applyAll(toPostAggregator(topN));

@@ -923,7 +923,7 @@ public class QueryRunnerTestHelper
         if (BaseQuery.isBySegment(query)) {
           manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
         }
-        return Sequences.map(runner.run(query, responseContext), manipulatorFn);
+        return Sequences.map(runner.run(query.toLocalQuery(), responseContext), manipulatorFn);
       }
     };
   }
