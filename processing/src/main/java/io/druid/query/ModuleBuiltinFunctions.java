@@ -186,7 +186,7 @@ public class ModuleBuiltinFunctions implements Function.Library
       parameter.put("replaceMissingValueWith", getString(namedParam, "replaceMissingValueWith", null));
 
       LookupExtractorFactory factory = injector.getInstance(Key.get(LookupReferencesManager.class)).get(name);
-      parameter.put("extractor", Preconditions.checkNotNull(factory, "cannot find lookup " + name).get());
+      parameter.put("extractor", Preconditions.checkNotNull(factory, "cannot find lookup %s", name).get());
 
       return parameter;
     }

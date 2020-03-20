@@ -49,8 +49,8 @@ public class DecimalMetricSerde extends ComplexMetricSerde
 
   public DecimalMetricSerde(int precision, int scale, RoundingMode roundingMode)
   {
-    Preconditions.checkArgument(scale >= 0 && scale <= 30, "out of range " + scale);
-    Preconditions.checkArgument(precision == 0 || (precision > 0 && precision > scale), "out of range " + scale);
+    Preconditions.checkArgument(scale >= 0 && scale <= 30, "out of range %d", scale);
+    Preconditions.checkArgument(precision == 0 || (precision > 0 && precision > scale), "out of range %d", scale);
     this.scale = scale;
     this.context = new MathContext(precision, roundingMode);
     this.typeName = "decimal(" + precision + "," + scale + "," + roundingMode + ")";

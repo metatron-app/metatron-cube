@@ -78,12 +78,12 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     }
     Preconditions.checkArgument(
         comparatorType == null || Comparators.createGeneric(comparatorType, null) != null,
-        "invalid comparator type " + comparatorType
+        "invalid comparator type %s", comparatorType
     );
     ValueType valueType = ValueType.of(comparatorType, ValueType.STRING);
     Preconditions.checkArgument(
         extractionFn == null || valueType == ValueType.STRING,
-        "invalid combination of comparator " + comparatorType + " and extract function"
+        "invalid combination of comparator %s and extract function", comparatorType
     );
   }
 

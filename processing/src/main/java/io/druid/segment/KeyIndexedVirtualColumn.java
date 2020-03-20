@@ -240,7 +240,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           public ObjectColumnSelector makeObjectColumnSelector(String columnName)
           {
             Preconditions.checkArgument(
-                columnName.equals(outputName), "cannot reference column '" + columnName + "' in current context"
+                columnName.equals(outputName), "cannot reference column '%s' in current context", columnName
             );
             return new ObjectColumnSelector<IndexedID>()
             {
@@ -262,7 +262,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           public ValueDesc resolve(String columnName)
           {
             Preconditions.checkArgument(
-                columnName.equals(outputName), "cannot reference column '" + columnName + "' in current context"
+                columnName.equals(outputName), "cannot reference column '%s' in current context", columnName
             );
             return ValueDesc.ofIndexedId(ValueType.STRING);
           }

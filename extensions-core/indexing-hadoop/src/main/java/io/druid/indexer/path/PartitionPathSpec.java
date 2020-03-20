@@ -22,9 +22,13 @@ package io.druid.indexer.path;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.*;
-import io.druid.java.util.common.logger.Logger;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.druid.indexer.HadoopDruidIndexerConfig;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -130,7 +134,7 @@ public class PartitionPathSpec implements PathSpec
           {
             String[] columnValuePair = skipColumnValue.split("=");
             Preconditions.checkArgument(columnValuePair.length == 2,
-                String.format("%s: indexingPaths should not have non-partitioning directories", skipColumnValue));
+                "%s: indexingPaths should not have non-partitioning directories", skipColumnValue);
             Preconditions.checkArgument(columnValuePair[0].equals(partitionColumns.get(indexingStartColumnIndex)));
             indexingStartColumnIndex++;
           }
@@ -170,7 +174,7 @@ public class PartitionPathSpec implements PathSpec
   public Map<String, String> getPartitionValues(Path path)
   {
     String dirPath = path.getParent().toUri().getPath();
-    Preconditions.checkArgument(dirPath.startsWith(basePath), dirPath + " should start with " + basePath);
+    Preconditions.checkArgument(dirPath.startsWith(basePath), "%s should start with %s", dirPath, basePath);
     if (dirPath.length() == basePath.length())
     {
       return ImmutableMap.of();

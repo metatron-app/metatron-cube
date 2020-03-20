@@ -406,7 +406,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
               array[extractors.size()] = values[i];
               StringArray key = new StringArray(array);
               ExprEval value = ExprEval.of(row.getRaw(values[i]), valueTypes[i]);
-              Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
+              Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. %s", key);
             }
           } else {
             StringArray key = new StringArray(array);
@@ -420,7 +420,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
               }
               value = ExprEval.of(Arrays.asList(holder), structType);
             }
-            Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
+            Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. %s", key);
           }
         }
         PivotContext pivot = new PivotContext(PivotSpec.this, context.with(partitionKey, partition));

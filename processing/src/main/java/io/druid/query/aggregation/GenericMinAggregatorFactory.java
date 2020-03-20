@@ -26,6 +26,7 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.serde.ComplexMetrics;
@@ -63,7 +64,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
-    Preconditions.checkArgument(outputType == null || outputType.isNumeric(), "unsupported type " + outputType);
+    Preconditions.checkArgument(outputType == null || outputType.isNumeric(), "unsupported type %s", outputType);
   }
 
   public GenericMinAggregatorFactory(String name, String fieldName, ValueDesc inputType)
@@ -158,11 +159,11 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
                   fieldExpression
               ),
               ColumnSelectors.toMatcher(predicate, metricFactory),
-              Preconditions.checkNotNull(decimalSerde, "unsupported type " + valueType)
+              Preconditions.checkNotNull(decimalSerde, "unsupported type %s", valueType)
           );
         }
     }
-    throw new IllegalArgumentException("unsupported type " + valueType);
+    throw new IAE("unsupported type %s", valueType);
   }
 
   @Override

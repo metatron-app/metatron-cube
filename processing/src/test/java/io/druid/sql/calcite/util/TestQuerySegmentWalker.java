@@ -410,7 +410,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     }
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (query.getDataSource() instanceof QueryDataSource) {
-      Preconditions.checkNotNull(factory, query + " does not supports nested query");
+      Preconditions.checkNotNull(factory, "%s does not supports nested query", query);
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
       QueryRunner<T> runner = toolChest.handleSubQuery(this, queryConfig);
       return FluentQueryRunnerBuilder.create(toolChest, runner)

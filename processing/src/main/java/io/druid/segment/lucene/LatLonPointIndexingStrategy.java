@@ -106,8 +106,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
     final int indexLat = serde.indexOf(latitude);
     Preconditions.checkArgument(indexLat >= 0, "invalid field name %s", latitude);
     Preconditions.checkArgument(
-        serde.type(indexLat).isNumeric(),
-        "invalid field type " + serde.type(indexLat) + " for " + latitude
+        serde.type(indexLat).isNumeric(), "invalid field type %s for %s", serde.type(indexLat), latitude
     );
 
     final int indexLon = serde.indexOf(longitude);

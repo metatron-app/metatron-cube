@@ -128,7 +128,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private static void validateDataSource(Map<String, DataSource> dataSources, String alias, List<String> joinColumns)
   {
     DataSource dataSource = dataSources.get(alias);
-    Preconditions.checkNotNull(dataSource, "failed to find alias " + alias);
+    Preconditions.checkNotNull(dataSource, "failed to find alias %s", alias);
     DataSource rewritten = rewriteDataSource(dataSource, joinColumns);
     if (rewritten != null) {
       dataSources.put(alias, rewritten);

@@ -421,7 +421,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       {
         Preconditions.checkArgument(
             param1.type().equals(param2.type()),
-            "Type mismatch.. " + param1.type() + " with " + param2.type()
+            "Type mismatch.. %s with %s", param1.type(), param2.type()
         );
         // hack to get consistent sketch from cached segment
         ItemsSketch.rand.setSeed(0);

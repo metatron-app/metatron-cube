@@ -196,8 +196,8 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
     if (type.isStruct()) {
       StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
       wktIndex = serde.indexOf(fieldName);
-      Preconditions.checkArgument(wktIndex >= 0, "invalid fieldName " + fieldName + " in " + type);
-      Preconditions.checkArgument(serde.type(wktIndex) == ValueType.STRING, fieldName + " is not string");
+      Preconditions.checkArgument(wktIndex >= 0, "invalid fieldName %s in %s", fieldName, type);
+      Preconditions.checkArgument(serde.type(wktIndex) == ValueType.STRING, "%s is not string", fieldName);
     } else {
       wktIndex = -1;
     }

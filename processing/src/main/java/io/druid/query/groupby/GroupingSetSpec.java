@@ -73,12 +73,12 @@ public interface GroupingSetSpec extends Cacheable
     public void validate(List<String> dimensions)
     {
       for (List<String> group : names) {
-        Preconditions.checkArgument(dimensions.containsAll(group), "invalid column in grouping set " + group);
-        Preconditions.checkArgument(group.size() == Sets.newHashSet(group).size(), "duplicated columns in " + group);
+        Preconditions.checkArgument(dimensions.containsAll(group), "invalid column in grouping set %s", group);
+        Preconditions.checkArgument(group.size() == Sets.newHashSet(group).size(), "duplicated columns in %s", group);
         int prev = -1;
         for (String dimension : group) {
           int index = dimensions.indexOf(dimension);
-          Preconditions.checkArgument(prev < 0 || index > prev, "invalid grouping set " + group);
+          Preconditions.checkArgument(prev < 0 || index > prev, "invalid grouping set %s", group);
           prev = index;
         }
       }
@@ -93,7 +93,7 @@ public interface GroupingSetSpec extends Cacheable
         groupings[i] = new int[groupingSet.size()];
         for (int j = 0; j < groupings[i].length; j++) {
           groupings[i][j] = dimensions.indexOf(groupingSet.get(j));
-          Preconditions.checkArgument(groupings[i][j] >= 0, "invalid column " + groupingSet.get(j));
+          Preconditions.checkArgument(groupings[i][j] >= 0, "invalid column %s", groupingSet.get(j));
         }
       }
       return groupings;
@@ -176,7 +176,7 @@ public interface GroupingSetSpec extends Cacheable
       for (List<Integer> group : indices) {
         int prev = -1;
         for (Integer index : group) {
-          Preconditions.checkArgument(prev < 0 || index > prev, "invalid grouping set " + group);
+          Preconditions.checkArgument(prev < 0 || index > prev, "invalid grouping set %s", group);
           prev = index;
         }
       }
@@ -193,7 +193,7 @@ public interface GroupingSetSpec extends Cacheable
           groupings[i][j] = groupingSet.get(j);
           Preconditions.checkArgument(
               groupings[i][j] >= 0 && groupings[i][j] < dimensions.size(),
-              "invalid index " + groupingSet.get(j)
+              "invalid index %d", groupingSet.get(j)
           );
         }
       }
@@ -276,7 +276,7 @@ public interface GroupingSetSpec extends Cacheable
     {
       int max = (int) Math.pow(2, dimensions.size());
       for (Integer group : ids) {
-        Preconditions.checkArgument(group >= 0 || group < max, "invalid grouping set " + group);
+        Preconditions.checkArgument(group >= 0 || group < max, "invalid grouping set %d", group);
       }
     }
 

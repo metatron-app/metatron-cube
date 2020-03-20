@@ -62,7 +62,7 @@ public class StructVirtualColumn implements VirtualColumn
   {
     Preconditions.checkArgument(column.startsWith(outputName));
     final ValueDesc columnType = types.resolve(columnName);
-    Preconditions.checkArgument(columnType.isStruct(), columnName + " is not struct type");
+    Preconditions.checkArgument(columnType.isStruct(), "%s is not struct type", columnName);
     if (column.equals(outputName)) {
       return columnType;
     }

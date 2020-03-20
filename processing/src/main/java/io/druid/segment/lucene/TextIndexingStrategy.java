@@ -73,7 +73,7 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
     if (type.isStruct()) {
       StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
       final int index = serde.indexOf(fieldName);
-      Preconditions.checkArgument(index >= 0, "invalid field name " + fieldName);
+      Preconditions.checkArgument(index >= 0, "invalid field name %s", fieldName);
       return Functions.compose(
           Lucenes.makeTextFieldGenerator(fieldName),
           new Function<Object, Object>()

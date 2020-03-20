@@ -62,7 +62,7 @@ public class SketchBinaryFn implements BinaryFn<Object[], Object[], Object[]>
     }
     Preconditions.checkArgument(
         Objects.equals(object1.type(), object2.type()),
-        "Type mismatch.. " + object1.type() + " with " + object2.type()
+        "Type mismatch.. %s with %s", object1.type(), object2.type()
     );
     TypedSketch union = handler.newUnion(nomEntries, object1.type(), null);
     handler.updateWithSketch(union, object1.value());

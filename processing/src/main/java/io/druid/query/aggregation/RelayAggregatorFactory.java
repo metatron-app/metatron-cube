@@ -320,7 +320,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
     return new RelayAggregatorFactory(
         name,
         columnName,
-        Preconditions.checkNotNull(resolver.get().resolve(columnName), "Failed to resolve " + columnName).typeName(),
+        Preconditions.checkNotNull(resolver.get().resolve(columnName), "Failed to resolve %s", columnName).typeName(),
         relayType
     );
   }

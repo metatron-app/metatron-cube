@@ -170,7 +170,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
         Query subQuery = dataSource.getQuery();
         if (subQuery instanceof Query.ArrayOutputSupport &&
             streamQuery.isSimpleProjection(subQuery.getQuerySegmentSpec())) {
-          Query.ArrayOutputSupport<Object[]> arrayOutput = (Query.ArrayOutputSupport) query;
+          Query.ArrayOutputSupport<Object[]> arrayOutput = (Query.ArrayOutputSupport) subQuery;
           List<String> outputColumns = Queries.relayColumns(arrayOutput, segmentWalker.getObjectMapper());
           if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
             Sequence<Object[]> sequence = arrayOutput.array(arrayOutput.run(segmentWalker, responseContext));

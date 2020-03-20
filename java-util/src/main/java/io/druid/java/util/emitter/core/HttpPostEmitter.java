@@ -143,11 +143,7 @@ public class HttpPostEmitter implements Flushable, Closeable, Emitter
     final int batchOverhead = batchingStrategy.batchStartLength() + batchingStrategy.batchEndLength();
     Preconditions.checkArgument(
         config.getMaxBatchSize() >= MAX_EVENT_SIZE + batchOverhead,
-        String.format(
-            "maxBatchSize must be greater than MAX_EVENT_SIZE[%,d] + overhead[%,d].",
-            MAX_EVENT_SIZE,
-            batchOverhead
-        )
+        "maxBatchSize must be greater than MAX_EVENT_SIZE[%,d] + overhead[%,d].", MAX_EVENT_SIZE, batchOverhead
     );
     this.config = config;
     this.bufferSize = config.getMaxBatchSize();

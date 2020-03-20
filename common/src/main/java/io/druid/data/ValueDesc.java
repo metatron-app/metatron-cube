@@ -305,13 +305,13 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static ValueDesc assertPrimitive(ValueDesc valueDesc)
   {
-    Preconditions.checkArgument(valueDesc.isPrimitive(), "should be primitive type but " + valueDesc);
+    Preconditions.checkArgument(valueDesc.isPrimitive(), "should be primitive type but %s", valueDesc);
     return valueDesc;
   }
 
   public static ValueDesc assertNumeric(ValueDesc valueDesc)
   {
-    Preconditions.checkArgument(valueDesc.isNumeric(), "should be numeric type but " + valueDesc);
+    Preconditions.checkArgument(valueDesc.isNumeric(), "should be numeric type but %s", valueDesc);
     return valueDesc;
   }
 

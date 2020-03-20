@@ -126,7 +126,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   )
   {
     super(query.getDataSource(), query.getQuerySegmentSpec(), query.isDescending(), context);
-    Preconditions.checkArgument(query instanceof ArrayOutputSupport, "not supported type " + query.getType());
+    Preconditions.checkArgument(query instanceof ArrayOutputSupport, "not supported type %s", query.getType());
     this.query = Preconditions.checkNotNull(query);
     this.metrics = Preconditions.checkNotNull(metrics, "metric cannot be null");
     this.numK = numK;

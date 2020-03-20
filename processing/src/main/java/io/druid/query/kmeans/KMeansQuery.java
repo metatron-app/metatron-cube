@@ -30,11 +30,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import io.druid.common.utils.Sequences;
+import io.druid.data.ValueType;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.common.utils.Sequences;
-import io.druid.data.ValueType;
 import io.druid.query.BaseQuery;
 import io.druid.query.Classifier;
 import io.druid.query.DataSource;
@@ -371,7 +371,7 @@ public class KMeansQuery
 
     List<Range<Double>> ranges = Lists.newArrayList();
     for (String metric : metrics) {
-      ColumnAnalysis analysis = Preconditions.checkNotNull(columns.get(metric), "missing metric " + metric);
+      ColumnAnalysis analysis = Preconditions.checkNotNull(columns.get(metric), "missing metric %s", metric);
       Preconditions.checkArgument(ValueType.of(analysis.getType()).isNumeric());
       double min = ((Number) analysis.getMinValue()).doubleValue();
       double max = ((Number) analysis.getMaxValue()).doubleValue();

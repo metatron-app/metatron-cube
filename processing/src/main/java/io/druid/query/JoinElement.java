@@ -167,7 +167,7 @@ public class JoinElement
         found = alias;
       }
     }
-    return Preconditions.checkNotNull(found, "cannot find alias from " + expression);
+    return Preconditions.checkNotNull(found, "cannot find alias from %s", expression);
   }
 
   @JsonProperty

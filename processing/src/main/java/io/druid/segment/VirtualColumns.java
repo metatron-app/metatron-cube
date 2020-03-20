@@ -60,7 +60,9 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
       type = ValueDesc.of(descriptiveType[1]);
     }
-    Preconditions.checkArgument(type.isDimension(), "group-by columns " + dimension + " is not dimension indexed (" + type + ")");
+    Preconditions.checkArgument(
+        type.isDimension(), "group-by columns %s is not dimension indexed (%s)", dimension, type
+    );
   }
 
   public static Set<String> getVirtualColumnNames(List<VirtualColumn> virtualColumns)

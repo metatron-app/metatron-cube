@@ -24,14 +24,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.parsers.ParseException;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.ParseSpec;
+import io.druid.java.util.common.parsers.ParseException;
+import io.druid.java.util.emitter.EmittingLogger;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.plexus.util.CollectionUtils;
@@ -191,15 +190,14 @@ public class JDBCFirehoseFactory implements FirehoseFactory
                     for (int idx = 1; idx <= metadata.getColumnCount(); idx++) {
                       queryColumns.add(metadata.getColumnName(idx));
                     }
-                    Preconditions.checkArgument(queryColumns.size() > 0,
-                        String.format("No column in table [%s]", table));
+                    Preconditions.checkArgument(queryColumns.size() > 0, "No column in table [%s]", table);
                     verifyParserSpec(parser, queryColumns);
                   }
                   if (columnIsNumeric.size() == 0) {
                     ResultSetMetaData metadata = r.getMetaData();
                     Preconditions.checkArgument(metadata.getColumnCount() >= queryColumns.size(),
-                        String.format("number of column names [%d] exceeds the actual number of returning column values [%d]",
-                            queryColumns.size(), metadata.getColumnCount()));
+                        "number of column names [%d] exceeds the actual number of returning column values [%d]",
+                        queryColumns.size(), metadata.getColumnCount());
                     columnIsNumeric.add(false); // dummy to make start index to 1
                     for (int idx = 1; idx <= metadata.getColumnCount(); idx++) {
                       boolean isNumeric = false;
@@ -313,12 +311,12 @@ public class JDBCFirehoseFactory implements FirehoseFactory
   {
     String tsColumn = parser.getTimestampSpec().getTimestampColumn();
     Preconditions.checkArgument(tsColumn == null || storedColumns.contains(tsColumn),
-        String.format("timestamp column %s does not exist in table %s", tsColumn, table));
+        "timestamp column %s does not exist in table %s", tsColumn, table);
 
     for (DimensionSchema dim : parser.getDimensionsSpec().getDimensions())
     {
       Preconditions.checkArgument(storedColumns.contains(dim.getName()),
-          String.format("dimension column %s does not exist in table %s", dim, table));
+          "dimension column %s does not exist in table %s", dim, table);
     }
   }
 

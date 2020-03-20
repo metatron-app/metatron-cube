@@ -45,11 +45,9 @@ public class KafkaPartitions
     for (Map.Entry<Integer, Long> entry : partitionOffsetMap.entrySet()) {
       Preconditions.checkArgument(
           entry.getValue() >= 0,
-          String.format(
-              "partition[%d] offset[%d] invalid",
-              entry.getKey(),
-              entry.getValue()
-          )
+          "partition[%d] offset[%d] invalid",
+          entry.getKey(),
+          entry.getValue()
       );
     }
   }
