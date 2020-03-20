@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -34,7 +33,7 @@ import java.util.Map;
 
 @JsonTypeName("classify")
 public class ClassifyQuery extends BaseQuery<Object[]>
-    implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
+    implements Query.RewritingQuery<Object[]>, Query.ArrayOutput
 {
   private final Query<Object[]> query;
   private final Query<?> classifier;
@@ -106,12 +105,6 @@ public class ClassifyQuery extends BaseQuery<Object[]>
       }
     }
     return null;
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Object[]> sequence)
-  {
-    return sequence;
   }
 
   @Override

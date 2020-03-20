@@ -34,7 +34,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.query.Query.ArrayOutputSupport;
+import io.druid.query.Query.ArrayOutput;
 import io.druid.query.Query.FilterSupport;
 import io.druid.query.Query.RewritingQuery;
 import io.druid.query.Query.SchemaProvider;
@@ -56,7 +56,7 @@ import java.util.Objects;
 
 @JsonTypeName("geo.boundary")
 public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
-    implements RewritingQuery<Object[]>, ArrayOutputSupport<Object[]>, FilterSupport<Object[]>,
+    implements RewritingQuery<Object[]>, ArrayOutput, FilterSupport<Object[]>,
     Query.WrappingQuery<Object[]>, SchemaProvider
 {
   private static final int DEFAULT_PARALLELISM = 2;
@@ -600,12 +600,6 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   {
     List<String> columns = Preconditions.checkNotNull(query.estimatedOutputColumns());
     return flip ? GuavaUtils.concat(boundaryJoin, columns) : GuavaUtils.concat(columns, boundaryJoin);
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Object[]> sequence)
-  {
-    return sequence;
   }
 
   @Override

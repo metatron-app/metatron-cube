@@ -23,14 +23,13 @@ import com.google.inject.Inject;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
-import io.druid.query.Result;
 import io.druid.segment.Segment;
 
 import java.util.concurrent.Future;
 
 /**
  */
-public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result<Object[]>, SketchQuery>
+public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Object[], SketchQuery>
 {
   @Inject
   public SketchQueryRunnerFactory(
@@ -42,7 +41,7 @@ public class SketchQueryRunnerFactory extends QueryRunnerFactory.Abstract<Result
   }
 
   @Override
-  public QueryRunner<Result<Object[]>> _createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<Object[]> _createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new SketchQueryRunner(segment, cache);
   }

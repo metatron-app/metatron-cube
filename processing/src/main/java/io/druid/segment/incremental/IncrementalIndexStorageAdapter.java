@@ -42,7 +42,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;

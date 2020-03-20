@@ -40,7 +40,6 @@ import io.druid.query.kmeans.KMeansQuery;
 import io.druid.query.kmeans.KMeansTaggingQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
-import io.druid.query.select.SchemaQuery;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectQuery;
@@ -208,9 +207,22 @@ public interface Query<T> extends QueryContextKeys
     Sequence<Object[]> array(Sequence<T> sequence);
   }
 
+  interface ArrayOutput extends ArrayOutputSupport<Object[]>
+  {
+    default Sequence<Object[]> array(Sequence<Object[]> sequence)
+    {
+      return sequence;
+    }
+  }
+
   interface RowOutputSupport<T> extends Query<T>
   {
     Sequence<Row> asRow(Sequence<T> sequence);
+  }
+
+  interface RowOutput extends RowOutputSupport<Row>
+  {
+    default Sequence<Row> asRow(Sequence<Row> sequence) { return sequence; }
   }
 
   interface OrderingSupport<T> extends Query<T>

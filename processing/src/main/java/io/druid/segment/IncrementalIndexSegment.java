@@ -19,7 +19,7 @@
 
 package io.druid.segment;
 
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import org.joda.time.Interval;

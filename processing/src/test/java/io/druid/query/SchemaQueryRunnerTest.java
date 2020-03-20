@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.select;
+package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
@@ -31,6 +31,8 @@ import io.druid.data.ValueType;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.SchemaQuery;
+import io.druid.query.SchemaQueryToolChest;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.TestIndex;
 import io.druid.timeline.DataSegment;

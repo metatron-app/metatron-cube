@@ -21,7 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 import io.druid.query.Query;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import org.joda.time.Interval;
 
 import java.io.IOException;

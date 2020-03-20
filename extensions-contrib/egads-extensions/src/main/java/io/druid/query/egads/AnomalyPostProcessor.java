@@ -41,7 +41,7 @@ import io.druid.granularity.Granularity;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 
 import java.util.Map;
 import java.util.Properties;

@@ -21,6 +21,7 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.query.Schema;
 import org.joda.time.DateTime;
 
 import java.util.List;

@@ -39,7 +39,7 @@ import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;

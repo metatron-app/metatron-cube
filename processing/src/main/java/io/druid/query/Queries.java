@@ -45,6 +45,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.ColumnsSupport;
 import io.druid.query.Query.DimensionSupport;
 import io.druid.query.Query.SchemaProvider;
@@ -60,10 +61,8 @@ import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.EventHolder;
-import io.druid.query.select.Schema;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
-import io.druid.query.select.StreamQuery;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
@@ -150,6 +149,25 @@ public class Queries
       schema = ((Schema.SchemaResolving) postProcessor).resolve(query, schema, mapper);
     }
     return Preconditions.checkNotNull(schema);
+  }
+
+  public static List<String> relayColumns(ArrayOutputSupport<?> query, ObjectMapper mapper)
+  {
+    List<String> columns = query.estimatedOutputColumns();
+    if (columns == null) {
+      return columns;
+    }
+    if (query instanceof Query.LateralViewSupport) {
+      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
+      if (lateralView != null) {
+        columns = lateralView.resolve(columns);
+      }
+    }
+    PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
+    if (postProcessor instanceof Schema.SchemaResolving) {
+      columns = ((Schema.SchemaResolving) postProcessor).resolve(columns);
+    }
+    return columns;
   }
 
   // best effort.. implement SchemaProvider if not enough
@@ -272,14 +290,10 @@ public class Queries
       return Sequences.explode((Sequence<Result<SelectResultValue>>) sequence, SELECT_TO_ROWS);
     } else if (subQuery instanceof TopNQuery) {
       return Sequences.explode((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS);
-    } else if (subQuery instanceof BaseAggregationQuery) {
-      return (Sequence<Row>) sequence;
-    } else if (subQuery instanceof StreamQuery) {
-      return ((StreamQuery) subQuery).asRow((Sequence<Object[]>) sequence);
-    } else if (subQuery instanceof UnionAllQuery) {
-      return ((UnionAllQuery) subQuery).asRow(sequence);
     } else if (subQuery instanceof Query.RowOutputSupport) {
       return ((Query.RowOutputSupport) subQuery).asRow(sequence);
+    } else if (subQuery instanceof UnionAllQuery) {
+      return ((UnionAllQuery) subQuery).asRow(sequence);
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }

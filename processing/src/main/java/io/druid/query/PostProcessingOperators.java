@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.query.select.Schema;
 
 import java.util.Arrays;
 import java.util.List;

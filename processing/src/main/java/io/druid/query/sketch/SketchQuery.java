@@ -25,13 +25,12 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-import io.druid.java.util.common.guava.Sequence;
+import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
+import io.druid.data.input.Row;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
@@ -48,8 +47,8 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("sketch")
-public class SketchQuery extends BaseQuery<Result<Object[]>>
-    implements Query.MetricSupport<Result<Object[]>>, Query.ArrayOutputSupport<Result<Object[]>>
+public class SketchQuery extends BaseQuery<Object[]>
+    implements Query.MetricSupport<Object[]>, Query.ArrayOutput
 {
   public static SketchQuery theta(String dataSource, Interval interval)
   {
@@ -263,6 +262,12 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
   }
 
   @Override
+  public Ordering<Object[]> getMergeOrdering()
+  {
+    return GuavaUtils.allEquals();
+  }
+
+  @Override
   public String toString()
   {
     return "SketchQuery{" +
@@ -323,12 +328,8 @@ public class SketchQuery extends BaseQuery<Result<Object[]>>
     if (dimensions.isEmpty() && allDimensionsForEmpty() || metrics.isEmpty() && allMetricsForEmpty()) {
       return null;
     }
-    return GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Result<Object[]>> sequence)
-  {
-    return Sequences.map(sequence, Result.<Object[]>unwrap());
+    return GuavaUtils.concat(
+        Row.TIME_COLUMN_NAME, GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics)
+    );
   }
 }

@@ -23,18 +23,17 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -55,15 +54,13 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 import org.apache.commons.io.IOUtils;
-import org.joda.time.DateTime;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
-public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
+public class SketchQueryRunner implements QueryRunner<Object[]>
 {
   private static final Logger LOG = new Logger(SketchQueryRunner.class);
 
@@ -78,8 +75,8 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<Result<Object[]>> run(
-      final Query<Result<Object[]>> baseQuery,
+  public Sequence<Object[]> run(
+      final Query<Object[]> baseQuery,
       final Map<String, Object> responseContext
   )
   {
@@ -104,11 +101,11 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
     final int sketchParam = query.getSketchParamWithDefault();
     final SketchHandler<?> handler = sketchOp.handler();
 
-    final Object[] sketches = new Object[dimensions.size() + metrics.size()];
+    final Object[] sketches = new Object[1 + dimensions.size() + metrics.size()];
 
     final QueryableIndex queryable = segment.asQueryableIndex(true);
     if (queryable != null && filter == null && query.getSketchParam() == 0) {
-      int index = 0;
+      int index = 1;
       for (DimensionSpec dimensionSpec : dimensions) {
         ValueDesc majorType = majorTypes.get(dimensionSpec.getDimension());
         if (majorType != null && !ValueDesc.isString(majorType)) {
@@ -183,7 +180,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
       );
       unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }
-    int index = 0;
+    int index = 1;
     for (DimensionSpec dimension : dimensions) {
       if (dimension != null) {
         sketches[index] = handler.toSketch(unions.get(dimension.getOutputName()));
@@ -193,8 +190,8 @@ public class SketchQueryRunner implements QueryRunner<Result<Object[]>>
     for (String metric : metrics) {
       sketches[index++] = handler.toSketch(unions.get(metric));
     }
-    DateTime start = segment.getDataInterval().getStart();
-    return Sequences.simple(Arrays.asList(new Result<Object[]>(start, sketches)));
+    sketches[0] = segment.getDataInterval().getStartMillis();
+    return Sequences.simple(sketches);
   }
 
   private Pair<ImmutableBitmap, DimFilter> extractBitmaps(

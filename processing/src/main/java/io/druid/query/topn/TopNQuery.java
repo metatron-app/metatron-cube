@@ -28,11 +28,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
@@ -42,6 +41,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -50,7 +50,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
@@ -188,10 +187,19 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
       return outputColumns;
     }
-    Set<String> outputNames = Sets.newLinkedHashSet();
-    outputNames.addAll(AggregatorFactory.toNames(aggregatorSpecs));
-    outputNames.addAll(PostAggregators.toNames(postAggregatorSpecs));
-    return GuavaUtils.concat(dimensionSpec.getOutputName(), outputNames);
+    List<String> outputColumns = Lists.newArrayList();
+    outputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
+    for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
+      if (!outputColumns.contains(aggregator)) {
+        outputColumns.add(aggregator);
+      }
+    }
+    for (String postAggregator : PostAggregators.toNames(getPostAggregatorSpecs())) {
+      if (!outputColumns.contains(postAggregator)) {
+        outputColumns.add(postAggregator);
+      }
+    }
+    return outputColumns;
   }
 
   @Override

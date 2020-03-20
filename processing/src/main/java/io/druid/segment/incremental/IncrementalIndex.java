@@ -52,7 +52,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.ParseException;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;

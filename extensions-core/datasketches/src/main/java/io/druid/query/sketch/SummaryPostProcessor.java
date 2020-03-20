@@ -140,25 +140,24 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
         final List<VirtualColumn> virtualColumns = ((SketchQuery) representative).getVirtualColumns();
         final List<ListenableFuture<Integer>> futures = Lists.newArrayList();
         final Map<String, Map<String, Object>> results = Maps.newLinkedHashMap();
-        Sequence<Pair<Query, Sequence<Result<Object[]>>>> sequences = baseRunner.run(query, responseContext);
-        for (Pair<Query, Sequence<Result<Object[]>>> pair : Sequences.toList(sequences)) {
+        Sequence<Pair<Query, Sequence<Object[]>>> sequences = baseRunner.run(query, responseContext);
+        for (Pair<Query, Sequence<Object[]>> pair : Sequences.toList(sequences)) {
           SketchQuery sketchQuery = (SketchQuery) pair.lhs;
 
           final List<String> columns = sketchQuery.estimatedOutputColumns();
-          final Result<Object[]> values = Sequences.only(pair.rhs, null);
+          final Object[] values = Sequences.only(pair.rhs, null);
           if (values == null) {
             continue;   // invalid interval or not-existing
           }
-          final Object[] value = values.getValue();
           if (sketchQuery.getSketchOp() == SketchOp.QUANTILE) {
             final Map<String, ValueType> primitiveColumns = Maps.newTreeMap();
             final Map<String, ValueType> numericColumns = Maps.newTreeMap();
-            for (int i = 0; i < value.length; i++) {
-              if (value[i] == null) {
+            for (int i = 1; i < values.length; i++) {
+              if (values[i] == null) {
                 continue;   // empty or not-existing
               }
               final String column = columns.get(i);
-              final ValueDesc type = ((TypedSketch<ItemsSketch>) value[i]).type();
+              final ValueDesc type = ((TypedSketch<ItemsSketch>) values[i]).type();
               if (type.isPrimitive()) {
                 primitiveColumns.put(column, type.type());
               }
@@ -195,12 +194,12 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 null,
                 BaseQuery.copyContextForMeta(query.withOverriddenContext(Query.ALL_DIMENSIONS_FOR_EMPTY, false))
             );
-            for (int i = 0; i < value.length; i++) {
-              if (value[i] == null) {
+            for (int i = 1; i < values.length; i++) {
+              if (values[i] == null) {
                 continue;   // empty or not-existing
               }
               final String column = columns.get(i);
-              final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) value[i];
+              final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) values[i];
               Map<String, Object> result = results.get(column);
               if (result == null) {
                 results.put(column, result = Maps.newLinkedHashMap());
@@ -329,9 +328,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 )
             );
           } else if (sketchQuery.getSketchOp() == SketchOp.THETA) {
-            for (int i = 0; i < value.length; i++) {
+            for (int i = 1; i < values.length; i++) {
               final String column = columns.get(i);
-              final TypedSketch<Sketch> sketch = ((TypedSketch<Sketch>) value[i]);
+              final TypedSketch<Sketch> sketch = ((TypedSketch<Sketch>) values[i]);
               if (sketch == null) {
                 continue;
               }

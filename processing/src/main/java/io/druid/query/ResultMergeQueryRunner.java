@@ -20,9 +20,9 @@
 package io.druid.query;
 
 import com.google.common.collect.Ordering;
+import io.druid.common.guava.CombiningSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.common.guava.CombiningSequence;
 
 import java.util.Map;
 
@@ -30,9 +30,7 @@ import java.util.Map;
  */
 public abstract class ResultMergeQueryRunner<T> extends BySegmentSkippingQueryRunner<T>
 {
-  public ResultMergeQueryRunner(
-      QueryRunner<T> baseRunner
-  )
+  public ResultMergeQueryRunner(QueryRunner<T> baseRunner)
   {
     super(baseRunner);
   }
@@ -47,7 +45,10 @@ public abstract class ResultMergeQueryRunner<T> extends BySegmentSkippingQueryRu
     );
   }
 
-  protected abstract Ordering<T> makeOrdering(Query<T> query);
+  protected Ordering<T> makeOrdering(Query<T> query)
+  {
+    return query.getMergeOrdering();
+  }
 
   protected abstract BinaryFn<T,T,T> createMergeFn(Query<T> query);
 }

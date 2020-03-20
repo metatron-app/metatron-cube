@@ -28,6 +28,7 @@ import io.druid.data.input.BulkRow;
 import io.druid.data.input.BulkSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
@@ -169,8 +170,8 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
         Query subQuery = dataSource.getQuery();
         if (subQuery instanceof Query.ArrayOutputSupport &&
             streamQuery.isSimpleProjection(subQuery.getQuerySegmentSpec())) {
-          Query.ArrayOutputSupport arrayOutput = (Query.ArrayOutputSupport) subQuery;
-          List<String> outputColumns = arrayOutput.estimatedOutputColumns();
+          Query.ArrayOutputSupport<Object[]> arrayOutput = (Query.ArrayOutputSupport) query;
+          List<String> outputColumns = Queries.relayColumns(arrayOutput, segmentWalker.getObjectMapper());
           if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
             Sequence<Object[]> sequence = arrayOutput.array(arrayOutput.run(segmentWalker, responseContext));
             return streamQuery.applySimpleProjection(sequence, outputColumns);

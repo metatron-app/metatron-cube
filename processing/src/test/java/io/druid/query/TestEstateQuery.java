@@ -38,8 +38,6 @@ import io.druid.query.metadata.metadata.ListColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
-import io.druid.query.select.Schema;
-import io.druid.query.select.SchemaQuery;
 import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;

@@ -54,7 +54,7 @@ import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.search.SearchResultValue;
 import io.druid.query.search.search.SearchQuery;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import io.druid.segment.AbstractSegment;
 import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndex;

@@ -22,7 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 
 import java.util.Map;
 

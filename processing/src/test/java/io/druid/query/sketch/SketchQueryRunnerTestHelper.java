@@ -34,7 +34,6 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
-import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
@@ -117,15 +116,13 @@ public class SketchQueryRunnerTestHelper extends QueryRunnerTestHelper
     return Arrays.asList(objects);
   }
 
-  protected void assertCache(SketchQuery query, Result<Object[]> result)
+  protected void assertCache(SketchQuery query, Object[] result)
   {
-    CacheStrategy<Result<Object[]>, Object[], SketchQuery> strategy = toolChest.getCacheStrategyIfExists(query);
+    CacheStrategy<Object[], Object[], SketchQuery> strategy = toolChest.getCacheStrategyIfExists(query);
     Object[] cached = strategy.prepareForCache().apply(result);
-    Assert.assertEquals(result.getTimestamp().getMillis(), cached[0]);
-    Assert.assertArrayEquals(result.getValue(), Arrays.copyOfRange(cached, 1, cached.length));
+    Assert.assertArrayEquals(result, cached);
 
-    Result<Object[]> out = strategy.pullFromCache().apply(cached);
-    Assert.assertEquals(result.getTimestamp(), out.getTimestamp());
-    Assert.assertArrayEquals(result.getValue(), out.getValue());
+    Object[] out = strategy.pullFromCache().apply(cached);
+    Assert.assertArrayEquals(result, out);
   }
 }

@@ -28,7 +28,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -61,7 +60,7 @@ import java.util.Objects;
 @JsonTypeName("frequency")
 public class FrequencyQuery extends BaseQuery<Object[]>
     implements Query.DimensionSupport<Object[]>,
-    Query.ArrayOutputSupport<Object[]>,
+    Query.ArrayOutput,
     Query.RewritingQuery<Object[]>,
     Query.LogProvider<Object[]>
 {
@@ -386,12 +385,6 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   public List<String> estimatedOutputColumns()
   {
     return GuavaUtils.concat("count", DimensionSpecs.toOutputNames(dimensions));
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Object[]> sequence)
-  {
-    return sequence;
   }
 
   @Override

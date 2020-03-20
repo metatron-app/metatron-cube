@@ -17,15 +17,11 @@
  * under the License.
  */
 
-package io.druid.query.select;
+package io.druid.query;
 
 import com.google.inject.Inject;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.query.Query;
-import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryWatcher;
 import io.druid.segment.Segment;
 
 import java.util.Map;

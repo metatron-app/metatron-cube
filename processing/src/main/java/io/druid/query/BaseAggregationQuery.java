@@ -69,7 +69,8 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     implements Query.AggregationsSupport<Row>,
     Query.ArrayOutputSupport<Row>,
     Query.OrderingSupport<Row>,
-    Query.LateralViewSupport<Row>
+    Query.LateralViewSupport<Row>,
+    Query.RowOutput
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
 
@@ -254,7 +255,8 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public Sequence<Object[]> array(Sequence<Row> sequence)
   {
     final String[] columns = Preconditions.checkNotNull(estimatedOutputColumns()).toArray(new String[0]);
-    return io.druid.common.utils.Sequences.map(
+    final int timeIndex = Arrays.asList(columns).indexOf(Row.TIME_COLUMN_NAME);
+    return Sequences.map(
         sequence,
         new Function<Row, Object[]>()
         {
@@ -263,8 +265,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
           {
             final Object[] array = new Object[columns.length];
             for (int i = 0; i < columns.length; i++) {
-              array[i] = Row.TIME_COLUMN_NAME.equals(columns[i]) ?
-                         input.getTimestampFromEpoch() : input.getRaw(columns[i]);
+              array[i] = timeIndex == i ? input.getTimestampFromEpoch() : input.getRaw(columns[i]);
             }
             return array;
           }

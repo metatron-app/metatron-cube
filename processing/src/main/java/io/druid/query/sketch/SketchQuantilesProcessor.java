@@ -25,14 +25,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.Result;
 
 import java.util.List;
 import java.util.Map;
@@ -107,8 +106,8 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.ReturnsArra
               @Override
               public Object apply(Object input)
               {
-                final Object[] sketches = ((Result<Object[]>) input).getValue();
-                for (int i = 0; i < sketches.length; i++) {
+                final Object[] sketches = (Object[]) input;
+                for (int i = 1; i < sketches.length; i++) {
                   Object param = parameter instanceof Map ? ((Map)parameter).get(columns.get(i)) : parameter;
                   sketches[i] = op.calculate(((TypedSketch<ItemsSketch>) sketches[i]).value(), param);
                 }

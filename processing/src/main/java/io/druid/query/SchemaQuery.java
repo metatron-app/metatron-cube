@@ -17,17 +17,13 @@
  * under the License.
  */
 
-package io.druid.query.select;
+package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
-import io.druid.query.BaseQuery;
-import io.druid.query.DataSource;
-import io.druid.query.Query;
-import io.druid.query.TableDataSource;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;

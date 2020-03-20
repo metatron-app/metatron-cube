@@ -27,8 +27,6 @@ import io.druid.math.expr.Parser;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneShapeFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
-import io.druid.query.select.Schema;
-import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestIndex;
 import io.druid.segment.lucene.ShapeFormat;

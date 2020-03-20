@@ -31,7 +31,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
@@ -45,7 +44,7 @@ import java.util.Map;
 
 @JsonTypeName("choropleth")
 public class ChoroplethMapQuery extends BaseQuery<Object[]>
-    implements Query.RewritingQuery<Object[]>, Query.ArrayOutputSupport<Object[]>
+    implements Query.RewritingQuery<Object[]>, Query.ArrayOutput
 {
   private final GroupByQuery query;
   private final String pointColumn;
@@ -206,12 +205,6 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]>
   {
     final List<String> outputColumns = query.estimatedOutputColumns();
     return outputColumns == null ? null : GuavaUtils.concat(outputColumns, boundaryJoin.keySet());
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Object[]> sequence)
-  {
-    return sequence;
   }
 
   @Override

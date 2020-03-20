@@ -20,7 +20,7 @@
 package io.druid.segment.loading;
 
 import io.druid.java.util.common.MapUtils;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import io.druid.segment.AbstractSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;

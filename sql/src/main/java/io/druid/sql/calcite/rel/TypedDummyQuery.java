@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TypedDummyQuery extends DummyQuery<Object[]>
-    implements Query.ArrayOutputSupport<Object[]>, Query.RowOutputSupport<Object[]>, Query.SchemaProvider
+    implements Query.ArrayOutput, Query.RowOutputSupport<Object[]>, Query.SchemaProvider
 {
   public static final TypedDummyQuery DUMMY = of(null, Arrays.<Object[]>asList());
 
@@ -112,12 +112,6 @@ public class TypedDummyQuery extends DummyQuery<Object[]>
   public List<String> estimatedOutputColumns()
   {
     return signature.getColumnNames();
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Object[]> sequence)
-  {
-    return sequence;
   }
 
   @Override

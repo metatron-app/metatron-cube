@@ -30,7 +30,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
@@ -102,25 +101,19 @@ public class ThetaSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     Sketch sketch2 = union2.getResult(true, null);
 
     Map<String, Object> sketches = ImmutableMap.<String, Object>of("quality1", sketch1, "quality2", sketch2);
-    Result<Object[]> result = new Result<>(new DateTime("2016-12-14T16:08:00"), new Object[] {sketch1, sketch2});
+    Object[] result = new Object[] {new DateTime("2016-12-14T16:08:00").getMillis(), sketch1, sketch2};
 
     String serialized = JSON_MAPPER.writeValueAsString(result);
     Assert.assertEquals(
-        "{\"timestamp\":\"2016-12-14T16:08:00.000Z\","
-        + "\"result\":["
-        + "\"AgMDAAAazJMGAAAAAACAPwKobNnmhVcIRjb8GcPp4QosSoEtTHTHELg4+/gHt6lvG9qOWCPXz3UtwWAW4Pebew==\","
-        + "\"AwMDAAAazJMQAAAAAACAP9b33ETElj9iJamXpuMfvwZELjTL3JWJEG/31isLqBQS+UTkQnu0wSPfbj6za7/1JAbAyn8cTkMmevQWEYNNzSrz7fgK+wwuK7lGzxKorcQ3i4l4XrfKujlQQMiQkLixP1xsYb8rqeNCGmbo70PGAEXTqJyjf4Z4TxdkRE2hslxSbc0dsIVOylg=\""
-        + "]}",
+        "[1481731680000," +
+        "\"AgMDAAAazJMGAAAAAACAPwKobNnmhVcIRjb8GcPp4QosSoEtTHTHELg4+/gHt6lvG9qOWCPXz3UtwWAW4Pebew==\"," +
+        "\"AwMDAAAazJMQAAAAAACAP9b33ETElj9iJamXpuMfvwZELjTL3JWJEG/31isLqBQS+UTkQnu0wSPfbj6za7/1JAbAyn8cTkMmevQWEYNNzSrz7fgK+wwuK7lGzxKorcQ3i4l4XrfKujlQQMiQkLixP1xsYb8rqeNCGmbo70PGAEXTqJyjf4Z4TxdkRE2hslxSbc0dsIVOylg=\"" +
+        "]",
         serialized
     );
-    Result<Object[]> deserialized = JSON_MAPPER.readValue(
-        serialized,
-        new TypeReference<Result<Object[]>>()
-        {
-        }
-    );
-    assertEqual(sketch1, ThetaOperations.deserialize(deserialized.getValue()[0]));
-    assertEqual(sketch2, ThetaOperations.deserialize(deserialized.getValue()[1]));
+    Object[] deserialized = JSON_MAPPER.readValue(serialized, new TypeReference<Object[]>() {});
+    assertEqual(sketch1, ThetaOperations.deserialize(deserialized[1]));
+    assertEqual(sketch2, ThetaOperations.deserialize(deserialized[2]));
   }
 
   @Test
@@ -144,13 +137,9 @@ public class ThetaSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     TypedSketch<Sketch> sketch2 = handler.toSketch(union2);
     Assert.assertEquals(3, sketch2.value().getEstimate(), 0.001);
 
-    Result<Object[]> merged =
-        new SketchBinaryFn(nomEntries, handler).apply(
-            new Result<Object[]>(new DateTime(0), new Object[] {sketch1}),
-            new Result<Object[]>(new DateTime(0), new Object[] {sketch2})
-        );
+    Object[] merged = new SketchBinaryFn(nomEntries, handler).apply(new Object[]{0, sketch1}, new Object[]{1, sketch2});
 
-    TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) merged.getValue()[0];
+    TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) merged[1];
     Assert.assertEquals(7, sketch.value().getEstimate(), 0.001);
   }
 
@@ -167,13 +156,13 @@ public class ThetaSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
       SketchQuery query = baseQuery.withOverriddenContext(
           ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
       );
-      List<Result<Object[]>> result = Sequences.toList(
+      List<Object[]> result = Sequences.toList(
           query.run(segmentWalker, Maps.<String, Object>newHashMap())
       );
       Assert.assertEquals(1, result.size());
-      Object[] values = result.get(0).getValue();
-      Assert.assertEquals(3, ((TypedSketch<Sketch>) values[0]).value().getEstimate(), 0.001);
-      Assert.assertEquals(9, ((TypedSketch<Sketch>) values[1]).value().getEstimate(), 0.001);
+      Object[] values = result.get(0);
+      Assert.assertEquals(3, ((TypedSketch<Sketch>) values[1]).value().getEstimate(), 0.001);
+      Assert.assertEquals(9, ((TypedSketch<Sketch>) values[2]).value().getEstimate(), 0.001);
     }
   }
 
@@ -192,13 +181,13 @@ public class ThetaSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
         16, null, null
         );
 
-    List<Result<Object[]>> result = Sequences.toList(
+    List<Object[]> result = Sequences.toList(
         query.run(segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(1, result.size());
-    Object[] values = result.get(0).getValue();
-    Assert.assertEquals(2, ((TypedSketch<Sketch>) values[0]).value().getEstimate(), 0.001);
-    Assert.assertEquals(3, ((TypedSketch<Sketch>) values[1]).value().getEstimate(), 0.001);
+    Object[] values = result.get(0);
+    Assert.assertEquals(2, ((TypedSketch<Sketch>) values[1]).value().getEstimate(), 0.001);
+    Assert.assertEquals(3, ((TypedSketch<Sketch>) values[2]).value().getEstimate(), 0.001);
   }
 
   private void assertEqual(Sketch expected, Sketch result)

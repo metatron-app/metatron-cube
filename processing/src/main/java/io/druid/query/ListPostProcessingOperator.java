@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.query.PostProcessingOperator.UnionSupport;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;

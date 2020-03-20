@@ -22,14 +22,13 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.Result;
 
 import java.util.Map;
 
@@ -62,9 +61,8 @@ public class SketchThetaProcessor extends PostProcessingOperator.ReturnsArray
               @Override
               public Object apply(Object input)
               {
-                Result<Object[]> element = (Result<Object[]>) input;
-                Object[] result = element.getValue();
-                for (int i = 0; i < result.length; i++) {
+                Object[] result = (Object[]) input;
+                for (int i = 1; i < result.length; i++) {
                   if (result[i] instanceof TypedSketch) {
                     TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) result[i];
                     result[i] = SketchThetaPostAggregator.toMap(sketch.value(), 2, false);

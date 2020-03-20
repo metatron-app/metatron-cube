@@ -38,7 +38,7 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import io.druid.query.select.SelectQuery;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;

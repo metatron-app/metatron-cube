@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.select;
+package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -30,8 +30,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.query.Query;
-import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;

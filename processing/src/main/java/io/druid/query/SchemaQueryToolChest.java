@@ -17,19 +17,13 @@
  * under the License.
  */
 
-package io.druid.query.select;
+package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.GenericQueryMetricsFactory;
-import io.druid.query.Query;
-import io.druid.query.QueryMetrics;
-import io.druid.query.QueryRunner;
-import io.druid.query.QueryToolChest;
-import io.druid.query.ResultMergeQueryRunner;
 
 /**
  */

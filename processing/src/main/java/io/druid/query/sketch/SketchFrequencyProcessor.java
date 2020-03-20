@@ -23,15 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.frequencies.ErrorType;
 import com.yahoo.sketches.frequencies.ItemsSketch;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.Result;
 
 import java.util.Map;
 
@@ -65,8 +64,8 @@ public class SketchFrequencyProcessor extends PostProcessingOperator.ReturnsArra
               @Override
               public Object apply(Object input)
               {
-                final Object[] sketches = ((Result<Object[]>) input).getValue();
-                for (int i = 0; i < sketches.length; i++) {
+                final Object[] sketches = (Object[]) input;
+                for (int i = 1; i < sketches.length; i++) {
                   Map<Object, Object> columns = Maps.newLinkedHashMap();
                   TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) sketches[i];
                   for (ItemsSketch.Row row : sketch.value().getFrequentItems(ErrorType.NO_FALSE_NEGATIVES)) {

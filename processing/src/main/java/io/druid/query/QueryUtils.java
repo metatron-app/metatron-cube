@@ -54,8 +54,6 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
-import io.druid.query.select.Schema;
-import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;

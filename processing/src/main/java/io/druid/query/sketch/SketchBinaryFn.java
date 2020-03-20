@@ -21,14 +21,12 @@ package io.druid.query.sketch;
 
 import com.google.common.base.Preconditions;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.query.Result;
 
 import java.util.Objects;
 
 /**
  */
-public class SketchBinaryFn
-    implements BinaryFn<Result<Object[]>, Result<Object[]>, Result<Object[]>>
+public class SketchBinaryFn implements BinaryFn<Object[], Object[], Object[]>
 {
   private final int nomEntries;
   private final SketchHandler handler;
@@ -40,19 +38,17 @@ public class SketchBinaryFn
   }
 
   @Override
-  public Result<Object[]> apply(Result<Object[]> arg1, Result<Object[]> arg2)
+  public Object[] apply(Object[] value1, Object[] value2)
   {
-    if (arg2 == null) {
-      return arg1;
+    if (value2 == null) {
+      return value1;
     }
-    final Object[] value1 = arg1.getValue();
-    final Object[] value2 = arg2.getValue();
     Preconditions.checkArgument(value1.length == value2.length);
 
-    for (int i = 0; i < value1.length; i++) {
+    for (int i = 1; i < value1.length; i++) {
       value1[i] = merge((TypedSketch) value1[i], (TypedSketch) value2[i]);
     }
-    return arg1;
+    return value1;
   }
 
   @SuppressWarnings("unchecked")

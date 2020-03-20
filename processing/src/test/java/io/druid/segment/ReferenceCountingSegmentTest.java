@@ -20,7 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Throwables;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.Interval;

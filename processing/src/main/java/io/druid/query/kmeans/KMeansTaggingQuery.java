@@ -32,14 +32,12 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.ClassifyPostProcessor;
 import io.druid.query.DataSource;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.RewritingQuery;
 import io.druid.query.Query.SchemaProvider;
 import io.druid.query.Query.WrappingQuery;
@@ -55,7 +53,7 @@ import java.util.Map;
 
 @JsonTypeName("kmeans.tagging")
 public class KMeansTaggingQuery extends BaseQuery<Object[]>
-    implements RewritingQuery<Object[]>, ArrayOutputSupport<Object[]>, WrappingQuery<Object[]>, SchemaProvider
+    implements RewritingQuery<Object[]>, Query.ArrayOutput, WrappingQuery<Object[]>, SchemaProvider
 {
   private final List<String> metrics;
   private final int numK;
@@ -384,12 +382,6 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   {
     List<String> outputColumns = ((ArrayOutputSupport<?>) query).estimatedOutputColumns();
     return outputColumns == null ? null : GuavaUtils.concat(outputColumns, tagColumn);
-  }
-
-  @Override
-  public Sequence<Object[]> array(Sequence<Object[]> sequence)
-  {
-    return sequence;
   }
 
   @Override

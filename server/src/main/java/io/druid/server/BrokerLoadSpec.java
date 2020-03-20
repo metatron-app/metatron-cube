@@ -167,7 +167,7 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
   }
 
   @JsonIgnore
-  public InputRowParser getParser()
+  private InputRowParser getParser()
   {
     final boolean ignoreInvalidRows = tuningConfig != null && tuningConfig.isIgnoreInvalidRows();
     final Interval interval = schema.getGranularitySpec().umbrellaInterval();

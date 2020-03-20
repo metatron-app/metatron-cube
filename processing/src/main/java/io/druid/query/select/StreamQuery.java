@@ -71,9 +71,10 @@ import java.util.Objects;
 @JsonTypeName(Query.SELECT_STREAM)
 public class StreamQuery extends BaseQuery<Object[]>
     implements Query.ColumnsSupport<Object[]>,
-    Query.ArrayOutputSupport<Object[]>,
     Query.OrderingSupport<Object[]>,
-    Query.RewritingQuery<Object[]>
+    Query.RewritingQuery<Object[]>,
+    Query.RowOutputSupport<Object[]>,
+    Query.ArrayOutput
 {
   private final DimFilter filter;
   private final List<String> columns;
@@ -533,12 +534,6 @@ public class StreamQuery extends BaseQuery<Object[]>
     );
   }
 
-  @Override
-  public Sequence<Object[]> array(Sequence<Object[]> sequence)
-  {
-    return sequence;
-  }
-
   public Sequence<Map<String, Object>> asMap(Sequence<Object[]> sequence)
   {
     return Sequences.map(sequence, new Function<Object[], Map<String, Object>>()
@@ -557,6 +552,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     });
   }
 
+  @Override
   public Sequence<Row> asRow(Sequence<Object[]> sequence)
   {
     return Sequences.map(asMap(sequence), new Function<Map<String, Object>, Row>()

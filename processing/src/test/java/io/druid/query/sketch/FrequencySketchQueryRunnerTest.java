@@ -27,7 +27,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
@@ -100,25 +99,18 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     handler.updateWithValue(union2, "premium3");
     ItemsSketch sketch2 = (ItemsSketch) handler.toSketch(union2).value();
 
-    Result<Object[]> result = new Result<>(new DateTime("2016-12-14T16:08:00"), new Object[] {sketch1, sketch2});
+    Object[] result = new Object[] {new DateTime("2016-12-14T16:08:00").getMillis(), sketch1, sketch2};
 
     String serialized = JSON_MAPPER.writeValueAsString(result);
     Assert.assertEquals(
-        "{\"timestamp\":\"2016-12-14T16:08:00.000Z\","
-        + "\"result\":["
-        + "\"BAEKBAMAAAAGAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAANAAAAZW50ZXJ0YWlubWVudAkAAABtZXp6YW5pbmUEAAAAbmV3cwgAAABidXNpbmVzcwoAAABhdXRvbW90aXZlBgAAAGhlYWx0aA==\","
-        + "\"BAEKBAQAAAAIAAAAAAAAABUAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAACAAAAHByZW1pdW0xCgAAAG1lenphbmluZTIFAAAAbmV3czMFAAAAbmV3czIIAAAAcHJlbWl1bTIKAAAAbWV6emFuaW5lMwUAAABuZXdzMQgAAABwcmVtaXVtMw==\"]"
-        + "}",
+        "[1481731680000," +
+        "\"BAEKBAMAAAAGAAAAAAAAAAYAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAANAAAAZW50ZXJ0YWlubWVudAkAAABtZXp6YW5pbmUEAAAAbmV3cwgAAABidXNpbmVzcwoAAABhdXRvbW90aXZlBgAAAGhlYWx0aA==\"," +
+        "\"BAEKBAQAAAAIAAAAAAAAABUAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAACAAAAHByZW1pdW0xCgAAAG1lenphbmluZTIFAAAAbmV3czMFAAAAbmV3czIIAAAAcHJlbWl1bTIKAAAAbWV6emFuaW5lMwUAAABuZXdzMQgAAABwcmVtaXVtMw==\"]",
         serialized
     );
-    Result<Object[]> deserialized = JSON_MAPPER.readValue(
-        serialized,
-        new TypeReference<Result<Object[]>>()
-        {
-        }
-    );
-    assertEqual(sketch1, ThetaOperations.deserializeFrequency(deserialized.getValue()[0], ValueDesc.STRING));
-    assertEqual(sketch2, ThetaOperations.deserializeFrequency(deserialized.getValue()[1], ValueDesc.STRING));
+    Object[] deserialized = JSON_MAPPER.readValue(serialized, new TypeReference<Object[]>() {});
+    assertEqual(sketch1, ThetaOperations.deserializeFrequency(deserialized[1], ValueDesc.STRING));
+    assertEqual(sketch2, ThetaOperations.deserializeFrequency(deserialized[2], ValueDesc.STRING));
 
     Map<String, Object> object = ImmutableMap.<String, Object>builder()
                 .put("queryType", "sketch")
@@ -165,13 +157,9 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) handler.toSketch(union2);
     Assert.assertEquals(2L, sketch2.value().getEstimate("mezzanine"));
 
-    Result<Object[]> merged =
-        new SketchBinaryFn(nomEntries, handler).apply(
-            new Result<Object[]>(new DateTime(0), new Object[]{sketch1}),
-            new Result<Object[]>(new DateTime(0), new Object[]{sketch2})
-        );
+    Object[] merged = new SketchBinaryFn(nomEntries, handler).apply(new Object[]{0, sketch1}, new Object[]{0, sketch2});
 
-    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) merged.getValue()[0];
+    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) merged[1];
     Assert.assertEquals(3L, sketch.value().getEstimate("mezzanine"));
   }
 
@@ -191,18 +179,18 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
       SketchQuery query = baseQuery.withOverriddenContext(
           ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
       );
-      List<Result<Object[]>> result = Sequences.toList(
+      List<Object[]> result = Sequences.toList(
           query.run(segmentWalker, Maps.<String, Object>newHashMap())
       );
       Assert.assertEquals(1, result.size());
-      Object[] values = result.get(0).getValue();
-      TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[0];
+      Object[] values = result.get(0);
+      TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[1];
       System.out.println(sketch1);
       Assert.assertEquals(187L, sketch1.value().getEstimate("upfront"), 5);
       Assert.assertEquals(838L, sketch1.value().getEstimate("spot"), 5);
       Assert.assertEquals(187L, sketch1.value().getEstimate("total_market"), 5);
 
-      TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[1];
+      TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[2];
       System.out.println(sketch2);
       Assert.assertEquals(94L, sketch2.value().getEstimate("entertainment"), 5);
       Assert.assertEquals(280L, sketch2.value().getEstimate("mezzanine"), 5);
@@ -231,17 +219,17 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
         null, 16, SketchOp.FREQUENCY, null
     );
 
-    List<Result<Object[]>> result = Sequences.toList(
+    List<Object[]> result = Sequences.toList(
         query.run(segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(1, result.size());
-    Object[] values = result.get(0).getValue();
-    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[0];
+    Object[] values = result.get(0);
+    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[1];
     System.out.println(sketch1);
     Assert.assertEquals(186L, sketch1.value().getEstimate("upfront"), 5);
     Assert.assertEquals(186L, sketch1.value().getEstimate("total_market"), 5);
 
-    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[1];
+    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[2];
     System.out.println(sketch2);
     Assert.assertEquals(186L, sketch2.value().getEstimate("mezzanine"), 5);
     Assert.assertEquals(186L, sketch2.value().getEstimate("premium"), 5);

@@ -31,8 +31,6 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
-import io.druid.query.select.Schema;
-import io.druid.query.select.SchemaQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;

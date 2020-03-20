@@ -44,6 +44,8 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.JoinQuery.JoinDelegate;
+import io.druid.query.PostProcessingOperator.Local;
+import io.druid.query.PostProcessingOperator.ReturnRowAs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Comparators;
 
@@ -63,8 +65,7 @@ import java.util.function.BiFunction;
 
 /**
  */
-public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
-    implements PostProcessingOperator.ReturnRowAs, PostProcessingOperator.Local
+public class JoinPostProcessor extends PostProcessingOperator.UnionSupport implements ReturnRowAs, Local
 {
   private static final Logger log = new Logger(JoinPostProcessor.class);
 

@@ -145,7 +145,7 @@ public final class MergeIndexParallel implements MergeIndex
     Arrays.parallelSort(
         array, Comparators.toArrayComparator(comparators, Granularities.ALL.equals(groupBy.getGranularity()) ? 1 : 0)
     );
-    LOG.info("Took %d msec for sorting %,d rows", (System.currentTimeMillis() - start), array.length);
+    LOG.debug("Took %d msec for sorting %,d rows", (System.currentTimeMillis() - start), array.length);
 
     return Sequences.simple(
         Iterables.transform(Arrays.asList(array), GroupByQueryEngine.arrayToRow(groupBy, compact))

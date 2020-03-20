@@ -29,7 +29,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.query.select.Schema;
+import io.druid.query.Schema;
 
 import java.util.List;
 import java.util.Map;

@@ -28,17 +28,16 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.yahoo.sketches.theta.Sketch;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import com.yahoo.sketches.theta.Sketch;
-import io.druid.common.utils.Sequences;
 import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.Result;
 import io.druid.query.UnionAllQueryRunner;
 
 import java.util.List;
@@ -102,18 +101,15 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
         final List<String> columns = sketchQuery.estimatedOutputColumns();
         final int nomEntries = sketchQuery.getSketchParamWithDefault();
         final List<Similarity> similarities = Lists.newArrayList();
-        Sequence<Result<Object[]>> sequences = baseRunner.run(query, responseContext);
+        Sequence<Object[]> sequences = baseRunner.run(query, responseContext);
         sequences.accumulate(
-            null, new Accumulator<Object, Result<Object[]>>()
+            null, new Accumulator<Object, Object[]>()
             {
               @Override
-              public Object accumulate(
-                  Object accumulated, Result<Object[]> element
-              )
+              public Object accumulate(Object accumulated, Object[] result)
               {
-                final Object[] result = element.getValue();
                 final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.length);
-                for (int i = 0; i < result.length; i++) {
+                for (int i = 1; i < result.length; i++) {
                   String column = columns.get(i);
                   TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) result[i];
                   for (Map.Entry<String, Sketch> sketches : sketchMap.entrySet()) {
@@ -176,13 +172,10 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
                       @Override
                       public Object accumulate(Object accumulated, Object input)
                       {
-                        Result<Object[]> element = (Result<Object[]>) input;
+                        final Object[] result = (Object[]) input;
                         final boolean except = dataSourceSet != null && !dataSourceSet.contains(dataSource);
-
-                        final Object[] result = element.getValue();
-
                         final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.length);
-                        for (int i = 0; i < result.length; i++) {
+                        for (int i = 1; i < result.length; i++) {
                           if (result[i] == null) {
                             continue;   // empty or not-existing
                           }
