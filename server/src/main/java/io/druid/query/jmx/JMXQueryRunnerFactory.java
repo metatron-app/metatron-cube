@@ -25,9 +25,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import io.druid.guice.annotations.Self;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
-import io.druid.guice.annotations.Self;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -115,17 +115,7 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
     detail.intMetric("peakThreadCount", threadMXBean.getPeakThreadCount());
     detail.longMetric("totalStartedThreadCount", threadMXBean.getTotalStartedThreadCount());
     if (dumpLongestStack) {
-      long current = Thread.currentThread().getId();
-      ThreadInfo longest = null;
-      for (long threadId : threadMXBean.getAllThreadIds()) {
-        if (threadId == current) {
-          continue;
-        }
-        ThreadInfo threadInfo = threadMXBean.getThreadInfo(threadId, 18);
-        if (longest == null || threadInfo.getStackTrace().length > longest.getStackTrace().length) {
-          longest = threadInfo;
-        }
-      }
+      ThreadInfo longest = findLongestStack();
       if (longest != null) {
         detail.put("longest.thread.name", longest.getThreadName());
         detail.put(
@@ -150,6 +140,23 @@ public class JMXQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Strin
     detail.put("gc.collectionTime", gcCollectionsTime);
 
     return detail.build(node);
+  }
+
+  public static ThreadInfo findLongestStack()
+  {
+    final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+    final long current = Thread.currentThread().getId();
+    ThreadInfo longest = null;
+    for (long threadId : threadMXBean.getAllThreadIds()) {
+      if (threadId == current) {
+        continue;
+      }
+      ThreadInfo threadInfo = threadMXBean.getThreadInfo(threadId, 32);
+      if (longest == null || threadInfo.getStackTrace().length > longest.getStackTrace().length) {
+        longest = threadInfo;
+      }
+    }
+    return longest == null ? threadMXBean.getThreadInfo(current, 32) : longest;
   }
 
   private static class MetricCollector

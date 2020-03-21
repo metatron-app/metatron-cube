@@ -19,10 +19,14 @@
 
 package io.druid.server.http;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Throwables;
-import io.druid.java.util.common.IAE;
 import io.druid.common.utils.StringUtils;
+import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
+import io.druid.java.util.common.IAE;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.server.DruidNode;
 import io.druid.server.Shutdown;
@@ -58,7 +62,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -69,12 +72,18 @@ public class AdminResource
 {
   private final DruidNode node;
   private final Shutdown.Proc shutdown;
+  private final ObjectMapper objectMapper;
 
   @Inject
-  public AdminResource(@Self DruidNode node, @Shutdown Shutdown.Proc shutdown)
+  public AdminResource(
+      @Self DruidNode node,
+      @Shutdown Shutdown.Proc shutdown,
+      @Json ObjectMapper objectMapper
+  )
   {
     this.node = node;
     this.shutdown = shutdown;
+    this.objectMapper = objectMapper;
   }
 
   @GET
@@ -88,17 +97,28 @@ public class AdminResource
   @GET
   @Path("/jmx")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response jmx()
+  public Response jmx(@QueryParam("pretty") String pretty)
   {
-    final Map<String, Object> entity = JMXQueryRunnerFactory.queryJMX(node, null, false);
-    return Response.ok(entity.get(node.getHostAndPort())).build();
+    final Object result = JMXQueryRunnerFactory.queryJMX(node, null, false).get(node.getHostAndPort());
+    if (pretty != null) {
+      final ObjectWriter writer = objectMapper.writerWithDefaultPrettyPrinter();
+      try {
+        return Response.ok(writer.writeValueAsString(result)).build();
+      }
+      catch (JsonProcessingException e) {
+      }
+    }
+    return Response.ok(result).build();
   }
 
   @GET
   @Path("/stack")
   @Produces(MediaType.TEXT_PLAIN)
-  public Response stack()
+  public Response stack(@QueryParam("longest") String longest)
   {
+    if (longest != null) {
+      return Response.ok(dump(JMXQueryRunnerFactory.findLongestStack()), MediaType.TEXT_PLAIN).build();
+    }
     final StreamingOutput output = new StreamingOutput()
     {
       @Override
