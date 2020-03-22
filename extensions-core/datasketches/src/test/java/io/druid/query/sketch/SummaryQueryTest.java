@@ -70,14 +70,14 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
     Assert.assertEquals(TestIndex.INTERVAL_TOP, segment1.get("interval"));
     Assert.assertEquals(611L, segment1.get("rows"));
     Assert.assertEquals(611L, segment1.get("ingestedRows"));
-    Assert.assertEquals(39657L, segment1.get("serializedSize"));
+    Assert.assertEquals(37195L, segment1.get("serializedSize"));
     Assert.assertNotNull(segment1.get("lastAccessTime"));
 
     Map<String, Object> segment2 = (Map<String, Object>) perSegments.get(1);
     Assert.assertEquals(TestIndex.INTERVAL_BOTTOM, segment2.get("interval"));
     Assert.assertEquals(598L, segment2.get("rows"));
     Assert.assertEquals(598L, segment2.get("ingestedRows"));
-    Assert.assertEquals(39067L, segment2.get("serializedSize"));
+    Assert.assertEquals(36657L, segment2.get("serializedSize"));
     Assert.assertNotNull(segment2.get("lastAccessTime"));
 
     // dimension
@@ -99,13 +99,13 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
     Assert.assertArrayEquals(
         new Object[]{"spot", "total_market"}, (Object[]) marketStats.get("iqr")
     );
-    Assert.assertEquals(1209l, marketStats.get("count"));
+    Assert.assertEquals(1209L, marketStats.get("count"));
     List frequentItems = ((List) marketStats.get("frequentItems"));
     Assert.assertEquals(3, frequentItems.size());
     Assert.assertEquals(ImmutableMap.of("value", "spot", "count", 837), frequentItems.get(0));
     Assert.assertEquals(ImmutableMap.of("value", "total_market", "count", 186), frequentItems.get(1));
     Assert.assertEquals(ImmutableMap.of("value", "upfront", "count", 186), frequentItems.get(2));
-    Assert.assertEquals(0l, marketStats.get("missing"));
+    Assert.assertEquals(0L, marketStats.get("missing"));
     Assert.assertEquals(3.0d, marketStats.get("cardinality"));
 
     // dimension
@@ -132,25 +132,25 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
         (double[]) qualityStats.get("cdf"), 0.0001
     );
     Assert.assertArrayEquals(new Object[]{"health", "premium"}, (Object[]) qualityStats.get("iqr"));
-    Assert.assertEquals(1209l, qualityStats.get("count"));
+    Assert.assertEquals(1209L, qualityStats.get("count"));
     frequentItems = ((List) qualityStats.get("frequentItems"));
     Assert.assertEquals(9, frequentItems.size());
     Assert.assertEquals(ImmutableMap.of("value", "mezzanine", "count", 279), frequentItems.get(0));
     Assert.assertEquals(ImmutableMap.of("value", "premium", "count", 279), frequentItems.get(1));
     Assert.assertEquals(ImmutableMap.of("value", "automotive", "count", 93), frequentItems.get(2));
-    Assert.assertEquals(0l, qualityStats.get("missing"));
+    Assert.assertEquals(0L, qualityStats.get("missing"));
     Assert.assertEquals(9.0d, qualityStats.get("cardinality"));
 
     // dimension
     Map<String, Object> nullStats = summary.get("partial_null_column");
     Assert.assertEquals(ValueDesc.STRING, nullStats.get("type"));
     Assert.assertEquals(ImmutableMap.of("string", 2), nullStats.get("typeDetail"));
-    Assert.assertEquals(186l, nullStats.get("count"));
+    Assert.assertEquals(186L, nullStats.get("count"));
     frequentItems = ((List) nullStats.get("frequentItems"));
     Assert.assertEquals(2, frequentItems.size());
     Assert.assertEquals(ImmutableMap.of("value", "", "count", 1023), frequentItems.get(0));
     Assert.assertEquals(ImmutableMap.of("value", "value", "count", 186), frequentItems.get(1));
-    Assert.assertEquals(1023l, nullStats.get("missing"));
+    Assert.assertEquals(1023L, nullStats.get("missing"));
     Assert.assertEquals(1.0d, nullStats.get("cardinality"));
 
     // metric
@@ -172,17 +172,17 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
         new Object[]{105.61347198486328, 873.3065185546875},
         (Object[]) indexStats.get("iqr")
     );
-    Assert.assertEquals(1209l, indexStats.get("count"));
+    Assert.assertEquals(1209L, indexStats.get("count"));
     Assert.assertArrayEquals(
         new double[]{-1045.926097869873, 2024.8460884094238},
         (double[]) indexStats.get("outlierThreshold"), 0.0001
     );
-    Assert.assertEquals(0l, indexStats.get("zeros"));
+    Assert.assertEquals(0L, indexStats.get("zeros"));
     Assert.assertEquals(416.321345853845, indexStats.get("mean"));
     Assert.assertEquals(223501.33231703882, indexStats.get("variance"));
     Assert.assertEquals(472.7592752311041, indexStats.get("stddev"));
     Assert.assertEquals(-0.397621490102432, indexStats.get("skewness"));
-    Assert.assertEquals(0l, indexStats.get("outliers"));
+    Assert.assertEquals(0L, indexStats.get("outliers"));
     Assert.assertEquals(0.9999999999999998, indexStats.get("covariance.indexMin"));
     Assert.assertEquals(1199.0d, indexStats.get("cardinality"));
 
@@ -204,17 +204,17 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
         new Object[]{105.61347f, 873.3065f},
         (Object[]) indexMinStats.get("iqr")
     );
-    Assert.assertEquals(1209l, indexMinStats.get("count"));
+    Assert.assertEquals(1209L, indexMinStats.get("count"));
     Assert.assertArrayEquals(
         new double[]{-1045.926097869873, 2024.8460884094238},
         (double[]) indexMinStats.get("outlierThreshold"), 0.0001
     );
-    Assert.assertEquals(0l, indexMinStats.get("zeros"));
+    Assert.assertEquals(0L, indexMinStats.get("zeros"));
     Assert.assertEquals(416.321345853845, indexMinStats.get("mean"));
     Assert.assertEquals(223501.3318992264, indexMinStats.get("variance"));
     Assert.assertEquals(472.75927478921705, indexMinStats.get("stddev"));
     Assert.assertEquals(-0.397621490102432, indexMinStats.get("skewness"));
-    Assert.assertEquals(0l, indexMinStats.get("outliers"));
+    Assert.assertEquals(0L, indexMinStats.get("outliers"));
     Assert.assertEquals(1199.0d, indexMinStats.get("cardinality"));
   }
 
@@ -259,17 +259,17 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
         new Object[]{105.61347198486328, 873.3065185546875},
         (Object[]) indexStats.get("iqr")
     );
-    Assert.assertEquals(1209l, indexStats.get("count"));
+    Assert.assertEquals(1209L, indexStats.get("count"));
     Assert.assertArrayEquals(
         new double[]{-1045.926097869873, 2024.8460884094238},
         (double[]) indexStats.get("outlierThreshold"), 0.0001
     );
-    Assert.assertEquals(0l, indexStats.get("zeros"));
+    Assert.assertEquals(0L, indexStats.get("zeros"));
     Assert.assertEquals(416.32, indexStats.get("mean"));
     Assert.assertEquals(223501.33, indexStats.get("variance"));
     Assert.assertEquals(472.76, indexStats.get("stddev"));
     Assert.assertEquals(-0.398, indexStats.get("skewness"));
-    Assert.assertEquals(0l, indexStats.get("outliers"));
+    Assert.assertEquals(0L, indexStats.get("outliers"));
     Assert.assertEquals(1199.0d, indexStats.get("cardinality"));
   }
 

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.UnsignedBytes;
 import io.druid.common.guava.BytesRef;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.HashCollector;
@@ -504,11 +505,31 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
   @JsonValue
   public byte[] toByteArray()
   {
-    final ByteBuffer buffer = toByteBuffer();
-    byte[] theBytes = new byte[buffer.remaining()];
-    buffer.get(theBytes);
+    final short numNonZeroRegisters = getNumNonZeroRegisters();
+    if (storageBuffer.remaining() == getNumBytesForDenseStorage() && numNonZeroRegisters < DENSE_THRESHOLD) {
+      final int header = getNumHeaderBytes();
+      final BytesOutputStream output = new BytesOutputStream(numNonZeroRegisters * 3 + header);
+      output.writeByte(getVersion());
+      output.writeByte(getRegisterOffset());
+      output.writeShort(numNonZeroRegisters);
+      output.writeByte(getMaxOverflowValue());
+      output.writeShort(getMaxOverflowRegister());
 
-    return theBytes;
+      final int offset = initPosition + header;
+      for (int i = 0; i < NUM_BYTES_FOR_BUCKETS; ++i) {
+        final byte v = storageBuffer.get(offset + i);
+        if (v != 0) {
+          output.writeShort(i + header);
+          output.writeByte(v);
+        }
+      }
+      return output.toByteArray();
+    } else {
+      final ByteBuffer buffer = storageBuffer.asReadOnlyBuffer();
+      final byte[] theBytes = new byte[buffer.remaining()];
+      buffer.get(theBytes);
+      return theBytes;
+    }
   }
 
   public long estimateCardinalityRound()

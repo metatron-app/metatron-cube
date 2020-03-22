@@ -67,6 +67,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   private static final short SERIAL_COOKIE = 12347;
 
   private static final short SMALL_COOKIE = 12345;
+  private static final short RANGE_COOKIE = 12344;
 
   private static final int CARDINALITY_THRESHOLD = 8;
   private static final int EXPECTED_MAX_LENGTH = 32;
@@ -81,6 +82,17 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       {
         final ImmutableRoaringBitmap bitmap = getBitmap();
         final int cardinality = bitmap.getCardinality();
+        if (cardinality > 1) {
+          final int from = bitmap.getIntIterator().next();
+          final int to = bitmap.getReverseIntIterator().next();
+          if (to - from == cardinality - 1) {
+            final BytesOutputStream out = new BytesOutputStream(Integer.BYTES * 3);
+            out.writeInt(Integer.reverseBytes(RANGE_COOKIE));
+            out.writeUnsignedVarInt(from);
+            out.writeUnsignedVarInt(to - from);
+            return out.toByteArray();
+          }
+        }
         if (cardinality < CARDINALITY_THRESHOLD) {
           final BytesOutputStream out = new BytesOutputStream(EXPECTED_MAX_LENGTH);
           out.writeInt(Integer.reverseBytes(SMALL_COOKIE | cardinality << 16));
@@ -202,7 +214,28 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   {
     final ByteBuffer buffer = bbf.order(ByteOrder.LITTLE_ENDIAN);
     final int cookie = buffer.getInt(buffer.position()) & 0xFFFF;
-    if (cookie == SMALL_COOKIE) {
+    if (cookie == RANGE_COOKIE) {
+      final ByteBuffer bigEndian = buffer.asReadOnlyBuffer().order(ByteOrder.BIG_ENDIAN);
+      bigEndian.getInt();   // skip
+      final int from = VLongUtils.readUnsignedVarInt(bigEndian);
+      final int to = from + VLongUtils.readUnsignedVarInt(bigEndian);
+      return copyToBitmap(new IntIterators.Abstract()
+      {
+        private int index = from;
+
+        @Override
+        public boolean hasNext()
+        {
+          return index <= to;    // inclusive
+        }
+
+        @Override
+        public int next()
+        {
+          return index <= to ? index++ : -1;
+        }
+      });
+    } else if (cookie == SMALL_COOKIE) {
       final ByteBuffer readOnly = buffer.asReadOnlyBuffer().order(ByteOrder.LITTLE_ENDIAN); // order is not propagated
       final int size = readOnly.getInt() >>> 16;
       if (size == 0) {
