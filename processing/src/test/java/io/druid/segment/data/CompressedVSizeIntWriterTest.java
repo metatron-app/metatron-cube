@@ -107,7 +107,7 @@ public class CompressedVSizeIntWriterTest
     CompressedVSizeIntWriter writer = new CompressedVSizeIntWriter(
         ioPeon, "test", vals.length > 0 ? Ints.max(vals) : 0, chunkSize, byteOrder, compressionStrategy
     );
-    CompressedVSizeIntsIndexedSupplier supplierFromList = CompressedVSizeIntsIndexedSupplier.fromList(
+    CompressedVSizedIntSupplier supplierFromList = CompressedVSizedIntSupplier.fromList(
         Ints.asList(vals), vals.length > 0 ? Ints.max(vals) : 0, chunkSize, byteOrder, compressionStrategy
     );
     writer.open();
@@ -123,7 +123,7 @@ public class CompressedVSizeIntWriterTest
     assertEquals(writtenLength, supplierFromList.getSerializedSize());
 
     // read from ByteBuffer and check values
-    CompressedVSizeIntsIndexedSupplier supplierFromByteBuffer = CompressedVSizeIntsIndexedSupplier.fromByteBuffer(
+    CompressedVSizedIntSupplier supplierFromByteBuffer = CompressedVSizedIntSupplier.fromByteBuffer(
         ByteBuffer.wrap(IOUtils.toByteArray(ioPeon.makeInputStream("output"))), byteOrder
     );
     IndexedInts indexedInts = supplierFromByteBuffer.get();
@@ -138,7 +138,7 @@ public class CompressedVSizeIntWriterTest
   {
     // less than one chunk
     for (int maxValue : MAX_VALUES) {
-      final int maxChunkSize = CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue);
+      final int maxChunkSize = CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue);
       generateVals(rand.nextInt(maxChunkSize), maxValue);
       checkSerializedSizeAndData(maxChunkSize);
     }
@@ -149,7 +149,7 @@ public class CompressedVSizeIntWriterTest
   {
     // more than one chunk
     for (int maxValue : MAX_VALUES) {
-      final int maxChunkSize = CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue);
+      final int maxChunkSize = CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue);
       generateVals((rand.nextInt(5) + 5) * maxChunkSize + rand.nextInt(maxChunkSize), maxValue);
       checkSerializedSizeAndData(maxChunkSize);
     }

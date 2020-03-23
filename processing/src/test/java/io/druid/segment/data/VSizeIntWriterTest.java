@@ -68,7 +68,7 @@ public class VSizeIntWriterTest
         ioPeon, "test", maxValue
     );
 
-    VSizeIndexedInts intsFromList = VSizeIndexedInts.fromList(
+    VSizedInt intsFromList = VSizedInt.fromList(
         Ints.asList(vals), maxValue
     );
     writer.open();
@@ -84,7 +84,7 @@ public class VSizeIntWriterTest
     assertEquals(writtenLength, intsFromList.getSerializedSize());
 
     // read from ByteBuffer and check values
-    VSizeIndexedInts intsFromByteBuffer = VSizeIndexedInts.readFromByteBuffer(
+    VSizedInt intsFromByteBuffer = VSizedInt.readFromByteBuffer(
         ByteBuffer.wrap(IOUtils.toByteArray(ioPeon.makeInputStream("output")))
     );
     assertEquals(vals.length, intsFromByteBuffer.size());

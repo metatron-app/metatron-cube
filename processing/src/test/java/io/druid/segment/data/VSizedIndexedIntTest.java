@@ -32,7 +32,7 @@ import java.util.List;
 
 /**
  */
-public class VSizeIndexedTest
+public class VSizedIndexedIntTest
 {
   @Test
   public void testSanity() throws Exception
@@ -43,15 +43,15 @@ public class VSizeIndexedTest
         new int[]{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
     );
 
-    VSizeIndexed indexed = VSizeIndexed.fromIterable(
+    VSizedIndexedInt indexed = VSizedIndexedInt.fromIterable(
         Iterables.transform(
             someInts,
-            new Function<int[], VSizeIndexedInts>()
+            new Function<int[], VSizedInt>()
             {
               @Override
-              public VSizeIndexedInts apply(int[] input)
+              public VSizedInt apply(int[] input)
               {
-                return VSizeIndexedInts.fromArray(input, 20);
+                return VSizedInt.fromArray(input, 20);
               }
             }
         )
@@ -64,22 +64,22 @@ public class VSizeIndexedTest
 
     final byte[] bytes = baos.toByteArray();
     Assert.assertEquals(indexed.getSerializedSize(), bytes.length);
-    VSizeIndexed deserializedIndexed = VSizeIndexed.readFromByteBuffer(ByteBuffer.wrap(bytes));
+    VSizedIndexedInt deserializedIndexed = VSizedIndexedInt.readFromByteBuffer(ByteBuffer.wrap(bytes));
 
     assertSame(someInts, deserializedIndexed);
   }
 
-  private void assertSame(List<int[]> someInts, VSizeIndexed indexed)
+  private void assertSame(List<int[]> someInts, VSizedIndexedInt indexed)
   {
     Assert.assertEquals(3, indexed.size());
     for (int i = 0; i < indexed.size(); ++i) {
       final int[] ints = someInts.get(i);
-      final VSizeIndexedInts vSizeIndexedInts = indexed.get(i);
+      final VSizedInt vSizedInt = indexed.get(i);
 
-      Assert.assertEquals(ints.length, vSizeIndexedInts.size());
-      Assert.assertEquals(1, vSizeIndexedInts.getNumBytes());
+      Assert.assertEquals(ints.length, vSizedInt.size());
+      Assert.assertEquals(1, vSizedInt.getNumBytes());
       for (int j = 0; j < ints.length; j++) {
-          Assert.assertEquals(ints[j], vSizeIndexedInts.get(j));
+          Assert.assertEquals(ints[j], vSizedInt.get(j));
       }
     }
   }

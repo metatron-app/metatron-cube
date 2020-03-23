@@ -82,7 +82,7 @@ public class VSizeIntsWriter extends MultiValueIndexedIntsWriter implements Clos
 
   public void write(List<Integer> ints) throws IOException
   {
-    byte[] bytesToWrite = ints == null ? EMPTY_ARRAY : VSizeIndexedInts.getBytesNoPaddingfromList(ints, maxId);
+    byte[] bytesToWrite = ints == null ? EMPTY_ARRAY : VSizedInt.getBytesNoPaddingfromList(ints, maxId);
 
     valuesOut.write(bytesToWrite);
 
@@ -94,7 +94,7 @@ public class VSizeIntsWriter extends MultiValueIndexedIntsWriter implements Clos
   @Override
   public void close() throws IOException
   {
-    final byte numBytesForMax = VSizeIndexedInts.getNumBytesForMax(maxId);
+    final byte numBytesForMax = VSizedInt.getNumBytesForMax(maxId);
 
     valuesOut.write(new byte[4 - numBytesForMax]);
 

@@ -22,7 +22,7 @@ package io.druid.segment;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.CompressedIntsIndexedSupplier;
 import io.druid.segment.data.CompressedObjectStrategy;
-import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
+import io.druid.segment.data.CompressedVSizedIntSupplier;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.WritableSupplier;
@@ -42,23 +42,23 @@ import java.util.List;
  * If we want to streams VSizeInts, we must know the max value in the value sets. It's easy to know the max id of
  * values(like dimension cardinality while encoding dimension), but difficult to known the max id of offsets.
  */
-public class CompressedVSizeIndexedV3Supplier implements WritableSupplier<IndexedMultivalue<IndexedInts>>
+public class CompressedVSizedIndexedIntV3Supplier implements WritableSupplier<IndexedMultivalue<IndexedInts>>
 {
   public static final byte VERSION = 0x3;
 
   private final CompressedIntsIndexedSupplier offsetSupplier;
-  private final CompressedVSizeIntsIndexedSupplier valueSupplier;
+  private final CompressedVSizedIntSupplier valueSupplier;
 
-  CompressedVSizeIndexedV3Supplier(
+  CompressedVSizedIndexedIntV3Supplier(
       CompressedIntsIndexedSupplier offsetSupplier,
-      CompressedVSizeIntsIndexedSupplier valueSupplier
+      CompressedVSizedIntSupplier valueSupplier
   )
   {
     this.offsetSupplier = offsetSupplier;
     this.valueSupplier = valueSupplier;
   }
 
-  public static CompressedVSizeIndexedV3Supplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
+  public static CompressedVSizedIndexedIntV3Supplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
     byte versionFromBuffer = buffer.get();
 
@@ -67,17 +67,17 @@ public class CompressedVSizeIndexedV3Supplier implements WritableSupplier<Indexe
           buffer,
           order
       );
-      CompressedVSizeIntsIndexedSupplier valueSupplier = CompressedVSizeIntsIndexedSupplier.fromByteBuffer(
+      CompressedVSizedIntSupplier valueSupplier = CompressedVSizedIntSupplier.fromByteBuffer(
           buffer,
           order
       );
-      return new CompressedVSizeIndexedV3Supplier(offsetSupplier, valueSupplier);
+      return new CompressedVSizedIndexedIntV3Supplier(offsetSupplier, valueSupplier);
     }
     throw new IAE("Unknown version[%s]", versionFromBuffer);
   }
 
   // for test
-  public static CompressedVSizeIndexedV3Supplier fromIterable(
+  public static CompressedVSizedIndexedIntV3Supplier fromIterable(
       Iterable<IndexedInts> objectsIterable,
       int offsetChunkFactor,
       int maxValue,
@@ -105,14 +105,14 @@ public class CompressedVSizeIndexedV3Supplier implements WritableSupplier<Indexe
         byteOrder,
         compression
     );
-    CompressedVSizeIntsIndexedSupplier valuesSupplier = CompressedVSizeIntsIndexedSupplier.fromList(
+    CompressedVSizedIntSupplier valuesSupplier = CompressedVSizedIntSupplier.fromList(
         values,
         maxValue,
-        CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue),
+        CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue),
         byteOrder,
         compression
     );
-    return new CompressedVSizeIndexedV3Supplier(headerSupplier, valuesSupplier);
+    return new CompressedVSizedIndexedIntV3Supplier(headerSupplier, valuesSupplier);
   }
 
   @Override
@@ -138,7 +138,7 @@ public class CompressedVSizeIndexedV3Supplier implements WritableSupplier<Indexe
   @Override
   public IndexedMultivalue<IndexedInts> get()
   {
-    return new CompressedVSizeIndexedSupplier.CompressedVSizeIndexed(offsetSupplier.get(), valueSupplier.get());
+    return new CompressedVSizedIndexedIntSupplier.CompressedVSizeIndexed(offsetSupplier.get(), valueSupplier.get());
   }
 
 }

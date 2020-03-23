@@ -25,7 +25,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.segment.CompressedVSizeIndexedV3Supplier;
+import io.druid.segment.CompressedVSizedIndexedIntV3Supplier;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import org.apache.commons.io.IOUtils;
 import org.junit.After;
@@ -113,7 +113,7 @@ public class CompressedVSizeIntsV3WriterTest
         ioPeon, "value", maxValue, valueChunkFactor, byteOrder, compression
     );
     CompressedVSizeIntsV3Writer writer = new CompressedVSizeIntsV3Writer(compression, offsetWriter, valueWriter);
-    CompressedVSizeIndexedV3Supplier supplierFromIterable = CompressedVSizeIndexedV3Supplier.fromIterable(
+    CompressedVSizedIndexedIntV3Supplier supplierFromIterable = CompressedVSizedIndexedIntV3Supplier.fromIterable(
         Iterables.transform(
             vals, new Function<int[], IndexedInts>()
             {
@@ -139,7 +139,7 @@ public class CompressedVSizeIntsV3WriterTest
     assertEquals(writtenLength, supplierFromIterable.getSerializedSize());
 
     // read from ByteBuffer and check values
-    CompressedVSizeIndexedV3Supplier supplierFromByteBuffer = CompressedVSizeIndexedV3Supplier.fromByteBuffer(
+    CompressedVSizedIndexedIntV3Supplier supplierFromByteBuffer = CompressedVSizedIndexedIntV3Supplier.fromByteBuffer(
         ByteBuffer.wrap(IOUtils.toByteArray(ioPeon.makeInputStream("output"))), byteOrder
     );
     IndexedMultivalue<IndexedInts> indexedMultivalue = supplierFromByteBuffer.get();
@@ -189,7 +189,7 @@ public class CompressedVSizeIntsV3WriterTest
     // less than one chunk
     for (int offsetChunk : OFFSET_CHUNK_FACTORS) {
       for (int maxValue : MAX_VALUES) {
-        final int valueChunk = CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue);
+        final int valueChunk = CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue);
         generateVals(rand.nextInt(valueChunk), maxValue);
         checkSerializedSizeAndData(offsetChunk, valueChunk);
       }
@@ -202,7 +202,7 @@ public class CompressedVSizeIntsV3WriterTest
     // more than one chunk
     for (int offsetChunk : OFFSET_CHUNK_FACTORS) {
       for (int maxValue : MAX_VALUES) {
-        final int valueChunk = CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue);
+        final int valueChunk = CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue);
         generateVals((rand.nextInt(2) + 1) * valueChunk + rand.nextInt(valueChunk), maxValue);
         checkSerializedSizeAndData(offsetChunk, valueChunk);
       }

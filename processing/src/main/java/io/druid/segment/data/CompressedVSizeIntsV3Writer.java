@@ -22,7 +22,7 @@
  */
 package io.druid.segment.data;
 
-import io.druid.segment.CompressedVSizeIndexedV3Supplier;
+import io.druid.segment.CompressedVSizedIndexedIntV3Supplier;
 import io.druid.segment.IndexIO;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
@@ -34,7 +34,7 @@ import java.util.List;
 
 public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter implements ColumnPartWriter.Compressed
 {
-  private static final byte VERSION = CompressedVSizeIndexedV3Supplier.VERSION;
+  private static final byte VERSION = CompressedVSizedIndexedIntV3Supplier.VERSION;
 
   private static final List<Integer> EMPTY_LIST = new ArrayList<>();
 
@@ -58,7 +58,7 @@ public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter imp
             ioPeon,
             String.format("%s.values", filenameBase),
             maxValue,
-            CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue),
+            CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue),
             IndexIO.BYTE_ORDER,
             compression
         )

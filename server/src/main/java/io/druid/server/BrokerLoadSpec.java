@@ -175,7 +175,7 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
       return schema.getParser(ignoreInvalidRows);
     }
     final Validation validation = Validation.expr(
-        String.format("!between(__time, %d, %d)", interval.getStartMillis(), interval.getEndMillis())
+        String.format("!between(__time, %d, %d)", interval.getStartMillis(), interval.getEndMillis() - 1)
     );
     return schema.withValidations(GuavaUtils.concat(schema.getValidations(), validation))
                  .getParser(ignoreInvalidRows);

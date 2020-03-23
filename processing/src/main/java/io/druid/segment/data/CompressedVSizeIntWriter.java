@@ -35,7 +35,7 @@ import java.nio.channels.WritableByteChannel;
  */
 public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter implements ColumnPartWriter.Compressed
 {
-  private static final byte VERSION = CompressedVSizeIntsIndexedSupplier.VERSION;
+  private static final byte VERSION = CompressedVSizedIntSupplier.VERSION;
 
   public static CompressedVSizeIntWriter create(
       final IOPeon ioPeon,
@@ -46,7 +46,7 @@ public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter imple
   {
     return new CompressedVSizeIntWriter(
         ioPeon, filenameBase, maxValue,
-        CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue),
+        CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue),
         IndexIO.BYTE_ORDER, compression
     );
   }
@@ -70,9 +70,9 @@ public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter imple
       final CompressionStrategy compression
   )
   {
-    this.numBytes = VSizeIndexedInts.getNumBytesForMax(maxValue);
+    this.numBytes = VSizedInt.getNumBytesForMax(maxValue);
     this.chunkFactor = chunkFactor;
-    this.chunkBytes = chunkFactor * numBytes + CompressedVSizeIntsIndexedSupplier.bufferPadding(numBytes);
+    this.chunkBytes = chunkFactor * numBytes + CompressedVSizedIntSupplier.bufferPadding(numBytes);
     this.byteOrder = byteOrder;
     this.compression = compression;
     this.flattener = new GenericIndexedWriter<>(

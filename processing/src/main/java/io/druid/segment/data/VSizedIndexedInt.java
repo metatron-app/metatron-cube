@@ -31,24 +31,24 @@ import java.util.Iterator;
 
 /**
  */
-public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
+public class VSizedIndexedInt implements IndexedMultivalue<IndexedInts>
 {
   private static final byte version = 0x1;
 
-  public static VSizeIndexed fromIterable(Iterable<VSizeIndexedInts> objectsIterable)
+  public static VSizedIndexedInt fromIterable(Iterable<VSizedInt> objectsIterable)
   {
-    Iterator<VSizeIndexedInts> objects = objectsIterable.iterator();
+    Iterator<VSizedInt> objects = objectsIterable.iterator();
     if (!objects.hasNext()) {
       final ByteBuffer buffer = ByteBuffer.allocate(4).putInt(0);
       buffer.flip();
-      return new VSizeIndexed(buffer, 4);
+      return new VSizedIndexedInt(buffer, 4);
     }
 
     int numBytes = -1;
 
     int count = 0;
     while (objects.hasNext()) {
-      VSizeIndexedInts next = objects.next();
+      VSizedInt next = objects.next();
       if (numBytes == -1) {
         numBytes = next.getNumBytes();
       }
@@ -62,7 +62,7 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
     try {
       headerBytes.write(Ints.toByteArray(count));
 
-      for (VSizeIndexedInts object : objectsIterable) {
+      for (VSizedInt object : objectsIterable) {
         if (object.getNumBytes() != numBytes) {
           throw new ISE("val.numBytes[%s] != numBytesInValue[%s]", object.getNumBytes(), numBytes);
         }
@@ -82,7 +82,7 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
     theBuffer.put(valueBytes.toByteArray());
     theBuffer.flip();
 
-    return new VSizeIndexed(theBuffer.asReadOnlyBuffer(), numBytes);
+    return new VSizedIndexedInt(theBuffer.asReadOnlyBuffer(), numBytes);
   }
 
   private final ByteBuffer theBuffer;
@@ -92,7 +92,7 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
   private final int valuesOffset;
   private final int bufferBytes;
 
-  VSizeIndexed(
+  VSizedIndexedInt(
       ByteBuffer buffer,
       int numBytes
   )
@@ -112,7 +112,7 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
   }
 
   @Override
-  public VSizeIndexedInts get(int index)
+  public VSizedInt get(int index)
   {
     if (index >= size) {
       throw new IllegalArgumentException(String.format("Index[%s] >= size[%s]", index, size));
@@ -132,7 +132,7 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
 
     myBuffer.position(valuesOffset + startOffset);
     myBuffer.limit(myBuffer.position() + (endOffset - startOffset) + bufferBytes);
-    return myBuffer.hasRemaining() ? new VSizeIndexedInts(myBuffer, numBytes) : null;
+    return myBuffer.hasRemaining() ? new VSizedInt(myBuffer, numBytes) : null;
   }
 
   @Override
@@ -154,7 +154,7 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
     channel.write(theBuffer.asReadOnlyBuffer());
   }
 
-  public static VSizeIndexed readFromByteBuffer(ByteBuffer buffer)
+  public static VSizedIndexedInt readFromByteBuffer(ByteBuffer buffer)
   {
     byte versionFromBuffer = buffer.get();
 
@@ -165,7 +165,7 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
       bufferToUse.limit(bufferToUse.position() + size);
       buffer.position(bufferToUse.limit());
 
-      return new VSizeIndexed(bufferToUse, numBytes);
+      return new VSizedIndexedInt(bufferToUse, numBytes);
     }
 
     throw new IAE("Unknown version[%s]", versionFromBuffer);
@@ -188,9 +188,9 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
   }
 
   public static class VSizeIndexedSupplier implements WritableSupplier<IndexedMultivalue<IndexedInts>> {
-    final VSizeIndexed delegate;
+    final VSizedIndexedInt delegate;
 
-    public VSizeIndexedSupplier(VSizeIndexed delegate) {
+    public VSizeIndexedSupplier(VSizedIndexedInt delegate) {
       this.delegate = delegate;
     }
 

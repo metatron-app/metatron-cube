@@ -23,10 +23,10 @@ import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
+import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.DimFilters;
-import io.druid.data.VLongUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

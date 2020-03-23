@@ -34,6 +34,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
@@ -49,6 +50,8 @@ import io.druid.segment.Cuboids;
 import io.druid.segment.IndexIO;
 import io.druid.segment.Metadata;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.BitmapIndex.CumulativeSupport;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
@@ -57,6 +60,7 @@ import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.Dictionary;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.segment.loading.StorageLocationConfig;
 import io.druid.timeline.DataSegment;
@@ -495,7 +499,18 @@ public class IndexViewer extends CommonShell.WithUtils
         CloseQuietly.close(dictionaryEncoded);
       }
       if (capabilities.hasBitmapIndexes()) {
-        append(builder, writer, format("bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITMAP)));
+        BitmapIndex bitmapIndex = column.getBitmapIndex();
+        GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndex.getBitmaps();
+        String string = format("bitmap (%,d bytes)", bitmaps.getSerializedSize());
+        if (bitmapIndex instanceof CumulativeSupport) {
+          GenericIndexed<ImmutableBitmap> cumulatives = ((CumulativeSupport) bitmapIndex).getCumulativeBitmaps();
+          if (cumulatives != null) {
+            string += format(
+                ", cumulative bitmap (%d bitmaps, %,d bytes)", cumulatives.size(), cumulatives.getSerializedSize()
+            );
+          }
+        }
+        append(builder, writer, string);
       }
       if (capabilities.hasSpatialIndexes()) {
         append(builder, writer, format("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL)));

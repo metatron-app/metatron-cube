@@ -31,13 +31,13 @@ import java.util.List;
 
 /**
  */
-public class VSizeIndexedIntsTest
+public class VSizedIntTest
 {
   @Test
   public void testSanity() throws Exception
   {
     final int[] array = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    VSizeIndexedInts ints = VSizeIndexedInts.fromArray(array);
+    VSizedInt ints = VSizedInt.fromArray(array);
 
     Assert.assertEquals(1, ints.getNumBytes());
     Assert.assertEquals(array.length, ints.size());
@@ -50,14 +50,14 @@ public class VSizeIndexedIntsTest
   public void testSerialization() throws Exception
   {
     final int[] array = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-    VSizeIndexedInts ints = VSizeIndexedInts.fromArray(array);
+    VSizedInt ints = VSizedInt.fromArray(array);
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     ints.writeToChannel(Channels.newChannel(baos));
 
     final byte[] bytes = baos.toByteArray();
     Assert.assertEquals(ints.getSerializedSize(), bytes.length);
-    VSizeIndexedInts deserialized = VSizeIndexedInts.readFromByteBuffer(ByteBuffer.wrap(bytes));
+    VSizedInt deserialized = VSizedInt.readFromByteBuffer(ByteBuffer.wrap(bytes));
 
     Assert.assertEquals(1, deserialized.getNumBytes());
     Assert.assertEquals(array.length, deserialized.size());
@@ -72,9 +72,9 @@ public class VSizeIndexedIntsTest
     final int[] array = {1, 2, 4, 5, 6, 8, 9, 10};
     List<Integer> list = Ints.asList(array);
     int maxValue = Ints.max(array);
-    VSizeIndexedInts ints = VSizeIndexedInts.fromList(list, maxValue);
+    VSizedInt ints = VSizedInt.fromList(list, maxValue);
     byte[] bytes1 = ints.getBytesNoPadding();
-    byte[] bytes2 = VSizeIndexedInts.getBytesNoPaddingfromList(list, maxValue);
+    byte[] bytes2 = VSizedInt.getBytesNoPaddingfromList(list, maxValue);
     Assert.assertArrayEquals(bytes1, bytes2);
   }
 }

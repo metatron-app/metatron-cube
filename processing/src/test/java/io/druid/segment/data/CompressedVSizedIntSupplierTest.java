@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(Parameterized.class)
-public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyTest
+public class CompressedVSizedIntSupplierTest extends CompressionStrategyTest
 {
   @Parameterized.Parameters(name = "{index}: compression={0}, byteOrder={1}")
   public static Iterable<Object[]> compressionStrategies()
@@ -84,14 +84,14 @@ public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyT
 
   private static final int[] MAX_VALUES = new int[] { 0xFF, 0xFFFF, 0xFFFFFF, 0x0FFFFFFF };
 
-  public CompressedVSizeIntsIndexedSupplierTest(CompressedObjectStrategy.CompressionStrategy compressionStrategy, ByteOrder byteOrder)
+  public CompressedVSizedIntSupplierTest(CompressedObjectStrategy.CompressionStrategy compressionStrategy, ByteOrder byteOrder)
   {
     super(compressionStrategy);
     this.byteOrder = byteOrder;
   }
 
   private IndexedInts indexed;
-  private CompressedVSizeIntsIndexedSupplier supplier;
+  private CompressedVSizedIntSupplier supplier;
   private int[] vals;
   private final ByteOrder byteOrder;
 
@@ -117,7 +117,7 @@ public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyT
 
     vals = new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16};
 
-    supplier = CompressedVSizeIntsIndexedSupplier.fromList(
+    supplier = CompressedVSizedIntSupplier.fromList(
         Ints.asList(vals),
         Ints.max(vals),
         chunkSize,
@@ -140,7 +140,7 @@ public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyT
     CloseQuietly.close(indexed);
 
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    final CompressedVSizeIntsIndexedSupplier theSupplier = CompressedVSizeIntsIndexedSupplier.fromList(
+    final CompressedVSizedIntSupplier theSupplier = CompressedVSizedIntSupplier.fromList(
         Ints.asList(vals), Ints.max(vals), chunkSize, byteOrder, compressionStrategy
     );
     theSupplier.writeToChannel(Channels.newChannel(baos));
@@ -148,7 +148,7 @@ public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyT
     final byte[] bytes = baos.toByteArray();
     Assert.assertEquals(theSupplier.getSerializedSize(), bytes.length);
 
-    supplier = CompressedVSizeIntsIndexedSupplier.fromByteBuffer(ByteBuffer.wrap(bytes), byteOrder);
+    supplier = CompressedVSizedIntSupplier.fromByteBuffer(ByteBuffer.wrap(bytes), byteOrder);
     indexed = supplier.get();
   }
 
@@ -184,7 +184,7 @@ public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyT
   public void testLargeChunks() throws Exception
   {
     for (int maxValue : MAX_VALUES) {
-      final int maxChunkSize = CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue);
+      final int maxChunkSize = CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue);
 
       setupLargeChunks(maxChunkSize, 10 * maxChunkSize, maxValue);
       Assert.assertEquals(10, supplier.getBaseBuffers().size());
@@ -208,7 +208,7 @@ public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyT
   public void testChunkTooBig() throws Exception
   {
     for(int maxValue : MAX_VALUES) {
-      final int maxChunkSize = CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(maxValue);
+      final int maxChunkSize = CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue);
       try {
         setupLargeChunks(maxChunkSize + 1, 10 * (maxChunkSize + 1), maxValue);
         Assert.fail();
@@ -221,12 +221,12 @@ public class CompressedVSizeIntsIndexedSupplierTest extends CompressionStrategyT
   @Test
   public void testmaxIntsInBuffer() throws Exception
   {
-    Assert.assertEquals(CompressedPools.BUFFER_SIZE, CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForBytes(1));
-    Assert.assertEquals(CompressedPools.BUFFER_SIZE / 2, CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForBytes(2));
-    Assert.assertEquals(CompressedPools.BUFFER_SIZE / 4, CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForBytes(4));
+    Assert.assertEquals(CompressedPools.BUFFER_SIZE, CompressedVSizedIntSupplier.maxIntsInBufferForBytes(1));
+    Assert.assertEquals(CompressedPools.BUFFER_SIZE / 2, CompressedVSizedIntSupplier.maxIntsInBufferForBytes(2));
+    Assert.assertEquals(CompressedPools.BUFFER_SIZE / 4, CompressedVSizedIntSupplier.maxIntsInBufferForBytes(4));
 
     Assert.assertEquals(CompressedPools.BUFFER_SIZE, 0x10000); // nearest power of 2 is 2^14
-    Assert.assertEquals(1 << 14, CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForBytes(3));
+    Assert.assertEquals(1 << 14, CompressedVSizedIntSupplier.maxIntsInBufferForBytes(3));
   }
 
   @Test

@@ -206,19 +206,19 @@ public class BoundFilter implements Filter
       final int ceilIx = ix == thresholds.length ? bitmap.getCardinality() : thresholds[ix];
       if (index - floorIx > ceilIx - index) {
         // ceil - union(endIndex .. thresholds[index])
-        final ImmutableBitmap ceil = ix < thresholds.length ? bitmap.getCumultive(ix) : DimFilters.makeTrue(factory, numRows);
+        final ImmutableBitmap ceil = ix < thresholds.length ? bitmap.getCumulative(ix) : DimFilters.makeTrue(factory, numRows);
         final ImmutableBitmap surplus = unionOfRange(bitmap, index, ceilIx);
         final ImmutableBitmap difference = DimFilters.difference(factory, ceil, surplus, numRows);
         return difference;
       } else {
         // floor + (union(thresholds[index - 1] .. endIndex))
-        final ImmutableBitmap floor = ix > 0 ? bitmap.getCumultive(ix - 1) : DimFilters.makeFalse(factory);
+        final ImmutableBitmap floor = ix > 0 ? bitmap.getCumulative(ix - 1) : DimFilters.makeFalse(factory);
         final ImmutableBitmap deficit = unionOfRange(bitmap, floorIx, index);
         final ImmutableBitmap union = DimFilters.union(factory, floor, deficit);
         return union;
       }
     } else {
-      return bitmap.getCumultive(ix);
+      return bitmap.getCumulative(ix);
     }
   }
 

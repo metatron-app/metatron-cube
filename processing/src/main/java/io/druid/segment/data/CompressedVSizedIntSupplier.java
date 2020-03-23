@@ -38,7 +38,7 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 import java.util.List;
 
-public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<IndexedInts>
+public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts>
 {
   public static final byte VERSION = 0x2;
 
@@ -50,7 +50,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
   private final GenericIndexed<ResourceHolder<ByteBuffer>> baseBuffers;
   private final CompressedObjectStrategy.CompressionStrategy compression;
 
-  CompressedVSizeIntsIndexedSupplier(
+  CompressedVSizedIntSupplier(
       int totalSize,
       int sizePer,
       int numBytes,
@@ -95,7 +95,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
 
   public static int maxIntsInBufferForValue(int maxValue)
   {
-    return maxIntsInBufferForBytes(VSizeIndexedInts.getNumBytesForMax(maxValue));
+    return maxIntsInBufferForBytes(VSizedInt.getNumBytesForMax(maxValue));
   }
 
   public int numRows()
@@ -148,7 +148,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
     return baseBuffers;
   }
 
-  public static CompressedVSizeIntsIndexedSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
+  public static CompressedVSizedIntSupplier fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
     byte versionFromBuffer = buffer.get();
 
@@ -160,7 +160,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
 
       final CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
 
-      return new CompressedVSizeIntsIndexedSupplier(
+      return new CompressedVSizedIntSupplier(
           totalSize,
           sizePer,
           numBytes,
@@ -176,7 +176,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
     throw new IAE("Unknown version[%s]", versionFromBuffer);
   }
 
-  public static CompressedVSizeIntsIndexedSupplier fromList(
+  public static CompressedVSizedIntSupplier fromList(
       final List<Integer> list,
       final int maxValue,
       final int chunkFactor,
@@ -184,7 +184,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
       CompressedObjectStrategy.CompressionStrategy compression
   )
   {
-    final int numBytes = VSizeIndexedInts.getNumBytesForMax(maxValue);
+    final int numBytes = VSizedInt.getNumBytesForMax(maxValue);
     final int chunkBytes = chunkFactor * numBytes + bufferPadding(numBytes);
 
     Preconditions.checkArgument(
@@ -193,7 +193,7 @@ public class CompressedVSizeIntsIndexedSupplier implements WritableSupplier<Inde
         chunkFactor
     );
 
-    return new CompressedVSizeIntsIndexedSupplier(
+    return new CompressedVSizedIntSupplier(
         list.size(),
         chunkFactor,
         numBytes,

@@ -74,9 +74,15 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
       }
 
       @Override
-      public ImmutableBitmap getCumultive(int idx)
+      public ImmutableBitmap getCumulative(int idx)
       {
         return getImmutableBitmap(cumulativeBitmaps, idx);
+      }
+
+      @Override
+      public GenericIndexed<ImmutableBitmap> getCumulativeBitmaps()
+      {
+        return cumulativeBitmaps;
       }
 
       @Override
@@ -120,6 +126,12 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
       public ImmutableBitmap getBitmap(int idx)
       {
         return getImmutableBitmap(bitmaps, idx);
+      }
+
+      @Override
+      public GenericIndexed<ImmutableBitmap> getBitmaps()
+      {
+        return bitmaps;
       }
 
       private ImmutableBitmap getImmutableBitmap(GenericIndexed<ImmutableBitmap> bitmaps, int idx)

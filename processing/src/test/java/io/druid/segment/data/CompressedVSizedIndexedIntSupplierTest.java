@@ -21,7 +21,7 @@ package io.druid.segment.data;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
-import io.druid.segment.CompressedVSizeIndexedSupplier;
+import io.druid.segment.CompressedVSizedIndexedIntSupplier;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -38,7 +38,7 @@ import java.util.List;
 
 /**
  */
-public class CompressedVSizeIndexedSupplierTest
+public class CompressedVSizedIndexedIntSupplierTest
 {
   protected List<int[]> vals;
 
@@ -54,7 +54,7 @@ public class CompressedVSizeIndexedSupplierTest
         new int[]{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
     );
 
-    indexedSupplier = CompressedVSizeIndexedSupplier.fromIterable(
+    indexedSupplier = CompressedVSizedIndexedIntSupplier.fromIterable(
         Iterables.transform(
             vals,
             new Function<int[], IndexedInts>()
@@ -62,7 +62,7 @@ public class CompressedVSizeIndexedSupplierTest
               @Override
               public IndexedInts apply(int[] input)
               {
-                return VSizeIndexedInts.fromArray(input, 20);
+                return VSizedInt.fromArray(input, 20);
               }
             }
         ), 20, ByteOrder.nativeOrder(),
@@ -138,7 +138,7 @@ public class CompressedVSizeIndexedSupplierTest
 
   protected WritableSupplier<IndexedMultivalue<IndexedInts>> fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
-    return CompressedVSizeIndexedSupplier.fromByteBuffer(
+    return CompressedVSizedIndexedIntSupplier.fromByteBuffer(
         buffer, ByteOrder.nativeOrder()
     );
   }

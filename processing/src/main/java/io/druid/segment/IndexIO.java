@@ -65,7 +65,7 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedLongsIndexedSupplier;
 import io.druid.segment.data.CompressedObjectStrategy;
-import io.druid.segment.data.CompressedVSizeIntsIndexedSupplier;
+import io.druid.segment.data.CompressedVSizedIntSupplier;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
@@ -75,8 +75,8 @@ import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.data.VSizeIndexed;
-import io.druid.segment.data.VSizeIndexedInts;
+import io.druid.segment.data.VSizedIndexedInt;
+import io.druid.segment.data.VSizedInt;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
 import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSerde;
@@ -491,7 +491,7 @@ public class IndexIO
       }
 
       Map<String, GenericIndexed<String>> dimValueLookups = Maps.newHashMap();
-      Map<String, VSizeIndexed> dimColumns = Maps.newHashMap();
+      Map<String, VSizedIndexedInt> dimColumns = Maps.newHashMap();
       Map<String, GenericIndexed<ImmutableBitmap>> bitmaps = Maps.newHashMap();
 
       for (String dimension : IndexedIterable.create(availableDimensions)) {
@@ -505,7 +505,7 @@ public class IndexIO
         );
 
         dimValueLookups.put(dimension, GenericIndexed.read(dimBuffer, ObjectStrategy.STRING_STRATEGY));
-        dimColumns.put(dimension, VSizeIndexed.readFromByteBuffer(dimBuffer));
+        dimColumns.put(dimension, VSizedIndexedInt.readFromByteBuffer(dimBuffer));
       }
 
       ByteBuffer invertedBuffer = smooshedFiles.mapFile("inverted.drd");
@@ -626,7 +626,7 @@ public class IndexIO
 
           int emptyStrIdx = dictionary.indexOf("");
           List<Integer> singleValCol = null;
-          VSizeIndexed multiValCol = VSizeIndexed.readFromByteBuffer(dimBuffer.asReadOnlyBuffer());
+          VSizedIndexedInt multiValCol = VSizedIndexedInt.readFromByteBuffer(dimBuffer.asReadOnlyBuffer());
           GenericIndexed<ImmutableBitmap> bitmaps = bitmapIndexes.get(dimension);
           ImmutableRTree spatialIndex = spatialIndexes.get(dimension);
 
@@ -634,7 +634,7 @@ public class IndexIO
           boolean onlyOneValue = true;
           MutableBitmap nullsSet = null;
           for (int i = 0; i < multiValCol.size(); ++i) {
-            VSizeIndexedInts rowValue = multiValCol.get(i);
+            VSizedInt rowValue = multiValCol.get(i);
             if (!onlyOneValue) {
               break;
             }
@@ -687,13 +687,13 @@ public class IndexIO
               bumpedDictionary = false;
             }
 
-            final VSizeIndexed finalMultiValCol = multiValCol;
+            final VSizedIndexedInt finalMultiValCol = multiValCol;
             singleValCol = new AbstractList<Integer>()
             {
               @Override
               public Integer get(int index)
               {
-                final VSizeIndexedInts ints = finalMultiValCol.get(index);
+                final VSizedInt ints = finalMultiValCol.get(index);
                 return ints.size() == 0 ? 0 : ints.get(0) + (bumpedDictionary ? 1 : 0);
               }
 
@@ -722,20 +722,20 @@ public class IndexIO
           if (singleValCol != null) {
             if (compressionStrategy != null) {
               columnPartBuilder.withSingleValuedColumn(
-                  CompressedVSizeIntsIndexedSupplier.fromList(
+                  CompressedVSizedIntSupplier.fromList(
                       singleValCol,
                       dictionary.size(),
-                      CompressedVSizeIntsIndexedSupplier.maxIntsInBufferForValue(dictionary.size()),
+                      CompressedVSizedIntSupplier.maxIntsInBufferForValue(dictionary.size()),
                       BYTE_ORDER,
                       compressionStrategy
                   )
               );
             } else {
-              columnPartBuilder.withSingleValuedColumn(VSizeIndexedInts.fromList(singleValCol, dictionary.size()));
+              columnPartBuilder.withSingleValuedColumn(VSizedInt.fromList(singleValCol, dictionary.size()));
             }
           } else if (compressionStrategy != null) {
             columnPartBuilder.withMultiValuedColumn(
-                CompressedVSizeIndexedSupplier.fromIterable(
+                CompressedVSizedIndexedIntSupplier.fromIterable(
                     multiValCol,
                     dictionary.size(),
                     BYTE_ORDER,
@@ -906,7 +906,7 @@ public class IndexIO
       Map<String, Column> columns = Maps.newHashMap();
 
       for (String dimension : index.getAvailableDimensions()) {
-        VSizeIndexed column = index.getDimColumn(dimension);
+        VSizedIndexedInt column = index.getDimColumn(dimension);
         ColumnPartProvider<Dictionary<String>> dictionary = index.getDimValueLookup(dimension).asColumnPartProvider();
         ColumnBuilder builder = new ColumnBuilder()
             .setType(ValueDesc.STRING)
@@ -915,7 +915,7 @@ public class IndexIO
                 new DictionaryEncodedColumnSupplier(
                     dictionary,
                     null,
-                    ColumnPartProviders.<IndexedMultivalue<IndexedInts>>ofInstance(
+                    ColumnPartProviders.<IndexedMultivalue<IndexedInts>>with(
                         column, column.getSerializedSize(), column.size()
                     ),
                     null

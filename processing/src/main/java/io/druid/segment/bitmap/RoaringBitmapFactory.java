@@ -69,8 +69,8 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   private static final short SMALL_COOKIE = 12345;
   private static final short RANGE_COOKIE = 12344;
 
-  private static final int CARDINALITY_THRESHOLD = 8;
-  private static final int EXPECTED_MAX_LENGTH = 32;
+  private static final int CARDINALITY_THRESHOLD = 12;
+  private static final int EXPECTED_MAX_LENGTH = 48;
 
   @Override
   public ImmutableBitmap makeImmutableBitmap(MutableBitmap mutableBitmap)

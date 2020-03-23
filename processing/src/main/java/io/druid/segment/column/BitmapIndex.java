@@ -21,6 +21,7 @@ package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.data.GenericIndexed;
 
 /**
  */
@@ -47,10 +48,14 @@ public interface BitmapIndex
 
   ImmutableBitmap getBitmap(int idx);
 
+  GenericIndexed<ImmutableBitmap> getBitmaps();
+
   interface CumulativeSupport extends BitmapIndex
   {
     int[] thresholds();
 
-    ImmutableBitmap getCumultive(int idx);
+    ImmutableBitmap getCumulative(int idx);
+
+    GenericIndexed<ImmutableBitmap> getCumulativeBitmaps();
   }
 }

@@ -36,7 +36,7 @@ import java.nio.channels.WritableByteChannel;
  */
 public class VSizeIntWriter extends SingleValueIndexedIntsWriter
 {
-  private static final byte VERSION = VSizeIndexedInts.VERSION;
+  private static final byte VERSION = VSizedInt.VERSION;
 
   private final IOPeon ioPeon;
   private final String valueFileName;
@@ -52,7 +52,7 @@ public class VSizeIntWriter extends SingleValueIndexedIntsWriter
   {
     this.ioPeon = ioPeon;
     this.valueFileName = String.format("%s.values", filenameBase);
-    this.numBytes = VSizeIndexedInts.getNumBytesForMax(maxValue);
+    this.numBytes = VSizedInt.getNumBytesForMax(maxValue);
   }
 
   @Override

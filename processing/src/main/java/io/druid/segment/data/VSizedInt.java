@@ -30,21 +30,21 @@ import java.util.List;
 
 /**
  */
-public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable<VSizeIndexedInts>
+public class VSizedInt extends IndexedInts.Abstract implements Comparable<VSizedInt>
 {
   public static final byte VERSION = 0x0;
 
-  public static VSizeIndexedInts fromArray(int[] array)
+  public static VSizedInt fromArray(int[] array)
   {
     return fromArray(array, Ints.max(array));
   }
 
-  public static VSizeIndexedInts fromArray(int[] array, int maxValue)
+  public static VSizedInt fromArray(int[] array, int maxValue)
   {
     return fromList(Ints.asList(array), maxValue);
   }
 
-  public static VSizeIndexedInts empty()
+  public static VSizedInt empty()
   {
     return fromList(Lists.<Integer>newArrayList(), 0);
   }
@@ -62,14 +62,14 @@ public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable
     return buffer.array();
   }
 
-  public static VSizeIndexedInts fromList(List<Integer> list, int maxValue)
+  public static VSizedInt fromList(List<Integer> list, int maxValue)
   {
     int numBytes = getNumBytesForMax(maxValue);
 
     final ByteBuffer buffer = ByteBuffer.allocate((list.size() * numBytes) + (4 - numBytes));
     writeToBuffer(buffer, list, numBytes, maxValue);
 
-    return new VSizeIndexedInts(buffer.asReadOnlyBuffer(), numBytes);
+    return new VSizedInt(buffer.asReadOnlyBuffer(), numBytes);
   }
 
   private static void writeToBuffer(ByteBuffer buffer, List<Integer> list, int numBytes, int maxValue)
@@ -115,7 +115,7 @@ public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable
   private final int bitsToShift;
   private final int size;
 
-  public VSizeIndexedInts(ByteBuffer buffer, int numBytes)
+  public VSizedInt(ByteBuffer buffer, int numBytes)
   {
     this.buffer = buffer;
     this.numBytes = numBytes;
@@ -154,7 +154,7 @@ public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable
   }
 
   @Override
-  public int compareTo(VSizeIndexedInts o)
+  public int compareTo(VSizedInt o)
   {
     int retVal = Ints.compare(numBytes, o.numBytes);
 
@@ -183,7 +183,7 @@ public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable
     channel.write(buffer.asReadOnlyBuffer());
   }
 
-  public static VSizeIndexedInts readFromByteBuffer(ByteBuffer buffer)
+  public static VSizedInt readFromByteBuffer(ByteBuffer buffer)
   {
     byte versionFromBuffer = buffer.get();
 
@@ -194,7 +194,7 @@ public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable
       bufferToUse.limit(bufferToUse.position() + size);
       buffer.position(bufferToUse.limit());
 
-      return new VSizeIndexedInts(
+      return new VSizedInt(
           bufferToUse,
           numBytes
       );
@@ -208,9 +208,9 @@ public class VSizeIndexedInts extends IndexedInts.Abstract implements Comparable
   }
 
   public static class VSizeIndexedIntsSupplier implements WritableSupplier<IndexedInts> {
-    final VSizeIndexedInts delegate;
+    final VSizedInt delegate;
 
-    public VSizeIndexedIntsSupplier(VSizeIndexedInts delegate) {
+    public VSizeIndexedIntsSupplier(VSizedInt delegate) {
       this.delegate = delegate;
     }
 

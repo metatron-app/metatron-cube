@@ -22,10 +22,10 @@ package io.druid.segment;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import io.druid.segment.data.CompressedObjectStrategy;
-import io.druid.segment.data.CompressedVSizeIndexedSupplierTest;
+import io.druid.segment.data.CompressedVSizedIndexedIntSupplierTest;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
-import io.druid.segment.data.VSizeIndexedInts;
+import io.druid.segment.data.VSizedInt;
 import io.druid.segment.data.WritableSupplier;
 import org.junit.After;
 import org.junit.Before;
@@ -34,7 +34,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 
-public class CompressedVSizeIndexedV3SupplierTest extends CompressedVSizeIndexedSupplierTest
+public class CompressedVSizedIndexedIntV3SupplierTestInt extends CompressedVSizedIndexedIntSupplierTest
 {
   @Before
   public void setUpSimple(){
@@ -45,7 +45,7 @@ public class CompressedVSizeIndexedV3SupplierTest extends CompressedVSizeIndexed
         new int[]{11, 12, 13, 14, 15, 16, 17, 18, 19, 20}
     );
 
-    indexedSupplier = CompressedVSizeIndexedV3Supplier.fromIterable(
+    indexedSupplier = CompressedVSizedIndexedIntV3Supplier.fromIterable(
         Iterables.transform(
             vals,
             new Function<int[], IndexedInts>()
@@ -53,7 +53,7 @@ public class CompressedVSizeIndexedV3SupplierTest extends CompressedVSizeIndexed
               @Override
               public IndexedInts apply(int[] input)
               {
-                return VSizeIndexedInts.fromArray(input, 20);
+                return VSizedInt.fromArray(input, 20);
               }
             }
         ), 2, 20, ByteOrder.nativeOrder(),
@@ -70,7 +70,7 @@ public class CompressedVSizeIndexedV3SupplierTest extends CompressedVSizeIndexed
   @Override
   protected WritableSupplier<IndexedMultivalue<IndexedInts>> fromByteBuffer(ByteBuffer buffer, ByteOrder order)
   {
-    return CompressedVSizeIndexedV3Supplier.fromByteBuffer(
+    return CompressedVSizedIndexedIntV3Supplier.fromByteBuffer(
         buffer, ByteOrder.nativeOrder()
     );
   }
