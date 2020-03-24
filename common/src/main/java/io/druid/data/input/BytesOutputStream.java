@@ -185,11 +185,6 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
     }
   }
 
-  public void mark(int mark)
-  {
-    this.mark = mark;
-  }
-
   @Override
   public void reset()
   {
@@ -209,6 +204,11 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
   public byte[] toByteArray(int from)
   {
     return Arrays.copyOfRange(buf, from, count);
+  }
+
+  public byte[] unwrap()
+  {
+    return buf;
   }
 
   public void writeVarSizeBytes(byte[] value)

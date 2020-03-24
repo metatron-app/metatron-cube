@@ -48,7 +48,7 @@ public class BulkSequenceTest
     Sequence<Object[]> rows = Sequences.simple(cr(0), cr(1), cr(2), cr(3), cr(4));
 
     Sequence<BulkRow> bulk = new TestBulkSequence(rows, Arrays.asList(
-        ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 0, 2
+        ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 2
     );
 
     final List<long[]> longs = Sequences.toList(Sequences.map(
@@ -156,7 +156,7 @@ public class BulkSequenceTest
   {
     Sequence<Object[]> rows = Sequences.simple(cr(0), cr(1), cr(2), cr(3), cr(4));
     Sequence<BulkRow> object = new BulkSequence(rows, Arrays.asList(
-        ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 0, 2
+        ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 2
     );
     DefaultObjectMapper mapper = new DefaultObjectMapper(new SmileFactory());
     byte[] s = mapper.writeValueAsBytes(object);
@@ -184,7 +184,7 @@ public class BulkSequenceTest
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
     Sequence<BulkRow> sequence = new TestBulkSequence(
-        rows, Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), -1, 5
+        rows, Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 5
     );
 
     Yielder<BulkRow> yielder = Yielders.each(sequence);
@@ -218,7 +218,7 @@ public class BulkSequenceTest
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
     Sequence<BulkRow> sequence = new TestBulkSequence(
-        Sequences.limit(rows, 7), Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), -1, 3
+        Sequences.limit(rows, 7), Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 3
     );
 
     Yielder<BulkRow> yielder = Yielders.each(sequence);
@@ -250,9 +250,9 @@ public class BulkSequenceTest
 
   private static class TestBulkSequence extends BulkSequence
   {
-    public TestBulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex, int max)
+    public TestBulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int max)
     {
-      super(sequence, types, timeIndex, max);
+      super(sequence, types, max);
     }
 
     @Override

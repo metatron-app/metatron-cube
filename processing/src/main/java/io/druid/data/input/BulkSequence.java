@@ -20,8 +20,6 @@
 package io.druid.data.input;
 
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
-import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -31,8 +29,6 @@ import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingSequenceBase;
 import io.druid.query.RowSignature;
-import net.jpountz.lz4.LZ4Compressor;
-import net.jpountz.lz4.LZ4Factory;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -50,35 +46,29 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
 
   public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema)
   {
-    return new BulkSequence(sequence, schema.getColumnTypes(), schema.getColumnNames().indexOf(Row.TIME_COLUMN_NAME));
+    return new BulkSequence(sequence, schema.getColumnTypes());
   }
 
-  private static final LZ4Compressor LZ4 = LZ4Factory.fastestInstance().fastCompressor();
   private static final int DEFAULT_PAGE_SIZE = 1024;
 
   private final Sequence<Object[]> sequence;
-  private final TimestampRLE timestamps;
   private final int[] category;
   private final Object[] page;
   private final int max;
 
-  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex)
+  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types)
   {
-    this(sequence, types, timeIndex, DEFAULT_PAGE_SIZE);
+    this(sequence, types, DEFAULT_PAGE_SIZE);
   }
 
-  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int timeIndex, final int max)
+  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, final int max)
   {
     Preconditions.checkArgument(max < 0xffff);    // see TimestampRLE
     this.max = max;
     this.sequence = sequence;
-    this.timestamps = timeIndex < 0 ? null : new TimestampRLE();
     this.category = new int[types.size()];
     this.page = new Object[types.size()];
     for (int i = 0; i < types.size(); i++) {
-      if (i == timeIndex) {
-        continue;
-      }
       final ValueDesc valueDesc = types.get(i);
       switch (valueDesc.isDimension() ? ValueDesc.typeOfDimension(valueDesc) : valueDesc.type()) {
         case FLOAT:
@@ -193,7 +183,6 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
       final int ix = index++;
       for (int i = 0; i < category.length; i++) {
         switch (category[i]) {
-          case 0: timestamps.add(Rows.parseLong(values[i])); continue;
           case 1: ((Float[]) page[i])[ix] = Rows.parseFloat(values[i]); continue;
           case 2: ((Long[]) page[i])[ix] = Rows.parseLong(values[i]); continue;
           case 3: ((Double[]) page[i])[ix] = Rows.parseDouble(values[i]); continue;
@@ -212,21 +201,16 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
       final int size = index;
       final Object[] copy = new Object[page.length];
 
+      // unnecessary copy ?
       for (int i = 0; i < category.length; i++) {
         switch (category[i]) {
-          case 0: copy[i] = timestamps.flush(); continue;
           case 1: copy[i] = Arrays.copyOf((Float[]) page[i], size); continue;
           case 2: copy[i] = Arrays.copyOf((Long[]) page[i], size); continue;
           case 3: copy[i] = Arrays.copyOf((Double[]) page[i], size); continue;
           case 4: copy[i] = Arrays.copyOf((Boolean[]) page[i], size); continue;
           case 5:
             final BytesOutputStream stream = (BytesOutputStream) page[i];
-            final byte[] compressed = new byte[Integer.BYTES + LZ4.maxCompressedLength(stream.size())];
-            System.arraycopy(Ints.toByteArray(stream.size()), 0, compressed, 0, Integer.BYTES);
-            copy[i] = new BytesRef(
-                compressed,
-                Integer.BYTES + LZ4.compress(stream.toByteArray(), 0, stream.size(), compressed, Integer.BYTES)
-            );
+            copy[i] = stream.toByteArray();
             stream.clear();
             continue;
           case 6: copy[i] = Arrays.copyOf((Object[]) page[i], size); continue;

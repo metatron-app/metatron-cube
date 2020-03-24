@@ -36,6 +36,7 @@ import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
+import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
@@ -47,9 +48,19 @@ import java.util.Iterator;
 
 public class BulkRow extends AbstractRow
 {
-  private static final LZ4FastDecompressor LZ4 = LZ4Factory.fastestInstance().fastDecompressor();
+  private static final LZ4Compressor LZ4_COMP = LZ4Factory.fastestInstance().fastCompressor();
+  private static final LZ4FastDecompressor LZ4_DECOMP = LZ4Factory.fastestInstance().fastDecompressor();
 
-  private static final ThreadLocal<BytesOutputStream> BUFFERS = new ThreadLocal<BytesOutputStream>()
+  private static final ThreadLocal<BytesOutputStream> BUFFER = new ThreadLocal<BytesOutputStream>()
+  {
+    @Override
+    protected BytesOutputStream initialValue()
+    {
+      return new BytesOutputStream();
+    }
+  };
+
+  private static final ThreadLocal<BytesOutputStream> SKRETCH = new ThreadLocal<BytesOutputStream>()
   {
     @Override
     protected BytesOutputStream initialValue()
@@ -59,6 +70,25 @@ public class BulkRow extends AbstractRow
   };
 
   public static final TypeReference<BulkRow> TYPE_REFERENCE = new TypeReference<BulkRow>() {};
+
+  private static void compressTo(final BytesOutputStream skretch, final BytesOutputStream output)
+  {
+    compressTo(skretch.unwrap(), skretch.size(), output);
+  }
+
+  private static void compressTo(final byte[] skretch, final BytesOutputStream output)
+  {
+    compressTo(skretch, skretch.length, output);
+  }
+
+  private static void compressTo(final byte[] skretch, final int length, final BytesOutputStream output)
+  {
+    final byte[] compressed = new byte[Integer.BYTES + LZ4_COMP.maxCompressedLength(length)];
+    System.arraycopy(Ints.toByteArray(length), 0, compressed, 0, Integer.BYTES);
+    output.writeVarSizeBytes(new BytesRef(
+        compressed, Integer.BYTES + LZ4_COMP.compress(skretch, 0, length, compressed, Integer.BYTES)
+    ));
+  }
 
   public static final JsonSerializer<BulkRow> SERIALIZER = new JsonSerializer<BulkRow>()
   {
@@ -76,7 +106,7 @@ public class BulkRow extends AbstractRow
     public void serialize(BulkRow bulk, JsonGenerator jgen, SerializerProvider provider) throws IOException
     {
       final BitSet nulls = new BitSet();
-      final BytesOutputStream output = BUFFERS.get();
+      final BytesOutputStream output = BUFFER.get();
       final JsonFactory factory = Preconditions.checkNotNull(jgen.getCodec()).getFactory();
 
       output.clear();
@@ -84,98 +114,89 @@ public class BulkRow extends AbstractRow
       output.writeUnsignedVarInt(bulk.category.length);
 
       for (int i = 0; i < bulk.category.length; i++) {
-        nulls.clear();
         output.writeUnsignedVarInt(bulk.category[i]);
+      }
+
+      final BytesOutputStream skretch = SKRETCH.get();
+      for (int i = 0; i < bulk.category.length; i++) {
+        nulls.clear();
+        skretch.clear();
         switch (bulk.category[i]) {
-          case 0:
-            output.writeVarSizeBytes((byte[]) bulk.values[i]);
-            continue;
           case 1:
             final Float[] floats = (Float[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (floats[x] == null) {
-                output.writeFloat(0);
+                skretch.writeFloat(0);
                 nulls.set(x);
               } else {
-                output.writeFloat(floats[x].floatValue());
+                skretch.writeFloat(floats[x].floatValue());
               }
             }
-            if (!nulls.isEmpty()) {
-              output.writeBoolean(true);
-              output.writeVarSizeBytes(nulls.toByteArray());
-            } else {
-              output.writeBoolean(false);
-            }
+            compressTo(writeNulls(nulls, skretch), output);
             continue;
           case 2:
             final Long[] longs = (Long[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (longs[x] == null) {
-                output.writeVarLong(0);
+                skretch.writeVarLong(0);
                 nulls.set(x);
               } else {
-                output.writeVarLong(longs[x].longValue());
+                skretch.writeVarLong(longs[x].longValue());
               }
             }
-            if (!nulls.isEmpty()) {
-              output.writeBoolean(true);
-              output.writeVarSizeBytes(nulls.toByteArray());
-            } else {
-              output.writeBoolean(false);
-            }
+            compressTo(writeNulls(nulls, skretch), output);
             continue;
           case 3:
             final Double[] doubles = (Double[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (doubles[x] == null) {
-                output.writeDouble(0);
+                skretch.writeDouble(0);
                 nulls.set(x);
               } else {
-                output.writeDouble(doubles[x].doubleValue());
+                skretch.writeDouble(doubles[x].doubleValue());
               }
             }
-            if (!nulls.isEmpty()) {
-              output.writeBoolean(true);
-              output.writeVarSizeBytes(nulls.toByteArray());
-            } else {
-              output.writeBoolean(false);
-            }
+            compressTo(writeNulls(nulls, skretch), output);
             continue;
           case 4:
             final Boolean[] booleans = (Boolean[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (booleans[x] == null) {
-                output.writeBoolean(false);
+                skretch.writeBoolean(false);
                 nulls.set(x);
               } else {
-                output.writeBoolean(booleans[x].booleanValue());
+                skretch.writeBoolean(booleans[x].booleanValue());
               }
             }
-            if (!nulls.isEmpty()) {
-              output.writeBoolean(true);
-              output.writeVarSizeBytes(nulls.toByteArray());
-            } else {
-              output.writeBoolean(false);
-            }
+            compressTo(writeNulls(nulls, skretch), output);
             continue;
           case 5:
-            output.writeVarSizeBytes((BytesRef) bulk.values[i]);
+            compressTo((byte[]) bulk.values[i], output);
             continue;
           case 6:
-            final BytesOutputStream buffer = new BytesOutputStream();
-            final JsonGenerator hack = factory.createGenerator(buffer);
+            final JsonGenerator hack = factory.createGenerator(skretch);
             hack.writeObject(bulk.values[i]);
             hack.flush();
-            output.writeVarSizeBytes(buffer.asRef());
+            compressTo(skretch, output);
             continue;
           default:
             throw new ISE("invalid type %d", bulk.category[i]);
         }
       }
-      BytesRef ref = output.asRef();
-      jgen.writeBinary(ref.bytes, 0, ref.length);
+      jgen.writeBinary(output.unwrap(), 0, output.size());
     }
   };
+
+  private static BytesOutputStream writeNulls(final BitSet nulls, final BytesOutputStream skretch)
+  {
+    if (!nulls.isEmpty()) {
+      skretch.writeBoolean(true);
+      skretch.writeVarSizeBytes(nulls.toByteArray());
+    } else {
+      skretch.writeBoolean(false);
+    }
+    return skretch;
+  }
 
   // todo : keep primitive array and null bitset
   public static final JsonDeserializer<BulkRow> DESERIALIZER = new JsonDeserializer<BulkRow>()
@@ -190,19 +211,25 @@ public class BulkRow extends AbstractRow
 
       final int count = input.readUnsignedVarInt();
       final int[] category = new int[input.readUnsignedVarInt()];
-      final Object[] values = new Object[category.length];
       for (int i = 0; i < category.length; i++) {
-        switch (category[i] = input.readUnsignedVarInt()) {
-          case 0:
-            values[i] = new TimestampRLE(input.readVarSizeBytes()).iterator();
-            continue;
+        category[i] = input.readUnsignedVarInt();
+      }
+      final Object[] values = new Object[category.length];
+
+      int offset = 0;
+      for (int i = 0; i < category.length; i++) {
+        final byte[] array = input.readVarSizeBytes();
+        final BytesInputStream decompressed  = new BytesInputStream(
+            LZ4_DECOMP.decompress(array, Ints.BYTES, Ints.fromByteArray(array))
+        );
+        switch (category[i]) {
           case 1:
             final Float[] floats = new Float[count];
             for (int x = 0; x < count; x++) {
-              floats[x] = input.readFloat();
+              floats[x] = decompressed.readFloat();
             }
-            if (input.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(input.readVarSizeBytes());
+            if (decompressed.readBoolean()) {
+              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
               for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
                 floats[index] = null;
               }
@@ -212,10 +239,10 @@ public class BulkRow extends AbstractRow
           case 2:
             final Long[] longs = new Long[count];
             for (int x = 0; x < count; x++) {
-              longs[x] = input.readVarLong();
+              longs[x] = decompressed.readVarLong();
             }
-            if (input.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(input.readVarSizeBytes());
+            if (decompressed.readBoolean()) {
+              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
               for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
                 longs[index] = null;
               }
@@ -225,10 +252,10 @@ public class BulkRow extends AbstractRow
           case 3:
             final Double[] doubles = new Double[count];
             for (int x = 0; x < count; x++) {
-              doubles[x] = input.readDouble();
+              doubles[x] = decompressed.readDouble();
             }
-            if (input.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(input.readVarSizeBytes());
+            if (decompressed.readBoolean()) {
+              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
               for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
                 doubles[index] = null;
               }
@@ -238,10 +265,10 @@ public class BulkRow extends AbstractRow
           case 4:
             final Boolean[] booleans = new Boolean[count];
             for (int x = 0; x < count; x++) {
-              booleans[x] = input.readBoolean();
+              booleans[x] = decompressed.readBoolean();
             }
-            if (input.readBoolean()) {
-              final BitSet bitSet = BitSet.valueOf(input.readVarSizeBytes());
+            if (decompressed.readBoolean()) {
+              final BitSet bitSet = BitSet.valueOf(decompressed.readVarSizeBytes());
               for (int index = bitSet.nextSetBit(0); index >= 0; index = bitSet.nextSetBit(index + 1)) {
                 booleans[index] = null;
               }
@@ -249,11 +276,10 @@ public class BulkRow extends AbstractRow
             values[i] = booleans;
             continue;
           case 5:
-            final byte[] array = input.readVarSizeBytes();
-            values[i] = new BytesInputStream(LZ4.decompress(array, Ints.BYTES, Ints.fromByteArray(array)));
+            values[i] = decompressed;
             continue;
           case 6:
-            final JsonParser hack = factory.createParser(new BytesInputStream(input.readVarSizeBytes()));
+            final JsonParser hack = factory.createParser(decompressed);
             values[i] = Iterators.get(hack.readValuesAs(Object[].class), 0);
             continue;
           default:
@@ -289,11 +315,8 @@ public class BulkRow extends AbstractRow
   protected BulkRow forTest()
   {
     for (int i = 0; i < category.length; i++) {
-      if (category[i] == 0 && values[i] instanceof byte[]) {
-        values[i] = new TimestampRLE((byte[]) values[i]).iterator();
-      } else if (category[i] == 5 && values[i] instanceof BytesRef) {
-        final BytesRef array = (BytesRef) values[i];
-        values[i] = new BytesInputStream(LZ4.decompress(array.bytes, Ints.BYTES, Ints.fromByteArray(array.bytes)));
+      if (category[i] == 5 && values[i] instanceof byte[]) {
+        values[i] = new BytesInputStream((byte[]) values[i]);
       }
     }
     return this;

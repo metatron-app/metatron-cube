@@ -244,4 +244,14 @@ public class BytesInputStream extends ByteArrayInputStream implements ByteArrayD
   {
     return VLongUtils.readVLong(this);
   }
+
+  public byte[] unwrap()
+  {
+    return buf;
+  }
+
+  public int position()
+  {
+    return pos;
+  }
 }
