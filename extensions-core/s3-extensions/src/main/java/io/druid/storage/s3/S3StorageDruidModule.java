@@ -23,6 +23,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.multibindings.MapBinder;
@@ -33,16 +34,22 @@ import io.druid.guice.Binders;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.initialization.DruidModule;
+import org.apache.http.HttpResponse;
+import org.jets3t.service.Constants;
+import org.jets3t.service.ServiceException;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.security.AWSCredentials;
+import org.jets3t.service.security.ProviderCredentials;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  */
 public class S3StorageDruidModule implements DruidModule
 {
   public static final String SCHEME = "s3_zip";
+
   @Override
   public List<? extends Module> getJacksonModules()
   {
@@ -106,13 +113,44 @@ public class S3StorageDruidModule implements DruidModule
   @LazySingleton
   public RestS3Service getRestS3Service(AWSCredentialsProvider provider)
   {
-    if(provider.getCredentials() instanceof com.amazonaws.auth.AWSSessionCredentials) {
-      return new RestS3Service(new AWSSessionCredentialsAdapter(provider));
+    final com.amazonaws.auth.AWSCredentials credentials = provider.getCredentials();
+    final ProviderCredentials providerCredentials;
+    if (credentials instanceof com.amazonaws.auth.AWSSessionCredentials) {
+      providerCredentials = new AWSSessionCredentialsAdapter(provider);
     } else {
-      return new RestS3Service(new AWSCredentials(
-          provider.getCredentials().getAWSAccessKeyId(),
-          provider.getCredentials().getAWSSecretKey()
-      ));
+      providerCredentials = new AWSCredentials(credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey());
     }
+    final String defaultRegion = System.getProperty("aws.region", Constants.S3_DEFAULT_HOSTNAME);
+    return new RestS3Service(providerCredentials)
+    {
+      private final Map<String, String> initialized = Maps.newConcurrentMap();
+
+      @Override
+      protected HttpResponse performRestHead(
+          String bucketName, String objectKey, Map<String, String> requestParameters, Map<String, Object> requestHeaders
+      )
+          throws ServiceException
+      {
+        // HTTP_METHOD.HEAD which is used for ObjectDetail does not rety with AWS4-HMAC-SHA256
+        final String location = initialized.computeIfAbsent(
+            bucketName,
+            bucket -> {
+              try {
+                return getBucketLocation(bucket);
+              }
+              catch (Exception e) {
+                return null;
+              }
+            }
+        );
+        return super.performRestHead(bucketName, objectKey, requestParameters, requestHeaders);
+      }
+
+      @Override
+      public String getEndpoint()
+      {
+        return getJetS3tProperties().getStringProperty("s3service.s3-endpoint", defaultRegion);
+      }
+    };
   }
 }

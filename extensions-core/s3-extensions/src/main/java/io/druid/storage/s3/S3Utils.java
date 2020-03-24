@@ -24,11 +24,11 @@ import com.google.common.base.Predicate;
 import io.druid.java.util.common.RetryUtils;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.timeline.DataSegment;
+import org.jets3t.service.ServiceException;
+import org.jets3t.service.model.S3Object;
+
 import java.io.IOException;
 import java.util.concurrent.Callable;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.S3Object;
 
 /**
  *
@@ -84,29 +84,6 @@ public class S3Utils
     final int maxTries = 10;
     return RetryUtils.retry(f, S3RETRY, maxTries);
   }
-
-  public static boolean isObjectInBucket(RestS3Service s3Client, String bucketName, String objectKey)
-      throws ServiceException
-  {
-    try {
-      s3Client.getObjectDetails(bucketName, objectKey);
-    }
-    catch (ServiceException e) {
-      if (404 == e.getResponseCode()
-          || "NoSuchKey".equals(e.getErrorCode())
-          || "NoSuchBucket".equals(e.getErrorCode())) {
-        return false;
-      }
-      if ("AccessDenied".equals(e.getErrorCode())) {
-        // Object is inaccessible to current user, but does exist.
-        return true;
-      }
-      // Something else has gone wrong
-      throw e;
-    }
-    return true;
-  }
-
 
   public static String constructSegmentPath(String baseKey, DataSegment segment)
   {

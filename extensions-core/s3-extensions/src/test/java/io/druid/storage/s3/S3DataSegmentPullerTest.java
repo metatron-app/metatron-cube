@@ -44,7 +44,6 @@ import org.junit.rules.TemporaryFolder;
  */
 public class S3DataSegmentPullerTest
 {
-
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -98,8 +97,8 @@ public class S3DataSegmentPullerTest
 
     final File tmpDir = temporaryFolder.newFolder("gzTestDir");
 
-    EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(null)
+    EasyMock.expect(s3Client.isObjectInBucket(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
+            .andReturn(true)
             .once();
     EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
             .andReturn(object0)
@@ -150,8 +149,8 @@ public class S3DataSegmentPullerTest
     S3ServiceException exception = new S3ServiceException();
     exception.setErrorCode("NoSuchKey");
     exception.setResponseCode(404);
-    EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
-            .andReturn(null)
+    EasyMock.expect(s3Client.isObjectInBucket(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
+            .andReturn(true)
             .once();
     EasyMock.expect(s3Client.getObjectDetails(EasyMock.eq(object0.getBucketName()), EasyMock.eq(object0.getKey())))
             .andReturn(object0)

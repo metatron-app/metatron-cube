@@ -21,6 +21,8 @@ package io.druid.storage.s3;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
@@ -37,6 +39,12 @@ import io.druid.segment.loading.DataSegmentPuller;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.segment.loading.URIDataPuller;
 import io.druid.timeline.DataSegment;
+import org.jets3t.service.S3ServiceException;
+import org.jets3t.service.ServiceException;
+import org.jets3t.service.impl.rest.httpclient.RestS3Service;
+import org.jets3t.service.model.StorageObject;
+
+import javax.tools.FileObject;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,11 +54,6 @@ import java.io.Writer;
 import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import javax.tools.FileObject;
-import org.jets3t.service.S3ServiceException;
-import org.jets3t.service.ServiceException;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.model.StorageObject;
 
 /**
  * A data segment puller that also hanldes URI data pulls.
@@ -67,9 +70,14 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
 
     return new FileObject()
     {
-      final Object inputStreamOpener = new Object();
-      volatile boolean streamAcquired = false;
-      volatile StorageObject storageObject = s3Obj;
+      final Supplier<StorageObject> supplier = Suppliers.synchronizedSupplier(Suppliers.memoize(() -> {
+        try {
+          return s3Client.getObject(coords.bucket, coords.path);
+        }
+        catch (S3ServiceException e) {
+          throw Throwables.propagate(e);
+        }
+      }));
 
       @Override
       public URI toUri()
@@ -88,18 +96,12 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
       public InputStream openInputStream() throws IOException
       {
         try {
-          synchronized (inputStreamOpener) {
-            if (streamAcquired) {
-              return storageObject.getDataInputStream();
-            }
-            // lazily promote to full GET
-            storageObject = s3Client.getObject(s3Obj.getBucketName(), s3Obj.getKey());
-            final InputStream stream = storageObject.getDataInputStream();
-            streamAcquired = true;
-            return stream;
-          }
+          return supplier.get().getDataInputStream();
         }
-        catch (ServiceException e) {
+        catch (Throwable e) {
+          if (e instanceof RuntimeException && e.getCause() != null) {
+            e = e.getCause();
+          }
           throw new IOException(StringUtils.safeFormat("Could not load S3 URI [%s]", uri), e);
         }
       }
@@ -152,9 +154,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
   protected final RestS3Service s3Client;
 
   @Inject
-  public S3DataSegmentPuller(
-      RestS3Service s3Client
-  )
+  public S3DataSegmentPuller(RestS3Service s3Client)
   {
     this.s3Client = s3Client;
   }
@@ -329,7 +329,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
             @Override
             public Boolean call() throws Exception
             {
-              return S3Utils.isObjectInBucket(s3Client, coords.bucket, coords.path);
+              return s3Client.isObjectInBucket(coords.bucket, coords.path);
             }
           }
       );

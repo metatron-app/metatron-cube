@@ -22,13 +22,12 @@ package io.druid.storage.s3;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import io.druid.java.util.common.RetryUtils;
 import io.druid.data.SearchableVersionedDataFinder;
+import io.druid.java.util.common.RetryUtils;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.Callable;
