@@ -106,10 +106,11 @@ public class PlannerFactory
         queryManager,
         operatorTable,
         plannerConfig,
+        jsonMapper,
         queryContext,
         authenticationResult
     );
-    final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, segmentWalker, plannerContext, queryConfig, jsonMapper);
+    final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, segmentWalker, plannerContext, queryConfig);
     final SqlToRelConverter.Config sqlToRelConverterConfig = SqlToRelConverter
         .configBuilder()
         .withExpand(false)

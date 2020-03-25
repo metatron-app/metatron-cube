@@ -83,7 +83,7 @@ public class SqlModule implements Module
       Multibinder.newSetBinder(binder, SqlAggregator.class);
 
       // Add empty AggregatorFactory binder.
-      Multibinder<AggregatorFactory.WithName> set = Multibinder.newSetBinder(binder, AggregatorFactory.WithName.class);
+      Multibinder<AggregatorFactory.SQLBundle> set = Multibinder.newSetBinder(binder, AggregatorFactory.SQLBundle.class);
 
       // for simplicity
       SqlBindings.addAggregator(binder, new RelayAggregatorFactory.First("<name>", "<columnName>", null));

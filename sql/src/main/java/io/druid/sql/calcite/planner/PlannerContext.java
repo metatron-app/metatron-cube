@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.planner;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -53,6 +54,7 @@ public class PlannerContext
   private final PlannerConfig plannerConfig;
   private final DateTime localNow;
   private final Map<String, Object> queryContext;
+  private final ObjectMapper objectMapper;
   private final AuthenticationResult authenticationResult;
 
   private PlannerContext(
@@ -61,6 +63,7 @@ public class PlannerContext
       final PlannerConfig plannerConfig,
       final DateTime localNow,
       final Map<String, Object> queryContext,
+      final ObjectMapper objectMapper,
       final AuthenticationResult authenticationResult
   )
   {
@@ -69,6 +72,7 @@ public class PlannerContext
     this.plannerConfig = Preconditions.checkNotNull(plannerConfig, "plannerConfig");
     this.queryContext = queryContext != null ? Maps.newHashMap(queryContext) : Maps.newHashMap();
     this.localNow = Preconditions.checkNotNull(localNow, "localNow");
+    this.objectMapper = objectMapper;
     this.authenticationResult = authenticationResult;
     this.queryContext.put(BaseAggregationQuery.SORT_ON_TIME, false);
   }
@@ -77,6 +81,7 @@ public class PlannerContext
       final QueryManager queryManager,
       final DruidOperatorTable operatorTable,
       final PlannerConfig plannerConfig,
+      final ObjectMapper jsonMapper,
       final Map<String, Object> queryContext,
       final AuthenticationResult authenticationResult
   )
@@ -109,6 +114,7 @@ public class PlannerContext
         plannerConfig.withOverrides(context),
         utcNow.withZone(timeZone),
         context,
+        jsonMapper,
         authenticationResult
     );
   }
@@ -137,6 +143,8 @@ public class PlannerContext
   {
     return plannerConfig;
   }
+
+  public ObjectMapper getObjectMapper() {return objectMapper;}
 
   public DateTime getLocalNow()
   {

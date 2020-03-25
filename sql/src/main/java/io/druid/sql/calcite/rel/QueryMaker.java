@@ -76,7 +76,6 @@ public class QueryMaker
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
   private final QueryConfig queryConfig;
-  private final ObjectMapper jsonMapper;
 
   private final Map<ByteArray, Long> cardinalityCache = Maps.newHashMap();
 
@@ -84,15 +83,13 @@ public class QueryMaker
       final QueryLifecycleFactory lifecycleFactory,
       final QuerySegmentWalker segmentWalker,
       final PlannerContext plannerContext,
-      final QueryConfig queryConfig,
-      final ObjectMapper jsonMapper
+      final QueryConfig queryConfig
   )
   {
     this.lifecycleFactory = lifecycleFactory;
     this.segmentWalker = segmentWalker;
     this.plannerContext = plannerContext;
     this.queryConfig = queryConfig;
-    this.jsonMapper = jsonMapper;
   }
 
   public PlannerContext getPlannerContext()
@@ -102,7 +99,7 @@ public class QueryMaker
 
   public ObjectMapper getJsonMapper()
   {
-    return jsonMapper;
+    return plannerContext.getObjectMapper();
   }
 
   public QuerySegmentWalker getSegmentWalker()
@@ -144,7 +141,7 @@ public class QueryMaker
   public Sequence<Object[]> runQuery(DruidQuery druidQuery, Query prepared)
   {
     Query query = druidQuery.getQuery();
-    LOG.info("Running.. %s", toLazyLog(jsonMapper, query));
+    LOG.info("Running.. %s", toLazyLog(plannerContext.getObjectMapper(), query));
 
     Hook.QUERY_PLAN.run(query);   // original query
 
@@ -158,7 +155,7 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private Sequence<Object[]> coerce(DruidQuery druidQuery, Query schema, Sequence sequence)
   {
-    Class<?> clazz = PostProcessingOperators.returns(schema, jsonMapper);
+    Class<?> clazz = PostProcessingOperators.returns(schema, plannerContext.getObjectMapper());
     if (Row.class == clazz) {
       return executeRow(druidQuery, sequence);
     } else if (Map.class == clazz) {

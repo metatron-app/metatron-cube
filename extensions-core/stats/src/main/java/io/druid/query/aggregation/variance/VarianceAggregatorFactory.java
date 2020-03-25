@@ -66,6 +66,11 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
     this.isVariancePop = VarianceAggregatorCollector.isVariancePop(estimator);
   }
 
+  public VarianceAggregatorFactory(String name, String fieldName, String estimator, ValueDesc inputType)
+  {
+    this(name, fieldName, null, null, estimator, inputType);
+  }
+
   public VarianceAggregatorFactory(String name, String fieldName, ValueDesc inputType)
   {
     this(name, fieldName, null, null, null, inputType);

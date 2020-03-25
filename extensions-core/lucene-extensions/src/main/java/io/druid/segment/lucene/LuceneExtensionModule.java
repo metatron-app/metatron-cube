@@ -77,7 +77,7 @@ public class LuceneExtensionModule implements DruidModule
   public void configure(Binder binder)
   {
     SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.class);
-    SqlBindings.addAggregator(binder, AggregatorFactory.fromJsonName(
+    SqlBindings.addAggregator(binder, AggregatorFactory.bundleSQL(
         new GeomUnionAggregatorFactory("<name>", "<columnName>"))
     );
   }

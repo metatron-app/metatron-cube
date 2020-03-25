@@ -25,7 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
 import io.druid.initialization.DruidModule;
-import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.SQLBundle;
 import io.druid.query.aggregation.corr.PearsonAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonFoldingAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonSerde;
@@ -91,24 +91,37 @@ public class DruidStatsModule implements DruidModule
     if (binder == null) {
       return; // in test
     }
-    Multibinder<AggregatorFactory.WithName> typedSet = Multibinder.newSetBinder(
-        binder, AggregatorFactory.WithName.class
+
+    final Multibinder<SQLBundle> typedSet = Multibinder.newSetBinder(binder, SQLBundle.class);
+    typedSet.addBinding().toInstance(
+        new SQLBundle("variance", new VarianceAggregatorFactory("<name>", "<fieldName>"))
     );
     typedSet.addBinding().toInstance(
-        new AggregatorFactory.WithName("variance", new VarianceAggregatorFactory("<name>", "<fieldName1>"))
+        new SQLBundle("var_pop", new VarianceAggregatorFactory("<name>", "<fieldName>", "population", null))
     );
     typedSet.addBinding().toInstance(
-        new AggregatorFactory.WithName("pearson", new PearsonAggregatorFactory(
-            "<name>", "<fieldName1>", "<fieldName2>", null, null)
+        new SQLBundle(
+            "stddev",
+            new VarianceAggregatorFactory("<name>", "<fieldName>"),
+            new StandardDeviationPostAggregator("<name>", "<fieldName>", null)
         )
     );
     typedSet.addBinding().toInstance(
-        new AggregatorFactory.WithName("covariance", new CovarianceAggregatorFactory(
-            "<name>", "<fieldName1>", "<fieldName2>", null, null)
+        new SQLBundle(
+            "stddev_pop",
+            new VarianceAggregatorFactory("<name>", "<fieldName>"),
+            new StandardDeviationPostAggregator("<name>", "<fieldName>", "population")
         )
     );
+
     typedSet.addBinding().toInstance(
-        new AggregatorFactory.WithName("kurtosis", new KurtosisAggregatorFactory("<name>", "<fieldName1>", null, null))
+        new SQLBundle("pearson", new PearsonAggregatorFactory("<name>", "<fieldName1>", "<fieldName2>", null, null))
+    );
+    typedSet.addBinding().toInstance(
+        new SQLBundle("covariance", new CovarianceAggregatorFactory("<name>", "<fieldName1>", "<fieldName2>", null, null))
+    );
+    typedSet.addBinding().toInstance(
+        new SQLBundle("kurtosis", new KurtosisAggregatorFactory("<name>", "<fieldName1>", null, null))
     );
   }
 }

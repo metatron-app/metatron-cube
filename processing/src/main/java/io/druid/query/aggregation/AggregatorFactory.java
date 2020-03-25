@@ -29,7 +29,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.Cacheable;
-import io.druid.common.Tagged;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
@@ -205,11 +204,6 @@ public abstract class AggregatorFactory implements Cacheable
       }
     }
     return this;
-  }
-
-  public static interface SQLSupport
-  {
-    AggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver);
   }
 
   /**
@@ -441,19 +435,40 @@ public abstract class AggregatorFactory implements Cacheable
     }
   }
 
-  public static WithName fromJsonName(AggregatorFactory instance)
+  public static interface SQLSupport
+  {
+    AggregatorFactory rewrite(String name, List<String> fieldNames, TypeResolver resolver);
+  }
+
+  public static SQLBundle bundleSQL(AggregatorFactory.SQLSupport instance)
+  {
+    return bundleSQL(instance, null);
+  }
+
+  public static SQLBundle bundleSQL(AggregatorFactory.SQLSupport instance, PostAggregator.SQLSupport postAggregator)
   {
     JsonTypeName typeName = Preconditions.checkNotNull(
         instance.getClass().getAnnotation(JsonTypeName.class), "missing @JsonTypeName in %s", instance.getClass()
     );
-    return new WithName(typeName.value(), instance);
+    return new SQLBundle(typeName.value(), instance, postAggregator);
   }
 
-  public static class WithName extends Tagged.Entity<AggregatorFactory>
+  public static class SQLBundle
   {
-    public WithName(String tag, AggregatorFactory factory)
+    public final String opName;
+    public final AggregatorFactory.SQLSupport aggregator;
+    public final PostAggregator.SQLSupport postAggregator;
+
+    public SQLBundle(String opName, AggregatorFactory.SQLSupport aggregator)
     {
-      super(Preconditions.checkNotNull(tag), Preconditions.checkNotNull(factory));
+      this(opName, aggregator, null);
+    }
+
+    public SQLBundle(String opName, AggregatorFactory.SQLSupport aggregator, PostAggregator.SQLSupport postAggregator)
+    {
+      this.opName = Preconditions.checkNotNull(opName);
+      this.aggregator = Preconditions.checkNotNull(aggregator);
+      this.postAggregator = postAggregator;
     }
   }
 

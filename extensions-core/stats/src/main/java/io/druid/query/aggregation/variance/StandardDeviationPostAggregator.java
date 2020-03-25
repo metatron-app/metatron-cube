@@ -37,7 +37,7 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("stddev")
-public class StandardDeviationPostAggregator extends PostAggregator.Stateless
+public class StandardDeviationPostAggregator extends PostAggregator.Stateless implements PostAggregator.SQLSupport
 {
   protected final String name;
   protected final String fieldName;
@@ -76,7 +76,6 @@ public class StandardDeviationPostAggregator extends PostAggregator.Stateless
     return ValueDesc.DOUBLE;
   }
 
-
   @Override
   protected Processor createStateless()
   {
@@ -93,6 +92,12 @@ public class StandardDeviationPostAggregator extends PostAggregator.Stateless
         return variance == null ? null : Math.sqrt(variance);
       }
     };
+  }
+
+  @Override
+  public PostAggregator rewrite(String name, String fieldName)
+  {
+    return new StandardDeviationPostAggregator(name, fieldName, estimator);
   }
 
   @Override

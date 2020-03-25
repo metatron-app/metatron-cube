@@ -79,8 +79,8 @@ public class HiveUDFDruidModule implements DruidModule
 
   public void bindFunctions(Binder binder, ClassLoader loader)
   {
-    final Multibinder<AggregatorFactory.WithName> set = Multibinder.newSetBinder(
-        binder, AggregatorFactory.WithName.class
+    final Multibinder<AggregatorFactory.SQLBundle> set = Multibinder.newSetBinder(
+        binder, AggregatorFactory.SQLBundle.class
     );
     Set<String> userDefind = Sets.newHashSet();
     for (Properties properties : loadProperties(loader)) {
@@ -106,7 +106,7 @@ public class HiveUDFDruidModule implements DruidModule
         if (info != null && info.isGenericUDAF()) {
           String registered = userDefind.contains(name) || name.startsWith("hive") ? name : "hive_" + name;
           HiveUDAFAggregatorFactory udaf = new HiveUDAFAggregatorFactory("<name>", Arrays.<String>asList(), name);
-          set.addBinding().toInstance(new AggregatorFactory.WithName(registered, udaf));
+          set.addBinding().toInstance(new AggregatorFactory.SQLBundle(registered, udaf));
           LOG.info("> hive UDAF '%s' is registered as %s", name, registered);
         }
       }

@@ -77,4 +77,9 @@ public interface PostAggregator extends TypeResolver.Resolvable
 
     protected abstract Processor createStateless();
   }
+
+  public static interface SQLSupport
+  {
+    PostAggregator rewrite(String name, String fieldName);
+  }
 }

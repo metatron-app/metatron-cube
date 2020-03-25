@@ -38,18 +38,18 @@ public class SqlBindings
 
   public static void addAggregator(
       final Binder binder,
-      final AggregatorFactory instance
+      final AggregatorFactory.SQLSupport instance
   )
   {
-    addAggregator(binder, AggregatorFactory.fromJsonName(instance));
+    addAggregator(binder, AggregatorFactory.bundleSQL(instance));
   }
 
   public static void addAggregator(
       final Binder binder,
-      final AggregatorFactory.WithName instance
+      final AggregatorFactory.SQLBundle instance
   )
   {
-    Multibinder.newSetBinder(binder, AggregatorFactory.WithName.class).addBinding().toInstance(instance);
+    Multibinder.newSetBinder(binder, AggregatorFactory.SQLBundle.class).addBinding().toInstance(instance);
   }
 
   public static void addOperatorConversion(

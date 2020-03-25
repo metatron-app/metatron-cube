@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.DateTimes;
 import io.druid.data.ValueDesc;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.RegexDimExtractionFn;
@@ -77,6 +78,7 @@ public class ExpressionsTest extends CalciteTestBase
       new QueryManager(),
       CalciteTests.createOperatorTable(),
       new PlannerConfig(),
+      new DefaultObjectMapper(),
       ImmutableMap.of(),
       CalciteTests.REGULAR_USER_AUTH_RESULT
   );

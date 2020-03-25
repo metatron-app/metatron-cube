@@ -38,6 +38,7 @@ import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.groupby.orderby.WindowContext;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
@@ -225,7 +226,7 @@ public class DruidOperatorTable implements SqlOperatorTable
   @Inject
   public DruidOperatorTable(
       final Set<SqlAggregator> userAggregators,
-      final Set<AggregatorFactory.WithName> userAggregatorFactories,
+      final Set<AggregatorFactory.SQLBundle> userAggregatorFactories,
       final Set<SqlOperatorConversion> userOperatorConversions,
       final Set<DimFilterConversion> userDimFilterConversions
   )
@@ -248,19 +249,15 @@ public class DruidOperatorTable implements SqlOperatorTable
       aggregators.putIfAbsent(operatorKey, aggregator);
     }
 
-    for (AggregatorFactory.WithName named : userAggregatorFactories) {
-      final AggregatorFactory factory = named.getValue();
-      if (!(factory instanceof AggregatorFactory.SQLSupport)) {
-        continue;
-      }
-      final String functionName = named.getKey();
+    for (AggregatorFactory.SQLBundle bundle : userAggregatorFactories) {
+      final AggregatorFactory factory = (AggregatorFactory) bundle.aggregator;
       final ValueDesc type = Optional.fromNullable(factory.finalizedType()).or(ValueDesc.UNKNOWN);
       final SqlReturnTypeInference retType = ReturnTypes.explicit(Utils.asRelDataType(type));
-      final SqlAggFunction function = new DummyAggregatorFunction(functionName, retType);
-      final SqlAggregator aggregator = new DummySqlAggregator(function, (AggregatorFactory.SQLSupport) factory);
+      final SqlAggFunction function = new DummyAggregatorFunction(bundle.opName, retType);
+      final SqlAggregator aggregator = new DummySqlAggregator(function, bundle.aggregator, bundle.postAggregator);
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction(), true);
       if (aggregators.putIfAbsent(operatorKey, aggregator) == null) {
-        LOG.info("> UDAF '%s' is registered with '%s'", functionName, factory.getClass().getName());
+        LOG.info("> UDAF '%s' is registered with '%s'", bundle.opName, factory.getClass().getName());
       }
     }
 
@@ -479,12 +476,18 @@ public class DruidOperatorTable implements SqlOperatorTable
   private static class DummySqlAggregator implements SqlAggregator
   {
     private final SqlAggFunction function;
-    private final AggregatorFactory.SQLSupport factory;
+    private final AggregatorFactory.SQLSupport aggregator;
+    private final PostAggregator.SQLSupport postAggregator;
 
-    private DummySqlAggregator(SqlAggFunction function, AggregatorFactory.SQLSupport factory)
+    private DummySqlAggregator(
+        SqlAggFunction function,
+        AggregatorFactory.SQLSupport aggregator,
+        PostAggregator.SQLSupport postAggregator
+    )
     {
       this.function = function;
-      this.factory = factory;
+      this.aggregator = aggregator;
+      this.postAggregator = postAggregator;
     }
 
     @Override
@@ -503,7 +506,7 @@ public class DruidOperatorTable implements SqlOperatorTable
         AggregateCall aggregateCall,
         Project project,
         List<Aggregation> existingAggregations,
-        boolean finalizeAggregations
+        boolean finalize
     )
     {
       if (aggregateCall.isDistinct()) {
@@ -533,17 +536,26 @@ public class DruidOperatorTable implements SqlOperatorTable
       if (!virtualColumns.isEmpty()) {
         resolver = RowResolver.of(rowSignature, virtualColumns);
       }
-      if (finalizeAggregations) {
+      if (postAggregator != null || finalize) {
         final String aggregatorName = Calcites.makePrefixedName(name, "a");
-        final AggregatorFactory rewritten = factory.rewrite(aggregatorName, fieldNames, resolver);
+        final AggregatorFactory rewritten = aggregator.rewrite(aggregatorName, fieldNames, resolver);
         if (rewritten != null) {
           return Aggregation.create(
-              rowSignature, virtualColumns, ImmutableList.of(rewritten), AggregatorFactory.asFinalizer(name, rewritten)
+              rowSignature, virtualColumns, ImmutableList.of(rewritten), postAggregator(name, rewritten, finalize)
           );
         }
       }
-      final AggregatorFactory rewritten = factory.rewrite(name, fieldNames, resolver);
+      final AggregatorFactory rewritten = aggregator.rewrite(name, fieldNames, resolver);
       return rewritten == null ? null : Aggregation.create(rowSignature, virtualColumns, rewritten);
+    }
+
+    private PostAggregator postAggregator(String name, AggregatorFactory rewritten, boolean finalize)
+    {
+      if (postAggregator != null) {
+        return postAggregator.rewrite(name, rewritten.getName());
+      } else {
+        return finalize ? AggregatorFactory.asFinalizer(name, rewritten) : null;
+      }
     }
   }
 
