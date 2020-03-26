@@ -27,6 +27,8 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.JoinQuery.JoinDelegate;
+import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.groupby.GroupByQueryHelper;
@@ -392,11 +394,21 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     public Sequence<ResultType> runStreaming(Query<ResultType> query, Map<String, Object> responseContext)
     {
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
-
       Query subQuery = dataSource.getQuery();
-      Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
 
-      Sequence<Cursor> cursors = ColumnSelectorFactories.toCursor(sequence, dataSource.getSchema(), query);
+      String timeColumn = Row.TIME_COLUMN_NAME;
+      if (subQuery instanceof JoinDelegate) {
+        timeColumn = ((JoinDelegate) subQuery).getTimeColumnName();
+      }
+
+      Sequence<Cursor> cursors;
+      if (subQuery instanceof ArrayOutputSupport) {
+        Sequence<Object[]> sequence = QueryRunners.run((ArrayOutputSupport) subQuery, segmentWalker, responseContext);
+        cursors = ColumnSelectorFactories.toArrayCursors(sequence, dataSource.getSchema(), timeColumn, query);
+      } else {
+        Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
+        cursors = ColumnSelectorFactories.toRowCursors(sequence, dataSource.getSchema(), query);
+      }
       return streamMerge(query, Sequences.map(cursors, streamQuery(query)));
     }
 

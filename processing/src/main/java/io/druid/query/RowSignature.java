@@ -108,16 +108,16 @@ public interface RowSignature extends TypeResolver
     return new Simple(getColumnNames(), replaced);
   }
 
-  default RowSignature extract(List<String> columns)
+  default RowSignature retain(List<String> columns)
   {
     return new Simple(
         columns, ImmutableList.copyOf(Iterables.transform(columns, name -> resolve(name, ValueDesc.UNKNOWN)))
     );
   }
 
-  default RowSignature resolve(Query<?> query, boolean finalzed)
+  default RowSignature relay(Query<?> query, boolean finalzed)
   {
-    return Queries.bestEffortOf(this, query, finalzed);
+    return Queries.finalize(Queries.bestEffortOf(this, query, finalzed), query, null);
   }
 
   default String asTypeString()

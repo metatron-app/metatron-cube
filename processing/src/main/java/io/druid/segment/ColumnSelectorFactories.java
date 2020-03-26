@@ -24,6 +24,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -447,7 +448,7 @@ public class ColumnSelectorFactories
           };
         }
       }
-      // todo : returns null for struct field access
+      // todo : handle struct field access
       return new ObjectColumnSelector()
       {
         @Override
@@ -473,6 +474,59 @@ public class ColumnSelectorFactories
     protected abstract Row current();
   }
 
+  public static final class FromArraySupplier extends FromRow
+  {
+    private final Supplier<Object[]> in;
+    private final RowResolver resolver;
+
+    public FromArraySupplier(Supplier<Object[]> in, RowResolver resolver)
+    {
+      super(resolver);
+      this.in = in;
+      this.resolver = resolver;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
+    {
+      // creates VC if possible in here
+      final ValueDesc resolved = resolver.resolve(columnName);
+      if (resolved == null) {
+        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      }
+      final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
+      if (virtualColumn != null) {
+        return virtualColumn.asMetric(columnName, this);
+      }
+      final int index = resolver.getColumnNames().indexOf(columnName);
+      if (index >= 0) {
+        return new ObjectColumnSelector()
+        {
+          @Override
+          public Object get()
+          {
+            return in.get()[index];
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return resolved;
+          }
+        };
+      }
+      // todo : handle struct field access
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+    }
+
+    @Override
+    protected Row current()
+    {
+      throw new UnsupportedOperationException();
+    }
+  }
+
   public static final class FromRowSupplier extends FromRow
   {
     private final Supplier<Row> in;
@@ -489,6 +543,49 @@ public class ColumnSelectorFactories
     protected Row current()
     {
       return in.get();
+    }
+  }
+
+  private static abstract class RowSupplier<T> extends DSuppliers.HandOver<T>
+  {
+    abstract DateTime timestamp(T row);
+
+    abstract ColumnSelectorFactory makeColumnSelectorFactory(RowResolver resolver);
+
+    private static class FromRow extends RowSupplier<Row>
+    {
+      @Override
+      DateTime timestamp(Row row)
+      {
+        return row.getTimestamp();
+      }
+
+      @Override
+      ColumnSelectorFactory makeColumnSelectorFactory(RowResolver resolver)
+      {
+        return new FromRowSupplier(this, resolver);
+      }
+    }
+
+    private static class FromArray extends RowSupplier<Object[]>
+    {
+      private final int timeIndex;
+
+      private FromArray(int timeIndex) { this.timeIndex = timeIndex;}
+
+      @Override
+      DateTime timestamp(Object[] row)
+      {
+        return timeIndex < 0 ? null :
+               row[timeIndex] instanceof Number ? DateTimes.utc(((Number) row[timeIndex]).longValue()) :
+               row[timeIndex] instanceof DateTime ? ((DateTime) row[timeIndex]) : null;
+      }
+
+      @Override
+      ColumnSelectorFactory makeColumnSelectorFactory(RowResolver resolver)
+      {
+        return new FromArraySupplier(this, resolver);
+      }
     }
   }
 
@@ -563,7 +660,7 @@ public class ColumnSelectorFactories
 
     @Override
     @SuppressWarnings("unchecked")
-    public<T> ObjectColumnSelector<T> makeObjectColumnSelector(final String column)
+    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String column)
     {
       if (Column.TIME_COLUMN_NAME.equals(column)) {
         return new ObjectColumnSelector()
@@ -735,18 +832,33 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static Sequence<Cursor> toCursor(Sequence<Row> sequence, RowSignature schema, Query<?> query)
+  public static Sequence<Cursor> toRowCursors(Sequence<Row> sequence, RowSignature schema, Query<?> query)
   {
-    final CloseableIterator<Row> iterator = Sequences.toIterator(sequence);
+    return toCursors(sequence, new RowSupplier.FromRow(), schema, query);
+  }
+
+  public static Sequence<Cursor> toArrayCursors(
+      Sequence<Object[]> sequence,
+      RowSignature schema,
+      String timeColumn,
+      Query<?> query
+  )
+  {
+    final int timeIndex = schema.getColumnNames().indexOf(timeColumn);
+    return toCursors(sequence, new RowSupplier.FromArray(timeIndex), schema, query);
+  }
+
+  private static <T> Sequence<Cursor> toCursors(
+      Sequence<T> sequence, RowSupplier<T> supplier, RowSignature schema, Query<?> query
+  )
+  {
+    final CloseableIterator<T> iterator = Sequences.toIterator(sequence);
     if (!iterator.hasNext()) {
       return Sequences.empty();
     }
     // todo: this is semantically not consistent with others
-    final RowResolver resolver = RowResolver.of(
-        schema.replaceDimensionToString(), BaseQuery.getVirtualColumns(query)
-    );
-    final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<Row>();
-    final ColumnSelectorFactory factory = new FromRowSupplier(supplier, resolver);
+    final RowResolver resolver = RowResolver.of(schema.replaceDimensionToString(), BaseQuery.getVirtualColumns(query));
+    final ColumnSelectorFactory factory = supplier.makeColumnSelectorFactory(resolver);
 
     final ValueMatcher matcher;
     final DimFilter filter = BaseQuery.getDimFilter(query);
@@ -755,7 +867,7 @@ public class ColumnSelectorFactories
     } else {
       matcher = filter.toFilter(resolver).makeMatcher(factory);
     }
-    final PeekingIterator<Row> peeker = Iterators.peekingIterator(iterator);
+    final PeekingIterator<T> peeker = Iterators.peekingIterator(iterator);
 
     final Granularity granularity = query.getGranularity();
     List<Interval> intervals = Lists.newArrayList(JodaUtils.split(granularity, query.getIntervals()));
@@ -770,11 +882,12 @@ public class ColumnSelectorFactories
           public Cursor apply(final Interval input)
           {
             // isDone() + advance() is a really stupid idea, IMHO
-            final Iterator<Row> termIterator = new Iterator<Row>()
+            final Iterator<T> termIterator = new Iterator<T>()
             {
               {
-                Row current = GuavaUtils.peek(peeker);
-                for (; current != null && input.isAfter(current.getTimestamp()); current = GuavaUtils.peek(peeker)) {
+                T current = GuavaUtils.peek(peeker);
+                for (; current != null
+                       && input.isAfter(supplier.timestamp(current)); current = GuavaUtils.peek(peeker)) {
                   peeker.next();
                 }
               }
@@ -782,8 +895,9 @@ public class ColumnSelectorFactories
               @Override
               public boolean hasNext()
               {
-                Row current = GuavaUtils.peek(peeker);
-                for (;current != null && input.contains(current.getTimestamp()); current = GuavaUtils.peek(peeker)) {
+                T current = GuavaUtils.peek(peeker);
+                for (; current != null
+                       && input.contains(supplier.timestamp(current)); current = GuavaUtils.peek(peeker)) {
                   supplier.set(peeker.next());
                   if (matcher.matches()) {
                     return true;
@@ -794,7 +908,7 @@ public class ColumnSelectorFactories
               }
 
               @Override
-              public Row next()
+              public T next()
               {
                 // it's not called
                 return supplier.get();

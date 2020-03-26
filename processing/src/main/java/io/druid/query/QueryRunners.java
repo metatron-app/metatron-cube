@@ -125,6 +125,16 @@ public class QueryRunners
     return query.run(segmentWalker, Maps.<String, Object>newHashMap());
   }
 
+  @SuppressWarnings("unchecked")
+  public static <T> Sequence<Object[]> run(
+      Query.ArrayOutputSupport query,
+      QuerySegmentWalker segmentWalker,
+      Map<String, Object> responseContext
+  )
+  {
+    return query.array(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
+  }
+
   public static <T> List<T> list(Query<T> query, QuerySegmentWalker segmentWalker)
   {
     return Sequences.toList(run(query, segmentWalker));

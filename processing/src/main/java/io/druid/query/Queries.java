@@ -45,6 +45,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.JoinQuery.JoinDelegate;
 import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.ColumnsSupport;
 import io.druid.query.Query.DimensionSupport;
@@ -134,21 +135,49 @@ public class Queries
     return null;
   }
 
+  // best effort.. implement SchemaProvider if not enough
   public static RowSignature relaySchema(Query query, QuerySegmentWalker segmentWalker)
   {
-    ObjectMapper mapper = segmentWalker.getObjectMapper();
-    RowSignature schema = _relaySchema(query, segmentWalker);
-    if (query instanceof Query.LateralViewSupport) {
-      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
-      if (lateralView != null) {
-        schema = lateralView.resolve(query, schema, mapper);
+    RowSignature schema = null;
+    if (query.getDataSource() instanceof QueryDataSource) {
+      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+      schema = relaySchema(dataSource.getQuery(), segmentWalker).relay(query, false);
+    }
+    if (schema == null && query instanceof SchemaProvider) {
+      schema = ((SchemaProvider) query).schema(segmentWalker);
+    }
+    if (schema == null && query instanceof UnionAllQuery) {
+      schema = ((UnionAllQuery) query).getSchema();
+    }
+    if (schema == null && query instanceof JoinDelegate) {
+      JoinDelegate joinQuery = (JoinDelegate) query;
+      schema = joinQuery.getSchema();
+      if (schema == null) {
+        List<String> columnNames = Lists.newArrayList();
+        List<ValueDesc> columnTypes = Lists.newArrayList();
+
+        List queries = joinQuery.getQueries();
+        List<String> aliases = joinQuery.getPrefixAliases();
+        Set<String> uniqueNames = Sets.newHashSet();
+        for (int i = 0; i < queries.size(); i++) {
+          final RowSignature element = relaySchema((Query) queries.get(i), segmentWalker);
+          final String prefix = aliases == null ? "" : aliases.get(i) + ".";
+          for (Pair<String, ValueDesc> pair : element.columnAndTypes()) {
+            columnNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
+            columnTypes.add(pair.rhs);
+          }
+        }
+        schema = new RowSignature.Simple(columnNames, columnTypes);
       }
     }
-    PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
-    if (postProcessor instanceof Schema.SchemaResolving) {
-      schema = ((Schema.SchemaResolving) postProcessor).resolve(query, schema, mapper);
+    if (schema == null) {
+      schema = QueryUtils.retrieveSchema(query, segmentWalker).relay(query, false);
     }
-    return Preconditions.checkNotNull(schema);
+    LOG.debug(
+        "%s resolved schema : %s%s",
+        query.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
+    );
+    return schema;
   }
 
   public static List<String> relayColumns(ArrayOutputSupport<?> query, ObjectMapper mapper)
@@ -170,54 +199,12 @@ public class Queries
     return columns;
   }
 
-  // best effort.. implement SchemaProvider if not enough
-  private static RowSignature _relaySchema(Query query, QuerySegmentWalker segmentWalker)
-  {
-    RowSignature schema = null;
-    if (query.getDataSource() instanceof QueryDataSource) {
-      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
-      schema = relaySchema(dataSource.getQuery(), segmentWalker).resolve(query, false);
-    }
-    if (schema == null && query instanceof SchemaProvider) {
-      schema = ((SchemaProvider) query).schema(segmentWalker);
-    }
-    if (schema == null && query instanceof UnionAllQuery) {
-      schema = ((UnionAllQuery) query).getSchema();
-    }
-    if (schema == null && query instanceof JoinQuery.JoinDelegate) {
-      List<String> columnNames = Lists.newArrayList();
-      List<ValueDesc> columnTypes = Lists.newArrayList();
-
-      JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) query;
-      List queries = joinQuery.getQueries();
-      List<String> aliases = joinQuery.getPrefixAliases();
-      Set<String> uniqueNames = Sets.newHashSet();
-      for (int i = 0; i < queries.size(); i++) {
-        final RowSignature element = relaySchema((Query) queries.get(i), segmentWalker);
-        final String prefix = aliases == null ? "" : aliases.get(i) + ".";
-        for (Pair<String, ValueDesc> pair : element.columnAndTypes()) {
-          columnNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
-          columnTypes.add(pair.rhs);
-        }
-      }
-      schema = new RowSignature.Simple(columnNames, columnTypes);
-    }
-    if (schema == null) {
-      schema = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
-    }
-    LOG.debug(
-        "%s resolved schema : %s%s",
-        query.getDataSource().getNames(), schema.getColumnNames(), schema.getColumnTypes()
-    );
-    return schema;
-  }
-
   public static RowSignature bestEffortOf(Query<?> query, boolean finalzed)
   {
     return bestEffortOf(null, query, finalzed);
   }
 
-  // best effort without segment walker
+  // best effort without segment walker, upto before final decoration (output-columns) and post processing
   public static RowSignature bestEffortOf(RowSignature source, Query<?> query, boolean finalzed)
   {
     List<String> newColumnNames = Lists.newArrayList();
@@ -263,6 +250,27 @@ public class Queries
       newColumnNames.add(postAggregator.getName());
     }
     return resolving;
+  }
+
+  public static RowSignature finalize(RowSignature source, Query query, ObjectMapper mapper)
+  {
+    if (query instanceof Query.LateralViewSupport) {
+      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
+      if (lateralView != null) {
+        source = lateralView.resolve(query, source, mapper);
+      }
+    }
+    if (query instanceof Query.ArrayOutputSupport) {
+      List<String> outputColumns = ((ArrayOutputSupport<?>) query).estimatedOutputColumns();
+      if (outputColumns != null) {
+        source = source.retain(outputColumns);
+      }
+    }
+    PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
+    if (postProcessor instanceof Schema.SchemaResolving) {
+      source = ((Schema.SchemaResolving) postProcessor).resolve(query, source, mapper);
+    }
+    return source;
   }
 
   public static List<String> uniqueNames(List<String> names, Set<String> uniqueNames, List<String> appendTo)

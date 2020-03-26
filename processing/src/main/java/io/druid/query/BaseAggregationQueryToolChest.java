@@ -209,8 +209,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      RowSignature resolver = QueryUtils.retrieveSchema(query, segmentWalker).resolve(query, false);
-      return BulkSequence.fromRow(sequence, resolver.extract(query.estimatedOutputColumns()));
+      return BulkSequence.fromRow(sequence, Queries.relaySchema(query, segmentWalker));
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }
