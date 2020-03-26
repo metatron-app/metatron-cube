@@ -414,6 +414,39 @@ public class ColumnSelectorFactories
       if (virtualColumn != null) {
         return virtualColumn.asMetric(columnName, this);
       }
+      if (Column.TIME_COLUMN_NAME.equals(columnName)) {
+        if (resolved.isDateTime()) {
+          return new ObjectColumnSelector()
+          {
+            @Override
+            public ValueDesc type()
+            {
+              return ValueDesc.DATETIME;
+            }
+
+            @Override
+            public Object get()
+            {
+              return current().getTimestamp();
+            }
+          };
+        } else {
+          return new ObjectColumnSelector()
+          {
+            @Override
+            public ValueDesc type()
+            {
+              return ValueDesc.LONG;
+            }
+
+            @Override
+            public Object get()
+            {
+              return current().getTimestampFromEpoch();
+            }
+          };
+        }
+      }
       // todo : returns null for struct field access
       return new ObjectColumnSelector()
       {

@@ -118,7 +118,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   private final int limit;
   private final int parallelism;
 
-  private transient Supplier<RowSignature> schema;  //  optional schema provider
+  protected transient Supplier<RowSignature> schema;  //  optional schema provider
 
   @JsonCreator
   public UnionAllQuery(

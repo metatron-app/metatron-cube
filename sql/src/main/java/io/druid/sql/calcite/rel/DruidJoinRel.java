@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.query.Druids;
@@ -143,7 +144,8 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
         .context(getPlannerContext().copyQueryContext())
         .asArray(true)
-        .build();
+        .build()
+        .withSchema(Suppliers.ofInstance(outRowSignature));
 
     return new DruidQuery()
     {

@@ -6660,6 +6660,46 @@ public class CalciteQueryTest extends CalciteTestBase
   }
 
   @Test
+  public void testJoinWithTimes() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_JOIN_ENABLED,
+        "SELECT foo.__time,foo2.__time FROM foo join foo2 on foo.__time = foo2.__time limit 3",
+        ImmutableList.of(
+            Druids.newSelectQueryBuilder()
+                  .dataSource(
+                      QueryDataSource.of(
+                          Druids.newJoinQueryBuilder()
+                                .dataSource("foo", QueryDataSource.of(
+                                    Druids.newSelectQueryBuilder()
+                                          .dataSource("foo")
+                                          .columns("__time")
+                                          .streaming())
+                                )
+                                .dataSource("foo2", QueryDataSource.of(
+                                    Druids.newSelectQueryBuilder()
+                                          .dataSource("foo2")
+                                          .columns("__time")
+                                          .streaming())
+                                )
+                                .element(JoinElement.of(JoinType.INNER, "foo.__time = foo2.__time"))
+                                .asArray(true)
+                                .build()
+                      )
+                  )
+                  .columns("__time", "__time0")
+                  .limit(3)
+                  .streaming()
+        )
+        , ImmutableList.of(
+            new Object[]{946684800000L, 946684800000L},
+            new Object[]{946684800000L, 946684800000L},
+            new Object[]{946684800000L, 946684800000L}
+        )
+    );
+  }
+
+  @Test
   public void testGbyOnJoin() throws Exception
   {
     testQuery(

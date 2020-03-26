@@ -98,7 +98,7 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
   @Override
   public Object getRaw(String dimension)
   {
-    return event.get(dimension);
+    return event.get(dimension);    // todo: returning timestamp for '__time' makes it regarded as a dimension, failing some tests
   }
 
   @Override

@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -72,6 +73,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final boolean asArray;
   private final int limit;
   private final int maxRowsInGroup;
+
+  private transient Supplier<RowSignature> schema;
 
   @JsonCreator
   JoinQuery(
@@ -209,6 +212,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return Query.JOIN;
   }
 
+  public JoinQuery withSchema(Supplier<RowSignature> schema)
+  {
+    this.schema = schema;
+    return this;
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public JoinQuery withOverriddenContext(Map<String, Object> contextOverride)
@@ -223,7 +232,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         limit,
         maxRowsInGroup,
         computeOverriddenContext(contextOverride)
-    );
+    ).withSchema(schema);
   }
 
   @Override
@@ -350,9 +359,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     // no parallelism.. executed parallel in join post processor
     Map<String, Object> context = BaseQuery.copyContextForMeta(this);
-    JoinDelegate query = new JoinDelegate(
-        queries, prefixAliases, timeColumn, currentEstimation, limit, context
-    );
+    JoinDelegate query = new JoinDelegate(queries, prefixAliases, timeColumn, currentEstimation, limit, context).withSchema(schema);
     return PostProcessingOperators.append(
         query,
         segmentWalker.getObjectMapper(),
@@ -399,7 +406,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         limit,
         maxRowsInGroup,
         getContext()
-    );
+    ).withSchema(schema);
   }
 
   public JoinQuery withDataSources(Map<String, DataSource> dataSources)
@@ -414,7 +421,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         limit,
         maxRowsInGroup,
         getContext()
-    );
+    ).withSchema(schema);
   }
 
   @Override
@@ -502,7 +509,14 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           estimatedCardinality,
           getLimit(),
           context
-      );
+      ).withSchema(schema);
+    }
+
+    @Override
+    public JoinDelegate withSchema(Supplier<RowSignature> schema)
+    {
+      this.schema = schema;
+      return this;
     }
 
     @Override
@@ -561,6 +575,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     @Override
     public List<String> estimatedOutputColumns()
     {
+      RowSignature schema = getSchema();
+      if (schema != null) {
+        return schema.getColumnNames();   // resolved already
+      }
       Set<String> uniqueNames = Sets.newHashSet();
       List<String> outputColumns = Lists.newArrayList();
 
@@ -604,6 +622,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       );
     }
 
+    @Override
     public Sequence<Row> asRow(Sequence sequence)
     {
       if (isArrayOutput()) {
