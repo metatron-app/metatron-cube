@@ -659,7 +659,7 @@ public class BrokerServerView implements TimelineServerView
                 toolChest,
                 new BySegmentQueryRunner<T>(
                     adapter.getIdentifier(),
-                    adapter.getDataInterval().getStart(),
+                    adapter.getInterval().getStart(),
                         new MetricsEmittingQueryRunner<T>(
                             emitter,
                             toolChest,

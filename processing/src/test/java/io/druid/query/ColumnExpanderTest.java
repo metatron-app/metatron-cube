@@ -38,7 +38,6 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.Schema;
 import io.druid.query.select.SelectQuery;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
@@ -52,7 +51,6 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.ListIndexed;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -100,6 +98,12 @@ public class ColumnExpanderTest
     }
 
     @Override
+    public Interval getTimeMinMax()
+    {
+      return null;
+    }
+
+    @Override
     public Indexed<String> getAvailableDimensions()
     {
       return new ListIndexed<String>(dimensions, String.class);
@@ -115,18 +119,6 @@ public class ColumnExpanderTest
     public int getDimensionCardinality(String column)
     {
       return -1;
-    }
-
-    @Override
-    public DateTime getMinTime()
-    {
-      return null;
-    }
-
-    @Override
-    public DateTime getMaxTime()
-    {
-      return null;
     }
 
     @Override
@@ -166,12 +158,6 @@ public class ColumnExpanderTest
     public int getNumRows()
     {
       return 0;
-    }
-
-    @Override
-    public DateTime getMaxIngestedEventTime()
-    {
-      return null;
     }
 
     @Override

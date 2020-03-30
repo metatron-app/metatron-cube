@@ -121,7 +121,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
     private void addSegment(DataSegment descriptor, Segment segment)
     {
-      int node = segment.getDataInterval().hashCode() % 2;
+      int node = segment.getInterval().hashCode() % 2;
       VersionedIntervalTimeline<String, Segment> timeline = get(descriptor.getDataSource(), node);
       timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpecWithDefault().createChunk(segment));
       segments.add(descriptor);
@@ -515,7 +515,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
             return new SpecificSegmentQueryRunner<T>(
                 new BySegmentQueryRunner<T>(
                     segment.getIdentifier(),
-                    segment.getDataInterval().getStart(),
+                    segment.getInterval().getStart(),
                     factory.createRunner(segment, optimizer)
                 ),
                 new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor())

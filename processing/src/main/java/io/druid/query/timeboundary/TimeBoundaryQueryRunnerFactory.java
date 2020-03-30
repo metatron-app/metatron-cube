@@ -31,6 +31,7 @@ import io.druid.query.Result;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -86,12 +87,13 @@ public class TimeBoundaryQueryRunnerFactory
                 );
               }
 
+              final Interval timeMinMax = adapter.getTimeMinMax();
               final DateTime minTime = legacyQuery.getBound().equalsIgnoreCase(TimeBoundaryQuery.MAX_TIME)
                                        ? null
-                                       : adapter.getMinTime();
+                                       : timeMinMax.getStart();
               final DateTime maxTime = legacyQuery.getBound().equalsIgnoreCase(TimeBoundaryQuery.MIN_TIME)
                                        ? null
-                                       : adapter.getMaxTime();
+                                       : timeMinMax.getEnd();
 
 
               return legacyQuery.buildResult(

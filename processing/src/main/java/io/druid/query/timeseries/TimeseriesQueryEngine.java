@@ -21,10 +21,7 @@ package io.druid.query.timeseries;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
@@ -32,8 +29,9 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.BaseQuery;
-import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
@@ -71,16 +69,7 @@ public class TimeseriesQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    return Sequences.explode(
-        adapter.makeCursors(
-            query.getFilter(),
-            Iterables.getOnlyElement(query.getIntervals()),
-            RowResolver.of(adapter, BaseQuery.getVirtualColumns(query)),
-            Granularities.ALL,
-            query.isDescending(), cache
-        ),
-        processor(query, compact)
-    );
+    return Sequences.explode(adapter.makeCursors(query, cache), processor(query, compact));
   }
 
   public static Function<Cursor, Sequence<Row>> processor(final TimeseriesQuery query, final boolean compact)

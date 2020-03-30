@@ -1259,6 +1259,7 @@ public class DruidShell extends CommonShell.WithUtils
   {
     int numRow = 0;
     boolean header = false;
+    boolean plan = false;
     for (Map<String, Object> row : execute) {
       if (!header) {
         writer.print("  ");
@@ -1270,18 +1271,25 @@ public class DruidShell extends CommonShell.WithUtils
         }
         writer.println();
         header = true;
+        plan = columns.equals("[PLAN]");
       }
-      writer.print("  [");
-      boolean first = true;
-      for (Object value : row.values()) {
-        if (!first) {
-          writer.write(", ");
+      if (plan) {
+        writer.print("  ");
+        writer.println(row.values().toString());
+      } else {
+        writer.print("  [");
+        boolean first = true;
+        for (Object value : row.values()) {
+          if (!first) {
+            writer.write(", ");
+          }
+          String print = StringUtils.limit(Objects.toString(value, ""), 64);
+          writer.print(print);
+          first = false;
         }
-        String print = StringUtils.limit(Objects.toString(value, ""), 64);
-        writer.print(print);
-        first = false;
+        writer.println("]");
       }
-      writer.println("]");
+
       numRow++;
     }
     return numRow;

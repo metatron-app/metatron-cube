@@ -29,19 +29,22 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
+import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Query;
+import io.druid.query.Schema;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.Schema;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
@@ -56,19 +59,19 @@ public class SimpleQueryableIndex implements QueryableIndex
 {
   private static final Logger LOG = new Logger(QueryableIndex.class);
 
-  private final Interval dataInterval;
+  private final Interval interval;
   private final Indexed<String> columnNames;
   private final Indexed<String> availableDimensions;
   private final BitmapFactory bitmapFactory;
   private final Map<String, Column> columns;
   private final SmooshedFileMapper fileMapper;
   private final Metadata metadata;
-  private final Supplier<Integer> numRows;
+  private final Supplier<TimeStats> stats;
 
   private final Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids;
 
   public SimpleQueryableIndex(
-      Interval dataInterval,
+      Interval interval,
       Indexed<String> columnNames,
       Indexed<String> dimNames,
       BitmapFactory bitmapFactory,
@@ -79,7 +82,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   )
   {
     Preconditions.checkNotNull(columns.get(Column.TIME_COLUMN_NAME));
-    this.dataInterval = dataInterval;
+    this.interval = interval;
     this.columnNames = columnNames;
     this.availableDimensions = dimNames;
     this.bitmapFactory = bitmapFactory;
@@ -87,19 +90,34 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.cuboids = cuboids == null ? ImmutableMap.of() : cuboids;
     this.fileMapper = fileMapper;
     this.metadata = metadata;
-    this.numRows = Suppliers.memoize(() -> columns.get(Column.TIME_COLUMN_NAME).getNumRows());
+    this.stats = Suppliers.memoize(() -> {
+      final GenericColumn column = columns.get(Column.TIME_COLUMN_NAME).getGenericColumn();
+      try {
+        final int numRows = column.getNumRows();
+        return new TimeStats(numRows, Intervals.utc(column.getLong(0), column.getLong(numRows - 1)));
+      }
+      finally {
+        CloseQuietly.close(column);
+      }
+    });
   }
 
   @Override
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
-    return dataInterval;
+    return interval;
+  }
+
+  @Override
+  public Interval getTimeMinMax()
+  {
+    return stats.get().interval;
   }
 
   @Override
   public int getNumRows()
   {
-    return numRows.get();
+    return stats.get().numRows;
   }
 
   @Override
@@ -208,5 +226,17 @@ public class SimpleQueryableIndex implements QueryableIndex
     }
     Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
     return new Schema(columnNames, columnTypes, aggregators, columnCapabilities, columnDescriptors);
+  }
+
+  private static class TimeStats
+  {
+    private final int numRows;
+    private final Interval interval;
+
+    private TimeStats(int numRows, Interval interval)
+    {
+      this.numRows = numRows;
+      this.interval = interval;
+    }
   }
 }

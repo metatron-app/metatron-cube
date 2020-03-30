@@ -49,6 +49,7 @@ import io.druid.granularity.Granularity;
 import io.druid.indexer.hadoop.HadoopInputUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryResult;
@@ -381,7 +382,7 @@ public class HdfsStorageHandler implements StorageHandler
           Interval interval;
           try (QueryableIndex merged = merger.getIndexIO().loadIndex(mergedBase)) {
             rowCount = merged.getNumRows();
-            interval = merged.getDataInterval();
+            interval = merged.getInterval();
           }
 
           String version = new DateTime().toString();
@@ -427,27 +428,25 @@ public class HdfsStorageHandler implements StorageHandler
 
         private IncrementalIndex newIndex()
         {
-          return new OnheapIncrementalIndex(schema, true, true, false, maxRowCount)
-          {
-            @Override
-            public Interval getInterval()
-            {
-              Interval dataInterval = new Interval(getMinTimeMillis(), getMaxTimeMillis());
-              LOG.info("Interval of data [%s]", dataInterval);
-              if (dataInterval.toPeriod().getMillis() == 0 && queryInterval != null) {
-                dataInterval = queryInterval;
-              }
-              Granularity granularity =
-                  segmentGranularity != null ? segmentGranularity : coveringGranularity(dataInterval);
+          return new OnheapIncrementalIndex(schema, true, true, false, maxRowCount);
+        }
 
-              Interval interval = new Interval(
-                  granularity.bucketStart(index.getMinTime()),
-                  granularity.bucketEnd(index.getMaxTime())
-              );
-              LOG.info("Using segment interval [%s]", interval);
-              return interval;
-            }
-          };
+        private Interval getSegmentInterval(IncrementalIndex index)
+        {
+          Interval timeMinMax = Preconditions.checkNotNull(index.getTimeMinMax(), "empty index");
+          LOG.info("Interval of data [%s]", timeMinMax);
+          Granularity granularity = segmentGranularity;
+          if (granularity == null) {
+            granularity = coveringGranularity(
+                timeMinMax.toDurationMillis() == 0 && queryInterval != null ? queryInterval : timeMinMax
+            );
+          }
+          Interval interval = Intervals.of(
+              granularity.bucketStart(timeMinMax.getStart()),
+              granularity.bucketEnd(timeMinMax.getEnd())
+          );
+          LOG.info("Using segment interval [%s]", interval);
+          return interval;
         }
 
         private Granularity coveringGranularity(Interval dataInterval)
@@ -473,7 +472,7 @@ public class HdfsStorageHandler implements StorageHandler
               "Flushing %,d rows with estimated size %,d bytes.. Heap usage %s",
               index.size(), index.estimatedOccupation(), memoryMXBean.getHeapMemoryUsage()
           );
-          return merger.persist(index, nextFile(), indexSpec.asIntermediarySpec());
+          return merger.persist(index, getSegmentInterval(index), nextFile(), indexSpec.asIntermediarySpec());
         }
 
         private File nextFile()

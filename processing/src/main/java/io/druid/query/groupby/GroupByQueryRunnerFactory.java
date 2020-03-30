@@ -187,7 +187,7 @@ public class GroupByQueryRunnerFactory
           }
         }).longValue();
         if (group.numRows + cardinality < maxCardinality ||
-            group.interval != null && segment.getDataInterval().overlaps(group.interval)) {
+            group.interval != null && segment.getInterval().overlaps(group.interval)) {
           group.add(segment, cardinality);
         } else if (group.segments.isEmpty()) {
           segmentGroups.add(Arrays.asList(segment));
@@ -216,7 +216,7 @@ public class GroupByQueryRunnerFactory
     {
       segments.add(segment);
       numRows += cardinality;
-      interval = segment.getDataInterval();
+      interval = segment.getInterval();
       return this;
     }
 

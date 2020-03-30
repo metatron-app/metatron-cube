@@ -987,7 +987,7 @@ public class IndexIO
               .build(Column.TIME_COLUMN_NAME)
       );
       return new SimpleQueryableIndex(
-          index.getDataInterval(),
+          index.getInterval(),
           new ArrayIndexed<>(cols, String.class),
           index.getAvailableDimensions(),
           CONCISE_FACTORY,

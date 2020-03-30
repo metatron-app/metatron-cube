@@ -43,9 +43,9 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
-    return baseAdapter.getDataInterval();
+    return baseAdapter.getInterval();
   }
 
   @Override

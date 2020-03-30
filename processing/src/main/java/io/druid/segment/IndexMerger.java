@@ -136,11 +136,7 @@ public class IndexMerger
     return indexIO;
   }
 
-  public File persist(
-      final IncrementalIndex index,
-      File outDir,
-      IndexSpec indexSpec
-  ) throws IOException
+  public File persist(IncrementalIndex index, File outDir, IndexSpec indexSpec) throws IOException
   {
     return persist(index, index.getInterval(), outDir, indexSpec);
   }
@@ -157,34 +153,31 @@ public class IndexMerger
    *
    * @throws java.io.IOException if an IO error occurs persisting the index
    */
-  public File persist(
-      final IncrementalIndex index,
-      final Interval dataInterval,
-      File outDir,
-      IndexSpec indexSpec
-  ) throws IOException
+  public File persist(IncrementalIndex index, Interval dataInterval, File outDir, IndexSpec indexSpec)
+      throws IOException
   {
     return persist(index, dataInterval, outDir, indexSpec, new BaseProgressIndicator());
   }
 
   public File persist(
       final IncrementalIndex index,
-      final Interval dataInterval,
-      File outDir,
-      IndexSpec indexSpec,
-      ProgressIndicator progress
+      final Interval interval,
+      final File outDir,
+      final IndexSpec indexSpec,
+      final ProgressIndicator progress
   ) throws IOException
   {
     if (index.isEmpty()) {
       throw new IAE("Trying to persist an empty index!");
     }
 
-    final long firstTimestamp = index.getMinTime().getMillis();
-    final long lastTimestamp = index.getMaxTime().getMillis();
-    if (!(dataInterval.contains(firstTimestamp) && dataInterval.contains(lastTimestamp))) {
+    final Interval timeMinMax = index.getTimeMinMax();
+    final long firstTimestamp = timeMinMax.getStartMillis();
+    final long lastTimestamp = timeMinMax.getEndMillis();
+    if (!(interval.contains(firstTimestamp) && interval.contains(lastTimestamp))) {
       throw new IAE(
           "interval[%s] does not encapsulate the full range of timestamps[%s, %s]",
-          dataInterval,
+          interval,
           new DateTime(firstTimestamp),
           new DateTime(lastTimestamp)
       );
@@ -197,11 +190,11 @@ public class IndexMerger
       throw new ISE("Can only persist to directories, [%s] wasn't a directory", outDir);
     }
 
-    log.info("Starting persist for interval[%s], rows[%,d]", dataInterval, index.size());
+    log.info("Starting persist for interval[%s], rows[%,d]", interval, index.size());
     return merge(
         Arrays.<IndexableAdapter>asList(
             new IncrementalIndexAdapter(
-                dataInterval,
+                interval,
                 index,
                 indexSpec.getBitmapSerdeFactory().getBitmapFactory()
             )
@@ -215,23 +208,23 @@ public class IndexMerger
   }
 
   public File mergeQueryableIndex(
-      List<QueryableIndex> indexes,
+      final List<QueryableIndex> indexes,
       final boolean rollup,
       final AggregatorFactory[] metricAggs,
-      File outDir,
-      IndexSpec indexSpec
+      final File outDir,
+      final IndexSpec indexSpec
   ) throws IOException
   {
     return mergeQueryableIndex(indexes, rollup, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
   }
 
   public File mergeQueryableIndex(
-      List<QueryableIndex> indexes,
+      final List<QueryableIndex> indexes,
       final boolean rollup,
       final AggregatorFactory[] metricAggs,
-      File outDir,
-      IndexSpec indexSpec,
-      ProgressIndicator progress
+      final File outDir,
+      final IndexSpec indexSpec,
+      final ProgressIndicator progress
   ) throws IOException
   {
     // We are materializing the list for performance reasons. Lists.transform
@@ -280,11 +273,11 @@ public class IndexMerger
   }
 
   public File merge(
-      List<IndexableAdapter> indexes,
+      final List<IndexableAdapter> indexes,
       final boolean rollup,
       final AggregatorFactory[] metricAggs,
-      File outDir,
-      IndexSpec indexSpec
+      final File outDir,
+      final IndexSpec indexSpec
   ) throws IOException
   {
     return merge(indexes, rollup, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
@@ -1547,7 +1540,7 @@ public class IndexMerger
       @Override
       public Interval apply(IndexableAdapter input)
       {
-        return input.getDataInterval();
+        return input.getInterval();
       }
     }));
   }

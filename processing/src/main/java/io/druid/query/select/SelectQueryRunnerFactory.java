@@ -87,7 +87,7 @@ public class SelectQueryRunnerFactory
       for (Segment segment : segments) {
         targets.add(segment.getIdentifier());
         SelectMetaQuery metaQuery = baseQuery.withQuerySegmentSpec(
-            new MultipleIntervalSegmentSpec(Arrays.asList(segment.getDataInterval()))
+            new MultipleIntervalSegmentSpec(Arrays.asList(segment.getInterval()))
         );
         for (Result<SelectMetaResultValue> result : Sequences.toList(engine.process(metaQuery, segment, cache))) {
           threshold -= result.getValue().getTotalCount();

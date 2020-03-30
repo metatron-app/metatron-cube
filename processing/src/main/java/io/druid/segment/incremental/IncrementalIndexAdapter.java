@@ -140,7 +140,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
     return dataInterval;
   }

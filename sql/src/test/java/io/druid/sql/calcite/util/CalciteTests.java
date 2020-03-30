@@ -376,7 +376,7 @@ public class CalciteTests
     return TestIndex.segmentWalker.duplicate().add(
         DataSegment.builder()
                    .dataSource(DATASOURCE1)
-                   .interval(index1.getDataInterval())
+                   .interval(index1.getInterval())
                    .version("1")
                    .shardSpec(new LinearShardSpec(0))
                    .build(),
@@ -384,7 +384,7 @@ public class CalciteTests
     ).add(
         DataSegment.builder()
                    .dataSource(DATASOURCE2)
-                   .interval(index2.getDataInterval())
+                   .interval(index2.getInterval())
                    .version("1")
                    .shardSpec(new LinearShardSpec(0))
                    .build(),
@@ -392,7 +392,7 @@ public class CalciteTests
     ).add(
         DataSegment.builder()
                    .dataSource(DATASOURCE3)
-                   .interval(index3.getDataInterval())
+                   .interval(index3.getInterval())
                    .version("1")
                    .shardSpec(new LinearShardSpec(0))
                    .build(),
@@ -400,7 +400,7 @@ public class CalciteTests
     ).add(
         DataSegment.builder()
                    .dataSource(FORBIDDEN_DATASOURCE)
-                   .interval(forbiddenIndex.getDataInterval())
+                   .interval(forbiddenIndex.getInterval())
                    .version("1")
                    .shardSpec(new LinearShardSpec(0))
                    .build(),

@@ -83,9 +83,9 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
-    return input.getDataInterval();
+    return input.getInterval();
   }
 
   @Override

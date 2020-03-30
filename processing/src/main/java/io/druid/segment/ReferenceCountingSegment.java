@@ -101,9 +101,9 @@ public class ReferenceCountingSegment implements Segment
   }
 
   @Override
-  public synchronized Interval getDataInterval()
+  public synchronized Interval getInterval()
   {
-    return numReferences < 0 ? null : baseSegment.getDataInterval();
+    return numReferences < 0 ? null : baseSegment.getInterval();
   }
 
   @Override

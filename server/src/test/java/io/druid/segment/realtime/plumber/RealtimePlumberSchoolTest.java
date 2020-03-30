@@ -422,17 +422,17 @@ public class RealtimePlumberSchoolTest
     Assert.assertEquals(0, hydrants.get(0).getCount());
     Assert.assertEquals(
         expectedInterval,
-        hydrants.get(0).getSegment().getDataInterval()
+        hydrants.get(0).getSegment().getInterval()
     );
     Assert.assertEquals(2, hydrants.get(1).getCount());
     Assert.assertEquals(
         expectedInterval,
-        hydrants.get(1).getSegment().getDataInterval()
+        hydrants.get(1).getSegment().getInterval()
     );
     Assert.assertEquals(4, hydrants.get(2).getCount());
     Assert.assertEquals(
         expectedInterval,
-        hydrants.get(2).getSegment().getDataInterval()
+        hydrants.get(2).getSegment().getInterval()
     );
 
     /* Delete all the hydrants and reload, no sink should be created */

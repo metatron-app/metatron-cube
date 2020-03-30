@@ -567,7 +567,7 @@ public class ServerManager implements ForwardingSegmentWalker
                     toolChest,
                     new BySegmentQueryRunner<T>(
                         adapter.getIdentifier(),
-                        adapter.getDataInterval().getStart(),
+                        adapter.getInterval().getStart(),
                         new CachingQueryRunner<T>(
                             adapter.getIdentifier(),
                             descriptor,

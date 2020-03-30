@@ -235,6 +235,7 @@ public class YeOldePlumberSchool implements PlumberSchool
           try {
             final File persistedFile = theIndexMerger.persist(
                 indexToPersist.getIndex(),
+                theSink.getInterval(),
                 dirToPersist,
                 config.getIndexSpec()
             );

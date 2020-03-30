@@ -53,7 +53,7 @@ public class ReferenceCountingSegmentTest
           }
 
           @Override
-          public Interval getDataInterval()
+          public Interval getInterval()
           {
             return new Interval(DateTime.now().minus(Days.days(1)), DateTime.now());
           }

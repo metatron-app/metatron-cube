@@ -35,7 +35,8 @@ import java.util.Map;
  */
 public interface QueryableIndex extends SchemaProvider, Closeable
 {
-  Interval getDataInterval();
+  Interval getInterval();       // [segment-start, segment-end )
+  Interval getTimeMinMax();   // [min-time, max-time]
   Indexed<String> getColumnNames();
   Indexed<String> getAvailableDimensions();
   Iterable<String> getAvailableMetrics();

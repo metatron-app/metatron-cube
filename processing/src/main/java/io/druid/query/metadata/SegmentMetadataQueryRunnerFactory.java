@@ -101,7 +101,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
           }
         }
 
-        List<Interval> retIntervals = query.analyzingInterval() ? Arrays.asList(segment.getDataInterval()) : null;
+        List<Interval> retIntervals = query.analyzingInterval() ? Arrays.asList(segment.getInterval()) : null;
 
         Metadata metadata = adapter.getMetadata();
 
@@ -118,7 +118,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
         if (metadata != null && query.hasQueryGranularity()) {
           segmentGranularity = metadata.getSegmentGranularity();
           if (segmentGranularity == null) {
-            Interval interval = segment.getDataInterval();
+            Interval interval = segment.getInterval();
             GranularityType granularityType = GranularityType.fromInterval(interval);
             if (granularityType != null) {
               segmentGranularity = granularityType.getDefaultGranularity();

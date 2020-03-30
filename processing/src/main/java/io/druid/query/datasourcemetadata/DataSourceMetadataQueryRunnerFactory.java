@@ -88,9 +88,10 @@ public class DataSourceMetadataQueryRunnerFactory
                 );
               }
 
+              // ??
               return legacyQuery.buildResult(
                   adapter.getInterval().getStart(),
-                  adapter.getMaxIngestedEventTime()
+                  adapter.getTimeMinMax().getEnd()
               ).iterator();
             }
 

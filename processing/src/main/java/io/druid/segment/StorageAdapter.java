@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.Map;
@@ -32,16 +31,13 @@ public interface StorageAdapter extends CursorFactory
 {
   String getSegmentIdentifier();
   Interval getInterval();
+  Interval getTimeMinMax();
   Indexed<String> getAvailableDimensions();
   Iterable<String> getAvailableMetrics();
-
-  DateTime getMinTime();
-  DateTime getMaxTime();
 
   int getNumRows();
   Metadata getMetadata();
   Capabilities getCapabilities();
-  DateTime getMaxIngestedEventTime();
 
   /**
    * Returns the number of distinct values for the given dimension column

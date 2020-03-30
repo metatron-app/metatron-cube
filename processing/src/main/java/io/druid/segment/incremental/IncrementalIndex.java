@@ -48,11 +48,12 @@ import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.ParseException;
+import io.druid.query.Schema;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.Schema;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
@@ -562,16 +563,6 @@ public abstract class IncrementalIndex implements Closeable
     return occupation;
   }
 
-  protected long getMinTimeMillis()
-  {
-    return minTimeMillis == Long.MAX_VALUE ? -1 : isTemporary() ? minTimeMillis : Math.max(minTimestampLimit, minTimeMillis);
-  }
-
-  protected long getMaxTimeMillis()
-  {
-    return maxTimeMillis == Long.MIN_VALUE ? -1 : maxTimeMillis;
-  }
-
   @SuppressWarnings("unchecked")
   private int[] getDimVal(final DimensionDesc dimDesc, final Comparable dimValue)
   {
@@ -642,25 +633,17 @@ public abstract class IncrementalIndex implements Closeable
 
   public Interval getInterval()
   {
-    if (isTemporary()) {
-      return new Interval(getMinTimeMillis(), getMaxTimeMillis());
-    }
-    return new Interval(getMinTime(), isEmpty() ? getMinTime() : gran.bucketEnd(getMaxTime()));
+    return isEmpty() ? null : Intervals.utc(minTimeMillis, gran.bucketEnd(maxTimeMillis));
+  }
+
+  public Interval getTimeMinMax()
+  {
+    return isEmpty() ? null : Intervals.utc(minTimeMillis, maxTimeMillis);
   }
 
   public boolean isTemporary()
   {
     return minTimestampLimit == Long.MIN_VALUE;
-  }
-
-  public DateTime getMinTime()
-  {
-    return isEmpty() ? null : new DateTime(getMinTimeMillis());
-  }
-
-  public DateTime getMaxTime()
-  {
-    return isEmpty() ? null : new DateTime(getMaxTimeMillis());
   }
 
   public DimDim getDimensionValues(String dimension)
@@ -759,7 +742,7 @@ public abstract class IncrementalIndex implements Closeable
   )
   {
     NavigableMap<TimeAndDims, Object[]> sortedMap = (NavigableMap<TimeAndDims, Object[]>) facts;
-    if (from > getMinTimeMillis() || to <= getMaxTimeMillis()) {
+    if (from > minTimeMillis || to <= maxTimeMillis) {
       sortedMap = (NavigableMap<TimeAndDims, Object[]>) sortedMap.subMap(
           createRangeTimeAndDims(from),
           createRangeTimeAndDims(to)

@@ -25,10 +25,9 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.cache.Cache;
-import io.druid.common.DateTimes;
+import io.druid.common.Intervals;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
@@ -91,7 +90,13 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   @Override
   public Interval getInterval()
   {
-    return index.getDataInterval();
+    return index.getInterval();
+  }
+
+  @Override
+  public Interval getTimeMinMax()
+  {
+    return index.getTimeMinMax();
   }
 
   @Override
@@ -103,7 +108,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   @Override
   public Iterable<String> getAvailableMetrics()
   {
-    return Sets.difference(Sets.newHashSet(index.getColumnNames()), Sets.newHashSet(index.getAvailableDimensions()));
+    return index.getAvailableMetrics();
   }
 
   @Override
@@ -144,40 +149,6 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   }
 
   @Override
-  public DateTime getMinTime()
-  {
-    Column timeColumn = index.getColumn(Column.TIME_COLUMN_NAME);
-    Map<String, Object> columnStats = timeColumn.getColumnStats();
-    if (columnStats != null && columnStats.get("min") instanceof Number) {
-      return DateTimes.utc(((Number) columnStats.get("min")).longValue());
-    }
-    GenericColumn column = timeColumn.getGenericColumn();
-    try {
-      return DateTimes.utc(column.getLong(0));
-    }
-    finally {
-      CloseQuietly.close(column);
-    }
-  }
-
-  @Override
-  public DateTime getMaxTime()
-  {
-    Column timeColumn = index.getColumn(Column.TIME_COLUMN_NAME);
-    Map<String, Object> columnStats = timeColumn.getColumnStats();
-    if (columnStats != null && columnStats.get("max") instanceof Number) {
-      return DateTimes.utc(((Number) columnStats.get("max")).longValue());
-    }
-    GenericColumn column = timeColumn.getGenericColumn();
-    try {
-      return DateTimes.utc(column.getLong(column.getNumRows() - 1));
-    }
-    finally {
-      CloseQuietly.close(column);
-    }
-  }
-
-  @Override
   public Capabilities getCapabilities()
   {
     return Capabilities.builder().dimensionValuesSorted(true).build();
@@ -198,13 +169,6 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   }
 
   @Override
-  public DateTime getMaxIngestedEventTime()
-  {
-    // For immutable indexes, maxIngestedEventTime is maxTime.
-    return getMaxTime();
-  }
-
-  @Override
   public Sequence<Cursor> makeCursors(
       final DimFilter filter,
       final Interval interval,
@@ -214,16 +178,14 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
       final Cache cache
   )
   {
-    DateTime minTime = getMinTime();
-    long minDataTimestamp = minTime.getMillis();
-    DateTime maxTime = getMaxTime();
-    long maxDataTimestamp = maxTime.getMillis();
-    final Interval dataInterval = new Interval(minTime, granularity.bucketEnd(maxTime));
-
-    if (interval != null && !interval.overlaps(dataInterval)) {
+    final Interval timeMinMax = index.getTimeMinMax();
+    final Interval dataInterval = Intervals.of(
+        granularity.toDateTime(timeMinMax.getStartMillis()), granularity.bucketEnd(timeMinMax.getEnd())
+    );
+    final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
+    if (actualInterval == null) {
       return Sequences.empty();
     }
-    final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
 
     final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index, resolver);
     final FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
@@ -252,8 +214,8 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                 granularity,
                 offset,
                 Filters.toFilter(valueMatcher, resolver),
-                minDataTimestamp,
-                maxDataTimestamp,
+                timeMinMax.getStartMillis(),
+                timeMinMax.getEndMillis(),
                 descending,
                 context
             ).build(),
@@ -278,7 +240,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
   private static class CursorSequenceBuilder
   {
     private final QueryableIndex index;
-    private final Interval interval;
+    private final Interval actualInterval;
     private final RowResolver resolver;
     private final Granularity granularity;
     private final Offset offset;
@@ -303,7 +265,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
     )
     {
       this.index = index;
-      this.interval = interval;
+      this.actualInterval = interval;
       this.resolver = resolver;
       this.granularity = granularity;
       this.offset = offset;
@@ -323,7 +285,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
 
       final GenericColumn timestamps = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
 
-      Iterable<Interval> iterable = granularity.getIterable(interval);
+      Iterable<Interval> iterable = granularity.getIterable(actualInterval);
       if (descending) {
         iterable = Lists.reverse(ImmutableList.copyOf(iterable));
       }
@@ -334,13 +296,10 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
               new Function<Interval, Cursor>()
               {
                 @Override
-                public Cursor apply(final Interval inputInterval)
+                public Cursor apply(final Interval interval)
                 {
-                  final long timeStart = Math.max(interval.getStartMillis(), inputInterval.getStartMillis());
-                  final long timeEnd = Math.min(
-                      interval.getEndMillis(),
-                      granularity.increment(inputInterval.getStart()).getMillis()
-                  );
+                  final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
+                  final long timeEnd = Math.min(interval.getEndMillis(), actualInterval.getEndMillis());
 
                   if (descending) {
                     for (; offset.withinBounds(); offset.increment()) {
@@ -364,7 +323,6 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                   return new Cursor.ExprSupport()
                   {
                     private final Offset initOffset = baseOffset.clone();
-                    private final DateTime myBucket = granularity.toDateTime(inputInterval.getStartMillis());
                     private final ValueMatcher filterMatcher =
                         filter == null ? BooleanValueMatcher.TRUE : filter.makeMatcher(this);
                     private Offset cursorOffset = baseOffset;
@@ -379,7 +337,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                     @Override
                     public DateTime getTime()
                     {
-                      return myBucket;
+                      return interval.getStart();
                     }
 
                     @Override

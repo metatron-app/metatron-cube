@@ -29,20 +29,21 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.common.Intervals;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
+import io.druid.query.Schema;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.Schema;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
@@ -65,6 +66,7 @@ import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.filter.BooleanValueMatcher;
+import io.druid.segment.incremental.IncrementalIndex.TimeAndDims;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
@@ -108,6 +110,12 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
   }
 
   @Override
+  public Interval getTimeMinMax()
+  {
+    return index.getTimeMinMax();
+  }
+
+  @Override
   public Indexed<String> getAvailableDimensions()
   {
     return new ListIndexed<String>(index.getDimensionNames(), String.class);
@@ -136,18 +144,6 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
   public int getNumRows()
   {
     return index.size();
-  }
-
-  @Override
-  public DateTime getMinTime()
-  {
-    return index.getMinTime();
-  }
-
-  @Override
-  public DateTime getMaxTime()
-  {
-    return index.getMaxTime();
   }
 
   @Override
@@ -196,12 +192,6 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
   }
 
   @Override
-  public DateTime getMaxIngestedEventTime()
-  {
-    return index.getMaxIngestedEventTime();
-  }
-
-  @Override
   public Metadata getMetadata()
   {
     return index.getMetadata();
@@ -227,13 +217,14 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
       return Sequences.empty();
     }
 
-    final Interval dataInterval = new Interval(getMinTime(), granularity.bucketEnd(getMaxTime()));
-
-    if (interval != null && !interval.overlaps(dataInterval)) {
+    final Interval timeMinMax = index.getTimeMinMax();
+    final Interval dataInterval = Intervals.of(
+        granularity.toDateTime(timeMinMax.getStartMillis()), granularity.bucketEnd(timeMinMax.getEnd())
+    );
+    final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
+    if (actualInterval == null) {
       return Sequences.empty();
     }
-
-    final Interval actualInterval = interval == null ? dataInterval : interval.overlap(dataInterval);
 
     Iterable<Interval> iterable = granularity.getIterable(actualInterval);
     if (descending) {
@@ -249,25 +240,20 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
           @Override
           public Cursor apply(final Interval interval)
           {
+            final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
+            final long timeEnd = Math.min(interval.getEndMillis(), actualInterval.getEndMillis());
+
+            final Iterable<Map.Entry<TimeAndDims, Object[]>> cursorMap =
+                index.getRangeOf(timeStart, timeEnd, descending);
+
             return new Cursor.ExprSupport()
             {
-              private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Object[]>> baseIter;
-              private Iterable<Map.Entry<IncrementalIndex.TimeAndDims, Object[]>> cursorMap;
-              private final DateTime time;
+              private Iterator<Map.Entry<TimeAndDims, Object[]>> baseIter;
               private int numAdvanced = -1;
               private boolean done;
 
               private final ValueMatcher filterMatcher;
               {
-                long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
-                long timeEnd = Math.min(granularity.increment(
-                    interval.getStart()).getMillis(), actualInterval.getEndMillis()
-                );
-                if (timeEnd == dataInterval.getEndMillis()) {
-                  timeEnd = timeEnd + 1;    // inclusive
-                }
-                cursorMap = index.getRangeOf(timeStart, timeEnd, descending);
-                time = granularity.toDateTime(interval.getStartMillis());
                 filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(this);
                 reset();
               }
@@ -275,7 +261,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
               @Override
               public DateTime getTime()
               {
-                return time;
+                return interval.getStart();
               }
 
               @Override
@@ -651,7 +637,7 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
                   @Override
                   public Object get()
                   {
-                    IncrementalIndex.TimeAndDims key = currEntry.getKey();
+                    TimeAndDims key = currEntry.getKey();
                     if (key == null) {
                       return null;
                     }
@@ -690,19 +676,19 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
 
   private static class EntryHolder
   {
-    Map.Entry<IncrementalIndex.TimeAndDims, Object[]> currEntry;
+    Map.Entry<TimeAndDims, Object[]> currEntry;
 
-    public Map.Entry<IncrementalIndex.TimeAndDims, Object[]> get()
+    public Map.Entry<TimeAndDims, Object[]> get()
     {
       return currEntry;
     }
 
-    public void set(Map.Entry<IncrementalIndex.TimeAndDims, Object[]> currEntry)
+    public void set(Map.Entry<TimeAndDims, Object[]> currEntry)
     {
       this.currEntry = currEntry;
     }
 
-    public IncrementalIndex.TimeAndDims getKey()
+    public TimeAndDims getKey()
     {
       return currEntry.getKey();
     }
@@ -726,11 +712,12 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
     @Override
     public String getSegmentIdentifier()
     {
+      final Interval bucket = getInterval();
       // return dummy segment id to avoid exceptions in select engine
       return DataSegment.makeDataSegmentIdentifier(
           dataSource,
-          getMinTime(),
-          getMaxTime(),
+          bucket.getStart(),
+          bucket.getEnd(),
           "temporary",
           NoneShardSpec.instance()
       );

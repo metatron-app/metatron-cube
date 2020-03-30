@@ -33,7 +33,7 @@ import java.util.List;
  */
 public interface IndexableAdapter
 {
-  Interval getDataInterval();
+  Interval getInterval();
 
   int getNumRows();
 

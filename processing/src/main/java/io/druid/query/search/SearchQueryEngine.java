@@ -142,7 +142,7 @@ public class SearchQueryEngine
     final Comparator<SearchHit> comparator = sort.getComparator();
     final Comparator<SearchHit> resultComparator = sort.getResultComparator();
 
-    final DateTime timestamp = segment.getDataInterval().getStart();
+    final DateTime timestamp = segment.getInterval().getStart();
 
     return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, query.getLimit());
   }

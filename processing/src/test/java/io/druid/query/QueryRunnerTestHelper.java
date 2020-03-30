@@ -789,7 +789,7 @@ public class QueryRunnerTestHelper
   )
   {
     return new BySegmentQueryRunner<T>(
-        segmentId, segment.getDataInterval().getStart(),
+        segmentId, segment.getInterval().getStart(),
         new QueryRunner<T>()
         {
           @Override
@@ -819,7 +819,7 @@ public class QueryRunnerTestHelper
   {
     final UnionQueryRunner<T> baseRunner = new UnionQueryRunner<>(
         new BySegmentQueryRunner<T>(
-            segmentId, adapter.getDataInterval().getStart(),
+            segmentId, adapter.getInterval().getStart(),
             factory.createRunner(adapter, null)
         )
     );

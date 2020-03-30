@@ -192,7 +192,7 @@ public class IndexViewer extends CommonShell.WithUtils
                       new Function<IndexMeta, Interval>()
                       {
                         @Override
-                        public Interval apply(IndexMeta input) { return input.getDataInterval(); }
+                        public Interval apply(IndexMeta input) { return input.getInterval(); }
                       }
                   )
       );
@@ -660,9 +660,9 @@ public class IndexViewer extends CommonShell.WithUtils
       return index.get();
     }
 
-    public Interval getDataInterval()
+    public Interval getInterval()
     {
-      return segment != null ? segment.getInterval() : index().getDataInterval();
+      return segment != null ? segment.getInterval() : index().getInterval();
     }
   }
 }

@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
@@ -117,13 +116,6 @@ public class DataSourceMetadataQueryTest
     final IncrementalIndex rtIndex = new OnheapIncrementalIndex(
         0L, QueryGranularities.NONE, new AggregatorFactory[]{new CountAggregatorFactory("count")}, 1000
     );
-    ;
-    final QueryRunner runner = QueryRunnerTestHelper.makeQueryRunner(
-        (QueryRunnerFactory) new DataSourceMetadataQueryRunnerFactory(
-            new DataSourceQueryQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-            QueryRunnerTestHelper.NOOP_QUERYWATCHER
-        ), new IncrementalIndexSegment(rtIndex, "test")
-    );
     DateTime timestamp = new DateTime(System.currentTimeMillis());
     rtIndex.add(
         new MapBasedInputRow(
@@ -131,6 +123,13 @@ public class DataSourceMetadataQueryTest
             ImmutableList.of("dim1"),
             ImmutableMap.<String, Object>of("dim1", "x")
         )
+    );
+
+    final QueryRunner runner = QueryRunnerTestHelper.makeQueryRunner(
+        (QueryRunnerFactory) new DataSourceMetadataQueryRunnerFactory(
+            new DataSourceQueryQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+            QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        ), new IncrementalIndexSegment(rtIndex, "test")
     );
     DataSourceMetadataQuery dataSourceMetadataQuery = Druids.newDataSourceMetadataQueryBuilder()
                                                             .dataSource("testing")

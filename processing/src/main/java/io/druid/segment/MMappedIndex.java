@@ -39,7 +39,7 @@ public class MMappedIndex
 
   final GenericIndexed<String> availableDimensions;
   final GenericIndexed<String> availableMetrics;
-  final Interval dataInterval;
+  final Interval interval;
   final CompressedLongsIndexedSupplier timestamps;
   final Map<String, MetricHolder> metrics;
   final Map<String, GenericIndexed<String>> dimValueLookups;
@@ -51,7 +51,7 @@ public class MMappedIndex
   public MMappedIndex(
       GenericIndexed<String> availableDimensions,
       GenericIndexed<String> availableMetrics,
-      Interval dataInterval,
+      Interval interval,
       CompressedLongsIndexedSupplier timestamps,
       Map<String, MetricHolder> metrics,
       Map<String, GenericIndexed<String>> dimValueLookups,
@@ -63,7 +63,7 @@ public class MMappedIndex
   {
     this.availableDimensions = availableDimensions;
     this.availableMetrics = availableMetrics;
-    this.dataInterval = dataInterval;
+    this.interval = interval;
     this.timestamps = timestamps;
     this.metrics = metrics;
     this.dimValueLookups = dimValueLookups;
@@ -93,9 +93,9 @@ public class MMappedIndex
     return metrics;
   }
 
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
-    return dataInterval;
+    return interval;
   }
 
   public MetricHolder getMetricHolder(String metric)

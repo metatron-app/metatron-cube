@@ -39,7 +39,7 @@ public class StorageAdapterSegment extends AbstractSegment
   }
 
   @Override
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
     return adapter.getInterval();
   }

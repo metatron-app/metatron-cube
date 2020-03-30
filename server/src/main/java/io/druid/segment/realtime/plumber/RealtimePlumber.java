@@ -400,7 +400,7 @@ public class RealtimePlumber implements Plumber
                                               }
                                               return new BySegmentQueryRunner<T>(
                                                   segment.lhs.getIdentifier(),
-                                                  segment.lhs.getDataInterval().getStart(),
+                                                  segment.lhs.getInterval().getStart(),
                                                   baseRunner
                                               );
                                             }

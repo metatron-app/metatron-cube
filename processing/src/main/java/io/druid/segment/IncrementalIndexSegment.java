@@ -44,7 +44,7 @@ public class IncrementalIndexSegment extends AbstractSegment
   }
 
   @Override
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
     return index.getInterval();
   }

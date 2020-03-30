@@ -129,7 +129,7 @@ public class DruidSchemaTest extends CalciteTestBase
     ).add(
         DataSegment.builder()
                    .dataSource(CalciteTests.DATASOURCE2)
-                   .interval(index2.getDataInterval())
+                   .interval(index2.getInterval())
                    .version("1")
                    .shardSpec(new LinearShardSpec(0))
                    .build(),

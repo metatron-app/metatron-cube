@@ -32,7 +32,7 @@ import java.io.IOException;
 public interface Segment extends SchemaProvider, Closeable
 {
   String getIdentifier();
-  Interval getDataInterval();
+  Interval getInterval();
   QueryableIndex asQueryableIndex(boolean forQuery);
   StorageAdapter asStorageAdapter(boolean forQuery);
   long getLastAccessTime();
@@ -62,9 +62,9 @@ public interface Segment extends SchemaProvider, Closeable
     }
 
     @Override
-    public Interval getDataInterval()
+    public Interval getInterval()
     {
-      return segment.getDataInterval();
+      return segment.getInterval();
     }
 
     @Override

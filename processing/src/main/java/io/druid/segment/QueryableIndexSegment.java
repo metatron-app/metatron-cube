@@ -46,9 +46,9 @@ public class QueryableIndexSegment extends AbstractSegment
   }
 
   @Override
-  public Interval getDataInterval()
+  public Interval getInterval()
   {
-    return index.getDataInterval();
+    return index.getInterval();
   }
 
   @Override

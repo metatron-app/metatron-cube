@@ -60,7 +60,7 @@ public class CacheTestSegmentLoader implements SegmentLoader
       }
 
       @Override
-      public Interval getDataInterval()
+      public Interval getInterval()
       {
         return segment.getInterval();
       }

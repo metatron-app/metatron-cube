@@ -176,7 +176,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
     } else {
       final StorageAdapter adapter = segment.asStorageAdapter(true);
       final Sequence<Cursor> cursors = adapter.makeCursors(
-          filter, segment.getDataInterval(), resolver, Granularities.ALL, false, cache
+          filter, segment.getInterval(), resolver, Granularities.ALL, false, cache
       );
       unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }
@@ -190,7 +190,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
     for (String metric : metrics) {
       sketches[index++] = handler.toSketch(unions.get(metric));
     }
-    sketches[0] = segment.getDataInterval().getStartMillis();
+    sketches[0] = segment.getInterval().getStartMillis();
     return Sequences.simple(sketches);
   }
 

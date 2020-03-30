@@ -22,7 +22,6 @@ package io.druid.segment.realtime.plumber;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import io.druid.data.input.AbstractInputRow;
-import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
