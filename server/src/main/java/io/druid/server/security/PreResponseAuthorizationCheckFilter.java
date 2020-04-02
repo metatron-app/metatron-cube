@@ -149,8 +149,10 @@ public class PreResponseAuthorizationCheckFilter implements Filter
   {
     if (true) {
       LOG.warn(
-          "%s : %s[%s] from %s:%s",
+          "%s : %s:%s%s[%s] from %s:%s",
           errorMsg,
+          servletRequest.getServerName(),
+          servletRequest.getServerPort(),
           servletRequest.getRequestURI(),
           servletRequest.getMethod(),
           servletRequest.getRemoteAddr(),

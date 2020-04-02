@@ -30,7 +30,7 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
 import com.google.inject.util.Providers;
 import io.airlift.airline.Command;
 import io.druid.audit.AuditManager;
@@ -329,16 +329,17 @@ public class CliOverlord extends ServerRunnable
       AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, authenticators, jsonMapper);
 
       // add some paths not to be redirected to leader.
-      root.addFilter(GuiceFilter.class, "/status/*", null);
-      root.addFilter(GuiceFilter.class, "/druid-internal/*", null);
+      root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
+      root.addFilter(DelegatedGuiceFilter.class, "/druid-internal/*", null);
+      root.addFilter(DelegatedGuiceFilter.class, "/druid/admin/*", null);
 
       // redirect anything other than status to the current lead
       root.addFilter(new FilterHolder(injector.getInstance(RedirectFilter.class)), "/*", null);
 
       // Can't use /* here because of Guice and Jetty static content conflicts
-      root.addFilter(GuiceFilter.class, "/druid/*", null);
+      root.addFilter(DelegatedGuiceFilter.class, "/druid/*", null);
 
-      root.addFilter(GuiceFilter.class, "/druid-ext/*", null);
+      root.addFilter(DelegatedGuiceFilter.class, "/druid-ext/*", null);
 
       HandlerList handlerList = new HandlerList();
       handlerList.setHandlers(new Handler[]{

@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
 import io.druid.guice.annotations.Json;
 import io.druid.server.GuiceServletConfig;
 import io.druid.server.coordinator.DruidCoordinatorConfig;
@@ -107,20 +107,21 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
     AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, authenticators, jsonMapper);
 
     // add some paths not to be redirected to leader.
-    root.addFilter(GuiceFilter.class, "/status/*", null);
-    root.addFilter(GuiceFilter.class, "/druid-internal/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/druid-internal/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/druid/admin/*", null);
 
     // redirect anything other than status to the current lead
     root.addFilter(new FilterHolder(injector.getInstance(RedirectFilter.class)), "/*", null);
 
     // The coordinator really needs a standarized api path
     // Can't use '/*' here because of Guice and Jetty static content conflicts
-    root.addFilter(GuiceFilter.class, "/info/*", null);
-    root.addFilter(GuiceFilter.class, "/druid/coordinator/*", null);
-    root.addFilter(GuiceFilter.class, "/druid-ext/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/info/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/druid/coordinator/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/druid-ext/*", null);
 
     // this will be removed in the next major release
-    root.addFilter(GuiceFilter.class, "/coordinator/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/coordinator/*", null);
 
     root.addServlet(new ServletHolder(injector.getInstance(OverlordProxyServlet.class)), "/druid/indexer/*");
 

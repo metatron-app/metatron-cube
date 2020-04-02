@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.GuiceServletConfig;
@@ -108,7 +108,7 @@ public class QueryJettyServerInitializer implements JettyServerInitializer
     // Check that requests were authorized before sending responses
     AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, authenticators, jsonMapper);
 
-    root.addFilter(GuiceFilter.class, "/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/*", null);
 
     final HandlerList handlerList = new HandlerList();
 

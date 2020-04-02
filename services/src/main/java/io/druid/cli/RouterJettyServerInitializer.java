@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
 import io.druid.guice.annotations.Global;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.http.DruidHttpClientConfig;
@@ -136,9 +136,9 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
     AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, authenticators, jsonMapper);
 
     // Can't use '/*' here because of Guice conflicts with AsyncQueryForwardingServlet path
-    root.addFilter(GuiceFilter.class, "/status/*", null);
-    root.addFilter(GuiceFilter.class, "/druid/router/*", null);
-    root.addFilter(GuiceFilter.class, "/druid-ext/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/druid/router/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/druid-ext/*", null);
 
     final HandlerList handlerList = new HandlerList();
     handlerList.setHandlers(new Handler[]{

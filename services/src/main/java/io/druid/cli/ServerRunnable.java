@@ -28,6 +28,7 @@ import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.guice.GuiceInjectors;
 import io.druid.server.Shutdown;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.zookeeper.server.ServerConfig;
 import org.apache.zookeeper.server.ZooKeeperServerMain;
 import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
@@ -127,6 +128,7 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
   public static void main(String[] args) throws Exception
   {
     // coordinator starts storage module. for derby, it starts derby server in it
+    // default ports : 2181, 8081, 8082, 8083, 8090, 8091, 8084, 8888
     Ordering<String> ordering = Ordering.explicit(
         "zookeeper", "coordinator", "broker", "historical", "overlord", "middleManager", "realtime", "router"
     );
@@ -179,16 +181,22 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
       String command = index < 0 ? param : param.substring(0, index);
       String config = index < 0 ? param : param.substring(index + 1);
       Class<? extends ServerRunnable> clazz = COMMANDS.get(command);
+      warnWithbox(String.format("Starting.. %s", param));
       final ServerRunnable target = clazz.newInstance();
-      final Injector injector = GuiceInjectors.makeStartupInjector(
-          config + "/runtime.properties"
-      );
+      final Injector injector = GuiceInjectors.makeStartupInjector(config + "/runtime.properties");
       injector.injectMembers(target);
-      LOGGER.warn("Starting.. %s", param);
       runners[i] = target.start();
     }
     for (Lifecycle thread : runners) {
       thread.join();
     }
+  }
+
+  private static void warnWithbox(String message)
+  {
+    String box = StringUtils.repeat('-', message.length());
+    LOGGER.warn(box);
+    LOGGER.warn(message);
+    LOGGER.warn(box);
   }
 }

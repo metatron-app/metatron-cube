@@ -49,6 +49,7 @@ import io.druid.metadata.MetadataSegmentManagerConfig;
 import io.druid.metadata.MetadataSegmentManagerProvider;
 import io.druid.metadata.MetadataStorage;
 import io.druid.metadata.MetadataStorageProvider;
+import io.druid.server.AdminModule;
 import io.druid.server.ServiceTypes;
 import io.druid.server.audit.AuditManagerProvider;
 import io.druid.server.coordinator.BalancerStrategyFactory;
@@ -217,7 +218,8 @@ public class CliCoordinator extends ServerRunnable
                 Executors.newSingleThreadExecutor(), config
             );
           }
-        }
+        },
+        new AdminModule(this)
     );
   }
 }

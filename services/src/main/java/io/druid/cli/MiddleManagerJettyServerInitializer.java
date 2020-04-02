@@ -22,7 +22,7 @@ package io.druid.cli;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.GuiceServletConfig;
@@ -77,7 +77,7 @@ class MiddleManagerJettyServerInitializer implements JettyServerInitializer
     // Check that requests were authorized before sending responses
     AuthenticationUtils.addPreResponseAuthorizationCheckFilter(root, authenticators, jsonMapper);
 
-    root.addFilter(GuiceFilter.class, "/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/*", null);
 
     final HandlerList handlerList = new HandlerList();
     handlerList.setHandlers(
