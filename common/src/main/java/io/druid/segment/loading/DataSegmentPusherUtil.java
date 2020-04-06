@@ -33,11 +33,18 @@ import java.util.Set;
 public class DataSegmentPusherUtil
 {
   private static final Joiner JOINER = Joiner.on("/").skipNulls();
-  private static final Set<String> HDFS_DIR_SCHEMES = ImmutableSet.of("hdfs", "viewfs", "wasb", "wasbs");
+  private static final Set<String> HDFS_DIR_SCHEMES = ImmutableSet.of(
+      "hdfs", "viewfs", "wasb", "wasbs", "abfs", "abfss"
+  );
 
   public static String getStorageDir(String scheme, DataSegment segment)
   {
-    return HDFS_DIR_SCHEMES.contains(scheme) ? getHdfsStorageDir(segment) : getStorageDir(segment);
+    return useHdfsScheme(scheme) ? getHdfsStorageDir(segment) : getStorageDir(segment);
+  }
+
+  public static boolean useHdfsScheme(String scheme)
+  {
+    return HDFS_DIR_SCHEMES.contains(scheme);
   }
 
   public static String getStorageDir(DataSegment segment)

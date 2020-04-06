@@ -383,6 +383,8 @@ public class JobHelper
       case "viewfs":
       case "wasb":
       case "wasbs":
+      case "abfs":
+      case "abfss":
       case "gs":
         // use hdfs puller, whatever the scheme is
         loadSpec = ImmutableMap.<String, Object>of(

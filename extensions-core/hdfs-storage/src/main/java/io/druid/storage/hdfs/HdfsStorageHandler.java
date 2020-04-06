@@ -522,6 +522,8 @@ public class HdfsStorageHandler implements StorageHandler
       case "viewfs":
       case "wasb":
       case "wasbs":
+      case "abfs":
+      case "abfss":
       case "gs":
         // use hdfs puller, whatever the scheme is
         return ImmutableMap.<String, Object>of(
