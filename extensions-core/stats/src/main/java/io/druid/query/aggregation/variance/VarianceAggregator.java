@@ -20,7 +20,6 @@
 package io.druid.query.aggregation.variance;
 
 import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -29,7 +28,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class VarianceAggregator extends Aggregator.Simple<VarianceAggregatorCollector>
+public abstract class VarianceAggregator implements Aggregator.Simple<VarianceAggregatorCollector>
 {
   public static Aggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
@@ -97,7 +96,7 @@ public abstract class VarianceAggregator extends Aggregator.Simple<VarianceAggre
   public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopAggregator();
+      return NULL;
     }
     return new VarianceAggregator()
     {

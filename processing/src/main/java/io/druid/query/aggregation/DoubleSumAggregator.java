@@ -30,7 +30,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class DoubleSumAggregator extends Aggregator.Abstract<MutableDouble>
+public abstract class DoubleSumAggregator implements Aggregator<MutableDouble>
 {
   static final Comparator COMPARATOR = new Ordering()
   {

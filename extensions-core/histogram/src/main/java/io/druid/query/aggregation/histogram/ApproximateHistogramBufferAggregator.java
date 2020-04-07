@@ -25,7 +25,7 @@ import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
 
-public class ApproximateHistogramBufferAggregator extends BufferAggregator.Abstract
+public class ApproximateHistogramBufferAggregator implements BufferAggregator
 {
   private final FloatColumnSelector selector;
   private final int resolution;
@@ -51,22 +51,20 @@ public class ApproximateHistogramBufferAggregator extends BufferAggregator.Abstr
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-
-    mutationBuffer.putInt(resolution);
-    mutationBuffer.putInt(0); //initial binCount
+    buf.position(position);
+    buf.putInt(resolution);
+    buf.putInt(0); //initial binCount
     for (int i = 0; i < resolution; ++i) {
-      mutationBuffer.putFloat(0f);
+      buf.putFloat(0f);
     }
     for (int i = 0; i < resolution; ++i) {
-      mutationBuffer.putLong(0L);
+      buf.putLong(0L);
     }
 
     // min
-    mutationBuffer.putFloat(Float.POSITIVE_INFINITY);
+    buf.putFloat(Float.POSITIVE_INFINITY);
     // max
-    mutationBuffer.putFloat(Float.NEGATIVE_INFINITY);
+    buf.putFloat(Float.NEGATIVE_INFINITY);
   }
 
   @Override
@@ -75,14 +73,12 @@ public class ApproximateHistogramBufferAggregator extends BufferAggregator.Abstr
     if (predicate.matches()) {
       final Float value = selector.get();
       if (value != null) {
-        ByteBuffer mutationBuffer = buf.duplicate();
-        mutationBuffer.position(position);
-
-        ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(mutationBuffer);
+        buf.position(position);
+        ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(buf);
         h0.offer(value);
 
-        mutationBuffer.position(position);
-        h0.toBytesDense(mutationBuffer);
+        buf.position(position);
+        h0.toBytesDense(buf);
       }
     }
   }
@@ -90,8 +86,7 @@ public class ApproximateHistogramBufferAggregator extends BufferAggregator.Abstr
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-    return new ApproximateHistogram().fromBytes(mutationBuffer);
+    buf.position(position);
+    return new ApproximateHistogram().fromBytes(buf);
   }
 }

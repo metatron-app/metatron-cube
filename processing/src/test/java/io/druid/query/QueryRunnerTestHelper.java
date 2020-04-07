@@ -131,27 +131,8 @@ public class QueryRunnerTestHelper
 
   public static final QueryConfig QUERY_CONFIG = new QueryConfig();
 
-  private static final Supplier<ByteBuffer> GBY_SUP = new Supplier<ByteBuffer>()
-  {
-    @Override
-    public ByteBuffer get()
-    {
-      return ByteBuffer.allocate(10 * 1024 * 1024);
-    }
-  };
-  private static final StupidPool<ByteBuffer> GBY_POOL = new StupidPool<ByteBuffer>(GBY_SUP);
-  private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(
-      new StupidPool<ByteBuffer>(
-          new Supplier<ByteBuffer>()
-          {
-            @Override
-            public ByteBuffer get()
-            {
-              return ByteBuffer.allocate(1024 * 1024);
-            }
-          }
-      )
-  );
+  private static final StupidPool<ByteBuffer> GBY_POOL = StupidPool.heap(10 * 1024 * 1024);
+  private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(StupidPool.heap(1024 * 1024));
 
   public static final QueryRunnerFactoryConglomerate CONGLOMERATE = new DefaultQueryRunnerFactoryConglomerate(
       ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>builder()
@@ -198,28 +179,10 @@ public class QueryRunnerTestHelper
                   .put(
                       TopNQuery.class,
                       new TopNQueryRunnerFactory(
-                          new StupidPool<>(
-                              new Supplier<ByteBuffer>()
-                              {
-                                @Override
-                                public ByteBuffer get()
-                                {
-                                  return ByteBuffer.allocate(10 * 1024 * 1024);
-                                }
-                              }
-                          ),
+                          StupidPool.heap(10 * 1024 * 1024),
                           new TopNQueryQueryToolChest(
                               QUERY_CONFIG.getTopN(),
-                              new TopNQueryEngine(new StupidPool<>(
-                                  new Supplier<ByteBuffer>()
-                                  {
-                                    @Override
-                                    public ByteBuffer get()
-                                    {
-                                      return ByteBuffer.allocate(10 * 1024 * 1024);
-                                    }
-                                  }
-                              )),
+                              new TopNQueryEngine(StupidPool.heap(10 * 1024 * 1024)),
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                           ),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER

@@ -255,7 +255,7 @@ public class IndexMergerV9 extends IndexMerger
         );
         QueryableIndexSegment segment = new QueryableIndexSegment(dataInterval.toString(), index);
 
-        StupidPool<ByteBuffer> heapPool = new StupidPool.Heap(Cuboids.BUFFER_SIZE, Cuboids.PAGES);
+        StupidPool<ByteBuffer> heapPool = StupidPool.heap(Cuboids.BUFFER_SIZE, Cuboids.PAGES);
         GroupByQueryEngine engine = new GroupByQueryEngine(heapPool);
 
         for (CuboidSpec cuboidSpec : indexSpec.getCuboidSpecs()) {

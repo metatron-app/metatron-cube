@@ -75,7 +75,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       }
     };
 
-    return new Aggregators.EstimableAggregator<List<Object>>()
+    return new Aggregator.Estimable<List<Object>>()
     {
       private final List<Aggregator> aggregators = Lists.newArrayList();
 
@@ -85,8 +85,8 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
         int estimated = 32;
         for (int i = 0; i < aggregators.size(); i++) {
           Aggregator aggregator = aggregators.get(i);
-          if (aggregator instanceof Aggregators.EstimableAggregator) {
-            estimated += ((Aggregators.EstimableAggregator) aggregator).estimateOccupation(current.get(i));
+          if (aggregator instanceof Estimable) {
+            estimated += ((Estimable) aggregator).estimateOccupation(current.get(i));
           } else {
             estimated += delegate.getMaxIntermediateSize();
           }

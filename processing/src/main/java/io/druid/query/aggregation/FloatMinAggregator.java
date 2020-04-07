@@ -27,7 +27,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class FloatMinAggregator extends Aggregator.Abstract<MutableFloat>
+public abstract class FloatMinAggregator implements Aggregator<MutableFloat>
 {
   static final Comparator COMPARATOR = FloatMaxAggregator.COMPARATOR;
 

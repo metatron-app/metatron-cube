@@ -29,7 +29,6 @@ import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -95,7 +94,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
     if (selector == null) {
-      return Aggregators.noopAggregator();
+      return Aggregator.NULL;
     }
 
     final ValueDesc valueType = selector.type();
@@ -114,7 +113,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
     if (selector == null) {
-      return Aggregators.noopBufferAggregator();
+      return BufferAggregator.NULL;
     }
 
     final String typeName = selector.type().typeName();

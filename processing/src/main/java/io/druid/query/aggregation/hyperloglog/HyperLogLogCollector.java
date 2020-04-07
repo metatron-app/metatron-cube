@@ -108,8 +108,27 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
    */
   public static HyperLogLogCollector makeCollector(ByteBuffer buffer)
   {
-    int remaining = buffer.remaining();
-    return (remaining % 3 == 0 || remaining == 1027) ? new HLLCV0(buffer) : new HLLCV1(buffer);
+    return new HLLCV1(buffer);
+  }
+
+  public static HyperLogLogCollector makeCollector(ByteBuffer buffer, int position)
+  {
+    return new HLLCV1(prepare(buffer, position));
+  }
+
+  public static ByteBuffer prepare(ByteBuffer buffer, int position)
+  {
+    final ByteBuffer duplicate = buffer.duplicate();
+    duplicate.limit(position + getLatestNumBytesForDenseStorage());
+    duplicate.position(position);
+    return duplicate;
+  }
+
+  public static HyperLogLogCollector copy(ByteBuffer buf, int position)
+  {
+    final ByteBuffer copy = ByteBuffer.allocate(getLatestNumBytesForDenseStorage());
+    prepare(buf, position).get(copy.array());
+    return makeCollector(copy);
   }
 
   public static int getLatestNumBytesForDenseStorage()
@@ -284,7 +303,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
     return storageBuffer;
   }
 
-  public synchronized void add(byte[] hashedValue)
+  public synchronized void add(final byte[] hashedValue)
   {
     if (hashedValue.length < minBytesRequired) {
       throw new IAE("Insufficient bytes, need[%d] got [%d]", minBytesRequired, hashedValue.length);
@@ -315,7 +334,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
   }
 
   // murmur128
-  public synchronized void add(long[] hashedValue)
+  public synchronized void add(final long[] hashedValue)
   {
     estimatedCardinality = null;
     final short bucket = (short) (hashedValue[1] & bucketMask);
@@ -336,7 +355,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
   }
 
   @VisibleForTesting
-  public synchronized void add(short bucket, byte positionOf1)
+  public synchronized void add(final short bucket, final byte positionOf1)
   {
     if (storageBuffer.isReadOnly()) {
       convertToMutableByteBuffer();
@@ -583,7 +602,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
 
     ByteBuffer otherBuffer = ((HyperLogLogCollector) o).storageBuffer;
 
-    if (storageBuffer != null ? false : otherBuffer != null) {
+    if (storageBuffer == null && otherBuffer != null) {
       return false;
     }
 
@@ -677,7 +696,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
     initPosition = 0;
   }
 
-  private short addNibbleRegister(short bucket, byte positionOf1)
+  private short addNibbleRegister(final short bucket, final byte positionOf1)
   {
     short numNonZeroRegs = getNumNonZeroRegisters();
 
@@ -753,7 +772,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
   @Override
   public int compareTo(HyperLogLogCollector other)
   {
-    return Double.compare(this.estimateCardinality(), other.estimateCardinality());
+    return Double.compare(estimateCardinality(), other.estimateCardinality());
   }
 
   @Override

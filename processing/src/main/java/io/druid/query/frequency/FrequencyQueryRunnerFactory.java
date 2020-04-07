@@ -25,10 +25,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
 import io.druid.common.guava.BytesRef;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.UTF8Bytes;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -41,7 +41,6 @@ import io.druid.query.aggregation.HashCollector;
 import io.druid.query.aggregation.Murmur3;
 import io.druid.query.aggregation.countmin.CountMinSketch;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.data.UTF8Bytes;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectArray;
@@ -161,14 +160,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
           selectors.add(cursor.makeDimensionSelector(dimension));
         }
         final int[][] groupings = query.getGroupings();
-        final HashAggregator<HashCollector> aggregator = new HashAggregator<HashCollector>(selectors, groupings)
-        {
-          @Override
-          protected final HashCollector newCollector()
-          {
-            throw new ISE("?");
-          }
-        };
+        final HashAggregator<HashCollector> aggregator = new HashAggregator<HashCollector>(selectors, groupings);
         while (!cursor.isDone()) {
           aggregator.aggregate(collector);
           cursor.advance();

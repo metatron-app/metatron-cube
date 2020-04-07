@@ -27,7 +27,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class DoubleMinAggregator extends Aggregator.Abstract<MutableDouble>
+public abstract class DoubleMinAggregator implements Aggregator<MutableDouble>
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 

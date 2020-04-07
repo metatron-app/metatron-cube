@@ -20,14 +20,13 @@
 package io.druid.query.aggregation.covariance;
 
 import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class CovarianceAggregator extends Aggregator.Simple<CovarianceAggregatorCollector>
+public abstract class CovarianceAggregator implements Aggregator.Simple<CovarianceAggregatorCollector>
 {
   public static Aggregator create(
       final DoubleColumnSelector selector1,
@@ -58,7 +57,7 @@ public abstract class CovarianceAggregator extends Aggregator.Simple<CovarianceA
   public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopAggregator();
+      return NULL;
     }
     return new CovarianceAggregator()
     {

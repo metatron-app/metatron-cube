@@ -19,7 +19,6 @@
 
 package io.druid.query;
 
-import com.google.common.base.Supplier;
 import io.druid.collections.StupidPool;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
@@ -40,16 +39,7 @@ import java.nio.ByteBuffer;
  */
 public class TestQueryRunners
 {
-  public static final StupidPool<ByteBuffer> pool = new StupidPool<ByteBuffer>(
-      new Supplier<ByteBuffer>()
-      {
-        @Override
-        public ByteBuffer get()
-        {
-          return ByteBuffer.allocate(1024 * 1024 * 10);
-        }
-      }
-  );
+  public static final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024 * 10);
   public static final TopNQueryConfig topNConfig = new TopNQueryConfig();
 
   public static StupidPool<ByteBuffer> getPool()

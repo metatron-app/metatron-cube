@@ -19,12 +19,9 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.CSVParseSpec;
@@ -32,6 +29,8 @@ import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.NoopQueryWatcher;
 import io.druid.query.QueryConfig;
@@ -149,15 +148,7 @@ public class GroupByQueryRunnerFactoryTest
   private GroupByQueryRunnerFactory createFactory()
   {
     QueryConfig config = new QueryConfig();
-    StupidPool<ByteBuffer> pool = new StupidPool<>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        });
+    StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(

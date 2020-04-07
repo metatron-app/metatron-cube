@@ -27,7 +27,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class LongMinAggregator extends Aggregator.Abstract<MutableLong>
+public abstract class LongMinAggregator implements Aggregator<MutableLong>
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 

@@ -26,7 +26,7 @@ import java.math.BigDecimal;
 
 /**
  */
-public abstract class DecimalMaxAggregator extends Aggregator.Simple<BigDecimal>
+public abstract class DecimalMaxAggregator implements Aggregator.Simple<BigDecimal>
 {
   public static DecimalMaxAggregator create(
       final ObjectColumnSelector<BigDecimal> selector,
@@ -39,14 +39,7 @@ public abstract class DecimalMaxAggregator extends Aggregator.Simple<BigDecimal>
         @Override
         public BigDecimal aggregate(final BigDecimal current)
         {
-          final BigDecimal value = selector.get();
-          if (value == null) {
-            return current;
-          }
-          if (current == null) {
-            return value;
-          }
-          return current.compareTo(value) > 0 ? current : value;
+          return _process(current, selector.get());
         }
       };
     } else {
@@ -56,18 +49,22 @@ public abstract class DecimalMaxAggregator extends Aggregator.Simple<BigDecimal>
         public BigDecimal aggregate(final BigDecimal current)
         {
           if (predicate.matches()) {
-            final BigDecimal value = selector.get();
-            if (value == null) {
-              return current;
-            }
-            if (current == null) {
-              return value;
-            }
-            return current.compareTo(value) > 0 ? current : value;
+            return _process(current, selector.get());
           }
           return current;
         }
       };
     }
+  }
+
+  private static BigDecimal _process(final BigDecimal current, final BigDecimal value)
+  {
+    if (value == null) {
+      return current;
+    }
+    if (current == null) {
+      return value;
+    }
+    return current.compareTo(value) > 0 ? current : value;
   }
 }

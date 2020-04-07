@@ -73,11 +73,6 @@ public class Aggregators
     }
   }
 
-  public static Aggregator noopAggregator()
-  {
-    return Aggregator.NULL;
-  }
-
   @SuppressWarnings("unchecked")
   public static class DelegatedAggregator<T> implements Aggregator<T>
   {
@@ -105,33 +100,6 @@ public class Aggregators
     {
       delegate.close();
     }
-  }
-
-  public static BufferAggregator noopBufferAggregator()
-  {
-    return new BufferAggregator()
-    {
-      @Override
-      public void init(ByteBuffer buf, int position)
-      {
-      }
-
-      @Override
-      public void aggregate(ByteBuffer buf, int position)
-      {
-      }
-
-      @Override
-      public Object get(ByteBuffer buf, int position)
-      {
-        return null;
-      }
-
-      @Override
-      public void close()
-      {
-      }
-    };
   }
 
   public static class DelegatedBufferAggregator implements BufferAggregator
@@ -191,7 +159,7 @@ public class Aggregators
   {
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
     if (selector == null) {
-      return noopAggregator();
+      return Aggregator.NULL;
     }
     switch (type) {
       case ONLY_ONE:
@@ -259,7 +227,7 @@ public class Aggregators
           }
         };
       case TIME_MIN:
-        return new Aggregator.Abstract<TimeTagged>()
+        return new Aggregator<TimeTagged>()
         {
           final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
@@ -284,7 +252,7 @@ public class Aggregators
           }
         };
       case TIME_MAX:
-        return new Aggregator.Abstract<TimeTagged>()
+        return new Aggregator<TimeTagged>()
         {
           final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
@@ -455,16 +423,6 @@ public class Aggregators
       default:
         throw new IllegalArgumentException("invalid type " + type);
     }
-  }
-
-  public static interface EstimableAggregator<T> extends Aggregator<T>
-  {
-    int estimateOccupation(T current);
-  }
-
-  public static abstract class AbstractEstimableAggregator<T> extends Aggregator.Abstract<T>
-      implements EstimableAggregator<T>
-  {
   }
 
   public static <T> Aggregator<T> asAggregator(final Combiner<T> combiner, final ObjectColumnSelector<T> selector)

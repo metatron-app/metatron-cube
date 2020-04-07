@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class DoubleSumBufferAggregator extends BufferAggregator.Abstract
+public abstract class DoubleSumBufferAggregator implements BufferAggregator
 {
   @Override
   public void init(ByteBuffer buf, int position)

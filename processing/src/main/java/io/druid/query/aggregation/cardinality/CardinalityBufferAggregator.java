@@ -19,9 +19,7 @@
 
 package io.druid.query.aggregation.cardinality;
 
-import io.druid.data.input.BytesOutputStream;
-import io.druid.query.aggregation.BufferAggregator;
-import io.druid.query.aggregation.HashAggregator;
+import io.druid.query.aggregation.HashBufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
@@ -29,72 +27,41 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class CardinalityBufferAggregator extends BufferAggregator.Abstract
+public class CardinalityBufferAggregator extends HashBufferAggregator<HyperLogLogCollector>
 {
-  private final List<DimensionSelector> selectorList;
-  private final ValueMatcher predicate;
-  private final int[][] groupings;
-  private final boolean byRow;
-  private final BytesOutputStream buffer = new BytesOutputStream();
-
   private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
 
   public CardinalityBufferAggregator(
-      List<DimensionSelector> selectorList,
       ValueMatcher predicate,
+      List<DimensionSelector> selectorList,
       int[][] groupings,
       boolean byRow
   )
   {
-    this.selectorList = selectorList;
-    this.predicate = predicate;
-    this.groupings = groupings;
-    this.byRow = byRow;
+    super(predicate, selectorList, groupings, byRow);
   }
 
   public CardinalityBufferAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(selectorList, ValueMatcher.TRUE, null, byRow);
+    this(ValueMatcher.TRUE, selectorList, null, byRow);
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    final ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-    mutationBuffer.put(EMPTY_BYTES);
+    buf.position(position);
+    buf.put(EMPTY_BYTES);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  protected HyperLogLogCollector toCollector(ByteBuffer buf, int position)
   {
-    if (predicate.matches()) {
-      final int oldPosition = buf.position();
-      final int oldLimit = buf.limit();
-      buf.limit(position + HyperLogLogCollector.getLatestNumBytesForDenseStorage());
-      buf.position(position);
-      try {
-        final HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(buf);
-        if (byRow) {
-          HashAggregator.hashRow(selectorList, groupings, collector, buffer);
-        } else {
-          HashAggregator.hashValues(selectorList, collector, buffer);
-        }
-      }
-      finally {
-        buf.limit(oldLimit);
-        buf.position(oldPosition);
-      }
-    }
+    return HyperLogLogCollector.makeCollector(buf, position);
   }
 
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    ByteBuffer dataCopyBuffer = ByteBuffer.allocate(HyperLogLogCollector.getLatestNumBytesForDenseStorage());
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-    mutationBuffer.get(dataCopyBuffer.array());
-    return HyperLogLogCollector.makeCollector(dataCopyBuffer);
+    return HyperLogLogCollector.copy(buf, position);
   }
 }

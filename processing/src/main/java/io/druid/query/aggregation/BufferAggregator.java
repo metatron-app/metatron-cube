@@ -74,28 +74,9 @@ public interface BufferAggregator
   /**
    * Release any resources used by the aggregator
    */
-  void close();
+  default void close() {}
 
-  abstract class Abstract implements BufferAggregator
-  {
-    @Override
-    public void init(ByteBuffer buf, int position)
-    {
-    }
-
-    @Override
-    public Object get(ByteBuffer buf, int position)
-    {
-      throw new UnsupportedOperationException("get");
-    }
-
-    @Override
-    public void close()
-    {
-    }
-  }
-
-  abstract class NullSupport extends Abstract
+  abstract class NullSupport implements BufferAggregator
   {
     protected static final byte NULL = 0x00;
     protected static final byte NOT_NULL = 0x01;
@@ -112,8 +93,13 @@ public interface BufferAggregator
     }
   }
 
-  public BufferAggregator NULL = new Abstract()
+  BufferAggregator NULL = new BufferAggregator()
   {
+    @Override
+    public void init(ByteBuffer buf, int position)
+    {
+    }
+
     @Override
     public void aggregate(ByteBuffer buf, int position)
     {

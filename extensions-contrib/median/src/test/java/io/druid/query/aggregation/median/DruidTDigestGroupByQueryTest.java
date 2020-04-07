@@ -21,7 +21,6 @@ package io.druid.query.aggregation.median;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
@@ -61,16 +60,7 @@ public class DruidTDigestGroupByQueryTest
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     final ObjectMapper mapper = new DefaultObjectMapper();
-    final StupidPool<ByteBuffer> pool = new StupidPool<ByteBuffer>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        }
-    );
+    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);

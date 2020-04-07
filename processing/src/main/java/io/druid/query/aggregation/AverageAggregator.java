@@ -24,7 +24,7 @@ import io.druid.segment.DoubleColumnSelector;
 
 /**
  */
-public class AverageAggregator extends Aggregator.Abstract<AverageAggregator.Avr>
+public class AverageAggregator implements Aggregator<AverageAggregator.Avr>
 {
   private final ValueMatcher predicate;
   private final DoubleColumnSelector selector;

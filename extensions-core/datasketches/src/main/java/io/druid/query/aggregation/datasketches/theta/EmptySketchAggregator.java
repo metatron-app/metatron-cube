@@ -22,8 +22,14 @@ package io.druid.query.aggregation.datasketches.theta;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.sketch.ThetaOperations;
 
-public class EmptySketchAggregator extends Aggregator.Abstract
+public class EmptySketchAggregator implements Aggregator
 {
+  @Override
+  public Object aggregate(Object current)
+  {
+    return null;
+  }
+
   @Override
   public Object get(Object current)
   {

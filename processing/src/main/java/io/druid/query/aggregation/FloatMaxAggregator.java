@@ -28,7 +28,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class FloatMaxAggregator extends Aggregator.Abstract<MutableFloat>
+public abstract class FloatMaxAggregator implements Aggregator<MutableFloat>
 {
   static final Comparator COMPARATOR = new Ordering()
   {

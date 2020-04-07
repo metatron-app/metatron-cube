@@ -22,10 +22,10 @@ package io.druid.segment.incremental;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.parsers.ParseException;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.parsers.ParseException;
+import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.Aggregators;
 
 import java.util.List;
 import java.util.Map;
@@ -74,7 +74,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
     };
     final List<Integer> arrayAggregatorIndices = Lists.newArrayList();
     for (int i = 0; i < aggregators.length; i++) {
-      if (aggregators[i] instanceof Aggregators.EstimableAggregator) {
+      if (aggregators[i] instanceof Aggregator.Estimable) {
         arrayAggregatorIndices.add(i);
       }
     }
@@ -182,7 +182,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
     if (arrayAggregatorIndices.length > 0) {
       for (final Object[] array : facts.values()) {
         for (int index : arrayAggregatorIndices) {
-          estimation += ((Aggregators.EstimableAggregator) aggregators[index]).estimateOccupation(array[index]);
+          estimation += ((Aggregator.Estimable) aggregators[index]).estimateOccupation(array[index]);
         }
       }
     }

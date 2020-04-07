@@ -26,7 +26,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -70,7 +69,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     if (ValueDesc.isGeometry(selector.type())) {
-      return new Aggregator.Abstract<Envelope>()
+      return new Aggregator<Envelope>()
       {
         @Override
         public Envelope aggregate(Envelope envelope)
@@ -93,7 +92,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         }
       };
     }
-    return Aggregators.noopAggregator();
+    return Aggregator.NULL;
   }
 
   private static final int MIN_X = 0;
@@ -106,7 +105,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   {
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
     if (ValueDesc.isGeometry(selector.type())) {
-      return new BufferAggregator.Abstract()
+      return new BufferAggregator()
       {
         @Override
         public void init(ByteBuffer buf, int position)
@@ -165,7 +164,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         }
       };
     }
-    return Aggregators.noopBufferAggregator();
+    return BufferAggregator.NULL;
   }
 
   @Override
@@ -261,7 +260,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
       public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
       {
         final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(name);
-        return new BufferAggregator.Abstract()
+        return new BufferAggregator()
         {
           @Override
           public void init(ByteBuffer buf, int position)
@@ -298,6 +297,19 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
               }
             }
           }
+
+          @Override
+          public Object get(ByteBuffer buf, int position)
+          {
+            final double minX = buf.getDouble(position + MIN_X);
+            final double maxX = buf.getDouble(position + MAX_X);
+            if (minX > maxX) {
+              return null;
+            }
+            final double minY = buf.getDouble(position + MIN_Y);
+            final double maxY = buf.getDouble(position + MAX_Y);
+            return new double[]{minX, maxX, minY, maxY};
+          }
         };
       }
     };
@@ -306,7 +318,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   @Override
   public Object deserialize(Object object)
   {
-    if (object == null || object instanceof long[]) {
+    if (object == null || object instanceof double[]) {
       return object;
     }
     if (object instanceof List) {

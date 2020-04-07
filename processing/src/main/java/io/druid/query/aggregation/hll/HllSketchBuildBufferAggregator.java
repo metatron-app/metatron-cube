@@ -33,7 +33,7 @@ import java.nio.ByteOrder;
  * The input column can contain identifiers of type string, char[], byte[] or any numeric type.
  * @author Alexander Saydakov
  */
-public class HllSketchBuildBufferAggregator extends BufferAggregator.Abstract
+public class HllSketchBuildBufferAggregator implements BufferAggregator
 {
   private final ObjectColumnSelector<Object> selector;
   private final int lgK;

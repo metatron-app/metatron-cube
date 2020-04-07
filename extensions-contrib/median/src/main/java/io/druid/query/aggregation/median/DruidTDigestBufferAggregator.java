@@ -24,7 +24,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 
-public class DruidTDigestBufferAggregator extends BufferAggregator.Abstract
+public class DruidTDigestBufferAggregator implements BufferAggregator
 {
   private final ObjectColumnSelector selector;
   private final double compression;
@@ -40,30 +40,26 @@ public class DruidTDigestBufferAggregator extends BufferAggregator.Abstract
 
   @Override
   public void init(ByteBuffer buf, int position) {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
+    buf.position(position);
 
     DruidTDigest digest = new DruidTDigest(compression);
-    digest.asBytes(mutationBuffer);
+    digest.asBytes(buf);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position) {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
+    buf.position(position);
 
-    DruidTDigest digest = DruidTDigest.fromBytes(mutationBuffer);
+    DruidTDigest digest = DruidTDigest.fromBytes(buf);
     digest.add(selector.get());
 
-    mutationBuffer.position(position);
-    digest.asBytes(mutationBuffer);
+    buf.position(position);
+    digest.asBytes(buf);
   }
 
   @Override
   public Object get(ByteBuffer buf, int position) {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-
-    return DruidTDigest.fromBytes(mutationBuffer);
+    buf.position(position);
+    return DruidTDigest.fromBytes(buf);
   }
 }

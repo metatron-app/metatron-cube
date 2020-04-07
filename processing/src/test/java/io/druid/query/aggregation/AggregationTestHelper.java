@@ -135,15 +135,7 @@ public class AggregationTestHelper
     ObjectMapper mapper = TestHelper.JSON_MAPPER;
 
     QueryConfig config = new QueryConfig();
-    StupidPool<ByteBuffer> pool = new StupidPool<>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        });
+    StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(

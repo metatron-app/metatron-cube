@@ -29,7 +29,7 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class LongSumAggregator extends Aggregator.Abstract<MutableLong>
+public abstract class LongSumAggregator implements Aggregator<MutableLong>
 {
   static final Comparator COMPARATOR = new Ordering()
   {

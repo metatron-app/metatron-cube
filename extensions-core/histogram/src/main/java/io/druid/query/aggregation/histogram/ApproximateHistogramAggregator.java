@@ -21,14 +21,13 @@ package io.druid.query.aggregation.histogram;
 
 import com.google.common.primitives.Longs;
 import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
 
-public class ApproximateHistogramAggregator extends Aggregator.Simple<ApproximateHistogramHolder>
-    implements Aggregators.EstimableAggregator<ApproximateHistogramHolder>
+public class ApproximateHistogramAggregator implements Aggregator.Simple<ApproximateHistogramHolder>,
+    Aggregator.Estimable<ApproximateHistogramHolder>
 {
   public static final Comparator COMPARATOR = new Comparator()
   {

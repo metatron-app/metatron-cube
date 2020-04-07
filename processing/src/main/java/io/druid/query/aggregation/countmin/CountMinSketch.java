@@ -157,6 +157,11 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
     return new CountMinSketch(width, depth, multiset);
   }
 
+  public static CountMinSketch fromBytes(ByteBuffer buf, int position)
+  {
+    return fromBytes((ByteBuffer) buf.position(position));
+  }
+
   public static CountMinSketch fromBytes(ByteBuffer serialized)
   {
     final int width = serialized.getInt();

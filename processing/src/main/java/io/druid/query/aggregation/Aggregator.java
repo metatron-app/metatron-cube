@@ -38,32 +38,23 @@ public interface Aggregator<T>
 
   Object get(T current);
 
-  void close();
+  default void close() {}
 
-  abstract class Abstract<T> implements Aggregator<T>
+  interface Simple<T> extends Aggregator<T>
   {
     @Override
-    public T aggregate(T current)
-    {
-      return current;
-    }
-
-    @Override
-    public void close()
-    {
-    }
-  }
-
-  abstract class Simple<T> extends Abstract<T>
-  {
-    @Override
-    public final T get(T current)
+    default T get(T current)
     {
       return current;
     }
   }
 
-  Aggregator NULL = new Abstract()
+  interface Estimable<T> extends Aggregator<T>
+  {
+    int estimateOccupation(T current);
+  }
+
+  Aggregator NULL = new Aggregator()
   {
     @Override
     public Object aggregate(Object current)

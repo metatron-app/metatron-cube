@@ -63,6 +63,11 @@ public class StupidPool<T>
         log.warn("creating [%d] for max cache [%d].. leak?", createdObjects, objectsCacheMaxCount);
       }
     }
+    return asResourceHolder(obj);
+  }
+
+  protected ResourceHolder<T> asResourceHolder(T obj)
+  {
     return new ObjectResourceHolder(obj);
   }
 
@@ -71,7 +76,7 @@ public class StupidPool<T>
     objects.clear();
   }
 
-  private class ObjectResourceHolder implements ResourceHolder<T>
+  protected class ObjectResourceHolder implements ResourceHolder<T>
   {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final T object;
@@ -123,18 +128,51 @@ public class StupidPool<T>
     }
   }
 
-  public static class Heap extends StupidPool<ByteBuffer>
+  public static ByteBufferPool heap(final int bufferSize)
   {
-    public Heap(final int bufferSize, final int numObjects)
+    return heap(bufferSize, Integer.MAX_VALUE);
+  }
+
+  public static ByteBufferPool heap(final int bufferSize, int numObjects)
+  {
+    return new ByteBufferPool(() -> ByteBuffer.allocate(bufferSize), numObjects);
+  }
+
+  public static ByteBufferPool direct(final int bufferSize)
+  {
+    return direct(bufferSize, Integer.MAX_VALUE);
+  }
+
+  public static ByteBufferPool direct(final int bufferSize, int numObjects)
+  {
+    return new ByteBufferPool(() -> ByteBuffer.allocateDirect(bufferSize), numObjects);
+  }
+
+  public static class ByteBufferPool extends StupidPool<ByteBuffer>
+  {
+    public ByteBufferPool(Supplier<ByteBuffer> supplier, int numObjects)
     {
-      super(new Supplier<ByteBuffer>()
+      super(supplier, numObjects);
+    }
+
+    @Override
+    protected ResourceHolder<ByteBuffer> asResourceHolder(ByteBuffer obj)
+    {
+      return new BufferHolder(obj);
+    }
+
+    private class BufferHolder extends ObjectResourceHolder
+    {
+      public BufferHolder(ByteBuffer object)
       {
-        @Override
-        public ByteBuffer get()
-        {
-          return ByteBuffer.wrap(new byte[bufferSize]);
-        }
-      }, numObjects);
+        super(object);
+      }
+
+      @Override
+      public ByteBuffer get()
+      {
+        return (ByteBuffer) super.get().clear();
+      }
     }
   }
 }

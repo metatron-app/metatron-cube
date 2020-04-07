@@ -122,7 +122,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
     ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
-    return new CardinalityBufferAggregator(selectors, predicate, grouping, byRow);
+    return new CardinalityBufferAggregator(predicate, selectors, grouping, byRow);
   }
 
   private List<DimensionSelector> makeDimensionSelectors(

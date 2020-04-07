@@ -19,12 +19,9 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -33,6 +30,8 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -93,16 +92,7 @@ public class VirtualColumnTest
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    final StupidPool<ByteBuffer> pool = new StupidPool<>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        }
-    );
+    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     final QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);

@@ -34,7 +34,7 @@ import java.nio.ByteOrder;
  * The input column must contain {@link HllSketch}
  * @author Alexander Saydakov
  */
-public class HllSketchMergeBufferAggregator extends BufferAggregator.Abstract
+public class HllSketchMergeBufferAggregator implements BufferAggregator
 {
   private final ObjectColumnSelector<HllSketch> selector;
   private final int lgK;

@@ -25,7 +25,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 
-public class ApproximateHistogramFoldingBufferAggregator extends BufferAggregator.Abstract
+public class ApproximateHistogramFoldingBufferAggregator implements BufferAggregator
 {
   private final ObjectColumnSelector<ApproximateHistogramHolder> selector;
   private final int resolution;
@@ -59,35 +59,30 @@ public class ApproximateHistogramFoldingBufferAggregator extends BufferAggregato
   {
     if (predicate.matches()) {
       ApproximateHistogram h = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
-
-      ByteBuffer mutationBuffer = buf.duplicate();
-      mutationBuffer.position(position);
+      buf.position(position);
       // use dense storage for aggregation
-      h.toBytesDense(mutationBuffer);
+      h.toBytesDense(buf);
     }
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
+    buf.position(position);
 
-    ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(mutationBuffer);
+    ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(buf);
     h0.setLowerLimit(lowerLimit);
     h0.setUpperLimit(upperLimit);
     ApproximateHistogramHolder hNext = selector.get();
     h0.foldFast(hNext, tmpBufferP, tmpBufferB);
 
-    mutationBuffer.position(position);
-    h0.toBytesDense(mutationBuffer);
+    buf.position(position);
+    h0.toBytesDense(buf);
   }
 
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    ByteBuffer mutationBuffer = buf.asReadOnlyBuffer();
-    mutationBuffer.position(position);
-    return new ApproximateHistogram().fromBytesDense(mutationBuffer);
+    return new ApproximateHistogram().fromBytesDense((ByteBuffer) buf.position(position));
   }
 }

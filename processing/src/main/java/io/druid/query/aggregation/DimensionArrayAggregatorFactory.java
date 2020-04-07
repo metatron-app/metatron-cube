@@ -63,7 +63,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(column));
-    return new Aggregators.EstimableAggregator<List<Object>>()
+    return new Aggregator.Estimable<List<Object>>()
     {
       private final List<Aggregator> aggregators = Lists.newArrayList();
 
@@ -73,8 +73,8 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         int estimated = 32;
         for (int i = 0; i < aggregators.size(); i++) {
           Aggregator aggregator = aggregators.get(i);
-          if (aggregator instanceof Aggregators.EstimableAggregator) {
-            estimated += ((Aggregators.EstimableAggregator) aggregator).estimateOccupation(current.get(i));
+          if (aggregator instanceof Aggregator.Estimable) {
+            estimated += ((Estimable) aggregator).estimateOccupation(current.get(i));
           } else {
             estimated += delegate.getMaxIntermediateSize();
           }

@@ -25,7 +25,7 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 
-public class DistinctCountAggregator extends Aggregator.Abstract<MutableBitmap>
+public class DistinctCountAggregator implements Aggregator<MutableBitmap>
 {
   private final DimensionSelector selector;
   private final BitMapFactory bitMapFactory;

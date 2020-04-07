@@ -721,16 +721,7 @@ public class RealtimeManagerTest
   private static GroupByQueryRunnerFactory initFactory()
   {
     final ObjectMapper mapper = new DefaultObjectMapper();
-    final StupidPool<ByteBuffer> pool = new StupidPool<>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        }
-    );
+    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
     final QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);

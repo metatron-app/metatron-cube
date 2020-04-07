@@ -26,11 +26,9 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.InputRow;
@@ -38,18 +36,17 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.JoinQueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
 import io.druid.query.topn.TopNQueryEngine;
 import io.druid.segment.column.Column;
-import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 
 import java.lang.reflect.Array;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -316,18 +313,7 @@ public class TestHelper
 
   public static TopNQueryEngine testTopNQueryEngine()
   {
-    return new TopNQueryEngine(
-        new StupidPool<ByteBuffer>(
-            new Supplier<ByteBuffer>()
-            {
-              @Override
-              public ByteBuffer get()
-              {
-                return ByteBuffer.allocate(1024 * 1024);
-              }
-            }
-        )
-    );
+    return new TopNQueryEngine(StupidPool.heap(1024 * 1024));
   }
 
   public static List<InputRow> createInputRows(String[] columnNames, Object[]... values)

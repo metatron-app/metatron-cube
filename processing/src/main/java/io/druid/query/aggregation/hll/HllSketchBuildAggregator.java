@@ -31,7 +31,7 @@ import io.druid.segment.ObjectColumnSelector;
  *
  * @author Alexander Saydakov
  */
-public class HllSketchBuildAggregator extends Aggregator.Simple<HllSketch>
+public class HllSketchBuildAggregator implements Aggregator.Simple<HllSketch>
 {
   private final ObjectColumnSelector<Object> selector;
   private final int lgK;

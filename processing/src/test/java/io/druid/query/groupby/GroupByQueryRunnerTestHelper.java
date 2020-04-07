@@ -21,16 +21,15 @@ package io.druid.query.groupby;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -58,16 +57,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 {
   public static Collection<?> createRunners() throws IOException
   {
-    final StupidPool<ByteBuffer> pool = new StupidPool<>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        }
-    );
+    final StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     QueryConfig config = new QueryConfig();
     config.getGroupBy().setMaxResults(10000);

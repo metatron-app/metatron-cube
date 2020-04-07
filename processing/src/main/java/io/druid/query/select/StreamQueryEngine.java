@@ -78,13 +78,11 @@ public class StreamQueryEngine
 
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
-    return Sequences.concat(
-        QueryRunnerHelper.makeCursorBasedQuery(
-            adapter,
-            query,
-            cache,
-            processor(query, counter)
-        )
+    return QueryRunnerHelper.makeCursorBasedQueryConcat(
+        adapter,
+        query,
+        cache,
+        processor(query, counter)
     );
   }
 

@@ -20,14 +20,14 @@
 package io.druid.offheap;
 
 import com.google.common.base.Supplier;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.collections.StupidPool;
+import io.druid.java.util.common.logger.Logger;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 
 
-public class OffheapBufferPool extends StupidPool<ByteBuffer>
+public class OffheapBufferPool extends StupidPool.ByteBufferPool
 {
   private static final Logger log = new Logger(OffheapBufferPool.class);
 

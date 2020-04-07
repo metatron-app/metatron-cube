@@ -26,7 +26,7 @@ import org.joda.time.DateTime;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 
-public class TimestampMaxBufferAggregator extends BufferAggregator.Abstract
+public class TimestampMaxBufferAggregator implements BufferAggregator
 {
   private final ObjectColumnSelector selector;
   private final DefaultTimestampSpec timestampSpec;

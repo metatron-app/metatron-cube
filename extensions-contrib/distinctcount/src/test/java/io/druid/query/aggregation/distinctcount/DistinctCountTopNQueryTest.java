@@ -19,13 +19,12 @@
 
 package io.druid.query.aggregation.distinctcount;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -41,7 +40,6 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -52,18 +50,7 @@ public class DistinctCountTopNQueryTest
   @Test
   public void testTopNWithDistinctCountAgg() throws Exception
   {
-    TopNQueryEngine engine = new TopNQueryEngine(
-        new StupidPool<ByteBuffer>(
-            new Supplier<ByteBuffer>()
-            {
-              @Override
-              public ByteBuffer get()
-              {
-                return ByteBuffer.allocate(1024 * 1024);
-              }
-            }
-        )
-    );
+    TopNQueryEngine engine = new TopNQueryEngine(StupidPool.heap(1024 * 1024));
 
     IncrementalIndex index = new OnheapIncrementalIndex(
         0, QueryGranularities.SECOND, new AggregatorFactory[]{new CountAggregatorFactory("cnt")}, 1000

@@ -26,7 +26,7 @@ import io.druid.segment.FloatColumnSelector;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class HistogramBufferAggregator extends BufferAggregator.Abstract
+public class HistogramBufferAggregator implements BufferAggregator
 {
   private final FloatColumnSelector selector;
   private final float[] breaks;
@@ -44,13 +44,12 @@ public class HistogramBufferAggregator extends BufferAggregator.Abstract
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
+    buf.position(position);
 
     final long[] bins = new long[breaks.length + 1];
-    mutationBuffer.asLongBuffer().put(bins);
-    mutationBuffer.putFloat(position + minOffset, Float.MAX_VALUE);
-    mutationBuffer.putFloat(position + maxOffset, Float.MIN_VALUE);
+    buf.asLongBuffer().put(bins);
+    buf.putFloat(position + minOffset, Float.MAX_VALUE);
+    buf.putFloat(position + maxOffset, Float.MIN_VALUE);
   }
 
   @Override
@@ -78,13 +77,12 @@ public class HistogramBufferAggregator extends BufferAggregator.Abstract
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    long[] bins = new long[breaks.length + 1];
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-    mutationBuffer.asLongBuffer().get(bins);
+    final long[] bins = new long[breaks.length + 1];
+    buf.position(position);
+    buf.asLongBuffer().get(bins);
 
-    float min = mutationBuffer.getFloat(position + minOffset);
-    float max = mutationBuffer.getFloat(position + maxOffset);
+    float min = buf.getFloat(position + minOffset);
+    float max = buf.getFloat(position + maxOffset);
     return new Histogram(breaks, bins, min, max);
   }
 }

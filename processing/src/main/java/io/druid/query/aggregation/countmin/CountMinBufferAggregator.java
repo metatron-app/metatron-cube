@@ -19,9 +19,8 @@
 
 package io.druid.query.aggregation.countmin;
 
-import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.BufferAggregator;
-import io.druid.query.aggregation.HashAggregator;
+import io.druid.query.aggregation.HashBufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -29,69 +28,56 @@ import io.druid.segment.ObjectColumnSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public abstract class CountMinBufferAggregator extends BufferAggregator.Abstract
+public class CountMinBufferAggregator extends HashBufferAggregator<CountMinSketch>
 {
   private final int width;
   private final int depth;
 
-  protected CountMinBufferAggregator(int width, int depth)
-  {
-    this.width = width;
-    this.depth = depth;
-  }
-
-  public static CountMinBufferAggregator iterator(
-      final List<DimensionSelector> selectorList,
+  public CountMinBufferAggregator(
       final ValueMatcher predicate,
+      final List<DimensionSelector> selectorList,
       final int[][] groupings,
       final boolean byRow,
       final int width,
       final int depth
   )
   {
-    return new CountMinBufferAggregator(width, depth)
-    {
-      private final BytesOutputStream buffer = new BytesOutputStream();
-
-      @Override
-      public void aggregate(ByteBuffer buf, int position)
-      {
-        if (predicate.matches()) {
-          final int oldPosition = buf.position();
-          buf.position(position);
-          try {
-            final CountMinSketch collector = CountMinSketch.fromBytes(buf);
-            if (byRow) {
-              HashAggregator.hashRow(selectorList, groupings, collector, buffer);
-            } else {
-              HashAggregator.hashValues(selectorList, collector, buffer);
-            }
-          }
-          finally {
-            buf.position(oldPosition);
-          }
-        }
-      }
-    };
+    super(predicate, selectorList, groupings, byRow);
+    this.width = width;
+    this.depth = depth;
   }
 
-  public static BufferAggregator combiner(final ObjectColumnSelector<CountMinSketch> selector, int width, int depth)
+  public static BufferAggregator combiner(
+      final ObjectColumnSelector<CountMinSketch> selector,
+      final int width,
+      final int depth
+  )
   {
-    return new CountMinBufferAggregator(width, depth)
+    return new BufferAggregator()
     {
+      @Override
+      public void init(ByteBuffer buf, int position)
+      {
+        buf.position(position);
+        buf.putInt(width);
+        buf.putInt(depth);
+      }
+
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        final int oldPosition = buf.position();
-        buf.position(position);
-        try {
-          CountMinSketch collector = CountMinSketch.fromBytes(buf);
+        final CountMinSketch other = selector.get();
+        if (other != null) {
+          CountMinSketch collector = CountMinSketch.fromBytes(buf, position).merge(other);
           buf.position(position);
-          buf.put(collector.merge(selector.get()).toBytes());
+          buf.put(collector.toBytes());
         }
-        finally {
-          buf.position(oldPosition);
-        }
+      }
+
+      @Override
+      public Object get(ByteBuffer buf, int position)
+      {
+        return CountMinSketch.fromBytes(buf, position);
       }
     };
   }
@@ -99,17 +85,20 @@ public abstract class CountMinBufferAggregator extends BufferAggregator.Abstract
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    final ByteBuffer duplicate = buf.duplicate();
-    duplicate.position(position);
+    buf.position(position);
     buf.putInt(width);
     buf.putInt(depth);
   }
 
   @Override
+  protected CountMinSketch toCollector(ByteBuffer buf, int position)
+  {
+    return CountMinSketch.fromBytes(buf, position);
+  }
+
+  @Override
   public Object get(ByteBuffer buf, int position)
   {
-    final ByteBuffer duplicate = buf.duplicate();
-    duplicate.position(position);
-    return CountMinSketch.fromBytes(duplicate);
+    return CountMinSketch.fromBytes(buf, position);
   }
 }

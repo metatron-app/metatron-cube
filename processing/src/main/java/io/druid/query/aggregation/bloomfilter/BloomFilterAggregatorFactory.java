@@ -126,7 +126,7 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
     ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, columnFactory);
-    return BloomFilterBufferAggregator.iterator(selectors, matcher, grouping, byRow, maxNumEntries);
+    return new BloomFilterBufferAggregator(matcher, selectors, grouping, byRow, maxNumEntries);
   }
 
   @Override

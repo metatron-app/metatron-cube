@@ -20,7 +20,6 @@
 package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -63,7 +62,6 @@ import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -215,18 +213,7 @@ public class IncrementalIndexStorageAdapterTest
 
   private static GroupByQueryEngine makeGroupByQueryEngine()
   {
-    return new GroupByQueryEngine(
-        new StupidPool(
-            new Supplier<ByteBuffer>()
-            {
-              @Override
-              public ByteBuffer get()
-              {
-                return ByteBuffer.allocate(50000);
-              }
-            }
-        )
-    );
+    return new GroupByQueryEngine(StupidPool.heap(50000));
   }
 
   @Test
@@ -298,18 +285,7 @@ public class IncrementalIndexStorageAdapterTest
         )
     );
 
-    TopNQueryEngine engine = new TopNQueryEngine(
-        new StupidPool<ByteBuffer>(
-            new Supplier<ByteBuffer>()
-            {
-              @Override
-              public ByteBuffer get()
-              {
-                return ByteBuffer.allocate(50000);
-              }
-            }
-        )
-    );
+    TopNQueryEngine engine = new TopNQueryEngine(StupidPool.heap(50000));
 
     final Iterable<Result<TopNResultValue>> results = Sequences.toList(
         engine.query(

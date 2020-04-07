@@ -19,7 +19,6 @@
 
 package io.druid.query.topn;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -39,7 +38,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -76,16 +74,7 @@ public class TopNUnionQueryTest
             ),
             QueryRunnerTestHelper.makeUnionQueryRunners(
                 new TopNQueryRunnerFactory(
-                    new StupidPool<ByteBuffer>(
-                        new Supplier<ByteBuffer>()
-                        {
-                          @Override
-                          public ByteBuffer get()
-                          {
-                            return ByteBuffer.allocate(2000);
-                          }
-                        }
-                    ),
+                    StupidPool.heap(2000),
                     new TopNQueryQueryToolChest(
                         new TopNQueryConfig(),
                         TestHelper.testTopNQueryEngine(),

@@ -32,7 +32,6 @@ import java.util.Arrays;
 // copied from ByteStreams.ByteArrayDataOutputStream
 public class BytesOutputStream extends ByteArrayOutputStream implements ByteArrayDataOutput
 {
-  private int mark;
   private final DataOutput output;
 
   public BytesOutputStream()
@@ -185,20 +184,14 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
     }
   }
 
-  @Override
-  public void reset()
+  public void position(int position)
   {
-    count = mark;
-  }
-
-  public void reset(int mark)
-  {
-    count = mark;
+    count = position;
   }
 
   public void clear()
   {
-    mark = count = 0;
+    count = 0;
   }
 
   public byte[] toByteArray(int from)

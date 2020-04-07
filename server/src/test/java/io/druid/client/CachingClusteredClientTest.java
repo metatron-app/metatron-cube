@@ -25,7 +25,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -41,13 +40,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.guava.MergeIterable;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
-import io.druid.java.util.common.guava.nary.TrinaryFn;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
@@ -65,6 +57,13 @@ import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.common.guava.MergeIterable;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
+import io.druid.java.util.common.guava.nary.TrinaryFn;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.DataSource;
@@ -138,7 +137,6 @@ import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -248,18 +246,7 @@ public class CachingClusteredClientTest
                       GroupByQuery.class,
                       new GroupByQueryQueryToolChest(
                           QUERY_CONFIG,
-                          new GroupByQueryEngine(
-                              new StupidPool<>(
-                                  new Supplier<ByteBuffer>()
-                                  {
-                                    @Override
-                                    public ByteBuffer get()
-                                    {
-                                      return ByteBuffer.allocate(1024 * 1024);
-                                    }
-                                  }
-                              )
-                          ),
+                          new GroupByQueryEngine(StupidPool.heap(1024 * 1024)),
                           TestQueryRunners.pool,
                           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                       )
@@ -1323,18 +1310,7 @@ public class CachingClusteredClientTest
         client,
         new GroupByQueryQueryToolChest(
             new QueryConfig(),
-            new GroupByQueryEngine(
-                new StupidPool<>(
-                    new Supplier<ByteBuffer>()
-                    {
-                      @Override
-                      public ByteBuffer get()
-                      {
-                        return ByteBuffer.allocate(1024 * 1024);
-                      }
-                    }
-                )
-            ),
+            new GroupByQueryEngine(StupidPool.heap(1024 * 1024)),
             TestQueryRunners.pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         )
@@ -2522,18 +2498,7 @@ public class CachingClusteredClientTest
         client,
         new GroupByQueryQueryToolChest(
             new QueryConfig(),
-            new GroupByQueryEngine(
-                new StupidPool<>(
-                    new Supplier<ByteBuffer>()
-                    {
-                      @Override
-                      public ByteBuffer get()
-                      {
-                        return ByteBuffer.allocate(1024 * 1024);
-                      }
-                    }
-                )
-            ),
+            new GroupByQueryEngine(StupidPool.heap(1024 * 1024)),
             TestQueryRunners.pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         )

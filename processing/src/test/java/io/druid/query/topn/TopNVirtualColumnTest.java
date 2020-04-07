@@ -19,7 +19,6 @@
 
 package io.druid.query.topn;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
@@ -48,7 +47,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -79,16 +77,7 @@ public class TopNVirtualColumnTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     TopNQueryRunnerFactory factory2 = new TopNQueryRunnerFactory(
-        new StupidPool<ByteBuffer>(
-            new Supplier<ByteBuffer>()
-            {
-              @Override
-              public ByteBuffer get()
-              {
-                return ByteBuffer.allocate(100);
-              }
-            }
-        ),
+        StupidPool.heap(100),
         toolChest,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );

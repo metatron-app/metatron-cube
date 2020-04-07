@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class CountBufferAggregator extends BufferAggregator.Abstract
+public class CountBufferAggregator implements BufferAggregator
 {
   private final ValueMatcher predicate;
 

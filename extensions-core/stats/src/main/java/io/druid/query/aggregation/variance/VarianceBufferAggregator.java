@@ -21,7 +21,6 @@ package io.druid.query.aggregation.variance;
 
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
@@ -33,7 +32,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class VarianceBufferAggregator extends BufferAggregator.Abstract
+public abstract class VarianceBufferAggregator implements BufferAggregator
 {
   private static final int COUNT_OFFSET = 0;
   private static final int SUM_OFFSET = Longs.BYTES;
@@ -67,7 +66,7 @@ public abstract class VarianceBufferAggregator extends BufferAggregator.Abstract
   static BufferAggregator create(String name, final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopBufferAggregator();
+      return NULL;
     }
     return new VarianceBufferAggregator(name)
     {
@@ -95,7 +94,7 @@ public abstract class VarianceBufferAggregator extends BufferAggregator.Abstract
   static BufferAggregator create(String name, final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopBufferAggregator();
+      return NULL;
     }
     return new VarianceBufferAggregator(name)
     {
@@ -124,7 +123,7 @@ public abstract class VarianceBufferAggregator extends BufferAggregator.Abstract
   static BufferAggregator create(String name, final LongColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopBufferAggregator();
+      return NULL;
     }
     return new VarianceBufferAggregator(name)
     {
@@ -152,7 +151,7 @@ public abstract class VarianceBufferAggregator extends BufferAggregator.Abstract
   static BufferAggregator create(String name, final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopBufferAggregator();
+      return NULL;
     }
     return new VarianceBufferAggregator(name)
     {

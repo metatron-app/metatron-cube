@@ -112,7 +112,7 @@ public class ListAggregatorFactory extends AggregatorFactory
     if (ValueDesc.isArray(inputType)) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(expression);
-      return new Aggregators.AbstractEstimableAggregator<Collection<Object>>()
+      return new Aggregator.Estimable<Collection<Object>>()
       {
         @Override
         public int estimateOccupation(Collection<Object> current)
@@ -151,7 +151,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       };
     }
     final ExprEvalColumnSelector selector = metricFactory.makeMathExpressionSelector(expression);
-    return new Aggregators.AbstractEstimableAggregator<Collection<Object>>()
+    return new Aggregator.Estimable<Collection<Object>>()
     {
       @Override
       public int estimateOccupation(Collection<Object> current)
@@ -224,7 +224,7 @@ public class ListAggregatorFactory extends AggregatorFactory
     if (ValueDesc.isArray(inputType)) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(expression);
-      return new BufferAggregator.Abstract()
+      return new BufferAggregator()
       {
         private final List<Collection<Object>> lists = Lists.newArrayList();
 
@@ -254,7 +254,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       };
     }
     final ExprEvalColumnSelector selector = metricFactory.makeMathExpressionSelector(expression);
-    return new BufferAggregator.Abstract()
+    return new BufferAggregator()
     {
       private final List<Collection<Object>> lists = Lists.newArrayList();
 

@@ -196,7 +196,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @SuppressWarnings("unchecked")
-  abstract class BaseAggregator extends Aggregator.Abstract<TypedSketch>
+  abstract class BaseAggregator implements Aggregator<TypedSketch>
   {
     private final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
 
@@ -249,7 +249,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       if (selector == null) {
         return BufferAggregator.NULL;
       }
-      return new BufferAggregator.Abstract()
+      return new BufferAggregator()
       {
         private final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
         private final List<TypedSketch> sketches = Lists.newArrayList();
@@ -278,13 +278,13 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
         @Override
         public Object get(ByteBuffer buf, int position)
         {
-          TypedSketch sketch = sketches.get(buf.getInt(position));
+          final TypedSketch sketch = sketches.get(buf.getInt(position));
           return sketch == null ? null : handler.toSketch(sketch);
         }
       };
     }
 
-    ValueDesc columnType = metricFactory.resolve(fieldName);
+    final ValueDesc columnType = metricFactory.resolve(fieldName);
     if (columnType == null) {
       return BufferAggregator.NULL;
     }
@@ -343,7 +343,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @SuppressWarnings("unchecked")
-  private abstract class BaseBufferAggregator extends BufferAggregator.Abstract
+  private abstract class BaseBufferAggregator implements BufferAggregator
   {
     private final SketchHandler<?> handler = sketchOp.handler();
     private final List<TypedSketch> sketches = Lists.newArrayList();

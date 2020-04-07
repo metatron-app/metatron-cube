@@ -24,7 +24,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Comparator;
 
-public class DruidTDigestAggregator extends Aggregator.Simple<DruidTDigest>
+public class DruidTDigestAggregator implements Aggregator.Simple<DruidTDigest>
 {
   public static final Comparator COMPARATOR = new Comparator()
   {

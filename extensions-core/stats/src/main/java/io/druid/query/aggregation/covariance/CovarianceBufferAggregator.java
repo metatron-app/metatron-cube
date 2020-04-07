@@ -20,7 +20,6 @@
 package io.druid.query.aggregation.covariance;
 
 import com.google.common.primitives.Longs;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
@@ -30,7 +29,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class CovarianceBufferAggregator extends BufferAggregator.Abstract
+public abstract class CovarianceBufferAggregator implements BufferAggregator
 {
   private static final int COUNT_OFFSET = 0;
   private static final int XAVG_OFFSET = Longs.BYTES;
@@ -72,7 +71,7 @@ public abstract class CovarianceBufferAggregator extends BufferAggregator.Abstra
   )
   {
     if (selector1 == null || selector2 == null) {
-      return Aggregators.noopBufferAggregator();
+      return NULL;
     }
     return new CovarianceBufferAggregator(name)
     {
@@ -113,7 +112,7 @@ public abstract class CovarianceBufferAggregator extends BufferAggregator.Abstra
   static BufferAggregator create(final String name, final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopBufferAggregator();
+      return NULL;
     }
     return new CovarianceBufferAggregator(name)
     {

@@ -24,7 +24,7 @@ import io.druid.query.sketch.ThetaOperations;
 
 import java.nio.ByteBuffer;
 
-public class EmptySketchBufferAggregator extends BufferAggregator.Abstract
+public class EmptySketchBufferAggregator implements BufferAggregator
 {
   @Override
   public void init(ByteBuffer buf, int position)

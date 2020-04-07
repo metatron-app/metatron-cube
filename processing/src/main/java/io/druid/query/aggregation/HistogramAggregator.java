@@ -24,7 +24,7 @@ import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
 
-public class HistogramAggregator extends Aggregator.Simple<Histogram>
+public class HistogramAggregator implements Aggregator.Simple<Histogram>
 {
   static final Comparator COMPARATOR = new Comparator()
   {

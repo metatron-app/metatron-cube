@@ -23,7 +23,7 @@ import io.druid.query.aggregation.BufferAggregator;
 
 import java.nio.ByteBuffer;
 
-public class EmptyDistinctCountBufferAggregator extends BufferAggregator.Abstract
+public class EmptyDistinctCountBufferAggregator implements BufferAggregator
 {
 
   public EmptyDistinctCountBufferAggregator()

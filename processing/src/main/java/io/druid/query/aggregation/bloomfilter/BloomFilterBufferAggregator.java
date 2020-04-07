@@ -20,9 +20,7 @@
 package io.druid.query.aggregation.bloomfilter;
 
 import io.druid.common.guava.BytesRef;
-import io.druid.data.input.BytesOutputStream;
-import io.druid.query.aggregation.BufferAggregator;
-import io.druid.query.aggregation.HashAggregator;
+import io.druid.query.aggregation.HashBufferAggregator;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
@@ -30,44 +28,26 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public abstract class BloomFilterBufferAggregator extends BufferAggregator.Abstract
+public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilterBufferAggregator.Collector>
 {
   private final int maxNumEntries;
 
-  protected BloomFilterBufferAggregator(int maxNumEntries) {this.maxNumEntries = maxNumEntries;}
-
-  public static BloomFilterBufferAggregator iterator(
-      final List<DimensionSelector> selectorList,
+  public BloomFilterBufferAggregator(
       final ValueMatcher predicate,
+      final List<DimensionSelector> selectorList,
       final int[][] groupings,
       final boolean byRow,
       final int maxNumEntries
   )
   {
-    return new BloomFilterBufferAggregator(maxNumEntries)
-    {
-      private final BytesOutputStream buffer = new BytesOutputStream();
+    super(predicate, selectorList, groupings, byRow);
+    this.maxNumEntries = maxNumEntries;
+  }
 
-      @Override
-      public void aggregate(ByteBuffer buf, int position)
-      {
-        if (predicate.matches()) {
-          final int oldPosition = buf.position();
-          buf.position(position);
-          try {
-            BloomFilterCollector collector = new BloomFilterCollector(buf);
-            if (byRow) {
-              HashAggregator.hashRow(selectorList, groupings, collector, buffer);
-            } else {
-              HashAggregator.hashValues(selectorList, collector, buffer);
-            }
-          }
-          finally {
-            buf.position(oldPosition);
-          }
-        }
-      }
-    };
+  @Override
+  protected Collector toCollector(ByteBuffer buf, int position)
+  {
+    return new Collector(buf, position);
   }
 
   @Override
@@ -82,16 +62,21 @@ public abstract class BloomFilterBufferAggregator extends BufferAggregator.Abstr
     return BloomKFilter.deserialize(buf, position);
   }
 
-  private static class BloomFilterCollector implements HashCollector
+  static class Collector implements HashCollector
   {
     private final ByteBuffer byteBuffer;
+    private final int position;
 
-    private BloomFilterCollector(ByteBuffer byteBuffer) {this.byteBuffer = byteBuffer;}
+    private Collector(ByteBuffer byteBuffer, int position)
+    {
+      this.byteBuffer = byteBuffer;
+      this.position = position;
+    }
 
     @Override
     public void collect(Object[] values, BytesRef bytes)
     {
-      BloomKFilter.collect(byteBuffer, values, bytes);
+      BloomKFilter.collect(byteBuffer, position, values, bytes);
     }
   }
 }

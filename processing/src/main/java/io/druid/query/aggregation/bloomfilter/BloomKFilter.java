@@ -261,17 +261,17 @@ public class BloomKFilter implements HashCollector
 
   /**
    * ByteBuffer based copy of logic of {@link BloomKFilter#getNumSetBits()}
-   * @param bfBuffer
-   * @param start
+   * @param buffer
+   * @param position
    * @return
    */
-  public static int getNumSetBits(ByteBuffer bfBuffer, int start)
+  public static int getNumSetBits(ByteBuffer buffer, int position)
   {
-    ByteBuffer view = bfBuffer.duplicate().order(ByteOrder.BIG_ENDIAN);
-    view.position(start);
-    int numLongs = view.getInt(1 + start);
+    ByteBuffer view = buffer.duplicate().order(ByteOrder.BIG_ENDIAN);
+    view.position(position);
+    int numLongs = view.getInt(1 + position);
     int setBits = 0;
-    for (int i = 0, pos = START_OF_SERIALIZED_LONGS + start; i < numLongs; i++, pos += Long.BYTES) {
+    for (int i = 0, pos = START_OF_SERIALIZED_LONGS + position; i < numLongs; i++, pos += Long.BYTES) {
       setBits += Long.bitCount(view.getLong(pos));
     }
     return setBits;
@@ -323,7 +323,7 @@ public class BloomKFilter implements HashCollector
   /**
    * ByteBuffer based copy of {@link BloomKFilter#addHash(long)} that adds a value to the ByteBuffer in place.
    */
-  private static void addHash(ByteBuffer buffer, long hash64)
+  private static void addHash(final ByteBuffer buffer, final int position, final long hash64)
   {
     final int hash1 = (int) hash64;
     final int hash2 = (int) (hash64 >>> 32);
@@ -334,16 +334,15 @@ public class BloomKFilter implements HashCollector
       firstHash = ~firstHash;
     }
 
-    ByteBuffer view = buffer.duplicate().order(ByteOrder.BIG_ENDIAN);
-    int startPosition = view.position();
-    int numHashFuncs = view.get(startPosition);
-    int totalBlockCount = view.getInt(startPosition + 1) / DEFAULT_BLOCK_SIZE;
+    final ByteBuffer view = buffer.duplicate().order(ByteOrder.BIG_ENDIAN);
+    final int numHashFuncs = view.get(position);
+    final int totalBlockCount = view.getInt(position + 1) / DEFAULT_BLOCK_SIZE;
     // first hash is used to locate start of the block (blockBaseOffset)
     // subsequent K hashes are used to generate K bits within a block of words
     final int blockIdx = firstHash % totalBlockCount;
     final int blockBaseOffset = blockIdx << DEFAULT_BLOCK_SIZE_BITS;
     for (int i = 1; i <= numHashFuncs; i++) {
-      int combinedHash = hash1 + ((i + 1) * hash2);
+      int combinedHash = hash1 + (i + 1) * hash2;
       // hashcode should be positive, flip all the bits if it's negative
       if (combinedHash < 0) {
         combinedHash = ~combinedHash;
@@ -353,7 +352,7 @@ public class BloomKFilter implements HashCollector
       // Next 6 bits are used to locate offset within a long/word
       final int bitPos = (combinedHash >>> DEFAULT_BLOCK_SIZE_BITS) & DEFAULT_BIT_OFFSET_MASK;
 
-      final int bufPos = startPosition + START_OF_SERIALIZED_LONGS + (absOffset * Long.BYTES);
+      final int bufPos = position + START_OF_SERIALIZED_LONGS + (absOffset * Long.BYTES);
       view.putLong(bufPos, view.getLong(bufPos) | (1L << bitPos));
     }
   }
@@ -364,9 +363,9 @@ public class BloomKFilter implements HashCollector
     addHash(Murmur3.hash64(key.bytes, 0, key.length));
   }
 
-  public static void collect(ByteBuffer buffer, Object[] values, BytesRef key)
+  public static void collect(ByteBuffer buffer, int position, Object[] values, BytesRef key)
   {
-    addHash(buffer, Murmur3.hash64(key.bytes, 0, key.length));
+    addHash(buffer, position, Murmur3.hash64(key.bytes, 0, key.length));
   }
 
   public boolean test(Object[] values, BytesRef key)

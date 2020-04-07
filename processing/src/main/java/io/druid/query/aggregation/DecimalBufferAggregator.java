@@ -28,7 +28,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class DecimalBufferAggregator extends BufferAggregator.Abstract
+public abstract class DecimalBufferAggregator implements BufferAggregator
 {
   final int precision;
   final int scale;
@@ -43,7 +43,7 @@ public abstract class DecimalBufferAggregator extends BufferAggregator.Abstract
 
   protected final BigDecimal read(ByteBuffer buf, int position)
   {
-    buf = duplicate(buf, position);
+    buf = position(buf, position);
     final byte length = buf.get();
     if (length == 0) {
       return null;
@@ -55,7 +55,7 @@ public abstract class DecimalBufferAggregator extends BufferAggregator.Abstract
 
   protected final void write(ByteBuffer buf, int position, BigDecimal decimal)
   {
-    buf = duplicate(buf, position);
+    buf = position(buf, position);
     byte[] value = decimal.unscaledValue().toByteArray();
     Preconditions.checkArgument(value.length < 128, "overflow");
     buf.put((byte) value.length);
@@ -65,12 +65,12 @@ public abstract class DecimalBufferAggregator extends BufferAggregator.Abstract
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    duplicate(buf, position).put((byte) 0);
+    position(buf, position).put((byte) 0);
   }
 
-  private ByteBuffer duplicate(ByteBuffer buf, int position)
+  private ByteBuffer position(ByteBuffer buf, int position)
   {
-    return (ByteBuffer) buf.duplicate().position(position);
+    return (ByteBuffer) buf.position(position);
   }
 
   @Override

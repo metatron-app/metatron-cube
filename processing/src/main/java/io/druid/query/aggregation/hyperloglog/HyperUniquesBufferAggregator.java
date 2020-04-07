@@ -27,7 +27,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class HyperUniquesBufferAggregator extends BufferAggregator.Abstract
+public class HyperUniquesBufferAggregator implements BufferAggregator
 {
   private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
   private final ValueMatcher predicate;
@@ -45,33 +45,17 @@ public class HyperUniquesBufferAggregator extends BufferAggregator.Abstract
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    final ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-    mutationBuffer.put(EMPTY_BYTES);
+    buf.position(position);
+    buf.put(EMPTY_BYTES);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
     if (predicate.matches()) {
-      HyperLogLogCollector collector = (HyperLogLogCollector) selector.get();
-
-      if (collector == null) {
-        return;
-      }
-
-      // Save position, limit and restore later instead of allocating a new ByteBuffer object
-      final int oldPosition = buf.position();
-      final int oldLimit = buf.limit();
-      buf.limit(position + HyperLogLogCollector.getLatestNumBytesForDenseStorage());
-      buf.position(position);
-
-      try {
-        HyperLogLogCollector.makeCollector(buf).fold(collector);
-      }
-      finally {
-        buf.limit(oldLimit);
-        buf.position(oldPosition);
+      final HyperLogLogCollector collector = (HyperLogLogCollector) selector.get();
+      if (collector != null) {
+        HyperLogLogCollector.makeCollector(buf, position).fold(collector);
       }
     }
   }
@@ -79,13 +63,6 @@ public class HyperUniquesBufferAggregator extends BufferAggregator.Abstract
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    final int size = HyperLogLogCollector.getLatestNumBytesForDenseStorage();
-    ByteBuffer dataCopyBuffer = ByteBuffer.allocate(size);
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-    mutationBuffer.limit(position + size);
-    dataCopyBuffer.put(mutationBuffer);
-    dataCopyBuffer.rewind();
-    return HyperLogLogCollector.makeCollector(dataCopyBuffer);
+    return HyperLogLogCollector.copy(buf, position);
   }
 }

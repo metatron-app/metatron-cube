@@ -20,14 +20,13 @@
 package io.druid.query.aggregation.kurtosis;
 
 import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public abstract class KurtosisAggregator extends Aggregator.Simple<KurtosisAggregatorCollector>
+public abstract class KurtosisAggregator implements Aggregator.Simple<KurtosisAggregatorCollector>
 {
   public static Aggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
@@ -53,7 +52,7 @@ public abstract class KurtosisAggregator extends Aggregator.Simple<KurtosisAggre
   public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
-      return Aggregators.noopAggregator();
+      return NULL;
     }
     return new KurtosisAggregator()
     {

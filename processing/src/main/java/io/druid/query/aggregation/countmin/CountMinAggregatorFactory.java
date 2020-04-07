@@ -132,7 +132,7 @@ public class CountMinAggregatorFactory extends AggregatorFactory
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
     final ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
-    return CountMinBufferAggregator.iterator(selectors, predicate, grouping, byRow, width, depth);
+    return new CountMinBufferAggregator(predicate, selectors, grouping, byRow, width, depth);
   }
 
   private List<DimensionSelector> makeDimensionSelectors(

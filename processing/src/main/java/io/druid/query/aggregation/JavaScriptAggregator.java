@@ -24,7 +24,7 @@ import org.apache.commons.lang.mutable.MutableDouble;
 
 import java.util.List;
 
-public class JavaScriptAggregator extends Aggregator.Abstract<MutableDouble>
+public class JavaScriptAggregator implements Aggregator<MutableDouble>
 {
   static interface ScriptAggregator
   {

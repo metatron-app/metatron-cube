@@ -20,45 +20,35 @@
 package io.druid.query.aggregation;
 
 import io.druid.query.filter.ValueMatcher;
-import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
-/**
- */
-public class AverageBufferAggregator implements BufferAggregator
+public abstract class HashBufferAggregator<T extends HashCollector> extends HashIterator implements BufferAggregator
 {
-  private final ValueMatcher predicate;
-  private final DoubleColumnSelector selector;
-
-  public AverageBufferAggregator(ValueMatcher predicate, DoubleColumnSelector selector)
+  public HashBufferAggregator(
+      ValueMatcher predicate,
+      List<DimensionSelector> selectorList,
+      int[][] groupings,
+      boolean byRow
+  )
   {
-    this.predicate = predicate;
-    this.selector = selector;
+    super(predicate, selectorList, groupings, byRow);
   }
 
-  @Override
-  public void init(ByteBuffer buf, int position)
+  public HashBufferAggregator(List<DimensionSelector> selectorList, int[][] groupings)
   {
-    buf.putLong(position, 0L);
-    buf.putDouble(position + Long.BYTES, 0D);
+    this(null, selectorList, groupings, true);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
     if (predicate.matches()) {
-      final Double v = selector.get();
-      if (v != null) {
-        buf.putLong(position, buf.getLong(position) + 1);
-        buf.putDouble(position + Long.BYTES, buf.getDouble(position + Long.BYTES) + v);
-      }
+      collect(toCollector(buf, position));
     }
   }
 
-  @Override
-  public Object get(ByteBuffer buf, int position)
-  {
-    return new long[]{buf.getLong(position), Double.doubleToLongBits(buf.getDouble(position + Long.BYTES))};
-  }
+  protected abstract T toCollector(ByteBuffer buf, int position);
 }

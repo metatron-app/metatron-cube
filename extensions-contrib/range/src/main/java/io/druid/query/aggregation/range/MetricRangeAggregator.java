@@ -24,7 +24,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Comparator;
 
-public class MetricRangeAggregator extends Aggregator.Simple<MetricRange>
+public class MetricRangeAggregator implements Aggregator.Simple<MetricRange>
 {
   public static final Comparator COMPARATOR = new Comparator() {
     @Override

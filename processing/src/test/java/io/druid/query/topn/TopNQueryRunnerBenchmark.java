@@ -88,18 +88,9 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
   public static void setUp() throws Exception
   {
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(
-        new StupidPool<ByteBuffer>(
-            new Supplier<ByteBuffer>()
-            {
-              @Override
-              public ByteBuffer get()
-              {
-                // See OffheapByteBufferPool
-                // Instead of causing a circular dependency, we simply mimic its behavior
-                return ByteBuffer.allocateDirect(2000);
-              }
-            }
-        ),
+        // See OffheapByteBufferPool
+        // Instead of causing a circular dependency, we simply mimic its behavior
+        StupidPool.direct(2000),
         new TopNQueryQueryToolChest(
             new TopNQueryConfig(),
             TestHelper.testTopNQueryEngine(),

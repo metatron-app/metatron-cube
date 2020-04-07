@@ -32,7 +32,7 @@ import io.druid.segment.data.IndexedInts;
 
 import java.util.List;
 
-public abstract class SketchAggregator extends Aggregator.Abstract<Union>
+public abstract class SketchAggregator implements Aggregator<Union>
 {
   final int size;
 
