@@ -103,6 +103,8 @@
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-hdfs-storage</argument>
                                 <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-kerberos-extensions</argument>
+                                <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-histogram</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-hive-extensions</argument>

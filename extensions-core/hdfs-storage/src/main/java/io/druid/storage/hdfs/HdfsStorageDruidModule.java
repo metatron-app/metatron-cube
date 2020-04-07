@@ -27,6 +27,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.multibindings.MapBinder;
+import io.druid.guice.LifecycleModule;
+import io.druid.guice.ManageLifecycle;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.data.SearchableVersionedDataFinder;
 import io.druid.guice.Binders;
@@ -163,5 +165,8 @@ public class HdfsStorageDruidModule implements DruidModule
     Binders.taskLogsBinder(binder).addBinding("hdfs").to(HdfsTaskLogs.class);
     JsonConfigProvider.bind(binder, "druid.indexer.logs", HdfsTaskLogsConfig.class);
     binder.bind(HdfsTaskLogs.class).in(LazySingleton.class);
+    JsonConfigProvider.bind(binder, "druid.hadoop.security.kerberos", HdfsKerberosConfig.class);
+    binder.bind(HdfsStorageAuthentication.class).in(ManageLifecycle.class);
+    LifecycleModule.register(binder, HdfsStorageAuthentication.class);
   }
 }

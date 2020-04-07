@@ -99,6 +99,7 @@ public class HadoopDruidIndexerConfig
   public static final IndexIO INDEX_IO;
   public static final IndexMerger INDEX_MERGER;
   public static final IndexMergerV9 INDEX_MERGER_V9;
+  public static final HadoopKerberosConfig HADOOP_KERBEROS_CONFIG;
 
   private static final String DEFAULT_WORKING_PATH = "/tmp/druid-indexing";
 
@@ -116,6 +117,7 @@ public class HadoopDruidIndexerConfig
                 );
                 binder.bindConstant().annotatedWith(Names.named("type")).to(ServiceTypes.HADOOP_INDEXING);
                 binder.bindConstant().annotatedWith(Names.named("servicePort")).to(-1);
+                JsonConfigProvider.bind(binder, "druid.hadoop.security.kerberos", HadoopKerberosConfig.class);
               }
             },
             new IndexingHadoopModule()
@@ -125,6 +127,7 @@ public class HadoopDruidIndexerConfig
     INDEX_IO = injector.getInstance(IndexIO.class);
     INDEX_MERGER = injector.getInstance(IndexMerger.class);
     INDEX_MERGER_V9 = injector.getInstance(IndexMergerV9.class);
+    HADOOP_KERBEROS_CONFIG = injector.getInstance(HadoopKerberosConfig.class);
   }
 
   public static HadoopDruidIndexerConfig fromSpec(HadoopIngestionSpec spec)
