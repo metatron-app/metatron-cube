@@ -19,31 +19,24 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.annotations.VisibleForTesting;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactory.Combiner;
 
-import java.util.List;
+import java.util.Arrays;
 
 public class AggregationQueryBinaryFn implements BinaryFn<Row, Row, Row>
 {
   private final int start;
-  private final AggregatorFactory.Combiner[] combiners;
+  private final Combiner[] combiners;
 
   public AggregationQueryBinaryFn(BaseAggregationQuery query)
   {
     start = query.getDimensions().size() + 1;
     combiners = AggregatorFactory.toCombinerArray(query.getAggregatorSpecs());
-  }
-
-  @VisibleForTesting
-  public AggregationQueryBinaryFn(List<AggregatorFactory> aggregatorFactories)
-  {
-    start = 0;
-    combiners = AggregatorFactory.toCombinerArray(aggregatorFactories);
   }
 
   @Override
@@ -58,10 +51,11 @@ public class AggregationQueryBinaryFn implements BinaryFn<Row, Row, Row>
     final Object[] values1 = ((CompactRow) arg1).getValues();
     final Object[] values2 = ((CompactRow) arg2).getValues();
     int index = start;
-    for (AggregatorFactory.Combiner combiner : combiners) {
+    for (Combiner combiner : combiners) {
       values1[index] = combiner.combine(values1[index], values2[index]);
       index++;
     }
+    Arrays.fill(values2, null);   // for faster gc
     return arg1;
   }
 }
