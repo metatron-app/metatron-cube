@@ -34,6 +34,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceQueryQueryToolChest;
+import io.druid.query.frequency.FrequenceQueryConfig;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.frequency.FrequencyQueryToolChest;
 import io.druid.query.groupby.DefaultGroupByQueryMetricsFactory;
@@ -123,6 +124,7 @@ public class QueryToolChestModule implements Module
     JsonConfigProvider.bind(binder, "druid.query.segmentMetadata", SegmentMetadataQueryConfig.class);
 
     JsonConfigProvider.bind(binder, "druid.query.join", JoinQueryConfig.class);
+    JsonConfigProvider.bind(binder, "druid.query.frequency", FrequenceQueryConfig.class);
     JsonConfigProvider.bind(binder, "druid.query", QueryConfig.class);  // final
 
     PolyBind.createChoice(

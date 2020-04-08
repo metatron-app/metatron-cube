@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import io.druid.query.frequency.FrequenceQueryConfig;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
@@ -55,6 +56,10 @@ public class QueryConfig
   @JsonProperty
   private boolean useCuboids;
 
+  @JsonProperty
+  @Min(1)
+  private int maxQueryParallelism = 8;
+
   @JacksonInject
   @NotNull
   public Supplier<GroupByQueryConfig> groupBy = Suppliers.ofInstance(new GroupByQueryConfig());
@@ -79,6 +84,10 @@ public class QueryConfig
   @NotNull
   public Supplier<JoinQueryConfig> join = Suppliers.ofInstance(new JoinQueryConfig());
 
+  @JacksonInject
+  @NotNull
+  public Supplier<FrequenceQueryConfig> frequency = Suppliers.ofInstance(new FrequenceQueryConfig());
+
   public int getMaxResults(Query<?> query)
   {
     int systemMax = maxResults <= 0 ? getGroupBy().getMaxResults() : maxResults;
@@ -86,10 +95,10 @@ public class QueryConfig
     return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
   }
 
-  public int getMaxMergeParallelism(Query<?> query)
+  public int getQueryParallelism(Query<?> query)
   {
-    final int systemMax = getGroupBy().getMaxMergeParallelism();
-    final int userMax = query.getContextInt(Query.GBY_MERGE_PARALLELISM, -1);
+    final int systemMax = maxQueryParallelism;
+    final int userMax = query.getContextInt(Query.MAX_QUERY_PARALLELISM, -1);
     return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
   }
 
@@ -186,5 +195,10 @@ public class QueryConfig
   public JoinQueryConfig getJoin()
   {
     return join.get();
+  }
+
+  public FrequenceQueryConfig getFrequency()
+  {
+    return frequency.get();
   }
 }

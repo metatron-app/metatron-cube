@@ -45,7 +45,6 @@ public interface QueryContextKeys
 
   // group-by config.. overriding
   public static final String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
-  public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_CONVERT_FREQUENCY = "groupByConvertFrequency";
   public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
@@ -57,13 +56,13 @@ public interface QueryContextKeys
   public static final String GBY_USE_BULK_ROW = "groupByUseBulkRow";
   public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 
-  // timeseries
-  public static final String TIMESERIES_MERGE_PARALLELISM = "timeseriesMergeParallelism";
-
   // select.stream.raw
   public static final String STREAM_USE_BULK_ROW = "streamUseBulkRow";
   public static final String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
   public static final String STREAM_RAW_LOCAL_SPLIT_ROWS = "streamRawLocalSplitRows";
+
+  // frequency
+  public static final String FREQUENCY_SKETCH_DEPTH = "frequencySketchDepth";
 
   // join
   public static final String HASHJOIN_THRESHOLD = "hashjoinThreshold";
@@ -90,14 +89,14 @@ public interface QueryContextKeys
   // generic
   public static final String MAX_RESULTS = "maxResults";
   public static final String DECORATOR_CONTEXT = "decoratorContext";
+  public static final String MAX_QUERY_PARALLELISM = "maxQueryParallelism";
 
   public static final List<String> FOR_META = Arrays.asList(
       QUERYID,
       PRIORITY,
       TIMEOUT,
+      USE_CUBOIDS,
       GBY_USE_PARALLEL_SORT,
-      GBY_MERGE_PARALLELISM,
-      TIMESERIES_MERGE_PARALLELISM,
       GBY_CONVERT_TIMESERIES,
       GBY_CONVERT_FREQUENCY,
       GBY_ESTIMATE_TOPN_FACTOR,
@@ -115,6 +114,7 @@ public interface QueryContextKeys
       OPTIMIZE_QUERY,
       ALL_DIMENSIONS_FOR_EMPTY,
       ALL_METRICS_FOR_EMPTY,
-      MAX_RESULTS
+      MAX_RESULTS,
+      MAX_QUERY_PARALLELISM
   );
 }

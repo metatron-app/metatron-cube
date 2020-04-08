@@ -33,7 +33,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerHelper;
-import io.druid.query.QueryRunners;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.HashAggregator;
@@ -91,16 +90,6 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
         ));
       }
     };
-  }
-
-  @Override
-  public QueryRunner<Object[]> mergeRunners(
-      final ExecutorService executor,
-      final Iterable<QueryRunner<Object[]>> runners,
-      final Future<Object> optimizer
-  )
-  {
-    return QueryRunners.executeParallel(executor, null, Lists.newArrayList(runners));
   }
 
   private static Function<Cursor, Sequence<Object[]>> processor(final FrequencyQuery query, final CountMinSketch sketch)

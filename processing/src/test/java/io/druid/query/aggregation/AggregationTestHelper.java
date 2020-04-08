@@ -434,6 +434,7 @@ public class AggregationTestHelper
     final Query<Row> resolved = localized.resolveQuery(resolver, true);
 
     final QueryRunner<Row> baseRunner = factory.mergeRunners(
+        query,
         MoreExecutors.sameThreadExecutor(),
         Lists.transform(
             segments,

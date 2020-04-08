@@ -1024,6 +1024,7 @@ public class RealtimeManagerTest
         return factory.getToolchest()
                       .mergeResults(
                           factory.mergeRunners(
+                              query,
                               MoreExecutors.sameThreadExecutor(),
                               Iterables.transform(
                                   baseQuery.getIntervals(),

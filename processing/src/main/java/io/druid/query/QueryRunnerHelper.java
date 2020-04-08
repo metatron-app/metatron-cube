@@ -80,7 +80,7 @@ public class QueryRunnerHelper
     exec = exec == null ? MoreExecutors.sameThreadExecutor() : exec;
     return FinalizeResultsQueryRunner.finalize(
         toolChest.mergeResults(
-            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
+            factory.mergeRunners(query, exec, Arrays.asList(factory.createRunner(null, null)), null)
         ),
         toolChest,
         mapper

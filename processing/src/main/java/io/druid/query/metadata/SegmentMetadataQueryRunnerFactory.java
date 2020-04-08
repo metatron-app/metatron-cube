@@ -168,7 +168,9 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
 
   @Override
   public QueryRunner<SegmentAnalysis> mergeRunners(
-      ExecutorService exec, Iterable<QueryRunner<SegmentAnalysis>> queryRunners,
+      Query<SegmentAnalysis> query,
+      ExecutorService exec,
+      Iterable<QueryRunner<SegmentAnalysis>> queryRunners,
       Future<Object> optimizer
   )
   {

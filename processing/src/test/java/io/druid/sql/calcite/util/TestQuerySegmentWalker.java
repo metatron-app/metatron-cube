@@ -524,7 +524,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         });
         return FinalizeResultsQueryRunner.finalize(
             toolChest.mergeResults(
-                factory.mergeRunners(executor, runners, optimizer)
+                factory.mergeRunners(resolved, executor, runners, optimizer)
             ),
             toolChest,
             objectMapper

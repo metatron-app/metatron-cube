@@ -227,6 +227,7 @@ public class StreamQueryRunnerFactory
 
   @Override
   public QueryRunner<Object[]> mergeRunners(
+      final Query<Object[]> query,
       final ExecutorService executor,
       final Iterable<QueryRunner<Object[]>> queryRunners,
       final Future<Object> optimizer

@@ -632,7 +632,7 @@ public class BrokerServerView implements TimelineServerView
         reporter.report(
             FinalizeResultsQueryRunner.finalize(
                 toolChest.mergeResults(
-                    factory.mergeRunners(exec, queryRunners, optimizer)
+                    factory.mergeRunners(resolved, exec, queryRunners, optimizer)
                 ),
                 toolChest,
                 smileMapper

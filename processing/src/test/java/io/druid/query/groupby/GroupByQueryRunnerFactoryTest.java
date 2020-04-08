@@ -67,19 +67,6 @@ public class GroupByQueryRunnerFactoryTest
   @Test
   public void testMergeRunnersEnsureGroupMerging() throws Exception
   {
-    QueryRunnerFactory factory = createFactory();
-    QueryRunner mergedRunner = new FinalizeResultsQueryRunner(
-        factory.mergeRunners(
-            Executors.newSingleThreadExecutor(),
-            ImmutableList.of(
-                factory.createRunner(createSegment(), null),
-                factory.createRunner(createSegment(), null)
-            ),
-            null
-        ),
-        factory.getToolchest()
-    );
-
     GroupByQuery query = GroupByQuery
         .builder()
         .setDataSource("xx")
@@ -95,6 +82,20 @@ public class GroupByQueryRunnerFactoryTest
             )
         )
         .build();
+
+    QueryRunnerFactory factory = createFactory();
+    QueryRunner mergedRunner = new FinalizeResultsQueryRunner(
+        factory.mergeRunners(
+            query,
+            Executors.newSingleThreadExecutor(),
+            ImmutableList.of(
+                factory.createRunner(createSegment(), null),
+                factory.createRunner(createSegment(), null)
+            ),
+            null
+        ),
+        factory.getToolchest()
+    );
 
     Sequence<Row> result = mergedRunner.run(query, Maps.newHashMap());
 

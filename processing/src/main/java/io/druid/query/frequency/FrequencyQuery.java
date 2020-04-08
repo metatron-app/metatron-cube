@@ -98,7 +98,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
     this.dimensions = dimensions;
     this.filter = filter;
     this.width = width;
-    this.depth = depth <= 0 ? DEFAULT_DEPTH : depth;
+    this.depth = depth;
     this.limit = limit;
     this.sketch = sketch;
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(dimensions), "'dimensions' cannot be null or empty");
@@ -126,8 +126,25 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   @Override
   public FrequencyQuery rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
+    int newDepth = depth > 0 ? depth :
+                   getContextInt(FREQUENCY_SKETCH_DEPTH, queryConfig.getFrequency().getSketchDepth());
     if (width > 0 && sketch != null) {
-      return this;
+      if (depth > 0) {
+        return this;
+      }
+      return new FrequencyQuery(
+          getDataSource(),
+          getQuerySegmentSpec(),
+          filter,
+          virtualColumns,
+          groupingSets,
+          dimensions,
+          width,
+          newDepth,
+          limit,
+          sketch,
+          getContext()
+      );
     }
     TimeseriesQuery meta = new TimeseriesQuery(
         getDataSource(),
@@ -155,11 +172,11 @@ public class FrequencyQuery extends BaseQuery<Object[]>
     }
     if (newSketch == null) {
       AggregatorFactory factory = new CountMinAggregatorFactory(
-          "$v", null, dimensions, null, null, true, newWidth, depth, false
+          "$v", null, dimensions, null, null, true, newWidth, newDepth, false
       );
       // disable cache
       meta = meta.withOverriddenContext(ImmutableMap.<String, Object>of(
-          USE_CACHE, false, POPULATE_CACHE, false, TIMESERIES_MERGE_PARALLELISM, 4)
+          USE_CACHE, false, POPULATE_CACHE, false, MAX_QUERY_PARALLELISM, 4)
       );
       Row result = QueryRunners.only(meta.withAggregatorSpecs(Arrays.asList(factory)), segmentWalker);
       newSketch = Preconditions.checkNotNull((CountMinSketch) result.getRaw("$v"), "sketch?")
@@ -173,7 +190,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         groupingSets,
         dimensions,
         newWidth,
-        depth,
+        newDepth,
         limit,
         newSketch,
         getContext()
@@ -287,7 +304,6 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         getContext()
     );
   }
-
 
   @Override
   public Query<Object[]> forLog()

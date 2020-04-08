@@ -20,23 +20,34 @@
 package io.druid.query;
 
 import com.google.common.base.Function;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
+import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class QueryRunners
 {
+  private static final Logger LOG = new Logger(QueryWatcher.class);
+
   public static <T> QueryRunner<T> concat(final Iterable<QueryRunner<T>> runners)
   {
     return new QueryRunner<T>()
@@ -151,9 +162,10 @@ public class QueryRunners
   }
 
   public static <T> QueryRunner<T> executeParallel(
+      final Query<T> query,
       final ExecutorService executor,
-      final Ordering<T> ordering,
-      final List<QueryRunner<T>> runners
+      final List<QueryRunner<T>> runners,
+      final QueryWatcher watcher
   )
   {
     if (runners.isEmpty()) {
@@ -169,25 +181,76 @@ public class QueryRunners
         }
       };
     }
+    // used for limiting resource usage from heavy aggregators like CountMinSketch
+    final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, -1);
+    if (parallelism < 1) {
+      // no limit.. todo: deprecate this
+      return new ChainedExecutionQueryRunner<T>(executor, watcher, runners);
+    }
     return new QueryRunner<T>()
     {
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
         final int priority = BaseQuery.getContextPriority(query, 0);
-        final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
-        final Iterable<Sequence<T>> sequences = Iterables.transform(
-            Execs.execute(
-                executor,
-                QueryRunnerHelper.asCallable(runners, semaphore, query, responseContext),
-                semaphore,
-                priority
-            ),
-            FutureSequence.<T>toSequence()
+        final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(parallelism, runners.size()));
+        final Iterable<Callable<Sequence<T>>> works = QueryRunnerHelper.asCallable(
+            runners, semaphore, query, responseContext
         );
-        return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
+        final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(executor, works, semaphore, priority);
+        final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(futures);
+        final Closeable resource = () -> {
+          semaphore.destroy();
+          Execs.cancelQuietly(future);
+        };
+        if (query.getMergeOrdering() == null) {
+          final ListenableFuture<Sequence<T>> first = futures.get(0);
+          final List<ListenableFuture<Sequence<T>>> others = futures.subList(1, futures.size());
+          final Sequence<T> sequence = waitForCompletion(query, first, watcher, resource);
+          return sequence == null ? Sequences.empty() :
+                 Sequences.concat(sequence, Sequences.concat(Iterables.transform(others, FutureSequence.toSequence())));
+        }
+        final List<Sequence<T>> sequences = waitForCompletion(query, future, watcher, resource);
+        return sequences == null ? Sequences.empty() : QueryUtils.mergeSort(query, sequences);
       }
     };
+  }
+
+  public static <T> T waitForCompletion(
+      final Query<?> query,
+      final ListenableFuture<T> future,
+      final QueryWatcher queryWatcher,
+      final Closeable closeOnFailure
+  )
+  {
+    queryWatcher.registerQuery(query, future);
+    try {
+      final long timeout = queryWatcher.remainingTime(query.getId());
+      if (timeout <= 0) {
+        return future.get();
+      } else {
+        return future.get(timeout, TimeUnit.MILLISECONDS);
+      }
+    }
+    catch (CancellationException e) {
+      LOG.info("Query canceled, id [%s]", query.getId());
+      IOUtils.closeQuietly(closeOnFailure);
+      return null;
+    }
+    catch (InterruptedException | TimeoutException e) {
+      String message = e instanceof InterruptedException ? "interrupted" : "timed-out";
+      LOG.warn(e, "Query %s, cancelling pending results, query id [%s]", message, query.getId());
+      IOUtils.closeQuietly(closeOnFailure);
+      throw new QueryInterruptedException(e);
+    }
+    catch (QueryInterruptedException e) {
+      IOUtils.closeQuietly(closeOnFailure);
+      throw e;
+    }
+    catch (ExecutionException e) {
+      IOUtils.closeQuietly(closeOnFailure);
+      throw Throwables.propagate(e.getCause());
+    }
   }
 
   public static <I, T> QueryRunner<T> getIteratingRunner(

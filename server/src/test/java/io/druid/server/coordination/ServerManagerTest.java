@@ -538,7 +538,9 @@ public class ServerManagerTest
 
     @Override
     public QueryRunner<Result<SearchResultValue>> mergeRunners(
-        ExecutorService queryExecutor, Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners,
+        Query<Result<SearchResultValue>> query,
+        ExecutorService queryExecutor,
+        Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners,
         Future<Object> optimizer
     )
     {

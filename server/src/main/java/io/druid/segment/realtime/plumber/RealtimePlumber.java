@@ -329,6 +329,7 @@ public class RealtimePlumber implements Plumber
 
     return toolchest.mergeResults(
         factory.mergeRunners(
+            query,
             queryExecutorService,
             FunctionalIterable
                 .create(querySinks)
@@ -360,6 +361,7 @@ public class RealtimePlumber implements Plumber
                                 emitter,
                                 toolchest,
                                 factory.mergeRunners(
+                                    query,
                                     MoreExecutors.sameThreadExecutor(),
                                     Iterables.transform(
                                         theSink,

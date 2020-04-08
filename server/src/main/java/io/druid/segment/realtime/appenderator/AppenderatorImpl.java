@@ -490,6 +490,7 @@ public class AppenderatorImpl implements Appenderator
     return QueryRunners.runWith(resolved, CPUTimeMetricQueryRunner.safeBuild(
         toolchest.mergeResults(
             factory.mergeRunners(
+                resolved,
                 queryExecutorService,
                 FunctionalIterable
                     .create(specs)
@@ -521,6 +522,7 @@ public class AppenderatorImpl implements Appenderator
                                         sinkSegmentIdentifier,
                                         descriptor.getInterval().getStart(),
                                         factory.mergeRunners(
+                                            resolved,
                                             MoreExecutors.sameThreadExecutor(),
                                             Iterables.transform(
                                                 theSink,

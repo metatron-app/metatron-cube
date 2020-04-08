@@ -27,18 +27,17 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.groupby.MergeIndex;
-import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -46,11 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 
@@ -85,7 +80,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
     final GroupByQuery query = (GroupByQuery) queryParam;
 
     final ExecutorService executor;
-    int parallelism = config.getMaxMergeParallelism(query);
+    int parallelism = config.getQueryParallelism(query);
     if (parallelism > 1) {
       executor = exec;
       parallelism = Math.min(queryables.size(), parallelism);
@@ -144,9 +139,11 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
             ), semaphore, priority
         )
     );
-    waitForFutureCompletion(
+
+    QueryRunners.waitForCompletion(
         query,
         future,
+        queryWatcher,
         new Closeable()
         {
           @Override
@@ -165,39 +162,6 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
 
     boolean compact = !BaseQuery.isLocalFinalizingQuery(query);
     return Sequences.withBaggage(mergeIndex.toMergeStream(compact), new AsyncCloser(mergeIndex, executor));
-  }
-
-  private void waitForFutureCompletion(
-      GroupByQuery query,
-      ListenableFuture<?> future,
-      Closeable closeOnFailure
-  )
-  {
-    queryWatcher.registerQuery(query, future);
-    try {
-      long timeout = queryWatcher.remainingTime(query.getId());
-      if (timeout <= 0) {
-        future.get();
-      } else {
-        future.get(timeout, TimeUnit.MILLISECONDS);
-      }
-    }
-    catch (CancellationException e) {
-      log.info("Query canceled, id [%s]", query.getId());
-      IOUtils.closeQuietly(closeOnFailure);
-      // by request.. don'Row propagate
-    } catch (InterruptedException | TimeoutException e) {
-      String message = e instanceof InterruptedException ? "interrupted" : "timed-out";
-      log.warn(e, "Query %s, cancelling pending results, query id [%s]", message, query.getId());
-      IOUtils.closeQuietly(closeOnFailure);
-      throw new QueryInterruptedException(e);
-    } catch (QueryInterruptedException e) {
-      IOUtils.closeQuietly(closeOnFailure);
-      throw e;
-    } catch (ExecutionException e) {
-      IOUtils.closeQuietly(closeOnFailure);
-      throw Throwables.propagate(e.getCause());
-    }
   }
 
   private static class AsyncCloser implements Closeable

@@ -38,10 +38,6 @@ public class GroupByQueryConfig
   private boolean sortOnTime = true;
 
   @JsonProperty
-  @Min(1)
-  private int maxMergeParallelism = 8;
-
-  @JsonProperty
   private boolean preOrdering = false;
 
   @JsonProperty
@@ -105,16 +101,6 @@ public class GroupByQueryConfig
   public void setSortOnTime(boolean sortOnTime)
   {
     this.sortOnTime = sortOnTime;
-  }
-
-  public int getMaxMergeParallelism()
-  {
-    return maxMergeParallelism;
-  }
-
-  public void setMaxMergeParallelism(int maxMergeParallelism)
-  {
-    this.maxMergeParallelism = maxMergeParallelism;
   }
 
   public boolean isPreOrdering()

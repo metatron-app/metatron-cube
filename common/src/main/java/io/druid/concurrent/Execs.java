@@ -20,6 +20,7 @@
 package io.druid.concurrent;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -339,6 +340,7 @@ public class Execs
   )
   {
     final int parallelism = semaphore.availablePermits();
+    Preconditions.checkArgument(parallelism > 0, "Invalid parallelism %d", parallelism);
     log.debug("Executing with parallelism : %d", parallelism);
     // must be materialized first
     final List<WaitingFuture<V>> futures = Lists.newArrayList(Iterables.transform(works, WaitingFuture.<V>toWaiter()));

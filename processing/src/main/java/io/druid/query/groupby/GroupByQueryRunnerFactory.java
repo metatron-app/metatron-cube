@@ -345,6 +345,7 @@ public class GroupByQueryRunnerFactory
 
   @Override
   public QueryRunner<Row> mergeRunners(
+      final Query<Row> query,
       final ExecutorService exec,
       final Iterable<QueryRunner<Row>> queryRunners,
       final Future<Object> optimizer

@@ -38,6 +38,7 @@ import java.util.Iterator;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  */
@@ -120,7 +121,8 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
 
   public boolean close()
   {
-    boolean normalClose = jp == null || jp.isClosed();
+    // jp null : timeout, maybe
+    boolean normalClose = jp != null && jp.isClosed();
     CloseQuietly.close(jp);
     return normalClose;
   }
@@ -152,6 +154,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     protected RuntimeException handleException(Exception ex)
     {
       if (ex instanceof IOException ||
+          ex instanceof TimeoutException ||
           ex instanceof InterruptedException ||
           ex instanceof QueryInterruptedException ||
           ex instanceof CancellationException) {

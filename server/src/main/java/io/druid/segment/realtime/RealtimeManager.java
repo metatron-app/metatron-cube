@@ -196,6 +196,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
 
     return partitionChiefs == null ? NoopQueryRunner.instance() : factory.getToolchest().mergeResults(
         factory.mergeRunners(
+            query,
             MoreExecutors.sameThreadExecutor(),
             // Chaining query runners which wait on submitted chain query runners can make executor pools deadlock
             Iterables.transform(
@@ -231,6 +232,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
            ? NoopQueryRunner.instance()
            : factory.getToolchest().mergeResults(
                factory.mergeRunners(
+                   query,
                    MoreExecutors.sameThreadExecutor(),
                    Iterables.transform(
                        specs,

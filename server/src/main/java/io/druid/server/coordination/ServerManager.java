@@ -489,7 +489,7 @@ public class ServerManager implements ForwardingSegmentWalker
         );
         return FinalizeResultsQueryRunner.finalize(
             toolChest.mergeResults(
-                factory.mergeRunners(exec, runners, optimizer)
+                factory.mergeRunners(resolved, exec, runners, optimizer)
             ),
             toolChest,
             objectMapper

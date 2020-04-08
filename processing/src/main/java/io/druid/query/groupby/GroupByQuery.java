@@ -669,7 +669,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         getGroupingSets(),
         dimensions,
         width,
-        FrequencyQuery.DEFAULT_DEPTH,
+        0,
         limitSpec.getLimit(),
         null,
         getContext()

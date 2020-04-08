@@ -691,18 +691,6 @@ public class QueryRunnerTestHelper
       final Segment segment
   )
   {
-    final QueryToolChest<T, Query<T>> toolchest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
-    final QueryRunner<T> runner = toolchest.finalQueryDecoration(
-        toolchest.finalizeResults(
-            toolchest.mergeResults(
-                factory.mergeRunners(
-                    MoreExecutors.sameThreadExecutor(),
-                    ImmutableList.<QueryRunner<T>>of(makeSegmentQueryRunner(factory, segmentId, segment)),
-                    null
-                )
-            )
-        )
-    );
     return new QueryRunner<T>()
     {
       @Override
@@ -710,39 +698,23 @@ public class QueryRunnerTestHelper
       {
         final Supplier<RowResolver> resolver = RowResolver.supplier(Arrays.asList(segment), query);
         final Query<T> resolved = query.resolveQuery(resolver, true);
+
+        final QueryToolChest<T, Query<T>> toolchest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
+        final QueryRunner<T> runner = toolchest.finalQueryDecoration(
+            toolchest.finalizeResults(
+                toolchest.mergeResults(
+                    factory.mergeRunners(
+                        resolved,
+                        MoreExecutors.sameThreadExecutor(),
+                        ImmutableList.<QueryRunner<T>>of(makeSegmentQueryRunner(factory, segmentId, segment)),
+                        null
+                    )
+                )
+            )
+        );
         return runner.run(resolved, responseContext);
       }
     };
-  }
-
-  public static <T> QueryRunner<T> toBrokerRunner(
-      QueryRunner<T> runner,
-      QueryRunnerFactory<T, Query<T>> factory,
-      int segmentCount,
-      ExecutorService exec
-  )
-  {
-    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    List<QueryRunner<T>> singleSegmentRunners = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      singleSegmentRunners.add(toolChest.preMergeQueryDecoration(runner));
-    }
-    return toolChest.finalQueryDecoration(
-        PostProcessingOperators.wrap(
-            toolChest.finalizeResults(
-                toolChest.postMergeQueryDecoration(
-                    toolChest.mergeResults(
-                        factory.mergeRunners(
-                            exec,
-                            singleSegmentRunners,
-                            null
-                        )
-                    )
-                )
-            ),
-            TestHelper.JSON_MAPPER
-        )
-    );
   }
 
   public static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
@@ -1020,7 +992,12 @@ public class QueryRunnerTestHelper
     }
 
     @Override
-    public QueryRunner mergeRunners(ExecutorService queryExecutor, Iterable iterable, Future optimizer)
+    public QueryRunner mergeRunners(
+        Query query,
+        ExecutorService queryExecutor,
+        Iterable iterable,
+        Future optimizer
+    )
     {
       return null;
     }

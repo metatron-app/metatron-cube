@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.base.Supplier;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
@@ -38,12 +39,14 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 {
   /**
    */
-  public Future<Object> preFactoring(
+  default Future<Object> preFactoring(
       QueryType query,
       List<Segment> segments,
       Supplier<RowResolver> resolver,
       ExecutorService exec
-  );
+  ) {
+    return null;
+  }
 
   /**
    * Given a specific segment, this method will create a QueryRunner.
@@ -56,9 +59,9 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    * @param optimizer optimization object
    * @return A QueryRunner that, when asked, will generate a Sequence of results based on the given segment
    */
-  public QueryRunner<T> _createRunner(Segment segment, Future<Object> optimizer);
+  QueryRunner<T> _createRunner(Segment segment, Future<Object> optimizer);
 
-  public default QueryRunner<T> createRunner(final Segment segment, final Future<Object> optimizer)
+  default QueryRunner<T> createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<T>()
     {
@@ -84,12 +87,15 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    *
    * Which will allow for parallel execution up to the maximum number of processing threads allowed.
    *
+   *
+   * @param query
    * @param queryExecutor ExecutorService to be used for parallel processing
    * @param queryRunners Individual QueryRunner objects that produce some results
    * @param optimizer optimization object
    * @return a QueryRunner that, when asked, will use the ExecutorService to run the base QueryRunners
    */
-  public QueryRunner<T> mergeRunners(
+  QueryRunner<T> mergeRunners(
+      Query<T> query,
       ExecutorService queryExecutor,
       Iterable<QueryRunner<T>> queryRunners,
       Future<Object> optimizer
@@ -100,7 +106,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    *
    * @return an instance of the toolchest for this specific query type.
    */
-  public QueryToolChest<T, QueryType> getToolchest();
+  QueryToolChest<T, QueryType> getToolchest();
 
   interface Splitable<T, QueryType extends Query<T>> extends QueryRunnerFactory<T, QueryType>
   {
@@ -137,24 +143,14 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
     }
 
     @Override
-    public Future<Object> preFactoring(
-        QueryType query,
-        List<Segment> segments,
-        Supplier<RowResolver> resolver,
-        ExecutorService exec
-    )
-    {
-      return null;
-    }
-
-    @Override
     public QueryRunner<T> mergeRunners(
-        ExecutorService queryExecutor,
-        Iterable<QueryRunner<T>> queryRunners,
-        Future<Object> optimizer
+        final Query<T> query,
+        final ExecutorService queryExecutor,
+        final Iterable<QueryRunner<T>> runners,
+        final Future<Object> optimizer
     )
     {
-      return new ChainedExecutionQueryRunner<T>(queryExecutor, queryWatcher, queryRunners);
+      return QueryRunners.executeParallel(query, queryExecutor, Lists.newArrayList(runners), queryWatcher);
     }
 
     @Override
