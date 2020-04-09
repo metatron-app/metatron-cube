@@ -98,8 +98,8 @@ public class QueryConfig
   public int getQueryParallelism(Query<?> query)
   {
     final int systemMax = maxQueryParallelism;
-    final int userMax = query.getContextInt(Query.MAX_QUERY_PARALLELISM, -1);
-    return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
+    final int userMax = query.getContextInt(Query.MAX_QUERY_PARALLELISM, 4);
+    return Math.min(systemMax, userMax);
   }
 
   public int getHashJoinThreshold(Query<?> query)

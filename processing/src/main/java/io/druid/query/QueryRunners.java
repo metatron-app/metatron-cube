@@ -182,7 +182,7 @@ public class QueryRunners
       };
     }
     // used for limiting resource usage from heavy aggregators like CountMinSketch
-    final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, -1);
+    final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, 4);
     if (parallelism < 1) {
       // no limit.. todo: deprecate this
       return new ChainedExecutionQueryRunner<T>(executor, watcher, runners);
@@ -233,13 +233,13 @@ public class QueryRunners
       }
     }
     catch (CancellationException e) {
-      LOG.info("Query canceled, id [%s]", query.getId());
+      LOG.info("Query [%s] is canceled", query.getId());
       IOUtils.closeQuietly(closeOnFailure);
       return null;
     }
     catch (InterruptedException | TimeoutException e) {
-      String message = e instanceof InterruptedException ? "interrupted" : "timed-out";
-      LOG.warn(e, "Query %s, cancelling pending results, query id [%s]", message, query.getId());
+      String reason = e instanceof InterruptedException ? "interrupted" : "timeout";
+      LOG.info("Cancelling query [%s] by reason [%s]", query.getId(), reason);
       IOUtils.closeQuietly(closeOnFailure);
       throw new QueryInterruptedException(e);
     }

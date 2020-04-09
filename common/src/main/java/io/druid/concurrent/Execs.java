@@ -345,28 +345,35 @@ public class Execs
     // must be materialized first
     final List<WaitingFuture<V>> futures = Lists.newArrayList(Iterables.transform(works, WaitingFuture.<V>toWaiter()));
     final Queue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);
-    for (int i = 0; i < parallelism; i++) {
-      executor.submit(
-          new PrioritizedRunnable()
-          {
-            @Override
-            public int getPriority()
+    try {
+      for (int i = 0; i < parallelism; i++) {
+        executor.submit(
+            new PrioritizedRunnable()
             {
-              return priority;
-            }
+              @Override
+              public int getPriority()
+              {
+                return priority;
+              }
 
-            @Override
-            public void run()
-            {
-              for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
-                if (!semaphore.acquire(work) || !work.execute()) {
-                  log.debug("Something wrong.. aborting");  // can be normal process
-                  break;
+              @Override
+              public void run()
+              {
+                for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
+                  if (!semaphore.acquire(work) || !work.execute()) {
+                    log.debug("Something wrong.. aborting");  // can be normal process
+                    break;
+                  }
                 }
               }
             }
-          }
-      );
+        );
+      }
+    }
+    catch (RejectedExecutionException e) {
+      semaphore.destroy();
+      cancelQuietly(Futures.allAsList(futures));
+      throw e;
     }
     return GuavaUtils.cast(futures);
   }

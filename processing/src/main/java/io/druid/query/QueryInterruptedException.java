@@ -30,6 +30,7 @@ import io.druid.common.utils.ExceptionUtils;
 
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -162,7 +163,7 @@ public class QueryInterruptedException extends RuntimeException
       return QUERY_CANCELLED;
     } else if (e instanceof TimeoutException) {
       return QUERY_TIMEOUT;
-    } else if (e instanceof ResourceLimitExceededException) {
+    } else if (e instanceof ResourceLimitExceededException || e instanceof RejectedExecutionException) {
       return RESOURCE_LIMIT_EXCEEDED;
     } else {
       return UNKNOWN_EXCEPTION;

@@ -20,14 +20,11 @@
 package io.druid.query.select;
 
 import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
-import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
@@ -36,10 +33,9 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunnerHelper;
-import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
+import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.BoundDimFilter;
@@ -70,9 +66,9 @@ public class StreamQueryRunnerFactory
   private final StreamQueryEngine engine;
 
   @Inject
-  public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine)
+  public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine, QueryWatcher queryWatcher)
   {
-    super(toolChest, null);
+    super(toolChest, queryWatcher);
     this.engine = engine;
   }
 
@@ -221,49 +217,6 @@ public class StreamQueryRunnerFactory
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         return engine.process((StreamQuery) query, segment, optimizer, cache);
-      }
-    };
-  }
-
-  @Override
-  public QueryRunner<Object[]> mergeRunners(
-      final Query<Object[]> query,
-      final ExecutorService executor,
-      final Iterable<QueryRunner<Object[]>> queryRunners,
-      final Future<Object> optimizer
-  )
-  {
-    final List<QueryRunner<Object[]>> runners = Lists.newArrayList(queryRunners);
-    if (runners.isEmpty()) {
-      return QueryRunners.empty();
-    }
-    if (runners.size() == 1) {
-      return runners.get(0);
-    }
-    return new QueryRunner<Object[]>()
-    {
-      @Override
-      public Sequence<Object[]> run(final Query<Object[]> query, final Map<String, Object> responseContext)
-      {
-        StreamQuery stream = (StreamQuery) query;
-        if (!GuavaUtils.isNullOrEmpty(stream.getOrderingSpecs())) {
-          int priority = BaseQuery.getContextPriority(query, 0);
-          Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(4, runners.size()));
-          return QueryUtils.mergeSort(query, Lists.newArrayList(Iterables.transform(
-              Execs.execute(
-                  executor,
-                  QueryRunnerHelper.asCallable(runners, semaphore, query, responseContext),
-                  semaphore,
-                  priority
-              ),
-              FutureSequence.<Object[]>toSequence()
-          )));
-        }
-        // no need to sort on time in here (not like CCC)
-        return Sequences.concat(Iterables.transform(
-            QueryRunnerHelper.asCallable(runners, query, responseContext),
-            Sequences.<Object[]>callableToLazy()
-        ));
       }
     };
   }
