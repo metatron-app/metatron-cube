@@ -619,21 +619,25 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     if (dimensions.isEmpty() || !postAggregatorSpecs.isEmpty()) {
       return null;
     }
-    if (!limitSpec.hasLimit() || limitSpec.getLimit() > FrequencyQuery.MAX_LIMIT || limitSpec.getColumns().isEmpty()) {
-      return null;
-    }
     if (!limitSpec.getWindowingSpecs().isEmpty()) {
       return null;
     }
     if (!(Iterables.getOnlyElement(aggregatorSpecs, null) instanceof CountAggregatorFactory)) {
       return null;
     }
+    final List<OrderByColumnSpec> orderings = limitSpec.getColumns();
+    if (!limitSpec.hasLimit() || limitSpec.getLimit() > FrequencyQuery.MAX_LIMIT || orderings.isEmpty()) {
+      return null;
+    }
     final String name = aggregatorSpecs.get(0).getName();
-    final OrderByColumnSpec ordering = limitSpec.getColumns().get(0);
+    final OrderByColumnSpec ordering = orderings.get(0);
     if (!ordering.isNaturalOrdering() || ordering.getDirection() != Direction.DESCENDING ||
         !name.equals(ordering.getDimension())) {
       return null;
     }
+    LimitSpec newLimitSpec = LimitSpec.of(
+        limitSpec.getLimit(), ImmutableList.copyOf(orderings.subList(1, orderings.size()))
+    );
     AggregatorFactory factory = new CardinalityAggregatorFactory(
         "$v", null, dimensions, getGroupingSets(), null, true, true
     );
@@ -670,7 +674,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         dimensions,
         width,
         0,
-        limitSpec.getLimit(),
+        newLimitSpec,
         null,
         getContext()
     ).rewriteQuery(segmentWalker, queryConfig);

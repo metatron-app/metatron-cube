@@ -57,6 +57,9 @@ import java.util.function.ToIntFunction;
  */
 public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultType>>
 {
+  protected static final TypeReference<Object[]> ARRAY_TYPE_REFERENCE = new TypeReference<Object[]>() {};
+  protected static final TypeReference<Row> ROW_TYPE_REFERENCE = new TypeReference<Row>() {};
+
   protected final Logger LOG = new Logger(getClass());
 
   // cacheable queries
@@ -174,55 +177,6 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   public static QueryMetrics getQueryMetrics(Query query, QueryToolChest toolChest)
   {
     return toolChest.makeMetrics(query);
-  }
-
-  private static final ToIntFunction COUNTER = new ToIntFunction()
-  {
-    @Override
-    public int applyAsInt(Object value) { return 1;}
-  };
-
-  @SuppressWarnings("unchecked")
-  public static ToIntFunction numRows(Query query, QueryToolChest toolChest)
-  {
-    return toolChest == null ? QueryToolChest.COUNTER : toolChest.numRows(query);
-  }
-
-  public ToIntFunction numRows(QueryType query)
-  {
-    return COUNTER;
-  }
-
-  public final <X> CacheStrategy<ResultType, X, QueryType> getCacheStrategyIfExists(QueryType query)
-  {
-    if (this instanceof CacheSupport) {
-      return ((CacheSupport<ResultType, X, QueryType>) this).getCacheStrategy(query);
-    }
-    return null;
-  }
-
-  public static abstract class CacheSupport<ResultType, X, QueryType extends Query<ResultType>>
-      extends QueryToolChest<ResultType, QueryType>
-  {
-    /**
-     * Returns a CacheStrategy to be used to load data into the cache and remove it from the cache.
-     * <p>
-     * This is optional.  If it returns null, caching is effectively disabled for the query.
-     *
-     * @param query The query whose results might be cached
-     *
-     * @return A CacheStrategy that can be used to populate and read from the Cache
-     */
-    public abstract CacheStrategy<ResultType, X, QueryType> getCacheStrategy(QueryType query);
-  }
-
-  protected abstract class IdentityCacheStrategy extends CacheStrategy.Identity<ResultType, QueryType>
-  {
-    @Override
-    public TypeReference<ResultType> getCacheObjectClazz()
-    {
-      return getResultTypeReference(null);
-    }
   }
 
   /**
@@ -455,5 +409,50 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 
     @Override
     protected abstract Function<Cursor, Sequence<ResultType>> streamQuery(Query<ResultType> query);
+  }
+
+  public final <X> CacheStrategy<ResultType, X, QueryType> getCacheStrategyIfExists(QueryType query)
+  {
+    if (this instanceof CacheSupport) {
+      return ((CacheSupport<ResultType, X, QueryType>) this).getCacheStrategy(query);
+    }
+    return null;
+  }
+
+  public static abstract class CacheSupport<ResultType, X, QueryType extends Query<ResultType>>
+      extends QueryToolChest<ResultType, QueryType>
+  {
+    /**
+     * Returns a CacheStrategy to be used to load data into the cache and remove it from the cache.
+     * <p>
+     * This is optional.  If it returns null, caching is effectively disabled for the query.
+     *
+     * @param query The query whose results might be cached
+     *
+     * @return A CacheStrategy that can be used to populate and read from the Cache
+     */
+    public abstract CacheStrategy<ResultType, X, QueryType> getCacheStrategy(QueryType query);
+  }
+
+  protected abstract class IdenticalCacheStrategy extends CacheStrategy.Identitcal<ResultType, QueryType>
+  {
+    @Override
+    public final TypeReference<ResultType> getCacheObjectClazz()
+    {
+      return getResultTypeReference(null);
+    }
+  }
+
+  private static final ToIntFunction ROW_COUNTER = v -> {return 1;};
+
+  @SuppressWarnings("unchecked")
+  public static ToIntFunction numRows(Query query, QueryToolChest toolChest)
+  {
+    return toolChest == null ? QueryToolChest.ROW_COUNTER : toolChest.numRows(query);
+  }
+
+  public ToIntFunction numRows(QueryType query)
+  {
+    return ROW_COUNTER;
   }
 }

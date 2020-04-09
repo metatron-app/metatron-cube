@@ -152,9 +152,9 @@ public class SegmentMetadataQueryQueryToolChest
   }
 
   @Override
-  public IdentityCacheStrategy getCacheStrategy(SegmentMetadataQuery query)
+  public IdenticalCacheStrategy getCacheStrategy(SegmentMetadataQuery query)
   {
-    return new IdentityCacheStrategy()
+    return new IdenticalCacheStrategy()
     {
       @Override
       public byte[] computeCacheKey(SegmentMetadataQuery query)

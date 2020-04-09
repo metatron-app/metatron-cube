@@ -46,10 +46,12 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupingSetSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +76,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
 
   private final int width;
   private final int depth;
-  private final int limit;
+  private final LimitSpec limitSpec;
   private final byte[] sketch;
 
   @JsonCreator
@@ -87,7 +89,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("width") int width,
       @JsonProperty("depth") int depth,
-      @JsonProperty("limit") int limit,
+      @JsonProperty("limitSpec") LimitSpec limitSpec,
       @JsonProperty("sketch") byte[] sketch,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -99,8 +101,9 @@ public class FrequencyQuery extends BaseQuery<Object[]>
     this.filter = filter;
     this.width = width;
     this.depth = depth;
-    this.limit = limit;
+    this.limitSpec = limitSpec;
     this.sketch = sketch;
+    int limit = limitSpec.getLimit();
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(dimensions), "'dimensions' cannot be null or empty");
     Preconditions.checkArgument(limit > 0 && limit < MAX_LIMIT, "invalid limit %d", limit);
   }
@@ -141,7 +144,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
           dimensions,
           width,
           newDepth,
-          limit,
+          limitSpec,
           sketch,
           getContext()
       );
@@ -168,16 +171,16 @@ public class FrequencyQuery extends BaseQuery<Object[]>
           "$v", null, dimensions, GroupingSetSpec.EMPTY, null, true, true
       );
       Row result = QueryRunners.only(meta.withAggregatorSpecs(Arrays.asList(factory)), segmentWalker);
-      newWidth = (int) (Preconditions.checkNotNull(((Number) result.getRaw("$v")), "cardinality?").intValue() * 1.1);
+      int cardinality = Preconditions.checkNotNull(((Number) result.getRaw("$v")), "cardinality?").intValue();
+      BigInteger prime = BigInteger.valueOf(cardinality).nextProbablePrime();
+      newWidth = Math.min(prime.intValue(), (int)(cardinality * 1.11));
     }
     if (newSketch == null) {
       AggregatorFactory factory = new CountMinAggregatorFactory(
           "$v", null, dimensions, null, null, true, newWidth, newDepth, false
       );
       // disable cache
-      meta = meta.withOverriddenContext(ImmutableMap.<String, Object>of(
-          USE_CACHE, false, POPULATE_CACHE, false, MAX_QUERY_PARALLELISM, 4)
-      );
+      meta = meta.withOverriddenContext(ImmutableMap.<String, Object>of(USE_CACHE, false, POPULATE_CACHE, false));
       Row result = QueryRunners.only(meta.withAggregatorSpecs(Arrays.asList(factory)), segmentWalker);
       newSketch = Preconditions.checkNotNull((CountMinSketch) result.getRaw("$v"), "sketch?")
                                .toCompressedBytes();
@@ -191,7 +194,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         newWidth,
         newDepth,
-        limit,
+        limitSpec,
         newSketch,
         getContext()
     );
@@ -209,7 +212,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         width,
         depth,
-        limit,
+        limitSpec,
         sketch,
         getContext()
     );
@@ -227,7 +230,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         width,
         depth,
-        limit,
+        limitSpec,
         sketch,
         getContext()
     );
@@ -245,7 +248,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         width,
         depth,
-        limit,
+        limitSpec,
         sketch,
         computeOverriddenContext(contextOverrides)
     );
@@ -263,7 +266,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         width,
         depth,
-        limit,
+        limitSpec,
         sketch,
         getContext()
     );
@@ -281,7 +284,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         width,
         depth,
-        limit,
+        limitSpec,
         sketch,
         getContext()
     );
@@ -299,7 +302,24 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         width,
         depth,
-        limit,
+        limitSpec,
+        sketch,
+        getContext()
+    );
+  }
+
+  public FrequencyQuery withLimitSpec(LimitSpec limitSpec)
+  {
+    return new FrequencyQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        virtualColumns,
+        groupingSets,
+        dimensions,
+        width,
+        depth,
+        limitSpec,
         sketch,
         getContext()
     );
@@ -320,7 +340,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
         dimensions,
         width,
         depth,
-        limit,
+        limitSpec,
         null,
         getContext()
     );
@@ -375,9 +395,9 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   }
 
   @JsonProperty
-  public int getLimit()
+  public LimitSpec getLimitSpec()
   {
-    return limit;
+    return limitSpec;
   }
 
   @JsonProperty
@@ -388,13 +408,10 @@ public class FrequencyQuery extends BaseQuery<Object[]>
 
   private static final int MIN_CANDIDATES = 16;
 
-  public int getCandidateLimit()
+  public int limitForCandidate()
   {
-    if (getContextBoolean(FINAL_MERGE, true)) {
-      return limit;
-    } else {
-      return Math.max(MIN_CANDIDATES, limit << 1);
-    }
+    final int limit = limitSpec.getLimit();
+    return getContextBoolean(FINAL_MERGE, true) ? limit : Math.max(MIN_CANDIDATES, limit << 1);
   }
 
   @Override

@@ -19,13 +19,14 @@
 
 package io.druid.query.frequency;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.segment.TestIndex;
 import org.junit.Assert;
 import org.junit.Test;
@@ -59,33 +60,35 @@ public class FrequencyQueryRunnerTest extends QueryRunnerTestHelper
   {
     List<DimensionSpec> columns = DefaultDimensionSpec.toSpec("market", "quality");
     FrequencyQuery query = new FrequencyQuery(
-        TableDataSource.of(dataSource), null, null, null, null, columns, 65536, 4, 3, null, null);
-    String[] columnNames = {"__time", "market", "quality", "index", "indexMin"};
-    List<Object[]> expected = createExpected(
+        TableDataSource.of(dataSource), null, null, null, null, columns, 65536, 4, LimitSpec.of(3), null, null);
+
+    List<Object[]> expected = Arrays.asList(
         new Object[]{93, "spot", "automotive"},
         new Object[]{93, "spot", "business"},
         new Object[]{93, "spot", "entertainment"}
     );
 
     List<Object[]> results = Sequences.toList(
-        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()),
-        Lists.<Object[]>newArrayList()
+        query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    validate(expected, results);
+
+    LimitSpec descending = LimitSpec.of(3, OrderByColumnSpec.desc("quality"));
+    results = Sequences.toList(
+        query.withLimitSpec(descending).run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
+    );
+    expected = Arrays.asList(
+        new Object[]{93, "spot", "travel"},
+        new Object[]{93, "spot", "technology"},
+        new Object[]{93, "total_market", "premium"}
     );
     validate(expected, results);
   }
 
-  public static List<Object[]> createExpected(Object[]... values)
+  public static void validate(List<Object[]> expected, List<Object[]> result)
   {
-    return Arrays.asList(values);
-  }
-
-  public static void validate(
-      List<Object[]> expected,
-      List<Object[]> result
-  )
-  {
-    int max1 = Math.min(expected.size(), result.size());
-    for (int i = 0; i < max1; i++) {
+    int min = Math.min(expected.size(), result.size());
+    for (int i = 0; i < min; i++) {
       Object[] e = expected.get(i);
       Object[] r = result.get(i);
       Assert.assertEquals(Arrays.toString(e), Arrays.toString(r));

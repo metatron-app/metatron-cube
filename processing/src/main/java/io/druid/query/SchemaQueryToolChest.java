@@ -80,9 +80,9 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   }
 
   @Override
-  public IdentityCacheStrategy getCacheStrategy(SchemaQuery query)
+  public IdenticalCacheStrategy getCacheStrategy(SchemaQuery query)
   {
-    return new IdentityCacheStrategy()
+    return new IdenticalCacheStrategy()
     {
       @Override
       public byte[] computeCacheKey(SchemaQuery query)

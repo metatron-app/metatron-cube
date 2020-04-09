@@ -58,14 +58,6 @@ import java.util.function.ToIntFunction;
 public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQuery>
     extends QueryToolChest.CacheSupport<Row, Object[], T>
 {
-  private static final TypeReference<Object[]> OBJECT_TYPE_REFERENCE =
-      new TypeReference<Object[]>()
-      {
-      };
-  private static final TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>()
-  {
-  };
-
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
@@ -261,7 +253,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     if (query != null && query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       return BulkRow.TYPE_REFERENCE;
     } else {
-      return TYPE_REFERENCE;
+      return ROW_TYPE_REFERENCE;
     }
   }
 
@@ -293,7 +285,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       @Override
       public TypeReference<Object[]> getCacheObjectClazz()
       {
-        return OBJECT_TYPE_REFERENCE;
+        return ARRAY_TYPE_REFERENCE;
       }
 
       @Override

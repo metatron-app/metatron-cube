@@ -22,17 +22,23 @@ package io.druid.query.frequency;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.TopNSorter;
+import io.druid.query.ordering.Accessor;
 import io.druid.query.ordering.Comparators;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -47,33 +53,24 @@ import java.util.function.BiFunction;
  */
 public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQuery>
 {
-  private static final TypeReference<Object[]> TYPE_REFERENCE =
-      new TypeReference<Object[]>()
-      {
-      };
-
   private final GenericQueryMetricsFactory queryMetricsFactory;
 
   @Inject
-  public FrequencyQueryToolChest(
-      GenericQueryMetricsFactory queryMetricsFactory
-  )
+  public FrequencyQueryToolChest(GenericQueryMetricsFactory queryMetricsFactory)
   {
     this.queryMetricsFactory = queryMetricsFactory;
   }
 
-  private static final Comparator<Object[]> COUNT_DESCENDING_NF = new Comparator<Object[]>()
-  {
-    @Override
-    @SuppressWarnings("unchecked")
-    public int compare(final Object[] o1, final Object[] o2)
-    {
-      int compare = -Comparators.compareNF((Comparable) o1[0], (Comparable) o2[0]);
-      for (int i = 1; i < o1.length && compare == 0; i++) {
-        compare = Comparators.compareNF((Comparable) o1[i], (Comparable) o2[i]);
-      }
-      return compare;
+  private static final Comparator<Object[]> COUNT_DESC_ORDERING = (o1, o2) -> {
+    return -Ints.compare(((Number) o1[0]).intValue(), ((Number) o2[0]).intValue());
+  };
+
+  private static final Comparator<Object[]> DEFAULT_ORDERING = (o1, o2) -> {
+    int compare = COUNT_DESC_ORDERING.compare(o1, o2);
+    for (int i = 1; compare == 0 && i < o1.length; i++) {
+      compare = Comparators.compareNF((Comparable) o1[i], (Comparable) o2[i]);
     }
+    return compare;
   };
 
   @Override
@@ -145,12 +142,31 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
+        final FrequencyQuery frequency = (FrequencyQuery) query;
+        final LimitSpec spec = frequency.getLimitSpec();
+        final List<String> columns = frequency.estimatedOutputColumns();
         final Sequence<Object[]> sequence = runner.run(query, responseContext);
         return Sequences.once(
-            TopNSorter.topN(COUNT_DESCENDING_NF, sequence, ((FrequencyQuery) query).getCandidateLimit())
+            TopNSorter.topN(toComparator(spec, columns), sequence, frequency.limitForCandidate())
         );
       }
     };
+  }
+
+  private static Comparator<Object[]> toComparator(LimitSpec spec, List<String> columns)
+  {
+    if (!GuavaUtils.isNullOrEmpty(spec.getColumns())) {
+      final List<Comparator<Object[]>> comparators = Lists.newArrayList();
+      for (OrderByColumnSpec ordering : spec.getColumns()) {
+        final int index = columns.indexOf(ordering.getDimension());
+        if (index < 0) {
+          continue;
+        }
+        comparators.add(new Accessor.ComparatorOn<>(ordering.getComparator(), row -> { return row[index]; }));
+      }
+      return Comparators.compound(GuavaUtils.concat(COUNT_DESC_ORDERING, comparators));
+    }
+    return DEFAULT_ORDERING;
   }
 
   @Override
@@ -185,6 +201,6 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
   @Override
   public TypeReference<Object[]> getResultTypeReference(FrequencyQuery query)
   {
-    return TYPE_REFERENCE;
+    return ARRAY_TYPE_REFERENCE;
   }
 }

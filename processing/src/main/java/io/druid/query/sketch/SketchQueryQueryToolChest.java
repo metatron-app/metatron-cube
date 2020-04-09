@@ -44,11 +44,6 @@ import org.joda.time.Interval;
  */
 public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Object[], Object[], SketchQuery>
 {
-  private static final TypeReference<Object[]> TYPE_REFERENCE =
-      new TypeReference<Object[]>()
-      {
-      };
-
   private final GenericQueryMetricsFactory queryMetricsFactory;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
@@ -105,14 +100,14 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
   @Override
   public TypeReference<Object[]> getResultTypeReference(SketchQuery query)
   {
-    return TYPE_REFERENCE;
+    return ARRAY_TYPE_REFERENCE;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public CacheStrategy<Object[], Object[], SketchQuery> getCacheStrategy(final SketchQuery query)
   {
-    return new CacheStrategy.Identity<Object[], SketchQuery>()
+    return new IdenticalCacheStrategy()
     {
       @Override
       public byte[] computeCacheKey(SketchQuery query)
@@ -126,12 +121,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
                          .append(query.getDimensions())
                          .append(query.getMetrics())
                          .build();
-      }
-
-      @Override
-      public TypeReference<Object[]> getCacheObjectClazz()
-      {
-        return TYPE_REFERENCE;
       }
     };
   }

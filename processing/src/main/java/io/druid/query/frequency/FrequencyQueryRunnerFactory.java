@@ -96,7 +96,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
   {
     return new Function<Cursor, Sequence<Object[]>>()
     {
-      private final int limit = query.getCandidateLimit();
+      private final int limit = query.limitForCandidate();
 
       private final MutableInt size = new MutableInt();
       private final java.util.function.Function<Integer, Map<ObjectArray, MutableInt>> map =

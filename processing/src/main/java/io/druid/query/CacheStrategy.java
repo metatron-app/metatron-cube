@@ -58,7 +58,7 @@ public interface CacheStrategy<T, CacheType, QueryType extends Query<T>>
    */
   Function<CacheType, T> pullFromCache();
 
-  abstract class Identity<T, QueryType extends Query<T>> implements CacheStrategy<T, T, QueryType>
+  abstract class Identitcal<T, QueryType extends Query<T>> implements CacheStrategy<T, T, QueryType>
   {
     @Override
     public Function<T, T> prepareForCache()

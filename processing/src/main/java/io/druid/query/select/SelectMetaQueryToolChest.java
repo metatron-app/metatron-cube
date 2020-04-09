@@ -121,12 +121,12 @@ public class SelectMetaQueryToolChest
   }
 
   @Override
-  public IdentityCacheStrategy getCacheStrategy(final SelectMetaQuery query)
+  public IdenticalCacheStrategy getCacheStrategy(final SelectMetaQuery query)
   {
     if (query.getPagingSpec() != null) {
       return null;
     }
-    return new IdentityCacheStrategy()
+    return new IdenticalCacheStrategy()
     {
       @Override
       public byte[] computeCacheKey(SelectMetaQuery query)
