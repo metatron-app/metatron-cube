@@ -16,9 +16,9 @@ Extension coordinate to pull down, followed by a maven coordinate, e.g. io.druid
 
 Hadoop dependency to pull down, followed by a maven coordinate, e.g. org.apache.hadoop:hadoop-client:2.4.0
 
-`--no-default-hadoop`
+`--default-hadoop`
 
-Don't pull down the default hadoop coordinate, i.e., org.apache.hadoop:hadoop-client:2.3.0. If `-h` option is supplied, then default hadoop coordinate will not be downloaded.
+Pull down the default hadoop coordinate if not specified, i.e., org.apache.hadoop:hadoop-client:2.3.0. If `-h` option is supplied, then default hadoop coordinate will not be downloaded.
 
 `--clean`
     
@@ -39,6 +39,10 @@ Don't use the default remote repositories, only use the repositories provided di
 `-d` or `--defaultVersion`
 
 Version to use for extension coordinate that doesn't have a version information. For example, if extension coordinate is `io.druid.extensions:mysql-metadata-storage`, and default version is `#{DRUIDVERSION}`, then this coordinate will be treated as `io.druid.extensions:mysql-metadata-storage:#{DRUIDVERSION}`
+
+`--useHDP`
+
+Use HDP repositories.
 
 To run `pull-deps`, you should
 

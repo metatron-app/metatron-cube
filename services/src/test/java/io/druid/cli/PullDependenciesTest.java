@@ -22,7 +22,6 @@ package io.druid.cli;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.ISE;
 import io.druid.guice.ExtensionsConfig;
 import io.tesla.aether.internal.DefaultTeslaAether;
 import org.eclipse.aether.artifact.Artifact;
@@ -154,27 +153,6 @@ public class PullDependenciesTest
       }
     }
     return expectedJars;
-  }
-
-  /**
-   * If --clean is not specified and something already exists at druid.extensions.directory, ISE should be thrown
-   */
-  @Test(expected = ISE.class)
-  public void testPullDependencies_root_extension_dir_exists()
-  {
-    rootExtensionsDir.mkdir();
-    pullDependencies.run();
-  }
-
-  /**
-   * If --clean is not specified and something already exists at druid.extensions.hadoopDependenciesDir,
-   * ISE should be thrown
-   */
-  @Test(expected = ISE.class)
-  public void testPullDependencies_root_hadoop_dependencies_dir_exists()
-  {
-    rootHadoopDependenciesDir.mkdir();
-    pullDependencies.run();
   }
 
   @Test

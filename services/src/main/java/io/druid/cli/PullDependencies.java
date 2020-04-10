@@ -24,13 +24,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.StringUtils;
-import io.druid.java.util.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.indexing.common.config.TaskConfig;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.logger.Logger;
 import io.tesla.aether.Repository;
 import io.tesla.aether.TeslaAether;
 import io.tesla.aether.internal.DefaultTeslaAether;
@@ -147,55 +147,85 @@ public class PullDependencies implements Runnable
   @Option(
       name = {"-c", "--coordinate"},
       title = "coordinate",
-      description = "Extension coordinate to pull down, followed by a maven coordinate, e.g. io.druid.extensions:mysql-metadata-storage",
-      required = false)
+      description = "Extension coordinate to pull down, followed by a maven coordinate, e.g. io.druid.extensions:mysql-metadata-storage"
+  )
   public List<String> coordinates = Lists.newArrayList();
 
   @Option(
       name = {"-h", "--hadoop-coordinate"},
       title = "hadoop coordinate",
-      description = "Hadoop dependency to pull down, followed by a maven coordinate, e.g. org.apache.hadoop:hadoop-client:2.4.0",
-      required = false)
+      description = "Hadoop dependency to pull down, followed by a maven coordinate, e.g. org.apache.hadoop:hadoop-client:2.4.0"
+  )
   public List<String> hadoopCoordinates = Lists.newArrayList();
 
   @Option(
-      name = "--no-default-hadoop",
-      description = "Don't pull down the default hadoop coordinate, i.e., org.apache.hadoop:hadoop-client:2.3.0. If `-h` option is supplied, then default hadoop coordinate will not be downloaded.",
-      required = false)
-  public boolean noDefaultHadoop = false;
+      name = "--default-hadoop",
+      description = "Pull down the default hadoop coordinate is not specified, i.e., org.apache.hadoop:hadoop-client:2.3.0. If `-h` option is supplied, then default hadoop coordinate will not be downloaded."
+  )
+  public boolean defaultHadoop = false;
 
   @Option(
       name = "--clean",
-      title = "Remove exisiting extension and hadoop dependencies directories before pulling down dependencies.",
-      required = false)
+      title = "Remove exisiting extension and hadoop dependencies directories before pulling down dependencies."
+  )
   public boolean clean = false;
 
   @Option(
       name = {"-l", "--localRepository"},
-      title = "A local repository that Maven will use to put downloaded files. Then pull-deps will lay these files out into the extensions directory as needed.",
-      required = false
+      title = "A local repository that Maven will use to put downloaded files. Then pull-deps will lay these files out into the extensions directory as needed."
   )
   public String localRepository = String.format("%s/%s", System.getProperty("user.home"), ".m2/repository");
 
   @Option(
       name = {"-r", "--remoteRepository"},
-      title = "Add a remote repository. Unless --no-default-remote-repositories is provided, these will be used after https://repo1.maven.org/maven2/ and https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local",
-      required = false
+      title = "Add a remote repository. Unless --no-default-remote-repositories is provided, these will be used after https://repo1.maven.org/maven2/ and https://metamx.artifactoryonline.com/metamx/pub-libs-releases-local"
   )
   List<String> remoteRepositories = Lists.newArrayList();
 
   @Option(
       name = "--no-default-remote-repositories",
-      description = "Don't use the default remote repositories, only use the repositories provided directly via --remoteRepository",
-      required = false)
+      description = "Don't use the default remote repositories, only use the repositories provided directly via --remoteRepository"
+  )
   public boolean noDefaultRemoteRepositories = false;
 
   @Option(
       name = {"-d", "--defaultVersion"},
-      title = "Version to use for extension artifacts without version information.",
-      required = false
+      title = "Version to use for extension artifacts without version information."
   )
   public String defaultVersion = PullDependencies.class.getPackage().getImplementationVersion();
+
+  private static final List<String> HDP_REPOSITORIES = ImmutableList.of(
+      "http://repo.hortonworks.com/content/repositories/releases",
+      "http://repo.hortonworks.com/content/groups/public"
+  );
+
+  /**
+   * <repository>
+   *     <releases>
+   *         <enabled>true</enabled>
+   *     </releases>
+   *     <snapshots>
+   *         <enabled>true</enabled>
+   *     </snapshots>
+   *     <id>hortonworks.extrepo</id>
+   *     <name>Hortonworks HDP</name>
+   *     <url>http://repo.hortonworks.com/content/repositories/releases</url>
+   * </repository>
+   * <repository>
+   *     <releases>
+   *         <enabled>true</enabled>
+   *     </releases>
+   *     <snapshots>
+   *         <enabled>true</enabled>
+   *     </snapshots>
+   *     <id>hortonworks.other</id>
+   *     <name>Hortonworks Other Dependencies</name>
+   *     <url>http://repo.hortonworks.com/content/groups/public</url>
+   * </repository>
+   */
+
+  @Option(name = {"--useHDP"}, title = "Use HDP repositories.")
+  public boolean useHDP;
 
   public PullDependencies()
   {
@@ -227,53 +257,61 @@ public class PullDependencies implements Runnable
         log.error("Unable to clear extension directory at [%s]", extensionsConfig.getDirectory());
         throw Throwables.propagate(e);
       }
+      createRootExtensionsDirectory(extensionsDir);
+      createRootExtensionsDirectory(hadoopDependenciesDir);
     }
 
-    createRootExtensionsDirectory(extensionsDir);
-    createRootExtensionsDirectory(hadoopDependenciesDir);
+    if (!coordinates.isEmpty()) {
+      assertDirectory(extensionsDir);
+    }
+    if (!hadoopCoordinates.isEmpty()) {
+      assertDirectory(hadoopDependenciesDir);
+    }
 
-    log.info(
-        "Start pull-deps with local repository [%s] and remote repositories [%s]",
+    if (useHDP) {
+      remoteRepositories.addAll(HDP_REPOSITORIES);
+    }
+
+    log.warn(
+        "Start pull-deps with local repository [%s] and remote repositories %s",
         localRepository,
         remoteRepositories
     );
 
     try {
-      log.info("Start downloading dependencies for extension coordinates: [%s]", coordinates);
       for (final String coordinate : coordinates) {
+        log.debug("Start downloading extension: [%s]", coordinate);
         final Artifact versionedArtifact = getArtifact(coordinate);
 
         File currExtensionDir = new File(extensionsDir, versionedArtifact.getArtifactId());
         createExtensionDirectory(coordinate, currExtensionDir);
 
-        downloadExtension(versionedArtifact, currExtensionDir);
+        int count = downloadExtension(versionedArtifact, currExtensionDir);
+        log.info("Finish downloading extension: [%s] into %s, %d file(s)", coordinate, currExtensionDir, count);
       }
-      log.info("Finish downloading dependencies for extension coordinates: [%s]", coordinates);
 
-      if (!noDefaultHadoop && hadoopCoordinates.isEmpty()) {
+      // not specified dist version
+      if (hadoopCoordinates.size() == 1 && hadoopCoordinates.get(0).endsWith(":${hadoop.dist.version}")) {
+        hadoopCoordinates.clear();
+      }
+      if (defaultHadoop && hadoopCoordinates.isEmpty()) {
         hadoopCoordinates.addAll(TaskConfig.DEFAULT_DEFAULT_HADOOP_COORDINATES);
       }
 
-      log.info("Start downloading dependencies for hadoop extension coordinates: [%s]", hadoopCoordinates);
       for (String hadoopCoordinate : hadoopCoordinates) {
-        if (hadoopCoordinate.endsWith(":${hadoop.dist.version}")) {
-          if (noDefaultHadoop) {
-            continue;
-          }
-          hadoopCoordinate = "org.apache.hadoop:hadoop-client:2.3.0";
-        }
-        for (Artifact versionedArtifact : getArtifacts(hadoopCoordinate)) {
+        for (Artifact artifact : getArtifacts(hadoopCoordinate)) {
+          log.debug("Start downloading hadoop artifact: [%s]", artifact);
 
-          File currExtensionDir = new File(hadoopDependenciesDir, versionedArtifact.getArtifactId());
+          File currExtensionDir = new File(hadoopDependenciesDir, artifact.getArtifactId());
           createExtensionDirectory(hadoopCoordinate, currExtensionDir);
 
           // add a version folder for hadoop dependency directory
-          currExtensionDir = new File(currExtensionDir, versionedArtifact.getVersion());
+          currExtensionDir = new File(currExtensionDir, artifact.getVersion());
           createExtensionDirectory(hadoopCoordinate, currExtensionDir);
 
-          downloadExtension(versionedArtifact, currExtensionDir);
+          int count = downloadExtension(artifact, currExtensionDir);
+          log.info("Finish downloading hadoop artifact: [%s] into %s, %d file(s)", artifact, currExtensionDir, count);
         }
-        log.info("Finish downloading dependencies for hadoop extension coordinates: [%s]", hadoopCoordinates);
       }
     }
     catch (Exception e) {
@@ -319,7 +357,7 @@ public class PullDependencies implements Runnable
    * @param versionedArtifact The maven artifact of the extension
    * @param toLocation        The location where this extension will be downloaded to
    */
-  private void downloadExtension(Artifact versionedArtifact, File toLocation)
+  private int downloadExtension(Artifact versionedArtifact, File toLocation)
   {
     final CollectRequest collectRequest = new CollectRequest();
     collectRequest.setRoot(new Dependency(versionedArtifact, JavaScopes.RUNTIME));
@@ -366,14 +404,16 @@ public class PullDependencies implements Runnable
         )
     );
 
+    int counter = 0;
     try {
-      log.info("Start downloading extension [%s]", versionedArtifact);
+      log.debug("Start downloading extension [%s]", versionedArtifact);
       final List<Artifact> artifacts = aether.resolveArtifacts(dependencyRequest);
 
       for (Artifact artifact : artifacts) {
         if (!exclusions.contains(artifact.getGroupId())) {
-          log.info("Adding file [%s] at [%s]", artifact.getFile().getName(), toLocation.getAbsolutePath());
+          log.debug("Adding file [%s] at [%s]", artifact.getFile().getName(), toLocation.getAbsolutePath());
           FileUtils.copyFileToDirectory(artifact.getFile(), toLocation);
+          counter++;
         } else {
           log.debug("Skipped Artifact[%s]", artifact);
         }
@@ -383,7 +423,8 @@ public class PullDependencies implements Runnable
       log.error(e, "Unable to resolve artifacts for [%s].", dependencyRequest);
       throw Throwables.propagate(e);
     }
-    log.info("Finish downloading extension [%s]", versionedArtifact);
+    log.debug("Finish downloading extension [%s]", versionedArtifact);
+    return counter;
   }
 
   private DefaultTeslaAether getAetherClient()
@@ -435,7 +476,7 @@ public class PullDependencies implements Runnable
     if (log.isTraceEnabled() || log.isDebugEnabled()) {
       return new DefaultTeslaAether(
           localRepository,
-          remoteRepositories.toArray(new Repository[remoteRepositories.size()])
+          remoteRepositories.toArray(new Repository[0])
       );
     }
 
@@ -468,7 +509,7 @@ public class PullDependencies implements Runnable
       );
       return new DefaultTeslaAether(
           localRepository,
-          remoteRepositories.toArray(new Repository[remoteRepositories.size()])
+          remoteRepositories.toArray(new Repository[0])
       );
     }
     catch (UnsupportedEncodingException e) {
@@ -489,6 +530,15 @@ public class PullDependencies implements Runnable
               atLocation.getAbsolutePath()
           )
       );
+    }
+  }
+
+  private void assertDirectory(File atLocation)
+  {
+    if (!atLocation.exists()) {
+      createRootExtensionsDirectory(atLocation);
+    } else if (!atLocation.isDirectory()) {
+      throw new ISE("[%s] should be a directory", atLocation.getAbsolutePath());
     }
   }
 

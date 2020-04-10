@@ -119,6 +119,7 @@ public class Main
       final Runnable command = cli.parse(args);
       if (!(command instanceof Help)) { // Hack to work around Help not liking being injected
         injector.injectMembers(command);
+        LOG.info("Running.. %s", command.getClass().getSimpleName());
       }
       command.run();
     }
