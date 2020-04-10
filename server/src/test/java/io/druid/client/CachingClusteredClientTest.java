@@ -50,6 +50,7 @@ import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.concurrent.Execs;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -290,7 +291,7 @@ public class CachingClusteredClientTest
     timeline = new VersionedIntervalTimeline<>(Ordering.<String>natural());
     serverView = EasyMock.createNiceMock(TimelineServerView.class);
     cache = MapCache.create(100000);
-    client = makeClient(MoreExecutors.sameThreadExecutor());
+    client = makeClient(Execs.newDirectExecutorService());
 
     servers = new DruidServer[]{
         new DruidServer("test1", "test1", 10, "historical", "bye", 0),
@@ -318,7 +319,7 @@ public class CachingClusteredClientTest
       final ListeningExecutorService delegate = MoreExecutors.listeningDecorator(
           // we need to run everything in the same thread to ensure all callbacks on futures in CachingClusteredClient
           // are complete before moving on to the next query run.
-          MoreExecutors.sameThreadExecutor()
+          Execs.newDirectExecutorService()
       );
 
       @Override
@@ -542,7 +543,7 @@ public class CachingClusteredClientTest
             .andReturn(ImmutableMap.<Cache.NamedKey, byte[]>of())
             .once();
     EasyMock.replay(cache);
-    client = makeClient(MoreExecutors.sameThreadExecutor(), cache, limit);
+    client = makeClient(Execs.newDirectExecutorService(), cache, limit);
     final DruidServer lastServer = servers[random.nextInt(servers.length)];
     final DataSegment dataSegment = EasyMock.createNiceMock(DataSegment.class);
     EasyMock.expect(dataSegment.getIdentifier()).andReturn(DATA_SOURCE).anyTimes();
@@ -565,7 +566,7 @@ public class CachingClusteredClientTest
             .andReturn(ImmutableMap.<Cache.NamedKey, byte[]>of())
             .once();
     EasyMock.replay(cache);
-    client = makeClient(MoreExecutors.sameThreadExecutor(), cache, 0);
+    client = makeClient(Execs.newDirectExecutorService(), cache, 0);
     client.run(query, context);
     EasyMock.verify(cache);
     EasyMock.verify(dataSegment);

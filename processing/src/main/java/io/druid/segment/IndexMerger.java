@@ -33,11 +33,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
+import com.google.common.io.ByteSink;
 import com.google.common.io.Closeables;
 import com.google.common.io.Closer;
 import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
-import com.google.common.io.OutputSupplier;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.BitmapFactory;
@@ -46,7 +46,6 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
-import io.druid.common.guava.FileOutputSupplier;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
@@ -93,7 +92,6 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.MappedByteBuffer;
@@ -633,7 +631,7 @@ public class IndexMerger
       progress.progress();
       startTime = System.currentTimeMillis();
 
-      final ArrayList<FileOutputSupplier> dimOuts = Lists.newArrayListWithCapacity(mergedDimensions.size());
+      final ArrayList<Pair<File, ByteSink>> dimOuts = Lists.newArrayListWithCapacity(mergedDimensions.size());
       final Map<String, Integer> dimensionCardinalities = Maps.newHashMap();
       final ArrayList<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(indexes.size());
       final boolean[] convertMissingDimsFlags = new boolean[mergedDimensions.size()];
@@ -712,11 +710,12 @@ public class IndexMerger
         // Mark if this dim has the null/empty str value in its dictionary, used for determining nullRowsList later.
         dimHasNullFlags[dimIndex] = dimHasNull;
 
-        FileOutputSupplier dimOut = new FileOutputSupplier(IndexIO.makeDimFile(v8OutDir, dimension), true);
-        dimOuts.add(dimOut);
+        File file = IndexIO.makeDimFile(v8OutDir, dimension);
+        ByteSink dimOut = Files.asByteSink(file, FileWriteMode.APPEND);
+        dimOuts.add(Pair.of(file, dimOut));
 
         writer.close();
-        try (WritableByteChannel channel = Channels.newChannel(dimOut.getOutput())) {
+        try (WritableByteChannel channel = Channels.newChannel(dimOut.openStream())) {
           SerializerUtils.writeString(channel, dimension);
           writer.writeToChannel(channel);
         }
@@ -831,7 +830,7 @@ public class IndexMerger
       for (int i = 0; i < mergedDimensions.size(); ++i) {
         VSizeIntsWriter writer = forwardDimWriters.get(i);
         writer.close();
-        try (WritableByteChannel channel = Channels.newChannel(dimOuts.get(i).getOutput())) {
+        try (WritableByteChannel channel = Channels.newChannel(dimOuts.get(i).rhs.openStream())) {
           writer.writeToChannel(channel);
         }
       }
@@ -853,17 +852,17 @@ public class IndexMerger
 
       final File invertedFile = new File(v8OutDir, "inverted.drd");
       Files.touch(invertedFile);
-      OutputSupplier<OutputStream> invertedOut = Files.asByteSink(invertedFile, FileWriteMode.APPEND);
+      ByteSink invertedOut = Files.asByteSink(invertedFile, FileWriteMode.APPEND);
 
       final File geoFile = new File(v8OutDir, "spatial.drd");
       Files.touch(geoFile);
-      OutputSupplier<OutputStream> spatialOut = Files.asByteSink(geoFile, FileWriteMode.APPEND);
+      ByteSink spatialOut = Files.asByteSink(geoFile, FileWriteMode.APPEND);
 
       for (int i = 0; i < mergedDimensions.size(); ++i) {
         long dimStartTime = System.currentTimeMillis();
         String dimension = mergedDimensions.get(i);
 
-        File dimOutFile = dimOuts.get(i).getFile();
+        File dimOutFile = dimOuts.get(i).lhs;
         final MappedByteBuffer dimValsMapped = Files.map(dimOutFile);
 
         final String string = SerializerUtils.readString(dimValsMapped);
@@ -935,7 +934,7 @@ public class IndexMerger
         }
         writer.close();
 
-        try (WritableByteChannel channel = Channels.newChannel(invertedOut.getOutput())) {
+        try (WritableByteChannel channel = Channels.newChannel(invertedOut.openStream())) {
           SerializerUtils.writeString(channel, dimension);
           writer.writeToChannel(channel);
         }
@@ -947,7 +946,7 @@ public class IndexMerger
           spatialWriter.add(ImmutableRTree.newImmutableFromMutable(tree));
           spatialWriter.close();
 
-          try (WritableByteChannel channel = Channels.newChannel(spatialOut.getOutput())) {
+          try (WritableByteChannel channel = Channels.newChannel(spatialOut.openStream())) {
             SerializerUtils.writeString(channel, dimension);
             spatialWriter.writeToChannel(channel);
           }

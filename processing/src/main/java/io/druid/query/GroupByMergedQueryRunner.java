@@ -85,7 +85,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
       executor = exec;
       parallelism = Math.min(queryables.size(), parallelism);
     } else {
-      executor = MoreExecutors.sameThreadExecutor();
+      executor = Execs.newDirectExecutorService();
       parallelism = 1;
     }
 

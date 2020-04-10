@@ -1855,7 +1855,7 @@ public class KafkaIndexTaskTest
         EasyMock.createNiceMock(DataSegmentServerAnnouncer.class),
         handoffNotifierFactory,
         makeTimeseriesOnlyConglomerate(),
-        MoreExecutors.sameThreadExecutor(), // queryExecutorService
+        Execs.newDirectExecutorService(), // queryExecutorService
         EasyMock.createMock(MonitorScheduler.class),
         new SegmentLoaderFactory(
             new SegmentLoaderLocalCacheManager(

@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.client.BatchServerInventoryView;
 import io.druid.client.DruidServer;
 import io.druid.client.ServerView;
+import io.druid.concurrent.Execs;
 import io.druid.curator.PotentiallyGzippedCompressionProvider;
 import io.druid.curator.announcement.Announcer;
 import io.druid.jackson.DefaultObjectMapper;
@@ -116,7 +117,7 @@ public class BatchServerInventoryViewTest
 
     announcer = new Announcer(
         cf,
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
     announcer.start();
 
@@ -343,7 +344,7 @@ public class BatchServerInventoryViewTest
     EasyMock.replay(callback);
 
     filteredBatchServerInventoryView.registerSegmentCallback(
-        MoreExecutors.sameThreadExecutor(),
+        Execs.newDirectExecutorService(),
         callback,
         new Predicate<Pair<DruidServerMetadata, DataSegment>>()
         {

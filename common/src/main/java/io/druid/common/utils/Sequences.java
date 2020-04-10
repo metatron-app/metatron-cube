@@ -24,15 +24,14 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
 import io.druid.common.guava.ExecuteWhenDoneYielder;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Accumulators;
 import io.druid.java.util.common.guava.BaseSequence;
@@ -51,6 +50,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -196,7 +196,7 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
 
   public static <T> Sequence<T> withEffect(Sequence<T> sequence, Runnable effect)
   {
-    return withEffect(sequence, effect, MoreExecutors.sameThreadExecutor());
+    return withEffect(sequence, effect, Execs.newDirectExecutorService());
   }
 
   public static <T> Sequence<T> withEffect(final Sequence <T> seq, final Runnable effect, final Executor exec)
@@ -250,7 +250,7 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
   {
     return new Progressing.OnIterator<T>()
     {
-      private Iterator<T> current = Iterators.emptyIterator();
+      private Iterator<T> current = Collections.emptyIterator();
 
       @Override
       public float progress()

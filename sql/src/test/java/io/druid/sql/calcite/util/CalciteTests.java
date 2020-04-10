@@ -25,7 +25,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -34,6 +33,7 @@ import com.google.inject.Module;
 import io.druid.client.DruidLeaderClient;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
+import io.druid.concurrent.Execs;
 import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
@@ -207,7 +207,7 @@ public class CalciteTests
               }
           );
           binder.bind(Key.get(ExecutorService.class, Processing.class)).toInstance(
-              MoreExecutors.sameThreadExecutor()
+              Execs.newDirectExecutorService()
           );
         }
       }

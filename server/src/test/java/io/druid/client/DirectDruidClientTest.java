@@ -24,20 +24,20 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
+import io.druid.client.selector.QueryableDruidServer;
+import io.druid.client.selector.RandomServerSelectorStrategy;
+import io.druid.client.selector.ServerSelector;
+import io.druid.client.selector.TierSelectorStrategy;
+import io.druid.concurrent.Execs;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
-import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
-import io.druid.client.selector.QueryableDruidServer;
-import io.druid.client.selector.RandomServerSelectorStrategy;
-import io.druid.client.selector.ServerSelector;
-import io.druid.client.selector.TierSelectorStrategy;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunnerTestHelper;
@@ -126,7 +126,7 @@ public class DirectDruidClientTest
         null,
         new NoopServiceEmitter(),
         new BrokerIOConfig(),
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
     DirectDruidClient client2 = new DirectDruidClient(
         new ReflectionQueryToolChestWarehouse(),
@@ -137,7 +137,7 @@ public class DirectDruidClientTest
         null,
         new NoopServiceEmitter(),
         new BrokerIOConfig(),
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
 
     QueryableDruidServer queryableDruidServer1 = new QueryableDruidServer(
@@ -241,7 +241,7 @@ public class DirectDruidClientTest
         null,
         new NoopServiceEmitter(),
         new BrokerIOConfig(),
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
 
     QueryableDruidServer queryableDruidServer1 = new QueryableDruidServer(
@@ -310,7 +310,7 @@ public class DirectDruidClientTest
         null,
         new NoopServiceEmitter(),
         new BrokerIOConfig(),
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
 
     QueryableDruidServer queryableDruidServer = new QueryableDruidServer(

@@ -30,6 +30,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Throwables;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.guava.HostAndPort;
+import io.druid.common.guava.HostAndPortDeserializer;
 import io.druid.common.utils.Sequences;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BulkRow;
@@ -190,6 +192,9 @@ public class DruidDefaultSerializersModule extends SimpleModule
           }
         }
     );
+
+    addSerializer(HostAndPort.class, ToStringSerializer.instance);
+    addDeserializer(HostAndPort.class, HostAndPortDeserializer.std);
 
     addSerializer(BulkRow.class, BulkRow.SERIALIZER);
 

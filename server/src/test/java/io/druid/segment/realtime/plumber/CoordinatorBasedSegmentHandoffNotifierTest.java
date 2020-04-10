@@ -21,10 +21,9 @@ package io.druid.segment.realtime.plumber;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.client.ImmutableSegmentLoadInfo;
-import io.druid.client.SegmentLoadInfo;
 import io.druid.client.coordinator.CoordinatorClient;
+import io.druid.concurrent.Execs;
 import io.druid.query.SegmentDescriptor;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -36,8 +35,6 @@ import org.joda.time.Interval;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CoordinatorBasedSegmentHandoffNotifierTest
@@ -92,7 +89,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
     );
     final AtomicBoolean callbackCalled = new AtomicBoolean(false);
     notifier.registerSegmentHandoffCallback(
-        descriptor, MoreExecutors.sameThreadExecutor(), new Runnable()
+        descriptor, Execs.newDirectExecutorService(), new Runnable()
         {
           @Override
           public void run()
@@ -149,7 +146,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
     );
 
     notifier.registerSegmentHandoffCallback(
-        descriptor, MoreExecutors.sameThreadExecutor(), new Runnable()
+        descriptor, Execs.newDirectExecutorService(), new Runnable()
         {
           @Override
           public void run()

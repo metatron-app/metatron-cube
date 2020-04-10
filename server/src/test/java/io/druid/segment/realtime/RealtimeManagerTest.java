@@ -27,8 +27,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.collections.StupidPool;
+import io.druid.concurrent.Execs;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
@@ -1025,7 +1025,7 @@ public class RealtimeManagerTest
                       .mergeResults(
                           factory.mergeRunners(
                               query,
-                              MoreExecutors.sameThreadExecutor(),
+                              Execs.newDirectExecutorService(),
                               Iterables.transform(
                                   baseQuery.getIntervals(),
                                   new Function<Interval, QueryRunner<T>>()

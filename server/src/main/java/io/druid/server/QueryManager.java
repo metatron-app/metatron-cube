@@ -121,7 +121,7 @@ public class QueryManager implements QueryWatcher, Runnable
             }
           }
         },
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
   }
 

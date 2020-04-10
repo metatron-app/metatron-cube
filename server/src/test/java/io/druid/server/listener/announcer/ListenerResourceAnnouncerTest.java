@@ -19,8 +19,8 @@
 
 package io.druid.server.listener.announcer;
 
-import com.google.common.net.HostAndPort;
 import com.google.common.primitives.Longs;
+import io.druid.common.guava.HostAndPort;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
 import io.druid.curator.announcement.Announcer;

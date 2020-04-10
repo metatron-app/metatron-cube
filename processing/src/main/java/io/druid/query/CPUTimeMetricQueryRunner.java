@@ -19,15 +19,15 @@
 
 package io.druid.query;
 
-import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.VMUtils;
+import io.druid.concurrent.Execs;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.common.utils.Sequences;
 
 import java.io.IOException;
 import java.util.Map;
@@ -145,7 +145,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
             }
           }
         },
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
   }
 

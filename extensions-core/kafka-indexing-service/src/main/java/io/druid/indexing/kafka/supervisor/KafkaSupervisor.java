@@ -539,7 +539,7 @@ public class KafkaSupervisor implements Supervisor
             {
               notices.add(new RunNotice());
             }
-          }, MoreExecutors.sameThreadExecutor()
+          }, Execs.newDirectExecutorService()
       );
 
       listenerRegistered = true;

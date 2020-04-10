@@ -31,8 +31,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.collections.StupidPool;
+import io.druid.concurrent.Execs;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
@@ -706,7 +706,7 @@ public class QueryRunnerTestHelper
                 toolchest.mergeResults(
                     factory.mergeRunners(
                         resolved,
-                        MoreExecutors.sameThreadExecutor(),
+                        Execs.newDirectExecutorService(),
                         ImmutableList.<QueryRunner<T>>of(makeSegmentQueryRunner(factory, segmentId, segment)),
                         null
                     )
@@ -739,7 +739,7 @@ public class QueryRunnerTestHelper
                 resolved,
                 Arrays.asList(segment),
                 resolver,
-                MoreExecutors.sameThreadExecutor()
+                Execs.newDirectExecutorService()
             );
             QueryRunner<T> runner = factory.createRunner(segment, optimizer);
             return runner.run(resolved, responseContext);

@@ -362,7 +362,7 @@ public class RealtimePlumber implements Plumber
                                 toolchest,
                                 factory.mergeRunners(
                                     query,
-                                    MoreExecutors.sameThreadExecutor(),
+                                    Execs.newDirectExecutorService(),
                                     Iterables.transform(
                                         theSink,
                                         new Function<FireHydrant, QueryRunner<T>>()
@@ -396,7 +396,7 @@ public class RealtimePlumber implements Plumber
                                                     cache,
                                                     toolchest,
                                                     baseRunner,
-                                                    MoreExecutors.sameThreadExecutor(),
+                                                    Execs.newDirectExecutorService(),
                                                     cacheConfig
                                                 );
                                               }

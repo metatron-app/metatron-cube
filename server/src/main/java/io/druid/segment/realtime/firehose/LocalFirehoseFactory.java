@@ -54,6 +54,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -197,7 +198,7 @@ public class LocalFirehoseFactory implements FirehoseFactory
 
     return new Progressing.OnFirehose()
     {
-      private Iterator<InputRow> current = Iterators.emptyIterator();
+      private Iterator<InputRow> current = Collections.emptyIterator();
 
       @Override
       public float progress()

@@ -24,7 +24,14 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.cache.Cache;
+import io.druid.client.cache.CacheConfig;
+import io.druid.client.cache.MapCache;
+import io.druid.concurrent.Execs;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.Row;
+import io.druid.granularity.QueryGranularities;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.ResourceClosingSequence;
@@ -32,13 +39,6 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
-import io.druid.cache.Cache;
-import io.druid.client.cache.CacheConfig;
-import io.druid.client.cache.MapCache;
-import io.druid.data.input.CompactRow;
-import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Druids;
 import io.druid.query.Query;
@@ -200,7 +200,7 @@ public class CachingQueryRunnerTest
             return resultSeq;
           }
         },
-        MoreExecutors.sameThreadExecutor(),
+        Execs.newDirectExecutorService(),
         new CacheConfig()
         {
           @Override
@@ -290,7 +290,7 @@ public class CachingQueryRunnerTest
             return Sequences.empty();
           }
         },
-        MoreExecutors.sameThreadExecutor(),
+        Execs.newDirectExecutorService(),
         new CacheConfig()
         {
           @Override

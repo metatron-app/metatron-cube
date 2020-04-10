@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
@@ -134,8 +133,8 @@ public class ZkCoordinatorTest extends CuratorTestBase
         new NoopQueryRunnerFactoryConglomerate(),
         null,
         new NoopServiceEmitter(),
-        MoreExecutors.sameThreadExecutor(),
-        MoreExecutors.sameThreadExecutor(),
+        Execs.newDirectExecutorService(),
+        Execs.newDirectExecutorService(),
         new DefaultObjectMapper(),
         new LocalCacheProvider().get(),
         new CacheConfig()

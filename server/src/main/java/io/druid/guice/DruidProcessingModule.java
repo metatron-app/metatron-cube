@@ -20,21 +20,21 @@
 package io.druid.guice;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.ProvisionException;
-import io.druid.java.util.common.concurrent.ExecutorServiceConfig;
-import io.druid.java.util.common.lifecycle.Lifecycle;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.client.cache.CacheConfig;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.VMUtils;
+import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
 import io.druid.guice.annotations.Global;
 import io.druid.guice.annotations.Processing;
+import io.druid.java.util.common.concurrent.ExecutorServiceConfig;
+import io.druid.java.util.common.lifecycle.Lifecycle;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.offheap.OffheapBufferPool;
 import io.druid.query.DruidProcessingConfig;
 import io.druid.query.ExecutorServiceMonitor;
@@ -77,7 +77,7 @@ public class DruidProcessingModule implements Module
               .build()
       );
     } else {
-      return MoreExecutors.sameThreadExecutor();
+      return Execs.newDirectExecutorService();
     }
   }
 

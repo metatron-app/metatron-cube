@@ -22,7 +22,7 @@ package io.druid.firehose.kafka;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.net.HostAndPort;
+import io.druid.common.guava.HostAndPort;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import kafka.api.FetchRequest;

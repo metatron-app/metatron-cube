@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.client.BrokerIOConfig;
 import io.druid.client.DirectDruidClient;
@@ -33,6 +32,7 @@ import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.Intervals;
 import io.druid.common.utils.StringUtils;
+import io.druid.concurrent.Execs;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.jackson.DefaultObjectMapper;
@@ -270,7 +270,7 @@ public class SystemSchemaTest extends CalciteTestBase
       "foo",
       new NoopServiceEmitter(),
       new BrokerIOConfig(),
-      MoreExecutors.sameThreadExecutor()
+      Execs.newDirectExecutorService()
   );
 
   private final DirectDruidClient client2 = new DirectDruidClient(
@@ -282,7 +282,7 @@ public class SystemSchemaTest extends CalciteTestBase
       "foo2",
       new NoopServiceEmitter(),
       new BrokerIOConfig(),
-      MoreExecutors.sameThreadExecutor()
+      Execs.newDirectExecutorService()
   );
   private final ImmutableDruidServer druidServer1 = new ImmutableDruidServer(
       new DruidServerMetadata("server1", "localhost:0000", 5L, "realtime", DruidServer.DEFAULT_TIER, 0),

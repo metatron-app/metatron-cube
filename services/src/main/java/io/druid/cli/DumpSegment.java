@@ -27,21 +27,21 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
 import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Json;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DruidProcessingConfig;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -343,7 +343,7 @@ public class DumpSegment extends GuiceRunnable
     final QueryRunnerFactory factory = conglomerate.findFactory(query);
     final QueryRunner<T> runner = factory.createRunner(new QueryableIndexSegment("segment", index), null);
     final Sequence results = factory.getToolchest().mergeResults(
-        factory.mergeRunners(query, MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner>of(runner), null)
+        factory.mergeRunners(query, Execs.newDirectExecutorService(), ImmutableList.<QueryRunner>of(runner), null)
     ).run(query, Maps.<String, Object>newHashMap());
     return (Sequence<T>) results;
   }

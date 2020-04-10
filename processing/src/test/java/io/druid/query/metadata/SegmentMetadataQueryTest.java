@@ -25,8 +25,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.common.utils.JodaUtils;
+import io.druid.concurrent.Execs;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
@@ -388,7 +388,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
@@ -457,7 +457,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
@@ -535,7 +535,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
@@ -646,7 +646,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
@@ -703,7 +703,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
@@ -764,7 +764,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
@@ -822,7 +822,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
@@ -863,7 +863,7 @@ public class SegmentMetadataQueryTest
         toolChest.mergeResults(
             FACTORY.mergeRunners(
                 query,
-                MoreExecutors.sameThreadExecutor(),
+                Execs.newDirectExecutorService(),
                 //Note: It is essential to have atleast 2 query runners merged to reproduce the regression bug described in
                 //https://github.com/druid-io/druid/pull/1172
                 //the bug surfaces only when ordering is used which happens only when you have 2 things to compare

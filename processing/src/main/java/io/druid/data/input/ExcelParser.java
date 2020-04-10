@@ -35,6 +35,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +100,7 @@ public class ExcelParser
     {
       private int rowNum;
       private Sheet current;
-      private Iterator<Row> currentRows = Iterators.emptyIterator();
+      private Iterator<Row> currentRows = Collections.emptyIterator();
 
       @Override
       public Sheet currentSheet()

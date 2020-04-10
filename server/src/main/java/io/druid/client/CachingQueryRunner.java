@@ -23,19 +23,18 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.cache.Cache;
+import io.druid.client.cache.CacheConfig;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.cache.Cache;
-import io.druid.client.cache.CacheConfig;
-import io.druid.common.utils.Sequences;
 import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
@@ -124,7 +123,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
                   {
                     try {
                       if (cachedResult.length == 0) {
-                        return Iterators.emptyIterator();
+                        return Collections.emptyIterator();
                       }
 
                       return mapper.readValues(

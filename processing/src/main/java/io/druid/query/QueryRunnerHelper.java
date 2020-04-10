@@ -77,7 +77,7 @@ public class QueryRunnerHelper
     QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-    exec = exec == null ? MoreExecutors.sameThreadExecutor() : exec;
+    exec = exec == null ? Execs.newDirectExecutorService() : exec;
     return FinalizeResultsQueryRunner.finalize(
         toolChest.mergeResults(
             factory.mergeRunners(query, exec, Arrays.asList(factory.createRunner(null, null)), null)

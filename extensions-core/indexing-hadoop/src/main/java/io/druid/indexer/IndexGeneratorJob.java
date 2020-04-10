@@ -692,7 +692,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
           );
           persistExecutor = MoreExecutors.listeningDecorator(executorService);
         } else {
-          persistExecutor = MoreExecutors.sameThreadExecutor();
+          persistExecutor = Execs.newDirectExecutorService();
         }
 
         int lengthSkipLastTS = key.getLength() - Longs.BYTES;

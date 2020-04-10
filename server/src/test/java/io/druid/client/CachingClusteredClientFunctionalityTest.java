@@ -22,13 +22,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
+import io.druid.concurrent.Execs;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
@@ -75,7 +75,7 @@ public class CachingClusteredClientFunctionalityTest {
     timeline = new VersionedIntervalTimeline<>(Ordering.<String>natural());
     serverView = EasyMock.createNiceMock(TimelineServerView.class);
     cache = MapCache.create(100000);
-    client = makeClient(MoreExecutors.sameThreadExecutor());
+    client = makeClient(Execs.newDirectExecutorService());
     EmittingLogger.registerEmitter(new NoopServiceEmitter());
   }
 

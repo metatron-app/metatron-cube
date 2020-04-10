@@ -52,6 +52,7 @@ import io.druid.query.ordering.Comparators;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -437,7 +438,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       rightAlias.close();
     }
 
-    private Iterator<Object[]> iterator = Iterators.emptyIterator();
+    private Iterator<Object[]> iterator = Collections.emptyIterator();
 
     @Override
     public boolean hasNext()
@@ -704,7 +705,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       this.joinColumns = joinColumns;
       this.collation = null;
       this.indices = indices;
-      this.rows = Iterators.peekingIterator(Iterators.<Object[]>emptyIterator());
+      this.rows = Iterators.peekingIterator(Collections.emptyIterator());
       this.hashed = hashed;
     }
 
@@ -828,7 +829,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   private Iterator<Object[]> product(final List<Object[]> left, final List<Object[]> right, final boolean revert)
   {
     if (left.isEmpty() || right.isEmpty()) {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
     if (left.size() == 1) {
       return product(left.get(0), right, revert);

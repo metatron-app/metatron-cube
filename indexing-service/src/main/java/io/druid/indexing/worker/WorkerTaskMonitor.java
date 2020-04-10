@@ -246,7 +246,7 @@ public class WorkerTaskMonitor
             // do nothing
           }
         },
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
   }
 

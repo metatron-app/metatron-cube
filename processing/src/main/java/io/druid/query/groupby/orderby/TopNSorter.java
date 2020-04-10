@@ -19,11 +19,11 @@
 
 package io.druid.query.groupby.orderby;
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 
@@ -63,7 +63,7 @@ public class TopNSorter<T>
   public Iterator<T> toTopN(Iterable<T> items, int n)
   {
     if(n <= 0) {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
 
     MinMaxPriorityQueue<T> queue = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(n).create(items);
@@ -74,7 +74,7 @@ public class TopNSorter<T>
   public Iterator<T> toTopN(Sequence<T> items, int n)
   {
     if(n <= 0) {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
 
     final MinMaxPriorityQueue<T> queue = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(n).create();

@@ -33,8 +33,8 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.collections.StupidPool;
+import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
@@ -435,7 +435,7 @@ public class AggregationTestHelper
 
     final QueryRunner<Row> baseRunner = factory.mergeRunners(
         query,
-        MoreExecutors.sameThreadExecutor(),
+        Execs.newDirectExecutorService(),
         Lists.transform(
             segments,
             new Function<Segment, QueryRunner>()

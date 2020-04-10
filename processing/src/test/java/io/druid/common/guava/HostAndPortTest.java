@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * with the License. You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,34 +19,24 @@
 
 package io.druid.common.guava;
 
-import com.google.common.io.OutputSupplier;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.jackson.DefaultObjectMapper;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-
-/**
-*/
-public class FileOutputSupplier implements OutputSupplier<OutputStream>
+public class HostAndPortTest
 {
-  private final File file;
-  private final boolean append;
-
-  public FileOutputSupplier(File file, boolean append)
+  @Test
+  public void testSerDe() throws Exception
   {
-    this.file = file;
-    this.append = append;
+    ObjectMapper mapper = new DefaultObjectMapper();
+    test(mapper, HostAndPort.fromParts("localhost", 8080), "\"localhost:8080\"");
+    test(mapper, HostAndPort.fromString("localhost:8088"), "\"localhost:8088\"");
   }
 
-  @Override
-  public OutputStream getOutput() throws IOException
+  public void test(ObjectMapper mapper, HostAndPort hp, String string) throws java.io.IOException
   {
-    return new FileOutputStream(file, append);
-  }
-
-  public File getFile()
-  {
-    return file;
+    Assert.assertEquals(string, mapper.writeValueAsString(hp));
+    Assert.assertEquals(hp, mapper.readValue(string, HostAndPort.class));
   }
 }

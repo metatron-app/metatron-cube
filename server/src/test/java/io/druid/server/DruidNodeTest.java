@@ -19,7 +19,7 @@
 
 package io.druid.server;
 
-import com.google.common.net.HostAndPort;
+import io.druid.common.guava.HostAndPort;
 import org.junit.Assert;
 import org.junit.Test;
 

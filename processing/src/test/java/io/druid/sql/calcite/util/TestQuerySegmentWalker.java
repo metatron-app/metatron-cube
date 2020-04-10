@@ -30,8 +30,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.concurrent.Execs;
 import io.druid.data.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
@@ -180,7 +180,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   public TestQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate, QueryConfig config)
   {
-    this(TestHelper.JSON_MAPPER, conglomerate, MoreExecutors.sameThreadExecutor(), config, new PopulatingMap());
+    this(TestHelper.JSON_MAPPER, conglomerate, Execs.newDirectExecutorService(), config, new PopulatingMap());
   }
 
   private TestQuerySegmentWalker(

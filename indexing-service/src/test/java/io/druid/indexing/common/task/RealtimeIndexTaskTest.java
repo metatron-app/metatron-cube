@@ -1202,7 +1202,7 @@ public class RealtimeIndexTaskTest
         EasyMock.createNiceMock(DataSegmentServerAnnouncer.class),
         handoffNotifierFactory,
         conglomerate,
-        MoreExecutors.sameThreadExecutor(), // queryExecutorService
+        Execs.newDirectExecutorService(), // queryExecutorService
         EasyMock.createMock(MonitorScheduler.class),
         new SegmentLoaderFactory(
             new SegmentLoaderLocalCacheManager(

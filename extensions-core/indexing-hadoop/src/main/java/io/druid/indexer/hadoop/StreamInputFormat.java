@@ -20,7 +20,6 @@
 package io.druid.indexer.hadoop;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.impl.InputRowParser;
@@ -36,6 +35,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 
 public class StreamInputFormat extends FileInputFormat
@@ -61,7 +61,7 @@ public class StreamInputFormat extends FileInputFormat
     {
       private FileSplit fileSplit;
       private FSDataInputStream inputStream;
-      private Iterator<InputRow> iterator = Iterators.emptyIterator();
+      private Iterator<InputRow> iterator = Collections.emptyIterator();
 
       @Override
       public void initialize(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException

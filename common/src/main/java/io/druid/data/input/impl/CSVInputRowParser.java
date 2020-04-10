@@ -178,7 +178,7 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
   public Iterator<InputRow> parseStream(final Object input)
   {
     if (input == null) {
-      return Iterators.emptyIterator();
+      return Collections.emptyIterator();
     }
     final CSVParser parser = makeParser(input);
     final List<String> dimensions = dimensionsSpec.getDimensionNames();

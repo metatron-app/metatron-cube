@@ -26,8 +26,8 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
+import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseV2;
@@ -197,7 +197,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
     return partitionChiefs == null ? NoopQueryRunner.instance() : factory.getToolchest().mergeResults(
         factory.mergeRunners(
             query,
-            MoreExecutors.sameThreadExecutor(),
+            Execs.newDirectExecutorService(),
             // Chaining query runners which wait on submitted chain query runners can make executor pools deadlock
             Iterables.transform(
                 partitionChiefs.values(), new Function<FireChief, QueryRunner<T>>()
@@ -233,7 +233,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
            : factory.getToolchest().mergeResults(
                factory.mergeRunners(
                    query,
-                   MoreExecutors.sameThreadExecutor(),
+                   Execs.newDirectExecutorService(),
                    Iterables.transform(
                        specs,
                        new Function<SegmentDescriptor, QueryRunner<T>>()

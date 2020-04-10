@@ -35,9 +35,17 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.client.JsonParserIterator;
+import io.druid.client.StreamHandler;
+import io.druid.client.StreamHandlerFactory;
+import io.druid.collections.CountingMap;
+import io.druid.common.guava.HostAndPort;
+import io.druid.common.utils.StringUtils;
+import io.druid.granularity.QueryGranularities;
+import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.DruidDefaultSerializersModule;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
@@ -51,14 +59,6 @@ import io.druid.java.util.http.client.response.HttpResponseHandler;
 import io.druid.java.util.http.client.response.InputStreamResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
-import io.druid.client.JsonParserIterator;
-import io.druid.client.StreamHandler;
-import io.druid.client.StreamHandlerFactory;
-import io.druid.collections.CountingMap;
-import io.druid.common.utils.StringUtils;
-import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
-import io.druid.jackson.DruidDefaultSerializersModule;
 import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.LocatedSegmentDescriptor;
@@ -521,7 +521,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       }
     }
 
-    Iterator<Map<String, Object>> events = Iterators.emptyIterator();
+    Iterator<Map<String, Object>> events = Collections.emptyIterator();
 
     protected final ListenableFuture<F> submitQuery(Query query, HttpResponseHandler<?, F> handler) throws IOException
     {
@@ -644,7 +644,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
           events = Iterators.transform(response.iterator(), EventHolder.EVENT_EXT);
           paging = response.getPagingIdentifiers();
         } else {
-          events = Iterators.emptyIterator();
+          events = Collections.emptyIterator();
         }
         future = submitQuery(!events.hasNext());
       }

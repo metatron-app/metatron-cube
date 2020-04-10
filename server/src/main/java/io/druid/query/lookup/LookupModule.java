@@ -30,12 +30,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.net.HostAndPort;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.RE;
-import io.druid.java.util.common.logger.Logger;
+import io.druid.common.guava.HostAndPort;
 import io.druid.curator.announcement.Announcer;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
@@ -45,6 +42,9 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.initialization.DruidModule;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.RE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.server.DruidNode;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.server.initialization.jetty.JettyBindings;
@@ -54,11 +54,12 @@ import io.druid.server.listener.resource.AbstractListenerHandler;
 import io.druid.server.listener.resource.ListenerResource;
 import io.druid.server.lookup.cache.LookupCoordinatorManager;
 import io.druid.server.metrics.DataSourceTaskIdHolder;
+import org.apache.curator.utils.ZKPaths;
+
+import javax.ws.rs.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.ws.rs.Path;
-import org.apache.curator.utils.ZKPaths;
 
 public class LookupModule implements DruidModule
 {

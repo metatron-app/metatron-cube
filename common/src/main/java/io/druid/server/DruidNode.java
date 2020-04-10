@@ -23,11 +23,11 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.net.HostAndPort;
 import com.google.inject.name.Named;
+import io.druid.common.guava.HostAndPort;
+import io.druid.common.utils.SocketUtil;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
-import io.druid.common.utils.SocketUtil;
 
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;

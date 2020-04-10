@@ -27,7 +27,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -37,10 +36,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.StringUtils;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
@@ -56,6 +51,10 @@ import io.druid.concurrent.PrioritizedCallable;
 import io.druid.guice.annotations.BackgroundCaching;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Smile;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
@@ -87,6 +86,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -437,7 +437,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                 public Iterator<Object> iterator()
                 {
                   if (cachedResult.length == 0) {
-                    return Iterators.emptyIterator();
+                    return Collections.emptyIterator();
                   }
                   long prev = System.currentTimeMillis();
                   try {
@@ -580,7 +580,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                         );
                       }
                     },
-                    MoreExecutors.sameThreadExecutor()
+                    Execs.newDirectExecutorService()
                 );// End withEffect
               }
             };

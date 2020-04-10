@@ -93,6 +93,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <metamx.java-util.version>1.3.3</metamx.java-util.version>
         <apache.curator.version>2.10.0</apache.curator.version>
+        <guava.version>16.0.1</guava.version>
         <guice.version>4.1.0</guice.version>
         <jetty.version>9.3.24.v20180605</jetty.version>
         <jersey.version>1.19</jersey.version>
@@ -358,7 +359,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
-                <version>16.0.1</version>
+                <version>${guava.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.google.inject</groupId>

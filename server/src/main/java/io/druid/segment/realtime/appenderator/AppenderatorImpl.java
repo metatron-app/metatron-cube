@@ -523,7 +523,7 @@ public class AppenderatorImpl implements Appenderator
                                         descriptor.getInterval().getStart(),
                                         factory.mergeRunners(
                                             resolved,
-                                            MoreExecutors.sameThreadExecutor(),
+                                            Execs.newDirectExecutorService(),
                                             Iterables.transform(
                                                 theSink,
                                                 new Function<FireHydrant, QueryRunner<T>>()
@@ -557,7 +557,7 @@ public class AppenderatorImpl implements Appenderator
                                                             cache,
                                                             toolchest,
                                                             baseRunner,
-                                                            MoreExecutors.sameThreadExecutor(),
+                                                            Execs.newDirectExecutorService(),
                                                             cacheConfig
                                                         );
                                                       } else {

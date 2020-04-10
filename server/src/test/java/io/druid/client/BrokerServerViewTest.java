@@ -28,15 +28,15 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.http.client.HttpClient;
 import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
 import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
+import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.http.client.HttpClient;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
 import io.druid.query.TableDataSource;
@@ -342,7 +342,7 @@ public class BrokerServerViewTest extends CuratorTestBase
         new NoopServiceEmitter(),
         new BrokerSegmentWatcherConfig(),
         new BrokerIOConfig(),
-        MoreExecutors.sameThreadExecutor()
+        Execs.newDirectExecutorService()
     );
 
     baseView.start();

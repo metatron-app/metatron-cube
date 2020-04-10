@@ -21,7 +21,6 @@ package io.druid.query.groupby;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -77,6 +76,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -214,7 +214,7 @@ public class GroupByQueryEngine
       }
       increment = increments[increments.length - 1];
 
-      delegate = Iterators.emptyIterator();
+      delegate = Collections.emptyIterator();
     }
 
     public Sequence<Object[]> asArray()
