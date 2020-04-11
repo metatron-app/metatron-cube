@@ -43,6 +43,7 @@ import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.concurrent.ListenableFutures;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.SegmentDescriptor;
 import io.druid.segment.realtime.FireDepartmentMetrics;
@@ -727,7 +728,7 @@ public class AppenderatorDriver implements Closeable
       final Collection<String> sequenceNames
   )
   {
-    return Futures.transform(
+    return ListenableFutures.transformAsync(
         publish(publisher, committer, sequenceNames),
         this::registerHandoff
     );
