@@ -100,11 +100,11 @@ public class TaskLock
   @Override
   public String toString()
   {
-    return Objects.toStringHelper(this)
-                  .add("groupId", groupId)
-                  .add("dataSource", dataSource)
-                  .add("interval", interval)
-                  .add("version", version)
-                  .toString();
+    return "TaskLock{" +
+            "groupId='" + groupId + '\'' +
+            ", dataSource='" + dataSource + '\'' +
+            ", interval=" + interval +
+            ", version=" + version +
+            '}';
   }
 }

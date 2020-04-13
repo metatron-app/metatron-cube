@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexer.TaskStatus;
@@ -171,11 +170,11 @@ public abstract class AbstractTask implements Task
   @Override
   public String toString()
   {
-    return Objects.toStringHelper(this)
-                  .add("id", id)
-                  .add("type", getType())
-                  .add("dataSource", getDataSource())
-                  .toString();
+    return "AbstractTask{" +
+            "id='" + id + '\'' +
+            ", type='" + getType() + '\'' +
+            ", dataSource=" + dataSource +
+            '}';
   }
 
   /**

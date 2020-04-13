@@ -193,11 +193,11 @@ public class TaskStatus
   @Override
   public String toString()
   {
-    return Objects.toStringHelper(this)
-                  .add("id", id)
-                  .add("status", status)
-                  .add("duration", duration)
-                  .add("stats", stats)
-                  .toString();
+    return "TaskStatus{" +
+            "id='" + id + '\'' +
+            ", status='" + status + '\'' +
+            ", duration=" + duration +
+            ", stats=" + stats +
+            '}';
   }
 }

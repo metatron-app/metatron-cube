@@ -20,7 +20,6 @@
 package io.druid.indexing.overlord;
 
 import com.google.common.base.Function;
-import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -618,10 +617,10 @@ public class TaskLockbox
     @Override
     public String toString()
     {
-      return Objects.toStringHelper(this)
-                    .add("taskLock", taskLock)
-                    .add("taskIds", taskIds)
-                    .toString();
+      return "TaskLockbox{" +
+              "taskLock='" + taskLock + '\'' +
+              ", taskIds='" + taskIds + '\'' +
+              '}';
     }
   }
 }
