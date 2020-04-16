@@ -372,7 +372,7 @@ public class JavaScriptExtractionFnTest
   @Test
   public void testInjective()
   {
-    Assert.assertEquals(ExtractionFn.ExtractionType.MANY_TO_ONE, new JavaScriptExtractionFn("function(str) { return str; }", false, JavaScriptConfig.getDefault()).getExtractionType());
-    Assert.assertEquals(ExtractionFn.ExtractionType.ONE_TO_ONE, new JavaScriptExtractionFn("function(str) { return str; }", true, JavaScriptConfig.getDefault()).getExtractionType());
+    Assert.assertFalse(new JavaScriptExtractionFn("function(str) { return str; }", false, JavaScriptConfig.getDefault()).isOneToOne());
+    Assert.assertTrue(new JavaScriptExtractionFn("function(str) { return str; }", true, JavaScriptConfig.getDefault()).isOneToOne());
   }
 }

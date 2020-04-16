@@ -111,7 +111,7 @@ public class GroupByQueryRunnerFactory
   {
     List<ValueType> types = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
-      ValueDesc type = dimensionSpec.resolve(resolver.get());
+      ValueDesc type = dimensionSpec.resolve(resolver);
       if (ValueDesc.isMap(type)) {
         String[] descriptiveType = TypeUtils.splitDescriptiveType(type.typeName());
         if (descriptiveType == null) {
@@ -301,7 +301,7 @@ public class GroupByQueryRunnerFactory
     }
     logger.info("split %s on values : %s", dimensionSpec.getDimension(), Arrays.toString(thresholds));
 
-    ValueDesc type = dimensionSpec.resolve(resolver.get());
+    ValueDesc type = dimensionSpec.resolve(resolver);
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }

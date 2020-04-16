@@ -28,6 +28,8 @@ import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.MultiDimLookupExtractionFn;
 import io.druid.query.lookup.RegisteredLookupExtractionFn;
 
+import java.util.Objects;
+
 /**
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
@@ -56,6 +58,8 @@ import io.druid.query.lookup.RegisteredLookupExtractionFn;
  * A simple example of the type of operation this enables is the RegexDimExtractionFn which applies a
  * regular expression with a capture group.  When the regular expression matches the value of a dimension,
  * the value captured by the group is used for grouping operations instead of the dimension value.
+ *
+ * todo: deprecate this shit
  */
 public interface ExtractionFn extends Function<Object, String>, Cacheable
 {
@@ -66,7 +70,19 @@ public interface ExtractionFn extends Function<Object, String>, Cacheable
    * @return a byte[] unit to all concrete implements of DimExtractionFn
    * @param builder
    */
-  public KeyBuilder getCacheKey(KeyBuilder builder);
+  KeyBuilder getCacheKey(KeyBuilder builder);
+
+  /**
+   * The "extraction" function.  This should map a String value into some other String value.
+   * <p>
+   * Like {@link #apply(Object)}, the empty string is considered invalid output for this method and it should
+   * instead return null.
+   *
+   * @param value the original value of the dimension
+   *
+   * @return a value that should be used instead of the original
+   */
+  String apply(String value);
 
   /**
    * The "extraction" function.  This should map an Object into some String value.
@@ -80,19 +96,10 @@ public interface ExtractionFn extends Function<Object, String>, Cacheable
    *
    * @return a value that should be used instead of the original
    */
-  public String apply(Object value);
-
-  /**
-   * The "extraction" function.  This should map a String value into some other String value.
-   * <p>
-   * Like {@link #apply(Object)}, the empty string is considered invalid output for this method and it should
-   * instead return null.
-   *
-   * @param value the original value of the dimension
-   *
-   * @return a value that should be used instead of the original
-   */
-  public String apply(String value);
+  default String apply(Object value)
+  {
+    return apply(Objects.toString(value, null));
+  }
 
   /**
    * The "extraction" function.  This should map a long value into some String value.
@@ -104,7 +111,10 @@ public interface ExtractionFn extends Function<Object, String>, Cacheable
    *
    * @return a value that should be used instead of the original
    */
-  public String apply(long value);
+  default String apply(long value)
+  {
+    return apply(Long.toString(value));
+  }
 
   /**
    * Offers information on whether the extraction will preserve the original ordering of the values.
@@ -114,7 +124,10 @@ public interface ExtractionFn extends Function<Object, String>, Cacheable
    *
    * @return true if ordering is preserved, false otherwise
    */
-  public boolean preservesOrdering();
+  default boolean preservesOrdering()
+  {
+    return false;
+  }
 
   /**
    * A dim extraction can be of one of two types, renaming or rebucketing. In the `ONE_TO_ONE` case, a unique values is
@@ -124,21 +137,13 @@ public interface ExtractionFn extends Function<Object, String>, Cacheable
    * @return {@link io.druid.query.extraction.ExtractionFn.ExtractionType} declaring what kind of manipulation this
    * function does
    */
-  public ExtractionType getExtractionType();
-
-  public static enum ExtractionType
+  default boolean isOneToOne()
   {
-    MANY_TO_ONE, ONE_TO_ONE
+    return false;
   }
 
-  public static interface Stateful extends ExtractionFn
+  interface Stateful extends ExtractionFn
   {
-    public ExtractionFn init();
+    ExtractionFn init();
   }
-
-  /**
-   * Number of input dimensions for the extraction function. Some extraction function may take multiple dimensions as inputs
-   * @return number of input dimensions
-   */
-  public int arity();
 }

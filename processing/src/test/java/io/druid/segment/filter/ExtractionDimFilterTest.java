@@ -27,7 +27,6 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.common.KeyBuilder;
-import io.druid.query.extraction.DimExtractionFn;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
@@ -174,7 +173,7 @@ public class ExtractionDimFilterTest
       return null;
     }
   };
-  private static final ExtractionFn DIM_EXTRACTION_FN = new DimExtractionFn()
+  private static final ExtractionFn DIM_EXTRACTION_FN = new ExtractionFn()
   {
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)
@@ -187,18 +186,6 @@ public class ExtractionDimFilterTest
     {
       final String retval = EXTRACTION_VALUES.get(dimValue);
       return retval == null ? dimValue : retval;
-    }
-
-    @Override
-    public boolean preservesOrdering()
-    {
-      return false;
-    }
-
-    @Override
-    public ExtractionType getExtractionType()
-    {
-      return ExtractionType.MANY_TO_ONE;
     }
   };
 

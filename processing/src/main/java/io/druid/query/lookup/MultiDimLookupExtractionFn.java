@@ -30,20 +30,20 @@ import org.apache.commons.collections.keyvalue.MultiKey;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Objects;
 
 public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
 {
   private final LookupExtractor lookup;
   private final boolean optimize;
-  private final String replaceMissingValueWith;
   private final Integer numKeys;
 
   @JsonCreator
   public MultiDimLookupExtractionFn(
       @JsonProperty("lookup") final LookupExtractor lookup,
       @Nullable @JsonProperty("replaceMissingValueWith") final String replaceMissingValueWith,
-      @JsonProperty("optimize") Boolean optimize,
-      @JsonProperty("numKeys") final Integer numKeys
+      @JsonProperty("optimize") final Boolean optimize,
+      @JsonProperty("numKeys") final int numKeys
   )
   {
     super(
@@ -66,8 +66,7 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
         replaceMissingValueWith
     );
     this.lookup = lookup;
-    this.optimize = optimize == null ? true : optimize;
-    this.replaceMissingValueWith = replaceMissingValueWith;
+    this.optimize = optimize == null || optimize;
     Preconditions.checkArgument(numKeys > 1, "number of dimension keys should be greater than 1");
     this.numKeys = numKeys;
   }
@@ -92,7 +91,7 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
   }
 
   @JsonProperty
-  public Integer getNumKeys()
+  public int getNumKeys()
   {
     return numKeys;
   }
@@ -108,12 +107,6 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
   }
 
   @Override
-  public int arity()
-  {
-    return numKeys;
-  }
-
-  @Override
   public boolean equals(Object o)
   {
     if (this == o) {
@@ -125,13 +118,13 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
 
     MultiDimLookupExtractionFn that = (MultiDimLookupExtractionFn) o;
 
-    if (isOptimize() != that.isOptimize()) {
+    if (optimize != that.optimize) {
       return false;
     }
-    if (!getNumKeys().equals(that.getNumKeys())) {
+    if (numKeys != that.numKeys) {
       return false;
     }
-    if (getLookup() != null ? !getLookup().equals(that.getLookup()) : that.getLookup() != null) {
+    if (!Objects.equals(lookup, that.lookup)) {
       return false;
     }
     return getReplaceMissingValueWith() != null
@@ -146,7 +139,7 @@ public class MultiDimLookupExtractionFn extends MultiInputFunctionalExtraction
     int result = getLookup() != null ? getLookup().hashCode() : 0;
     result = 31 * result + (isOptimize() ? 1 : 0);
     result = 31 * result + (getReplaceMissingValueWith() != null ? getReplaceMissingValueWith().hashCode() : 0);
-    result = 31 * result + getNumKeys().hashCode();
+    result = 31 * result + numKeys;
     return result;
   }
 }

@@ -31,7 +31,7 @@ import java.util.Objects;
 
 /**
  */
-public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn.Stateful
+public class TimeDimExtractionFn implements ExtractionFn.Stateful
 {
   private final String timeFormat;
   private final String timeLocale;
@@ -134,27 +134,9 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
   }
 
   @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
   public ExtractionFn init()
   {
     return new TimeDimExtractionFn(timeFormat, timeLocale, timeZone, resultFormat, resultLocale, resultZone);
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
   }
 
   @Override

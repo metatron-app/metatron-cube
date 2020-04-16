@@ -59,21 +59,9 @@ public class IdentityExtractionFn implements ExtractionFn
   }
 
   @Override
-  public String apply(Object value)
-  {
-    return value == null ? null : Strings.emptyToNull(value.toString());
-  }
-
-  @Override
   public String apply(String value)
   {
     return Strings.emptyToNull(value);
-  }
-
-  @Override
-  public String apply(long value)
-  {
-    return Long.toString(value);
   }
 
   @Override
@@ -83,15 +71,9 @@ public class IdentityExtractionFn implements ExtractionFn
   }
 
   @Override
-  public ExtractionType getExtractionType()
+  public boolean isOneToOne()
   {
-    return ExtractionType.ONE_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
+    return true;
   }
 
   @Override

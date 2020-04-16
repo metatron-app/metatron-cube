@@ -23,13 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
-import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.segment.DimensionSelector;
 
 /**
  */
-public class ExtractionDimensionSpec extends DimensionSpec.Abstract
+public class ExtractionDimensionSpec implements DimensionSpec
 {
   public static ExtractionDimensionSpec of(String dimensionName, ExtractionFn extractionFn)
   {
@@ -85,12 +83,6 @@ public class ExtractionDimensionSpec extends DimensionSpec.Abstract
   public ExtractionFn getExtractionFn()
   {
     return extractionFn instanceof ExtractionFn.Stateful ? ((ExtractionFn.Stateful) extractionFn).init() : extractionFn;
-  }
-
-  @Override
-  public DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
-  {
-    return selector;
   }
 
   @Override

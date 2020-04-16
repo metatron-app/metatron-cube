@@ -7112,7 +7112,7 @@ public class CalciteQueryTest extends CalciteTestBase
 
   private static CascadeExtractionFn CASCADE(final ExtractionFn... fns)
   {
-    return new CascadeExtractionFn(fns);
+    return new CascadeExtractionFn(Arrays.asList(fns));
   }
 
   private static List<DimensionSpec> DIMS(final DimensionSpec... dimensionSpecs)

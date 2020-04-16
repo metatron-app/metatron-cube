@@ -21,6 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.base.Supplier;
 import io.druid.common.Cacheable;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -39,32 +40,32 @@ import io.druid.segment.DimensionSelector;
     @JsonSubTypes.Type(name = "expression", value = ExpressionDimensionSpec.class),
     @JsonSubTypes.Type(name = "withOrdering", value = DimensionSpecWithOrdering.class)
 })
-public interface DimensionSpec extends Cacheable, TypeResolver.Resolvable
+public interface DimensionSpec extends Cacheable, TypeResolver.LazyResolvable
 {
   String getDimension();
 
   String getOutputName();
 
+  DimensionSpec withOutputName(String outputName);
+
   //ExtractionFn can be implemented with decorate(..) fn
   ExtractionFn getExtractionFn();
 
-  DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver);
-
-  DimensionSpec withOutputName(String outputName);
+  default DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
+  {
+    return selector;
+  }
 
   boolean preservesOrdering();
 
+  @Override
+  default ValueDesc resolve(Supplier<? extends TypeResolver> resolver)
+  {
+    // dimension : dimensions, __time, not-existing or virtual columns
+    ValueDesc resolved = resolver.get().resolve(getDimension(), ValueDesc.STRING);
+    return resolved.isUnknown() && getExtractionFn() != null ? ValueDesc.STRING : resolved;
+  }
+
   // for logging
   String getDescription();
-
-  abstract class Abstract implements DimensionSpec
-  {
-    @Override
-    public ValueDesc resolve(TypeResolver resolver)
-    {
-      // dimension : dimensions, __time, not-existing or virtual columns
-      ValueDesc resolved = resolver.resolve(getDimension(), ValueDesc.STRING);
-      return resolved.isUnknown() && getExtractionFn() != null ? ValueDesc.STRING : resolved;
-    }
-  }
 }

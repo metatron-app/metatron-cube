@@ -40,14 +40,14 @@ public class DimsConcatExtractionFn extends MultiInputFunctionalExtraction
   )
   {
     super(
-        (format != null) ?
+        format != null ?
             new Function<List<String>, String>() {
               @Override
               public String apply(List<String> input) {
-                return input == null ? "" : String.format(format, input.toArray(new String[input.size()]));
+                return input == null ? "" : String.format(format, input.toArray(new String[0]));
               }
             }
-            :
+                       :
             new Function<List<String>, String>() {
               @Nullable
               @Override
@@ -80,13 +80,6 @@ public class DimsConcatExtractionFn extends MultiInputFunctionalExtraction
     return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_MULTICONCAT)
                   .append(format)
                   .append(delimiter);
-  }
-
-  @Override
-  public int arity()
-  {
-    // negative means varargs
-    return -1;
   }
 
   @Override

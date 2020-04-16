@@ -76,16 +76,4 @@ public abstract class MultiInputFunctionalExtraction implements ExtractionFn
   {
     throw new UnsupportedOperationException("Single String argument is not supported");
   }
-
-  @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
 }

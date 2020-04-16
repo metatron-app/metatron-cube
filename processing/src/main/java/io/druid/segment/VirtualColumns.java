@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -52,7 +53,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 {
   public static void assertDimensionIndexed(RowResolver resolver, DimensionSpec dimension)
   {
-    ValueDesc type = dimension.resolve(resolver);
+    ValueDesc type = dimension.resolve(Suppliers.ofInstance(resolver));
     if (type.isMap()) {
       String[] descriptiveType = TypeUtils.splitDescriptiveType(type.typeName());
       if (descriptiveType == null) {

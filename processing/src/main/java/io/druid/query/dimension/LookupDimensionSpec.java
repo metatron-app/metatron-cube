@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -31,7 +32,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupReferencesManager;
-import io.druid.segment.DimensionSelector;
 
 import javax.annotation.Nullable;
 
@@ -110,7 +110,7 @@ public class LookupDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public ValueDesc resolve(TypeResolver resolver)
+  public ValueDesc resolve(Supplier<? extends TypeResolver> resolver)
   {
     return ValueDesc.STRING;
   }
@@ -147,12 +147,6 @@ public class LookupDimensionSpec implements DimensionSpec
         lookupExtractor.isOneToOne(),
         optimize
     );
-  }
-
-  @Override
-  public DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
-  {
-    return selector;
   }
 
   @Override

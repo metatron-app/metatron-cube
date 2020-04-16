@@ -34,7 +34,6 @@ import java.util.Set;
  */
 public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
 {
-
   private static final byte CACHE_TYPE_ID = 0x3;
 
   private final Set<String> values;
@@ -51,7 +50,7 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
     Preconditions.checkArgument(values != null && values.size() > 0, "values list must be non-empty");
     this.values = values;
 
-    this.isWhitelist = isWhitelist == null ? true : isWhitelist.booleanValue();
+    this.isWhitelist = isWhitelist == null || isWhitelist.booleanValue();
   }
 
   @JsonProperty

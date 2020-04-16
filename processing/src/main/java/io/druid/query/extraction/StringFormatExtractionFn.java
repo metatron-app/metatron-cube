@@ -29,7 +29,7 @@ import io.druid.common.KeyBuilder;
 /**
  *
  */
-public class StringFormatExtractionFn extends DimExtractionFn
+public class StringFormatExtractionFn implements ExtractionFn
 {
   public static enum NullHandling
   {
@@ -101,24 +101,6 @@ public class StringFormatExtractionFn extends DimExtractionFn
       }
     }
     return Strings.emptyToNull(String.format(format, value));
-  }
-
-  @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
   }
 
   @Override

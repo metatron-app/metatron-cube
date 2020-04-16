@@ -85,24 +85,6 @@ public class ExpressionExtractionFn implements ExtractionFn
   }
 
   @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionFn.ExtractionType getExtractionType()
-  {
-    return ExtractionFn.ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
-  }
-
-  @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(ExtractionCacheHelper.CACHE_TYPE_ID_EXPRESSION)

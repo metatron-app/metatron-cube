@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 
 /**
  */
-public class RegexDimExtractionFn extends DimExtractionFn
+public class RegexDimExtractionFn implements ExtractionFn
 {
   private final String expr;
   private final int index;
@@ -110,24 +110,6 @@ public class RegexDimExtractionFn extends DimExtractionFn
   public String getReplaceMissingValueWith()
   {
     return replaceMissingValueWith;
-  }
-
-  @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
   }
 
   @Override

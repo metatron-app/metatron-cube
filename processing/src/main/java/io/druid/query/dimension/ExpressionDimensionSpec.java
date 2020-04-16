@@ -21,6 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.druid.common.KeyBuilder;
@@ -79,9 +80,9 @@ public class ExpressionDimensionSpec implements DimensionSpec
   }
 
   @Override
-  public ValueDesc resolve(final TypeResolver resolver)
+  public ValueDesc resolve(final Supplier<? extends TypeResolver> resolver)
   {
-    return Parser.parse(expression, resolver).returns();
+    return Parser.parse(expression, resolver.get()).returns();
   }
 
   @Override

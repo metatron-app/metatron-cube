@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
 import java.util.Locale;
 
 @JsonTypeName("lower")
-public class LowerExtractionFn extends DimExtractionFn
+public class LowerExtractionFn implements ExtractionFn
 {
   private final Locale locale;
 
@@ -55,24 +55,6 @@ public class LowerExtractionFn extends DimExtractionFn
       return null;
     }
     return key.toLowerCase(locale);
-  }
-
-  @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
   }
 
   @Override

@@ -342,11 +342,11 @@ public class GroupByQueryEngine
 
     private class RowUpdater implements java.util.function.Function<IntArray, int[]>, Closeable
     {
-      int nextIndex;
-      int endPosition;
-      int maxPosition;
+      private int nextIndex;
+      private int endPosition;
+      private int maxPosition;
 
-      final Map<IntArray, int[]> positions = Maps.newHashMapWithExpectedSize(DEFAULT_INITIAL_CAPACITY);
+      private final Map<IntArray, int[]> positions = Maps.newHashMapWithExpectedSize(DEFAULT_INITIAL_CAPACITY);
 
       private int getNumRows()
       {

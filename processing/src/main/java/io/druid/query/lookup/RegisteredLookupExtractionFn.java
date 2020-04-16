@@ -131,15 +131,9 @@ public class RegisteredLookupExtractionFn implements ExtractionFn
   }
 
   @Override
-  public ExtractionType getExtractionType()
+  public boolean isOneToOne()
   {
-    return ensureDelegate().getExtractionType();
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
+    return ensureDelegate().isOneToOne();
   }
 
   private ExtractionFn ensureDelegate()

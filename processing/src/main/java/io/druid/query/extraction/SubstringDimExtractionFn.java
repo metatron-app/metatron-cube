@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 
 /**
  */
-public class SubstringDimExtractionFn extends DimExtractionFn
+public class SubstringDimExtractionFn implements ExtractionFn
 {
   private static final byte CACHE_TYPE_ID = 0x8;
 
@@ -39,8 +39,7 @@ public class SubstringDimExtractionFn extends DimExtractionFn
   @JsonCreator
   public SubstringDimExtractionFn(
       @JsonProperty("index") int index,
-      @Nullable
-      @JsonProperty("length") Integer length
+      @Nullable @JsonProperty("length") Integer length
   )
   {
 
@@ -93,13 +92,7 @@ public class SubstringDimExtractionFn extends DimExtractionFn
   @Override
   public boolean preservesOrdering()
   {
-    return index == 0 ? true : false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
+    return index == 0;
   }
 
   @Override

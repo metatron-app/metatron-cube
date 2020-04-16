@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupReferencesManager;
@@ -208,6 +207,6 @@ public class LookupDimensionSpecTest
   @Test
   public void testIsOneToOne()
   {
-    Assert.assertEquals(lookupDimSpec.getExtractionFn().getExtractionType(), ExtractionFn.ExtractionType.ONE_TO_ONE);
+    Assert.assertTrue(lookupDimSpec.getExtractionFn().isOneToOne());
   }
 }

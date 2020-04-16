@@ -213,7 +213,7 @@ public class DimensionSpecs
   public static boolean isOneToOneExtraction(DimensionSpec input)
   {
     final ExtractionFn extractionFn = input.getExtractionFn();
-    return extractionFn != null && ExtractionFn.ExtractionType.ONE_TO_ONE.equals(extractionFn.getExtractionType());
+    return extractionFn != null && extractionFn.isOneToOne();
   }
 
   public static List<DimensionSelector> toSelectors(

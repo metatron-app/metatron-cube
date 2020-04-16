@@ -23,83 +23,32 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 
-import java.util.Arrays;
+import java.util.List;
 
 public class CascadeExtractionFn implements ExtractionFn
 {
-  private final ExtractionFn extractionFns[];
+  private final List<ExtractionFn> extractionFns;
   private final ChainedExtractionFn chainedExtractionFn;
-  private final ChainedExtractionFn DEFAULT_CHAINED_EXTRACTION_FN = new ChainedExtractionFn(
-      new ExtractionFn()
-      {
-        public KeyBuilder getCacheKey(KeyBuilder builder)
-        {
-          return builder;
-        }
-
-        public String apply(Object value)
-        {
-          return null;
-        }
-
-        public String apply(String value)
-        {
-          return null;
-        }
-
-        public String apply(long value)
-        {
-          return null;
-        }
-
-        public boolean preservesOrdering()
-        {
-          return false;
-        }
-
-        public ExtractionType getExtractionType()
-        {
-          return ExtractionType.MANY_TO_ONE;
-        }
-
-        public int arity()
-        {
-          return 1;
-        }
-
-        @Override
-        public String toString()
-        {
-          return "nullExtractionFn{}";
-        }
-      },
-      null
-  );
 
   @JsonCreator
   public CascadeExtractionFn(
-      @JsonProperty("extractionFns") ExtractionFn[] extractionFn
+      @JsonProperty("extractionFns") List<ExtractionFn> extractionFns
   )
   {
-    Preconditions.checkArgument(extractionFn != null, "extractionFns should not be null");
-    this.extractionFns = extractionFn;
-    if (extractionFns.length == 0) {
-      this.chainedExtractionFn = DEFAULT_CHAINED_EXTRACTION_FN;
-    } else {
-      ChainedExtractionFn root = null;
-      for (ExtractionFn fn : extractionFn) {
-        Preconditions.checkArgument(fn != null, "empty function is not allowed");
-        root = new ChainedExtractionFn(fn, root);
-      }
-      this.chainedExtractionFn = root;
+    Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(extractionFns), "extractionFns should not be null or empty");
+    this.extractionFns = extractionFns;
+    ChainedExtractionFn root = null;
+    for (ExtractionFn fn : extractionFns) {
+      root = new ChainedExtractionFn(Preconditions.checkNotNull(fn, "null function is not allowed"), root);
     }
+    this.chainedExtractionFn = root;
   }
 
   @JsonProperty
-  public ExtractionFn[] getExtractionFns()
+  public List<ExtractionFn> getExtractionFns()
   {
     return extractionFns;
   }
@@ -136,15 +85,9 @@ public class CascadeExtractionFn implements ExtractionFn
   }
 
   @Override
-  public ExtractionType getExtractionType()
+  public boolean isOneToOne()
   {
-    return chainedExtractionFn.getExtractionType();
-  }
-
-  @Override
-  public int arity()
-  {
-    return chainedExtractionFn.numberOfDimensionInputs();
+    return chainedExtractionFn.isOneToOne();
   }
 
   @Override
@@ -159,7 +102,7 @@ public class CascadeExtractionFn implements ExtractionFn
 
     CascadeExtractionFn that = (CascadeExtractionFn) o;
 
-    if (!Arrays.equals(extractionFns, that.extractionFns)) {
+    if (!extractionFns.equals(that.extractionFns)) {
       return false;
     }
     if (!chainedExtractionFn.equals(that.chainedExtractionFn)) {
@@ -182,58 +125,49 @@ public class CascadeExtractionFn implements ExtractionFn
            "extractionFns=[" + chainedExtractionFn.toString() + "]}";
   }
 
-  private class ChainedExtractionFn implements Cacheable
+  private static class ChainedExtractionFn
   {
     private final ExtractionFn fn;
     private final ChainedExtractionFn child;
 
-    public ChainedExtractionFn(ExtractionFn fn, ChainedExtractionFn child)
+    private ChainedExtractionFn(ExtractionFn fn, ChainedExtractionFn child)
     {
       this.fn = fn;
       this.child = child;
     }
 
-    @Override
-    public KeyBuilder getCacheKey(KeyBuilder builder)
+    private KeyBuilder getCacheKey(KeyBuilder builder)
     {
       return builder.append(fn).append(child);
     }
 
-    public String apply(Object value)
+    private String apply(Object value)
     {
-      return fn.apply((child != null) ? child.apply(value) : value);
+      return fn.apply(child != null ? child.apply(value) : value);
     }
 
-    public String apply(String value)
+    private String apply(String value)
     {
-      return fn.apply((child != null) ? child.apply(value) : value);
+      return fn.apply(child != null ? child.apply(value) : value);
     }
 
-    public String apply(long value)
+    private String apply(long value)
     {
-      return fn.apply((child != null) ? child.apply(value) : value);
+      return fn.apply(child != null ? child.apply(value) : value);
     }
 
-    public boolean preservesOrdering()
+    private boolean preservesOrdering()
     {
-      boolean childPreservesOrdering = (child == null) || child.preservesOrdering();
+      boolean childPreservesOrdering = child == null || child.preservesOrdering();
       return fn.preservesOrdering() && childPreservesOrdering;
     }
 
-    public ExtractionType getExtractionType()
+    private boolean isOneToOne()
     {
-      if (child != null && child.getExtractionType() == ExtractionType.MANY_TO_ONE) {
-        return ExtractionType.MANY_TO_ONE;
-      } else {
-        return fn.getExtractionType();
-      }
+      return (child == null || child.isOneToOne()) && fn.isOneToOne();
     }
 
-    public int numberOfDimensionInputs()
-    {
-      return (child != null) ? 1 : fn.arity();
-    }
-
+    @Override
     public boolean equals(Object o)
     {
       if (this == o) {
@@ -255,6 +189,7 @@ public class CascadeExtractionFn implements ExtractionFn
       return true;
     }
 
+    @Override
     public int hashCode()
     {
       int result = fn.hashCode();
@@ -264,6 +199,7 @@ public class CascadeExtractionFn implements ExtractionFn
       return result;
     }
 
+    @Override
     public String toString()
     {
       return (child != null)

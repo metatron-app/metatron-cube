@@ -29,6 +29,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 
 public class CascadeExtractionFnTest
@@ -62,12 +63,9 @@ public class CascadeExtractionFnTest
   @Test
   public void testRegexAndJavascriptAndSubstring()
   {
-    ExtractionFn[] fns = new ExtractionFn[3];
-    fns[0] = regexDimExtractionFn;
-    fns[1] = javascriptExtractionFn;
-    fns[2] = substringDimExtractionFn;
-
-    CascadeExtractionFn cascadeExtractionFn = new CascadeExtractionFn(fns);
+    CascadeExtractionFn cascadeExtractionFn = new CascadeExtractionFn(
+        Arrays.asList(regexDimExtractionFn, javascriptExtractionFn, substringDimExtractionFn)
+    );
 
     Set<String> extracted = Sets.newLinkedHashSet();
     for (String path : paths) {
@@ -81,21 +79,17 @@ public class CascadeExtractionFnTest
   @Test
   public void testGetCacheKey()
   {
-    ExtractionFn[] fns1 = new ExtractionFn[2];
-    fns1[0] = javascriptExtractionFn;
-    fns1[1] = regexDimExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(fns1);
+    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(
+        Arrays.asList(javascriptExtractionFn, regexDimExtractionFn)
+    );
 
-    ExtractionFn[] fns2 = new ExtractionFn[2];
-    fns2[0] = regexDimExtractionFn;
-    fns2[1] = javascriptExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(fns2);
+    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(
+        Arrays.asList(regexDimExtractionFn, javascriptExtractionFn)
+    );
 
-    ExtractionFn[] fns3 = new ExtractionFn[3];
-    fns3[0] = regexDimExtractionFn;
-    fns3[1] = javascriptExtractionFn;
-    fns3[2] = substringDimExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn3 = new CascadeExtractionFn(fns3);
+    CascadeExtractionFn cascadeExtractionFn3 = new CascadeExtractionFn(
+        Arrays.asList(regexDimExtractionFn, javascriptExtractionFn, substringDimExtractionFn)
+    );
 
 
     Assert.assertFalse(Arrays.equals(cascadeExtractionFn1.getCacheKey(), cascadeExtractionFn2.getCacheKey()));
@@ -106,21 +100,17 @@ public class CascadeExtractionFnTest
   @Test
   public void testHashCode()
   {
-    ExtractionFn[] fns1 = new ExtractionFn[2];
-    fns1[0] = javascriptExtractionFn;
-    fns1[1] = regexDimExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(fns1);
+    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(
+        Arrays.asList(javascriptExtractionFn, regexDimExtractionFn)
+    );
 
-    ExtractionFn[] fns2 = new ExtractionFn[2];
-    fns2[0] = regexDimExtractionFn;
-    fns2[1] = javascriptExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(fns2);
+    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(
+        Arrays.asList(regexDimExtractionFn, javascriptExtractionFn)
+    );
 
-    ExtractionFn[] fns3 = new ExtractionFn[3];
-    fns3[0] = regexDimExtractionFn;
-    fns3[1] = javascriptExtractionFn;
-    fns3[2] = substringDimExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn3 = new CascadeExtractionFn(fns3);
+    CascadeExtractionFn cascadeExtractionFn3 = new CascadeExtractionFn(
+        Arrays.asList(regexDimExtractionFn, javascriptExtractionFn, substringDimExtractionFn)
+    );
 
     Assert.assertNotEquals(cascadeExtractionFn1.hashCode(), cascadeExtractionFn2.hashCode());
     Assert.assertNotEquals(cascadeExtractionFn1.hashCode(), cascadeExtractionFn3.hashCode());
@@ -130,19 +120,18 @@ public class CascadeExtractionFnTest
   @Test
   public void testPreservesOrdering()
   {
-    ExtractionFn[] fns1 = new ExtractionFn[1];
-    fns1[0] = substringDimExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(fns1);
+    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(Arrays.asList(substringDimExtractionFn));
 
-    ExtractionFn[] fns2 = new ExtractionFn[2];
-    fns2[0] = regexDimExtractionFn;
-    fns2[1] = substringDimExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(fns2);
+    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(
+        Arrays.asList(regexDimExtractionFn, substringDimExtractionFn)
+    );
 
     ExtractionFn[] fns3 = new ExtractionFn[2];
     fns3[0] = substringDimExtractionFn;
     fns3[1] = javascriptExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn3 = new CascadeExtractionFn(fns3);
+    CascadeExtractionFn cascadeExtractionFn3 = new CascadeExtractionFn(
+        Arrays.asList(substringDimExtractionFn, javascriptExtractionFn)
+    );
 
     Assert.assertTrue(cascadeExtractionFn1.preservesOrdering());
     Assert.assertFalse(cascadeExtractionFn2.preservesOrdering());
@@ -152,17 +141,17 @@ public class CascadeExtractionFnTest
   @Test
   public void testGetExtractionType()
   {
-    ExtractionFn[] fns1 = new ExtractionFn[1];
-    fns1[0] = javascriptExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(fns1);
+    CascadeExtractionFn cascadeExtractionFn1 = new CascadeExtractionFn(Arrays.asList(javascriptExtractionFn));
 
     ExtractionFn[] fns2 = new ExtractionFn[2];
     fns2[0] = regexDimExtractionFn;
     fns2[1] = javascriptExtractionFn;
-    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(fns2);
+    CascadeExtractionFn cascadeExtractionFn2 = new CascadeExtractionFn(
+        Arrays.asList(regexDimExtractionFn, javascriptExtractionFn)
+    );
 
-    Assert.assertTrue(cascadeExtractionFn1.getExtractionType() == ExtractionFn.ExtractionType.ONE_TO_ONE);
-    Assert.assertTrue(cascadeExtractionFn2.getExtractionType() == ExtractionFn.ExtractionType.MANY_TO_ONE);
+    Assert.assertTrue(cascadeExtractionFn1.isOneToOne());
+    Assert.assertFalse(cascadeExtractionFn2.isOneToOne());
   }
 
   @Test
@@ -192,9 +181,10 @@ public class CascadeExtractionFnTest
     SubstringDimExtractionFn substringDimExtractionFn =
         (SubstringDimExtractionFn) objectMapper.readValue(substringDimExtractionFnJson, ExtractionFn.class);
 
-    Assert.assertEquals(regexDimExtractionFn, cascadeExtractionFn.getExtractionFns()[0]);
-    Assert.assertEquals(javascriptExtractionFn, cascadeExtractionFn.getExtractionFns()[1]);
-    Assert.assertEquals(substringDimExtractionFn, cascadeExtractionFn.getExtractionFns()[2]);
+    final List<ExtractionFn> extractionFns = cascadeExtractionFn.getExtractionFns();
+    Assert.assertEquals(regexDimExtractionFn, extractionFns.get(0));
+    Assert.assertEquals(javascriptExtractionFn, extractionFns.get(1));
+    Assert.assertEquals(substringDimExtractionFn, extractionFns.get(2));
 
     Assert.assertEquals(
         cascadeExtractionFn,

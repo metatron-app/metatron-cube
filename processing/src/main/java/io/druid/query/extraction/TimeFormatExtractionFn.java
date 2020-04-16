@@ -120,24 +120,6 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   }
 
   @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
-  }
-
-  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

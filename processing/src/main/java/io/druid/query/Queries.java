@@ -227,7 +227,7 @@ public class Queries
       return resolving;
     }
     for (DimensionSpec dimensionSpec : BaseQuery.getDimensions(query)) {
-      newColumnTypes.add(dimensionSpec.resolve(resolver));
+      newColumnTypes.add(dimensionSpec.resolve(Suppliers.ofInstance(resolver)));
       newColumnNames.add(dimensionSpec.getOutputName());
     }
     for (String metric : BaseQuery.getMetrics(query)) {
@@ -561,7 +561,7 @@ public class Queries
     if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
       return null;
     }
-    ValueDesc type = dimensionSpec.resolve(supplier.get());
+    ValueDesc type = dimensionSpec.resolve(supplier);
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }

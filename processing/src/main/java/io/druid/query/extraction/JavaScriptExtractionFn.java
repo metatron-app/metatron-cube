@@ -128,21 +128,9 @@ public class JavaScriptExtractionFn implements ExtractionFn
   }
 
   @Override
-  public boolean preservesOrdering()
+  public boolean isOneToOne()
   {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return injective ? ExtractionType.ONE_TO_ONE : ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
+    return injective;
   }
 
   @Override

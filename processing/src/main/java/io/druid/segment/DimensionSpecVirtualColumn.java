@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Suppliers;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -116,7 +117,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.equals(outputName));
-    ValueDesc valueDesc = dimensionSpec.resolve(types);
+    ValueDesc valueDesc = dimensionSpec.resolve(Suppliers.ofInstance(types));
     if (ValueDesc.isDimension(valueDesc)) {
       return ValueDesc.ofMultiValued(valueDesc.subElement());
     }

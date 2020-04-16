@@ -35,7 +35,7 @@ import java.util.Map;
 
 /**
  */
-public abstract class BaseFilteredDimensionSpec extends DimensionSpec.Abstract
+public abstract class BaseFilteredDimensionSpec implements DimensionSpec
 {
   protected final DimensionSpec delegate;
 
@@ -85,7 +85,7 @@ public abstract class BaseFilteredDimensionSpec extends DimensionSpec.Abstract
   @Override
   public DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
   {
-    return selector;
+    return delegate.decorate(selector, resolver);
   }
 
   @Override

@@ -209,32 +209,29 @@ public class FunctionalExtractionTest
 
   public void testUniqueProjections()
   {
-    Assert.assertEquals(
-        ExtractionFn.ExtractionType.MANY_TO_ONE,
+    Assert.assertFalse(
         new SimpleFunctionExtraction(
             fn,
             true,
             null,
             false
-        ).getExtractionType()
+        ).isOneToOne()
     );
-    Assert.assertEquals(
-        ExtractionFn.ExtractionType.MANY_TO_ONE,
+    Assert.assertFalse(
         new SimpleFunctionExtraction(
             fn,
             true,
             null,
             false
-        ).getExtractionType()
+        ).isOneToOne()
     );
-    Assert.assertEquals(
-        ExtractionFn.ExtractionType.ONE_TO_ONE,
+    Assert.assertTrue(
         new SimpleFunctionExtraction(
             fn,
             true,
             null,
             true
-        ).getExtractionType()
+        ).isOneToOne()
     );
   }
 }

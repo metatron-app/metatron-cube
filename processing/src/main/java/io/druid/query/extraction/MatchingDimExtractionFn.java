@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 
 /**
  */
-public class MatchingDimExtractionFn extends DimExtractionFn
+public class MatchingDimExtractionFn implements ExtractionFn
 {
   private final String expr;
   private final Pattern pattern;
@@ -69,24 +69,6 @@ public class MatchingDimExtractionFn extends DimExtractionFn
   public String getExpr()
   {
     return expr;
-  }
-
-  @Override
-  public boolean preservesOrdering()
-  {
-    return false;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
   }
 
   @Override

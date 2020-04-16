@@ -25,7 +25,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.TimeFormatExtractionFn;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ExtractionFns
@@ -89,18 +88,18 @@ public class ExtractionFns
       // Apply g, then f, unwrapping if they are already cascades.
 
       if (f instanceof CascadeExtractionFn) {
-        extractionFns.addAll(Arrays.asList(((CascadeExtractionFn) f).getExtractionFns()));
+        extractionFns.addAll(((CascadeExtractionFn) f).getExtractionFns());
       } else {
         extractionFns.add(f);
       }
 
       if (g instanceof CascadeExtractionFn) {
-        extractionFns.addAll(Arrays.asList(((CascadeExtractionFn) g).getExtractionFns()));
+        extractionFns.addAll(((CascadeExtractionFn) g).getExtractionFns());
       } else {
         extractionFns.add(g);
       }
 
-      return new CascadeExtractionFn(extractionFns.toArray(new ExtractionFn[0]));
+      return new CascadeExtractionFn(extractionFns);
     }
   }
 }

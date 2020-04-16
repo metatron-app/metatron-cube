@@ -28,7 +28,7 @@ import io.druid.query.search.search.SearchQuerySpec;
 
 /**
  */
-public class SearchQuerySpecDimExtractionFn extends DimExtractionFn
+public class SearchQuerySpecDimExtractionFn implements ExtractionFn
 {
   private final SearchQuerySpec searchQuerySpec;
 
@@ -65,18 +65,6 @@ public class SearchQuerySpecDimExtractionFn extends DimExtractionFn
   public boolean preservesOrdering()
   {
     return true;
-  }
-
-  @Override
-  public ExtractionType getExtractionType()
-  {
-    return ExtractionType.MANY_TO_ONE;
-  }
-
-  @Override
-  public int arity()
-  {
-    return 1;
   }
 
   @Override

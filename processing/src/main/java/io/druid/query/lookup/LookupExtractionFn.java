@@ -34,10 +34,6 @@ public class LookupExtractionFn extends FunctionalExtraction
 {
   private final LookupExtractor lookup;
   private final boolean optimize;
-  // Thes are retained for auto generated hashCode and Equals
-  private final boolean retainMissingValue;
-  private final String replaceMissingValueWith;
-  private final boolean injective;
 
   @JsonCreator
   public LookupExtractionFn(
@@ -63,10 +59,7 @@ public class LookupExtractionFn extends FunctionalExtraction
         injective
     );
     this.lookup = lookup;
-    this.optimize = optimize == null ? true : optimize;
-    this.retainMissingValue = retainMissingValue;
-    this.injective = injective;
-    this.replaceMissingValueWith = replaceMissingValueWith;
+    this.optimize = optimize == null || optimize;
   }
 
 
@@ -84,11 +77,10 @@ public class LookupExtractionFn extends FunctionalExtraction
   @JsonProperty
   public String getReplaceMissingValueWith() {return super.getReplaceMissingValueWith();}
 
-  @Override
   @JsonProperty
   public boolean isInjective()
   {
-    return super.isInjective();
+    return isOneToOne();
   }
 
   @JsonProperty("optimize")

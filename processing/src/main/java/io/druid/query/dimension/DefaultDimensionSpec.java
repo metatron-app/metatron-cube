@@ -25,16 +25,14 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
-import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.segment.DimensionSelector;
 
 import java.util.Arrays;
 import java.util.List;
 
 /**
  */
-public class DefaultDimensionSpec extends DimensionSpec.Abstract
+public class DefaultDimensionSpec implements DimensionSpec
 {
   public static DefaultDimensionSpec of(String dimensionName)
   {
@@ -106,12 +104,6 @@ public class DefaultDimensionSpec extends DimensionSpec.Abstract
   public ExtractionFn getExtractionFn()
   {
     return null;
-  }
-
-  @Override
-  public DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
-  {
-    return selector;
   }
 
   @Override

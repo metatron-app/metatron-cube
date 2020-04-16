@@ -21,15 +21,15 @@ package io.druid.query.topn;
 
 import com.google.common.base.Function;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.guice.annotations.Global;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
@@ -113,8 +113,7 @@ public class TopNQueryEngine
   public static boolean canApplyExtractionInPost(TopNQuery query)
   {
     return query.getDimensionSpec() != null
-           && query.getDimensionSpec().getExtractionFn() != null
-           && ExtractionFn.ExtractionType.ONE_TO_ONE.equals(query.getDimensionSpec().getExtractionFn().getExtractionType())
+           && DimensionSpecs.isOneToOneExtraction(query.getDimensionSpec())
            && query.getTopNMetricSpec().canBeOptimizedUnordered();
   }
 }

@@ -53,7 +53,6 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
-import io.druid.query.extraction.DimExtractionFn;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.JavaScriptExtractionFn;
 import io.druid.query.extraction.MapLookupExtractor;
@@ -2283,7 +2282,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension, QueryRunnerTestHelper.marketDimension,
-                new DimExtractionFn()
+                new ExtractionFn()
                 {
                   @Override
                   public KeyBuilder getCacheKey(KeyBuilder builder)
@@ -2301,12 +2300,6 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                   public boolean preservesOrdering()
                   {
                     return true;
-                  }
-
-                  @Override
-                  public ExtractionType getExtractionType()
-                  {
-                    return ExtractionType.MANY_TO_ONE;
                   }
                 }, null
             )
@@ -2442,7 +2435,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testTopNWithNullProducingDimExtractionFn()
   {
-    final ExtractionFn nullStringDimExtraction = new DimExtractionFn()
+    final ExtractionFn nullStringDimExtraction = new ExtractionFn()
     {
       @Override
       public KeyBuilder getCacheKey(KeyBuilder builder)
@@ -2454,18 +2447,6 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
       public String apply(String dimValue)
       {
         return dimValue.equals("total_market") ? null : dimValue;
-      }
-
-      @Override
-      public boolean preservesOrdering()
-      {
-        return false;
-      }
-
-      @Override
-      public ExtractionType getExtractionType()
-      {
-        return ExtractionType.MANY_TO_ONE;
       }
     };
 
@@ -2532,7 +2513,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   @Test
   public void testTopNWithEmptyStringProducingDimExtractionFn()
   {
-    final ExtractionFn emptyStringDimExtraction = new DimExtractionFn()
+    final ExtractionFn emptyStringDimExtraction = new ExtractionFn()
     {
       @Override
       public KeyBuilder getCacheKey(KeyBuilder builder)
@@ -2544,18 +2525,6 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
       public String apply(String dimValue)
       {
         return dimValue.equals("total_market") ? "" : dimValue;
-      }
-
-      @Override
-      public boolean preservesOrdering()
-      {
-        return false;
-      }
-
-      @Override
-      public ExtractionType getExtractionType()
-      {
-        return ExtractionType.MANY_TO_ONE;
       }
     };
 

@@ -20,6 +20,7 @@
 package io.druid.data;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
 
 import java.util.Map;
 
@@ -37,6 +38,11 @@ public interface TypeResolver
   interface Resolvable
   {
     ValueDesc resolve(TypeResolver bindings);
+  }
+
+  interface LazyResolvable
+  {
+    ValueDesc resolve(Supplier<? extends TypeResolver> bindings);
   }
 
   class WithMap implements TypeResolver
