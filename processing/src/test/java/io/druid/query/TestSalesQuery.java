@@ -27,6 +27,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
+import io.druid.granularity.PeriodGranularity;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
@@ -35,6 +36,7 @@ import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.bloomfilter.BloomKFilter;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
+import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
@@ -54,6 +56,8 @@ import io.druid.query.select.StreamQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import org.joda.time.DateTime;
+import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -717,5 +721,60 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     for (Object[] x : rows) {
       Assert.assertTrue(String.valueOf(x[0]), values.contains(x[0]));
     }
+  }
+
+  @Test
+  public void test3194()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .intervals(Intervals.of("2011-01-01/2015-01-01"))
+        .granularity(new PeriodGranularity(Period.parse("P2M"), new DateTime("2000-01-01T00:00:00Z"), null))
+        .aggregators(
+            new GenericSumAggregatorFactory("SUM(Sales)", "Sales", ValueDesc.DOUBLE),
+            new CountAggregatorFactory("count")
+        )
+        .postAggregators(
+            new MathPostAggregator("AVG(Sales)", "round(\"SUM(Sales)\" / count, 1)")
+        )
+        .limitSpec(LimitSpec.of(5))
+        .outputColumns("AVG(Sales)")
+        .build();
+    String[] columnNames = {"__time", "AVG(Sales)"};
+    Object[][] objects = new Object[][]{
+        array("2011-01-01", 150.0),
+        array("2011-03-01", 288.6),
+        array("2011-05-01", 226.6),
+        array("2011-07-01", 209.0),
+        array("2011-09-01", 265.2)
+    };
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+
+    query = query.withLimitSpec(LimitSpec.of(5, OrderByColumnSpec.asc("AVG(Sales)")));
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+
+    objects = new Object[][]{
+        array("2011-01-01", 150.0),
+        array("2013-07-01", 189.2),
+        array("2014-05-01", 190.1),
+        array("2012-05-01", 193.4),
+        array("2011-07-01", 209.0)
+    };
+
+    query = (GroupByQuery) query.withOverriddenContext("groupby.sort.on.time", false);
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+
+    objects = new Object[][]{
+        array("2014-11-01", 219.5),
+        array("2014-09-01", 220.0),
+        array("2014-07-01", 247.7),
+        array("2014-05-01", 190.1),
+        array("2014-03-01", 221.3)
+    };
+    TestHelper.assertExpectedObjects(
+        createExpectedRows(columnNames, objects),
+        runQuery(query.withLimitSpec(LimitSpec.of(5, OrderByColumnSpec.desc("__time"))))
+    );
   }
 }

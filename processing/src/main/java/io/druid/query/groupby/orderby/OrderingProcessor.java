@@ -21,6 +21,7 @@ package io.druid.query.groupby.orderby;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -156,7 +157,8 @@ public class OrderingProcessor
   {
     int index = 0;
     List<Comparator<T>> comparators = Lists.newArrayList();
-    if (prependTimeOrdering) {
+    OrderByColumnSpec first = Iterables.getFirst(orderingSpecs, null);
+    if (prependTimeOrdering && (first == null || !Row.TIME_COLUMN_NAME.equals(first.getDimension()))) {
       comparators.add(new Accessor.TimeComparator<T>(accessors.get(index++)));
     }
     for (OrderByColumnSpec columnSpec : orderingSpecs) {
