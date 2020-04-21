@@ -64,7 +64,7 @@ public class PeonResource extends QueryResource
       AuthorizerMapper authorizerMapper,
       QueryToolChestWarehouse warehouse,
       TaskRunner taskRunner,
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
     super(

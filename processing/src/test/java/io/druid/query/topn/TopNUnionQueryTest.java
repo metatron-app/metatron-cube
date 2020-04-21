@@ -65,8 +65,7 @@ public class TopNUnionQueryTest
                     TestQueryRunners.getPool(),
                     new TopNQueryQueryToolChest(
                         new TopNQueryConfig(),
-                        TestHelper.testTopNQueryEngine(),
-                        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                        TestHelper.testTopNQueryEngine()
                     ),
                     QueryRunnerTestHelper.NOOP_QUERYWATCHER
                 ),
@@ -77,8 +76,7 @@ public class TopNUnionQueryTest
                     StupidPool.heap(2000),
                     new TopNQueryQueryToolChest(
                         new TopNQueryConfig(),
-                        TestHelper.testTopNQueryEngine(),
-                        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                        TestHelper.testTopNQueryEngine()
                     ),
                     QueryRunnerTestHelper.NOOP_QUERYWATCHER
                 ),

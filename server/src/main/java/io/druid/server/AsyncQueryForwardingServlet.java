@@ -26,11 +26,11 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.DruidHttpClientConfig;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.DruidMetrics;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
@@ -100,7 +100,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet
   private final DruidHttpClientConfig httpClientConfig;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   private HttpClient broadcastClient;
 
@@ -114,7 +114,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet
       DruidHttpClientConfig httpClientConfig,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
     this.warehouse = warehouse;
@@ -125,7 +125,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet
     this.httpClientConfig = httpClientConfig;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -367,7 +367,7 @@ public class AsyncQueryForwardingServlet extends AsyncProxyServlet
       final long requestTimeNs = System.nanoTime() - startNs;
       try {
         QueryMetrics queryMetrics = DruidMetrics.makeRequestMetrics(
-            queryMetricsFactory,
+            metricsFactory,
             warehouse.getToolChest(query),
             query,
             req.getRemoteAddr()

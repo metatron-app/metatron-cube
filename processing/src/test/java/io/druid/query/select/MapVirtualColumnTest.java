@@ -28,8 +28,8 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.guava.Sequences;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.ExplodeSpec;
 import io.druid.query.QueryContextKeys;
@@ -80,10 +80,7 @@ public class MapVirtualColumnTest
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
-        new SelectQueryQueryToolChest(
-            new DefaultObjectMapper(),
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-        ),
+        new SelectQueryQueryToolChest(null, DefaultGenericQueryMetricsFactory.instance()),
         new SelectQueryEngine(),
         new SelectQueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER

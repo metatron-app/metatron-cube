@@ -56,7 +56,7 @@ public class TimeBoundaryQueryQueryToolChest
   {
   };
 
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @VisibleForTesting
   public TimeBoundaryQueryQueryToolChest()
@@ -65,9 +65,9 @@ public class TimeBoundaryQueryQueryToolChest
   }
 
   @Inject
-  public TimeBoundaryQueryQueryToolChest(GenericQueryMetricsFactory queryMetricsFactory)
+  public TimeBoundaryQueryQueryToolChest(GenericQueryMetricsFactory metricsFactory)
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -118,9 +118,10 @@ public class TimeBoundaryQueryQueryToolChest
     };
   }
 
+  @Override
   public QueryMetrics<Query<?>> makeMetrics(TimeBoundaryQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override

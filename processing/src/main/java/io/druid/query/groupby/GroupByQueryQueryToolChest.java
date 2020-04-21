@@ -38,7 +38,6 @@ import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseAggregationQueryToolChest;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
@@ -72,17 +71,16 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
 
   private final StupidPool<ByteBuffer> bufferPool;
   private final GroupByQueryEngine engine; // For running the outer query around a subquery
-  private final GroupByQueryMetricsFactory queryMetricsFactory;
+  private final GroupByQueryMetricsFactory metricsFactory;
 
   @VisibleForTesting
   public GroupByQueryQueryToolChest(
       QueryConfig config,
       GroupByQueryEngine engine,
-      @Global StupidPool<ByteBuffer> bufferPool,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
+      @Global StupidPool<ByteBuffer> bufferPool
   )
   {
-    this(config, engine, bufferPool, intervalChunkingQueryRunnerDecorator, DefaultGroupByQueryMetricsFactory.instance());
+    this(config, engine, bufferPool, DefaultGroupByQueryMetricsFactory.instance());
   }
 
   @Inject
@@ -90,15 +88,13 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
       QueryConfig config,
       GroupByQueryEngine engine,
       @Global StupidPool<ByteBuffer> bufferPool,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
-      GroupByQueryMetricsFactory queryMetricsFactory
+      GroupByQueryMetricsFactory metricsFactory
   )
   {
-    super(intervalChunkingQueryRunnerDecorator);
     this.config = config;
     this.engine = engine;
     this.bufferPool = bufferPool;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -225,7 +221,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   @Override
   public GroupByQueryMetrics makeMetrics(GroupByQuery query)
   {
-    GroupByQueryMetrics queryMetrics = queryMetricsFactory.makeMetrics();
+    GroupByQueryMetrics queryMetrics = metricsFactory.makeMetrics();
     queryMetrics.query(query);
     return queryMetrics;
   }
@@ -268,30 +264,28 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   @Override
   public QueryRunner<Row> preMergeQueryDecoration(final QueryRunner<Row> runner)
   {
-    return super.preMergeQueryDecoration(
-        new QueryRunner<Row>()
-        {
-          @Override
-          public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
-          {
-            GroupByQuery groupBy = (GroupByQuery) query;
-            List<DimensionSpec> dimensionSpecs = Lists.newArrayList();
-            Set<String> optimizedDimensions = ImmutableSet.copyOf(
-                DimensionSpecs.toInputNames(extractionsToRewrite(groupBy))
-            );
-            if (!optimizedDimensions.isEmpty()) {
-              for (DimensionSpec dimensionSpec : groupBy.getDimensions()) {
-                if (optimizedDimensions.contains(dimensionSpec.getDimension())) {
-                  dimensionSpec = DefaultDimensionSpec.of(dimensionSpec.getDimension(), dimensionSpec.getOutputName());
-                }
-                dimensionSpecs.add(dimensionSpec);
-              }
-              groupBy = groupBy.withDimensionSpecs(dimensionSpecs);
+    return new QueryRunner<Row>()
+    {
+      @Override
+      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+      {
+        GroupByQuery groupBy = (GroupByQuery) query;
+        List<DimensionSpec> dimensionSpecs = Lists.newArrayList();
+        Set<String> optimizedDimensions = ImmutableSet.copyOf(
+            DimensionSpecs.toInputNames(extractionsToRewrite(groupBy))
+        );
+        if (!optimizedDimensions.isEmpty()) {
+          for (DimensionSpec dimensionSpec : groupBy.getDimensions()) {
+            if (optimizedDimensions.contains(dimensionSpec.getDimension())) {
+              dimensionSpec = DefaultDimensionSpec.of(dimensionSpec.getDimension(), dimensionSpec.getOutputName());
             }
-            return runner.run(groupBy, responseContext);
+            dimensionSpecs.add(dimensionSpec);
           }
+          groupBy = groupBy.withDimensionSpecs(dimensionSpecs);
         }
-    );
+        return runner.run(groupBy, responseContext);
+      }
+    };
   }
 
   /**

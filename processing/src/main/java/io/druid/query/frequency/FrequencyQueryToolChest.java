@@ -53,12 +53,12 @@ import java.util.function.BiFunction;
  */
 public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQuery>
 {
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
-  public FrequencyQueryToolChest(GenericQueryMetricsFactory queryMetricsFactory)
+  public FrequencyQueryToolChest(GenericQueryMetricsFactory metricsFactory)
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   private static final Comparator<Object[]> COUNT_DESC_ORDERING = (o1, o2) -> {
@@ -131,7 +131,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
   @Override
   public QueryMetrics<? super FrequencyQuery> makeMetrics(FrequencyQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override

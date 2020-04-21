@@ -22,11 +22,11 @@ package io.druid.query.timeseries;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -70,7 +70,7 @@ public class TimeSeriesUnionQueryRunnerTest
     return QueryRunnerTestHelper.cartesian(
         QueryRunnerTestHelper.makeUnionQueryRunners(
             new TimeseriesQueryRunnerFactory(
-                new TimeseriesQueryQueryToolChest(QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+                new TimeseriesQueryQueryToolChest(),
                 new TimeseriesQueryEngine(),
                 new QueryConfig(),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -147,7 +147,7 @@ public class TimeSeriesUnionQueryRunnerTest
                                   )
                                   .descending(descending)
                                   .build();
-    QueryToolChest toolChest = new TimeseriesQueryQueryToolChest(QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+    QueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
     final List<Row> ds1 = Lists.<Row>newArrayList(
         new CompactRow(
             new Object[]{new DateTime("2011-04-02").getMillis(), 1L, 2L}

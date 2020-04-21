@@ -189,8 +189,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     QueryToolChest toolChest = new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        TestHelper.testTopNQueryEngine()
     );
 
     // with projection

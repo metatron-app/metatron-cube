@@ -25,7 +25,6 @@ import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
@@ -58,14 +57,6 @@ import java.util.function.ToIntFunction;
 public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQuery>
     extends QueryToolChest.CacheSupport<Row, Object[], T>
 {
-  private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
-
-  @Inject
-  public BaseAggregationQueryToolChest(IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator)
-  {
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
-  }
-
   @Override
   public QueryRunner<Row> mergeResults(final QueryRunner<Row> runner)
   {
@@ -255,12 +246,6 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     } else {
       return ROW_TYPE_REFERENCE;
     }
-  }
-
-  @Override
-  public QueryRunner<Row> preMergeQueryDecoration(final QueryRunner<Row> runner)
-  {
-    return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
   }
 
   @Override

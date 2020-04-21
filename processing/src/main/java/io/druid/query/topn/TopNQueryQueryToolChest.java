@@ -39,7 +39,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -80,31 +79,27 @@ public class TopNQueryQueryToolChest
 
   private final TopNQueryConfig config;
   private final TopNQueryEngine engine;
-  private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
-  private final TopNQueryMetricsFactory queryMetricsFactory;
+  private final TopNQueryMetricsFactory metricsFactory;
 
   @VisibleForTesting
   public TopNQueryQueryToolChest(
       TopNQueryConfig config,
-      TopNQueryEngine engine,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
+      TopNQueryEngine engine
   )
   {
-    this(config, engine, intervalChunkingQueryRunnerDecorator, DefaultTopNQueryMetricsFactory.instance());
+    this(config, engine, DefaultTopNQueryMetricsFactory.instance());
   }
 
   @Inject
   public TopNQueryQueryToolChest(
       TopNQueryConfig config,
       TopNQueryEngine engine,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
-      TopNQueryMetricsFactory queryMetricsFactory
+      TopNQueryMetricsFactory metricsFactory
   )
   {
     this.config = config;
     this.engine = engine;
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   private static List<PostAggregator> prunePostAggregators(TopNQuery query)
@@ -191,7 +186,7 @@ public class TopNQueryQueryToolChest
   @Override
   public TopNQueryMetrics makeMetrics(TopNQuery query)
   {
-    TopNQueryMetrics queryMetrics = queryMetricsFactory.makeMetrics();
+    TopNQueryMetrics queryMetrics = metricsFactory.makeMetrics();
     queryMetrics.query(query);
     return queryMetrics;
   }
@@ -397,29 +392,26 @@ public class TopNQueryQueryToolChest
   @Override
   public QueryRunner<Result<TopNResultValue>> preMergeQueryDecoration(final QueryRunner<Result<TopNResultValue>> runner)
   {
-    return intervalChunkingQueryRunnerDecorator.decorate(
-        new QueryRunner<Result<TopNResultValue>>()
-        {
-          @Override
-          public Sequence<Result<TopNResultValue>> run(
-              Query<Result<TopNResultValue>> query, Map<String, Object> responseContext
-          )
-          {
-            TopNQuery topNQuery = (TopNQuery) query;
-            if (TopNQueryEngine.canApplyExtractionInPost(topNQuery)) {
-              DimensionSpec dimensionSpec = topNQuery.getDimensionSpec();
-              topNQuery = topNQuery.withDimensionSpec(
-                  new DefaultDimensionSpec(
-                      dimensionSpec.getDimension(),
-                      dimensionSpec.getOutputName()
-                  )
-              );
-            }
-            return runner.run(topNQuery, responseContext);
-          }
+    return new QueryRunner<Result<TopNResultValue>>()
+    {
+      @Override
+      public Sequence<Result<TopNResultValue>> run(
+          Query<Result<TopNResultValue>> query, Map<String, Object> responseContext
+      )
+      {
+        TopNQuery topNQuery = (TopNQuery) query;
+        if (TopNQueryEngine.canApplyExtractionInPost(topNQuery)) {
+          DimensionSpec dimensionSpec = topNQuery.getDimensionSpec();
+          topNQuery = topNQuery.withDimensionSpec(
+              new DefaultDimensionSpec(
+                  dimensionSpec.getDimension(),
+                  dimensionSpec.getOutputName()
+              )
+          );
         }
-        , this
-    );
+        return runner.run(topNQuery, responseContext);
+      }
+    };
   }
 
   @Override

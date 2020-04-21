@@ -55,7 +55,7 @@ public class DruidMetrics
   }
 
   public static <T> QueryMetrics<?> makeRequestMetrics(
-      final GenericQueryMetricsFactory queryMetricsFactory,
+      final GenericQueryMetricsFactory metricsFactory,
       final QueryToolChest<T, Query<T>> toolChest,
       final Query<T> query,
       final String remoteAddr
@@ -65,7 +65,7 @@ public class DruidMetrics
     if (toolChest != null) {
       queryMetrics = toolChest.makeMetrics(query);
     } else {
-      queryMetrics = queryMetricsFactory.makeMetrics(query);
+      queryMetrics = metricsFactory.makeMetrics(query);
     }
     queryMetrics.context(query);
     queryMetrics.remoteAddress(remoteAddr);

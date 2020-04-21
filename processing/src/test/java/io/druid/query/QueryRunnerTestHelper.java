@@ -157,9 +157,8 @@ public class QueryRunnerTestHelper
                       SelectQuery.class,
                       new SelectQueryRunnerFactory(
                           new SelectQueryQueryToolChest(
-                              TestHelper.JSON_MAPPER,
                               new SelectQueryEngine(),
-                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                              DefaultGenericQueryMetricsFactory.instance()
                           ),
                           new SelectQueryEngine(),
                           QUERY_CONFIG.getSelect(),
@@ -169,9 +168,7 @@ public class QueryRunnerTestHelper
                   .put(
                       TimeseriesQuery.class,
                       new TimeseriesQueryRunnerFactory(
-                          new TimeseriesQueryQueryToolChest(
-                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                          ),
+                          new TimeseriesQueryQueryToolChest(),
                           new TimeseriesQueryEngine(),
                           QUERY_CONFIG,
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -183,8 +180,7 @@ public class QueryRunnerTestHelper
                           StupidPool.heap(10 * 1024 * 1024),
                           new TopNQueryQueryToolChest(
                               QUERY_CONFIG.getTopN(),
-                              new TopNQueryEngine(StupidPool.heap(10 * 1024 * 1024)),
-                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                              new TopNQueryEngine(StupidPool.heap(10 * 1024 * 1024))
                           ),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
@@ -198,8 +194,7 @@ public class QueryRunnerTestHelper
                           new GroupByQueryQueryToolChest(
                               QUERY_CONFIG,
                               GBY_ENGINE,
-                              GBY_POOL,
-                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                              GBY_POOL
                           ),
                           GBY_POOL
                       )
@@ -223,8 +218,7 @@ public class QueryRunnerTestHelper
                       SearchQuery.class,
                       new SearchQueryRunnerFactory(
                           new SearchQueryQueryToolChest(
-                              new SearchQueryConfig(),
-                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                              new SearchQueryConfig()
                           ),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
@@ -805,23 +799,6 @@ public class QueryRunnerTestHelper
                                    .applyPostMergeDecoration()
                                    .applyFinalizeResults()
                                    .build();
-  }
-
-  public static IntervalChunkingQueryRunnerDecorator NoopIntervalChunkingQueryRunnerDecorator()
-  {
-    return new IntervalChunkingQueryRunnerDecorator(null, null, null) {
-      @Override
-      public <T> QueryRunner<T> decorate(final QueryRunner<T> delegate,
-          QueryToolChest<T, ? extends Query<T>> toolChest) {
-        return new QueryRunner<T>() {
-          @Override
-          public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-          {
-            return delegate.run(query, responseContext);
-          }
-        };
-      }
-    };
   }
 
   @SuppressWarnings("unchecked")

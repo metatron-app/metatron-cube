@@ -47,12 +47,12 @@ public class DataSourceQueryQueryToolChest
   {
   };
 
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
-  public DataSourceQueryQueryToolChest(GenericQueryMetricsFactory queryMetricsFactory)
+  public DataSourceQueryQueryToolChest(GenericQueryMetricsFactory metricsFactory)
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -108,7 +108,7 @@ public class DataSourceQueryQueryToolChest
   @Override
   public QueryMetrics<Query<?>> makeMetrics(DataSourceMetadataQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override

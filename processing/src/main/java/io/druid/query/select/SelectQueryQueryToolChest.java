@@ -20,7 +20,6 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -28,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
@@ -39,10 +37,7 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
-import io.druid.query.CacheStrategy;
-import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -84,52 +79,24 @@ import java.util.function.ToIntFunction;
 
 /**
  */
-public class SelectQueryQueryToolChest
-    extends QueryToolChest.CacheSupport<Result<SelectResultValue>, Object, SelectQuery>
+public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResultValue>, SelectQuery>
 {
-  private static final TypeReference<Object> OBJECT_TYPE_REFERENCE =
-      new TypeReference<Object>()
-      {
-      };
   private static final TypeReference<Result<SelectResultValue>> TYPE_REFERENCE =
       new TypeReference<Result<SelectResultValue>>()
       {
       };
 
-  private final ObjectMapper jsonMapper;
   private final SelectQueryEngine engine;
-  private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
-  private final GenericQueryMetricsFactory queryMetricsFactory;
-
-  public SelectQueryQueryToolChest(
-      ObjectMapper jsonMapper,
-      SelectQueryEngine engine,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
-  )
-  {
-    this(jsonMapper, engine, intervalChunkingQueryRunnerDecorator, new DefaultGenericQueryMetricsFactory(jsonMapper));
-  }
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
   public SelectQueryQueryToolChest(
-      ObjectMapper jsonMapper,
       SelectQueryEngine engine,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
-      GenericQueryMetricsFactory genericQueryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
-    this.jsonMapper = jsonMapper;
     this.engine = engine;
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
-    this.queryMetricsFactory = genericQueryMetricsFactory;
-  }
-
-  public SelectQueryQueryToolChest(
-      ObjectMapper jsonMapper,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
-  )
-  {
-    this(jsonMapper, null, intervalChunkingQueryRunnerDecorator);
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -276,9 +243,10 @@ public class SelectQueryQueryToolChest
     };
   }
 
+  @Override
   public QueryMetrics<Query<?>> makeMetrics(SelectQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query).granularity(query.getGranularity());
+    return metricsFactory.makeMetrics(query).granularity(query.getGranularity());
   }
 
   @Override
@@ -316,90 +284,6 @@ public class SelectQueryQueryToolChest
         return 1;
       }
     };
-  }
-
-  @Override
-  public CacheStrategy<Result<SelectResultValue>, Object, SelectQuery> getCacheStrategy(final SelectQuery query)
-  {
-    return new CacheStrategy<Result<SelectResultValue>, Object, SelectQuery>()
-    {
-      @Override
-      public byte[] computeCacheKey(SelectQuery query)
-      {
-        return KeyBuilder.get()
-                         .append(SELECT_QUERY)
-                         .append(query.getGranularity())
-                         .append(query.getFilter())
-                         .append(query.getPagingSpec())
-                         .append(query.getDimensions())
-                         .append(query.getMetrics())
-                         .append(query.getVirtualColumns())
-                         .build();
-      }
-
-      @Override
-      public TypeReference<Object> getCacheObjectClazz()
-      {
-        return OBJECT_TYPE_REFERENCE;
-      }
-
-      @Override
-      public Function<Result<SelectResultValue>, Object> prepareForCache()
-      {
-        return new Function<Result<SelectResultValue>, Object>()
-        {
-          @Override
-          public Object apply(final Result<SelectResultValue> input)
-          {
-            return Arrays.asList(
-                input.getTimestamp().getMillis(),
-                input.getValue().getPagingIdentifiers(),
-                input.getValue().getEvents()
-            );
-          }
-        };
-      }
-
-      @Override
-      public Function<Object, Result<SelectResultValue>> pullFromCache()
-      {
-        return new Function<Object, Result<SelectResultValue>>()
-        {
-          private final Granularity granularity = query.getGranularity();
-
-          @Override
-          public Result<SelectResultValue> apply(Object input)
-          {
-            List<Object> results = (List<Object>) input;
-            Iterator<Object> resultIter = results.iterator();
-
-            DateTime timestamp = granularity.toDateTime(((Number) resultIter.next()).longValue());
-
-            return new Result<SelectResultValue>(
-                timestamp,
-                new SelectResultValue(
-                    (Map<String, Integer>) jsonMapper.convertValue(
-                        resultIter.next(), new TypeReference<Map<String, Integer>>()
-                        {
-                        }
-                    ),
-                    (List<EventHolder>) jsonMapper.convertValue(
-                        resultIter.next(), new TypeReference<List<EventHolder>>()
-                        {
-                        }
-                    )
-                )
-            );
-          }
-        };
-      }
-    };
-  }
-
-  @Override
-  public QueryRunner<Result<SelectResultValue>> preMergeQueryDecoration(QueryRunner<Result<SelectResultValue>> runner)
-  {
-    return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
   }
 
   @Override

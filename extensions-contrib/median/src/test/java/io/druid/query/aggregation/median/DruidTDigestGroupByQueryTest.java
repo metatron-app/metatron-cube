@@ -72,8 +72,7 @@ public class DruidTDigestGroupByQueryTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(
-            config, engine, pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            config, engine, pool
         ),
         pool
     );
@@ -87,8 +86,7 @@ public class DruidTDigestGroupByQueryTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(
-            config, engine, pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            config, engine, pool
         ),
         pool
     );

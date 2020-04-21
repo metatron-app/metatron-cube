@@ -70,8 +70,7 @@ public class DistinctCountGroupByQueryTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(
-            config, engine, pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            config, engine, pool
         ),
         pool
     );

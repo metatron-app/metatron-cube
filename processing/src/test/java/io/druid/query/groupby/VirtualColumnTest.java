@@ -100,8 +100,7 @@ public class VirtualColumnTest
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
     final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(
-        config, engine, TestQueryRunners.pool,
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        config, engine, TestQueryRunners.pool
     );
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,

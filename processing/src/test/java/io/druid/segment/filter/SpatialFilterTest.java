@@ -546,8 +546,7 @@ public class SpatialFilterTest
         )
     );
     try {
-      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),
@@ -599,8 +598,7 @@ public class SpatialFilterTest
         )
     );
     try {
-      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),
@@ -679,8 +677,7 @@ public class SpatialFilterTest
         )
     );
     try {
-      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),

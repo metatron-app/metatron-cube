@@ -21,21 +21,20 @@ package io.druid.segment.realtime.appenderator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import io.druid.client.cache.CacheConfig;
+import io.druid.client.cache.MapCache;
+import io.druid.concurrent.Execs;
+import io.druid.data.input.impl.DefaultTimestampSpec;
+import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.JSONParseSpec;
+import io.druid.data.input.impl.MapInputRowParser;
+import io.druid.granularity.QueryGranularities;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.core.LoggingEmitter;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.client.cache.CacheConfig;
-import io.druid.client.cache.MapCache;
-import io.druid.concurrent.Execs;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.JSONParseSpec;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
-import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerFactory;
@@ -43,6 +42,7 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.query.timeseries.DefaultTimeseriesQueryMetricsFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
@@ -206,13 +206,7 @@ public class AppenderatorTester implements AutoCloseable
         new DefaultQueryRunnerFactoryConglomerate(
             ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>of(
                 TimeseriesQuery.class, new TimeseriesQueryRunnerFactory(
-                    new TimeseriesQueryQueryToolChest(
-                        new IntervalChunkingQueryRunnerDecorator(
-                            queryExecutor,
-                            QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-                            emitter
-                        )
-                    ),
+                    new TimeseriesQueryQueryToolChest(),
                     new TimeseriesQueryEngine(),
                     new QueryConfig(),
                     QueryRunnerTestHelper.NOOP_QUERYWATCHER

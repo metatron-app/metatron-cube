@@ -36,7 +36,6 @@ import io.druid.query.NoopQueryWatcher;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -153,8 +152,7 @@ public class GroupByQueryRunnerFactoryTest
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
-        config, engine, pool,
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        config, engine, pool
     );
     return new GroupByQueryRunnerFactory(
         engine,

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
@@ -38,7 +37,6 @@ import io.druid.segment.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
 import org.locationtech.jts.geom.Geometry;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;

@@ -29,13 +29,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryConfig;
@@ -317,9 +317,7 @@ public class IncrementalIndexTest
                                   .build();
 
     final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);
-    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    );
+    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),
@@ -423,9 +421,7 @@ public class IncrementalIndexTest
     final List<ListenableFuture<?>> indexFutures = Lists.newArrayListWithExpectedSize(concurrentThreads);
     final List<ListenableFuture<?>> queryFutures = Lists.newArrayListWithExpectedSize(concurrentThreads);
     final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);
-    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    );
+    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),

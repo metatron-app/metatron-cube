@@ -46,7 +46,7 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.Yielders;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -139,8 +139,7 @@ public class AggregationTestHelper
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
-        config, engine, pool,
-        NoopIntervalChunkingQueryRunnerDecorator()
+        config, engine, pool
     );
     GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
@@ -173,15 +172,11 @@ public class AggregationTestHelper
     ObjectMapper mapper = new DefaultObjectMapper();
 
     SelectQueryQueryToolChest toolchest = new SelectQueryQueryToolChest(
-        new DefaultObjectMapper(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        null, DefaultGenericQueryMetricsFactory.instance()
     );
 
     SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
-        new SelectQueryQueryToolChest(
-            new DefaultObjectMapper(),
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-        ),
+        toolchest,
         new SelectQueryEngine(),
         new SelectQueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -210,14 +205,12 @@ public class AggregationTestHelper
     ObjectMapper mapper = new DefaultObjectMapper();
 
     SearchQueryQueryToolChest toolchest = new SearchQueryQueryToolChest(
-        new SearchQueryConfig(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        new SearchQueryConfig()
     );
 
     SearchQueryRunnerFactory factory = new SearchQueryRunnerFactory(
         new SearchQueryQueryToolChest(
-            new SearchQueryConfig(),
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            new SearchQueryConfig()
         ),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
@@ -495,23 +488,6 @@ public class AggregationTestHelper
       result.add(objectCodec.readValue(jp, baseType));
     }
     return result;
-  }
-
-  public static IntervalChunkingQueryRunnerDecorator NoopIntervalChunkingQueryRunnerDecorator()
-  {
-    return new IntervalChunkingQueryRunnerDecorator(null, null, null) {
-      @Override
-      public <T> QueryRunner<T> decorate(final QueryRunner<T> delegate,
-                                         QueryToolChest<T, ? extends Query<T>> toolChest) {
-        return new QueryRunner<T>() {
-          @Override
-          public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-          {
-            return delegate.run(query, responseContext);
-          }
-        };
-      }
-    };
   }
 
   public ObjectMapper getObjectMapper()

@@ -31,7 +31,7 @@ package io.druid.query;
  *    .to(MyCustomGenericQueryMetricsFactory.class);
  *
  * And then setting property:
- * druid.query.generic.queryMetricsFactory=myCustomGenericQueryMetricsFactory
+ * druid.query.metricsFactory=myCustomGenericQueryMetricsFactory
  */
 public interface GenericQueryMetricsFactory
 {

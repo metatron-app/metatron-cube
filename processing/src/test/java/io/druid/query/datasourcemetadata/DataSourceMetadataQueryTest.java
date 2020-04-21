@@ -149,8 +149,8 @@ public class DataSourceMetadataQueryTest
   @Test
   public void testFilterSegments()
   {
-    GenericQueryMetricsFactory queryMetricsFactory = DefaultGenericQueryMetricsFactory.instance();
-    DataSourceQueryQueryToolChest toolChest = new DataSourceQueryQueryToolChest(queryMetricsFactory);
+    GenericQueryMetricsFactory metricsFactory = DefaultGenericQueryMetricsFactory.instance();
+    DataSourceQueryQueryToolChest toolChest = new DataSourceQueryQueryToolChest(metricsFactory);
     List<LogicalSegment> segments = toolChest
         .filterSegments(
         null,

@@ -31,14 +31,14 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
 {
   public static final TypeReference<Schema> TYPE_REFERENCE = new TypeReference<Schema>() {};
 
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
   public SchemaQueryToolChest(
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -76,7 +76,7 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   @Override
   public QueryMetrics<? super SchemaQuery> makeMetrics(SchemaQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override

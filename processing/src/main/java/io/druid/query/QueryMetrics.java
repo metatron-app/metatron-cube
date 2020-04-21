@@ -118,7 +118,7 @@ import org.joda.time.Interval;
  *
  *  4. Create `class DefaultSearchQueryMetricsFactory implements SearchQueryMetricsFactory`, which accepts {@link
  *  GenericQueryMetricsFactory} as injected constructor parameter, and implements makeMetrics() as
- *  `return new DefaultSearchQueryMetrics(genericQueryMetricsFactory.makeMetrics(query));`
+ *  `return new DefaultSearchQueryMetrics(metricsFactory.makeMetrics(query));`
  *
  *  5. Inject and use SearchQueryMetricsFactory instead of {@link GenericQueryMetricsFactory} in {@link
  *  io.druid.query.search.SearchQueryQueryToolChest}.

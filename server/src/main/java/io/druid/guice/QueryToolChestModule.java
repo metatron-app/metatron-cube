@@ -81,10 +81,10 @@ import java.util.Map;
  */
 public class QueryToolChestModule implements Module
 {
-  public static final String GENERIC_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.generic.queryMetricsFactory";
-  public static final String GROUPBY_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.groupBy.queryMetricsFactory";
-  public static final String TIMESERIES_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.timeseries.queryMetricsFactory";
-  public static final String TOPN_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.topN.queryMetricsFactory";
+  public static final String QUERY_METRICS_FACTORY_PROPERTY = "druid.query.metricsFactory";
+  public static final String GROUPBY_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.groupBy.metricsFactory";
+  public static final String TIMESERIES_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.timeseries.metricsFactory";
+  public static final String TOPN_QUERY_METRICS_FACTORY_PROPERTY = "druid.query.topN.metricsFactory";
 
   public final Map<Class<? extends Query>, Class<? extends QueryToolChest>> mappings =
       ImmutableMap.<Class<? extends Query>, Class<? extends QueryToolChest>>builder()
@@ -129,7 +129,7 @@ public class QueryToolChestModule implements Module
 
     PolyBind.createChoice(
         binder,
-        GENERIC_QUERY_METRICS_FACTORY_PROPERTY,
+        QUERY_METRICS_FACTORY_PROPERTY,
         Key.get(GenericQueryMetricsFactory.class),
         Key.get(DefaultGenericQueryMetricsFactory.class)
     );

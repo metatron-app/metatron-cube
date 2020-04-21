@@ -22,10 +22,10 @@ package io.druid.query.timeseries;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
@@ -109,8 +109,7 @@ public class TimeseriesQueryRunnerBonusTest
 
   private List<Row> runTimeseriesCount(IncrementalIndex index)
   {
-    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+    final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
         new TimeseriesQueryEngine(),

@@ -75,7 +75,7 @@ public class SegmentMetadataQueryQueryToolChest
   };
 
   private final SegmentMetadataQueryConfig config;
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @VisibleForTesting
   public SegmentMetadataQueryQueryToolChest(SegmentMetadataQueryConfig config)
@@ -84,10 +84,10 @@ public class SegmentMetadataQueryQueryToolChest
   }
 
   @Inject
-  public SegmentMetadataQueryQueryToolChest(SegmentMetadataQueryConfig config, GenericQueryMetricsFactory queryMetricsFactory)
+  public SegmentMetadataQueryQueryToolChest(SegmentMetadataQueryConfig config, GenericQueryMetricsFactory metricsFactory)
   {
     this.config = config;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -143,7 +143,7 @@ public class SegmentMetadataQueryQueryToolChest
   @Override
   public QueryMetrics<Query<?>> makeMetrics(SegmentMetadataQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   public TypeReference<SegmentAnalysis> getResultTypeReference(SegmentMetadataQuery query)

@@ -37,7 +37,6 @@ import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryMetrics;
@@ -75,29 +74,22 @@ public class SearchQueryQueryToolChest
   };
 
   private final SearchQueryConfig config;
-
-  private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @VisibleForTesting
-  public SearchQueryQueryToolChest(
-      SearchQueryConfig config,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
-  )
+  public SearchQueryQueryToolChest(SearchQueryConfig config)
   {
-    this(config, intervalChunkingQueryRunnerDecorator, DefaultGenericQueryMetricsFactory.instance());
+    this(config, DefaultGenericQueryMetricsFactory.instance());
   }
 
   @Inject
   public SearchQueryQueryToolChest(
       SearchQueryConfig config,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
     this.config = config;
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -189,7 +181,7 @@ public class SearchQueryQueryToolChest
 
   public QueryMetrics<Query<?>> makeMetrics(SearchQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query).granularity(query.getGranularity());
+    return metricsFactory.makeMetrics(query).granularity(query.getGranularity());
   }
 
   @Override
@@ -316,7 +308,7 @@ public class SearchQueryQueryToolChest
   @Override
   public QueryRunner<Result<SearchResultValue>> preMergeQueryDecoration(final QueryRunner<Result<SearchResultValue>> runner)
   {
-    return new SearchThresholdAdjustingQueryRunner(intervalChunkingQueryRunnerDecorator.decorate(runner, this), config);
+    return new SearchThresholdAdjustingQueryRunner(runner, config);
   }
 
   private static class SearchThresholdAdjustingQueryRunner implements QueryRunner<Result<SearchResultValue>>

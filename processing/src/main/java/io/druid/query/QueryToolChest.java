@@ -59,6 +59,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 {
   protected static final TypeReference<Object[]> ARRAY_TYPE_REFERENCE = new TypeReference<Object[]>() {};
   protected static final TypeReference<Row> ROW_TYPE_REFERENCE = new TypeReference<Row>() {};
+  protected static final TypeReference<Map<String, Object>> MAP_TYPE_REFERENCE = new TypeReference<Map<String, Object>>() {};
 
   protected final Logger LOG = new Logger(getClass());
 

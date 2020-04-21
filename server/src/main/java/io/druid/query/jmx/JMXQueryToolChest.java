@@ -23,8 +23,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
@@ -37,19 +37,14 @@ import java.util.Map;
  */
 public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQuery>
 {
-  private static final TypeReference<Map<String, Object>> TYPE_REFERENCE =
-      new TypeReference<Map<String, Object>>()
-      {
-      };
-
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
   public JMXQueryToolChest(
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -61,7 +56,7 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
   @Override
   public QueryMetrics<? super JMXQuery> makeMetrics(JMXQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override
@@ -109,6 +104,6 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
   @Override
   public TypeReference<Map<String, Object>> getResultTypeReference(JMXQuery query)
   {
-    return TYPE_REFERENCE;
+    return MAP_TYPE_REFERENCE;
   }
 }

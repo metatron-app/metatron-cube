@@ -51,14 +51,14 @@ public class SelectMetaQueryToolChest
       {
       };
 
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
   public SelectMetaQueryToolChest(
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
   @Override
   public QueryRunner<Result<SelectMetaResultValue>> mergeResults(QueryRunner<Result<SelectMetaResultValue>> runner)
@@ -117,7 +117,7 @@ public class SelectMetaQueryToolChest
   @Override
   public QueryMetrics<? super SelectMetaQuery> makeMetrics(SelectMetaQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override

@@ -68,13 +68,13 @@ import io.druid.java.util.common.guava.nary.TrinaryFn;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.DataSource;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
@@ -219,28 +219,23 @@ public class CachingClusteredClientTest
       ImmutableMap.<Class<? extends Query>, QueryToolChest>builder()
                   .put(
                       TimeseriesQuery.class,
-                      new TimeseriesQueryQueryToolChest(
-                          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                      )
+                      new TimeseriesQueryQueryToolChest()
                   )
                   .put(
                       TopNQuery.class, new TopNQueryQueryToolChest(
                           new TopNQueryConfig(),
-                          TestHelper.testTopNQueryEngine(),
-                          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          TestHelper.testTopNQueryEngine()
                       )
                   )
                   .put(
                       SearchQuery.class, new SearchQueryQueryToolChest(
-                          new SearchQueryConfig(),
-                          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          new SearchQueryConfig()
                       )
                   )
                   .put(
                       SelectQuery.class,
                       new SelectQueryQueryToolChest(
-                          jsonMapper,
-                          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          null, DefaultGenericQueryMetricsFactory.instance()
                       )
                   )
                   .put(
@@ -248,8 +243,7 @@ public class CachingClusteredClientTest
                       new GroupByQueryQueryToolChest(
                           QUERY_CONFIG,
                           new GroupByQueryEngine(StupidPool.heap(1024 * 1024)),
-                          TestQueryRunners.pool,
-                          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          TestQueryRunners.pool
                       )
                   )
                   .put(TimeBoundaryQuery.class, new TimeBoundaryQueryQueryToolChest())
@@ -419,11 +413,7 @@ public class CachingClusteredClientTest
               .postAggregators(POST_AGGS)
               .context(CONTEXT);
 
-    QueryRunner runner = new FinalizeResultsQueryRunner(
-        client, new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    )
-    );
+    QueryRunner runner = new FinalizeResultsQueryRunner(client, new TimeseriesQueryQueryToolChest());
 
     testQueryCaching(
         runner,
@@ -459,11 +449,7 @@ public class CachingClusteredClientTest
               .postAggregators(POST_AGGS)
               .context(CONTEXT);
 
-    QueryRunner runner = new FinalizeResultsQueryRunner(
-        client, new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    )
-    );
+    QueryRunner runner = new FinalizeResultsQueryRunner(client, new TimeseriesQueryQueryToolChest());
 
     testQueryCaching(
         runner,
@@ -587,11 +573,7 @@ public class CachingClusteredClientTest
               .postAggregators(POST_AGGS)
               .context(CONTEXT);
 
-    QueryRunner runner = new FinalizeResultsQueryRunner(
-        client, new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    )
-    );
+    QueryRunner runner = new FinalizeResultsQueryRunner(client, new TimeseriesQueryQueryToolChest());
 
     testQueryCaching(
         runner,
@@ -651,11 +633,7 @@ public class CachingClusteredClientTest
               .postAggregators(POST_AGGS)
               .context(CONTEXT);
 
-    QueryRunner runner = new FinalizeResultsQueryRunner(
-        client, new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    )
-    );
+    QueryRunner runner = new FinalizeResultsQueryRunner(client, new TimeseriesQueryQueryToolChest());
 
     testQueryCaching(
         runner,
@@ -699,11 +677,7 @@ public class CachingClusteredClientTest
               .postAggregators(POST_AGGS)
               .context(CONTEXT);
 
-    QueryRunner runner = new FinalizeResultsQueryRunner(
-        client, new TimeseriesQueryQueryToolChest(
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    )
-    );
+    QueryRunner runner = new FinalizeResultsQueryRunner(client, new TimeseriesQueryQueryToolChest());
     testQueryCaching(
         runner,
         1,
@@ -777,8 +751,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        TestHelper.testTopNQueryEngine()
     )
     );
 
@@ -855,8 +828,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        TestHelper.testTopNQueryEngine()
     )
     );
 
@@ -934,8 +906,7 @@ public class CachingClusteredClientTest
                 .build(),
             new TopNQueryQueryToolChest(
                 new TopNQueryConfig(),
-                TestHelper.testTopNQueryEngine(),
-                QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                TestHelper.testTopNQueryEngine()
             ),
             sequences,
             -1,
@@ -964,8 +935,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        TestHelper.testTopNQueryEngine()
     )
     );
     testQueryCaching(
@@ -1039,8 +1009,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        TestHelper.testTopNQueryEngine()
     )
     );
     testQueryCaching(
@@ -1139,8 +1108,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new SearchQueryQueryToolChest(
-        new SearchQueryConfig(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        new SearchQueryConfig()
     )
     );
     HashMap<String, Object> context = new HashMap<String, Object>();
@@ -1211,8 +1179,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client,
         new SelectQueryQueryToolChest(
-            jsonMapper,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            null, DefaultGenericQueryMetricsFactory.instance()
         )
     );
     HashMap<String, Object> context = new HashMap<String, Object>();
@@ -1312,8 +1279,7 @@ public class CachingClusteredClientTest
         new GroupByQueryQueryToolChest(
             new QueryConfig(),
             new GroupByQueryEngine(StupidPool.heap(1024 * 1024)),
-            TestQueryRunners.pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            TestQueryRunners.pool
         )
     );
     HashMap<String, Object> context = new HashMap<String, Object>();
@@ -2500,8 +2466,7 @@ public class CachingClusteredClientTest
         new GroupByQueryQueryToolChest(
             new QueryConfig(),
             new GroupByQueryEngine(StupidPool.heap(1024 * 1024)),
-            TestQueryRunners.pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            TestQueryRunners.pool
         )
     );
     HashMap<String, Object> context = new HashMap<String, Object>();

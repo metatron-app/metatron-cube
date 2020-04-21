@@ -26,8 +26,8 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.guava.Sequences;
+import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -72,8 +72,7 @@ public class SelectQueryUnpivotTest
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     SelectQueryQueryToolChest toolChest = new SelectQueryQueryToolChest(
-        new DefaultObjectMapper(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        null, DefaultGenericQueryMetricsFactory.instance()
     );
     SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
         toolChest,

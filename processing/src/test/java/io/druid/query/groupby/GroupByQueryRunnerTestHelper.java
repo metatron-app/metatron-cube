@@ -69,8 +69,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(
-            config, engine, TestQueryRunners.pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            config, engine, TestQueryRunners.pool
         ),
         TestQueryRunners.pool
     );
@@ -84,8 +83,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(
-            config, engine, pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            config, engine, pool
         ),
         pool
     );

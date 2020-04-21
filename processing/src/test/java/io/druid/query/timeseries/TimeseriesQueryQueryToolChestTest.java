@@ -61,7 +61,7 @@ public class TimeseriesQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
     CacheStrategy<Row, Object[], TimeseriesQuery> strategy =
-        new TimeseriesQueryQueryToolChest(null).getCacheStrategyIfExists(
+        new TimeseriesQueryQueryToolChest().getCacheStrategyIfExists(
             new TimeseriesQuery(
                 new TableDataSource("dummy"),
                 new MultipleIntervalSegmentSpec(

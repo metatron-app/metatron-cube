@@ -43,7 +43,7 @@ public class SearchQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
     CacheStrategy<Result<SearchResultValue>, Object, SearchQuery> strategy =
-        new SearchQueryQueryToolChest(null, null).getCacheStrategyIfExists(
+        new SearchQueryQueryToolChest(null).getCacheStrategyIfExists(
             new SearchQuery(
                 new TableDataSource("dummy"),
                 null,

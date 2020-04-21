@@ -24,6 +24,7 @@ import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
 import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.timeboundary.TimeBoundaryQueryRunnerFactory;
+import io.druid.query.timeseries.DefaultTimeseriesQueryMetricsFactory;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
@@ -55,8 +56,7 @@ public class TestQueryRunners
         pool,
         new TopNQueryQueryToolChest(
             topNConfig,
-            TestHelper.testTopNQueryEngine(),
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            TestHelper.testTopNQueryEngine()
         ),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
@@ -70,8 +70,7 @@ public class TestQueryRunners
   )
   {
     QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
-        new TimeseriesQueryQueryToolChest(
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+        new TimeseriesQueryQueryToolChest(),
         new TimeseriesQueryEngine(),
         new QueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -87,8 +86,8 @@ public class TestQueryRunners
   )
   {
     QueryRunnerFactory factory = new SearchQueryRunnerFactory(new SearchQueryQueryToolChest(
-          new SearchQueryConfig(),
-          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+          new SearchQueryConfig()
+    ),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER);
     return factory.getToolchest().finalizeResults(
         factory.createRunner(adapter, null)

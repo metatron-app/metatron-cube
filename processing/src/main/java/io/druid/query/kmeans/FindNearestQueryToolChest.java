@@ -39,14 +39,14 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
       {
       };
 
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
   public FindNearestQueryToolChest(
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -88,7 +88,7 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
   @Override
   public QueryMetrics<? super FindNearestQuery> makeMetrics(FindNearestQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override

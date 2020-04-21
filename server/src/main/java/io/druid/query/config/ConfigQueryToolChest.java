@@ -32,19 +32,14 @@ import java.util.Map;
  */
 public class ConfigQueryToolChest extends QueryToolChest<Map<String, Object>, ConfigQuery>
 {
-  private static final TypeReference<Map<String, Object>> TYPE_REFERENCE =
-      new TypeReference<Map<String, Object>>()
-      {
-      };
-
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
   public ConfigQueryToolChest(
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -56,12 +51,12 @@ public class ConfigQueryToolChest extends QueryToolChest<Map<String, Object>, Co
   @Override
   public QueryMetrics<? super ConfigQuery> makeMetrics(ConfigQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override
   public TypeReference<Map<String, Object>> getResultTypeReference(ConfigQuery query)
   {
-    return TYPE_REFERENCE;
+    return MAP_TYPE_REFERENCE;
   }
 }

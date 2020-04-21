@@ -24,74 +24,73 @@ import java.util.List;
 
 public interface QueryContextKeys
 {
-  public static final String QUERYID = "queryId";
+  String QUERYID = "queryId";
 
   // internal markers
-  public static final String PRIORITY = "priority";
-  public static final String TIMEOUT = "timeout";
-  public static final String CHUNK_PERIOD = "chunkPeriod";
-  public static final String FINALIZE = "finalize";
-  public static final String FINAL_MERGE = "finalMerge";
-  public static final String BY_SEGMENT = "bySegment";
-  public static final String LOCAL_POST_PROCESSING = "#localPostProcessing";
-  public static final String DATETIME_CUSTOM_SERDE = "#dateTimeCustomSerde"; // datetime serde between broker & others
-  public static final String LOCAL_SPLIT_STRATEGY = "#localSplitStrategy";
-  public static final String FUDGE_TIMESTAMP = "#fudgeTimestamp";
-  public static final String USE_BULK_ROW = "#useBulkRow";
-  public static final String MAJOR_TYPES = "#majorTypes";   // for sketch
-  public static final String DISABLE_LOG = "#disableLog";
+  String PRIORITY = "priority";
+  String TIMEOUT = "timeout";
+  String FINALIZE = "finalize";
+  String FINAL_MERGE = "finalMerge";
+  String BY_SEGMENT = "bySegment";
+  String LOCAL_POST_PROCESSING = "#localPostProcessing";
+  String DATETIME_CUSTOM_SERDE = "#dateTimeCustomSerde"; // datetime serde between broker & others
+  String LOCAL_SPLIT_STRATEGY = "#localSplitStrategy";
+  String FUDGE_TIMESTAMP = "#fudgeTimestamp";
+  String USE_BULK_ROW = "#useBulkRow";
+  String MAJOR_TYPES = "#majorTypes";   // for sketch
+  String DISABLE_LOG = "#disableLog";
 
-  public static final String USE_CUBOIDS = "useCuboids";
+  String USE_CUBOIDS = "useCuboids";
 
   // group-by config.. overriding
-  public static final String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
-  public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
-  public static final String GBY_CONVERT_FREQUENCY = "groupByConvertFrequency";
-  public static final String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
-  public static final String GBY_PRE_ORDERING = "groupByPreOrdering";
-  public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
-  public static final String GBY_LOCAL_SPLIT_NUM = "groupByLocalSplitNum";
-  public static final String GBY_LOCAL_SPLIT_CARDINALITY = "groupByLocalSplitCardinality";
-  public static final String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
-  public static final String GBY_USE_BULK_ROW = "groupByUseBulkRow";
-  public static final String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
+  String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
+  String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
+  String GBY_CONVERT_FREQUENCY = "groupByConvertFrequency";
+  String GBY_ESTIMATE_TOPN_FACTOR = "groupByEstimateTopNFactor";
+  String GBY_PRE_ORDERING = "groupByPreOrdering";
+  String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
+  String GBY_LOCAL_SPLIT_NUM = "groupByLocalSplitNum";
+  String GBY_LOCAL_SPLIT_CARDINALITY = "groupByLocalSplitCardinality";
+  String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
+  String GBY_USE_BULK_ROW = "groupByUseBulkRow";
+  String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 
   // select.stream.raw
-  public static final String STREAM_USE_BULK_ROW = "streamUseBulkRow";
-  public static final String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
-  public static final String STREAM_RAW_LOCAL_SPLIT_ROWS = "streamRawLocalSplitRows";
+  String STREAM_USE_BULK_ROW = "streamUseBulkRow";
+  String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
+  String STREAM_RAW_LOCAL_SPLIT_ROWS = "streamRawLocalSplitRows";
 
   // frequency
-  public static final String FREQUENCY_SKETCH_DEPTH = "frequencySketchDepth";
+  String FREQUENCY_SKETCH_DEPTH = "frequencySketchDepth";
 
   // join
-  public static final String HASHJOIN_THRESHOLD = "hashjoinThreshold";
+  String HASHJOIN_THRESHOLD = "hashjoinThreshold";
 
   // CacheConfig
-  public static final String USE_CACHE = "useCache";
-  public static final String POPULATE_CACHE = "populateCache";
+  String USE_CACHE = "useCache";
+  String POPULATE_CACHE = "populateCache";
 
-  public static final String OPTIMIZE_QUERY = "optimizeQuery";
-  public static final String POST_PROCESSING = "postProcessing";
-  public static final String ALL_DIMENSIONS_FOR_EMPTY = "allDimensionsForEmpty";
-  public static final String ALL_METRICS_FOR_EMPTY = "allMetricsForEmpty";
-  public static final String FORWARD_URL = "forwardURL";
-  public static final String FORWARD_CONTEXT = "forwardContext";
-  public static final String DATETIME_STRING_SERDE = "dateTimeStringSerde";   // use string always
+  String OPTIMIZE_QUERY = "optimizeQuery";
+  String POST_PROCESSING = "postProcessing";
+  String ALL_DIMENSIONS_FOR_EMPTY = "allDimensionsForEmpty";
+  String ALL_METRICS_FOR_EMPTY = "allMetricsForEmpty";
+  String FORWARD_URL = "forwardURL";
+  String FORWARD_CONTEXT = "forwardContext";
+  String DATETIME_STRING_SERDE = "dateTimeStringSerde";   // use string always
 
   // for jmx
-  public static final String PREVIOUS_JMX = "previousJmx";
+  String PREVIOUS_JMX = "previousJmx";
 
   // forward context
-  public static final String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
-  public static final String FORWARD_PARALLEL = "parallel";
+  String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
+  String FORWARD_PARALLEL = "parallel";
 
   // generic
-  public static final String MAX_RESULTS = "maxResults";
-  public static final String DECORATOR_CONTEXT = "decoratorContext";
-  public static final String MAX_QUERY_PARALLELISM = "maxQueryParallelism";
+  String MAX_RESULTS = "maxResults";
+  String DECORATOR_CONTEXT = "decoratorContext";
+  String MAX_QUERY_PARALLELISM = "maxQueryParallelism";
 
-  public static final List<String> FOR_META = Arrays.asList(
+  List<String> FOR_META = Arrays.asList(
       QUERYID,
       PRIORITY,
       TIMEOUT,

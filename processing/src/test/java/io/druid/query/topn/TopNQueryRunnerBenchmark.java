@@ -21,7 +21,6 @@ package io.druid.query.topn;
 
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
-import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -41,7 +40,6 @@ import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -93,8 +91,8 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
         StupidPool.direct(2000),
         new TopNQueryQueryToolChest(
             new TopNQueryConfig(),
-            TestHelper.testTopNQueryEngine(),
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+            TestHelper.testTopNQueryEngine()
+        ),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     testCaseMap.put(

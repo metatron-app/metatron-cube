@@ -59,7 +59,7 @@ public class TopNQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
     CacheStrategy<Result<TopNResultValue>, List<Object>, TopNQuery> strategy =
-        new TopNQueryQueryToolChest(null, null, null).getCacheStrategyIfExists(
+        new TopNQueryQueryToolChest(null, null).getCacheStrategyIfExists(
             new TopNQuery(
                 new TableDataSource("dummy"),
                 null,
@@ -116,8 +116,7 @@ public class TopNQueryQueryToolChestTest
     TopNQueryConfig config = new TopNQueryConfig();
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
         config,
-        TestHelper.testTopNQueryEngine(),
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        TestHelper.testTopNQueryEngine()
     );
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(
         TestQueryRunners.getPool(),

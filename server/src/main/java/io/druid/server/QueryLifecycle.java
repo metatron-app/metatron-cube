@@ -218,6 +218,7 @@ public class QueryLifecycle
    * @param e             exception that occurred while processing this query
    * @param remoteAddress remote address, for logging; or null if unknown
    * @param bytesWritten  number of bytes written; will become a query/bytes metric if >= 0
+   * @param rows          number of rows; will become a query/bytes metric if >= 0
    */
   @SuppressWarnings("unchecked")
   public void emitLogsAndMetrics(

@@ -27,7 +27,6 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.CacheStrategy;
 import io.druid.query.GenericQueryMetricsFactory;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryMetrics;
@@ -44,17 +43,12 @@ import org.joda.time.Interval;
  */
 public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Object[], Object[], SketchQuery>
 {
-  private final GenericQueryMetricsFactory queryMetricsFactory;
-  private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
-  public SketchQueryQueryToolChest(
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
-      GenericQueryMetricsFactory queryMetricsFactory
-  )
+  public SketchQueryQueryToolChest(GenericQueryMetricsFactory metricsFactory)
   {
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -74,7 +68,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
   @Override
   public QueryMetrics<? super SketchQuery> makeMetrics(SketchQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override
@@ -123,12 +117,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
                          .build();
       }
     };
-  }
-
-  @Override
-  public QueryRunner<Object[]> preMergeQueryDecoration(QueryRunner<Object[]> runner)
-  {
-    return intervalChunkingQueryRunnerDecorator.decorate(runner, this);
   }
 
   @Override

@@ -50,14 +50,14 @@ import java.util.function.ToIntFunction;
  */
 public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
 {
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
 
   @Inject
   public StreamQueryToolChest(
-      GenericQueryMetricsFactory queryMetricsFactory
+      GenericQueryMetricsFactory metricsFactory
   )
   {
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
   }
 
   @Override
@@ -85,7 +85,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   @Override
   public QueryMetrics<? super StreamQuery> makeMetrics(StreamQuery query)
   {
-    return queryMetricsFactory.makeMetrics(query);
+    return metricsFactory.makeMetrics(query);
   }
 
   @Override

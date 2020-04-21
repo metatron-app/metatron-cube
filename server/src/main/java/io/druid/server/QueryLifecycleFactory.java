@@ -36,7 +36,7 @@ public class QueryLifecycleFactory
   private final QueryManager queryManager;
   private final QueryToolChestWarehouse warehouse;
   private final QuerySegmentWalker texasRanger;
-  private final GenericQueryMetricsFactory queryMetricsFactory;
+  private final GenericQueryMetricsFactory metricsFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
   private final ObjectMapper jsonMapper;
@@ -47,7 +47,7 @@ public class QueryLifecycleFactory
       final QueryManager queryManager,
       final QueryToolChestWarehouse warehouse,
       final QuerySegmentWalker texasRanger,
-      final GenericQueryMetricsFactory queryMetricsFactory,
+      final GenericQueryMetricsFactory metricsFactory,
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
       final ObjectMapper jsonMapper,
@@ -57,7 +57,7 @@ public class QueryLifecycleFactory
     this.queryManager = queryManager;
     this.warehouse = warehouse;
     this.texasRanger = texasRanger;
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.jsonMapper = jsonMapper;
@@ -71,7 +71,7 @@ public class QueryLifecycleFactory
         queryManager,
         warehouse,
         texasRanger,
-        queryMetricsFactory,
+        metricsFactory,
         emitter,
         requestLogger,
         jsonMapper,

@@ -41,6 +41,7 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.filter.SpatialDimFilter;
+import io.druid.query.timeseries.DefaultTimeseriesQueryMetricsFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
@@ -485,8 +486,7 @@ public class SpatialFilterBonusTest
         )
     );
     try {
-      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),
@@ -565,8 +565,7 @@ public class SpatialFilterBonusTest
         )
     );
     try {
-      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),
@@ -651,8 +650,7 @@ public class SpatialFilterBonusTest
         )
     );
     try {
-      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest(
-          QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+      TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
       TimeseriesQueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
           toolChest,
           new TimeseriesQueryEngine(),

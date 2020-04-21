@@ -21,9 +21,9 @@ package io.druid.query.timeseries;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -42,7 +42,6 @@ import org.junit.runners.Parameterized;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -58,9 +57,7 @@ public class TimeseriesQueryMergedRunnerTest
     return QueryRunnerTestHelper.transformToConstructionFeeder(
         QueryRunnerTestHelper.makeQueryRunners(
             new TimeseriesQueryRunnerFactory(
-                new TimeseriesQueryQueryToolChest(
-                    QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                ),
+                new TimeseriesQueryQueryToolChest(),
                 new TimeseriesQueryEngine(),
                 new QueryConfig(),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER

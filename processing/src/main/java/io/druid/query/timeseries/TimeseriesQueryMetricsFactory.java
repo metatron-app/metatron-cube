@@ -21,6 +21,5 @@ package io.druid.query.timeseries;
 
 public interface TimeseriesQueryMetricsFactory
 {
-
   TimeseriesQueryMetrics makeMetrics();
 }

@@ -19,26 +19,21 @@
 
 package io.druid.query.timeseries;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseAggregationQueryToolChest;
-import io.druid.query.DruidMetrics;
-import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.Cursor;
 
 import java.util.Comparator;
@@ -47,23 +42,18 @@ import java.util.Comparator;
  */
 public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest<TimeseriesQuery>
 {
-  private final TimeseriesQueryMetricsFactory queryMetricsFactory;
-
-  @VisibleForTesting
-  public TimeseriesQueryQueryToolChest(IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator)
-  {
-    this(intervalChunkingQueryRunnerDecorator, DefaultTimeseriesQueryMetricsFactory.instance());
-
-  }
+  private final TimeseriesQueryMetricsFactory metricsFactory;
 
   @Inject
-  public TimeseriesQueryQueryToolChest(
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
-      TimeseriesQueryMetricsFactory queryMetricsFactory
-  )
+  public TimeseriesQueryQueryToolChest(TimeseriesQueryMetricsFactory metricsFactory)
   {
-    super(intervalChunkingQueryRunnerDecorator);
-    this.queryMetricsFactory = queryMetricsFactory;
+    this.metricsFactory = metricsFactory;
+  }
+
+  @VisibleForTesting
+  public TimeseriesQueryQueryToolChest()
+  {
+    this(DefaultTimeseriesQueryMetricsFactory.instance());
   }
 
   @Override
@@ -95,7 +85,7 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   @Override
   public TimeseriesQueryMetrics makeMetrics(TimeseriesQuery query)
   {
-    TimeseriesQueryMetrics queryMetrics = queryMetricsFactory.makeMetrics();
+    TimeseriesQueryMetrics queryMetrics = metricsFactory.makeMetrics();
     queryMetrics.query(query);
     return queryMetrics;
   }

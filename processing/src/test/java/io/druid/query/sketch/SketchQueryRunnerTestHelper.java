@@ -80,7 +80,6 @@ public class SketchQueryRunnerTestHelper extends QueryRunnerTestHelper
   }
 
   static final SketchQueryQueryToolChest toolChest = new SketchQueryQueryToolChest(
-      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator(),
       DefaultGenericQueryMetricsFactory.instance()
   );
 
