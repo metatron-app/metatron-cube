@@ -47,6 +47,7 @@ public class TopNSorter<T>
 
   /**
    * Constructs a sorter that will sort items with given ordering.
+   *
    * @param ordering the order that this sorter instance will use for sorting
    */
   public TopNSorter(Comparator<T> ordering)
@@ -56,13 +57,15 @@ public class TopNSorter<T>
 
   /**
    * Sorts a list of rows and retain the top n items
+   *
    * @param items the collections of items to be sorted
-   * @param n the number of items to be retained
+   * @param n     the number of items to be retained
+   *
    * @return Top n items that are sorted in the order specified when this instance is constructed.
    */
   public Iterator<T> toTopN(Iterable<T> items, int n)
   {
-    if(n <= 0) {
+    if (n <= 0) {
       return Collections.emptyIterator();
     }
 
@@ -73,23 +76,24 @@ public class TopNSorter<T>
 
   public Iterator<T> toTopN(Sequence<T> items, int n)
   {
-    if(n <= 0) {
+    if (n <= 0) {
       return Collections.emptyIterator();
     }
 
     final MinMaxPriorityQueue<T> queue = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(n).create();
-    items.accumulate(
-        queue, new Accumulator<MinMaxPriorityQueue<T>, T>()
-        {
-          @Override
-          public MinMaxPriorityQueue<T> accumulate(MinMaxPriorityQueue<T> accumulated, T in)
-          {
-            accumulated.offer(in);
-            return accumulated;
-          }
-        }
-    );
 
-    return new OrderedPriorityQueueItems<T>(queue);
+    return new OrderedPriorityQueueItems<T>(
+        items.accumulate(
+            queue, new Accumulator<MinMaxPriorityQueue<T>, T>()
+            {
+              @Override
+              public MinMaxPriorityQueue<T> accumulate(MinMaxPriorityQueue<T> accumulated, T in)
+              {
+                accumulated.offer(in);
+                return accumulated;
+              }
+            }
+        )
+    );
   }
 }

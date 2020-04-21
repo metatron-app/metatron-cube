@@ -20,18 +20,17 @@
 package io.druid.query.groupby;
 
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.ordering.Comparators;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Map;
@@ -42,7 +41,7 @@ import java.util.function.BiFunction;
 
 /**
  */
-public final class MergeIndexSorting implements MergeIndex
+public final class MergeIndexSorting implements MergeIndex<Row>
 {
   private static final Logger LOG = new Logger(MergeIndex.class);
 
@@ -130,7 +129,7 @@ public final class MergeIndexSorting implements MergeIndex
   }
 
   @Override
-  public void close() throws IOException
+  public void close()
   {
     mapping.clear();
   }

@@ -168,6 +168,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
       }
 
       @Override
+      @SuppressWarnings("unchecked")
       protected Sequence<Row> mergeQuery(Query<Row> query, Sequence<Sequence<Row>> sequences, Segment segment)
       {
         GroupByQuery groupBy = (GroupByQuery) query;

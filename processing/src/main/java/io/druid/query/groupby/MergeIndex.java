@@ -19,14 +19,25 @@
 
 package io.druid.query.groupby;
 
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.data.input.Row;
 
 import java.io.Closeable;
 
-public interface MergeIndex extends Closeable
+public interface MergeIndex<T> extends Closeable
 {
-  void add(Row row);
+  void add(T row);
 
-  Sequence<Row> toMergeStream(boolean compact);
+  Sequence<T> toMergeStream(boolean compact);
+
+  default void close() {}
+
+  MergeIndex NULL = new MergeIndex()
+  {
+    @Override
+    public void add(Object row) {}
+
+    @Override
+    public Sequence toMergeStream(boolean compact) { return Sequences.empty();}
+  };
 }

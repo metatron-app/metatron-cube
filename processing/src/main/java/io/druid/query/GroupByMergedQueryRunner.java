@@ -30,8 +30,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.groupby.GroupByQuery;
@@ -42,7 +40,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -88,38 +85,27 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
     }
 
     final MergeIndex mergeIndex = GroupByQueryHelper.createMergeIndex(query, config, parallelism);
-
-    final Pair<Queue, Accumulator<Queue, Row>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
-    final boolean bySegment = BaseQuery.isBySegment(query);
-    final int priority = BaseQuery.getContextPriority(query, 0);
-
     final Execs.Semaphore semaphore = new Execs.Semaphore(parallelism);
-
-    final ListenableFuture<List<Sequence<Row>>> future = Futures.allAsList(
+    final int priority = BaseQuery.getContextPriority(query, 0);
+    final ListenableFuture<List<Sequence>> future = Futures.allAsList(
         Execs.execute(
             executor,
             Lists.transform(
-                queryables, new Function<QueryRunner<Row>, Callable<Sequence<Row>>>()
+                queryables, new Function<QueryRunner, Callable<Sequence>>()
                 {
                   @Override
-                  public Callable<Sequence<Row>> apply(final QueryRunner<Row> runner)
+                  public Callable<Sequence> apply(final QueryRunner runner)
                   {
-                    return new Callable<Sequence<Row>>()
+                    return new Callable<Sequence>()
                     {
                       @Override
-                      public Sequence<Row> call() throws Exception
+                      @SuppressWarnings("unchecked")
+                      public Sequence call() throws Exception
                       {
+                        final Sequence sequence = Sequences.withBaggage(runner.run(query, responseContext), semaphore);
                         try {
-                          Sequence<Row> sequence = Sequences.withBaggage(
-                              runner.run(queryParam, responseContext),
-                              semaphore
-                          );
                           long start = System.currentTimeMillis();
-                          if (bySegment) {
-                            sequence.accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
-                          } else {
-                            sequence.accumulate(mergeIndex, GroupByQueryHelper.<Row>newMergeAccumulator(semaphore));
-                          }
+                          sequence.accumulate(mergeIndex, GroupByQueryHelper.newMergeAccumulator(semaphore));
                           log.debug("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;
                         }
@@ -153,10 +139,6 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
           }
         }
     );
-
-    if (bySegment) {
-      return Sequences.simple(bySegmentAccumulatorPair.lhs);
-    }
 
     boolean compact = !BaseQuery.isLocalFinalizingQuery(query);
     return Sequences.withBaggage(mergeIndex.toMergeStream(compact), new AsyncCloser(mergeIndex, executor));

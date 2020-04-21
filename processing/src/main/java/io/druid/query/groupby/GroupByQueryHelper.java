@@ -19,11 +19,12 @@
 
 package io.druid.query.groupby;
 
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Accumulator;
+import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Accumulator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.query.BaseQuery;
 import io.druid.query.QueryConfig;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -39,6 +40,9 @@ public class GroupByQueryHelper
       final int parallelism
   )
   {
+    if (BaseQuery.isBySegment(query)) {
+      return new DummyMergeIndex();
+    }
     final int maxResults = config.getMaxResults(query);
     final OrderedLimitSpec nodeLimit = query.getLimitSpec().getNodeLimit();
     if (config.useParallelSort(query) ||
@@ -46,6 +50,30 @@ public class GroupByQueryHelper
       return new MergeIndexParallel(query.withPostAggregatorSpecs(null), maxResults, parallelism);
     }
     return new MergeIndexSorting(query.withPostAggregatorSpecs(null), maxResults, parallelism);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static class DummyMergeIndex implements MergeIndex
+  {
+    private final Queue queue = new ConcurrentLinkedQueue();
+
+    @Override
+    public void add(Object row)
+    {
+      queue.add(row);
+    }
+
+    @Override
+    public Sequence toMergeStream(boolean compact)
+    {
+      return Sequences.simple(queue);
+    }
+
+    @Override
+    public void close()
+    {
+      queue.clear();
+    }
   }
 
   public static <T> Accumulator<IncrementalIndex, T> newIndexAccumulator()
@@ -61,42 +89,23 @@ public class GroupByQueryHelper
     };
   }
 
-  private static final int DEFAULT_POLLING_INTERVAL = 100000;
+  private static final int DEFAULT_POLLING_INTERVAL = 10000;
 
-  public static <T> Accumulator<MergeIndex, T> newMergeAccumulator(final Execs.Semaphore semaphore)
+  public static <T> Accumulator<MergeIndex<T>, T> newMergeAccumulator(final Execs.Semaphore semaphore)
   {
-    return new Accumulator<MergeIndex, T>()
+    return new Accumulator<MergeIndex<T>, T>()
     {
       private int counter;
 
       @Override
-      public MergeIndex accumulate(final MergeIndex accumulated, final T in)
+      public MergeIndex<T> accumulate(final MergeIndex<T> accumulated, final T in)
       {
         if (++counter % DEFAULT_POLLING_INTERVAL == 0 && semaphore.isDestroyed()) {
-          return accumulated;
+          return MergeIndex.NULL;
         }
-        accumulated.add((Row) in);
+        accumulated.add(in);
         return accumulated;
       }
     };
-  }
-
-  public static <T> Pair<Queue, Accumulator<Queue, T>> createBySegmentAccumulatorPair()
-  {
-    // In parallel query runner multiple threads add to this queue concurrently
-    Queue init = new ConcurrentLinkedQueue<>();
-    Accumulator<Queue, T> accumulator = new Accumulator<Queue, T>()
-    {
-      @Override
-      public Queue accumulate(Queue accumulated, T in)
-      {
-        if (in == null) {
-          throw new ISE("Cannot have null result");
-        }
-        accumulated.offer(in);
-        return accumulated;
-      }
-    };
-    return new Pair<>(init, accumulator);
   }
 }
