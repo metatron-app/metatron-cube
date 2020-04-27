@@ -226,6 +226,10 @@ public class Queries
       }
       return resolving;
     }
+    if (query instanceof BaseAggregationQuery) {
+      newColumnTypes.add(ValueDesc.LONG);
+      newColumnNames.add(Row.TIME_COLUMN_NAME);
+    }
     for (DimensionSpec dimensionSpec : BaseQuery.getDimensions(query)) {
       newColumnTypes.add(dimensionSpec.resolve(Suppliers.ofInstance(resolver)));
       newColumnNames.add(dimensionSpec.getOutputName());
