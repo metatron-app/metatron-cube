@@ -57,6 +57,7 @@ public interface QueryContextKeys
 
   // select.stream.raw
   String STREAM_USE_BULK_ROW = "streamUseBulkRow";
+  String STREAM_USE_RAW_UTF8 = "streamUseRawUTF8";
   String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
   String STREAM_RAW_LOCAL_SPLIT_ROWS = "streamRawLocalSplitRows";
 
@@ -106,8 +107,12 @@ public interface QueryContextKeys
       GBY_USE_RAW_UTF8,
       GBY_USE_BULK_ROW,
       GBY_MAX_STREAM_SUBQUERY_PAGE,
+      STREAM_USE_RAW_UTF8,
+      STREAM_USE_BULK_ROW,
       STREAM_RAW_LOCAL_SPLIT_NUM,
       STREAM_RAW_LOCAL_SPLIT_ROWS,
+      FREQUENCY_SKETCH_DEPTH,
+      HASHJOIN_THRESHOLD,
       USE_CACHE,
       POPULATE_CACHE,
       OPTIMIZE_QUERY,

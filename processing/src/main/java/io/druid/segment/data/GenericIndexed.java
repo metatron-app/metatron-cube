@@ -21,6 +21,7 @@ package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
@@ -143,6 +144,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   public byte[] getAsRaw(int index)
   {
     return bufferIndexed.getAsRaw(index);
+  }
+
+  @Override
+  public int copyTo(int index, BytesOutputStream output)
+  {
+    return bufferIndexed.copyTo(index, output);
   }
 
   /**
@@ -304,6 +311,29 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       byte[] array = new byte[endOffset - startOffset];
       copyBuffer.get(array);
       return array;
+    }
+
+    public final int copyTo(final int index, final BytesOutputStream output)
+    {
+      final ByteBuffer copyBuffer = bufferForRead();
+      final int startOffset;
+      final int endOffset;
+
+      if (index == 0) {
+        startOffset = 4;
+        endOffset = copyBuffer.getInt(indexOffset);
+      } else {
+        copyBuffer.position(indexOffset + ((index - 1) * 4));
+        startOffset = copyBuffer.getInt() + 4;
+        endOffset = copyBuffer.getInt();
+      }
+
+      final int length = endOffset - startOffset;
+      if (length > 0) {
+        copyBuffer.position(valuesOffset + startOffset);
+        copyBuffer.get(output.unwrap(), 0, length);
+      }
+      return length;
     }
 
     private T loadValue(final ByteBuffer copyBuffer, final int index)

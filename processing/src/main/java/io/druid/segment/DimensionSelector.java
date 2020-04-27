@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.segment.data.IndexedInts;
 
 /**
@@ -90,8 +91,18 @@ public interface DimensionSelector
    */
   public int lookupId(Comparable name);
 
+  interface SingleValued extends DimensionSelector
+  {
+  }
+
   interface WithRawAccess extends DimensionSelector
   {
     byte[] lookupRaw(int id);
+
+    int copyTo(int id, BytesOutputStream output);
+  }
+
+  interface SingleValuedWithRawAccess extends SingleValued, WithRawAccess
+  {
   }
 }

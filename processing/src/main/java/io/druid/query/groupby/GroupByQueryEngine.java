@@ -184,11 +184,11 @@ public class GroupByQueryEngine
       this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
                         query.getContextBoolean(Query.GBY_USE_RAW_UTF8, false);
       this.fixedTimestamp = BaseQuery.getUniversalTimestamp(query);
-      this.rowUpdater = new RowUpdater();
 
       List<DimensionSpec> dimensionSpecs = query.getDimensions();
       dimensions = new DimensionSelector[dimensionSpecs.size()];
 
+      boolean simple = true;
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
       for (int i = 0; i < dimensions.length; i++) {
@@ -202,6 +202,23 @@ public class GroupByQueryEngine
           indexedColumns.addAll(provider.targetColumns());
           providers.add(provider);
         }
+        simple &= dimensions[i] instanceof DimensionSelector.SingleValued;
+      }
+      if (simple) {
+        this.rowUpdater = new RowUpdater()
+        {
+          @Override
+          protected List<int[]> updateValues(DimensionSelector[] dimensions)
+          {
+            final int[] key = new int[dimensions.length];
+            for (int i = 0; i < key.length; i++) {
+              key[i] = dimensions[i].getRow().get(0);
+            }
+            return update(key);
+          }
+        };
+      } else {
+        this.rowUpdater = new RowUpdater();
       }
 
       final ColumnSelectorFactory factory = VirtualColumns.wrap(providers, cursor);
@@ -286,7 +303,7 @@ public class GroupByQueryEngine
 
       if (unprocessedKeys != null) {
         for (int[] key : unprocessedKeys) {
-          final List<int[]> unprocUnproc = rowUpdater.updateValues(key, key.length, null);
+          final List<int[]> unprocUnproc = rowUpdater.update(key);
           if (unprocUnproc != null) {
             throw new ISE("Not enough memory to process the request.");
           }
@@ -297,7 +314,7 @@ public class GroupByQueryEngine
 
       List<int[]> unprocessedKeys = null;
       while (!cursor.isDone() && unprocessedKeys == null) {
-        unprocessedKeys = rowUpdater.updateValues(new int[dimensions.length], 0, dimensions);
+        unprocessedKeys = rowUpdater.updateValues(dimensions);
         if (unprocessedKeys == null) {
           cursor.advance();   // should not advance before updated (for selectors)
         }
@@ -353,6 +370,11 @@ public class GroupByQueryEngine
         return positions.size();
       }
 
+      protected List<int[]> updateValues(DimensionSelector[] dimensions)
+      {
+        return updateValues(new int[dimensions.length], 0, dimensions);
+      }
+
       private List<int[]> updateValues(final int[] key, final int index, final DimensionSelector[] dims)
       {
         if (index < key.length) {
@@ -380,21 +402,26 @@ public class GroupByQueryEngine
           }
           return retVal;
         } else {
-          final IntArray wrapper = new IntArray(key);
-          final int[] position;
-          if (hasReserve()) {
-            position = positions.computeIfAbsent(wrapper, this);
-          } else {
-            position = positions.get(wrapper);
-            if (position == null) {
-              return Lists.newArrayList(key);   // buffer full
-            }
-          }
-          for (int i = 0; i < aggregators.length; i++) {
-            aggregators[i].aggregate(metricValues[position[0]], position[1] + increments[i]);
-          }
-          return null;
+          return update(key);
         }
+      }
+
+      protected final List<int[]> update(int[] key)
+      {
+        final IntArray wrapper = new IntArray(key);
+        final int[] position;
+        if (hasReserve()) {
+          position = positions.computeIfAbsent(wrapper, this);
+        } else {
+          position = positions.get(wrapper);
+          if (position == null) {
+            return Lists.newArrayList(key);   // buffer full
+          }
+        }
+        for (int i = 0; i < aggregators.length; i++) {
+          aggregators[i].aggregate(metricValues[position[0]], position[1] + increments[i]);
+        }
+        return null;
       }
 
       @Override

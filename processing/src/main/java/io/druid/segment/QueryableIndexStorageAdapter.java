@@ -33,6 +33,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.guava.Sequence;
@@ -498,6 +499,12 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                             }
 
                             @Override
+                            public int copyTo(int id, BytesOutputStream output)
+                            {
+                              return dictionary.copyTo(id, output);
+                            }
+
+                            @Override
                             public int lookupId(Comparable name)
                             {
                               return column.lookupId((String) name);
@@ -515,7 +522,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                           }
                         };
                         if (extractionFn != null) {
-                          return new DimensionSelector()
+                          return new DimensionSelector.SingleValued()
                           {
                             @Override
                             public IndexedInts getRow()
@@ -551,7 +558,7 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                           };
                         } else {
                           final Dictionary<String> dictionary = column.dictionary();
-                          return new DimensionSelector.WithRawAccess()
+                          return new DimensionSelector.SingleValuedWithRawAccess()
                           {
                             @Override
                             public IndexedInts getRow()
@@ -581,6 +588,12 @@ public class QueryableIndexStorageAdapter extends CursorFactory.Abstract impleme
                             public byte[] lookupRaw(int id)
                             {
                               return dictionary.getAsRaw(id);
+                            }
+
+                            @Override
+                            public int copyTo(int id, BytesOutputStream output)
+                            {
+                              return dictionary.copyTo(id, output);
                             }
 
                             @Override

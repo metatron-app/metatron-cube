@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
@@ -427,6 +428,24 @@ public class ColumnSelectors
           }
           return array;
         }
+      }
+    };
+  }
+
+  public static ObjectColumnSelector<UTF8Bytes> asRawAccess(final DimensionSelector.SingleValuedWithRawAccess selector)
+  {
+    return new ObjectColumnSelector<UTF8Bytes>()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.STRING;
+      }
+
+      @Override
+      public UTF8Bytes get()
+      {
+        return UTF8Bytes.of(selector.lookupRaw(selector.getRow().get(0)));
       }
     };
   }

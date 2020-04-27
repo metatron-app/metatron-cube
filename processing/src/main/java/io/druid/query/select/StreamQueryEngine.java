@@ -28,12 +28,15 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.BaseQuery;
+import io.druid.query.Query;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DimensionSelector.SingleValuedWithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -90,6 +93,8 @@ public class StreamQueryEngine
   {
     return new Function<Cursor, Sequence<Object[]>>()
     {
+      private final boolean useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
+                                         query.getContextBoolean(Query.STREAM_USE_RAW_UTF8, false);
       private final String[] columns = query.getColumns().toArray(new String[0]);
       private final String concatString = query.getConcatString();
       private final int limit = GuavaUtils.isNullOrEmpty(query.getOrderingSpecs()) ? query.getSimpleLimit() : -1;
@@ -102,7 +107,9 @@ public class StreamQueryEngine
         for (String column : columns) {
           if (cursor.resolve(column, ValueDesc.UNKNOWN).isDimension()) {
             DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
-            if (concatString != null) {
+            if (useRawUTF8 && selector instanceof SingleValuedWithRawAccess) {
+              selectors[index++] = ColumnSelectors.asRawAccess((SingleValuedWithRawAccess) selector);
+            } else if (concatString != null) {
               selectors[index++] = ColumnSelectors.asConcatValued(selector, concatString);
             } else {
               selectors[index++] = ColumnSelectors.asMultiValued(selector);
