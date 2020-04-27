@@ -465,27 +465,21 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         )
         .dimensions("category_alias.current_datetime", "sales.OrderDate", "sales.Category")
         .metrics("sales.SalesperCustomer", "category_alias.Alias")
-        .limit(15)
+        .limit(8)
         .addContext(Query.POST_PROCESSING, new SelectToRow());
 
     String[] columnNames = {
         "__time", "sales.SalesperCustomer", "sales.OrderDate", "sales.Category", "category_alias.current_datetime", "category_alias.Alias"
     };
+    // due to semantic difference of fastutil.PriorityQueue and java.util.PriorityQueue
     Object[][] objects = new Object[][]{
         array("2011-01-01", 173.94, "2013-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 2573.82, "2011-01-07 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
         array("2011-01-01", 1592.85, "2013-01-03 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 310.74, "2014-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
         array("2011-01-01", 23.08, "2013-01-07 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 76.73, "2011-01-08 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
         array("2011-01-01", 1565.88, "2013-01-08 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 141.42, "2014-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
         array("2011-01-01", 15.17, "2013-01-09 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 51.94, "2011-01-11 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
         array("2011-01-01", 24.85, "2013-01-10 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 48.9, "2014-01-02 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
         array("2011-01-01", 79.92, "2013-01-10 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
-        array("2011-01-01", 9.94, "2011-01-12 00:00:00", "Furniture", "2011-01-01 00:00:00", "F"),
         array("2011-01-01", 54.99, "2013-01-11 00:00:00", "Furniture", "2011-01-01 00:00:00", "F")
     };
     List<Row> expectedResults = createExpectedRows(columnNames, objects);

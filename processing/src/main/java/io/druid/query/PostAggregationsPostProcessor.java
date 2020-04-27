@@ -35,7 +35,6 @@ import io.druid.data.input.Rows;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.Schema;
 
 import java.util.List;
 import java.util.Map;

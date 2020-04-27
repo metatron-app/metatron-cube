@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
@@ -36,17 +37,29 @@ import java.util.Map;
 public class ArrayToRow extends PostProcessingOperator.ReturnsRow<Object[]>
 {
   private final List<String> columnNames;
+  private final String timeColumnName;
 
   @JsonCreator
-  public ArrayToRow(@JsonProperty("columnNames") List<String> columnNames)
+  public ArrayToRow(
+      @JsonProperty("columnNames") List<String> columnNames,
+      @JsonProperty("timeColumnName") String timeColumnName
+  )
   {
     this.columnNames = columnNames;
+    this.timeColumnName = timeColumnName;
   }
 
   @JsonProperty
   public List<String> getColumnNames()
   {
     return columnNames;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getTimeColumnName()
+  {
+    return timeColumnName;
   }
 
   @Override
@@ -58,16 +71,23 @@ public class ArrayToRow extends PostProcessingOperator.ReturnsRow<Object[]>
       @SuppressWarnings("unchecked")
       public Sequence<Row> run(Query query, Map responseContext)
       {
-        return Sequences.map(baseRunner.run(query, responseContext), arrayToRow(columnNames));
+        return Sequences.map(
+            baseRunner.run(query, responseContext),
+            arrayToRow(columnNames, timeColumnName == null ? Row.TIME_COLUMN_NAME : timeColumnName));
       }
     };
   }
 
   public static Function<Object[], Row> arrayToRow(final List<String> columnNames)
   {
+    return arrayToRow(columnNames, Row.TIME_COLUMN_NAME);
+  }
+
+  public static Function<Object[], Row> arrayToRow(final List<String> columnNames, final String timeColumn)
+  {
     return new Function<Object[], Row>()
     {
-      final int timeIndex = columnNames.indexOf(Row.TIME_COLUMN_NAME);
+      private final int timeIndex = columnNames.indexOf(timeColumn);
 
       @Override
       public Row apply(final Object[] input)

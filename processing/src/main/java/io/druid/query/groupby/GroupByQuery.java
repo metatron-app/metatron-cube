@@ -682,7 +682,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return PostProcessingOperators.prepend(
         query,
         segmentWalker.getObjectMapper(),
-        new ArrayToRow(GuavaUtils.concat(name, DimensionSpecs.toOutputNames(dimensions)))
+        new ArrayToRow(GuavaUtils.concat(name, DimensionSpecs.toOutputNames(dimensions)), Row.TIME_COLUMN_NAME)
     );
   }
 
