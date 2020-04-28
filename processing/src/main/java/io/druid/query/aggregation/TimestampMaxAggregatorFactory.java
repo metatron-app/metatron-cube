@@ -109,15 +109,9 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory implements 
   }
 
   @Override
-  public Object deserialize(Object object)
-  {
-    return object;
-  }
-
-  @Override
   public Object finalizeComputation(Object object)
   {
-    return new DateTime((long)object);
+    return object instanceof Number ? new DateTime(((Number) object).longValue()) : null;
   }
 
   @Override

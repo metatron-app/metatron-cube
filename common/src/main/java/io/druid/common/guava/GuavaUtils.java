@@ -539,16 +539,14 @@ public class GuavaUtils
     }
   }
 
-  public static <F, T> Function<List<F>, List<T>> transform(Function<F, T> function)
+  public static <F, T> List<T> transform(Iterable<F> fromList, Function<? super F, ? extends T> function)
   {
-    return new Function<List<F>, List<T>>()
-    {
-      @Override
-      public List<T> apply(List<F> input)
-      {
-        return Lists.transform(input, function);
-      }
-    };
+    return Lists.newArrayList(Iterables.transform(fromList, function));
+  }
+
+  public static <F, T> List<T> transform(List<F> fromList, Function<? super F, ? extends T> function)
+  {
+    return Lists.newArrayList(Iterables.transform(fromList, function));
   }
 
   public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {

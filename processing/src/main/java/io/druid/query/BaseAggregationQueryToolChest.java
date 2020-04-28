@@ -221,7 +221,6 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     }
     return new Function<Row, Row>()
     {
-      private final int start = query.getDimensions().size() + 1;
       private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
 
       @Override
@@ -230,7 +229,11 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         final Row.Updatable updatable = Rows.toUpdatable(input);
         for (AggregatorFactory agg : metrics) {
           final String name = agg.getName();
-          updatable.set(name, fn.manipulate(agg, input.getRaw(name)));
+          final Object value = input.getRaw(name);
+          final Object manipulated = fn.manipulate(agg, value);
+          if (value != manipulated) {
+            updatable.set(name, manipulated);
+          }
         }
         return updatable;
       }

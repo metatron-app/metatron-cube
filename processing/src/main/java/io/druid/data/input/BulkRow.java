@@ -41,7 +41,6 @@ import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
@@ -69,7 +68,9 @@ public class BulkRow extends AbstractRow
     }
   };
 
-  public static final TypeReference<BulkRow> TYPE_REFERENCE = new TypeReference<BulkRow>() {};
+  public static final TypeReference<BulkRow> TYPE_REFERENCE = new TypeReference<BulkRow>()
+  {
+  };
 
   private static void compressTo(final BytesOutputStream skretch, final BytesOutputStream output)
   {
@@ -219,7 +220,7 @@ public class BulkRow extends AbstractRow
       int offset = 0;
       for (int i = 0; i < category.length; i++) {
         final byte[] array = input.readVarSizeBytes();
-        final BytesInputStream decompressed  = new BytesInputStream(
+        final BytesInputStream decompressed = new BytesInputStream(
             LZ4_DECOMP.decompress(array, Ints.BYTES, Ints.fromByteArray(array))
         );
         switch (category[i]) {
@@ -341,13 +342,12 @@ public class BulkRow extends AbstractRow
             final int ix = index++;
             final Object[] row = new Object[values.length];
             for (int i = 0; i < row.length; i++) {
-              if (values[i] instanceof Iterator) {
-                Iterator iterator = (Iterator) values[i];
-                row[i] = iterator.hasNext() ? iterator.next() : -1;   // todo: increases on hasNext()
-              } else if (values[i] instanceof BytesInputStream) {
+              if (category[i] == 5) {
                 row[i] = ((BytesInputStream) values[i]).readVarSizeUTF();
+              } else if (category[i] == 6) {
+                row[i] = ((Iterator) values[i]).next();
               } else {
-                row[i] = Array.get(values[i], ix);
+                row[i] = ((Object[]) values[i])[ix];
               }
             }
             return row;

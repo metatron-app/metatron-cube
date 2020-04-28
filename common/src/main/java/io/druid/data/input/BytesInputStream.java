@@ -19,9 +19,9 @@
 
 package io.druid.data.input;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.ByteArrayDataInput;
 import io.druid.data.VLongUtils;
+import io.druid.java.util.common.StringUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInput;
@@ -210,9 +210,9 @@ public class BytesInputStream extends ByteArrayInputStream implements ByteArrayD
 
   public String readVarSizeUTF()
   {
-    final int size = readUnsignedVarInt();
-    final String value = new String(buf, pos, size, Charsets.UTF_8);
-    pos += size;
+    final int length = readUnsignedVarInt();
+    final String value = StringUtils.toUTF8String(buf, pos, length);
+    pos += length;
     return value;
   }
 

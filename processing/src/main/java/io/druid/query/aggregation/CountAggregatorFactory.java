@@ -130,12 +130,6 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   }
 
   @Override
-  public Object deserialize(Object object)
-  {
-    return object;
-  }
-
-  @Override
   @JsonProperty
   public String getName()
   {

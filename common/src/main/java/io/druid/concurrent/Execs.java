@@ -24,17 +24,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.druid.common.guava.DirectExecutorService;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.Tagged;
+import io.druid.common.guava.DirectExecutorService;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.java.util.common.logger.Logger;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -345,7 +344,7 @@ public class Execs
     Preconditions.checkArgument(parallelism > 0, "Invalid parallelism %d", parallelism);
     log.debug("Executing with parallelism : %d", parallelism);
     // must be materialized first
-    final List<WaitingFuture<V>> futures = Lists.newArrayList(Iterables.transform(works, WaitingFuture.<V>toWaiter()));
+    final List<WaitingFuture<V>> futures = GuavaUtils.transform(works, WaitingFuture.<V>toWaiter());
     final Queue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);
     try {
       for (int i = 0; i < parallelism; i++) {

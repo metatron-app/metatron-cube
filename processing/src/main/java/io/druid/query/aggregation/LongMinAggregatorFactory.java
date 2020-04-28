@@ -121,12 +121,6 @@ public class LongMinAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  public Object deserialize(Object object)
-  {
-    return object;
-  }
-
-  @Override
   public String getCubeName()
   {
     return "longMin";

@@ -127,7 +127,10 @@ public abstract class AggregatorFactory implements Cacheable
    *
    * @return the deserialized object
    */
-  public abstract Object deserialize(Object object);
+  public Object deserialize(Object object)
+  {
+    return object;
+  }
 
   /**
    * "Finalizes" the computation of an object.  Primarily useful for complex types that have a different mergeable

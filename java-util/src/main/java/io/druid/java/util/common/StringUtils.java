@@ -84,6 +84,17 @@ public class StringUtils
     }
   }
 
+  public static String toUTF8String(byte[] bytes, int offset, int length)
+  {
+    try {
+      return new String(bytes, offset, length, UTF8_STRING);
+    }
+    catch (UnsupportedEncodingException e) {
+      // Should never happen
+      throw Throwables.propagate(e);
+    }
+  }
+
   @Nullable
   public static String urlDecode(String s)
   {

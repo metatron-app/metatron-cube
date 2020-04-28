@@ -54,6 +54,13 @@ public class IntIteratorsTest
     ));
     Assert.assertArrayEquals(new int[]{1, 2, 3, 5, 7, 8, 9}, IntIterators.toArray(or));
 
+    final IntIterator and0 = new IntIterators.AND(Arrays.asList(
+        new IntIterators.FromArray(source0),
+        new IntIterators.FromArray(source2),
+        new IntIterators.FromArray(source3)
+    ));
+    Assert.assertArrayEquals(new int[]{}, IntIterators.toArray(and0));
+
     final IntIterator and = new IntIterators.AND(Arrays.asList(
         new IntIterators.FromArray(source1),
         new IntIterators.FromArray(source2),
@@ -80,7 +87,6 @@ public class IntIteratorsTest
     Assert.assertArrayEquals(new int[]{0, 4, 6}, IntIterators.toArray(not_or));
 
     final IntIterator not_and = new IntIterators.NOT(new IntIterators.AND(Arrays.asList(
-        new IntIterators.FromArray(source0),
         new IntIterators.FromArray(source1),
         new IntIterators.FromArray(source2),
         new IntIterators.FromArray(source3)

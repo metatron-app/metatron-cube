@@ -217,15 +217,15 @@ public class IntIterators
 
     public AND(List<IntIterator> iterators)
     {
+      boolean hasMore = !iterators.isEmpty();
       List<Peekable> peekables = Lists.newArrayList();
       for (IntIterator iterator : iterators) {
         Peekable peekable = new Peekable(iterator);
-        if (peekable.hasNext()) {
-          peekables.add(peekable);
-        }
+        hasMore &= peekable.hasNext();
+        peekables.add(peekable);
       }
       this.iterators = peekables.toArray(new Peekable[0]);
-      this.next = findNext(-1);
+      this.next = hasMore ? findNext(-1) : EOF;
     }
 
     @Override
@@ -336,7 +336,7 @@ public class IntIterators
     public int next()
     {
       if (next < 0) {
-        throw new NoSuchElementException();
+        return -1;
       }
       final int ret = next;
       next = findNext(ret);

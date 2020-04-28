@@ -351,12 +351,6 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   }
 
   @Override
-  public Object deserialize(Object object)
-  {
-    return object;
-  }
-
-  @Override
   public int getMaxIntermediateSize()
   {
     return Ints.BYTES * 2;

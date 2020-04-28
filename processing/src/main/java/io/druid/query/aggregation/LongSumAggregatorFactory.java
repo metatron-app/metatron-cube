@@ -137,12 +137,6 @@ public class LongSumAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  public Object deserialize(Object object)
-  {
-    return object;
-  }
-
-  @Override
   @JsonProperty
   public String getFieldName()
   {
