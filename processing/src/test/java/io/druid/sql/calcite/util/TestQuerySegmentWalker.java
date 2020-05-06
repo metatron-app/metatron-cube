@@ -388,6 +388,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                       {
                         return Pair.of(
                             new SegmentDescriptor(
+                                dataSourceName,
                                 holder.getInterval(),
                                 holder.getVersion(),
                                 chunk.getChunkNumber()

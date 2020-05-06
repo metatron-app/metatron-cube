@@ -86,16 +86,19 @@ public class QuerySegmentSpecTest
             "segments", ImmutableList
             .<Map<String, Object>>of(
                 ImmutableMap.<String, Object>of(
+                    "ds", "foo",
                     "itvl", "2011-07-01/2011-10-10",
                     "ver", "1",
                     "part", 0
                 ),
                 ImmutableMap.<String, Object>of(
+                    "ds", "foo",
                     "itvl", "2011-07-01/2011-10-10",
                     "ver", "1",
                     "part", 1
                 ),
                 ImmutableMap.<String, Object>of(
+                    "ds", "foo",
                     "itvl", "2011-11-01/2011-11-10",
                     "ver", "2",
                     "part", 10
@@ -111,9 +114,9 @@ public class QuerySegmentSpecTest
     );
     Assert.assertEquals(
         ImmutableList.of(
-            new SegmentDescriptor(new Interval("2011-07-01/2011-10-10"), "1", 0),
-            new SegmentDescriptor(new Interval("2011-07-01/2011-10-10"), "1", 1),
-            new SegmentDescriptor(new Interval("2011-11-01/2011-11-10"), "2", 10)
+            new SegmentDescriptor("foo", new Interval("2011-07-01/2011-10-10"), "1", 0),
+            new SegmentDescriptor("foo", new Interval("2011-07-01/2011-10-10"), "1", 1),
+            new SegmentDescriptor("foo", new Interval("2011-11-01/2011-11-10"), "2", 10)
         ),
         ((MultipleSpecificSegmentSpec) spec).getDescriptors()
     );

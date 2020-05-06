@@ -46,6 +46,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.DataSources;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Queries;
@@ -196,7 +197,8 @@ public class BrokerQueryResource extends QueryResource
 
   private List<LocatedSegmentDescriptor> getTargetLocations(DataSource datasource, List<Interval> intervals)
   {
-    TimelineLookup<String, ServerSelector> timeline = brokerServerView.getTimeline(datasource);
+    final String dataSourceName = DataSources.getName(datasource);
+    TimelineLookup<String, ServerSelector> timeline = brokerServerView.getTimeline(dataSourceName);
     if (timeline == null) {
       return Collections.emptyList();
     }
@@ -206,7 +208,7 @@ public class BrokerQueryResource extends QueryResource
         for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
           ServerSelector selector = chunk.getObject();
           final SegmentDescriptor descriptor = new SegmentDescriptor(
-              holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
+              dataSourceName, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
           );
           long size = selector.getSegment().getSize();
           List<DruidServerMetadata> candidates = selector.getCandidates();

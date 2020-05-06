@@ -150,11 +150,10 @@ public class DruidSchema extends AbstractSchema
     if (prev != null && prev.getTimestamp() + CACHE_VALID_MSEC > System.currentTimeMillis()) {
       return prev;
     }
-    TableDataSource dataSource = TableDataSource.of(tableName);
-    if (serverView.getTimeline(dataSource) == null) {
+    if (serverView.getTimeline(tableName) == null) {
       return null;
     }
-    Query<SegmentAnalysis> metaQuery = SegmentMetadataQuery.of(dataSource.getName(), AnalysisType.INTERVAL)
+    Query<SegmentAnalysis> metaQuery = SegmentMetadataQuery.of(tableName, AnalysisType.INTERVAL)
                                                            .withId(UUID.randomUUID().toString());
     List<SegmentAnalysis> schemas = Sequences.toList(QueryRunners.run(metaQuery, segmentWalker));
 
@@ -173,6 +172,6 @@ public class DruidSchema extends AbstractSchema
       }
       numRows += schema.getNumRows();
     }
-    return new WithTimestamp(dataSource, builder.sort().build(), descriptors, numRows);
+    return new WithTimestamp(TableDataSource.of(tableName), builder.sort().build(), descriptors, numRows);
   }
 }

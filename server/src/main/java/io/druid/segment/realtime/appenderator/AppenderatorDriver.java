@@ -396,6 +396,7 @@ public class AppenderatorDriver implements Closeable
       for (final SegmentIdentifier segmentIdentifier : waitingSegmentIdList) {
         handoffNotifier.registerSegmentHandoffCallback(
             new SegmentDescriptor(
+                appenderator.getDataSource(),
                 segmentIdentifier.getInterval(),
                 segmentIdentifier.getVersion(),
                 segmentIdentifier.getShardSpec().getPartitionNum()

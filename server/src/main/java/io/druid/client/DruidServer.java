@@ -161,16 +161,14 @@ public class DruidServer implements Comparable
     return segments.get(segmentName);
   }
 
-  public DruidServer addDataSegment(DataSegment segment)
+  public boolean addDataSegment(DataSegment segment)
   {
     final String segmentId = segment.getIdentifier();
 
     synchronized (lock) {
-      DataSegment shouldNotExist = segments.get(segmentId);
-
-      if (shouldNotExist != null) {
-        log.warn("Asked to add data segment that already exists!? server[%s], segment[%s]", getName(), segmentId);
-        return this;
+      if (segments.containsKey(segmentId)) {
+        log.info("Asked to add data segment that already exists!? server[%s], segment[%s]", getName(), segmentId);
+        return false;
       }
 
       String dataSourceName = segment.getDataSource();
@@ -189,7 +187,7 @@ public class DruidServer implements Comparable
       segments.put(segmentId, segment);
       currSize += segment.getSize();
     }
-    return this;
+    return true;
   }
 
   public DruidServer addDataSegments(DruidServer server)
@@ -202,14 +200,14 @@ public class DruidServer implements Comparable
     return this;
   }
 
-  public DruidServer removeDataSegment(String segmentId)
+  public DataSegment removeDataSegment(String segmentId)
   {
     synchronized (lock) {
       DataSegment segment = segments.get(segmentId);
 
       if (segment == null) {
         log.info("Asked to remove data segment that doesn't exist. server[%s], segment[%s]", getName(), segmentId);
-        return this;
+        return segment;
       }
 
       DruidDataSource dataSource = dataSources.get(segment.getDataSource());
@@ -221,7 +219,7 @@ public class DruidServer implements Comparable
             segmentId,
             getName()
         );
-        return this;
+        return segment;
       }
 
       dataSource.removeSegment(segmentId);
@@ -232,9 +230,8 @@ public class DruidServer implements Comparable
       if (dataSource.isEmpty()) {
         dataSources.remove(dataSource.getName());
       }
+      return segment;
     }
-
-    return this;
   }
 
   public DruidDataSource getDataSource(String dataSource)

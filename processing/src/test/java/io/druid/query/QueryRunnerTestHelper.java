@@ -782,6 +782,7 @@ public class QueryRunnerTestHelper
           Query running = query.withQuerySegmentSpec(
               new SpecificSegmentSpec(
                   new SegmentDescriptor(
+                      "foo",
                       holder.getInterval(),
                       holder.getVersion(),
                       0

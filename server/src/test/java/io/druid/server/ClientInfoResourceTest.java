@@ -44,7 +44,6 @@ import io.druid.client.DruidServer;
 import io.druid.client.FilteredServerInventoryView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
-import io.druid.query.TableDataSource;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -134,7 +133,7 @@ public class ClientInfoResourceTest
     EasyMock.expect(serverInventoryView.getInventory()).andReturn(ImmutableList.of(server)).anyTimes();
 
     timelineServerView = EasyMock.createMock(TimelineServerView.class);
-    EasyMock.expect(timelineServerView.getTimeline(EasyMock.anyObject(TableDataSource.class))).andReturn(timeline);
+    EasyMock.expect(timelineServerView.getTimeline(EasyMock.anyObject(String.class))).andReturn(timeline);
 
     EasyMock.replay(serverInventoryView, timelineServerView);
 

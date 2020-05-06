@@ -136,7 +136,7 @@ public class CoordinatorServerView implements InventoryView
       SegmentLoadInfo segmentLoadInfo = segmentLoadInfos.get(segmentId);
       if (segmentLoadInfo == null) {
         // servers escape the scope of this object so use ConcurrentSet
-        segmentLoadInfo = new SegmentLoadInfo(segment);
+        segmentLoadInfo = new SegmentLoadInfo(segment.toDescriptor());
 
         VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.get(segment.getDataSource());
         if (timeline == null) {
@@ -184,9 +184,7 @@ public class CoordinatorServerView implements InventoryView
 
         final PartitionChunk<SegmentLoadInfo> removedPartition = timeline.remove(
             segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(
-                new SegmentLoadInfo(
-                    segment
-                )
+                new SegmentLoadInfo(segment.toDescriptor())
             )
         );
 

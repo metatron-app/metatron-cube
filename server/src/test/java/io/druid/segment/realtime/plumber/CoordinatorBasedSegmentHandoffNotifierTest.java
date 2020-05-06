@@ -56,7 +56,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
         "2011-04-01/2011-04-02"
     );
     SegmentDescriptor descriptor = new SegmentDescriptor(
-        interval, "v1", 2
+        "test_ds", interval, "v1", 2
     );
     DataSegment segment = new DataSegment(
         "test_ds",
@@ -74,7 +74,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             .andReturn(
                 Lists.newArrayList(
                     new ImmutableSegmentLoadInfo(
-                        segment,
+                        segment.toDescriptor(),
                         Sets.newHashSet(
                             createRealtimeServerMetadata("a1")
                         )
@@ -113,7 +113,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
         "2011-04-01/2011-04-02"
     );
     SegmentDescriptor descriptor = new SegmentDescriptor(
-        interval, "v1", 2
+        "test_ds", interval, "v1", 2
     );
     DataSegment segment = new DataSegment(
         "test_ds",
@@ -131,7 +131,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             .andReturn(
                 Lists.newArrayList(
                     new ImmutableSegmentLoadInfo(
-                        segment,
+                        segment.toDescriptor(),
                         Sets.newHashSet(
                             createHistoricalServerMetadata("a1")
                         )
@@ -178,7 +178,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                     Sets.newHashSet(createHistoricalServerMetadata("a"))
                 )
             ),
-            new SegmentDescriptor(interval, "v2", 2)
+            new SegmentDescriptor("test_ds", interval, "v2", 2)
         )
     );
 
@@ -190,7 +190,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                     Sets.newHashSet(createHistoricalServerMetadata("a"))
                 )
             ),
-            new SegmentDescriptor(interval, "v1", 2)
+            new SegmentDescriptor("test_ds", interval, "v1", 2)
         )
     );
 
@@ -202,7 +202,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                     Sets.newHashSet(createHistoricalServerMetadata("a"))
                 )
             ),
-            new SegmentDescriptor(interval, "v1", 2)
+            new SegmentDescriptor("test_ds", interval, "v1", 2)
         )
     );
 
@@ -222,7 +222,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                     Sets.newHashSet(createHistoricalServerMetadata("a"))
                 )
             ),
-            new SegmentDescriptor(interval, "v1", 2)
+            new SegmentDescriptor("test_ds", interval, "v1", 2)
         )
     );
 
@@ -234,7 +234,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                     Sets.newHashSet(createRealtimeServerMetadata("a"))
                 )
             ),
-            new SegmentDescriptor(interval, "v1", 2)
+            new SegmentDescriptor("test_ds", interval, "v1", 2)
         )
     );
   }
@@ -253,7 +253,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                     Sets.newHashSet(createHistoricalServerMetadata("a"))
                 )
             ),
-            new SegmentDescriptor(interval, "v1", 1)
+            new SegmentDescriptor("test_ds", interval, "v1", 1)
         )
     );
 
@@ -265,7 +265,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                     Sets.newHashSet(createHistoricalServerMetadata("a"))
                 )
             ),
-            new SegmentDescriptor(interval, "v1", 2)
+            new SegmentDescriptor("test_ds", interval, "v1", 2)
         )
     );
 
@@ -288,6 +288,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                 )
             ),
             new SegmentDescriptor(
+                "test_ds",
                 new Interval(
                     "2011-04-01/2011-04-03"
                 ), "v1", 1
@@ -308,6 +309,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                 )
             ),
             new SegmentDescriptor(
+                "test_ds",
                 new Interval(
                     "2011-04-02/2011-04-03"
                 ), "v1", 1
@@ -338,7 +340,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
     );
   }
 
-  private DataSegment createSegment(Interval interval, String version, int partitionNumber)
+  private SegmentDescriptor createSegment(Interval interval, String version, int partitionNumber)
   {
     return new DataSegment(
         "test_ds",
@@ -349,6 +351,6 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
         null,
         new NumberedShardSpec(partitionNumber, 100),
         0, 0
-    );
+    ).toDescriptor();
   }
 }

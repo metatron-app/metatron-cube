@@ -74,6 +74,7 @@ public class RetryQueryRunnerTest
           {
             ((List) context.get(Result.MISSING_SEGMENTS_KEY)).add(
                 new SegmentDescriptor(
+                    "foo",
                     new Interval(
                         178888,
                         1999999
@@ -131,6 +132,7 @@ public class RetryQueryRunnerTest
             if ((int) context.get("count") == 0) {
               ((List) context.get(Result.MISSING_SEGMENTS_KEY)).add(
                   new SegmentDescriptor(
+                      "foo",
                       new Interval(
                           178888,
                           1999999
@@ -193,6 +195,7 @@ public class RetryQueryRunnerTest
             if ((int) context.get("count") < 3) {
               ((List) context.get(Result.MISSING_SEGMENTS_KEY)).add(
                   new SegmentDescriptor(
+                      "foo",
                       new Interval(
                           178888,
                           1999999
@@ -253,6 +256,7 @@ public class RetryQueryRunnerTest
           {
             ((List) context.get(Result.MISSING_SEGMENTS_KEY)).add(
                 new SegmentDescriptor(
+                    "foo",
                     new Interval(
                         178888,
                         1999999

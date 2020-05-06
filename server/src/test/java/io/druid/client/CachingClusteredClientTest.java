@@ -67,7 +67,6 @@ import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.guava.nary.TrinaryFn;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValueClass;
-import io.druid.query.DataSource;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
@@ -2062,7 +2061,7 @@ public class CachingClusteredClientTest
           }
 
           @Override
-          public VersionedIntervalTimeline<String, ServerSelector> getTimeline(DataSource dataSource)
+          public VersionedIntervalTimeline<String, ServerSelector> getTimeline(String dataSource)
           {
             return timeline;
           }

@@ -21,14 +21,13 @@ package io.druid.curator.inventory;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Sets;
+import com.google.common.io.Closer;
+import io.druid.curator.cache.PathChildrenCacheFactory;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.curator.cache.PathChildrenCacheFactory;
-import com.google.common.io.Closer;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;

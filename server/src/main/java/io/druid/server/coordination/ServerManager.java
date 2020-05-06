@@ -330,7 +330,7 @@ public class ServerManager implements ForwardingSegmentWalker
     if (!(dataSource instanceof TableDataSource)) {
       throw new UnsupportedOperationException("data source type '" + dataSource.getClass().getName() + "' unsupported");
     }
-    String dataSourceName = getDataSourceName(dataSource);
+    final String dataSourceName = getDataSourceName(dataSource);
 
     final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
 
@@ -373,6 +373,7 @@ public class ServerManager implements ForwardingSegmentWalker
                           {
                             return Pair.of(
                                 new SegmentDescriptor(
+                                    dataSourceName,
                                     holder.getInterval(),
                                     holder.getVersion(),
                                     chunk.getChunkNumber()

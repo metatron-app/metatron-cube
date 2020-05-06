@@ -50,7 +50,6 @@ import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
-import io.druid.query.DataSource;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
@@ -454,11 +453,10 @@ public class BrokerServerView implements TimelineServerView
   }
 
   @Override
-  public VersionedIntervalTimeline<String, ServerSelector> getTimeline(DataSource dataSource)
+  public VersionedIntervalTimeline<String, ServerSelector> getTimeline(String dataSource)
   {
-    String table = Iterables.getOnlyElement(dataSource.getNames());
     synchronized (lock) {
-      return timelines.get(table);
+      return timelines.get(dataSource);
     }
   }
 

@@ -23,19 +23,19 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
+import io.druid.query.SegmentDescriptor;
 import io.druid.server.coordination.DruidServerMetadata;
-import io.druid.timeline.DataSegment;
 
 import java.util.Set;
 
 public class ImmutableSegmentLoadInfo
 {
-  private final DataSegment segment;
+  private final SegmentDescriptor segment;
   private final ImmutableSet<DruidServerMetadata> servers;
 
   @JsonCreator
   public ImmutableSegmentLoadInfo(
-      @JsonProperty("segment") DataSegment segment,
+      @JsonProperty("segment") SegmentDescriptor segment,
       @JsonProperty("servers") Set<DruidServerMetadata> servers
   )
   {
@@ -46,7 +46,7 @@ public class ImmutableSegmentLoadInfo
   }
 
   @JsonProperty("segment")
-  public DataSegment getSegment()
+  public SegmentDescriptor getSegment()
   {
     return segment;
   }

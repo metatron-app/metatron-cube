@@ -58,12 +58,11 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
       for (MinMaxPriorityQueue<ServerHolder> serverHolders : cluster.getSortedServersByTier()) {
         for (ServerHolder serverHolder : serverHolders) {
           ImmutableDruidServer server = serverHolder.getServer();
+          LoadQueuePeon queuePeon = params.getLoadManagementPeons().get(server.getName());
 
           for (ImmutableDruidDataSource dataSource : server.getDataSources()) {
             for (DataSegment segment : dataSource.getSegments()) {
               if (!availableSegments.contains(segment)) {
-                LoadQueuePeon queuePeon = params.getLoadManagementPeons().get(server.getName());
-
                 if (!queuePeon.getSegmentsToDrop().contains(segment)) {
                   queuePeon.dropSegment(segment, "cleanup", null);
                   stats.addToTieredStat("unneededCount", server.getTier(), 1);

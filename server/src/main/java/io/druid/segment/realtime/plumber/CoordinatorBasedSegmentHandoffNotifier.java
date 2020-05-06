@@ -19,16 +19,14 @@
 
 package io.druid.segment.realtime.plumber;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.concurrent.Execs;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.SegmentDescriptor;
-import io.druid.server.coordination.DruidServerMetadata;
 
 import java.util.Iterator;
 import java.util.List;
@@ -112,7 +110,7 @@ public class CoordinatorBasedSegmentHandoffNotifier implements SegmentHandoffNot
         catch (Exception e) {
           log.error(
               e,
-              "Exception while checking handoff for dataSource[%s] Segment[%s], Will try again after [%d]secs",
+              "Exception while checking handoff for dataSource[%s] Segment[%s], Will try again after [%d]msecs",
               dataSource,
               descriptor,
               pollDurationMillis
@@ -126,31 +124,21 @@ public class CoordinatorBasedSegmentHandoffNotifier implements SegmentHandoffNot
     catch (Throwable t) {
       log.error(
           t,
-          "Exception while checking handoff for dataSource[%s] Segment[%s], Will try again after [%d]secs",
+          "Exception while checking handoff for dataSource[%s], Will try again after [%d]msecs",
           dataSource,
           pollDurationMillis
       );
     }
   }
 
-
   static boolean isHandOffComplete(List<ImmutableSegmentLoadInfo> serverView, SegmentDescriptor descriptor)
   {
     for (ImmutableSegmentLoadInfo segmentLoadInfo : serverView) {
-      if (segmentLoadInfo.getSegment().getInterval().contains(descriptor.getInterval())
-          && segmentLoadInfo.getSegment().getShardSpecWithDefault().getPartitionNum()
-             == descriptor.getPartitionNumber()
-          && segmentLoadInfo.getSegment().getVersion().compareTo(descriptor.getVersion()) >= 0
-          && Iterables.any(
-          segmentLoadInfo.getServers(), new Predicate<DruidServerMetadata>()
-          {
-            @Override
-            public boolean apply(DruidServerMetadata input)
-            {
-              return input.isAssignable();
-            }
-          }
-      )) {
+      final SegmentDescriptor segment = segmentLoadInfo.getSegment();
+      if (segment.getInterval().contains(descriptor.getInterval())
+          && segment.getPartitionNumber() == descriptor.getPartitionNumber()
+          && segment.getVersion().compareTo(descriptor.getVersion()) >= 0
+          && Iterables.any(segmentLoadInfo.getServers(), server -> server.isAssignable())) {
         return true;
       }
     }

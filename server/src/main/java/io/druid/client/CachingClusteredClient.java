@@ -58,6 +58,7 @@ import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
+import io.druid.query.DataSources;
 import io.druid.query.FilterableManagementQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -203,7 +204,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       contextBuilder.put(Query.BY_SEGMENT, true);
     }
 
-    TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(query.getDataSource());
+    final String dataSource = DataSources.getName(query);
+    TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(dataSource);
 
     if (timeline == null) {
       return Sequences.empty();
@@ -296,7 +298,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
         ServerSelector selector = chunk.getObject();
         final SegmentDescriptor descriptor = new SegmentDescriptor(
-            holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
+            dataSource, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
         );
 
         segments.add(Pair.of(selector, descriptor));

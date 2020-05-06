@@ -31,7 +31,6 @@ import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseAggregationQuery;
-import io.druid.query.DataSource;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -220,7 +219,7 @@ public class CachingClusteredClientFunctionalityTest {
           }
 
           @Override
-          public VersionedIntervalTimeline<String, ServerSelector> getTimeline(DataSource dataSource)
+          public VersionedIntervalTimeline<String, ServerSelector> getTimeline(String dataSource)
           {
             return timeline;
           }

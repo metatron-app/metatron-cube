@@ -21,7 +21,6 @@ package io.druid.client;
 
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
-import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -37,7 +36,7 @@ public interface TimelineServerView extends ServerView
 {
   Iterable<String> getDataSources();
 
-  TimelineLookup<String, ServerSelector> getTimeline(DataSource dataSource);
+  TimelineLookup<String, ServerSelector> getTimeline(String dataSource);
 
   Iterable<ServerSelector> getSelectors(String dataSource);
 

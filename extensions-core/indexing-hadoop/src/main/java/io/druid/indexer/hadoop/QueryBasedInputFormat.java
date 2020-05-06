@@ -403,7 +403,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       dataSource = in.readUTF();
       segments = Lists.newArrayList();
       for (int i = in.readInt(); i > 0; i--) {
-        segments.add(new SegmentDescriptor(new Interval(in.readUTF()), in.readUTF(), in.readInt()));
+        segments.add(new SegmentDescriptor(dataSource, new Interval(in.readUTF()), in.readUTF(), in.readInt()));
       }
       filters = in.readUTF();
       locations = new String[in.readInt()];

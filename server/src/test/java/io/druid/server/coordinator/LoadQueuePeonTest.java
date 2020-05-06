@@ -33,7 +33,6 @@ import io.druid.server.coordination.DataSegmentChangeRequest;
 import io.druid.server.coordination.SegmentChangeRequestDrop;
 import io.druid.server.coordination.SegmentChangeRequestLoad;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
@@ -193,7 +192,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
 
     for (DataSegment segment : segmentToDrop) {
       loadQueuePeon.dropSegment(
-          segment, new LoadPeonCallback()
+          segment, "test", new LoadPeonCallback()
           {
             @Override
             public void execute()

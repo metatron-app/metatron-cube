@@ -454,18 +454,9 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
             final DataSegment segment, final DataSegmentChangeCallback callback
         )
         {
-          if (finalPredicate.apply(Pair.of(druidServer.getMetadata(), segment))) {
-            druidServer.addDataSegment(segment);
-            runSegmentCallbacks(
-                new Function<SegmentCallback, CallbackAction>()
-                {
-                  @Override
-                  public CallbackAction apply(SegmentCallback input)
-                  {
-                    return input.segmentAdded(druidServer.getMetadata(), segment);
-                  }
-                }
-            );
+          if (finalPredicate.apply(Pair.of(druidServer.getMetadata(), segment)) &&
+              druidServer.addDataSegment(segment)) {
+            runSegmentCallbacks(input -> input.segmentAdded(druidServer.getMetadata(), segment));
           }
         }
 
@@ -474,18 +465,9 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
             final DataSegment segment, final DataSegmentChangeCallback callback
         )
         {
-          druidServer.removeDataSegment(segment.getIdentifier());
-
-          runSegmentCallbacks(
-              new Function<SegmentCallback, CallbackAction>()
-              {
-                @Override
-                public CallbackAction apply(SegmentCallback input)
-                {
-                  return input.segmentRemoved(druidServer.getMetadata(), segment);
-                }
-              }
-          );
+          if (druidServer.removeDataSegment(segment.getIdentifier()) != null) {
+            runSegmentCallbacks(input -> input.segmentRemoved(druidServer.getMetadata(), segment));
+          }
         }
       };
     }

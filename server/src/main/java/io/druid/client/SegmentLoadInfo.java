@@ -21,24 +21,24 @@ package io.druid.client;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import io.druid.query.SegmentDescriptor;
 import io.druid.server.coordination.DruidServerMetadata;
-import io.druid.timeline.DataSegment;
 
 import java.util.Set;
 
 public class SegmentLoadInfo
 {
-  private final DataSegment segment;
+  private final SegmentDescriptor segment;
   private final Set<DruidServerMetadata> servers;
 
-  public SegmentLoadInfo(DataSegment segment)
+  public SegmentLoadInfo(SegmentDescriptor segment)
   {
     Preconditions.checkNotNull(segment, "segment");
     this.segment = segment;
     this.servers = Sets.newConcurrentHashSet();
   }
 
-  public DataSegment getSegment()
+  public SegmentDescriptor getSegment()
   {
     return segment;
   }

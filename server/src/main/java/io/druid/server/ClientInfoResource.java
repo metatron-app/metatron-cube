@@ -33,7 +33,6 @@ import io.druid.client.FilteredServerInventoryView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.TableDataSource;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.server.http.security.DatasourceResourceFilter;
 import io.druid.server.security.Access;
@@ -149,8 +148,7 @@ public class ClientInfoResource
       theInterval = new Interval(interval);
     }
 
-    TableDataSource dataSource = new TableDataSource(dataSourceName);
-    TimelineLookup<String, ServerSelector> timeline = timelineServerView.getTimeline(dataSource);
+    TimelineLookup<String, ServerSelector> timeline = timelineServerView.getTimeline(dataSourceName);
     if (timeline == null) {
       return Collections.emptyMap();
     }

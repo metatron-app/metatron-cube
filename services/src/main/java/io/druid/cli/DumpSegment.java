@@ -155,7 +155,7 @@ public class DumpSegment extends GuiceRunnable
     final ObjectMapper objectMapper = injector.getInstance(Key.get(ObjectMapper.class, Json.class));
     final SegmentMetadataQuery query = new SegmentMetadataQuery(
         new TableDataSource("dataSource"),
-        new SpecificSegmentSpec(new SegmentDescriptor(index.getInterval(), "0", 0)),
+        new SpecificSegmentSpec(new SegmentDescriptor("dataSource", index.getInterval(), "0", 0)),
         null,
         null,
         null,

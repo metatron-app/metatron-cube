@@ -468,6 +468,7 @@ public class AppenderatorTest
                                                new MultipleSpecificSegmentSpec(
                                                    ImmutableList.of(
                                                        new SegmentDescriptor(
+                                                           AppenderatorTester.DATASOURCE,
                                                            IDENTIFIERS.get(2).getInterval(),
                                                            IDENTIFIERS.get(2).getVersion(),
                                                            IDENTIFIERS.get(2).getShardSpec().getPartitionNum()
@@ -504,6 +505,7 @@ public class AppenderatorTest
                                                new MultipleSpecificSegmentSpec(
                                                    ImmutableList.of(
                                                        new SegmentDescriptor(
+                                                           AppenderatorTester.DATASOURCE,
                                                            new Interval("2001/PT1H"),
                                                            IDENTIFIERS.get(2).getVersion(),
                                                            IDENTIFIERS.get(2).getShardSpec().getPartitionNum()

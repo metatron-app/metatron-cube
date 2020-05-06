@@ -101,7 +101,7 @@ public class DataSegment implements Comparable<DataSegment>
       version = identifier.substring(versionStart, versionEnd);
       partitionNum = Integer.valueOf(identifier.substring(versionEnd + 1));
     }
-    return new SegmentDescriptor(Intervals.of(start, end), version, partitionNum);
+    return new SegmentDescriptor(dataSource, Intervals.of(start, end), version, partitionNum);
   }
 
   public static String delimiter = "_";
@@ -149,6 +149,21 @@ public class DataSegment implements Comparable<DataSegment>
   private final int numRows;
 
   private final String identifier;
+
+  private DataSegment()
+  {
+    this.dataSource = null;
+    this.interval = null;
+    this.version = null;
+    this.loadSpec = null;
+    this.dimensions = null;
+    this.metrics = null;
+    this.shardSpec = null;
+    this.size = 0;
+    this.numRows = 0;
+    this.binaryVersion = null;
+    this.identifier = null;
+  }
 
   @JsonCreator
   public DataSegment(
@@ -291,7 +306,7 @@ public class DataSegment implements Comparable<DataSegment>
 
   public SegmentDescriptor toDescriptor()
   {
-    return new SegmentDescriptor(interval, version, shardSpec == null ? 0 : shardSpec.getPartitionNum());
+    return new SegmentDescriptor(dataSource, interval, version, shardSpec == null ? 0 : shardSpec.getPartitionNum());
   }
 
   public DataSegment withDataSource(String dataSource)
@@ -514,5 +529,17 @@ public class DataSegment implements Comparable<DataSegment>
           numRows
       );
     }
+  }
+
+  public static DataSegment asKey(String identifier)
+  {
+    return new DataSegment()
+    {
+      @Override
+      public String getIdentifier()
+      {
+        return identifier;
+      }
+    };
   }
 }

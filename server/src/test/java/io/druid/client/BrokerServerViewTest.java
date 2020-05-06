@@ -39,7 +39,6 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
-import io.druid.query.TableDataSource;
 import io.druid.server.DruidNode;
 import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -113,7 +112,7 @@ public class BrokerServerViewTest extends CuratorTestBase
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentViewInitLatch));
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentAddedLatch));
 
-    TimelineLookup timeline = brokerServerView.getTimeline(new TableDataSource("test_broker_server_view"));
+    TimelineLookup timeline = brokerServerView.getTimeline("test_broker_server_view");
     List<TimelineObjectHolder> serverLookupRes = (List<TimelineObjectHolder>) timeline.lookup(
         new Interval(
             "2014-10-20T00:00:00Z/P1D"
@@ -202,7 +201,7 @@ public class BrokerServerViewTest extends CuratorTestBase
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentViewInitLatch));
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentAddedLatch));
 
-    TimelineLookup timeline = brokerServerView.getTimeline(new TableDataSource("test_broker_server_view"));
+    TimelineLookup timeline = brokerServerView.getTimeline("test_broker_server_view");
     assertValues(
         Arrays.asList(
             createExpected("2011-04-01/2011-04-02", "v3", druidServers.get(4), segments.get(4)),
@@ -223,7 +222,7 @@ public class BrokerServerViewTest extends CuratorTestBase
     // renew segmentRemovedLatch since we still have 4 segments to unannounce
     segmentRemovedLatch = new CountDownLatch(4);
 
-    timeline = brokerServerView.getTimeline(new TableDataSource("test_broker_server_view"));
+    timeline = brokerServerView.getTimeline("test_broker_server_view");
     assertValues(
         Arrays.asList(
             createExpected("2011-04-01/2011-04-02", "v3", druidServers.get(4), segments.get(4)),

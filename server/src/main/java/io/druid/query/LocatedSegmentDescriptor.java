@@ -35,6 +35,7 @@ import java.util.Objects;
  */
 public class LocatedSegmentDescriptor
 {
+  private final String dataSource;
   private final Interval interval;
   private final String version;
   private final int partitionNumber;
@@ -43,6 +44,7 @@ public class LocatedSegmentDescriptor
 
   @JsonCreator
   public LocatedSegmentDescriptor(
+      @JsonProperty("dataSource") String dataSource,
       @JsonProperty("interval") Interval interval,
       @JsonProperty("version") String version,
       @JsonProperty("partitionNumber") int partitionNumber,
@@ -50,6 +52,7 @@ public class LocatedSegmentDescriptor
       @JsonProperty("locations") List<DruidServerMetadata> locations
   )
   {
+    this.dataSource = dataSource;
     this.interval = interval;
     this.version = version;
     this.partitionNumber = partitionNumber;
@@ -59,7 +62,20 @@ public class LocatedSegmentDescriptor
 
   public LocatedSegmentDescriptor(SegmentDescriptor descriptor, long size, List<DruidServerMetadata> candidates)
   {
-    this(descriptor.getInterval(), descriptor.getVersion(), descriptor.getPartitionNumber(), size, candidates);
+    this(
+        descriptor.getDataSource(),
+        descriptor.getInterval(),
+        descriptor.getVersion(),
+        descriptor.getPartitionNumber(),
+        size,
+        candidates
+    );
+  }
+
+  @JsonProperty("dataSource")
+  public String getDataSource()
+  {
+    return dataSource;
   }
 
   @JsonProperty("interval")
@@ -94,7 +110,7 @@ public class LocatedSegmentDescriptor
 
   public SegmentDescriptor toSegmentDescriptor()
   {
-    return new SegmentDescriptor(interval, version, partitionNumber);
+    return new SegmentDescriptor(dataSource, interval, version, partitionNumber);
   }
 
   @Override
@@ -107,6 +123,9 @@ public class LocatedSegmentDescriptor
     LocatedSegmentDescriptor other = (LocatedSegmentDescriptor) o;
 
     if (partitionNumber != other.partitionNumber) {
+      return false;
+    }
+    if (!Objects.equals(dataSource, other.dataSource)) {
       return false;
     }
     if (!Objects.equals(interval, other.interval)) {
@@ -123,6 +142,7 @@ public class LocatedSegmentDescriptor
   public int hashCode()
   {
     int result = Objects.hashCode(interval);
+    result = 31 * result + Objects.hashCode(dataSource);
     result = 31 * result + Objects.hashCode(version);
     result = 31 * result + partitionNumber;
     return result;
@@ -132,7 +152,8 @@ public class LocatedSegmentDescriptor
   public String toString()
   {
     return "LocatedSegmentDescriptor{" +
-           "interval=" + interval +
+           "dataSource=" + dataSource +
+           ", interval=" + interval +
            ", version='" + version + '\'' +
            ", partitionNumber=" + partitionNumber +
            ", size=" + size +

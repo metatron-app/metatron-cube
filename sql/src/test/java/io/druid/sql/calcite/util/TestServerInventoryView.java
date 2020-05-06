@@ -20,14 +20,12 @@
 package io.druid.sql.calcite.util;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
-import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -68,10 +66,9 @@ public class TestServerInventoryView implements TimelineServerView
   }
 
   @Override
-  public TimelineLookup<String, ServerSelector> getTimeline(DataSource dataSource)
+  public TimelineLookup<String, ServerSelector> getTimeline(String dataSource)
   {
-    String tableName = Iterables.getOnlyElement(dataSource.getNames());
-    return dataSources.contains(tableName) ? new TimelineLookup.NotSupport<>() : null;
+    return dataSources.contains(dataSource) ? new TimelineLookup.NotSupport<>() : null;
   }
 
   @Override

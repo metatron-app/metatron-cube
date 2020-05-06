@@ -387,6 +387,7 @@ public class AppenderatorImpl implements Appenderator
                           public SegmentDescriptor apply(final PartitionChunk<Sink> chunk)
                           {
                             return new SegmentDescriptor(
+                                schema.getDataSource(),
                                 holder.getInterval(),
                                 holder.getVersion(),
                                 chunk.getChunkNumber()

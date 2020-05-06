@@ -152,7 +152,7 @@ public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor
         maxPartitionNum = Math.max(maxPartitionNum, shardSpec.getPartitionNum());
       }
     }
-    return new SegmentDescriptor(interval, version, maxPartitionNum + 1);
+    return new SegmentDescriptor(dataSource, interval, version, maxPartitionNum + 1);
   }
 
   @Override

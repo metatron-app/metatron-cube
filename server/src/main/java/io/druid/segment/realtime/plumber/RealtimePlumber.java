@@ -32,7 +32,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
@@ -351,6 +350,7 @@ public class RealtimePlumber implements Plumber
                         }
 
                         final SegmentDescriptor descriptor = new SegmentDescriptor(
+                            schema.getDataSource(),
                             holder.getInterval(),
                             theSink.getSegment().getVersion(),
                             theSink.getSegment().getShardSpecWithDefault().getPartitionNum()
@@ -667,7 +667,12 @@ public class RealtimePlumber implements Plumber
         }
     );
     handoffNotifier.registerSegmentHandoffCallback(
-        new SegmentDescriptor(sink.getInterval(), sink.getVersion(), config.getShardSpec().getPartitionNum()),
+        new SegmentDescriptor(
+            schema.getDataSource(),
+            sink.getInterval(),
+            sink.getVersion(),
+            config.getShardSpec().getPartitionNum()
+        ),
         mergeExecutor, new Runnable()
         {
           @Override

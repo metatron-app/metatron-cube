@@ -39,6 +39,11 @@ public class DataSources
 
   public static String getName(Query query)
   {
-    return Iterables.getOnlyElement(query.getDataSource().getNames());
+    return getName(query.getDataSource());
+  }
+
+  public static String getName(DataSource dataSource)
+  {
+    return Iterables.getOnlyElement(dataSource.getNames());
   }
 }

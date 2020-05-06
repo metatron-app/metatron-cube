@@ -25,14 +25,13 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.MapMaker;
-import io.druid.java.util.common.StringUtils;
-import io.druid.java.util.common.lifecycle.LifecycleStart;
-import io.druid.java.util.common.lifecycle.LifecycleStop;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.concurrent.Execs;
 import io.druid.curator.inventory.CuratorInventoryManager;
 import io.druid.curator.inventory.CuratorInventoryManagerStrategy;
 import io.druid.curator.inventory.InventoryManagerConfig;
+import io.druid.java.util.common.lifecycle.LifecycleStart;
+import io.druid.java.util.common.lifecycle.LifecycleStop;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.timeline.DataSegment;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
@@ -106,7 +105,6 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
               return jsonMapper.readValue(bytes, typeReference);
             }
             catch (IOException e) {
-              CharBuffer.wrap(StringUtils.fromUtf8(bytes).toCharArray());
               CharBuffer charBuffer = Charsets.UTF_8.decode(ByteBuffer.wrap(bytes));
               log.error(e, "Could not parse json: %s", charBuffer.toString());
               throw Throwables.propagate(e);
@@ -138,7 +136,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           @Override
           public DruidServer addInventory(
               final DruidServer container,
-              String inventoryKey,
+              final String inventoryKey,
               final InventoryType inventory
           )
           {
@@ -278,64 +276,23 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
     }
   }
 
-  protected void addSingleInventory(
-      final DruidServer container,
-      final DataSegment inventory
-  )
+  protected void addSingleInventory(final DruidServer container, final DataSegment segment)
   {
-    log.debug("Server[%s] added segment[%s]", container.getName(), inventory.getIdentifier());
+    log.debug("Server[%s] added segment[%s]", container.getName(), segment.getIdentifier());
 
-    if (container.getSegment(inventory.getIdentifier()) != null) {
-      log.warn(
-          "Not adding or running callbacks for existing segment[%s] on server[%s]",
-          inventory.getIdentifier(),
-          container.getName()
-      );
-
-      return;
+    if (container.addDataSegment(segment)) {
+      runSegmentCallbacks(input -> input.segmentAdded(container.getMetadata(), segment));
     }
-
-    container.addDataSegment(inventory);
-
-    runSegmentCallbacks(
-        new Function<SegmentCallback, CallbackAction>()
-        {
-          @Override
-          public CallbackAction apply(SegmentCallback input)
-          {
-            return input.segmentAdded(container.getMetadata(), inventory);
-          }
-        }
-    );
   }
 
-  protected void removeSingleInventory(final DruidServer container, String inventoryKey)
+  protected void removeSingleInventory(final DruidServer container, final String inventoryKey)
   {
     log.debug("Server[%s] removed segment[%s]", container.getName(), inventoryKey);
-    final DataSegment segment = container.getSegment(inventoryKey);
 
-    if (segment == null) {
-      log.warn(
-          "Not running cleanup or callbacks for non-existing segment[%s] on server[%s]",
-          inventoryKey,
-          container.getName()
-      );
-
-      return;
+    final DataSegment removed = container.removeDataSegment(inventoryKey);
+    if (removed != null) {
+      runSegmentCallbacks(input -> input.segmentRemoved(container.getMetadata(), removed));
     }
-
-    container.removeDataSegment(inventoryKey);
-
-    runSegmentCallbacks(
-        new Function<SegmentCallback, CallbackAction>()
-        {
-          @Override
-          public CallbackAction apply(SegmentCallback input)
-          {
-            return input.segmentRemoved(container.getMetadata(), segment);
-          }
-        }
-    );
   }
 
   @Override

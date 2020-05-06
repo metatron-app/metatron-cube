@@ -27,20 +27,29 @@ import org.joda.time.Interval;
 */
 public class SegmentDescriptor
 {
+  private final String dataSource;
   private final Interval interval;
   private final String version;
   private final int partitionNumber;
 
   @JsonCreator
   public SegmentDescriptor(
+      @JsonProperty("ds") String dataSource,
       @JsonProperty("itvl") Interval interval,
       @JsonProperty("ver") String version,
       @JsonProperty("part") int partitionNumber
   )
   {
+    this.dataSource = dataSource;
     this.interval = interval;
     this.version = version;
     this.partitionNumber = partitionNumber;
+  }
+
+  @JsonProperty("ds")
+  public String getDataSource()
+  {
+    return dataSource;
   }
 
   @JsonProperty("itvl")
@@ -76,6 +85,9 @@ public class SegmentDescriptor
     if (partitionNumber != that.partitionNumber) {
       return false;
     }
+    if (dataSource != null ? !dataSource.equals(that.dataSource) : that.dataSource != null) {
+      return false;
+    }
     if (interval != null ? !interval.equals(that.interval) : that.interval != null) {
       return false;
     }
@@ -90,6 +102,7 @@ public class SegmentDescriptor
   public int hashCode()
   {
     int result = interval != null ? interval.hashCode() : 0;
+    result = 31 * result + (dataSource != null ? dataSource.hashCode() : 0);
     result = 31 * result + (version != null ? version.hashCode() : 0);
     result = 31 * result + partitionNumber;
     return result;
@@ -99,7 +112,8 @@ public class SegmentDescriptor
   public String toString()
   {
     return "SegmentDescriptor{" +
-           "interval=" + interval +
+           "dataSource=" + dataSource +
+           ", interval=" + interval +
            ", version='" + version + '\'' +
            ", partitionNumber=" + partitionNumber +
            '}';

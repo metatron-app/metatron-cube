@@ -26,19 +26,19 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.MapMaker;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import io.druid.guice.ManageLifecycle;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.guice.ManageLifecycle;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
 import org.apache.curator.framework.CuratorFramework;
 
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 
@@ -50,9 +50,8 @@ public class BatchServerInventoryView extends AbstractCuratorServerInventoryView
 {
   private static final EmittingLogger log = new EmittingLogger(BatchServerInventoryView.class);
 
-  final private ConcurrentMap<String, Set<DataSegment>> zNodes = new MapMaker().makeMap();
-  final private ConcurrentMap<SegmentCallback, Predicate<Pair<DruidServerMetadata, DataSegment>>> segmentPredicates = new MapMaker()
-      .makeMap();
+  final private ConcurrentMap<String, Set<String>> zNodes = new ConcurrentHashMap<>();
+  final private ConcurrentMap<SegmentCallback, Predicate<Pair<DruidServerMetadata, DataSegment>>> segmentPredicates = new ConcurrentHashMap<>();
   final private Predicate<Pair<DruidServerMetadata, DataSegment>> defaultFilter;
 
   @Inject
@@ -80,19 +79,20 @@ public class BatchServerInventoryView extends AbstractCuratorServerInventoryView
   @Override
   protected DruidServer addInnerInventory(
       final DruidServer container,
-      String inventoryKey,
+      final String inventoryKey,
       final Set<DataSegment> inventory
   )
   {
-    Set<DataSegment> filteredInventory = filterInventory(container, inventory);
-    zNodes.put(inventoryKey, filteredInventory);
-    for (DataSegment segment : filteredInventory) {
+    Set<String> added = Sets.newHashSet();
+    for (DataSegment segment : filterInventory(container, inventory)) {
       addSingleInventory(container, segment);
+      added.add(segment.getIdentifier());
     }
+    zNodes.put(inventoryKey, added);
     return container;
   }
 
-  private Set<DataSegment> filterInventory(final DruidServer container, Set<DataSegment> inventory)
+  private Iterable<DataSegment> filterInventory(final DruidServer container, Set<DataSegment> inventory)
   {
     Predicate<Pair<DruidServerMetadata, DataSegment>> predicate = Predicates.or(
         defaultFilter,
@@ -100,7 +100,7 @@ public class BatchServerInventoryView extends AbstractCuratorServerInventoryView
     );
 
     // make a copy of the set and not just a filtered view, in order to not keep all the segment data in memory
-    Set<DataSegment> filteredInventory = Sets.newHashSet(Iterables.transform(
+    return Iterables.transform(
         Iterables.filter(
             Iterables.transform(
                 inventory,
@@ -115,60 +115,50 @@ public class BatchServerInventoryView extends AbstractCuratorServerInventoryView
             ),
             predicate
         ),
-        new Function<Pair<DruidServerMetadata, DataSegment>, DataSegment>()
-        {
-          @Override
-          public DataSegment apply(
-              Pair<DruidServerMetadata, DataSegment> input
-          )
-          {
-            return input.rhs;
-          }
-        }
-    ));
-    return filteredInventory;
+        Pair.rhsFn()
+    );
   }
 
   @Override
-  protected DruidServer updateInnerInventory(
-      DruidServer container, String inventoryKey, Set<DataSegment> inventory
-  )
+  protected DruidServer updateInnerInventory(DruidServer container, String inventoryKey, Set<DataSegment> inventory)
   {
-    Set<DataSegment> filteredInventory = filterInventory(container, inventory);
-
-    Set<DataSegment> existing = zNodes.get(inventoryKey);
+    final Set<String> existing = zNodes.get(inventoryKey);
     if (existing == null) {
       throw new ISE("Trying to update an inventoryKey[%s] that didn't exist?!", inventoryKey);
     }
+    final Set<DataSegment> filtered = Sets.newHashSet(filterInventory(container, inventory));
 
-    for (DataSegment segment : Sets.difference(filteredInventory, existing)) {
+    for (DataSegment segment : Iterables.filter(filtered, segment -> !existing.contains(segment.getIdentifier()))) {
       addSingleInventory(container, segment);
     }
-    for (DataSegment segment : Sets.difference(existing, filteredInventory)) {
-      removeSingleInventory(container, segment.getIdentifier());
+    for (String segmentId : Iterables.filter(existing, segmentId -> !filtered.contains(DataSegment.asKey(segmentId)))) {
+      removeSingleInventory(container, segmentId);
     }
-    zNodes.put(inventoryKey, filteredInventory);
+    zNodes.put(inventoryKey, Sets.newHashSet(
+        Iterables.transform(filtered, segment -> segment.getIdentifier())
+    ));
 
     return container;
   }
 
   @Override
-  protected DruidServer removeInnerInventory(final DruidServer container, String inventoryKey)
+  protected DruidServer removeInnerInventory(DruidServer container, String inventoryKey)
   {
     log.debug("Server[%s] removed container[%s]", container.getName(), inventoryKey);
-    Set<DataSegment> segments = zNodes.remove(inventoryKey);
+    Set<String> segmentIds = zNodes.remove(inventoryKey);
 
-    if (segments == null) {
+    if (segmentIds == null) {
       log.warn("Told to remove container[%s], which didn't exist", inventoryKey);
       return container;
     }
 
-    for (DataSegment segment : segments) {
-      removeSingleInventory(container, segment.getIdentifier());
+    for (String segmentId : segmentIds) {
+      removeSingleInventory(container, segmentId);
     }
     return container;
   }
 
+  @Override
   public void registerSegmentCallback(
       final Executor exec,
       final SegmentCallback callback,
