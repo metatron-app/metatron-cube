@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.indexing.common.task.Task;
 import io.druid.timeline.DataSegment;
 
@@ -77,7 +77,7 @@ public class SegmentLoadAction implements TaskAction<Map<String, Object>>
   public String toString()
   {
     return "SegmentLoadAction{" +
-           "segments=" + Iterables.transform(segments, DataSegment.GET_ID) +
+           "segments=" + GuavaUtils.transform(segments, DataSegment::getIdentifier) +
            '}';
   }
 }

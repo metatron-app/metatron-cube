@@ -26,8 +26,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.indexing.common.task.Task;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.query.DruidMetrics;
 import io.druid.timeline.DataSegment;
 
@@ -66,7 +67,7 @@ public class SegmentNukeAction implements TaskAction<Void>
   {
     toolbox.verifyTaskLocks(task, segments);
     toolbox.getIndexerMetadataStorageCoordinator().deleteSegments(
-        Sets.newHashSet(Iterables.transform(segments, DataSegment.GET_ID))
+        Sets.newHashSet(Iterables.transform(segments, DataSegment::getIdentifier))
     );
 
     // Emit metrics
@@ -92,7 +93,7 @@ public class SegmentNukeAction implements TaskAction<Void>
   public String toString()
   {
     return "SegmentNukeAction{" +
-           "segments=" + segments +
+           "segments=" + GuavaUtils.transform(segments, DataSegment::getIdentifier) +
            '}';
   }
 }

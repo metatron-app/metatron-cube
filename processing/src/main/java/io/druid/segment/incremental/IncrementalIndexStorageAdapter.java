@@ -68,7 +68,6 @@ import io.druid.segment.data.ListIndexed;
 import io.druid.segment.filter.BooleanValueMatcher;
 import io.druid.segment.incremental.IncrementalIndex.TimeAndDims;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -714,12 +713,11 @@ public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract imple
     {
       final Interval bucket = getInterval();
       // return dummy segment id to avoid exceptions in select engine
-      return DataSegment.makeDataSegmentIdentifier(
+      return DataSegment.toSegmentId(
           dataSource,
-          bucket.getStart(),
-          bucket.getEnd(),
+          bucket,
           "temporary",
-          NoneShardSpec.instance()
+          0
       );
     }
   }

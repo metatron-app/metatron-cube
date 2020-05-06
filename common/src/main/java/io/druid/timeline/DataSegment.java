@@ -23,119 +23,46 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
-import com.google.common.collect.Iterables;
-import io.druid.common.Intervals;
-import io.druid.jackson.CommaListJoinDeserializer;
+import com.google.common.collect.Maps;
 import io.druid.jackson.CommaListJoinSerializer;
 import io.druid.query.SegmentDescriptor;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  */
 public class DataSegment implements Comparable<DataSegment>
 {
-  private static final Predicate<String> NON_EMPTY = new Predicate<String>()
+  public static final String DELIMITER = "_";
+
+  private static final DataSourceInterner DS_INTERNER = new DataSourceInterner();
+  private static final Interner<String> ID_INTERNER = Interners.newWeakInterner();
+
+  public static String toSegmentId(String dataSource, Interval interval, String version, int partitionNum)
   {
-    @Override
-    public boolean apply(String input)
-    {
-      return input != null && !input.isEmpty();
-    }
-  };
+    final StringBuilder sb = new StringBuilder(196)
+        .append(dataSource).append(DELIMITER)
+        .append(interval.getStart()).append(DELIMITER)
+        .append(interval.getEnd()).append(DELIMITER)
+        .append(version);
 
-  public static Function<DataSegment, String> GET_ID = new Function<DataSegment, String>()
-  {
-    @Override
-    public String apply(DataSegment input)
-    {
-      return input.getIdentifier();
-    }
-  };
-
-  private static final String ISO_TIME_REGEX = "\\d{1,4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[^_]*";
-
-  private static final Pattern INTERVAL_FRACTION =
-      Pattern.compile("_(" + ISO_TIME_REGEX + ")_(" + ISO_TIME_REGEX + ")_");
-
-  public static String parseDateSource(String identifier)
-  {
-    final Matcher matcher = INTERVAL_FRACTION.matcher(identifier);
-    return !matcher.find() ? null : identifier.substring(0, matcher.start());
-  }
-
-  public static SegmentDescriptor parse(String identifier)
-  {
-    final Matcher matcher = INTERVAL_FRACTION.matcher(identifier);
-    if (!matcher.find()) {
-      return null;
-    }
-    int index1 = matcher.start();
-    String dataSource = identifier.substring(0, index1);
-    DateTime start = DateTime.parse(matcher.group(1));
-    DateTime end = DateTime.parse(matcher.group(2));
-
-    int versionStart = matcher.end();
-    int versionEnd = identifier.indexOf('_', versionStart);
-    String version;
-    int partitionNum = 0;
-    if (versionEnd < 0) {
-      version = identifier.substring(versionStart);
-    } else {
-      version = identifier.substring(versionStart, versionEnd);
-      partitionNum = Integer.valueOf(identifier.substring(versionEnd + 1));
-    }
-    return new SegmentDescriptor(dataSource, Intervals.of(start, end), version, partitionNum);
-  }
-
-  public static String delimiter = "_";
-  private final Integer binaryVersion;
-  private static final Interner<String> interner = Interners.newWeakInterner();
-  private static final Function<String, String> internFun = new Function<String, String>()
-  {
-    @Override
-    public String apply(String input)
-    {
-      return interner.intern(input);
-    }
-  };
-
-  public static String makeDataSegmentIdentifier(
-      String dataSource,
-      DateTime start,
-      DateTime end,
-      String version,
-      ShardSpec shardSpec
-  )
-  {
-    StringBuilder sb = new StringBuilder();
-
-    sb.append(dataSource).append(delimiter)
-      .append(start).append(delimiter)
-      .append(end).append(delimiter)
-      .append(version);
-
-    if (shardSpec != null && shardSpec.getPartitionNum() != 0) {
-      sb.append(delimiter).append(shardSpec.getPartitionNum());
+    if (partitionNum != 0) {
+      sb.append(DELIMITER).append(partitionNum);
     }
 
-    return sb.toString();
+    return ID_INTERNER.intern(sb.toString());
   }
 
   private final String dataSource;
@@ -145,6 +72,7 @@ public class DataSegment implements Comparable<DataSegment>
   private final List<String> dimensions;
   private final List<String> metrics;
   private final ShardSpec shardSpec;
+  private final Integer binaryVersion;
   private final long size;
   private final int numRows;
 
@@ -172,36 +100,85 @@ public class DataSegment implements Comparable<DataSegment>
       @JsonProperty("version") String version,
       // use `Map` *NOT* `LoadSpec` because we want to do lazy materialization to prevent dependency pollution
       @JsonProperty("loadSpec") Map<String, Object> loadSpec,
-      @JsonProperty("dimensions") @JsonDeserialize(using = CommaListJoinDeserializer.class) List<String> dimensions,
-      @JsonProperty("metrics") @JsonDeserialize(using = CommaListJoinDeserializer.class) List<String> metrics,
+      @JsonProperty("dimensions") String dimensions,
+      @JsonProperty("metrics") String metrics,
       @JsonProperty("shardSpec") ShardSpec shardSpec,
       @JsonProperty("binaryVersion") Integer binaryVersion,
       @JsonProperty("size") long size,
       @JsonProperty("numRows") int numRows
   )
   {
+    this(
+        DS_INTERNER.get(dataSource),
+        interval,
+        version,
+        loadSpec,
+        dimensions,
+        metrics,
+        shardSpec,
+        binaryVersion,
+        size,
+        numRows
+    );
+  }
+
+  private DataSegment(
+      DataSourceInterner.Intern intern,
+      Interval interval,
+      String version,
+      Map<String, Object> loadSpec,
+      String dimensions,
+      String metrics,
+      ShardSpec shardSpec,
+      Integer binaryVersion,
+      long size,
+      int numRows
+  )
+  {
+    this(
+        intern.dataSource,
+        interval,
+        version,
+        loadSpec,
+        intern.intern(dimensions),
+        intern.intern(metrics),
+        shardSpec,
+        binaryVersion,
+        size,
+        numRows
+    );
+  }
+
+  public DataSegment(
+      String dataSource,
+      Interval interval,
+      String version,
+      Map<String, Object> loadSpec,
+      List<String> dimensions,
+      List<String> metrics,
+      ShardSpec shardSpec,
+      Integer binaryVersion,
+      long size,
+      int numRows
+  )
+  {
     // dataSource, dimensions & metrics are stored as canonical string values to decrease memory required for storing large numbers of segments.
-    this.dataSource = interner.intern(dataSource);
+    this.dataSource = dataSource;
     this.interval = interval;
     this.loadSpec = loadSpec;
     this.version = version;
-    this.dimensions = dimensions == null
-                      ? ImmutableList.<String>of()
-                      : ImmutableList.copyOf(Iterables.transform(Iterables.filter(dimensions, NON_EMPTY), internFun));
-    this.metrics = metrics == null
-                   ? ImmutableList.<String>of()
-                   : ImmutableList.copyOf(Iterables.transform(Iterables.filter(metrics, NON_EMPTY), internFun));
+    this.dimensions = dimensions;
+    this.metrics = metrics;
     this.shardSpec = shardSpec;
     this.binaryVersion = binaryVersion;
     this.size = size;
     this.numRows = numRows;
 
-    this.identifier = makeDataSegmentIdentifier(
+    this.identifier = toSegmentId(
         this.dataSource,
-        this.interval.getStart(),
-        this.interval.getEnd(),
+        this.interval,
         this.version,
-        this.shardSpec
+        shardSpec == null ? 0 : shardSpec.getPartitionNum()
     );
   }
 
@@ -361,7 +338,18 @@ public class DataSegment implements Comparable<DataSegment>
 
   public DataSegment withMinimum()
   {
-    return new DataSegment(dataSource, interval, version, null, null, null, shardSpec, binaryVersion, size, numRows);
+    return new DataSegment(
+        dataSource,
+        interval,
+        version,
+        null,
+        ImmutableList.of(),
+        ImmutableList.of(),
+        shardSpec,
+        binaryVersion,
+        size,
+        numRows
+    );
   }
 
   @Override
@@ -528,6 +516,54 @@ public class DataSegment implements Comparable<DataSegment>
           size,
           numRows
       );
+    }
+  }
+
+  private static class DataSourceInterner
+  {
+    private static final int MAX_VARIETY = 12;
+
+    private final Map<String, Intern> cache = Maps.newConcurrentMap();
+
+    public Intern get(String dataSource)
+    {
+      return cache.computeIfAbsent(dataSource, DataSourceInterner::create);
+    }
+
+    private static List<String> split(String columns)
+    {
+      return ImmutableList.copyOf(columns.split(","));
+    }
+
+    private static Intern create(String ds)
+    {
+      return new Intern(ds);
+    }
+
+    private static class Intern
+    {
+      private final String dataSource;
+
+      private final Map<String, List<String>> columns = new LinkedHashMap<String, List<String>>()
+      {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, List<String>> eldest)
+        {
+          return size() > MAX_VARIETY;
+        }
+      };
+
+      public synchronized List<String> intern(String columnList)
+      {
+        return Strings.isNullOrEmpty(columnList)
+               ? ImmutableList.of()
+               : columns.computeIfAbsent(columnList, DataSourceInterner::split);
+      }
+
+      private Intern(String dataSource)
+      {
+        this.dataSource = dataSource;
+      }
     }
   }
 

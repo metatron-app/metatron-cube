@@ -48,12 +48,11 @@ public class SegmentIdentifier
     this.interval = Preconditions.checkNotNull(interval, "interval");
     this.version = Preconditions.checkNotNull(version, "version");
     this.shardSpec = Preconditions.checkNotNull(shardSpec, "shardSpec");
-    this.asString = DataSegment.makeDataSegmentIdentifier(
+    this.asString = DataSegment.toSegmentId(
         dataSource,
-        interval.getStart(),
-        interval.getEnd(),
+        interval,
         version,
-        shardSpec
+        shardSpec.getPartitionNum()
     );
   }
 

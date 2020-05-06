@@ -82,6 +82,7 @@ import io.druid.server.coordination.DataSegmentAnnouncer;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
+import io.druid.timeline.partition.ShardSpec;
 import io.druid.timeline.partition.SingleElementPartitionChunk;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
@@ -845,6 +846,8 @@ public class RealtimePlumber implements Plumber
             }
           }
       );
+      final ShardSpec shardSpec = config.getShardSpec();
+
       boolean isCorrupted = false;
       List<FireHydrant> hydrants = Lists.newArrayList();
       for (File segmentDir : sinkFiles) {
@@ -896,12 +899,11 @@ public class RealtimePlumber implements Plumber
         hydrants.add(
             new FireHydrant(
                 new QueryableIndexSegment(
-                    DataSegment.makeDataSegmentIdentifier(
+                    DataSegment.toSegmentId(
                         schema.getDataSource(),
-                        sinkInterval.getStart(),
-                        sinkInterval.getEnd(),
+                        sinkInterval,
                         versioningPolicy.getVersion(sinkInterval),
-                        config.getShardSpec()
+                        shardSpec.getPartitionNum()
                     ),
                     queryableIndex
                 ),
@@ -921,7 +923,7 @@ public class RealtimePlumber implements Plumber
       final Sink currSink = new Sink(
           sinkInterval,
           schema,
-          config.getShardSpec(),
+          shardSpec,
           versioningPolicy.getVersion(sinkInterval),
           config,
           hydrants

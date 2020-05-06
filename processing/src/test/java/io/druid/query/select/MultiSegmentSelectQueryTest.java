@@ -42,7 +42,6 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
-import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.SingleElementPartitionChunk;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
@@ -158,12 +157,11 @@ public class MultiSegmentSelectQueryTest
 
   private static String makeIdentifier(Interval interval, String version)
   {
-    return DataSegment.makeDataSegmentIdentifier(
+    return DataSegment.toSegmentId(
         QueryRunnerTestHelper.dataSource,
-        interval.getStart(),
-        interval.getEnd(),
+        interval,
         version,
-        NoneShardSpec.instance()
+        0
     );
   }
 

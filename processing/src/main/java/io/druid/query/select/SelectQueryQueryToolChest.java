@@ -63,7 +63,6 @@ import io.druid.segment.Segment;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.DataSegmentUtils;
 import io.druid.timeline.LogicalSegment;
-import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -213,12 +212,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
               outputColumns.add(metric);
             }
             final Interval interval = JodaUtils.umbrellaInterval(select.getIntervals());
-            final String segmentId = DataSegment.makeDataSegmentIdentifier(
+            final String segmentId = DataSegment.toSegmentId(
                 org.apache.commons.lang.StringUtils.join(select.getDataSource().getNames(), '_'),
-                interval.getStart(),
-                interval.getEnd(),
+                interval,
                 "temporary",
-                NoneShardSpec.instance()
+                0
             );
 
             final int limit = select.getPagingSpec().getThreshold();
