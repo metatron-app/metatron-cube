@@ -415,7 +415,7 @@ public class DataSourcesResource
 
     if (full != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newTreeMap(comparator);
-      for (DataSegment dataSegment : dataSource.getSegments()) {
+      for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
         Map<String, Object> segments = retVal.get(dataSegment.getInterval());
         if (segments == null) {
           segments = Maps.newHashMap();
@@ -431,7 +431,7 @@ public class DataSourcesResource
 
     if (simple != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newTreeMap(comparator);
-      for (DataSegment dataSegment : dataSource.getSegments()) {
+      for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
         Map<String, Object> properties = retVal.get(dataSegment.getInterval());
         if (properties == null) {
           properties = Maps.newHashMap();
@@ -449,7 +449,7 @@ public class DataSourcesResource
     }
 
     final Set<Interval> intervals = Sets.newTreeSet(comparator);
-    for (DataSegment dataSegment : dataSource.getSegments()) {
+    for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
       intervals.add(dataSegment.getInterval());
     }
 
@@ -477,7 +477,7 @@ public class DataSourcesResource
     final Comparator<Interval> comparator = Comparators.inverse(JodaUtils.intervalsByStartThenEnd());
     if (full != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newTreeMap(comparator);
-      for (DataSegment dataSegment : dataSource.getSegments()) {
+      for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
         if (theInterval.contains(dataSegment.getInterval())) {
           Map<String, Object> segments = retVal.get(dataSegment.getInterval());
           if (segments == null) {
@@ -495,7 +495,7 @@ public class DataSourcesResource
 
     if (simple != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newHashMap();
-      for (DataSegment dataSegment : dataSource.getSegments()) {
+      for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
         if (theInterval.contains(dataSegment.getInterval())) {
           Map<String, Object> properties = retVal.get(dataSegment.getInterval());
           if (properties == null) {
@@ -515,7 +515,7 @@ public class DataSourcesResource
     }
 
     final Set<String> retVal = Sets.newTreeSet(Comparators.inverse(String.CASE_INSENSITIVE_ORDER));
-    for (DataSegment dataSegment : dataSource.getSegments()) {
+    for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
       if (theInterval.contains(dataSegment.getInterval())) {
         retVal.add(dataSegment.getIdentifier());
       }
@@ -668,20 +668,10 @@ public class DataSourcesResource
 
   private DruidDataSource getDataSource(final String dataSourceName)
   {
-    Iterable<DruidDataSource> dataSources =
-        Iterables.concat(
-            Iterables.transform(
-                serverInventoryView.getInventory(),
-                new Function<DruidServer, DruidDataSource>()
-                {
-                  @Override
-                  public DruidDataSource apply(DruidServer input)
-                  {
-                    return input.getDataSource(dataSourceName);
-                  }
-                }
-            )
-        );
+    Iterable<DruidDataSource> dataSources = Iterables.transform(
+        serverInventoryView.getInventory(),
+        input -> input.getDataSource(dataSourceName)
+    );
 
     List<DruidDataSource> validDataSources = Lists.newArrayList();
     for (DruidDataSource dataSource : dataSources) {
@@ -696,7 +686,7 @@ public class DataSourcesResource
     Map<String, DataSegment> segmentMap = Maps.newHashMap();
     for (DruidDataSource dataSource : validDataSources) {
       if (dataSource != null) {
-        Iterable<DataSegment> segments = dataSource.getSegments();
+        Iterable<DataSegment> segments = dataSource.getCopyOfSegments();
         for (DataSegment segment : segments) {
           segmentMap.put(segment.getIdentifier(), segment);
         }
@@ -764,7 +754,7 @@ public class DataSourcesResource
       }
 
       long dataSourceSegmentSize = 0;
-      for (DataSegment dataSegment : druidDataSource.getSegments()) {
+      for (DataSegment dataSegment : druidDataSource.getCopyOfSegments()) {
         // tier segments stats
         if (!tierDistinctSegments.get(tier).contains(dataSegment.getIdentifier())) {
           dataSourceSegmentSize += dataSegment.getSize();

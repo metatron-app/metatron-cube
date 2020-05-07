@@ -19,6 +19,7 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.primitives.Longs;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.timeline.DataSegment;
@@ -50,34 +51,39 @@ public class ServerHolder implements Comparable<ServerHolder>
     return server.getName();
   }
 
+  public String getTier()
+  {
+    return server.getTier();
+  }
+
   public LoadQueuePeon getPeon()
   {
     return peon;
   }
 
-  public Long getMaxSize()
+  public long getMaxSize()
   {
     return server.getMaxSize();
   }
 
-  public Long getCurrServerSize()
+  public long getCurrServerSize()
   {
     return server.getCurrSize();
   }
 
-  public Long getLoadQueueSize()
+  public long getLoadQueueSize()
   {
     return peon.getLoadQueueSize();
   }
 
-  public Long getSizeUsed()
+  public long getSizeUsed()
   {
     return getCurrServerSize() + getLoadQueueSize();
   }
 
-  public Double getPercentUsed()
+  public double getPercentUsed()
   {
-    return (100 * getSizeUsed().doubleValue()) / getMaxSize();
+    return (100 * getSizeUsed()) / getMaxSize();
   }
 
   public boolean isDecommissioned()
@@ -90,26 +96,23 @@ public class ServerHolder implements Comparable<ServerHolder>
     return peon.getSegmentsToLoad().size() - peon.getSegmentsToDrop().size() + server.getSegments().size();
   }
 
-  public Long getAvailableSize()
-  {
-    return getAvailableSize(server, peon);
-  }
-
-  public static long getAvailableSize(ImmutableDruidServer server, LoadQueuePeon peon)
+  public long getAvailableSize()
   {
     if (server.isDecommissioned()) {
       return -1;
     }
-    long maxSize = server.getMaxSize();
-    long sizeUsed = server.getCurrSize() + peon.getLoadQueueSize();
-    long availableSize = maxSize - sizeUsed;
+    final long maxSize = server.getMaxSize();
+    final long currSize = server.getCurrSize();
+    final long loadQueueSize = peon.getLoadQueueSize();
+    final long sizeUsed = currSize + loadQueueSize;
+    final long availableSize = maxSize - sizeUsed;
 
     log.debug(
         "Server[%s], MaxSize[%,d], CurrSize[%,d], QueueSize[%,d], SizeUsed[%,d], AvailableSize[%,d]",
         server.getName(),
         maxSize,
-        server.getCurrSize(),
-        peon.getLoadQueueSize(),
+        currSize,
+        loadQueueSize,
         sizeUsed,
         availableSize
     );
@@ -135,7 +138,7 @@ public class ServerHolder implements Comparable<ServerHolder>
   @Override
   public int compareTo(ServerHolder serverHolder)
   {
-    return getAvailableSize().compareTo(serverHolder.getAvailableSize());
+    return Longs.compare(getAvailableSize(), serverHolder.getAvailableSize());
   }
 
   @Override

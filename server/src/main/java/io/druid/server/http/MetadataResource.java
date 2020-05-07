@@ -282,7 +282,7 @@ public class MetadataResource
       return Response.status(Response.Status.NOT_FOUND).build();
     }
 
-    for (DataSegment segment : dataSource.getSegments()) {
+    for (DataSegment segment : dataSource.getCopyOfSegments()) {
       if (segment.getIdentifier().equalsIgnoreCase(segmentId)) {
         return Response.status(Response.Status.OK).entity(segment).build();
       }

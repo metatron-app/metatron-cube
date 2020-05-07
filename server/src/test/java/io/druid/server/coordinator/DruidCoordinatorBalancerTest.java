@@ -145,7 +145,7 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer1.getCurrSize()).andReturn(30L).atLeastOnce();
     EasyMock.expect(druidServer1.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer1.getSegments()).andReturn(segments).anyTimes();
-    EasyMock.expect(druidServer1.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer1.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer1.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer1.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer1);
@@ -155,7 +155,7 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer2.getCurrSize()).andReturn(0L).atLeastOnce();
     EasyMock.expect(druidServer2.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer2.getSegments()).andReturn(new HashMap<String, DataSegment>()).anyTimes();
-    EasyMock.expect(druidServer2.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer2.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer2.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer2.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer2);
@@ -165,12 +165,12 @@ public class DruidCoordinatorBalancerTest
 
     // Mock stuff that the coordinator needs
     coordinator.moveSegment(
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<String>anyObject(),
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
         EasyMock.<LoadPeonCallback>anyObject()
     );
-    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
 
     LoadQueuePeonTester fromPeon = new LoadQueuePeonTester();
@@ -232,7 +232,7 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer1.getCurrSize()).andReturn(30L).atLeastOnce();
     EasyMock.expect(druidServer1.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer1.getSegments()).andReturn(segments).anyTimes();
-    EasyMock.expect(druidServer1.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer1.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer1.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer1.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer1);
@@ -242,7 +242,7 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer2.getCurrSize()).andReturn(0L).atLeastOnce();
     EasyMock.expect(druidServer2.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer2.getSegments()).andReturn(new HashMap<String, DataSegment>()).anyTimes();
-    EasyMock.expect(druidServer2.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer2.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer2.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer2.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer2);
@@ -252,12 +252,12 @@ public class DruidCoordinatorBalancerTest
 
     // Mock stuff that the coordinator needs
     coordinator.moveSegment(
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<String>anyObject(),
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
         EasyMock.<LoadPeonCallback>anyObject()
     );
-    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
 
     ListeningExecutorService exec = MoreExecutors.listeningDecorator(
@@ -314,7 +314,7 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer1.getCurrSize()).andReturn(30L).atLeastOnce();
     EasyMock.expect(druidServer1.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer1.getSegments()).andReturn(segments).anyTimes();
-    EasyMock.expect(druidServer1.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer1.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer1.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer1.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer1);
@@ -324,7 +324,7 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer2.getCurrSize()).andReturn(0L).atLeastOnce();
     EasyMock.expect(druidServer2.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer2.getSegments()).andReturn(new HashMap<String, DataSegment>()).anyTimes();
-    EasyMock.expect(druidServer2.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer2.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer2.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer2.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer2);
@@ -334,7 +334,7 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer3.getCurrSize()).andReturn(0L).atLeastOnce();
     EasyMock.expect(druidServer3.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer3.getSegments()).andReturn(new HashMap<String, DataSegment>()).anyTimes();
-    EasyMock.expect(druidServer3.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer3.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer3.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer3.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer3);
@@ -344,19 +344,19 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer4.getCurrSize()).andReturn(0L).atLeastOnce();
     EasyMock.expect(druidServer4.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer4.getSegments()).andReturn(new HashMap<String, DataSegment>()).anyTimes();
-    EasyMock.expect(druidServer4.getSegment(EasyMock.<String>anyObject())).andReturn(null).anyTimes();
+    EasyMock.expect(druidServer4.contains(EasyMock.<DataSegment>anyObject())).andReturn(false).anyTimes();
     EasyMock.expect(druidServer4.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer4.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer4);
 
     // Mock stuff that the coordinator needs
     coordinator.moveSegment(
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<String>anyObject(),
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
         EasyMock.<LoadPeonCallback>anyObject()
     );
-    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
 
     LoadQueuePeonTester peon1 = new LoadQueuePeonTester();

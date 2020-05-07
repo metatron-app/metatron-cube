@@ -68,6 +68,7 @@ import org.skife.jdbi.v2.util.StringMapper;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryUsage;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -756,7 +757,16 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     synchronized (lock) {
       lock.lastUpdatedTime = DateTimes.nowUtc();
     }
-    log.info("Heap memory usage from mbean %s", ManagementFactory.getMemoryMXBean().getHeapMemoryUsage());
+    int count = 0;
+    for (DruidDataSource dataSource : dataSources.values()) {
+      count += dataSource.size();
+    }
+    log.info("%,d segments in heap: %s", count, toString(ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()));
+  }
+
+  private static String toString(MemoryUsage mbean)
+  {
+    return String.format("%,dM/%,dM", mbean.getUsed() >> 20, mbean.getMax() >> 20);
   }
 
   private String getSegmentsTable()
@@ -857,5 +867,11 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
         }
     );
     return Iterables.getOnlyElement(intervals, null);
+  }
+
+  @Override
+  public String toString()
+  {
+    return String.format("%s@%s", getClass().getName(), connector.getConfig().getConnectURI());
   }
 }

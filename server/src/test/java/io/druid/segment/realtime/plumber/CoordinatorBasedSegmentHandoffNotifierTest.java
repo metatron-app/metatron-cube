@@ -20,7 +20,6 @@
 package io.druid.segment.realtime.plumber;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.concurrent.Execs;
@@ -75,7 +74,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                 Lists.newArrayList(
                     new ImmutableSegmentLoadInfo(
                         segment.toDescriptor(),
-                        Sets.newHashSet(
+                        Lists.newArrayList(
                             createRealtimeServerMetadata("a1")
                         )
                     )
@@ -132,7 +131,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                 Lists.newArrayList(
                     new ImmutableSegmentLoadInfo(
                         segment.toDescriptor(),
-                        Sets.newHashSet(
+                        Lists.newArrayList(
                             createHistoricalServerMetadata("a1")
                         )
                     )
@@ -175,7 +174,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             Lists.newArrayList(
                 new ImmutableSegmentLoadInfo(
                     createSegment(interval, "v1", 2),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor("test_ds", interval, "v2", 2)
@@ -187,7 +186,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             Lists.newArrayList(
                 new ImmutableSegmentLoadInfo(
                     createSegment(interval, "v2", 2),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor("test_ds", interval, "v1", 2)
@@ -199,7 +198,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             Lists.newArrayList(
                 new ImmutableSegmentLoadInfo(
                     createSegment(interval, "v1", 2),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor("test_ds", interval, "v1", 2)
@@ -219,7 +218,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             Lists.newArrayList(
                 new ImmutableSegmentLoadInfo(
                     createSegment(interval, "v1", 2),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor("test_ds", interval, "v1", 2)
@@ -231,7 +230,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             Lists.newArrayList(
                 new ImmutableSegmentLoadInfo(
                     createSegment(interval, "v1", 2),
-                    Sets.newHashSet(createRealtimeServerMetadata("a"))
+                    Lists.newArrayList(createRealtimeServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor("test_ds", interval, "v1", 2)
@@ -250,7 +249,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             Lists.newArrayList(
                 new ImmutableSegmentLoadInfo(
                     createSegment(interval, "v1", 1),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor("test_ds", interval, "v1", 1)
@@ -262,7 +261,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
             Lists.newArrayList(
                 new ImmutableSegmentLoadInfo(
                     createSegment(interval, "v1", 1),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor("test_ds", interval, "v1", 2)
@@ -284,7 +283,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                             "2011-04-01/2011-04-02"
                         ), "v1", 1
                     ),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor(
@@ -305,7 +304,7 @@ public class CoordinatorBasedSegmentHandoffNotifierTest
                             "2011-04-01/2011-04-04"
                         ), "v1", 1
                     ),
-                    Sets.newHashSet(createHistoricalServerMetadata("a"))
+                    Lists.newArrayList(createHistoricalServerMetadata("a"))
                 )
             ),
             new SegmentDescriptor(

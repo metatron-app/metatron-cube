@@ -19,28 +19,16 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
-import io.druid.java.util.common.concurrent.ScheduledExecutors;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.lifecycle.LifecycleStart;
-import io.druid.java.util.common.lifecycle.LifecycleStop;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.client.DruidDataSource;
 import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidDataSource;
@@ -50,13 +38,21 @@ import io.druid.client.ServerView;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.collections.CountingMap;
 import io.druid.common.config.JacksonConfigManager;
-import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.discovery.ServiceAnnouncer;
 import io.druid.data.KeyedData.StringKeyed;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.CoordinatorIndexingServiceHelper;
 import io.druid.guice.annotations.Self;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
+import io.druid.java.util.common.concurrent.ScheduledExecutors;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.lifecycle.LifecycleStart;
+import io.druid.java.util.common.lifecycle.LifecycleStop;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.server.DruidNode;
@@ -80,14 +76,13 @@ import org.apache.curator.framework.recipes.leader.Participant;
 import org.apache.curator.utils.ZKPaths;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
-import org.joda.time.Interval;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
@@ -107,19 +102,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DruidCoordinator
 {
   public static final String COORDINATOR_OWNER_NODE = "_COORDINATOR";
-
-  public static Comparator<DataSegment> SEGMENT_COMPARATOR = Ordering.from(JodaUtils.intervalsByEndThenStart())
-                                                                     .onResultOf(
-                                                                         new Function<DataSegment, Interval>()
-                                                                         {
-                                                                           @Override
-                                                                           public Interval apply(DataSegment segment)
-                                                                           {
-                                                                             return segment.getInterval();
-                                                                           }
-                                                                         })
-                                                                     .compound(Ordering.<DataSegment>natural())
-                                                                     .reverse();
 
   private static final EmittingLogger log = new EmittingLogger(DruidCoordinator.class);
   private final Object lock = new Object();
@@ -225,7 +207,9 @@ public class DruidCoordinator
     this.self = self;
     this.indexingServiceHelpers = indexingServiceHelpers;
 
-    this.exec = scheduledExecutorFactory.create(1, "Coordinator-Exec--%d");
+    this.exec = scheduledExecutorFactory.create(
+        1, String.format("Coordinator-Exec(%s)", config.getCoordinatorPeriod())
+    );
 
     this.leaderLatch = new AtomicReference<>(null);
     this.loadManagementPeons = loadQueuePeonMap;
@@ -243,6 +227,15 @@ public class DruidCoordinator
         exec,
         new ServerView.AbstractServerCallback()
         {
+          @Override
+          public ServerView.CallbackAction serverRemoved(DruidServer server)
+          {
+            if (leader) {
+              balanceNow();
+            }
+            return ServerView.CallbackAction.CONTINUE;
+          }
+
           @Override
           public ServerView.CallbackAction serverUpdated(DruidServer server)
           {
@@ -333,16 +326,16 @@ public class DruidCoordinator
 
   public Map<String, Double> getLoadStatus()
   {
-    Map<String, Double> loadStatus = Maps.newHashMap();
+    final Map<String, Double> loadStatus = Maps.newHashMap();
     for (DruidDataSource dataSource : metadataSegmentManager.getInventory()) {
-      final Set<DataSegment> segments = Sets.newHashSet(dataSource.getSegments());
+      final Set<DataSegment> segments = Sets.newHashSet(dataSource.getCopyOfSegments());
       final int availableSegmentSize = segments.size();
 
       // remove loaded segments
       for (DruidServer druidServer : serverInventoryView.getInventory()) {
         final DruidDataSource loadedView = druidServer.getDataSource(dataSource.getName());
         if (loadedView != null) {
-          segments.removeAll(loadedView.getSegments());
+          segments.removeAll(loadedView.getCopyOfSegments());
         }
       }
       final int unloadedSegmentSize = segments.size();
@@ -391,51 +384,28 @@ public class DruidCoordinator
     }
   }
 
-  public void moveSegment(
-      final ImmutableDruidServer fromServer,
-      final ImmutableDruidServer toServer,
-      final String segmentName,
+  // conditions like availablity, loading state, etc. should be checked before
+  public boolean moveSegment(
+      final DataSegment segment,
+      final ServerHolder fromServer,
+      final ServerHolder toServer,
       final LoadPeonCallback callback
   )
   {
+    final String segmentId = segment.getIdentifier();
     try {
-      if (fromServer.getMetadata().equals(toServer.getMetadata())) {
-        throw new IAE("Cannot move [%s] to and from the same server [%s]", segmentName, fromServer.getName());
+      if (Objects.equals(fromServer.getName(), toServer.getName())) {
+        throw new IAE("Cannot move [%s] to and from the same server [%s]", segmentId, fromServer.getName());
       }
-
-      final DataSegment segment = fromServer.getSegment(segmentName);
-      if (segment == null) {
-        throw new IAE("Unable to find segment [%s] on server [%s]", segmentName, fromServer.getName());
-      }
-
-      final LoadQueuePeon loadPeon = loadManagementPeons.get(toServer.getName());
-      if (loadPeon == null) {
-        throw new IAE("LoadQueuePeon hasn't been created yet for path [%s]", toServer.getName());
-      }
-
-      final LoadQueuePeon dropPeon = loadManagementPeons.get(fromServer.getName());
-      if (dropPeon == null) {
-        throw new IAE("LoadQueuePeon hasn't been created yet for path [%s]", fromServer.getName());
-      }
-
-      final ServerHolder toHolder = new ServerHolder(toServer, loadPeon);
-      if (toHolder.getAvailableSize() < segment.getSize()) {
-        throw new IAE(
-            "Not enough capacity on server [%s] for segment [%s]. Required: %,d, available: %,d.",
-            toServer.getName(),
-            segment,
-            segment.getSize(),
-            toHolder.getAvailableSize()
-        );
-      }
-
+      final LoadQueuePeon loadPeon = toServer.getPeon();
+      final LoadQueuePeon dropPeon = fromServer.getPeon();
       // served path check here was not valid (always null).. so removed
       // just regard removed-from-queue means it's served (little racy but would be faster than unload + unannounce)
-      final String toLoadQueueSegPath = ZKPaths.makePath(loadPeon.getBasePath(), segmentName);
+      final String toLoadQueueSegPath = ZKPaths.makePath(loadPeon.getBasePath(), segmentId);
 
       loadPeon.loadSegment(
           segment,
-          "balancing",
+          String.format("balancing from %s", fromServer.getName()),
           new LoadPeonCallback()
           {
             @Override
@@ -443,7 +413,7 @@ public class DruidCoordinator
             {
               try {
                 if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
-                  dropPeon.dropSegment(segment, "balancing", callback);
+                  dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback);
                 } else if (callback != null) {
                   callback.execute();
                 }
@@ -454,45 +424,21 @@ public class DruidCoordinator
             }
           }
       );
+      return true;
     }
     catch (Exception e) {
-      log.makeAlert(e, "Exception moving segment %s", segmentName).emit();
+      log.makeAlert(e, "Exception moving segment %s", segmentId).emit();
       if (callback != null) {
         callback.execute();
       }
     }
-  }
-
-  public static Set<DataSegment> makeOrdered(Iterable<DataSegment> dataSegments)
-  {
-    Set<DataSegment> availableSegments = Sets.newTreeSet(SEGMENT_COMPARATOR);
-
-    for (DataSegment dataSegment : dataSegments) {
-      if (dataSegment.getSize() < 0) {
-        log.makeAlert("No size on Segment")
-           .addData("segment", dataSegment)
-           .emit();
-      }
-      availableSegments.add(dataSegment);
-    }
-
-    return availableSegments;
+    return false;
   }
 
   public Iterable<DataSegment> getAvailableDataSegments()
   {
     return Iterables.concat(
-        Iterables.transform(
-            metadataSegmentManager.getInventory(),
-            new Function<DruidDataSource, Iterable<DataSegment>>()
-            {
-              @Override
-              public Iterable<DataSegment> apply(DruidDataSource input)
-              {
-                return input.getSegments();
-              }
-            }
-        )
+        Iterables.transform(metadataSegmentManager.getInventory(), DruidDataSource::getCopyOfSegments)
     );
   }
 
@@ -933,18 +879,8 @@ public class DruidCoordinator
     // Display info about all historical servers
     List<ImmutableDruidServer> servers = Lists.newArrayList(
         Iterables.transform(
-            Iterables.filter(
-                serverInventoryView.getInventory(),
-                new Predicate<DruidServer>()
-                {
-                  @Override
-                  public boolean apply(DruidServer input)
-                  {
-                    return input.isAssignable();
-                  }
-                }
-            ),
-            DruidServer.IMMUTABLE
+            Iterables.filter(serverInventoryView.getInventory(), DruidServer::isAssignable),
+            DruidServer::toImmutableDruidServer
         )
     );
 
@@ -967,14 +903,15 @@ public class DruidCoordinator
     // Find all historical servers, group them by subType and sort by ascending usage
     final DruidCluster cluster = new DruidCluster();
     for (ImmutableDruidServer server : servers) {
-      if (!loadManagementPeons.containsKey(server.getName())) {
-        LoadQueuePeon loadQueuePeon = taskMaster.giveMePeon(zkPaths.getLoadQueuePath(), server.getName());
+      LoadQueuePeon loadQueuePeon = loadManagementPeons.get(server.getName());
+      if (loadQueuePeon == null) {
+        loadQueuePeon = taskMaster.giveMePeon(zkPaths.getLoadQueuePath(), server.getName());
         log.info("Creating LoadQueuePeon for server[%s] at path[%s]", server.getName(), loadQueuePeon.getBasePath());
 
         loadManagementPeons.put(server.getName(), loadQueuePeon);
       }
 
-      cluster.add(new ServerHolder(server, loadManagementPeons.get(server.getName())));
+      cluster.add(new ServerHolder(server, loadQueuePeon));
     }
 
     // Stop peons for servers that aren't there anymore.

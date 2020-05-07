@@ -22,65 +22,49 @@ package io.druid.server.coordinator;
 import com.google.common.collect.Lists;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.data.Pair;
+import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
 
 import java.util.List;
 
 public interface BalancerStrategy
 {
-  // why split selection logic into two ?
-  List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> select(
-      final DruidCoordinatorRuntimeParams params,
-      final List<ServerHolder> serverHolders
+  void balance(
+      final List<ServerHolder> holders,
+      final DruidCoordinatorBalancer balancer,
+      final DruidCoordinatorRuntimeParams params
   );
 
-  ServerHolder findNewSegmentHomeBalancer(DataSegment proposalSegment, List<ServerHolder> serverHolders);
+  ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders);
 
-  ServerHolder findNewSegmentHomeReplicator(DataSegment proposalSegment, List<ServerHolder> serverHolders);
-
-  BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders);
-
-  void emitStats(String tier, CoordinatorStats stats, List<ServerHolder> serverHolderList);
+  default void emitStats(String tier, CoordinatorStats stats, List<ServerHolder> serverHolderList) {}
 
   abstract class Abstract implements BalancerStrategy
   {
     @Override
-    public List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> select(
-        final DruidCoordinatorRuntimeParams params,
-        final List<ServerHolder> serverHolders
+    public void balance(
+        final List<ServerHolder> holders,
+        final DruidCoordinatorBalancer balancer,
+        final DruidCoordinatorRuntimeParams params
     )
     {
+      // why split selection logic into two ?
       List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
       int maxSegmentsToMove = params.getMaxSegmentsToMove();
       for (int iter = 0; iter < maxSegmentsToMove; iter++) {
-        final BalancerSegmentHolder segmentToMove = pickSegmentToMove(serverHolders);
+        final BalancerSegmentHolder segmentToMove = pickSegmentToMove(holders);
 
         if (segmentToMove != null && params.getMaterializedSegments().contains(segmentToMove.getSegment())) {
-          final ServerHolder holder = findNewSegmentHomeBalancer(segmentToMove.getSegment(), serverHolders);
-
+          final ServerHolder holder = findNewSegmentHomeBalancer(segmentToMove.getSegment(), holders);
           if (holder != null) {
-            found.add(Pair.of(segmentToMove, holder.getServer()));
+            balancer.moveSegment(segmentToMove.getSegment(), segmentToMove.getServerHolder(), holder);
           }
         }
       }
-      return found;
     }
 
-    @Override
-    public ServerHolder findNewSegmentHomeBalancer(DataSegment proposalSegment, List<ServerHolder> serverHolders)
-    {
-      throw new UnsupportedOperationException();
-    }
+    public abstract BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders);
 
-    @Override
-    public BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders)
-    {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void emitStats(String tier, CoordinatorStats stats, List<ServerHolder> serverHolderList)
-    {
-    }
+    public abstract ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders);
   }
 }

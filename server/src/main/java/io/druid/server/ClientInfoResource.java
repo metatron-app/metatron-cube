@@ -102,7 +102,7 @@ public class ClientInfoResource
           dataSourceMap.put(dataSource.getName(), Lists.<DataSegment>newArrayList());
         }
         List<DataSegment> segments = dataSourceMap.get(dataSource.getName());
-        segments.addAll(dataSource.getSegments());
+        segments.addAll(dataSource.getCopyOfSegments());
       }
     }
     for (List<DataSegment> segments : dataSourceMap.values()) {

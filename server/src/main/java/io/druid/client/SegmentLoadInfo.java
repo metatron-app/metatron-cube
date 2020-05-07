@@ -20,22 +20,21 @@
 package io.druid.client;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import io.druid.query.SegmentDescriptor;
 import io.druid.server.coordination.DruidServerMetadata;
 
-import java.util.Set;
+import java.util.List;
 
 public class SegmentLoadInfo
 {
   private final SegmentDescriptor segment;
-  private final Set<DruidServerMetadata> servers;
+  private final List<DruidServerMetadata> servers;
 
   public SegmentLoadInfo(SegmentDescriptor segment)
   {
-    Preconditions.checkNotNull(segment, "segment");
-    this.segment = segment;
-    this.servers = Sets.newConcurrentHashSet();
+    this.segment = Preconditions.checkNotNull(segment, "segment");
+    this.servers = Lists.newArrayListWithCapacity(2);
   }
 
   public SegmentDescriptor getSegment()
@@ -43,17 +42,17 @@ public class SegmentLoadInfo
     return segment;
   }
 
-  public boolean addServer(DruidServerMetadata server)
+  public synchronized boolean addServer(DruidServerMetadata server)
   {
     return servers.add(server);
   }
 
-  public boolean removeServer(DruidServerMetadata server)
+  public synchronized boolean removeServer(DruidServerMetadata server)
   {
     return servers.remove(server);
   }
 
-  public boolean isEmpty()
+  public synchronized boolean isEmpty()
   {
     return servers.isEmpty();
   }
@@ -62,7 +61,6 @@ public class SegmentLoadInfo
   {
     return new ImmutableSegmentLoadInfo(segment, servers);
   }
-
 
   @Override
   public boolean equals(Object o)
@@ -80,7 +78,6 @@ public class SegmentLoadInfo
       return false;
     }
     return servers.equals(that.servers);
-
   }
 
   @Override

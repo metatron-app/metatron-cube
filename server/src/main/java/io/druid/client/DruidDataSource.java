@@ -71,20 +71,19 @@ public class DruidDataSource
   }
 
   @JsonProperty
-  public synchronized List<DataSegment> getSegments()
+  public synchronized List<DataSegment> getCopyOfSegments()
   {
     return ImmutableList.copyOf(segmentsMap.values());
   }
 
-  // mutable set
-  public synchronized Set<String> getSegmentIds()
+  public synchronized Set<String> getCopyOfSegmentIds()
   {
     return Sets.newHashSet(segmentsMap.keySet());
   }
 
   public List<DataSegment> getSegmentsSorted()
   {
-    List<DataSegment> segments = Lists.newArrayList(getSegments());
+    List<DataSegment> segments = Lists.newArrayList(segmentsMap.values());
     Collections.sort(segments);
     return segments;
   }
@@ -132,7 +131,6 @@ public class DruidDataSource
     return "DruidDataSource{" +
            "name=" + name +
            ", properties=" + properties +
-           ", segmentsMap=" + segmentsMap +
            '}';
   }
 

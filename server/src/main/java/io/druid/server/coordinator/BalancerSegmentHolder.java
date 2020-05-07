@@ -26,14 +26,14 @@ import io.druid.timeline.DataSegment;
  */
 public class BalancerSegmentHolder
 {
-  private final ImmutableDruidServer fromServer;
+  private final ServerHolder fromServer;
   private final DataSegment segment;
 
   // This is a pretty fugly hard coding of the maximum lifetime
-  private volatile int lifetime = 15;
+  private int lifetime = 15;
 
   public BalancerSegmentHolder(
-      ImmutableDruidServer fromServer,
+      ServerHolder fromServer,
       DataSegment segment
   )
   {
@@ -41,9 +41,14 @@ public class BalancerSegmentHolder
     this.segment = segment;
   }
 
-  public ImmutableDruidServer getFromServer()
+  public ServerHolder getServerHolder()
   {
     return fromServer;
+  }
+
+  public ImmutableDruidServer getFromServer()
+  {
+    return fromServer.getServer();
   }
 
   public DataSegment getSegment()
@@ -56,8 +61,8 @@ public class BalancerSegmentHolder
     return lifetime;
   }
 
-  public void reduceLifetime()
+  public int reduceLifetime()
   {
-    lifetime--;
+    return --lifetime;
   }
 }

@@ -19,7 +19,6 @@
 
 package io.druid.server.coordinator;
 
-import io.druid.client.ImmutableDruidServer;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
 
@@ -31,33 +30,19 @@ public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
   }
 
   @Override
-  protected void moveSegment(
-      final BalancerSegmentHolder segment,
-      final ImmutableDruidServer toServer,
-      final DruidCoordinatorRuntimeParams params
-  )
+  public boolean moveSegment(final DataSegment segment, final ServerHolder fromServer, final ServerHolder toServer)
   {
-    final String toServerName = toServer.getName();
-    final LoadQueuePeon toPeon = params.getLoadManagementPeons().get(toServerName);
+    final LoadQueuePeon toPeon = toServer.getPeon();
+    final String segmentName = segment.getIdentifier();
 
-    final String fromServerName = segment.getFromServer().getName();
-    final DataSegment segmentToMove = segment.getSegment();
-    final String segmentName = segmentToMove.getIdentifier();
-
-    if (!toPeon.getSegmentsToLoad().contains(segmentToMove) &&
+    if (!toPeon.getSegmentsToLoad().contains(segment) &&
         !currentlyMovingSegments.get("normal").containsKey(segmentName) &&
-        !toServer.getSegments().containsKey(segmentName) &&
-        new ServerHolder(toServer, toPeon).getAvailableSize() > segmentToMove.getSize()) {
+        !toServer.isServingSegment(segment) && toServer.getAvailableSize() > segment.getSize()) {
       log.info(
-          "Moving [%s] from [%s] to [%s]",
-          segmentName,
-          fromServerName,
-          toServerName
+          "Moving [%s] from [%s] to [%s]", segmentName, fromServer.getName(), toServer.getName()
       );
       try {
-        final LoadQueuePeon loadPeon = params.getLoadManagementPeons().get(toServerName);
-
-        loadPeon.loadSegment(segment.getSegment(), new LoadPeonCallback()
+        toPeon.loadSegment(segment, new LoadPeonCallback()
         {
           @Override
           public void execute()
@@ -65,13 +50,16 @@ public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
           }
         });
 
-        currentlyMovingSegments.get("normal").put(segmentName, segment);
+        currentlyMovingSegments.get("normal").put(segmentName, new BalancerSegmentHolder(fromServer, segment));
+
+        return true;
       }
       catch (Exception e) {
         log.info(e, String.format("[%s] : Moving exception", segmentName));
       }
     } else {
-      currentlyMovingSegments.get("normal").remove(segment);
+      currentlyMovingSegments.get("normal").remove(new BalancerSegmentHolder(fromServer, segment));
     }
+    return false;
   }
 }

@@ -259,7 +259,7 @@ public class DruidCoordinatorRuntimeParams
   public int getMaxSegmentsToMove()
   {
     final int maxSegmentsToMove = coordinatorDynamicConfig.getMaxSegmentsToMove();
-    return maxSegmentsToMove < 0 ? Math.min(32, Math.max(4, loadManagementPeons.size() >> 1)) : maxSegmentsToMove;
+    return maxSegmentsToMove < 0 ? Math.max(4, loadManagementPeons.size()) : maxSegmentsToMove;
   }
 
   public static class Builder

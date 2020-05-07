@@ -22,12 +22,12 @@ package io.druid.server.coordinator.helper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.client.DruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.collections.CountingMap;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.query.DruidMetrics;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
@@ -38,7 +38,6 @@ import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -145,15 +144,7 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
       emitTieredStats(
           emitter, "segment/cost/normalized",
           Maps.transformEntries(
-              normalized,
-              new Maps.EntryTransformer<String, AtomicLong, Number>()
-              {
-                @Override
-                public Number transformEntry(String key, AtomicLong value)
-                {
-                  return value.doubleValue() / 1000d;
-                }
-              }
+              normalized, (key, value) -> value.doubleValue() / 1000d
           )
       );
     }
@@ -194,14 +185,7 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
     for (Map.Entry<String, MinMaxPriorityQueue<ServerHolder>> tiers : cluster.getCluster().entrySet()) {
       final String tier = tiers.getKey();
       final List<ServerHolder> servers = Lists.newArrayList(tiers.getValue());
-      Collections.sort(servers, new Comparator<ServerHolder>()
-      {
-        @Override
-        public int compare(ServerHolder o1, ServerHolder o2)
-        {
-          return o1.getServer().getName().compareTo(o2.getServer().getName());
-        }
-      });
+      Collections.sort(servers, (o1, o2) -> o1.getName().compareTo(o2.getName()));
       for (ServerHolder serverHolder : servers) {
         ImmutableDruidServer server = serverHolder.getServer();
         LoadQueuePeon queuePeon = serverHolder.getPeon();
@@ -298,7 +282,7 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
     CountingMap<String> segmentSizes = new CountingMap<String>();
     CountingMap<String> segmentCounts = new CountingMap<String>();
     for (DruidDataSource dataSource : params.getDataSources()) {
-      for (DataSegment segment : dataSource.getSegments()) {
+      for (DataSegment segment : dataSource.getCopyOfSegments()) {
         segmentSizes.add(dataSource.getName(), segment.getSize());
         segmentCounts.add(dataSource.getName(), 1L);
       }

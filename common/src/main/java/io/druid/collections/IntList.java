@@ -25,10 +25,12 @@ import com.google.common.primitives.Ints;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.function.IntConsumer;
+import java.util.stream.IntStream;
 
 /**
  */
-public class IntList implements Iterable<Integer>
+public class IntList implements Iterable<Integer>, IntConsumer
 {
   private int[] baseArray;
   private int size;
@@ -73,11 +75,22 @@ public class IntList implements Iterable<Integer>
     size += values.length;
   }
 
-  public void addAll(IntList comprisedRows)
+  public void addAll(IntList intList)
   {
-    reserve(comprisedRows.size);
-    System.arraycopy(comprisedRows.baseArray, 0, baseArray, size, comprisedRows.size);
-    size += comprisedRows.size;
+    reserve(intList.size);
+    System.arraycopy(intList.baseArray, 0, baseArray, size, intList.size);
+    size += intList.size;
+  }
+
+  public void addAll(IntStream stream)
+  {
+    stream.forEach(this);
+  }
+
+  @Override
+  public void accept(int value)
+  {
+    add(value);
   }
 
   private void reserve(int reserve)

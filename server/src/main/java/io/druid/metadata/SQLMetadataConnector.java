@@ -192,7 +192,7 @@ public abstract class SQLMetadataConnector implements MetadataStorageConnector
                 }
                 batch.execute();
               } else {
-                log.info("Table[%s] already exists", tableName);
+                log.debug("Table[%s] already exists", tableName);
               }
               return null;
             }

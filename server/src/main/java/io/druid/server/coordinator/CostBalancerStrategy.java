@@ -32,7 +32,6 @@ import org.apache.commons.math3.util.FastMath;
 import org.joda.time.Interval;
 
 import java.util.List;
-import java.util.concurrent.Callable;
 
 public class CostBalancerStrategy extends BalancerStrategy.Abstract
 {
@@ -179,24 +178,19 @@ public class CostBalancerStrategy extends BalancerStrategy.Abstract
   }
 
   @Override
-  public ServerHolder findNewSegmentHomeReplicator(
-      DataSegment proposalSegment, List<ServerHolder> serverHolders
-  )
+  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders)
   {
-    ServerHolder holder = chooseBestServer(proposalSegment, serverHolders, false).rhs;
-    if (holder != null && !holder.isServingSegment(proposalSegment)) {
+    ServerHolder holder = chooseBestServer(segment, holders, false).rhs;
+    if (holder != null && !holder.isServingSegment(segment)) {
       return holder;
     }
     return null;
   }
 
-
   @Override
-  public ServerHolder findNewSegmentHomeBalancer(
-      DataSegment proposalSegment, List<ServerHolder> serverHolders
-  )
+  public ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders)
   {
-    return chooseBestServer(proposalSegment, serverHolders, true).rhs;
+    return chooseBestServer(segment, holders, true).rhs;
   }
 
   static double computeJointSegmentsCost(final DataSegment segment, final Iterable<DataSegment> segmentSet)
@@ -330,18 +324,7 @@ public class CostBalancerStrategy extends BalancerStrategy.Abstract
     List<ListenableFuture<Pair<Double, ServerHolder>>> futures = Lists.newArrayList();
 
     for (final ServerHolder server : serverHolders) {
-      futures.add(
-          exec.submit(
-              new Callable<Pair<Double, ServerHolder>>()
-              {
-                @Override
-                public Pair<Double, ServerHolder> call() throws Exception
-                {
-                  return Pair.of(computeCost(proposalSegment, server, includeCurrentServer), server);
-                }
-              }
-          )
-      );
+      futures.add(exec.submit(() -> Pair.of(computeCost(proposalSegment, server, includeCurrentServer), server)));
     }
 
     final ListenableFuture<List<Pair<Double, ServerHolder>>> resultsFuture = Futures.allAsList(futures);

@@ -21,8 +21,8 @@ package io.druid.common;
 
 public class IntTagged<T>
 {
-  private final int tag;
-  private final T value;
+  public final int tag;
+  public final T value;
 
   private IntTagged(int tag, T value)
   {

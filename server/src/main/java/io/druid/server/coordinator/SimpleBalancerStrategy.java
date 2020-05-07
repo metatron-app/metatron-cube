@@ -23,13 +23,14 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.logger.Logger;
+import com.google.common.primitives.Ints;
 import io.druid.client.ImmutableDruidDataSource;
-import io.druid.client.ImmutableDruidServer;
 import io.druid.collections.IntList;
 import io.druid.common.DateTimes;
-import io.druid.data.Pair;
+import io.druid.common.IntTagged;
 import io.druid.granularity.Granularities;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
 
 import java.lang.reflect.Array;
@@ -38,195 +39,193 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.IntStream;
 
 /**
  * don't bother tier, capacity, etc. just simple balancing of segments.
  */
-public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
+public class SimpleBalancerStrategy implements BalancerStrategy
 {
   private static final Logger LOG = new Logger(SimpleBalancerStrategy.class);
 
-  private static final float BASELINE_RATIO = 0.85f;
+  private static final float BASELINE_RATIO = 0.95f;
 
-  private static final int DS_GROUP_NUM = 8;
-  private static final float DS_GROUP_TOLERANCE_RATIO = 0.15f;
+  private static final int FIRST_GROUPING_DENOMITOR = 100;
+  private static final float EXCESSIVE_TOLERANCE_RATIO = 0.1f;
 
   private final Random random = new Random();
 
   @Override
-  public List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> select(
-      DruidCoordinatorRuntimeParams params,
-      List<ServerHolder> serverHolders
+  public void balance(
+      final List<ServerHolder> serverHolders,
+      final DruidCoordinatorBalancer balancer,
+      final DruidCoordinatorRuntimeParams params
   )
   {
     if (serverHolders.isEmpty()) {
-      return Arrays.asList();
+      return;
     }
     int numberOfQueuedSegments = 0;
     for (ServerHolder holder : serverHolders) {
       numberOfQueuedSegments += holder.getPeon().getNumberOfQueuedSegments();
     }
-    final int maxSegmentsToMove = params.getMaxSegmentsToMove() - numberOfQueuedSegments;
-    if (maxSegmentsToMove <= 0) {
-      return Arrays.asList();
+    int segmentsToMove = params.getMaxSegmentsToMove() - numberOfQueuedSegments;
+    if (segmentsToMove <= 0) {
+      return;
     }
     final long start = Granularities.DAY.bucketStart(DateTimes.nowUtc()).getMillis();
 
     final Set<String> dataSourceNames = Sets.newTreeSet();  // sorted to estimate progress
-    final ServerHolder[] servers = serverHolders.toArray(new ServerHolder[0]);
-    final int[] totalSegmentsPerServer = new int[servers.length];
-    int totalSegments = 0;
-    for (int i = 0; i < servers.length; i++) {
-      totalSegmentsPerServer[i] = servers[i].getServer().getSegments().size();
-      totalSegments += totalSegmentsPerServer[i];
-      Iterables.addAll(dataSourceNames, servers[i].getServer().getDataSourceNames());
+    final ServerHolder[] holders = serverHolders.toArray(new ServerHolder[0]);
+    final int[] totalSegments = new int[holders.length];
+    int numTotalSegments = 0;
+    for (int i = 0; i < holders.length; i++) {
+      totalSegments[i] = holders[i].getServer().getSegments().size();
+      numTotalSegments += totalSegments[i];
+      Iterables.addAll(dataSourceNames, holders[i].getServer().getDataSourceNames());
     }
-    final int serverCount = servers.length;
-    final int baseLine = (int) (totalSegments / serverCount * BASELINE_RATIO);
-    final List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
+    final int serverCount = holders.length;
+    final int baseLine = (int) (BASELINE_RATIO * numTotalSegments / serverCount);
 
     // per DS, incremental
-    final int[] totalSegmentsPerServerInDs = new int[serverCount];
+    final int[] totalSegmentsPerDs = new int[serverCount];
 
     // per group
     final IntList deficit = new IntList();
     final IntList excessive = new IntList();
 
     @SuppressWarnings("unchecked")
-    final List<DataSegment>[] segmentsPerServer = (List<DataSegment>[]) Array.newInstance(List.class, serverCount);
+    final List<DataSegment>[] totalSegmentsPerGroup = (List<DataSegment>[]) Array.newInstance(List.class, serverCount);
     for (int x = 0; x < serverCount; x++) {
-      segmentsPerServer[x] = Lists.newArrayList();
+      totalSegmentsPerGroup[x] = Lists.newArrayList();
     }
 
     for (String dataSourceName : dataSourceNames) {
-      List<Pair<Integer, DataSegment>> allSegmentsInDS = Lists.newArrayList();
+      List<IntTagged<DataSegment>> allSegmentsInDS = Lists.newArrayList();
       for (int i = 0; i < serverCount; i++) {
-        ImmutableDruidDataSource dataSource = servers[i].getServer().getDataSource(dataSourceName);
+        ImmutableDruidDataSource dataSource = holders[i].getServer().getDataSource(dataSourceName);
         if (dataSource != null) {
           for (DataSegment segment : dataSource.getSegments()) {
-            if (segment.getInterval().getEndMillis() <= start && !servers[i].isDroppingSegment(segment)) {
-              allSegmentsInDS.add(Pair.of(i, segment));
+            if (segment.getInterval().getEndMillis() <= start && !holders[i].isDroppingSegment(segment)) {
+              allSegmentsInDS.add(IntTagged.of(i, segment));
             }
           }
         }
       }
       Collections.sort(
-          allSegmentsInDS,
-          Ordering.from(DruidCoordinator.SEGMENT_COMPARATOR).onResultOf(Pair.<DataSegment>rhs())
+          allSegmentsInDS, Ordering.from(DataSegment.TIME_DESCENDING).onResultOf(IntTagged::value)
       );
-      Arrays.fill(totalSegmentsPerServerInDs, 0);
+      Arrays.fill(totalSegmentsPerDs, 0);
 
       final int numSegmentsInDS = allSegmentsInDS.size();
-      final int groupPerServer = Math.max(1, numSegmentsInDS / serverCount / DS_GROUP_NUM);
-      final int tolerance = (int) (groupPerServer * DS_GROUP_TOLERANCE_RATIO);
+      final int firstGroupSize = Math.max(serverCount, numSegmentsInDS / FIRST_GROUPING_DENOMITOR);
 
       int i = 0;
-      for (int group = 1; found.size() < maxSegmentsToMove && i < numSegmentsInDS; group++) {
+      while (segmentsToMove > 0 && i < numSegmentsInDS) {
         for (int x = 0; x < serverCount; x++) {
-          segmentsPerServer[x].clear();
+          totalSegmentsPerGroup[x].clear();
         }
         excessive.clear();
         deficit.clear();
 
-        int limit = Math.min(numSegmentsInDS, i + groupPerServer * serverCount);
+        final int limit = Math.min(numSegmentsInDS, i + (i == 0 ? firstGroupSize : i << 1));
         for (; i < limit; i++) {
-          Pair<Integer, DataSegment> pair = allSegmentsInDS.get(i);
-          segmentsPerServer[pair.lhs].add(pair.rhs);
-          totalSegmentsPerServerInDs[pair.lhs]++;
+          IntTagged<DataSegment> pair = allSegmentsInDS.get(i);
+          totalSegmentsPerGroup[pair.tag].add(pair.value);
+          totalSegmentsPerDs[pair.tag]++;
         }
-        final int totalExpectedPerServer = i / serverCount;   // casting induces `excessive` rather than `deficits`
+        final int deficitThreshold = i / serverCount;   // casting induces `excessive` rather than `deficits`
+        final float excessiveThreshold = deficitThreshold + EXCESSIVE_TOLERANCE_RATIO * i / serverCount;
         for (int x = 0; x < serverCount; x++) {
-          int count = totalSegmentsPerServerInDs[x];
-          if (count < totalExpectedPerServer && !servers[x].isDecommissioned()) {
-            for (; count < totalExpectedPerServer; count++) {
+          int count = totalSegmentsPerDs[x];
+          if (count < deficitThreshold && !holders[x].isDecommissioned()) {
+            for (; count < deficitThreshold; count++) {
               deficit.add(x);
             }
           } else {
-            for (; count > totalExpectedPerServer + tolerance; count--) {
+            for (; count > excessiveThreshold; count--) {
               excessive.add(x);
             }
           }
         }
-        if (!excessive.isEmpty() && deficit.isEmpty()) {
-          final int idx = findServerBelowBaseLine(totalSegmentsPerServer, baseLine);
-          if (idx >= 0) {
-            deficit.add(idx);
-          }
-        }
-
-        if (excessive.isEmpty() || deficit.isEmpty()) {
+        if (excessive.isEmpty()) {
           continue;
         }
-
         excessive.shuffle(random);
         deficit.shuffle(random);
 
-        for (final int from : excessive) {
-          for (int x = 0; x < deficit.size(); x++) {
-            final int to = deficit.get(x);
+        if (deficit.isEmpty()) {
+          int expected = Math.max(1, excessive.size() >> 2);
+          deficit.addAll(serversBelowBaseLine(holders, totalSegments, baseLine, expected));
+        }
+
+        int remain = deficit.size();
+        for (int x = 0; remain > 0 && x < excessive.size(); x++) {
+          final int from = excessive.get(x);
+          for (int y = 0; remain > 0 && y < deficit.size(); y++) {
+            final int to = deficit.get(y);
             if (to < 0 || from == to) {
               continue;
             }
-            DataSegment segment = findTarget(servers[to], segmentsPerServer[from], segmentsPerServer[to]);
-            if (segment == null) {
+            final int index = chooseSegmentToMove(totalSegmentsPerGroup[from], holders[to]);
+            if (index < 0) {
               continue;
             }
-            LOG.debug(
-                "Balancing segment[%s:%s] : from %s to %s",
-                segment.getDataSource(),
-                segment.getInterval(),
-                servers[from].getName(),
-                servers[to].getName()
-            );
-            found.add(Pair.of(new BalancerSegmentHolder(servers[from].getServer(), segment), servers[to].getServer()));
-
-            totalSegmentsPerServerInDs[from]--;
-            totalSegmentsPerServerInDs[to]++;
-            totalSegmentsPerServer[from]--;
-            totalSegmentsPerServer[to]++;
-            deficit.set(x, -1);
-            break;
+            final DataSegment segment = totalSegmentsPerGroup[from].get(index);
+            if (balancer.moveSegment(segment, holders[from], holders[to])) {
+              segmentsToMove--;
+              totalSegmentsPerGroup[from].set(index, null);
+              totalSegmentsPerDs[from]--;
+              totalSegmentsPerDs[to]++;
+              totalSegments[from]--;
+              totalSegments[to]++;
+              deficit.set(y, -1);
+              remain--;
+            }
           }
         }
       }
     }
-    return found;
   }
 
-  private DataSegment findTarget(ServerHolder server, List<DataSegment> from, List<DataSegment> to)
+  private IntStream serversBelowBaseLine(ServerHolder[] servers, int[] segmentsPerServer, int baseLine, int expected)
   {
-    for (int i = from.size() - 1; i >= 0; i--) {
-      final DataSegment segment = from.get(i);
-      if (!to.contains(segment) && !server.isServingSegment(segment)) {
-        from.remove(i);
-        to.add(segment);
-        return segment;
+    final List<int[]> taggedSegmentsPerServer = Lists.newArrayList();
+    for (int i = 0; i < segmentsPerServer.length; i++) {
+      if (!servers[i].isDecommissioned() && segmentsPerServer[i] <= baseLine) {
+        taggedSegmentsPerServer.add(new int[]{i, segmentsPerServer[i]});
       }
     }
-    return null;
+    if (taggedSegmentsPerServer.isEmpty()) {
+      return IntStream.empty();
+    }
+    Collections.sort(taggedSegmentsPerServer, (a, b) -> Ints.compare(a[1], b[1]));
+    return taggedSegmentsPerServer.stream().mapToInt(x -> x[0]).limit(expected);
   }
 
-  private int findServerBelowBaseLine(final int[] totalSegmentsPerServer, final int minBaseLine)
+  private int chooseSegmentToMove(List<DataSegment> segments, ServerHolder server)
   {
-    int x = -1;
-    for (int i = 0; i < totalSegmentsPerServer.length; i++) {
-      if (totalSegmentsPerServer[i] > minBaseLine) {
+    final long available = server.getAvailableSize();
+    for (int i = segments.size() - 1; i >= 0; i--) {
+      final DataSegment segment = segments.get(i);
+      if (segment == null) {
         continue;
       }
-      if (x < 0 || totalSegmentsPerServer[i] < totalSegmentsPerServer[x]) {
-        x = i;
+      if (segment.getSize() >= available || server.isServingSegment(segment) || server.isLoadingSegment(segment)) {
+        continue;
       }
+      return i;
     }
-    return x;
+    return -1;
   }
 
   @Override
-  public ServerHolder findNewSegmentHomeReplicator(DataSegment proposalSegment, List<ServerHolder> serverHolders)
+  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders)
   {
-    // can be used for bulk loading when server is down.. need to handle that properly
+    // can be used for bulk loading when server is down or decommisioned.. need to handle that properly
     int minExpectedSegments = -1;
     ServerHolder minServer = null;
-    for (ServerHolder holder : RandomBalancerStrategy.filter(proposalSegment, serverHolders, false)) {
+    for (ServerHolder holder : RandomBalancerStrategy.filter(segment, holders, false)) {
       int expectedSegments = holder.getNumExpectedSegments();
       if (minExpectedSegments < 0 || minExpectedSegments > expectedSegments) {
         minExpectedSegments = expectedSegments;

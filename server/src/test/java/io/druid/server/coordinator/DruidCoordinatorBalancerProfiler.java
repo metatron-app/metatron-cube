@@ -25,10 +25,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidServer;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.server.coordinator.helper.DruidCoordinatorRuleRunner;
 import io.druid.server.coordinator.rules.PeriodLoadRule;
@@ -80,9 +80,9 @@ public class DruidCoordinatorBalancerProfiler
     EasyMock.replay(manager);
 
     coordinator.moveSegment(
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<String>anyObject(),
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
         EasyMock.<LoadPeonCallback>anyObject()
     );
     EasyMock.expectLastCall().anyTimes();
@@ -203,9 +203,9 @@ public class DruidCoordinatorBalancerProfiler
     EasyMock.replay(druidServer2);
 
     coordinator.moveSegment(
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<ImmutableDruidServer>anyObject(),
-        EasyMock.<String>anyObject(),
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
+        EasyMock.<ServerHolder>anyObject(),
         EasyMock.<LoadPeonCallback>anyObject()
     );
     EasyMock.expectLastCall().anyTimes();

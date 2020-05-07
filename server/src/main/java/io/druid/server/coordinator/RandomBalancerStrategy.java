@@ -19,7 +19,6 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.timeline.DataSegment;
@@ -32,19 +31,15 @@ public class RandomBalancerStrategy extends BalancerStrategy.Abstract
   private final ReservoirSegmentSampler sampler = new ReservoirSegmentSampler();
 
   @Override
-  public ServerHolder findNewSegmentHomeReplicator(
-      final DataSegment proposalSegment, List<ServerHolder> serverHolders
-  )
+  public ServerHolder findNewSegmentHomeReplicator(DataSegment segment, List<ServerHolder> holders)
   {
-    return chooseRandomServer(proposalSegment, serverHolders, false);
+    return chooseRandomServer(segment, holders, false);
   }
 
   @Override
-  public ServerHolder findNewSegmentHomeBalancer(
-      final DataSegment proposalSegment, List<ServerHolder> serverHolders
-  )
+  public ServerHolder findNewSegmentHomeBalancer(DataSegment segment, List<ServerHolder> holders)
   {
-    return chooseRandomServer(proposalSegment, serverHolders, true);
+    return chooseRandomServer(segment, holders, true);
   }
 
   private ServerHolder chooseRandomServer(
@@ -58,25 +53,19 @@ public class RandomBalancerStrategy extends BalancerStrategy.Abstract
   }
 
   public static List<ServerHolder> filter(
-      final DataSegment proposalSegment,
-      final List<ServerHolder> serverHolders,
+      final DataSegment segment,
+      final List<ServerHolder> holders,
       final boolean includeCurrentServer
   )
   {
-    final long proposalSegmentSize = proposalSegment.getSize();
+    final long segmentSize = segment.getSize();
     return Lists.newArrayList(
         Iterables.filter(
-            serverHolders, new Predicate<ServerHolder>()
-            {
-              @Override
-              public boolean apply(ServerHolder holder)
-              {
-                return holder.getMaxSize() > 0 &&
-                       holder.getAvailableSize() > proposalSegmentSize &&
-                       !holder.isLoadingSegment(proposalSegment) &&
-                       (includeCurrentServer || !holder.isServingSegment(proposalSegment));
-              }
-            }
+            holders,
+            holder -> !holder.isDecommissioned() &&
+                      !holder.isLoadingSegment(segment) &&
+                      holder.getAvailableSize() > segmentSize &&
+                      (includeCurrentServer || !holder.isServingSegment(segment))
         )
     );
   }
@@ -85,12 +74,5 @@ public class RandomBalancerStrategy extends BalancerStrategy.Abstract
   public BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders)
   {
     return sampler.getRandomBalancerSegmentHolder(serverHolders);
-  }
-
-  @Override
-  public void emitStats(
-      String tier, CoordinatorStats stats, List<ServerHolder> serverHolderList
-  )
-  {
   }
 }

@@ -59,6 +59,7 @@ public abstract class LoadRule implements Rule
       log.info("Skip segment [%s] for recent [%s] fails on %s", segment, DateTimes.utc(fails.lhs), fails.rhs);
       return false;
     }
+    final String segmentId = segment.getIdentifier();
     final CoordinatorStats stats = params.getCoordinatorStats();
     final Set<DataSegment> availableSegments = params.getMaterializedSegments();
 
@@ -67,7 +68,7 @@ public abstract class LoadRule implements Rule
     final DruidCluster cluster = params.getDruidCluster();
     final SegmentReplicantLookup replicantLookup = params.getSegmentReplicantLookup();
 
-    int totalReplicantsInCluster = replicantLookup.getTotalReplicants(segment.getIdentifier());
+    int totalReplicantsInCluster = replicantLookup.getTotalReplicants(segmentId);
     for (Map.Entry<String, Integer> entry : getTieredReplicants().entrySet()) {
       final String tier = entry.getKey();
       final int expectedReplicantsInTier = entry.getValue();
@@ -79,11 +80,11 @@ public abstract class LoadRule implements Rule
         continue;
       }
 
-      final int totalReplicantsInTier = replicantLookup.getTotalReplicants(segment.getIdentifier(), tier);
+      final int totalReplicantsInTier = replicantLookup.getTotalReplicants(segmentId, tier);
       if (totalReplicantsInTier >= expectedReplicantsInTier) {
         continue;
       }
-      final int loadedReplicantsInTier = replicantLookup.getLoadedReplicants(segment.getIdentifier(), tier);
+      final int loadedReplicantsInTier = replicantLookup.getLoadedReplicants(segmentId, tier);
 
       List<ServerHolder> serverHolderList = Lists.newArrayList(serverQueue);
       if (fails != null) {

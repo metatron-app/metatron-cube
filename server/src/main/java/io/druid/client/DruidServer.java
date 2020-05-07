@@ -21,7 +21,6 @@ package io.druid.client;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.java.util.common.logger.Logger;
@@ -42,16 +41,6 @@ public class DruidServer implements Comparable
   {
     return new DruidServer(node, new DruidServerConfig(), type);
   }
-
-  public static Function<DruidServer, ImmutableDruidServer> IMMUTABLE =
-      new Function<DruidServer, ImmutableDruidServer>()
-      {
-        @Override
-        public ImmutableDruidServer apply(DruidServer input)
-        {
-          return input.toImmutableDruidServer();
-        }
-      };
 
   public static final int DEFAULT_PRIORITY = 0;
   public static final int DEFAULT_NUM_REPLICANTS = 2;
@@ -166,7 +155,7 @@ public class DruidServer implements Comparable
     final String segmentId = segment.getIdentifier();
 
     synchronized (lock) {
-      if (segments.containsKey(segmentId)) {
+      if (segments.putIfAbsent(segmentId, segment) != null) {
         log.info("Asked to add data segment that already exists!? server[%s], segment[%s]", getName(), segmentId);
         return false;
       }
@@ -184,7 +173,6 @@ public class DruidServer implements Comparable
 
       dataSource.addSegment(segment);
 
-      segments.put(segmentId, segment);
       currSize += segment.getSize();
     }
     return true;
@@ -302,19 +290,7 @@ public class DruidServer implements Comparable
     return new ImmutableDruidServer(
         metadata,
         currSize,
-        ImmutableMap.copyOf(
-            Maps.transformValues(
-                dataSources,
-                new Function<DruidDataSource, ImmutableDruidDataSource>()
-                {
-                  @Override
-                  public ImmutableDruidDataSource apply(DruidDataSource input)
-                  {
-                    return input.toImmutableDruidDataSource();
-                  }
-                }
-            )
-        ),
+        ImmutableMap.copyOf(Maps.transformValues(dataSources, DruidDataSource::toImmutableDruidDataSource)),
         ImmutableMap.copyOf(segments)
     );
   }

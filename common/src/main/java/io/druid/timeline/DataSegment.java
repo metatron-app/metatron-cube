@@ -31,12 +31,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import io.druid.common.utils.JodaUtils;
 import io.druid.jackson.CommaListJoinSerializer;
 import io.druid.query.SegmentDescriptor;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
 
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +48,11 @@ import java.util.Map;
  */
 public class DataSegment implements Comparable<DataSegment>
 {
+  public static final Comparator<DataSegment> TIME_DESCENDING = Ordering.from(JodaUtils.intervalsByEndThenStart())
+                                                                        .onResultOf(DataSegment::getInterval)
+                                                                        .compound(Ordering.<DataSegment>natural())
+                                                                        .reverse();
+
   public static final String DELIMITER = "_";
 
   private static final DataSourceInterner DS_INTERNER = new DataSourceInterner();

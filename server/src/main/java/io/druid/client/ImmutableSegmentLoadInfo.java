@@ -22,27 +22,27 @@ package io.druid.client;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import io.druid.query.SegmentDescriptor;
 import io.druid.server.coordination.DruidServerMetadata;
 
-import java.util.Set;
+import java.util.List;
 
 public class ImmutableSegmentLoadInfo
 {
   private final SegmentDescriptor segment;
-  private final ImmutableSet<DruidServerMetadata> servers;
+  private final ImmutableList<DruidServerMetadata> servers;
 
   @JsonCreator
   public ImmutableSegmentLoadInfo(
       @JsonProperty("segment") SegmentDescriptor segment,
-      @JsonProperty("servers") Set<DruidServerMetadata> servers
+      @JsonProperty("servers") List<DruidServerMetadata> servers
   )
   {
     Preconditions.checkNotNull(segment, "segment");
     Preconditions.checkNotNull(servers, "servers");
     this.segment = segment;
-    this.servers = ImmutableSet.copyOf(servers);
+    this.servers = ImmutableList.copyOf(servers);
   }
 
   @JsonProperty("segment")
@@ -52,7 +52,7 @@ public class ImmutableSegmentLoadInfo
   }
 
   @JsonProperty("servers")
-  public ImmutableSet<DruidServerMetadata> getServers()
+  public ImmutableList<DruidServerMetadata> getServers()
   {
     return servers;
   }
@@ -73,7 +73,6 @@ public class ImmutableSegmentLoadInfo
       return false;
     }
     return servers.equals(that.servers);
-
   }
 
   @Override

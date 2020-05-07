@@ -75,10 +75,10 @@ public class LoadQueuePeon
   private final AtomicInteger failedAssignCount = new AtomicInteger(0);
 
   private final ConcurrentSkipListMap<DataSegment, SegmentHolder> segmentsToLoad = new ConcurrentSkipListMap<>(
-      DruidCoordinator.SEGMENT_COMPARATOR
+      DataSegment.TIME_DESCENDING
   );
   private final ConcurrentSkipListMap<DataSegment, SegmentHolder> segmentsToDrop = new ConcurrentSkipListMap<>(
-      DruidCoordinator.SEGMENT_COMPARATOR
+      DataSegment.TIME_DESCENDING
   );
 
   private final Object lock = new Object();
@@ -331,16 +331,7 @@ public class LoadQueuePeon
       final List<LoadPeonCallback> callbacks = currentlyProcessing.getCallbacks();
       currentlyProcessing = null;
       if (!callbacks.isEmpty()) {
-        callBackExecutor.execute(
-            new Runnable()
-            {
-              @Override
-              public void run()
-              {
-                executeCallbacks(callbacks);
-              }
-            }
-        );
+        callBackExecutor.execute(() -> executeCallbacks(callbacks));
       }
     }
   }
@@ -404,7 +395,7 @@ public class LoadQueuePeon
   {
     private final DataSegment segment;
     private final int type;
-    private final List<LoadPeonCallback> callbacks = Lists.newArrayList();
+    private final List<LoadPeonCallback> callbacks = Lists.newLinkedList();
 
     private SegmentHolder(DataSegment segment, int type, LoadPeonCallback callback)
     {

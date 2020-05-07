@@ -19,7 +19,6 @@
 
 package io.druid.server.coordinator.helper;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -39,7 +38,6 @@ import org.joda.time.DateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 /**
  */
@@ -83,14 +81,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     for (DataSegment segment : getTargetSegments(paramsWithReplicationManager)) {
       segments++;
       List<Rule> rules = rulesPerDataSource.computeIfAbsent(
-          segment.getDataSource(), new Function<String, List<Rule>>()
-          {
-            @Override
-            public List<Rule> apply(String dataSource)
-            {
-              return databaseRuleManager.getRulesWithDefault(dataSource);
-            }
-          }
+          segment.getDataSource(), dataSource -> databaseRuleManager.getRulesWithDefault(dataSource)
       );
       boolean notAssigned = true;
       boolean foundMatchingRule = false;
@@ -131,24 +122,11 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     for (Map.Entry<String, MinMaxPriorityQueue<ServerHolder>> entry : cluster.getCluster().entrySet()) {
       String tier = entry.getKey();
       MinMaxPriorityQueue<ServerHolder> servers = entry.getValue();
-      List<String> full = Lists.newArrayList(Iterables.transform(Iterables.filter(
-          servers,
-          new Predicate<ServerHolder>()
-          {
-            @Override
-            public boolean apply(ServerHolder holder)
-            {
-              return holder.getAvailableSize() < (1L << 28);
-            }
-          }
-      ), new com.google.common.base.Function<ServerHolder, String>()
-      {
-        @Override
-        public String apply(ServerHolder input)
-        {
-          return input.getServer().getName();
-        }
-      }));
+      List<String> full = Lists.newArrayList(
+          Iterables.transform(
+              Iterables.filter(servers, holder -> holder.getAvailableSize() < (1L << 28)),
+              ServerHolder::getName)
+      );
       if (!full.isEmpty()) {
         log.warn(
             "tier[%s] : total %d servers, %d servers full %s", tier, servers.size(), full.size(),
@@ -164,14 +142,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     if (!coordinatorParam.isMajorTick()) {
       final SegmentReplicantLookup replicantLookup = coordinatorParam.getSegmentReplicantLookup();
       return Iterables.filter(
-          segments, new Predicate<DataSegment>()
-          {
-            @Override
-            public boolean apply(DataSegment input)
-            {
-              return replicantLookup.getTotalReplicants(input.getIdentifier()) == 0;
-            }
-          }
+          segments, segment -> replicantLookup.getTotalReplicants(segment.getIdentifier()) == 0
       );
     }
     return segments;

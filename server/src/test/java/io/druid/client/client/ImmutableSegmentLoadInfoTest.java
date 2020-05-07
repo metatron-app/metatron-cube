@@ -20,7 +20,7 @@
 package io.druid.client.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -50,7 +50,7 @@ public class ImmutableSegmentLoadInfoTest
             null,
             null,
             0, 0
-        ).toDescriptor(), Sets.newHashSet(new DruidServerMetadata("a", "host", 10, "type", "tier", 1))
+        ).toDescriptor(), Lists.newArrayList(new DruidServerMetadata("a", "host", 10, "type", "tier", 1))
     );
 
     ImmutableSegmentLoadInfo serde = mapper.readValue(
