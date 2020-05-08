@@ -67,7 +67,6 @@ import io.druid.guice.security.AuthenticatorModule;
 import io.druid.guice.security.AuthorizerModule;
 import io.druid.guice.security.DruidAuthModule;
 import io.druid.guice.security.EscalatorModule;
-import io.druid.jackson.FunctionInitializer;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.metadata.storage.derby.DerbyMetadataStorageDruidModule;
@@ -456,14 +455,15 @@ public class Initialization
         }
       }
       return urls;
-    } catch (IOException ex) {
+    }
+    catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
 
   public static Injector makeInjectorWithModules(
       final Injector baseInjector,
-      Iterable<? extends Module> modules
+      final Iterable<? extends Module> modules
   )
   {
     final ModuleList defaultModules = new ModuleList(baseInjector);
@@ -535,10 +535,7 @@ public class Initialization
     }
 
     return Guice.createInjector(
-        Modules.combine(
-            Modules.override(intermediateModules).with(extensionModules.getModules()),
-            new FunctionInitializer()
-        )
+        Modules.override(intermediateModules).with(extensionModules.getModules())
     );
   }
 

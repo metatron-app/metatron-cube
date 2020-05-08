@@ -39,6 +39,7 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
+import io.druid.jackson.FunctionModule;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
@@ -120,7 +121,8 @@ public class HadoopDruidIndexerConfig
                 JsonConfigProvider.bind(binder, "druid.hadoop.security.kerberos", HadoopKerberosConfig.class);
               }
             },
-            new IndexingHadoopModule()
+            new IndexingHadoopModule(),
+            new FunctionModule()
         )
     );
     JSON_MAPPER = injector.getInstance(ObjectMapper.class);

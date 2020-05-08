@@ -24,11 +24,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.parsers.Parser;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.jackson.FunctionInitializer;
+import io.druid.jackson.FunctionModule;
+import io.druid.java.util.common.parsers.Parser;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -90,11 +90,9 @@ public class RequestLogParseSpec implements ParseSpec
   @Override
   public Parser<String, Object> makeParser()
   {
-    final Map<Class, String> aggrMap = FunctionInitializer.resolveSubtypesAsInverseMap(
-        mapper, AggregatorFactory.class);
-    final Map<Class, String> postAggrMap = FunctionInitializer.resolveSubtypesAsInverseMap(
-        mapper, PostAggregator.class
-    );
+    final Map<Class, String> aggrMap = FunctionModule.resolveSubtypesAsInverseMap(mapper, AggregatorFactory.class);
+    final Map<Class, String> postAggrMap = FunctionModule.resolveSubtypesAsInverseMap(mapper, PostAggregator.class);
+
     return new Parser<String, Object>()
     {
       private final Map<String, String> managerLog = Maps.newHashMap();
