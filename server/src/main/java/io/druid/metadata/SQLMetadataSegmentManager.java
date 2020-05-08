@@ -25,7 +25,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
@@ -730,15 +729,14 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                                 .map(IntegerMapper.FIRST)
                                 .first();
               if (dataSource.size() > count) {
-                Set<String> inMemory = dataSource.getSegmentIds();
-                Iterators.removeAll(
-                    handle.createQuery(retrieve)
-                          .bind("dataSource", dataSource.getName())
-                          .map(StringMapper.FIRST)
-                          .iterator(),
-                    inMemory
-                );
-                return inMemory;
+                final Set<String> toRemove = dataSource.getCopyOfSegmentIds();
+                for (String existing : handle.createQuery(retrieve)
+                                             .setFetchSize(connector.getStreamingFetchSize())
+                                             .bind("dataSource", dataSource.getName())
+                                             .map(StringMapper.FIRST)) {
+                  toRemove.remove(existing);
+                }
+                return toRemove;
               }
               return ImmutableSet.of();
             }
