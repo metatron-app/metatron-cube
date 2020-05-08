@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import io.druid.common.KeyBuilder;
@@ -181,7 +182,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
       sequence = Sequences.explode(
-          (Sequence<BulkRow>) sequence, bulk -> Sequences.map(bulk.decompose(), CompactRow.WRAP)
+          (Sequence<BulkRow>) sequence, bulk -> Sequences.once(Iterators.transform(bulk.decompose(), CompactRow.WRAP))
       );
     }
     return super.deserializeSequence(query, sequence);

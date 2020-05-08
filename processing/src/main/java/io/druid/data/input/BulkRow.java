@@ -33,9 +33,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BytesRef;
-import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
@@ -323,37 +321,33 @@ public class BulkRow extends AbstractRow
     return this;
   }
 
-  public Sequence<Object[]> decompose()
+  public Iterator<Object[]> decompose()
   {
-    return Sequences.once(
-        new Iterator<Object[]>()
-        {
-          private int index;
+    return new Iterator<Object[]>()
+    {
+      private int index;
 
-          @Override
-          public boolean hasNext()
-          {
-            return index < count;
-          }
+      @Override
+      public boolean hasNext()
+      {
+        return index < count;
+      }
 
-          @Override
-          public Object[] next()
-          {
-            final int ix = index++;
-            final Object[] row = new Object[values.length];
-            for (int i = 0; i < row.length; i++) {
-              if (category[i] == 5) {
-                row[i] = ((BytesInputStream) values[i]).readVarSizeUTF();
-              } else if (category[i] == 6) {
-                row[i] = ((Iterator) values[i]).next();
-              } else {
-                row[i] = ((Object[]) values[i])[ix];
-              }
-            }
-            return row;
+      @Override
+      public Object[] next()
+      {
+        final int ix = index++;
+        final Object[] row = new Object[values.length];
+        for (int i = 0; i < row.length; i++) {
+          if (category[i] == 5) {
+            row[i] = ((BytesInputStream) values[i]).readVarSizeUTF();
+          } else {
+            row[i] = ((Object[]) values[i])[ix];
           }
         }
-    );
+        return row;
+      }
+    };
   }
 
   @Override

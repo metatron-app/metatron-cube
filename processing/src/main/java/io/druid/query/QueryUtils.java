@@ -66,6 +66,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -88,6 +89,23 @@ public class QueryUtils
   {
     Ordering<T> ordering = query.getMergeOrdering();
     return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
+  }
+
+  public static <T> Sequence<T> mergeSort(Query<T> query, List<Sequence<T>> sequences, ExecutorService executor)
+  {
+    if (sequences.isEmpty()) {
+      return Sequences.empty();
+    }
+    if (sequences.size() == 1) {
+      return sequences.get(0);
+    }
+    return mergeSort(query, Sequences.simple(sequences), executor);
+  }
+
+  public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences, ExecutorService executor)
+  {
+    Ordering<T> ordering = query.getMergeOrdering();
+    return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences, executor);
   }
 
   public static List<Interval> analyzeInterval(QuerySegmentWalker segmentWalker, Query<?> query)

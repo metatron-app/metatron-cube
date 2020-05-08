@@ -50,6 +50,7 @@ import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
+import io.druid.query.DataSources;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
@@ -76,6 +77,7 @@ import io.druid.server.DruidNode;
 import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
@@ -557,9 +559,7 @@ public class BrokerServerView implements TimelineServerView
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-    final String dataSourceName = Iterables.getOnlyElement(query.getDataSource().getNames());
-
-    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = indexMap.get(dataSourceName);
+    final TimelineLookup<String, ReferenceCountingSegment> timeline = indexMap.get(DataSources.getName(query));
     if (timeline == null) {
       return NoopQueryRunner.instance();
     }

@@ -58,7 +58,7 @@ public class BulkSequenceTest
           public long[] apply(BulkRow input)
           {
             List<Long> timestamps = Lists.newArrayList();
-            for (Object[] row : Sequences.toList(input.decompose())) {
+            for (Object[] row : Lists.newArrayList(input.decompose())) {
               timestamps.add((Long) row[0]);
             }
             return Longs.toArray(timestamps);
@@ -76,7 +76,7 @@ public class BulkSequenceTest
           public float[] apply(BulkRow input)
           {
             List<Float> floatList = Lists.newArrayList();
-            for (Object[] row : Sequences.toList(input.decompose())) {
+            for (Object[] row : Lists.newArrayList(input.decompose())) {
               floatList.add((Float) row[1]);
             }
             return Floats.toArray(floatList);
@@ -94,7 +94,7 @@ public class BulkSequenceTest
           public double[] apply(BulkRow input)
           {
             List<Double> doubleList = Lists.newArrayList();
-            for (Object[] row : Sequences.toList(input.decompose())) {
+            for (Object[] row : Lists.newArrayList(input.decompose())) {
               doubleList.add((Double) row[2]);
             }
             return Doubles.toArray(doubleList);
@@ -112,7 +112,7 @@ public class BulkSequenceTest
           public String[] apply(BulkRow input)
           {
             List<String> strings = Lists.newArrayList();
-            for (Object[] row : Sequences.toList(input.decompose())) {
+            for (Object[] row : Lists.newArrayList(input.decompose())) {
               strings.add((String) row[3]);
             }
             return strings.toArray(new String[0]);
@@ -126,7 +126,7 @@ public class BulkSequenceTest
     List<Long> timestamps = Lists.newArrayList();
     Yielder<BulkRow> yielder = bulk.toYielder(null, new Yielders.Yielding<BulkRow>());
     Assert.assertFalse(yielder.isDone());
-    for (Object[] row : Sequences.toList(yielder.get().decompose())) {
+    for (Object[] row : Lists.newArrayList(yielder.get().decompose())) {
       timestamps.add((Long) row[0]);
     }
     Assert.assertArrayEquals(new long[]{0, 1}, Longs.toArray(timestamps));
@@ -134,7 +134,7 @@ public class BulkSequenceTest
     timestamps.clear();
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
-    for (Object[] row : Sequences.toList(yielder.get().decompose())) {
+    for (Object[] row : Lists.newArrayList(yielder.get().decompose())) {
       timestamps.add((Long) row[0]);
     }
     Assert.assertArrayEquals(new long[]{2, 3}, Longs.toArray(timestamps));
@@ -142,7 +142,7 @@ public class BulkSequenceTest
     timestamps.clear();
     yielder = yielder.next(null);
     Assert.assertFalse(yielder.isDone());
-    for (Object[] row : Sequences.toList(yielder.get().decompose())) {
+    for (Object[] row : Lists.newArrayList(yielder.get().decompose())) {
       timestamps.add((Long) row[0]);
     }
     Assert.assertArrayEquals(new long[]{4}, Longs.toArray(timestamps));
@@ -163,15 +163,15 @@ public class BulkSequenceTest
     List<Row> deserialized = mapper.readValue(s, new TypeReference<List<Row>>() {});
     Assert.assertEquals(
         GuavaUtils.arrayOfArrayToString(new Object[][]{cr(0), cr(1)}),
-        GuavaUtils.arrayOfArrayToString(Sequences.toList(((BulkRow) deserialized.get(0)).decompose()).toArray(new Object[0][]))
+        GuavaUtils.arrayOfArrayToString(Lists.newArrayList(((BulkRow) deserialized.get(0)).decompose()).toArray(new Object[0][]))
     );
     Assert.assertEquals(
         GuavaUtils.arrayOfArrayToString(new Object[][]{cr(2), cr(3)}),
-        GuavaUtils.arrayOfArrayToString(Sequences.toList(((BulkRow) deserialized.get(1)).decompose()).toArray(new Object[0][]))
+        GuavaUtils.arrayOfArrayToString(Lists.newArrayList(((BulkRow) deserialized.get(1)).decompose()).toArray(new Object[0][]))
     );
     Assert.assertEquals(
         GuavaUtils.arrayOfArrayToString(new Object[][]{cr(4)}),
-        GuavaUtils.arrayOfArrayToString(Sequences.toList(((BulkRow) deserialized.get(2)).decompose()).toArray(new Object[0][]))
+        GuavaUtils.arrayOfArrayToString(Lists.newArrayList(((BulkRow) deserialized.get(2)).decompose()).toArray(new Object[0][]))
     );
   }
 

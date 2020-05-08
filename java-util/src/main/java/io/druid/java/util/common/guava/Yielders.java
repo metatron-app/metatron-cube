@@ -39,15 +39,26 @@ public class Yielders
     }
   }
 
-  public static <T> T close(Yielder<T> yielder)
+  public static <T> void close(Yielder<T> yielder)
   {
     try {
-      T value = yielder.get();
       yielder.close();
-      return value;
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
+    }
+  }
+
+  public static <T> T getAndClose(Yielder<T> yielder)
+  {
+    try {
+      return yielder.get();
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+    finally {
+      close(yielder);
     }
   }
 

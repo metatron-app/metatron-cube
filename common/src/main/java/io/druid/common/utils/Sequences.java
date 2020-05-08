@@ -31,6 +31,7 @@ import io.druid.common.Progressing;
 import io.druid.common.Yielders;
 import io.druid.common.guava.ExecuteWhenDoneYielder;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.ParallelInitMergeSequence;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Accumulators;
@@ -55,6 +56,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
@@ -140,6 +142,15 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     return new MergeSequence<T>(ordering, baseSequences);
   }
 
+  public static <T> Sequence<T> mergeSort(
+      Ordering<T> ordering,
+      Sequence<Sequence<T>> baseSequences,
+      ExecutorService executor
+  )
+  {
+    return new ParallelInitMergeSequence<T>(ordering, baseSequences, executor);
+  }
+
   public static <T> Sequence<T> filterNull(Sequence<T> sequence)
   {
     return filter(sequence, Predicates.<T>notNull());
@@ -182,16 +193,9 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     return Sequences.map(Sequences.map(sequence, fn1), fn2);
   }
 
-  public static <F, T> Function<Sequence<F>, Sequence<T>> mapper(final Function<F, T> f)
+  public static <F, T> Function<Sequence<F>, Sequence<T>> mapper(Function<F, T> f)
   {
-    return new Function<Sequence<F>, Sequence<T>>()
-    {
-      @Override
-      public Sequence<T> apply(Sequence<F> input)
-      {
-        return Sequences.map(input, f);
-      }
-    };
+    return input -> Sequences.map(input, f);
   }
 
   public static <T> Sequence<T> withEffect(Sequence<T> sequence, Runnable effect)

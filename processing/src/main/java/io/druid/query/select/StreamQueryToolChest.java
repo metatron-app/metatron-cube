@@ -104,7 +104,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   public Sequence<Object[]> deserializeSequence(StreamQuery query, Sequence sequence)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> bulk.decompose());
+      sequence = Sequences.explode((Sequence<BulkRow>) sequence, bulk -> Sequences.once(bulk.decompose()));
     }
     return super.deserializeSequence(query, sequence);
   }

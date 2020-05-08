@@ -30,9 +30,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.concurrent.Execs;
-import io.druid.concurrent.PrioritizedCallable;
 import io.druid.jackson.JodaStuff;
-import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
@@ -53,13 +51,14 @@ import io.druid.query.Result;
 import org.apache.commons.io.IOUtils;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.ws.rs.core.MediaType;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -172,25 +171,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
             public void onFailure(Throwable t)
             {
               openConnections.getAndDecrement();
-              if (future.isCancelled()) {
-                // forward the cancellation to underlying queryable node
-                try {
-                  StatusResponseHolder res = httpClient.go(
-                      new Request(HttpMethod.DELETE, cancelUrl),
-                      new StatusResponseHandler(Charsets.UTF_8)
-                  ).get();
-                  if (res.getStatus().getCode() >= 500) {
-                    throw new RE(
-                        "Error cancelling query[%s]: queryable node returned status[%d] [%s].",
-                        res.getStatus().getCode(),
-                        res.getStatus().getReasonPhrase()
-                    );
-                  }
-                }
-                catch (ExecutionException | InterruptedException e) {
-                  Throwables.propagate(e);
-                }
-              }
+              IOUtils.closeQuietly(future.isCancelled() ? cancelAsResource(query, cancelUrl, handler) : handler);
             }
           }
       );
@@ -227,29 +208,9 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           }
 
           @Override
-          public void cleanup(JsonParserIterator<T> iterFromMake)
+          public void cleanup(JsonParserIterator<T> parser)
           {
-            if (!iterFromMake.close()) {
-              backgroundExecutorService.submit(
-                  new PrioritizedCallable.Background<StatusResponseHolder>()
-                  {
-                    @Override
-                    public StatusResponseHolder call() throws Exception
-                    {
-                      try {
-                        return httpClient.go(
-                            new Request(HttpMethod.DELETE, cancelUrl),
-                            new StatusResponseHandler(Charsets.UTF_8)
-                        ).get();
-                      }
-                      finally {
-                        IOUtils.closeQuietly(handler);
-                      }
-                    }
-                  }
-              );
-              IOUtils.closeQuietly(handler);
-            }
+            IOUtils.closeQuietly(parser.close() ? handler : cancelAsResource(query, cancelUrl, handler));
           }
         }
     );
@@ -261,5 +222,40 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     }
 
     return sequence;
+  }
+
+  private Closeable cancelAsResource(Query query, URL cancelUrl, StreamHandler handler)
+  {
+    return new Closeable()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        backgroundExecutorService.submit(
+            () -> {
+              try {
+                StatusResponseHolder response = httpClient.go(
+                    new Request(HttpMethod.DELETE, cancelUrl),
+                    new StatusResponseHandler(Charsets.UTF_8)
+                ).get();
+                HttpResponseStatus status = response.getStatus();
+                if (status.getCode() >= 500) {
+                  log.info(
+                      "Error cancelling query[%s]: [%s] returned status[%d] [%s].",
+                      query.getId(),
+                      cancelUrl.getHost(),
+                      status.getCode(),
+                      status.getReasonPhrase()
+                  );
+                }
+                return response;
+              }
+              finally {
+                IOUtils.closeQuietly(handler);
+              }
+            }
+        );
+      }
+    };
   }
 }

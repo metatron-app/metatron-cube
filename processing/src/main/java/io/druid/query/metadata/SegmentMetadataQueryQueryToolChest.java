@@ -34,8 +34,8 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.guava.MappedSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
@@ -102,7 +102,7 @@ public class SegmentMetadataQueryQueryToolChest
           Map<String, Object> context
       )
       {
-        return new MappedSequence<>(
+        return Sequences.map(
             CombiningSequence.create(
                 baseRunner.run(query, context),
                 makeOrdering(query),

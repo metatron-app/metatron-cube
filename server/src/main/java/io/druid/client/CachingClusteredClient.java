@@ -41,13 +41,11 @@ import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
-import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
-import io.druid.concurrent.PrioritizedCallable;
 import io.druid.guice.annotations.BackgroundCaching;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Smile;
@@ -488,23 +486,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             continue;
           }
 
-          final Sequence sequence;
-          if (runner instanceof DirectDruidClient) {
-            sequence = new FutureSequence(
-                executorService.submit(
-                    new PrioritizedCallable.Background<Sequence>()
-                    {
-                      @Override
-                      public Sequence call() throws Exception
-                      {
-                        return runner.run(running, responseContext);
-                      }
-                    }
-                )
-            );
-          } else {
-            sequence = runner.run(running, responseContext);
-          }
+          // this should be lazy cause we cannot close sequence itself
+          final Sequence sequence = Sequences.lazy(() -> runner.run(running, responseContext));
           if (!BaseQuery.isBySegment(running)) {
             listOfSequences.add(sequence);
           } else if (!populateCache) {
@@ -657,7 +640,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       final CacheAccessor cacheAccessor
   )
   {
-    Sequence<T> sequence = QueryUtils.mergeSort(query, sequencesByInterval);
+    Sequence<T> sequence = QueryUtils.mergeSort(query, sequencesByInterval, executorService);
     if (numCachedSegments > 0 && cacheAccessor != null) {
       sequence = Sequences.withBaggage(
           sequence, new Closeable()
