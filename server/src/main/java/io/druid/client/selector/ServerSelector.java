@@ -22,33 +22,18 @@ package io.druid.client.selector;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.lang.mutable.MutableInt;
 
+import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.Map;
 
 /**
  */
 public class ServerSelector
 {
-  public static ServerSelector dummy(final QueryableDruidServer server)
-  {
-    return new ServerSelector(null)
-    {
-      @Override
-      public QueryableDruidServer pick(TierSelectorStrategy strategy, Predicate<QueryableDruidServer> predicate)
-      {
-        return predicate == null || predicate.apply(server) ? server : null;
-      }
-    };
-  }
-
-  private static final EmittingLogger log = new EmittingLogger(ServerSelector.class);
-
   private DataSegment segment;
   private final List<QueryableDruidServer> servers = Lists.newArrayListWithCapacity(1);
 
@@ -90,8 +75,8 @@ public class ServerSelector
   }
 
   public synchronized QueryableDruidServer pick(
-      TierSelectorStrategy strategy,
-      Predicate<QueryableDruidServer> predicate
+      final Predicate<QueryableDruidServer> predicate,
+      final Map<QueryableDruidServer, MutableInt> counts
   )
   {
     List<QueryableDruidServer> targets = servers;
@@ -102,18 +87,35 @@ public class ServerSelector
       return null;
     }
     if (targets.size() == 1) {
-      return Iterables.getFirst(targets, null);
+      return targets.get(0);
     }
-    final TreeMap<Integer, Set<QueryableDruidServer>> prioritizedServers = new TreeMap<>(strategy.getComparator());
-    for (QueryableDruidServer server : targets) {
-      Set<QueryableDruidServer> theServers = prioritizedServers.get(server.getServer().getPriority());
-      if (theServers == null) {
-        theServers = Sets.newHashSet();
-        prioritizedServers.put(server.getServer().getPriority(), theServers);
-      }
-      theServers.add(server);
+    final Iterator<QueryableDruidServer> iterator = targets.iterator();
+    QueryableDruidServer selected = iterator.next();
+    while (iterator.hasNext()) {
+      selected = pick(selected, iterator.next(), counts);
     }
-    return strategy.pick(prioritizedServers, segment);
+    return selected;
+  }
+
+  private static final MutableInt ZERO = new MutableInt();
+
+  private static QueryableDruidServer pick(
+      final QueryableDruidServer server1,
+      final QueryableDruidServer server2,
+      final Map<QueryableDruidServer, MutableInt> counts
+  )
+  {
+    int count1 = -server1.getServer().getPriority();
+    int count2 = -server2.getServer().getPriority();
+    if (count1 == count2) {
+      count1 = counts.getOrDefault(server1, ZERO).intValue();
+      count2 = counts.getOrDefault(server2, ZERO).intValue();
+    }
+    if (count1 == count2) {
+      count1 = server1.getClient().getNumOpenConnections();
+      count2 = server2.getClient().getNumOpenConnections();
+    }
+    return count1 <= count2 ? server1 : server2;
   }
 
   public synchronized void clear()

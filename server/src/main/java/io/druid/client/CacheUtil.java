@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.cache.Cache;
+import io.druid.common.utils.StringUtils;
 import io.druid.query.SegmentDescriptor;
 import org.joda.time.Interval;
 
@@ -39,7 +40,7 @@ public class CacheUtil
   )
   {
     final Interval segmentQueryInterval = descriptor.getInterval();
-    final byte[] versionBytes = io.druid.java.util.common.StringUtils.toUtf8(descriptor.getVersion());
+    final byte[] versionBytes = StringUtils.toUtf8(descriptor.getVersion());
 
     return new Cache.NamedKey(
         segmentIdentifier, ByteBuffer

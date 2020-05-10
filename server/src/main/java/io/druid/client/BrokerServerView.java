@@ -39,6 +39,7 @@ import io.druid.guice.annotations.EscalatedClient;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
+import io.druid.jackson.JodaStuff;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
@@ -118,6 +119,7 @@ public class BrokerServerView implements TimelineServerView
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
   private final ObjectMapper smileMapper;
+  private final ObjectMapper customSmileMapper;
   private final HttpClient httpClient;
   private final FilteredServerInventoryView baseView;
   private final ServiceEmitter emitter;
@@ -147,6 +149,7 @@ public class BrokerServerView implements TimelineServerView
     this.warehouse = warehouse;
     this.queryWatcher = queryWatcher;
     this.smileMapper = smileMapper;
+    this.customSmileMapper = JodaStuff.overrideForInternal(smileMapper);
     this.httpClient = httpClient;
     this.baseView = baseView;
     this.emitter = emitter;
@@ -257,6 +260,7 @@ public class BrokerServerView implements TimelineServerView
         warehouse,
         queryWatcher,
         smileMapper,
+        customSmileMapper,
         httpClient,
         server.getHost(),
         server.getType(),

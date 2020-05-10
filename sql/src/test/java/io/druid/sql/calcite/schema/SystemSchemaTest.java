@@ -42,7 +42,6 @@ import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.io.AppendableByteArrayInputStream;
 import io.druid.java.util.http.client.response.FullResponseHolder;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.ReflectionQueryToolChestWarehouse;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -261,10 +260,12 @@ public class SystemSchemaTest extends CalciteTestBase
   );
 
   private final HttpClient httpClient = EasyMock.createMock(HttpClient.class);
+  private final ObjectMapper objectMapper = new DefaultObjectMapper();
   private final DirectDruidClient client1 = new DirectDruidClient(
-      new ReflectionQueryToolChestWarehouse(),
+      walker,
       QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-      new DefaultObjectMapper(),
+      objectMapper,
+      objectMapper,
       httpClient,
       "http",
       "foo",
@@ -274,9 +275,10 @@ public class SystemSchemaTest extends CalciteTestBase
   );
 
   private final DirectDruidClient client2 = new DirectDruidClient(
-      new ReflectionQueryToolChestWarehouse(),
+      walker,
       QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-      new DefaultObjectMapper(),
+      objectMapper,
+      objectMapper,
       httpClient,
       "http",
       "foo2",

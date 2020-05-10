@@ -28,10 +28,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
-import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
-import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
 import io.druid.jackson.DefaultObjectMapper;
@@ -71,7 +68,6 @@ public class BrokerServerViewTest extends CuratorTestBase
 
   private BatchServerInventoryView baseView;
   private BrokerServerView brokerServerView;
-  private TierSelectorStrategy strategy = new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy());
 
   public BrokerServerViewTest()
   {
@@ -132,7 +128,7 @@ public class BrokerServerViewTest extends CuratorTestBase
                                                    .next().getObject();
     Assert.assertFalse(selector.isEmpty());
     Assert.assertEquals(segment, selector.getSegment());
-    Assert.assertEquals(druidServer, selector.pick(strategy, null).getServer());
+    Assert.assertEquals(druidServer, selector.pick(null, null).getServer());
 
     unannounceSegmentForServer(druidServer, segment, zkPathsConfig);
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentRemovedLatch));
@@ -282,7 +278,7 @@ public class BrokerServerViewTest extends CuratorTestBase
       ServerSelector selector = actualPartitionHolder.iterator()
                                                      .next().getObject();
       Assert.assertFalse(selector.isEmpty());
-      Assert.assertEquals(expectedPair.rhs.rhs.lhs, selector.pick(strategy, null).getServer());
+      Assert.assertEquals(expectedPair.rhs.rhs.lhs, selector.pick(null, null).getServer());
       Assert.assertEquals(expectedPair.rhs.rhs.rhs, selector.getSegment());
     }
   }

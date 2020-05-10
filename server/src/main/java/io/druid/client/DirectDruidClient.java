@@ -30,7 +30,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.concurrent.Execs;
-import io.druid.jackson.JodaStuff;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
@@ -71,7 +70,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
-  private final ObjectMapper customDateTimeMapper;
+  private final ObjectMapper customMapper;
   private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
   private final String host;
@@ -88,6 +87,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       QueryToolChestWarehouse warehouse,
       QueryWatcher queryWatcher,
       ObjectMapper objectMapper,
+      ObjectMapper customMapper,
       HttpClient httpClient,
       String host,
       String type,
@@ -99,7 +99,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     this.warehouse = warehouse;
     this.queryWatcher = queryWatcher;
     this.objectMapper = objectMapper;
-    this.customDateTimeMapper = JodaStuff.overrideForInternal(objectMapper);
+    this.customMapper = customMapper;
     this.httpClient = httpClient;
     this.host = host;
     this.type = type;
@@ -181,7 +181,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     }
 
     final ObjectMapper mapper = query.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
-                                ? customDateTimeMapper
+                                ? customMapper
                                 : objectMapper;
 
     final boolean isBySegment = BaseQuery.isBySegment(query);

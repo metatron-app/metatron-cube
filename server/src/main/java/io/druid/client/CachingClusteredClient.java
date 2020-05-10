@@ -40,7 +40,6 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
-import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.JodaUtils;
@@ -77,6 +76,7 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceInstance;
 import org.joda.time.Interval;
@@ -84,8 +84,8 @@ import org.joda.time.Interval;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +106,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   private final ServiceDiscovery<String> discovery;
   private final QueryToolChestWarehouse warehouse;
   private final TimelineServerView serverView;
-  private final TierSelectorStrategy tierSelectorStrategy;
   private final Cache cache;
   private final ObjectMapper objectMapper;
   private final QueryConfig queryConfig;
@@ -119,7 +118,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       ServiceDiscovery<String> discovery,
       QueryToolChestWarehouse warehouse,
       TimelineServerView serverView,
-      TierSelectorStrategy tierSelectorStrategy,
       Cache cache,
       @Smile ObjectMapper objectMapper,
       @Processing ExecutorService executorService,
@@ -131,7 +129,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     this.discovery = discovery;
     this.warehouse = warehouse;
     this.serverView = serverView;
-    this.tierSelectorStrategy = tierSelectorStrategy;
     this.cache = cache;
     this.objectMapper = objectMapper;
     this.queryConfig = queryConfig;
@@ -269,37 +266,23 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
     // minor quick-path
     if (query instanceof SegmentMetadataQuery && ((SegmentMetadataQuery) query).analyzingOnlyInterval()) {
-      @SuppressWarnings("unchecked")
-      Sequence<T> sequence = (Sequence<T>) Sequences.simple(
-          Arrays.asList(
-              new SegmentAnalysis(
-                  JodaUtils.condenseIntervals(
-                      Iterables.transform(
-                          filteredServersLookup,
-                          new Function<TimelineObjectHolder<String, ServerSelector>, Interval>()
-                          {
-                            @Override
-                            public Interval apply(TimelineObjectHolder<String, ServerSelector> input)
-                            {
-                              return input.getInterval();
-                            }
-                          }
-                      )
+      return (Sequence<T>) Sequences.simple(
+          new SegmentAnalysis(
+              JodaUtils.condenseIntervals(
+                  Iterables.transform(
+                      filteredServersLookup, TimelineObjectHolder::getInterval
                   )
               )
           )
       );
-      return sequence;
     }
 
     for (TimelineObjectHolder<String, ServerSelector> holder : filteredServersLookup) {
       for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {
-        ServerSelector selector = chunk.getObject();
         final SegmentDescriptor descriptor = new SegmentDescriptor(
             dataSource, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
         );
-
-        segments.add(Pair.of(selector, descriptor));
+        segments.add(Pair.of(chunk.getObject(), descriptor));
       }
     }
 
@@ -376,26 +359,20 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       };
     }
 
+    final Map<QueryableDruidServer, MutableInt> counts = new HashMap<>();
     // Compile list of all segments not pulled from cache
     for (Pair<ServerSelector, SegmentDescriptor> segment : segments) {
-      final QueryableDruidServer queryableDruidServer = segment.lhs.pick(tierSelectorStrategy, predicate);
+      final QueryableDruidServer selected = segment.lhs.pick(predicate, counts);
 
-      if (queryableDruidServer == null) {
+      if (selected == null) {
         log.makeAlert(
             "No servers found for SegmentDescriptor[%s] for DataSource[%s]?! How can this be?!",
             segment.rhs,
             query.getDataSource()
         ).emit();
       } else {
-        final DruidServer server = queryableDruidServer.getServer();
-        List<SegmentDescriptor> descriptors = serverSegments.get(server);
-
-        if (descriptors == null) {
-          descriptors = Lists.newArrayList();
-          serverSegments.put(server, descriptors);
-        }
-
-        descriptors.add(segment.rhs);
+        serverSegments.computeIfAbsent(selected.getServer(), k -> Lists.newArrayList()).add(segment.rhs);
+        counts.computeIfAbsent(selected, s -> new MutableInt()).increment();
       }
     }
 

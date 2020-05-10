@@ -32,9 +32,6 @@ import io.druid.client.TimelineServerView;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.CacheMonitor;
 import io.druid.client.coordinator.CoordinatorClient;
-import io.druid.client.selector.CustomTierSelectorStrategyConfig;
-import io.druid.client.selector.ServerSelectorStrategy;
-import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.guice.CacheModule;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
@@ -102,9 +99,6 @@ public class CliBroker extends ServerRunnable
             binder.install(new CacheModule());
 
             JsonConfigProvider.bind(binder, "druid.broker.io", BrokerIOConfig.class);
-            JsonConfigProvider.bind(binder, "druid.broker.select", TierSelectorStrategy.class);
-            JsonConfigProvider.bind(binder, "druid.broker.select.tier.custom", CustomTierSelectorStrategyConfig.class);
-            JsonConfigProvider.bind(binder, "druid.broker.balancer", ServerSelectorStrategy.class);
             JsonConfigProvider.bind(binder, "druid.broker.retryPolicy", RetryQueryRunnerConfig.class);
             JsonConfigProvider.bind(binder, "druid.broker.segment", BrokerSegmentWatcherConfig.class);
 

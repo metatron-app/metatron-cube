@@ -25,11 +25,8 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
 import io.druid.client.selector.QueryableDruidServer;
-import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
-import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.concurrent.Execs;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.guava.Sequence;
@@ -41,9 +38,9 @@ import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.Druids;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.ReflectionQueryToolChestWarehouse;
 import io.druid.query.Result;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
+import io.druid.segment.TestIndex;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import org.easymock.Capture;
@@ -115,12 +112,13 @@ public class DirectDruidClientTest
             0L
         )
     );
-    final TierSelectorStrategy strategy = new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy());
 
+    final DefaultObjectMapper objectMapper = new DefaultObjectMapper();
     DirectDruidClient client1 = new DirectDruidClient(
-        new ReflectionQueryToolChestWarehouse(),
+        TestIndex.segmentWalker,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        new DefaultObjectMapper(),
+        objectMapper,
+        objectMapper,
         httpClient,
         "foo",
         null,
@@ -129,9 +127,10 @@ public class DirectDruidClientTest
         Execs.newDirectExecutorService()
     );
     DirectDruidClient client2 = new DirectDruidClient(
-        new ReflectionQueryToolChestWarehouse(),
+        TestIndex.segmentWalker,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        new DefaultObjectMapper(),
+        objectMapper,
+        objectMapper,
         httpClient,
         "foo2",
         null,
@@ -184,7 +183,7 @@ public class DirectDruidClientTest
 
     Assert.assertTrue(client2.getNumOpenConnections() == 2);
 
-    Assert.assertNotNull(serverSelector.pick(strategy, null));
+    Assert.assertNotNull(serverSelector.pick(null, new HashMap<>()));
 
     EasyMock.verify(httpClient);
   }
@@ -232,10 +231,12 @@ public class DirectDruidClientTest
         )
     );
 
+    final DefaultObjectMapper objectMapper = new DefaultObjectMapper();
     DirectDruidClient client1 = new DirectDruidClient(
-        new ReflectionQueryToolChestWarehouse(),
+        TestIndex.segmentWalker,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        new DefaultObjectMapper(),
+        objectMapper,
+        objectMapper,
         httpClient,
         "foo",
         null,
@@ -301,10 +302,12 @@ public class DirectDruidClientTest
     );
     final ServerSelector serverSelector = new ServerSelector(dataSegment);
 
+    final DefaultObjectMapper objectMapper = new DefaultObjectMapper();
     DirectDruidClient client1 = new DirectDruidClient(
-        new ReflectionQueryToolChestWarehouse(),
+        TestIndex.segmentWalker,
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        new DefaultObjectMapper(),
+        objectMapper,
+        objectMapper,
         httpClient,
         hostName,
         null,

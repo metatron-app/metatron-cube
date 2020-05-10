@@ -27,7 +27,6 @@ import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
-import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseAggregationQuery;
@@ -50,12 +49,9 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.Executor;
 
 /**
@@ -177,26 +173,6 @@ public class CachingClusteredClientFunctionalityTest {
       final int mergeLimit
   )
   {
-    TierSelectorStrategy strategy = new TierSelectorStrategy()
-    {
-      @Override
-      public Comparator<Integer> getComparator()
-      {
-        return Ordering.natural();
-      }
-
-      @Override
-      public QueryableDruidServer pick(
-          TreeMap<Integer, Set<QueryableDruidServer>> prioritizedServers,
-          DataSegment segment
-      )
-      {
-        return new QueryableDruidServer(
-            new DruidServer("localhost", "localhost", 100, "historical", "a", 10),
-            EasyMock.createNiceMock(DirectDruidClient.class)
-        );
-      }
-    };
     return new CachingClusteredClient(
         null,
         CachingClusteredClientTest.WAREHOUSE,
@@ -259,7 +235,6 @@ public class CachingClusteredClientFunctionalityTest {
           {
           }
         },
-        strategy,
         cache,
         CachingClusteredClientTest.jsonMapper,
         backgroundExecutorService,

@@ -43,11 +43,8 @@ import com.google.common.util.concurrent.SettableFuture;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
-import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
 import io.druid.client.selector.QueryableDruidServer;
-import io.druid.client.selector.RandomServerSelectorStrategy;
 import io.druid.client.selector.ServerSelector;
-import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
@@ -2038,7 +2035,6 @@ public class CachingClusteredClientTest
       final int mergeLimit
   )
   {
-    TierSelectorStrategy strategy = new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy());
     return new CachingClusteredClient(
         null,
         CachingClusteredClientTest.WAREHOUSE,
@@ -2100,7 +2096,6 @@ public class CachingClusteredClientTest
           {
           }
         },
-        strategy,
         cache,
         jsonMapper,
         backgroundExecutorService,
