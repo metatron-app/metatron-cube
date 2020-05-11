@@ -66,14 +66,14 @@ public class GeoHexFunctions implements Function.Library
       if (args.size() != 2) {
         throw new IAE("Function[%s] must have 2 arguments", name());
       }
-      return new LongChild()
+      return new StringChild()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.of(null, ValueDesc.LONG);
+            return ExprEval.of(null, ValueDesc.STRING);
           }
           final org.locationtech.jts.geom.Point point = geometry.getCentroid();
           final int precision = Evals.evalInt(args.get(1), bindings);
