@@ -20,6 +20,7 @@
 package io.druid.query.groupby.orderby;
 
 import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -29,6 +30,7 @@ import io.druid.data.input.Row;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
+import io.druid.query.ordering.Accessor;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -95,15 +97,22 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   {
     List<String> partitionColumns = windowingSpec.getPartitionColumns();
     List<OrderByColumnSpec> orderingSpecs = windowingSpec.getRequiredOrdering();
-    PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
 
-    Ordering<Row> ordering = processor.toRowOrdering(orderingSpecs, false);
-    return new PartitionDefinition(partitionColumns, orderingSpecs, ordering, evaluators);
+    List<Accessor<Row>> accessors = OrderingProcessor.rowAccessors(partitionColumns);
+    Ordering<Row> ordering = processor.toRowOrdering(orderingSpecs, OrderingProcessor.rowAccessors(
+        Iterables.transform(orderingSpecs, OrderByColumnSpec::getDimension)
+    ));
+    PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
+    return new PartitionDefinition(accessors, ordering, evaluators);
   }
 
   public Ordering<Row> toRowOrdering(List<OrderByColumnSpec> columns)
   {
-    return processor.toRowOrdering(rewriteOrdering(columns), false);
+    List<OrderByColumnSpec> orderingSpecs = rewriteOrdering(columns);
+    return processor.toRowOrdering(
+        orderingSpecs,
+        OrderingProcessor.rowAccessors(Iterables.transform(orderingSpecs, OrderByColumnSpec::getDimension))
+    );
   }
 
   public Ordering<Object[]> toArrayOrdering(List<OrderByColumnSpec> columns)
@@ -131,8 +140,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
   private static class PartitionDefinition
   {
-    private final String[] partColumns;
-    private final List<OrderByColumnSpec> orderingSpecs;
+    private final List<Accessor<Row>> partColumns;
     private final Ordering<Row> ordering;
     private final PartitionEvaluator evaluator;
 
@@ -140,14 +148,12 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     private Object[] prevPartKeys;
 
     public PartitionDefinition(
-        List<String> partColumns,
-        List<OrderByColumnSpec> orderingSpecs,
+        List<Accessor<Row>> partColumns,
         Ordering<Row> ordering,
         PartitionEvaluator evaluator
     )
     {
-      this.partColumns = partColumns.toArray(new String[0]);
-      this.orderingSpecs = orderingSpecs;
+      this.partColumns = partColumns;
       this.ordering = ordering;
       this.evaluator = evaluator;
       this.currPartKeys = new Object[partColumns.size()];
@@ -164,17 +170,17 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
       int prev = 0;
       Map<Object[], int[]> partitions = Maps.newLinkedHashMap();
-      if (partColumns.length > 0) {
+      if (!partColumns.isEmpty()) {
         for (int index = 0; index < input.size(); index++) {
           Row row = input.get(index);
-          for (int i = 0; i < partColumns.length; i++) {
-            currPartKeys[i] = row.getRaw(partColumns[i]);
+          for (int i = 0; i < partColumns.size(); i++) {
+            currPartKeys[i] = partColumns.get(i).get(row);
           }
           if (prevPartKeys == null) {
-            prevPartKeys = Arrays.copyOf(currPartKeys, partColumns.length);
+            prevPartKeys = Arrays.copyOf(currPartKeys, currPartKeys.length);
           } else if (!Arrays.equals(prevPartKeys, currPartKeys)) {
             partitions.put(prevPartKeys, new int[]{prev, index});
-            prevPartKeys = Arrays.copyOf(currPartKeys, partColumns.length);
+            prevPartKeys = Arrays.copyOf(currPartKeys, currPartKeys.length);
             prev = index;
           }
         }

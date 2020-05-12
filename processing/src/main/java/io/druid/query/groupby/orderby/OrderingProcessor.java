@@ -25,10 +25,10 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -115,16 +115,18 @@ public class OrderingProcessor
     };
   }
 
-  public Ordering<Row> toRowOrdering(List<OrderByColumnSpec> orderingSpecs, boolean prependTimeOrdering)
+  public static List<Accessor<Row>> rowAccessors(Iterable<String> columns)
   {
     List<Accessor<Row>> accessors = Lists.newArrayList();
-    if (prependTimeOrdering) {
-      accessors.add(rowAccessor(Row.TIME_COLUMN_NAME));
+    for (String column : columns) {
+      accessors.add(rowAccessor(column));
     }
-    for (OrderByColumnSpec ordering : orderingSpecs) {
-      accessors.add(rowAccessor(ordering.getDimension()));
-    }
-    return makeComparator(orderingSpecs, accessors, prependTimeOrdering);
+    return accessors;
+  }
+
+  public Ordering<Row> toRowOrdering(List<OrderByColumnSpec> orderingSpecs, List<Accessor<Row>> accessors)
+  {
+    return makeComparator(orderingSpecs, accessors, false);
   }
 
   private static Accessor<Row> rowAccessor(final String column)

@@ -57,6 +57,7 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.Test;
@@ -770,5 +771,42 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         createExpectedRows(columnNames, objects),
         runQuery(query.withLimitSpec(LimitSpec.of(5, OrderByColumnSpec.desc("__time"))))
     );
+  }
+
+  @Test
+  public void test3215()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .intervals(Intervals.of("2011-01-01/2013-01-01"))
+        .granularity(new PeriodGranularity(Period.parse("P2M"), new DateTime("2000-01-01T00:00:00Z"), DateTimeZone.UTC))
+        .aggregators(new GenericSumAggregatorFactory("SUM(Discount)", "Discount", ValueDesc.DOUBLE))
+        .limitSpec(new LimitSpec(
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("__time"), OrderByColumnSpec.descending("__time"), null,
+                    PivotSpec.tabular(Arrays.asList(), "SUM(Discount)")
+                             .withAppendValueColumn(true)
+                )
+            )
+        ))
+        .build();
+    String[] columnNames = {"__time", "SUM(Discount)"};
+    Object[][] objects = new Object[][]{
+        array("2012-11-01", 95.96),
+        array("2012-09-01", 68.25),
+        array("2012-07-01", 48.72),
+        array("2012-05-01", 48.05),
+        array("2012-03-01", 47.09),
+        array("2012-01-01", 19.02),
+        array("2011-11-01", 101.12),
+        array("2011-09-01", 68.32),
+        array("2011-07-01", 44.60),
+        array("2011-05-01", 42.17),
+        array("2011-03-01", 41.15),
+        array("2011-01-01", 18.10)
+    };
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
   }
 }

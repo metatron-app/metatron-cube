@@ -362,10 +362,12 @@ public class WindowingSpec implements Cacheable
         return partition;
       }
       for (int i = 0; i < partition.size(); i++) {
-        Row row = partition.get(i);
-        Map<String, Object> event = new LinkedHashMap<>();
-        for (String partitionColumn : retainColumns) {
-          event.put(partitionColumn, row.getRaw(partitionColumn));
+        final Row row = partition.get(i);
+        final Map<String, Object> event = new LinkedHashMap<>();
+        for (String retainColumn : retainColumns) {
+          if (!retainColumn.equals(Row.TIME_COLUMN_NAME)) {
+            event.put(retainColumn, row.getRaw(retainColumn));
+          }
         }
         partition.set(i, new MapBasedRow(row.getTimestamp(), event));
       }

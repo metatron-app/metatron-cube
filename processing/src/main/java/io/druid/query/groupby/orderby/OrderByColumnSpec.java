@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
@@ -34,7 +36,6 @@ import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -113,19 +114,9 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     return ascending(Arrays.asList(columns));
   }
 
-  public static List<OrderByColumnSpec> ascending(List<String> columns)
+  public static List<OrderByColumnSpec> ascending(Iterable<String> columns)
   {
-    return Lists.transform(
-        columns,
-        new Function<String, OrderByColumnSpec>()
-        {
-          @Override
-          public OrderByColumnSpec apply(@Nullable String input)
-          {
-            return asc(input);
-          }
-        }
-    );
+    return ImmutableList.copyOf(Iterables.transform(columns, input -> asc(input)));
   }
 
   public static OrderByColumnSpec desc(String dimension)
@@ -138,19 +129,14 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     return new OrderByColumnSpec(dimension, Direction.DESCENDING, comparator);
   }
 
-  public static List<OrderByColumnSpec> descending(String... dimension)
+  public static List<OrderByColumnSpec> descending(String... columns)
   {
-    return Lists.transform(
-        Arrays.asList(dimension),
-        new Function<String, OrderByColumnSpec>()
-        {
-          @Override
-          public OrderByColumnSpec apply(String input)
-          {
-            return desc(input);
-          }
-        }
-    );
+    return descending(Arrays.asList(columns));
+  }
+
+  public static List<OrderByColumnSpec> descending(Iterable<String> columns)
+  {
+    return ImmutableList.copyOf(Iterables.transform(columns, input -> desc(input)));
   }
 
   private final String dimension;
