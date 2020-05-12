@@ -66,10 +66,11 @@ public class CoordinatorStats
   public CoordinatorStats accumulate(CoordinatorStats stats)
   {
     for (Map.Entry<String, CountingMap<String>> entry : stats.perTierStats.entrySet()) {
-      CountingMap<String> theStat = perTierStats.get(entry.getKey());
+      String tier = entry.getKey();
+      CountingMap<String> theStat = perTierStats.get(tier);
       if (theStat == null) {
         theStat = new CountingMap<String>();
-        perTierStats.put(entry.getKey(), theStat);
+        perTierStats.put(tier, theStat);
       }
       for (Map.Entry<String, AtomicLong> tiers : entry.getValue().entrySet()) {
         theStat.add(tiers.getKey(), tiers.getValue().get());

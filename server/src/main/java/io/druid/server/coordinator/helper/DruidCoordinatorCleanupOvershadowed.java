@@ -36,28 +36,26 @@ public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelp
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    if (!params.isMajorTick()) {
-      return params;
-    }
-    CoordinatorStats stats = new CoordinatorStats();
-
     // Delete segments that are old
     // Unservice old partitions if we've had enough time to make sure we aren't flapping with old data
-    if (params.hasDeletionWaitTimeElapsed()) {
-      //Remove all segments in db that are overshadowed by served segments
-      int count = 0;
-      try {
-        for (DataSegment dataSegment : params.getOvershadowedSegments()) {
-          coordinator.disableSegment("overshadowed", dataSegment);
-          count++;
-        }
-      }
-      finally {
-        stats.addToGlobalStat("overShadowedCount", count);
+    if (!params.isMajorTick() || !params.hasDeletionWaitTimeElapsed()) {
+      return params;
+    }
+
+    final CoordinatorStats stats = params.getCoordinatorStats();
+
+    //Remove all segments in db that are overshadowed by served segments
+    int count = 0;
+    try {
+      for (DataSegment dataSegment : params.getOvershadowedSegments()) {
+        coordinator.disableSegment("overshadowed", dataSegment);
+        count++;
       }
     }
-    return params.buildFromExisting()
-                 .withCoordinatorStats(stats)
-                 .build();
+    finally {
+      stats.addToGlobalStat("overShadowedCount", count);
+    }
+
+    return params;
   }
 }

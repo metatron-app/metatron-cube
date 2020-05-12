@@ -19,6 +19,8 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -63,7 +65,6 @@ import io.druid.server.coordinator.helper.DruidCoordinatorCleanupUnneeded;
 import io.druid.server.coordinator.helper.DruidCoordinatorHelper;
 import io.druid.server.coordinator.helper.DruidCoordinatorLogger;
 import io.druid.server.coordinator.helper.DruidCoordinatorRuleRunner;
-import io.druid.server.coordinator.helper.DruidCoordinatorSegmentInfoLoader;
 import io.druid.server.coordinator.rules.ForeverLoadRule;
 import io.druid.server.coordinator.rules.LoadRule;
 import io.druid.server.coordinator.rules.Rule;
@@ -253,6 +254,11 @@ public class DruidCoordinator
     return leader;
   }
 
+  public boolean isReady()
+  {
+    return leader && metadataSegmentManager.lastUpdatedTime() != null;
+  }
+
   public DruidNode getSelf()
   {
     return self;
@@ -272,7 +278,7 @@ public class DruidCoordinator
     final SegmentReplicantLookup segmentReplicantLookup = prevParam.getSegmentReplicantLookup();
 
     final DateTime now = new DateTime();
-    for (DataSegment segment : getAvailableDataSegments()) {
+    for (DataSegment segment : getAvailableDataSegments().get()) {
       List<Rule> rules = metadataRuleManager.getRulesWithDefault(segment.getDataSource());
       for (Rule rule : rules) {
         if (rule instanceof LoadRule && rule.appliesTo(segment, now)) {
@@ -305,7 +311,7 @@ public class DruidCoordinator
     }
     final SegmentReplicantLookup segmentReplicantLookup = prevParam.getSegmentReplicantLookup();
 
-    for (DataSegment segment : getAvailableDataSegments()) {
+    for (DataSegment segment : getAvailableDataSegments().get()) {
       int available = (segmentReplicantLookup.getTotalReplicants(segment.getIdentifier()) == 0) ? 0 : 1;
       retVal.add(segment.getDataSource(), 1 - available);
     }
@@ -357,10 +363,10 @@ public class DruidCoordinator
     ).get();
   }
 
-  public void disableSegment(String reason, DataSegment segment)
+  public boolean disableSegment(String reason, DataSegment segment)
   {
     log.info("Disable Segment[%s] for [%s]", segment.getIdentifier(), reason);
-    metadataSegmentManager.disableSegment(segment.getDataSource(), segment.getIdentifier());
+    return metadataSegmentManager.disableSegment(segment.getDataSource(), segment.getIdentifier());
   }
 
   public String getCurrentLeader()
@@ -435,11 +441,17 @@ public class DruidCoordinator
     return false;
   }
 
-  public Iterable<DataSegment> getAvailableDataSegments()
+  public Supplier<Iterable<DataSegment>> getAvailableDataSegments()
   {
-    return Iterables.concat(
-        Iterables.transform(metadataSegmentManager.getInventory(), DruidDataSource::getCopyOfSegments)
-    );
+    return () -> Iterables.concat(Iterables.transform(
+        metadataSegmentManager.getInventory(), DruidDataSource::getCopyOfSegments
+    ));
+  }
+
+  public boolean isAvailable(DataSegment segment)
+  {
+    final DruidDataSource ds = metadataSegmentManager.getInventoryValue(segment.getDataSource());
+    return ds != null && ds.contains(segment.getIdentifier());
   }
 
   @LifecycleStart
@@ -540,7 +552,7 @@ public class DruidCoordinator
           coordinatorRunnables.add(
               Pair.of(
                   new CoordinatorIndexingServiceRunnable(
-                      makeIndexingServiceHelpers(),
+                      ImmutableList.copyOf(indexingServiceHelpers),
                       startingLeaderCounter
                   ),
                   config.getCoordinatorIndexingPeriod()
@@ -662,7 +674,7 @@ public class DruidCoordinator
                 metadataSegmentManager.registerToView(segment);   // prevent from cleanup for a while
               }
               DruidCoordinatorRuntimeParams params = buildParam(
-                  DruidCoordinatorRuntimeParams.newBuilder().withAvailableSegments(segments)
+                  DruidCoordinatorRuntimeParams.newBuilder().withAvailableSegments(Suppliers.ofInstance(segments))
               );
               if (leader) {
                 final List<Rule> loader = Arrays.<Rule>asList(ForeverLoadRule.of(1));
@@ -711,16 +723,6 @@ public class DruidCoordinator
         log.makeAlert(e, "Unable to stopBeingLeader").emit();
       }
     }
-  }
-
-  private List<DruidCoordinatorHelper> makeIndexingServiceHelpers()
-  {
-    List<DruidCoordinatorHelper> helpers = Lists.newArrayList();
-    helpers.add(new DruidCoordinatorSegmentInfoLoader(DruidCoordinator.this));
-    helpers.addAll(indexingServiceHelpers);
-
-    log.info("Done making indexing service helpers [%s]", helpers);
-    return ImmutableList.copyOf(helpers);
   }
 
   // keep latest only ?
@@ -826,6 +828,7 @@ public class DruidCoordinator
                                          .withMajorTick(ready && counter.getAndIncrement() % lazyTick == 0)
                                          .withStartTime(startTime)
                                          .withDatasources(metadataSegmentManager.getInventory())
+                                         .withAvailableSegments(getAvailableDataSegments())
                                          .withDynamicConfigs(getDynamicConfigs())
                                          .withEmitter(emitter)
                                          .build();
@@ -854,7 +857,6 @@ public class DruidCoordinator
     {
       super(
           ImmutableList.of(
-              new DruidCoordinatorSegmentInfoLoader(DruidCoordinator.this),
               new DruidCoordinatorHelper()
               {
                 @Override
@@ -864,7 +866,7 @@ public class DruidCoordinator
                 }
               },
               new DruidCoordinatorRuleRunner(DruidCoordinator.this),
-              new DruidCoordinatorCleanupUnneeded(),
+              new DruidCoordinatorCleanupUnneeded(DruidCoordinator.this),
               new DruidCoordinatorCleanupOvershadowed(DruidCoordinator.this),
               new DruidCoordinatorBalancer(DruidCoordinator.this),
               new DruidCoordinatorLogger(DruidCoordinator.this)

@@ -19,6 +19,7 @@
 
 package io.druid.metadata;
 
+import com.google.common.collect.ImmutableList;
 import io.druid.java.util.common.Pair;
 import io.druid.client.DruidDataSource;
 import io.druid.timeline.DataSegment;
@@ -58,9 +59,9 @@ public interface MetadataSegmentManager
 
   DruidDataSource getInventoryValue(String key);
 
-  Collection<DruidDataSource> getInventory();
+  ImmutableList<DruidDataSource> getInventory();
 
-  Collection<String> getAllDatasourceNames();
+  ImmutableList<String> getAllDatasourceNames();
 
   Pair<String, DataSegment> getLastUpdatedSegment(String ds);
 

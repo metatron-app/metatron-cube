@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -71,12 +72,11 @@ import java.lang.management.MemoryUsage;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  */
@@ -91,7 +91,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   private final ObjectMapper jsonMapper;
   private final Supplier<MetadataSegmentManagerConfig> config;
   private final Supplier<MetadataStorageTablesConfig> dbTables;
-  private final ConcurrentHashMap<String, DruidDataSource> dataSources;
+  private final Map<String, DruidDataSource> dataSources;
   private final IndexerSQLMetadataStorageCoordinator metaDataCoordinator;
   private final SQLMetadataConnector connector;
 
@@ -158,7 +158,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     this.jsonMapper = jsonMapper;
     this.config = config;
     this.dbTables = dbTables;
-    this.dataSources = new ConcurrentHashMap<String, DruidDataSource>();
+    this.dataSources = new HashMap<String, DruidDataSource>();
     this.metaDataCoordinator = metaDataCoordinator;
     this.connector = connector;
   }
@@ -201,7 +201,9 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   public void stop()
   {
     if (lock.stop()) {
-      dataSources.clear();
+      synchronized (dataSources) {
+        dataSources.clear();
+      }
       exec.shutdownNow();
       exec = null;
     }
@@ -344,13 +346,15 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public boolean registerToView(DataSegment segment)
   {
-    return dataSources.computeIfAbsent(segment.getDataSource(), DruidDataSource.FACTORY).addSegmentIfAbsent(segment);
+    synchronized (dataSources) {
+      return dataSources.computeIfAbsent(segment.getDataSource(), DruidDataSource.FACTORY).addSegmentIfAbsent(segment);
+    }
   }
 
   @Override
   public boolean unregisterFromView(DataSegment segment)
   {
-    final DruidDataSource dataSource = dataSources.get(segment.getDataSource());
+    final DruidDataSource dataSource = getInventoryValue(segment.getDataSource());
     return dataSource != null && dataSource.removeSegment(segment.getIdentifier());
   }
 
@@ -403,7 +407,9 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
             }
           }
       );
-      dataSources.remove(ds);
+      synchronized (dataSources) {
+        dataSources.remove(ds);
+      }
       return update > 0;
     }
     catch (Exception e) {
@@ -481,7 +487,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
       );
 
-      DruidDataSource dataSource = dataSources.get(ds);
+      DruidDataSource dataSource = getInventoryValue(ds);
       if (dataSource == null) {
         log.warn("Cannot find datasource %s", ds);
         return false;
@@ -545,7 +551,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
       );
 
-      DruidDataSource dataSource = dataSources.get(ds);
+      DruidDataSource dataSource = getInventoryValue(ds);
       if (dataSource != null) {
         for (String segmentId : disabled) {
           dataSource.removeSegment(segmentId);
@@ -575,19 +581,23 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public DruidDataSource getInventoryValue(String key)
   {
-    return dataSources.get(key);
+    synchronized (dataSources) {
+      return dataSources.get(key);
+    }
   }
 
   @Override
-  public Collection<DruidDataSource> getInventory()
+  public ImmutableList<DruidDataSource> getInventory()
   {
-    return dataSources.values();
+    synchronized (dataSources) {
+      return ImmutableList.copyOf(dataSources.values());
+    }
   }
 
   @Override
-  public Collection<String> getAllDatasourceNames()
+  public ImmutableList<String> getAllDatasourceNames()
   {
-    return connector.getDBI().withHandle(
+    return ImmutableList.copyOf(connector.getDBI().withHandle(
         new HandleCallback<List<String>>()
         {
           @Override
@@ -616,7 +626,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
 
           }
         }
-    );
+    ));
   }
 
   @Override
@@ -643,13 +653,15 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       }
 
       final List<String> emptyDS = Lists.newArrayList();
-      for (Map.Entry<String, DruidDataSource> entry : dataSources.entrySet()) {
-        if (entry.getValue().isEmpty()) {
-          emptyDS.add(entry.getKey());
+      synchronized (dataSources) {
+        for (DruidDataSource dataSource : dataSources.values()) {
+          if (dataSource.isEmpty()) {
+            emptyDS.add(dataSource.getName());
+          }
         }
-      }
-      for (String empty : emptyDS) {
-        dataSources.remove(empty);
+        for (String empty : emptyDS) {
+          dataSources.remove(empty);
+        }
       }
       if (!emptyDS.isEmpty()) {
         log.info("Removed empty dataSources %s", emptyDS);
@@ -682,15 +694,14 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                   public MutableInt fold(MutableInt accumulator, ResultSet r, StatementContext ctx) throws SQLException
                   {
                     if (!dataSources.isEmpty()) {
-                      final DruidDataSource dataSource = dataSources.get(r.getString("dataSource"));
+                      final DruidDataSource dataSource = getInventoryValue(r.getString("dataSource"));
                       if (dataSource != null && dataSource.contains(r.getString("id"))) {
                         return accumulator;
                       }
                     }
                     try {
                       final DataSegment segment = jsonMapper.readValue(r.getBytes("payload"), DataSegment.class);
-                      if (dataSources.computeIfAbsent(segment.getDataSource(), DruidDataSource.FACTORY)
-                                     .addSegmentIfAbsent(segment)) {
+                      if (registerToView((segment))) {
                         accumulator.increment();
                       }
                     }
@@ -717,7 +728,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
         getSegmentsTable()
     );
     int count = 0;
-    for (DruidDataSource dataSource : dataSources.values()) {
+    for (DruidDataSource dataSource : getInventory()) {
       for (String delta : inReadOnlyTransaction(
           new TransactionCallback<Set<String>>()
           {
@@ -756,7 +767,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       lock.lastUpdatedTime = DateTimes.nowUtc();
     }
     int count = 0;
-    for (DruidDataSource dataSource : dataSources.values()) {
+    for (DruidDataSource dataSource : getInventory()) {
       count += dataSource.size();
     }
     log.info("%,d segments in heap: %s", count, toString(ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()));

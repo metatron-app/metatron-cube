@@ -32,6 +32,7 @@ import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.SingleServerInventoryView;
 import io.druid.collections.CountingMap;
+import io.druid.common.DateTimes;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
@@ -53,6 +54,7 @@ import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.utils.ZKPaths;
 import org.easymock.EasyMock;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 import org.junit.After;
@@ -250,7 +252,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
     EasyMock.verify(metadataRuleManager);
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 30_000L)
   public void testCoordinatorRun() throws Exception{
     String dataSource = "dataSource1";
     String tier= "hot";
@@ -272,15 +274,24 @@ public class DruidCoordinatorTest extends CuratorTestBase
     final DataSegment dataSegment = new DataSegment(dataSource, new Interval("2010-01-01/P1D"), "v1", null, null, null, null, 0x9, 0);
     druidDataSources[0].addSegment(dataSegment);
 
+    DruidDataSource dsInMeta = EasyMock.createNiceMock(DruidDataSource.class);
+    EasyMock.expect(dsInMeta.contains(EasyMock.anyObject())).andReturn(true).anyTimes();
+    EasyMock.replay(dsInMeta);
+
+    DateTime now = DateTimes.nowUtc();
+    EasyMock.expect(databaseSegmentManager.lastUpdatedTime()).andReturn(now).anyTimes();
     EasyMock.expect(databaseSegmentManager.isStarted()).andReturn(true).anyTimes();
     EasyMock.expect(databaseSegmentManager.getInventory()).andReturn(
         ImmutableList.of(druidDataSources[0])
     ).atLeastOnce();
+    EasyMock.expect(databaseSegmentManager.getInventoryValue(EasyMock.anyObject())).andReturn(dsInMeta).anyTimes();
     EasyMock.replay(databaseSegmentManager);
+
     ImmutableDruidDataSource immutableDruidDataSource = EasyMock.createNiceMock(ImmutableDruidDataSource.class);
     EasyMock.expect(immutableDruidDataSource.getSegments())
             .andReturn(ImmutableSet.of(dataSegment)).atLeastOnce();
     EasyMock.replay(immutableDruidDataSource);
+
 
     // Setup ServerInventoryView
     druidServer = new DruidServer("server1", "localhost", 5L, "historical", tier, 0);
@@ -384,7 +395,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
         ImmutableList.of(dataSource)
     ).atLeastOnce();
     EasyMock.replay(databaseSegmentManager);
-    List<DataSegment> availableSegments = Lists.newArrayList(coordinator.getAvailableDataSegments());
+    List<DataSegment> availableSegments = Lists.newArrayList(coordinator.getAvailableDataSegments().get());
     Collections.sort(availableSegments, DataSegment.TIME_DESCENDING);
     List<DataSegment> expected = Arrays.asList(
         getSegment("test", new Interval("2016-01-11T01:00:00Z/2016-01-11T02:00:00Z")),

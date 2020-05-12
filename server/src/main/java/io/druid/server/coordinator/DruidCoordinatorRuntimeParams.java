@@ -19,12 +19,14 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.client.DruidDataSource;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
@@ -48,7 +50,7 @@ public class DruidCoordinatorRuntimeParams
   private final MetadataRuleManager databaseRuleManager;
   private final SegmentReplicantLookup segmentReplicantLookup;
   private final Set<DruidDataSource> dataSources;
-  private final Iterable<DataSegment> availableSegments;
+  private final Supplier<Iterable<DataSegment>> availableSegments;
   private final Map<String, LoadQueuePeon> loadManagementPeons;
   private final ServiceEmitter emitter;
   private final CoordinatorDynamicConfig coordinatorDynamicConfig;
@@ -57,7 +59,6 @@ public class DruidCoordinatorRuntimeParams
   private final BalancerStrategy balancerStrategy;
   private final boolean majorTick;
 
-  private Set<DataSegment> materializedSegments;
   private Set<DataSegment> materializedOvershadowedSegments;
   private Set<DataSegment> materializedNonOvershadowedSegments;
 
@@ -67,7 +68,7 @@ public class DruidCoordinatorRuntimeParams
       MetadataRuleManager databaseRuleManager,
       SegmentReplicantLookup segmentReplicantLookup,
       Set<DruidDataSource> dataSources,
-      Iterable<DataSegment> availableSegments,
+      Supplier<Iterable<DataSegment>> availableSegments,
       Map<String, LoadQueuePeon> loadManagementPeons,
       ServiceEmitter emitter,
       CoordinatorDynamicConfig coordinatorDynamicConfig,
@@ -124,15 +125,7 @@ public class DruidCoordinatorRuntimeParams
 
   public Iterable<DataSegment> getAvailableSegments()
   {
-    return materializedSegments != null ? materializedSegments : availableSegments;
-  }
-
-  public Set<DataSegment> getMaterializedSegments()
-  {
-    if (materializedSegments == null) {
-      materializedSegments = ImmutableSet.copyOf(availableSegments);
-    }
-    return materializedSegments;
+    return availableSegments.get();
   }
 
   public Set<DataSegment> getOvershadowedSegments()
@@ -250,7 +243,6 @@ public class DruidCoordinatorRuntimeParams
         balancerReferenceTimestamp,
         balancerStrategy
     );
-    builder.materializedSegments = materializedSegments;
     builder.materializedOvershadowedSegments = materializedOvershadowedSegments;
     builder.materializedNonOvershadowedSegments = materializedNonOvershadowedSegments;
     return builder;
@@ -269,7 +261,7 @@ public class DruidCoordinatorRuntimeParams
     private MetadataRuleManager databaseRuleManager;
     private SegmentReplicantLookup segmentReplicantLookup;
     private final Set<DruidDataSource> dataSources;
-    private Iterable<DataSegment> availableSegments;
+    private Supplier<Iterable<DataSegment>> availableSegments;
     private final Map<String, LoadQueuePeon> loadManagementPeons;
     private ServiceEmitter emitter;
     private CoordinatorDynamicConfig coordinatorDynamicConfig;
@@ -278,7 +270,6 @@ public class DruidCoordinatorRuntimeParams
     private BalancerStrategy balancerStrategy;
     private boolean majorTick = true;     // test compatible
 
-    private Set<DataSegment> materializedSegments;
     private Set<DataSegment> materializedOvershadowedSegments;
     private Set<DataSegment> materializedNonOvershadowedSegments;
 
@@ -304,7 +295,7 @@ public class DruidCoordinatorRuntimeParams
         MetadataRuleManager databaseRuleManager,
         SegmentReplicantLookup segmentReplicantLookup,
         Set<DruidDataSource> dataSources,
-        Iterable<DataSegment> availableSegments,
+        Supplier<Iterable<DataSegment>> availableSegments,
         Map<String, LoadQueuePeon> loadManagementPeons,
         ServiceEmitter emitter,
         CoordinatorDynamicConfig coordinatorDynamicConfig,
@@ -345,7 +336,6 @@ public class DruidCoordinatorRuntimeParams
           balancerStrategy,
           majorTick
       );
-      params.materializedSegments = materializedSegments;
       params.materializedOvershadowedSegments = materializedOvershadowedSegments;
       params.materializedNonOvershadowedSegments = materializedNonOvershadowedSegments;
       return params;
@@ -387,11 +377,17 @@ public class DruidCoordinatorRuntimeParams
       return this;
     }
 
+    public Builder withAvailableSegments(Supplier<Iterable<DataSegment>> availableSegments)
+    {
+      this.availableSegments = Suppliers.memoize(availableSegments);
+      materializedOvershadowedSegments = materializedNonOvershadowedSegments = null;
+      return this;
+    }
+
+    @VisibleForTesting
     public Builder withAvailableSegments(Iterable<DataSegment> availableSegments)
     {
-      this.availableSegments = availableSegments;
-      materializedSegments = materializedOvershadowedSegments = materializedNonOvershadowedSegments = null;
-      return this;
+      return withAvailableSegments(Suppliers.ofInstance(availableSegments));
     }
 
     public Builder withLoadManagementPeons(Map<String, LoadQueuePeon> loadManagementPeonsCollection)

@@ -185,6 +185,11 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
     return false;
   }
 
+  public boolean isAvailable(DataSegment segment)
+  {
+    return coordinator.isAvailable(segment);
+  }
+
   private Map<String, BalancerSegmentHolder> getTierMap(String tier)
   {
     return currentlyMovingSegments.computeIfAbsent(tier, s -> new ConcurrentHashMap<String, BalancerSegmentHolder>());

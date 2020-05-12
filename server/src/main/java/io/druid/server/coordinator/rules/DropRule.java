@@ -19,7 +19,6 @@
 
 package io.druid.server.coordinator.rules;
 
-import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
@@ -32,9 +31,9 @@ public abstract class DropRule implements Rule
   @Override
   public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
   {
-    CoordinatorStats stats = params.getCoordinatorStats();
-    coordinator.disableSegment("rule", segment);
-    stats.addToGlobalStat("deletedCount", 1);
+    if (coordinator.disableSegment("rule", segment)) {
+      params.getCoordinatorStats().addToGlobalStat("deletedCount", 1);
+    }
     return false;
   }
 }

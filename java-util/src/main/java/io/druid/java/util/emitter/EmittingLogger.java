@@ -61,6 +61,7 @@ public class EmittingLogger extends Logger
   public AlertBuilder makeAlert(Throwable t, String message, Object... objects)
   {
     if (emitter == null) {
+      error(t, message, objects);
       final String errorMessage = String.format(
           "Emitter not initialized!  Cannot alert.  Please make sure to call %s.registerEmitter()", this.getClass()
       );

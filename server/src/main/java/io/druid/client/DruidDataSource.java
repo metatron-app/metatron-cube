@@ -71,7 +71,7 @@ public class DruidDataSource
   }
 
   @JsonProperty
-  public synchronized List<DataSegment> getCopyOfSegments()
+  public synchronized ImmutableList<DataSegment> getCopyOfSegments()
   {
     return ImmutableList.copyOf(segmentsMap.values());
   }

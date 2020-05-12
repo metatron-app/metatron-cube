@@ -163,6 +163,8 @@ public class DruidCoordinatorBalancerTest
     EasyMock.replay(druidServer3);
     EasyMock.replay(druidServer4);
 
+    EasyMock.expect(coordinator.isAvailable(EasyMock.anyObject())).andReturn(true).anyTimes();
+
     // Mock stuff that the coordinator needs
     coordinator.moveSegment(
         EasyMock.<DataSegment>anyObject(),
@@ -249,6 +251,8 @@ public class DruidCoordinatorBalancerTest
 
     EasyMock.replay(druidServer3);
     EasyMock.replay(druidServer4);
+
+    EasyMock.expect(coordinator.isAvailable(EasyMock.anyObject())).andReturn(true).anyTimes();
 
     // Mock stuff that the coordinator needs
     coordinator.moveSegment(
@@ -348,6 +352,8 @@ public class DruidCoordinatorBalancerTest
     EasyMock.expect(druidServer4.isAssignable()).andReturn(true).anyTimes();
     EasyMock.expect(druidServer4.isDecommissioned()).andReturn(false).anyTimes();
     EasyMock.replay(druidServer4);
+
+    EasyMock.expect(coordinator.isAvailable(EasyMock.anyObject())).andReturn(true).anyTimes();
 
     // Mock stuff that the coordinator needs
     coordinator.moveSegment(

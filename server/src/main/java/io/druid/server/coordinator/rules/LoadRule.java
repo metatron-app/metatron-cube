@@ -40,7 +40,6 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * LoadRules indicate the number of replicants a segment should have in a given tier.
@@ -61,7 +60,6 @@ public abstract class LoadRule implements Rule
     }
     final String segmentId = segment.getIdentifier();
     final CoordinatorStats stats = params.getCoordinatorStats();
-    final Set<DataSegment> availableSegments = params.getMaterializedSegments();
 
     final Map<String, Integer> loadStatus = Maps.newHashMap();
 
@@ -100,7 +98,7 @@ public abstract class LoadRule implements Rule
         }
         serverHolderList = Lists.newArrayList(serverHolderMap.values());
       }
-      if (!serverHolderList.isEmpty() && availableSegments.contains(segment)) {
+      if (!serverHolderList.isEmpty() && coordinator.isAvailable(segment)) {
         int assigned = assign(
             tier,
             segment,
@@ -239,14 +237,18 @@ public abstract class LoadRule implements Rule
     return dropped;
   }
 
-  protected void validateTieredReplicants(Map<String, Integer> tieredReplicants){
-    if(tieredReplicants.size() == 0)
+  protected void validateTieredReplicants(Map<String, Integer> tieredReplicants)
+  {
+    if (tieredReplicants.isEmpty()) {
       throw new IAE("A rule with empty tiered replicants is invalid");
-    for (Map.Entry<String, Integer> entry: tieredReplicants.entrySet()) {
-      if (entry.getValue() == null)
+    }
+    for (Map.Entry<String, Integer> entry : tieredReplicants.entrySet()) {
+      if (entry.getValue() == null) {
         throw new IAE("Replicant value cannot be empty");
-      if (entry.getValue() < 0)
+      }
+      if (entry.getValue() < 0) {
         throw new IAE("Replicant value [%d] is less than 0, which is not allowed", entry.getValue());
+      }
     }
   }
 

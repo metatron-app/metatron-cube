@@ -552,8 +552,7 @@ public class DruidCoordinatorRuleRunnerTest
             0, 0, 0, 0, 0, 1, 24, 0, false, null
         )
     ).anyTimes();
-    coordinator.disableSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
-    EasyMock.expectLastCall().atLeastOnce();
+    EasyMock.expect(coordinator.disableSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject())).andReturn(true).atLeastOnce();
     EasyMock.replay(coordinator);
 
     EasyMock.expect(databaseRuleManager.getRulesWithDefault(EasyMock.<String>anyObject())).andReturn(
@@ -1073,13 +1072,13 @@ public class DruidCoordinatorRuleRunnerTest
 
   private void mockCoordinator()
   {
+    EasyMock.expect(coordinator.isAvailable(EasyMock.anyObject())).andReturn(true).anyTimes();
     EasyMock.expect(coordinator.getDynamicConfigs()).andReturn(
         new CoordinatorDynamicConfig(
             0, 0, 0, 0, 0, 1, 24, 0, false, null
         )
     ).anyTimes();
-    coordinator.disableSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
-    EasyMock.expectLastCall().anyTimes();
+    EasyMock.expect(coordinator.disableSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject())).andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
   }
 }

@@ -25,7 +25,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.metadata.MetadataRuleManager;
-import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
@@ -57,28 +56,22 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    CoordinatorStats stats = new CoordinatorStats();
-    DruidCluster cluster = params.getDruidCluster();
-
+    final DruidCluster cluster = params.getDruidCluster();
     if (cluster.isEmpty()) {
       log.warn("Uh... I have no servers. Not assigning anything...");
       return params;
     }
 
-    DruidCoordinatorRuntimeParams paramsWithReplicationManager = params.buildFromExisting()
-                                                                       .withCoordinatorStats(stats)
-                                                                       .build();
-
     // Run through all matched rules for available segments
     final DateTime now = new DateTime();
-    final MetadataRuleManager databaseRuleManager = paramsWithReplicationManager.getDatabaseRuleManager();
+    final MetadataRuleManager databaseRuleManager = params.getDatabaseRuleManager();
 
     final List<String> segmentsWithMissingRules = Lists.newArrayListWithCapacity(MAX_MISSING_RULES);
     final Map<String, List<Rule>> rulesPerDataSource = Maps.newHashMap();
     int segments = 0;
     int missingRules = 0;
     int notAssignedCount = 0;
-    for (DataSegment segment : getTargetSegments(paramsWithReplicationManager)) {
+    for (DataSegment segment : getTargetSegments(params)) {
       segments++;
       List<Rule> rules = rulesPerDataSource.computeIfAbsent(
           segment.getDataSource(), dataSource -> databaseRuleManager.getRulesWithDefault(dataSource)
@@ -87,7 +80,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
       boolean foundMatchingRule = false;
       for (Rule rule : rules) {
         if (rule.appliesTo(segment, now)) {
-          notAssigned &= rule.run(coordinator, paramsWithReplicationManager, segment);
+          notAssigned &= rule.run(coordinator, params, segment);
           foundMatchingRule = true;
           break;
         }
@@ -113,7 +106,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
          .emit();
     }
 
-    return paramsWithReplicationManager;
+    return params;
   }
 
   private void logCluster(DruidCluster cluster)

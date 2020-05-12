@@ -86,6 +86,7 @@ public class LoadRuleTest
     EmittingLogger.registerEmitter(emitter);
     emitter.start();
     coordinator = EasyMock.createMock(DruidCoordinator.class);
+    EasyMock.expect(coordinator.isAvailable(EasyMock.anyObject())).andReturn(true).anyTimes();
     EasyMock.expect(coordinator.getRecentlyFailedServers(EasyMock.<DataSegment>anyObject())).andReturn(null)
             .anyTimes();
     EasyMock.replay(coordinator);

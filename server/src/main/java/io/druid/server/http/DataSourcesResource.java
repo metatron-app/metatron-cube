@@ -685,11 +685,8 @@ public class DataSourcesResource
 
     Map<String, DataSegment> segmentMap = Maps.newHashMap();
     for (DruidDataSource dataSource : validDataSources) {
-      if (dataSource != null) {
-        Iterable<DataSegment> segments = dataSource.getCopyOfSegments();
-        for (DataSegment segment : segments) {
-          segmentMap.put(segment.getIdentifier(), segment);
-        }
+      for (DataSegment segment : dataSource.getCopyOfSegments()) {
+        segmentMap.put(segment.getIdentifier(), segment);
       }
     }
 
