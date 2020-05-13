@@ -23,7 +23,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
-import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
@@ -47,7 +46,7 @@ import java.util.function.BiFunction;
 
 /**
  */
-public final class MergeIndexParallel implements MergeIndex<Row>
+public final class MergeIndexParallel extends MergeIndex.GroupByMerge
 {
   private static final Logger LOG = new Logger(MergeIndexParallel.class);
 
@@ -58,7 +57,6 @@ public final class MergeIndexParallel implements MergeIndex<Row>
 
   private final Map<MergeKey, Object[]> mapping;
   private final BiFunction<MergeKey, Object[], Object[]> populator;
-  private final int[][] groupings;
 
   public MergeIndexParallel(
       final GroupByQuery groupBy,
@@ -66,10 +64,10 @@ public final class MergeIndexParallel implements MergeIndex<Row>
       final int parallelism
   )
   {
+    super(groupBy);
     this.groupBy = groupBy;
     this.metrics = AggregatorFactory.toCombinerArray(groupBy.getAggregatorSpecs());
     this.metricStart = groupBy.getDimensions().size() + 1;
-    this.groupings = groupBy.getGroupings();
     this.mapping = parallelism == 1 ?
                    Maps.<MergeKey, Object[]>newHashMap() :
                    new ConcurrentHashMap<MergeKey, Object[]>(16 << parallelism);
@@ -98,24 +96,7 @@ public final class MergeIndexParallel implements MergeIndex<Row>
   }
 
   @Override
-  public void add(Row row)
-  {
-    final Object[] values = ((CompactRow) row).getValues();
-    if (groupings.length == 0) {
-      _addRow(values);
-    } else {
-      for (int[] grouping : groupings) {
-        Object[] copy = Arrays.copyOf(values, values.length);
-        Arrays.fill(copy, 1, metricStart, null);
-        for (int index : grouping) {
-          copy[index + 1] = values[index + 1];
-        }
-        _addRow(copy);
-      }
-    }
-  }
-
-  private void _addRow(Object[] values)
+  protected void _addRow(Object[] values)
   {
     mapping.compute(MergeKey.of(values, metricStart), populator);
   }
@@ -163,27 +144,36 @@ public final class MergeIndexParallel implements MergeIndex<Row>
   {
     static MergeKey of(final Object[] values, final int compareUpTo)
     {
-      return new MergeKey(values)
-      {
-        @Override
-        protected int compareUpTo()
-        {
-          return compareUpTo;
-        }
-      };
+      switch (compareUpTo) {
+        case 1:
+          return new MergeKey1(values);
+        case 2:
+          return new MergeKey2(values);
+        case 3:
+          return new MergeKey3(values);
+        default:
+          return new MergeKeyN(values, compareUpTo);
+      }
     }
 
-    private final Object[] values;
+    protected MergeKey(Object[] values) {this.values = values;}
 
-    private MergeKey(Object[] values)
+    protected final Object[] values;
+  }
+
+  private static final class MergeKeyN extends MergeKey
+  {
+    private final int upTo;
+
+    private MergeKeyN(Object[] values, int upTo)
     {
-      this.values = values;
+      super(values);
+      this.upTo = upTo;
     }
 
     @Override
     public final boolean equals(Object o)
     {
-      final int upTo = compareUpTo();
       final MergeKey other = (MergeKey) o;
       for (int i = 0; i < upTo; i++) {
         if (!Objects.equals(values[i], other.values[i])) {
@@ -196,7 +186,6 @@ public final class MergeIndexParallel implements MergeIndex<Row>
     @Override
     public final int hashCode()
     {
-      final int upTo = compareUpTo();
       int hash = 1;
       for (int i = 0; i < upTo; i++) {
         hash = 31 * hash + Objects.hashCode(values[i]);
@@ -207,19 +196,103 @@ public final class MergeIndexParallel implements MergeIndex<Row>
     @Override
     public final String toString()
     {
-      return Arrays.toString(Arrays.copyOf(values, compareUpTo()));
+      return Arrays.toString(Arrays.copyOf(values, upTo));
     }
-
-    protected abstract int compareUpTo();
 
     @Override
     @SuppressWarnings("unchecked")
     public final int compareTo(final MergeKey o)
     {
-      final int upTo = compareUpTo();
       int compare = 0;
       for (int i = 0; compare == 0 && i < upTo; i++) {
         compare = comparator.compare(values[i], o.values[i]);
+      }
+      return compare;
+    }
+  }
+
+  private static final class MergeKey1 extends MergeKey
+  {
+    private MergeKey1(Object[] values) {super(values);}
+
+    @Override
+    public final boolean equals(Object o)
+    {
+      return Objects.equals(values[0], ((MergeKey) o).values[0]);
+    }
+
+    @Override
+    public final int hashCode()
+    {
+      return Objects.hashCode(values[0]);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public int compareTo(MergeKey o)
+    {
+      return comparator.compare(values[0], o.values[0]);
+    }
+  }
+
+  private static final class MergeKey2 extends MergeKey
+  {
+    private MergeKey2(Object[] values) {super(values);}
+
+    @Override
+    public final boolean equals(Object o)
+    {
+      final MergeKey other = (MergeKey) o;
+      return Objects.equals(values[0], other.values[0]) && Objects.equals(values[1], other.values[1]);
+    }
+
+    @Override
+    public final int hashCode()
+    {
+      return 31 * Objects.hashCode(values[0]) + Objects.hashCode(values[1]);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public int compareTo(MergeKey o)
+    {
+      int compare = comparator.compare(values[0], o.values[0]);
+      if (compare == 0) {
+        compare = comparator.compare(values[1], o.values[1]);
+      }
+      return compare;
+    }
+  }
+
+  private static final class MergeKey3 extends MergeKey
+  {
+    private MergeKey3(Object[] values) {super(values);}
+
+    @Override
+    public final boolean equals(Object o)
+    {
+      final MergeKey other = (MergeKey) o;
+      return Objects.equals(values[0], other.values[0]) &&
+             Objects.equals(values[1], other.values[1]) &&
+             Objects.equals(values[2], other.values[2]);
+    }
+
+    @Override
+    public final int hashCode()
+    {
+      return 31 * 31 * Objects.hashCode(values[0]) + 31 * Objects.hashCode(values[1]) + Objects.hashCode(values[2]);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public int compareTo(MergeKey o)
+    {
+      int compare = comparator.compare(values[0], o.values[0]);
+      if (compare == 0) {
+        compare = comparator.compare(values[1], o.values[1]);
+        if (compare == 0) {
+          compare = comparator.compare(values[2], o.values[2]);
+        }
       }
       return compare;
     }

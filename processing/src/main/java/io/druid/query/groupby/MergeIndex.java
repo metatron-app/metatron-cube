@@ -20,9 +20,13 @@
 package io.druid.query.groupby;
 
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.Sequence;
 
 import java.io.Closeable;
+import java.util.Arrays;
+import java.util.function.Consumer;
 
 public interface MergeIndex<T> extends Closeable
 {
@@ -40,4 +44,37 @@ public interface MergeIndex<T> extends Closeable
     @Override
     public Sequence toMergeStream(boolean compact) { return Sequences.empty();}
   };
+
+  abstract class GroupByMerge implements MergeIndex<Row>
+  {
+    private final Consumer<Object[]> consumer;
+
+    GroupByMerge(GroupByQuery groupBy)
+    {
+      final int[][] groupings = groupBy.getGroupings();
+      if (groupings.length == 0) {
+        consumer = values -> _addRow(values);
+      } else {
+        final int metricStart = groupBy.getDimensions().size() + 1;
+        consumer = values -> {
+          for (final int[] grouping : groupings) {
+            final Object[] copy = Arrays.copyOf(values, values.length);
+            Arrays.fill(copy, 1, metricStart, null);
+            for (int index : grouping) {
+              copy[index + 1] = values[index + 1];
+            }
+            _addRow(copy);
+          }
+        };
+      }
+    }
+
+    @Override
+    public final void add(Row row)
+    {
+      consumer.accept(((CompactRow) row).getValues());
+    }
+
+    protected abstract void _addRow(Object[] values);
+  }
 }

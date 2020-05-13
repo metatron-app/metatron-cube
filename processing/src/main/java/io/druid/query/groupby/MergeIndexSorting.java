@@ -21,7 +21,6 @@ package io.druid.query.groupby;
 
 import com.google.common.collect.Iterables;
 import io.druid.common.utils.Sequences;
-import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
@@ -31,7 +30,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.ordering.Comparators;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.TreeMap;
@@ -41,9 +39,9 @@ import java.util.function.BiFunction;
 
 /**
  */
-public final class MergeIndexSorting implements MergeIndex<Row>
+public final class MergeIndexSorting extends MergeIndex.GroupByMerge
 {
-  private static final Logger LOG = new Logger(MergeIndex.class);
+  private static final Logger LOG = new Logger(MergeIndexSorting.class);
 
   private final GroupByQuery groupBy;
 
@@ -52,7 +50,6 @@ public final class MergeIndexSorting implements MergeIndex<Row>
 
   private final Map<Object[], Object[]> mapping;
   private final BiFunction<Object[], Object[], Object[]> populator;
-  private final int[][] groupings;
 
   public MergeIndexSorting(
       final GroupByQuery groupBy,
@@ -60,10 +57,10 @@ public final class MergeIndexSorting implements MergeIndex<Row>
       final int parallelism
   )
   {
+    super(groupBy);
     this.groupBy = groupBy;
     this.metrics = AggregatorFactory.toCombinerArray(groupBy.getAggregatorSpecs());
     this.metricStart = groupBy.getDimensions().size() + 1;
-    this.groupings = groupBy.getGroupings();
 
     final Comparator<Object[]> comparator =
         Comparators.toArrayComparator(
@@ -98,24 +95,7 @@ public final class MergeIndexSorting implements MergeIndex<Row>
   }
 
   @Override
-  public void add(Row row)
-  {
-    final Object[] values = ((CompactRow) row).getValues();
-    if (groupings.length == 0) {
-      _addRow(values);
-    } else {
-      for (int[] grouping : groupings) {
-        Object[] copy = Arrays.copyOf(values, values.length);
-        Arrays.fill(copy, 1, metricStart, null);
-        for (int index : grouping) {
-          copy[index + 1] = values[index + 1];
-        }
-        _addRow(copy);
-      }
-    }
-  }
-
-  private void _addRow(Object[] values)
+  protected void _addRow(Object[] values)
   {
     mapping.compute(values, populator);
   }

@@ -296,7 +296,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     GroupByQuery query = GroupByQuery
         .builder()
         .setGroupingSets(
-            new GroupingSetSpec.Names.Builder().add("quality").add("alias").add("quality", "alias").build()
+            new GroupingSetSpec.Names.Builder().add().add("quality").add("alias").add("quality", "alias").build()
         )
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
@@ -316,6 +316,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     String[] columnNames = {"__time", "quality", "alias", "rows", "idx"};
     List<Row> expectedResults = expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
+        array("2011-04-01T00:00:00.000Z", null, null, 52L, 24892L),
         array("2011-04-01T00:00:00.000Z", null, "a", 2L, 282L),
         array("2011-04-01T00:00:00.000Z", null, "b", 2L, 230L),
         array("2011-04-01T00:00:00.000Z", null, "e", 2L, 324L),
