@@ -641,7 +641,7 @@ public class StringComparators
     String[] elements = Arrays.copyOfRange(parsed, 1, parsed.length);
     Comparator[] comparators = new Comparator[elements.length];
     if (defaultOrdering) {
-      Arrays.fill(comparators, Ordering.natural().nullsFirst());
+      Arrays.fill(comparators, GuavaUtils.NULL_FIRST_NATURAL);
       return Comparators.toArrayComparator(comparators);
     }
     Preconditions.checkArgument(elements.length >= orderingSpecs.size(), "not matching number of elements");

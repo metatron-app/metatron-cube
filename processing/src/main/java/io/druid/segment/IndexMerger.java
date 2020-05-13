@@ -1534,13 +1534,6 @@ public class IndexMerger
 
   static Interval toDataInterval(List<IndexableAdapter> adapters)
   {
-    return JodaUtils.umbrellaInterval(Lists.transform(adapters, new Function<IndexableAdapter, Interval>()
-    {
-      @Override
-      public Interval apply(IndexableAdapter input)
-      {
-        return input.getInterval();
-      }
-    }));
+    return JodaUtils.umbrellaInterval(Iterables.transform(adapters, IndexableAdapter::getInterval));
   }
 }

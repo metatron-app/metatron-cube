@@ -26,9 +26,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
-import io.druid.java.util.common.guava.Comparators;
 import io.druid.data.TypeUtils;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Comparators;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -134,28 +134,32 @@ public class JodaUtils
     return retVal;
   }
 
-  public static Interval umbrellaInterval(List<Interval> intervals)
-  {
-    return intervals.size() == 1 ? intervals.get(0) : umbrellaInterval((Iterable<Interval>) intervals);
-  }
-
   public static Interval umbrellaInterval(Iterable<Interval> intervals)
   {
-    DateTime startDate = null;
-    DateTime endDate = null;
+    return umbrellaInterval(intervals.iterator());
+  }
 
-    for (Interval interval : intervals) {
-      if (startDate == null || startDate.isAfter(interval.getStart())) {
-        startDate = interval.getStart();
-      }
-      if (endDate == null || endDate.isBefore(interval.getEnd())) {
-        endDate = interval.getEnd();
-      }
-    }
-    if (startDate == null || endDate == null) {
+  public static Interval umbrellaInterval(Iterator<Interval> intervals)
+  {
+    if (!intervals.hasNext()) {
       throw new IllegalArgumentException("Empty list of intervals");
     }
-    return new Interval(startDate, endDate);
+    Interval interval = intervals.next();
+    DateTime min = interval.getStart();
+    DateTime max = interval.getEnd();
+
+    while (intervals.hasNext()) {
+      Interval other = intervals.next();
+      DateTime start = other.getStart();
+      if (start.isBefore(min)) {
+        min = start;
+      }
+      DateTime end = other.getEnd();
+      if (end.isAfter(max)) {
+        max = end;
+      }
+    }
+    return new Interval(min, max);
   }
 
   public static boolean contains(final long timestamp, final Iterable<Interval> intervals)
@@ -200,23 +204,6 @@ public class JodaUtils
     ));
   }
 
-  public static Interval trim(Interval i, Iterable<Interval> intervals)
-  {
-    if (!overlaps(i, intervals)) {
-      return null;
-    }
-    Interval current = i;
-    for (Interval interval : intervals) {
-      if (interval.overlaps(current)) {
-        current = new Interval(
-            Math.max(current.getStartMillis(), interval.getStartMillis()),
-            Math.min(current.getEndMillis(), interval.getEndMillis())
-        );
-      }
-    }
-    return current.getStartMillis() == current.getEndMillis() ? null : current;
-  }
-
   public static Iterable<Interval> split(final Granularity granularity, final Iterable<Interval> intervals)
   {
     if (granularity == null) {
@@ -238,46 +225,6 @@ public class JodaUtils
   public static <T, V> Iterable<V> explode(Iterable<T> iterable, Function<T, Iterable<V>> function)
   {
     return Iterables.concat(Iterables.transform(iterable, function));
-  }
-
-  public static DateTime minDateTime(DateTime... times)
-  {
-    if (times == null) {
-      return null;
-    }
-
-    switch (times.length) {
-      case 0:
-        return null;
-      case 1:
-        return times[0];
-      default:
-        DateTime min = times[0];
-        for (int i = 1; i < times.length; ++i) {
-          min = min.isBefore(times[i]) ? min : times[i];
-        }
-        return min;
-    }
-  }
-
-  public static DateTime maxDateTime(DateTime... times)
-  {
-    if (times == null) {
-      return null;
-    }
-
-    switch (times.length) {
-      case 0:
-        return null;
-      case 1:
-        return times[0];
-      default:
-        DateTime max = times[0];
-        for (int i = 1; i < times.length; ++i) {
-          max = max.isAfter(times[i]) ? max : times[i];
-        }
-        return max;
-    }
   }
 
   public static Period toPeriod(String string)

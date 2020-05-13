@@ -21,11 +21,12 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
@@ -34,6 +35,7 @@ import com.google.inject.Inject;
 import com.metamx.common.MapUtils;
 import io.druid.client.DruidDataSource;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.guice.ManageLifecycle;
 import io.druid.indexing.overlord.DataSourceMetadata;
@@ -841,13 +843,13 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   @Override
   public Interval getUmbrellaInterval(final String ds)
   {
-    List<Interval> intervals = inReadOnlyTransaction(
-        new TransactionCallback<List<Interval>>()
+    return inReadOnlyTransaction(
+        new TransactionCallback<Interval>()
         {
           @Override
-          public List<Interval> inTransaction(Handle handle, TransactionStatus status) throws Exception
+          public Interval inTransaction(Handle handle, TransactionStatus status) throws Exception
           {
-            return Lists.<Interval>newArrayList(
+            return JodaUtils.umbrellaInterval(Iterators.filter(
                 handle
                     .createQuery(
                         String.format(
@@ -871,11 +873,12 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                           }
                         }
                     )
-            );
+                    .iterator(),
+                Predicates.notNull()
+            ));
           }
         }
     );
-    return Iterables.getOnlyElement(intervals, null);
   }
 
   @Override

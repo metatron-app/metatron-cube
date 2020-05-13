@@ -38,6 +38,10 @@ public interface MetadataSegmentManager
 
   void stop();
 
+  boolean isStarted();
+
+  DateTime lastUpdatedTime();
+
   // register to temporary view.. can be removed by polling if it's not inserted to db till then
   boolean registerToView(DataSegment segment);
 
@@ -45,15 +49,13 @@ public interface MetadataSegmentManager
 
   boolean enableDatasource(String ds, boolean now);
 
-  boolean enableSegment(String segmentId, boolean now);
-
   boolean disableDatasource(String ds);
+
+  boolean enableSegment(String segmentId, boolean now);
 
   boolean disableSegment(String ds, String segmentID);
 
   int disableSegments(String ds, Interval interval);
-
-  boolean isStarted();
 
   TableDesc getDataSourceDesc(String ds);
 
@@ -64,8 +66,6 @@ public interface MetadataSegmentManager
   ImmutableList<String> getAllDatasourceNames();
 
   Pair<String, DataSegment> getLastUpdatedSegment(String ds);
-
-  DateTime lastUpdatedTime();
 
   /**
    * Returns top N unused segment intervals in given interval when ordered by segment start time, end time.
