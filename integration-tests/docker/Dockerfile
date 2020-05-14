@@ -64,10 +64,11 @@ RUN /etc/init.d/mysql start \
 
 # Add Druid jars
 ADD lib/* /usr/local/druid/lib/
+ADD lib/guava/* /usr/local/druid/lib/guava/
 
 # Add sample data
 RUN /etc/init.d/mysql start \
-      && java -cp "/usr/local/druid/lib/*" -Ddruid.metadata.storage.type=mysql io.druid.cli.Main tools metadata-init --connectURI="jdbc:mysql://localhost:3306/druid" --user=druid --password=diurd \
+      && java -cp "/usr/local/druid/lib/*:/usr/local/druid/lib/guava/*" -Ddruid.metadata.storage.type=mysql io.druid.cli.Main tools metadata-init --connectURI="jdbc:mysql://localhost:3306/druid" --user=druid --password=diurd \
       && /etc/init.d/mysql stop
 ADD sample-data.sql sample-data.sql
 RUN /etc/init.d/mysql start \

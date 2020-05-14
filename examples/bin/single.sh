@@ -16,4 +16,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-java `cat conf/druid/single/jvm.config | xargs` -cp conf/druid/_common:conf/druid:conf/druid/single:lib/* io.druid.cli.ServerRunnable $@ > log/single.log &
+java `cat conf/druid/single/jvm.config | xargs` -cp conf/druid/_common:conf/druid:conf/druid/single:lib/*:lib/guava/* io.druid.cli.ServerRunnable $@ > log/single.log &

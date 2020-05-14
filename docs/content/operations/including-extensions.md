@@ -39,7 +39,7 @@ for the (hypothetical) extension *com.example:druid-example-extension:1.0.0*, ru
 
 ```
 java \
-  -cp "dist/druid/lib/*" \
+  -cp "dist/druid/lib/*:lib/guava/*" \
   -Ddruid.extensions.directory="extensions-tmp" \
   -Ddruid.extensions.hadoopDependenciesDir="hadoop-dependencies-tmp" \
   io.druid.cli.Main tools pull-deps \

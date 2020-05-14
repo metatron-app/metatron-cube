@@ -141,7 +141,7 @@ addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.13.0")
 
 (9) Make sure the jars you've uploaded has been completely removed. The HDFS directory is by default '/tmp/druid-indexing/classpath'.
 
-(10) Include the fat jar in the classpath when you start the indexing service. Make sure you've removed 'lib/*' from your classpath because now the fat jar includes all you need.
+(10) Include the fat jar in the classpath when you start the indexing service. Make sure you've removed 'lib/*:lib/guava/*' from your classpath because now the fat jar includes all you need.
 
 **Workaround - 3**
 

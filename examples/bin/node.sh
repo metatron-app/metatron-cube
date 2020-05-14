@@ -54,7 +54,7 @@ case $startStop in
       log=$1
     fi
 
-    nohup java `cat conf/druid/$conf/jvm.config | xargs` -cp conf/druid:conf/druid/$conf:lib/* io.druid.cli.Main server $nodeType > $log 2>&1 &
+    nohup java `cat conf/druid/$conf/jvm.config | xargs` -cp conf/druid:conf/druid/$conf:lib/*:lib/guava/* io.druid.cli.Main server $nodeType > $log 2>&1 &
     nodeType_PID=$!
     echo $nodeType_PID > $pid
     echo "Started $nodeType node ($nodeType_PID)"
@@ -93,7 +93,7 @@ case $startStop in
     case $nodeType in
       (tools)
         echo Running tool $1...
-        java `cat conf/druid/_common/jvm.config | xargs` -cp conf/druid:lib/* io.druid.cli.Main $nodeType $@
+        java `cat conf/druid/_common/jvm.config | xargs` -cp conf/druid:lib/*:lib/guava/* io.druid.cli.Main $nodeType $@
         ;;
     esac
 esac

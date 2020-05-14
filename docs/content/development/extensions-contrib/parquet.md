@@ -90,7 +90,7 @@ It is no need to make your cluster to update to SNAPSHOT, you can just fire a ha
 HADOOP_CLASS_PATH=`hadoop classpath | sed s/*.jar/*/g`
 
 java -Xmx32m -Duser.timezone=UTC -Dfile.encoding=UTF-8 \
-  -classpath config/overlord:config/_common:lib/*:$HADOOP_CLASS_PATH:extensions/druid-avro-extensions/*  \
+  -classpath config/overlord:config/_common:lib/*:lib/guava/*:$HADOOP_CLASS_PATH:extensions/druid-avro-extensions/*  \
   io.druid.cli.Main index hadoop \
   wikipedia_hadoop_parquet_job.json
 ```

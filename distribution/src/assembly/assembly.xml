@@ -210,12 +210,19 @@
             <outputDirectory>lib</outputDirectory>
             <excludes>
                 <exclude>io.druid:extensions-distribution</exclude>
+                <exclude>com.google.guava:guava</exclude>
             </excludes>
         </dependencySet>
         <dependencySet>
             <unpack>true</unpack>
             <includes>
                 <include>io.druid:extensions-distribution</include>
+            </includes>
+        </dependencySet>
+        <dependencySet>
+            <outputDirectory>lib/guava</outputDirectory>
+            <includes>
+                <include>com.google.guava:guava</include>
             </includes>
         </dependencySet>
     </dependencySets>

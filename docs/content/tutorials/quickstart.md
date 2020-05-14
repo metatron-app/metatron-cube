@@ -41,7 +41,7 @@ In the package, you should find:
 * `conf-quickstart/*` - configurations for this quickstart.
 * `extensions/*` - all Druid extensions.
 * `hadoop-dependencies/*` - Druid Hadoop dependencies.
-* `lib/*` - all included software packages for core Druid.
+* `lib/*:lib/guava/*` - all included software packages for core Druid.
 * `quickstart/*` - files useful for this quickstart.
 
 ## Start up Zookeeper
@@ -70,11 +70,11 @@ This tutorial runs every Druid process on the same system. In a large distribute
 many of these Druid processes can still be co-located together.
 
 ```bash
-java `cat conf-quickstart/druid/historical/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*" io.druid.cli.Main server historical
-java `cat conf-quickstart/druid/broker/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*" io.druid.cli.Main server broker
-java `cat conf-quickstart/druid/coordinator/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*" io.druid.cli.Main server coordinator
-java `cat conf-quickstart/druid/overlord/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*" io.druid.cli.Main server overlord
-java `cat conf-quickstart/druid/middleManager/jvm.config | xargs` -cp "conf-quickstart:lib/*" io.druid.cli.Main server middleManager
+java `cat conf-quickstart/druid/historical/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*:lib/guava/*" io.druid.cli.Main server historical
+java `cat conf-quickstart/druid/broker/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*:lib/guava/*" io.druid.cli.Main server broker
+java `cat conf-quickstart/druid/coordinator/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*:lib/guava/*" io.druid.cli.Main server coordinator
+java `cat conf-quickstart/druid/overlord/jvm.config | xargs` -cp "conf-quickstart/druid:lib/*:lib/guava/*" io.druid.cli.Main server overlord
+java `cat conf-quickstart/druid/middleManager/jvm.config | xargs` -cp "conf-quickstart:lib/*:lib/guava/*" io.druid.cli.Main server middleManager
 ```
 
 You should see a log message printed out for each service that starts up.
