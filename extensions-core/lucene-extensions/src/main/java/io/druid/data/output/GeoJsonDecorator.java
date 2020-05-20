@@ -48,7 +48,6 @@ import java.util.List;
 public class GeoJsonDecorator implements SelectiveDecorator<Object[]>
 {
   private final NumberFormat nf = LegacyShapeWriter.makeNumberFormat(6);
-  private final GeometryDeserializer deserializer = new GeometryDeserializer();
 
   private final int geomIndex;
   private final List<String> columnNames;
@@ -113,7 +112,7 @@ public class GeoJsonDecorator implements SelectiveDecorator<Object[]>
     if (value == null || value instanceof Geometry) {
       return (Geometry) value;
     } else if (value instanceof byte[]) {
-      return deserializer.deserialize((byte[]) value);
+      return GeometryDeserializer.deserialize((byte[]) value);
     }
     throw new IAE("cannot convert %s to geometry", value.getClass());
   }

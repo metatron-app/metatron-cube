@@ -72,7 +72,7 @@
            var url = 'http://localhost:8082/druid/v2/geojson';
            xhr.open('POST', url);
            xhr.setRequestHeader('Content-type', 'application/json');
-           var wkt = WKT.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
+           var extentWKT = WKT.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
                 dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
            });
            var query =

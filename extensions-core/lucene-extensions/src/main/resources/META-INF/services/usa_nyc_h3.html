@@ -39,8 +39,7 @@
                xhr.onerror();
              }
            };
-           var url = 'http://localhost:8082/druid/v2/sql/geojson';
-           xhr.open('POST', url);
+           xhr.open('POST', 'http://localhost:8082/druid/v2/sql/geojson');
            xhr.setRequestHeader('Content-type', 'text/plain');
            var wkt = format.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
                 dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
@@ -49,9 +48,13 @@
            //           '  SELECT geom_to_h3(geom_fromWKT(Point), 7) as h3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
            //           '  FROM nyc_nursing GROUP BY geom_to_h3(geom_fromWKT(Point), 7)' +
            //           ')';
-           var sql = 'SELECT geom_transform(geom_intersection(h3_to_boundary_geom(h3),(select geom_union(geom_fromWKT(shape)) from nyc_boundaries)),4326,3857), number, OpCerts, PFIs FROM (' +
-                     '  SELECT geom_to_h3(geom_fromWKT(Point), 6) as h3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
-                     '  FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') GROUP BY geom_to_h3(geom_fromWKT(Point), 6)' +
+           // var sql = 'SELECT geom_transform(geom_intersection(h3_to_boundary_geom(h3),(select geom_union(geom_fromWKT(shape)) from nyc_boundaries)),4326,3857), number, OpCerts, PFIs FROM (' +
+           //           '  SELECT geom_to_h3(geom_fromWKT(Point), 6) as h3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
+           //           '  FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') GROUP BY geom_to_h3(geom_fromWKT(Point), 6)' +
+           //           ')';
+           var sql = 'SELECT geom_transform(geom_intersection(geohex_to_boundary_geom(geohex),(select geom_union(geom_fromWKT(shape)) from nyc_boundaries)),4326,3857), number, OpCerts, PFIs FROM (' +
+                     '  SELECT geom_to_geohex(geom_fromWKT(Point), 6) as geohex, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
+                     '  FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') GROUP BY geom_to_geohex(geom_fromWKT(Point), 6)' +
                      ')';
             // var sql = 'WITH G AS (' +
             //           '  SELECT H3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs FROM (' +

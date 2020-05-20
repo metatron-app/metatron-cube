@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 700px;
+        width: 100%;
+      }
+    </style>
+    <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol.js"></script>
+    <title>OpenLayers example</title>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
+
+      var format = new ol.format.WKT();
+      var inspection_source = new ol.source.Vector({
+        format: new ol.format.GeoJSON(),
+        loader: function (extent, resolution, projection) {
+            var xhr = new XMLHttpRequest();
+            xhr.onerror = function () { inspection_source.removeLoadedExtent(extent); };
+            xhr.onload = function () {
+              if (xhr.status === 200) {
+                // console.log('inspection_source ---> ' + xhr.responseText);
+                var features = inspection_source.getFormat().readFeatures(xhr.responseText);
+                features.forEach(function (f) {
+                    f.setStyle(feature_style(f));
+                });
+                inspection_source.addFeatures(features);
+              } else {
+                xhr.onerror();
+              }
+            };
+
+            xhr.open('POST', 'http://localhost:8082/druid/v2/sql/geojson');
+            xhr.setRequestHeader('Content-type', 'text/plain');
+            var extentWKT = format.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
+              featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326'
+            });
+            xhr.send(
+                'SELECT geom_transform(geohex_to_boundary_geom(geohex),4326,3857), counts FROM (' +
+                '  SELECT to_geohex(gis.lat, gis.lon, 4) as geohex, count(*) as counts' +
+                '    FROM property_inspect WHERE lucene_shape(gis, \'' + extentWKT + '\') GROUP BY 1' +
+                ')'
+            );
+        },
+        strategy: ol.loadingstrategy.bbox
+      });
+
+      var feature_style = function (feature) {
+        var counts = feature.get('counts');
+        var color;
+        if (counts > 20) {
+          color = [240, 10, 10, 0.8];
+        } else if (counts > 14) {
+          color = [240, 64, 10, 0.8]
+        } else if (counts > 5) {
+          color = [240, 128, 10, 0.8]
+        } else {
+          color = [240, 240, 10, 0.8]
+        }
+        return [
+          new ol.style.Style({fill: new ol.style.Fill({color: color})}),
+          new ol.style.Style({stroke: new ol.style.Stroke({color: [0,0,0], width: 0.3})})
+        ];
+      };
+
+      new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({source: new ol.source.OSM()}),
+          new ol.layer.Vector({source: inspection_source, renderMode: "image"})
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([-96.0, 38.0]),
+          zoom: 4.9
+        })
+      });
+    </script>
+  </body>
+</html>

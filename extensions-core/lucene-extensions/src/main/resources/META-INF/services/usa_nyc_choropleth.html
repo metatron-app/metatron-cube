@@ -39,12 +39,8 @@
                xhr.onerror();
              }
            };
-           var url = 'http://localhost:8082/druid/v2/sql/geojson';
-           xhr.open('POST', url);
+           xhr.open('POST', 'http://localhost:8082/druid/v2/sql/geojson');
            xhr.setRequestHeader('Content-type', 'text/plain');
-           var wkt = format.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
-                dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
-           });
            var sql = 'WITH NYC AS (' +
                      '   SELECT boro_name, OpCert, PFI FROM nyc_nursing JOIN nyc_boundaries' +
                      '   ON ST_Contains(nyc_boundaries.shape, nyc_nursing.Point)' +
@@ -53,11 +49,9 @@
                      '  SELECT boro_name, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs FROM NYC GROUP BY boro_name ' +
                      ') A ' +
                      'JOIN nyc_boundaries B on A.boro_name = B.boro_name';
-           console.log(' extent : ' + extent + " --> " + wkt);
            console.log('inspection_source fire!! ---> ' + sql);
            xhr.send(sql);
-        },
-        strategy: ol.loadingstrategy.bbox
+        }
       });
 
       var inspection = new ol.layer.Vector({
@@ -65,19 +59,19 @@
         style: function (feature) {
           var sum = feature.get('PFIs');
           if (sum > 120000) {
-            color = [46, 18, 58, 0.4];
+            color = [46, 18, 58, 0.8];
             tcolor = [255,255,255,1];
           } else if (sum > 90000) {
-            color = [96, 38, 99, 0.4];
+            color = [96, 38, 99, 0.8];
             tcolor = [255,255,255,1];
           } else if (sum > 80000) {
-            color = [116, 100, 130, 0.4];
+            color = [116, 100, 130, 0.8];
             tcolor = [0,0,0,1];
           } else if (sum > 50000) {
-            color = [154, 148, 170, 0.4];
+            color = [154, 148, 170, 0.8];
             tcolor = [0,0,0,1];
           } else {
-            color = [215, 222, 231, 0.4];
+            color = [215, 222, 231, 0.8];
             tcolor = [0,0,0,1];
           }
           return [

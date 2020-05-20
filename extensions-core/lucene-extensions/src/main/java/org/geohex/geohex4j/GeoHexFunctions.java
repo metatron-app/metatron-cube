@@ -28,6 +28,7 @@ import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
 import io.druid.query.GeomUtils;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 
 import java.util.List;
@@ -131,6 +132,32 @@ public class GeoHexFunctions implements Function.Library
           builder.append(coords[0].lon).append(' ').append(coords[0].lat);
           builder.append("))");
           return ExprEval.of(builder.toString());
+        }
+      };
+    }
+  }
+
+  @Function.Named("geohex_to_boundary_geom")
+  public static class GeoHexToBoundaryGeom extends GeomUtils.GeomFuncFactory
+  {
+    @Override
+    public Function create(final List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new GeomChild()
+      {
+        @Override
+        public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          GeoHex.Loc[] coords = GeoHex.decode(Evals.eval(args.get(0), bindings).asString()).getHexCoords();
+          Coordinate[] shell = new Coordinate[coords.length + 1];
+          for (int i = 0; i < coords.length; i++) {
+            shell[i] = new Coordinate(coords[i].lon, coords[i].lat);
+          }
+          shell[coords.length] = shell[0];
+          return GeomUtils.GEOM_FACTORY.createPolygon(shell);
         }
       };
     }

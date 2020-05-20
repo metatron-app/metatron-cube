@@ -14,8 +14,9 @@
   <body>
     <div id="map" class="map"></div>
     <script type="text/javascript">
-      inspection_style = function (feature, resolution) {
-        sum = feature.get('inspection_score');
+      inspection_style = function (feature) {
+        var sum = feature.get('inspection_score');
+        var color;
         if (sum > 95) {
           color = [255, 0, 0, 0.9];
         } else if (sum > 80) {
@@ -27,7 +28,7 @@
         }
         return new ol.style.Style({
           image: new ol.style.Circle({
-            radius: 3,
+            radius: 2,
             fill: new ol.style.Fill({
               color: color
             })
@@ -36,7 +37,7 @@
       };
 
       var CQL = new Map();
-
+      var WKT = new ol.format.WKT();
 
       // var states_source = new ol.source.Vector({
       //   format: new ol.format.GeoJSON(),
@@ -57,7 +58,7 @@
       var inspection_source = new ol.source.Vector({
         format: new ol.format.GeoJSON(),
         loader: function(extent, resolution, projection) {
-           var proj = projection.getCode();
+           console.log('Projection ---> ' + projection.getCode());  // EPSG:3857
            // var url = 'https://ahocevar.com/geoserver/wfs?service=WFS&' +
            //     'version=1.1.0&request=GetFeature&typename=osm:water_areas&' +
            //     'outputFormat=application/json&srsname=' + proj + '&' +
@@ -66,7 +67,6 @@
            xhr.onerror = function() { inspection_source.removeLoadedExtent(extent); };
            xhr.onload = function() {
              if (xhr.status === 200) {
-               var format = new ol.format.GeoJSON();
                // console.log('inspection_source ---> ' + xhr.responseText);
                var features = inspection_source.getFormat().readFeatures(xhr.responseText);
                // features.forEach(function (f) {
@@ -77,23 +77,31 @@
                xhr.onerror();
              }
            };
-           var url = 'http://localhost:8082/druid/v2/sql/geojson';
-           xhr.open('POST', url);
+
+           xhr.open('POST', 'http://localhost:8082/druid/v2/sql/geojson');
            xhr.setRequestHeader('Content-type', 'text/plain');
-           var wkt = format.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
+           var extentWKT = WKT.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
                 dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
            });
            var sql = 'SELECT city, inspection_score, geom_transform(geom_fromlatlon(gis.lat, gis.lon), 4326, 3857) as geom ' +
-                     'FROM property_inspect WHERE lucene_shape(gis, \'' + wkt + '\') LIMIT 2000';
-           console.log(' extent : ' + extent + " --> " + wkt);
-           console.log('inspection_source fire!! ---> ' + sql);
+                     'FROM property_inspect WHERE lucene_shape(gis, \'' + extentWKT + '\') LIMIT 10000';
+           console.log(' extent : ' + extent + " --> " + extentWKT);
+           console.log(' inspection_source fire!! ---> ' + sql);
            xhr.send(sql);
         },
-        strategy: ol.loadingstrategy.bbox
+        strategy: ol.loadingstrategy.bbox,
+        useSpatialIndex: false
       });
-      var inspection = new ol.layer.Vector({source: inspection_source, style: inspection_style});
+      var inspection = new ol.layer.Vector({
+          source: inspection_source,
+          renderBuffer: window.screen.width,
+          style: inspection_style
+      });
       var heatmap = new ol.layer.Heatmap({
-          source: inspection_source, opacity: 0.3, gradient: ['#00f', '#0ff', '#0f0', '#ff0', '#f00'], blur : 50
+          source: inspection_source,
+          opacity: 0.3,
+          gradient: ['#00f', '#0ff', '#0f0', '#ff0', '#f00'],
+          blur : 50
       });
 
       var map = new ol.Map({
@@ -143,7 +151,6 @@
       //   var pixel = map.getEventPixel(evt.originalEvent);
       //   displayFeatureInfo(pixel);
       // });
-      var format = new ol.format.WKT();
       var selectInteraction = new ol.interaction.Select({
         condition: ol.events.condition.click,
         // layers:[states, map],
@@ -160,7 +167,7 @@
               return false;
             } else {
               console.log('o ---> ' + stateName);
-              var predicate = 'WITHIN("gis.coord",' + format.writeFeature(feature, {dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'}) + ')';
+              var predicate = 'WITHIN("gis.coord",' + WKT.writeFeature(feature, {dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'}) + ')';
               CQL.set(stateName, predicate);
               inspection_source.clear();
               return true

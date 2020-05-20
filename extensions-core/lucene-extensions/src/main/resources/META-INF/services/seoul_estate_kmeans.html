@@ -53,7 +53,6 @@
                   ')';
       var CQL = ' AND BEYOND ("gis.coord", ' + han_river + ', 3, kilometers)';
 
-      var WKT = new ol.format.WKT();
       var estate_source = new ol.source.Vector({
         format: new ol.format.GeoJSON(),
         loader: function(extent, resolution, projection) {
@@ -66,22 +65,14 @@
            xhr.onerror = function() { estate_source.removeLoadedExtent(extent); };
            xhr.onload = function() {
              if (xhr.status === 200) {
-               // console.log('inspection_source ---> ' + xhr.responseText);
                var features = estate_source.getFormat().readFeatures(xhr.responseText);
-               // features.forEach(function (f) {
-                    // console.log(f.getGeometry().getCoordinates()); // features are parsed correctly
-                // });
                estate_source.addFeatures(features);
              } else {
                xhr.onerror();
              }
            };
-           var url = 'http://localhost:8082/druid/v2/geojson';
-           xhr.open('POST', url);
+           xhr.open('POST', 'http://localhost:8082/druid/v2/geojson');
            xhr.setRequestHeader('Content-type', 'application/json');
-           var wkt = WKT.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
-                dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
-           });
            var query =
                '{' +
                '  "queryType": "kmeans.tagging"\,' +

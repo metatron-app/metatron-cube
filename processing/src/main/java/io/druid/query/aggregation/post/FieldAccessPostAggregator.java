@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.post;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Sets;
 import io.druid.data.TypeResolver;
@@ -81,12 +82,14 @@ public class FieldAccessPostAggregator extends PostAggregator.Stateless
 
   @Override
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getName()
   {
     return name;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getFieldName()
   {
     return fieldName;
