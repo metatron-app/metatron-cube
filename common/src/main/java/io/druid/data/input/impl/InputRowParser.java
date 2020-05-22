@@ -29,6 +29,7 @@ import io.druid.java.util.common.collect.Utils;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +85,7 @@ public interface InputRowParser<T>
   {
     boolean accept(Object input);
 
-    Iterator<InputRow> parseStream(Object input);
+    Iterator<InputRow> parseStream(Object input) throws IOException;
 
     // not like other parsers handling 'ignoreInvalidRows' in outside, it shoud be done in inside
     // exceptions thrown in hasNext() will always be propagated cause it's not possible to overcome that in streaming world

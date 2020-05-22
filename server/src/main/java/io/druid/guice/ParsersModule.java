@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
+import io.druid.data.input.StreamJsonInputRowParser;
 import io.druid.data.input.ProtoBufInputRowParser;
 import io.druid.initialization.DruidModule;
 import io.druid.segment.realtime.firehose.IrcInputRowParser;
@@ -46,6 +47,7 @@ public class ParsersModule implements DruidModule
         new SimpleModule("ParsersModule")
             .registerSubtypes(
                 new NamedType(ProtoBufInputRowParser.class, "protobuf"),
+                new NamedType(StreamJsonInputRowParser.class, "json.stream"),
                 new NamedType(IrcInputRowParser.class, "irc")
             )
     );

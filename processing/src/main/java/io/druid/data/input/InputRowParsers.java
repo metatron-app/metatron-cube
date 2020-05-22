@@ -112,7 +112,7 @@ public class InputRowParsers
       }
 
       @Override
-      public Iterator<InputRow> parseStream(Object input)
+      public Iterator<InputRow> parseStream(Object input) throws IOException
       {
         if (parser instanceof Streaming) {
           // ignoreInvalidRows is handled in inside of stream parser
