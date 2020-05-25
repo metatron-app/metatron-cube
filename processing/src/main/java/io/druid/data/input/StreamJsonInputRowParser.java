@@ -25,9 +25,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
@@ -46,9 +45,13 @@ import java.util.Set;
 @JsonTypeName("json.stream")
 public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object>
 {
-  private final TimestampSpec timestampSpec;
-  private final DimensionsSpec dimensionsSpec;
-  private final boolean ignoreInvalidRows;
+  protected static final TypeReference<Map<String, Object>> REF = new TypeReference<Map<String, Object>>()
+  {
+  };
+
+  protected final TimestampSpec timestampSpec;
+  protected final DimensionsSpec dimensionsSpec;
+  protected final boolean ignoreInvalidRows;
 
   @JsonCreator
   public StreamJsonInputRowParser(
@@ -126,30 +129,17 @@ public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object
       @Override
       public InputRow next()
       {
-        JsonNode node = null;
+        Map<String, Object> event = null;
         try {
-          node = parser.readValueAs(JsonNode.class);
+          event = parser.readValueAs(REF);
           token = parser.nextToken();
-          Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
-          final Map<String, Object> event = Maps.newHashMap();
-          while (fields.hasNext()) {
-            Map.Entry<String, JsonNode> field = fields.next();
-            JsonNode value = field.getValue();
-            if (value.isTextual()) {
-              event.put(field.getKey(), value.textValue());
-            } else if (value.isNumber()) {
-              event.put(field.getKey(), value.numberValue());
-            } else if (value.isBoolean()) {
-              event.put(field.getKey(), value.booleanValue());
-            }
-          }
           Map<String, Object> merged = Rows.mergePartitions(event);
           DateTime dateTime = Preconditions.checkNotNull(timestampSpec.extractTimestamp(merged));
           return new MapBasedInputRow(dateTime, dimensions, merged);
         }
         catch (IOException e) {
           if (!ignoreInvalidRows) {
-            throw ParsingFail.propagate(node, e);
+            throw ParsingFail.propagate(event, e);
           }
           return null;
         }
@@ -157,9 +147,9 @@ public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object
     };
   }
 
-  private JsonParser createParser(Object input) throws IOException
+  protected final JsonParser createParser(Object input) throws IOException
   {
-    JsonFactory factory = new DefaultObjectMapper().getFactory();
+    final JsonFactory factory = new DefaultObjectMapper().getFactory();
     if (input instanceof InputStream) {
       return factory.createParser((InputStream) input);
     } else if (input instanceof Reader) {

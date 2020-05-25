@@ -28,4 +28,9 @@ public class Runnables
       public void run(){}
     };
   }
+
+  public static Runnable andThen(final Runnable run, final Runnable after)
+  {
+    return () -> { run.run(); after.run(); };
+  }
 }

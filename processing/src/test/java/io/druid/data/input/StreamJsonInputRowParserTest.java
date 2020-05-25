@@ -30,6 +30,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.StringReader;
 import java.util.Arrays;
 import java.util.List;
@@ -67,5 +68,73 @@ public class StreamJsonInputRowParserTest
     Assert.assertEquals(2, parsed.size());
     Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:01:12"), dimensions, row1), parsed.get(0));
     Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:02:12"), dimensions, row2), parsed.get(1));
+  }
+
+  @Test
+  public void testExplode() throws IOException
+  {
+    String json = new StringBuilder()
+        .append("{\n")
+        .append("  \"deviceType\": \"web\",\n")
+        .append("  \"timeStamp\": \"2020-04-28 00:01:12\",\n")
+        .append("  \"totalTime\": 60,\n")
+        .append("  \"inactiveDuration\": 0,\n")
+        .append("  \"emailId\": \"xyz@gmail.com\",\n")
+        .append("  \"pageData\": [\n")
+        .append("    {\n")
+        .append("      \"pageDetails\": {\n")
+        .append("        \"cohortId\": 123,\"pageType\": \"segmentView\",\"segmentId\": 456,\"time\": 60,\"moduleId\": 26340,\"url\": \"https://xyz.com\"\n")
+        .append("      },\n")
+        .append("      \"items\": [\n")
+        .append("        {\n")
+        .append("          \"metadata\": {\n")
+        .append("            \"currentTime\": 81.559263,\"lastPlaybackRate\": 1,\"isLocked\": false,\n")
+        .append("            \"video\": {\n")
+        .append("              \"videoType\": \"YOUTUBE\",\"viewingTime\": 403.3,\"videoSize\": 18434910,\"url\": \"6860001\"\n")
+        .append("            }\n")
+        .append("          },\n")
+        .append("          \"subType\": \"video\",\"id\": 100001,\"time\": 60,\"type\": \"component\"\n")
+        .append("        },\n")
+        .append("        {\n")
+        .append("          \"metadata\": {\n")
+        .append("            \"questionCount\": 1,\"quizId\": 123,\"quizType\": \"internal\",\"title\": \"Quiz 123\",\"status\": \"finished\"\n")
+        .append("          },\n")
+        .append("          \"subType\": \"text\",\"id\": 13458,\"time\": 60,\"type\": \"component\"\n")
+        .append("        }\n")
+        .append("      ]\n")
+        .append("    },\n")
+        .append("    {\n")
+        .append("      \"pageDetails\": {\n")
+        .append("        \"cohortId\": 124,\"pageType\": \"segmentView\",\"segmentId\": 456,\"time\": 60,\"moduleId\": 26340,\"url\": \"https://xyz.com\"\n")
+        .append("      },\n")
+        .append("      \"items\": [\n")
+        .append("        {\n")
+        .append("          \"metadata\": {\n")
+        .append("            \"currentTime\": 81.559263,\"lastPlaybackRate\": 1,\"isLocked\": false,\n")
+        .append("            \"video\": {\n")
+        .append("              \"videoType\": \"YOUTUBE\",\"viewingTime\": 403.3,\"videoSize\": 18434910,\"url\": \"6860001\"\n")
+        .append("            }\n")
+        .append("          },\n")
+        .append("          \"subType\": \"video\",\"id\": 100002,\"time\": 60,\"type\": \"component\"\n")
+        .append("        },\n")
+        .append("        {\n")
+        .append("          \"metadata\": {\n")
+        .append("            \"questionCount\": 1,\"quizId\": 123,\"quizType\": \"internal\",\"title\": \"Quiz 123\",\"status\": \"finished\"\n")
+        .append("          },\n")
+        .append("          \"subType\": \"text\",\"id\": 13459,\"time\": 60,\"type\": \"component\"\n")
+        .append("        }\n")
+        .append("      ]\n")
+        .append("    }\n")
+        .append("  ],\n")
+        .append("  \"userId\": 12344790,\n")
+        .append("  \"platform\": \"web\"\n")
+        .append("}")
+        .toString();
+
+    List<String> dimensions = Arrays.asList("deviceType", "emailId");
+    TimestampSpec timeStamp = new DefaultTimestampSpec("timeStamp", "yyyy-MM-dd HH:mm:ss", null);
+    DimensionsSpec dimensionsSpec = DimensionsSpec.ofStringDimensions(dimensions);
+    StreamJsonExplodinInputRowParser parser = new StreamJsonExplodinInputRowParser(timeStamp, dimensionsSpec, false);
+    Assert.assertEquals(8, Lists.newArrayList(parser.parseStream(new StringReader(json))).size());
   }
 }
