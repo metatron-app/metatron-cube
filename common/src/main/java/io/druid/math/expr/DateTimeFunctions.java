@@ -19,8 +19,6 @@
 
 package io.druid.math.expr;
 
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
@@ -29,6 +27,8 @@ import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.math.expr.Function.NamedFactory;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
@@ -110,7 +110,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   @Function.Named("recent")
-  final class Recent extends NamedFactory implements Function.FixedTyped
+  class Recent extends NamedFactory implements Function.FixedTyped
   {
     @Override
     public ValueDesc returns()
@@ -118,7 +118,7 @@ public interface DateTimeFunctions extends Function.Library
       return ValueDesc.INTERVAL;
     }
 
-    public Interval toInterval(List<Expr> args, Expr.NumericBinding bindings)
+    static Interval toInterval(List<Expr> args, Expr.NumericBinding bindings)
     {
       final DateTime now = DateTimes.nowUtc();
       Period beforeNow = JodaUtils.toPeriod(args.get(0).eval(bindings).asString());
@@ -146,7 +146,50 @@ public interface DateTimeFunctions extends Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(toInterval(args, bindings), ValueDesc.INTERVAL);
+          return ExprEval.of(toInterval(args, bindings));
+        }
+      };
+    }
+  }
+
+  @Function.Named("interval")
+  final class IntervalFunc extends NamedFactory implements Function.FixedTyped
+  {
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.INTERVAL;
+    }
+
+    @Override
+    public Function create(List<Expr> args, TypeResolver context)
+    {
+      if (args.size() != 2) {
+        throw new IAE("function '%s' needs two arguments", name());
+      }
+      return new Function()
+      {
+        @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.INTERVAL;
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          DateTime from = Evals.eval(args.get(0), bindings).asDateTime();
+          if (from == null) {
+            from = DateTimes.MIN;
+          }
+          Object to = Evals.evalValue(args.get(1), bindings);
+          if (to == null) {
+            return ExprEval.of(new Interval(from, DateTimes.MAX));
+          }
+          if (to instanceof String && ((String) to).startsWith("P")) {
+            return ExprEval.of(new Interval(from, new Period(to)));
+          }
+          return ExprEval.of(new Interval(from, Evals.toDateTime(to, null)));
         }
       };
     }

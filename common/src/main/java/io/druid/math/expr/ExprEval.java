@@ -27,6 +27,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Interval;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -114,6 +115,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
   public static ExprEval of(DateTime dateTimeValue)
   {
     return of(dateTimeValue, ValueDesc.DATETIME);
+  }
+
+  public static ExprEval of(Interval interval)
+  {
+    return of(interval, ValueDesc.INTERVAL);
   }
 
   public static ExprEval of(String stringValue)

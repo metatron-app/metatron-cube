@@ -520,6 +520,34 @@ public class Evals
     }
   }
 
+  static DateTime toDateTime(Object arg, DateTimeZone timeZone)
+  {
+    if (arg == null) {
+      return null;
+    }
+    if (arg instanceof DateTime) {
+      return timeZone == null ? (DateTime) arg : ((DateTime) arg).withZone(timeZone);
+    }
+    if (arg instanceof Number) {
+      return DateTimes.withZone(((Number) arg).longValue(), timeZone);
+    }
+    try {
+      if (arg instanceof String) {
+        final String string = (String) arg;
+        if (StringUtils.isNumeric(string)) {
+          return DateTimes.withZone(Long.valueOf(string), timeZone);
+        } else {
+          return timeZone == null
+                 ? STANDARD_PARSER.parseDateTime(string)
+                 : STANDARD_PARSER.withZone(timeZone).parseDateTime(string);
+        }
+      }
+    }
+    catch (Exception e) {
+    }
+    return null;
+  }
+
   public static Pair<String, Expr> splitSimpleAssign(String expression)
   {
     return splitSimpleAssign(expression, TypeResolver.UNKNOWN);

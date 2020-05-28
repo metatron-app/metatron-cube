@@ -54,6 +54,9 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
   private final CuratorInventoryManager<DruidServer, InventoryType> inventoryManager;
   private final AtomicBoolean started = new AtomicBoolean(false);
 
+  private final ObjectMapper jsonMapper;
+  private final TypeReference<InventoryType> inventoryType;
+
   private final ConcurrentMap<ServerCallback, Executor> serverCallbacks = new MapMaker().makeMap();
   private final ConcurrentMap<SegmentCallback, Executor> segmentCallbacks = new MapMaker().makeMap();
 
@@ -63,7 +66,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
       final String inventoryPath,
       final CuratorFramework curator,
       final ObjectMapper jsonMapper,
-      final TypeReference<InventoryType> typeReference
+      final TypeReference<InventoryType> inventoryType
   )
   {
     this.log = log;
@@ -91,7 +94,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           public DruidServer deserializeContainer(byte[] bytes)
           {
             try {
-              return jsonMapper.readValue(bytes, DruidServer.class);
+              return AbstractCuratorServerInventoryView.this.deserializeContainer(bytes);
             }
             catch (IOException e) {
               throw Throwables.propagate(e);
@@ -102,7 +105,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           public InventoryType deserializeInventory(byte[] bytes)
           {
             try {
-              return jsonMapper.readValue(bytes, typeReference);
+              return AbstractCuratorServerInventoryView.this.deserializeInventory(bytes);
             }
             catch (IOException e) {
               CharBuffer charBuffer = Charsets.UTF_8.decode(ByteBuffer.wrap(bytes));
@@ -174,6 +177,18 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           }
         }
     );
+    this.jsonMapper = jsonMapper;
+    this.inventoryType = inventoryType;
+  }
+
+  protected DruidServer deserializeContainer(byte[] bytes) throws IOException
+  {
+    return jsonMapper.readValue(bytes, DruidServer.class);
+  }
+
+  protected InventoryType deserializeInventory(byte[] bytes) throws IOException
+  {
+    return jsonMapper.readValue(bytes, inventoryType);
   }
 
   @LifecycleStart

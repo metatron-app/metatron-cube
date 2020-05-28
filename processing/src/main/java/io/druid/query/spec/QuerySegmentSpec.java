@@ -35,7 +35,8 @@ import java.util.List;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "intervals", value = MultipleIntervalSegmentSpec.class),
     @JsonSubTypes.Type(name = "segments", value = MultipleSpecificSegmentSpec.class),
-    @JsonSubTypes.Type(name = "segment", value = SpecificSegmentSpec.class)
+    @JsonSubTypes.Type(name = "segment", value = SpecificSegmentSpec.class),
+    @JsonSubTypes.Type(name = "expression", value = IntervalExpressionQuerySpec.class),
 })
 public interface QuerySegmentSpec
 {

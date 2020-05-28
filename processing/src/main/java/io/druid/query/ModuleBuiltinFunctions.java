@@ -25,13 +25,11 @@ import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Json;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.BuiltinFunctions;
-import io.druid.math.expr.DateTimeFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -42,7 +40,6 @@ import io.druid.query.lookup.LookupExtractorFactory;
 import io.druid.query.lookup.LookupReferencesManager;
 import org.apache.commons.collections.keyvalue.MultiKey;
 import org.apache.lucene.util.SloppyMath;
-import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
@@ -58,53 +55,6 @@ public class ModuleBuiltinFunctions implements Function.Library
   @Inject
   public static @Json
   ObjectMapper jsonMapper;
-
-  @Function.Named("truncatedRecent")
-  public static class TruncatedRecent extends Function.NamedFactory implements Function.FixedTyped
-  {
-    @Override
-    public ValueDesc returns()
-    {
-      return ValueDesc.INTERVAL;
-    }
-
-    @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
-    {
-      if (args.size() != 2 && args.size() != 3) {
-        throw new IllegalArgumentException("function '" + name() + "' needs two or three arguments");
-      }
-      final Granularity granularity = Granularity.fromString(Evals.getConstantString(args.get(args.size() - 1)));
-      return new Child()
-      {
-        final DateTimeFunctions.Recent recent = new DateTimeFunctions.Recent();
-
-        @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          Interval interval = recent.toInterval(args, bindings);
-          if (args.size() == 2) {
-            interval = new Interval(
-                granularity.bucketStart(interval.getStart()),
-                interval.getEnd()
-            );
-          } else {
-            interval = new Interval(
-                granularity.bucketStart(interval.getStart()),
-                granularity.bucketEnd(interval.getEnd())
-            );
-          }
-          return ExprEval.of(interval, ValueDesc.INTERVAL);
-        }
-
-        @Override
-        public ValueDesc returns()
-        {
-          return ValueDesc.INTERVAL;
-        }
-      };
-    }
-  }
 
   @Function.Named("lookupMap")
   public static class LookupMapFunc extends BuiltinFunctions.ParameterizingNamedParams implements Function.FixedTyped

@@ -53,6 +53,7 @@ import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.select.StreamQuery;
+import io.druid.query.spec.IntervalExpressionQuerySpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
@@ -101,6 +102,10 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     List<Row> expectedResults;
 
     results = runQuery(query);
+    expectedResults = createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    results = runQuery(query.withQuerySegmentSpec(IntervalExpressionQuerySpec.of("interval('2011-01-01', 'P4Y')")));
     expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
