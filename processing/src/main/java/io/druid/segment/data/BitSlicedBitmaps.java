@@ -96,11 +96,7 @@ public class BitSlicedBitmaps
       return new Deserializer()
       {
         @Override
-        public void read(
-            ByteBuffer buffer,
-            ColumnBuilder builder,
-            BitmapSerdeFactory serdeFactory
-        ) throws IOException
+        public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
         {
           builder.setBitSlicedBitmap(
               ColumnPartProviders.ofBitSlicedBitmap(

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
@@ -55,7 +54,7 @@ public class StringColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException
+      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
       {
         StringMetricSerde.INSTANCE.deserializeColumn(buffer, builder);
       }

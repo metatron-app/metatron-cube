@@ -903,7 +903,7 @@ public class IndexIO
     {
       MMappedIndex index = legacyHandler.mapDir(inDir);
 
-      Map<String, Column> columns = Maps.newHashMap();
+      Map<String, Supplier<Column>> columns = Maps.newHashMap();
 
       for (String dimension : index.getAvailableDimensions()) {
         VSizedIndexedInt column = index.getDimColumn(dimension);
@@ -935,7 +935,7 @@ public class IndexIO
               )
           );
         }
-        columns.put(dimension, builder.build(dimension));
+        columns.put(dimension, Suppliers.ofInstance(builder.build(dimension)));
       }
 
       for (String metric : index.getAvailableMetrics()) {
@@ -943,23 +943,25 @@ public class IndexIO
         if (metricHolder.getType() == ValueType.FLOAT) {
           columns.put(
               metric,
-              new ColumnBuilder()
+              Suppliers.ofInstance(new ColumnBuilder()
                   .setType(ValueDesc.FLOAT)
                   .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType, NO_NULLS))
                   .build(metric)
+              )
           );
         } else if (metricHolder.getType() == ValueType.DOUBLE) {
           columns.put(
               metric,
-              new ColumnBuilder()
+              Suppliers.ofInstance(new ColumnBuilder()
                   .setType(ValueDesc.DOUBLE)
                   .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType, NO_NULLS))
                   .build(metric)
+              )
           );
         } else if (metricHolder.getType() == ValueType.COMPLEX) {
           columns.put(
               metric,
-              new ColumnBuilder()
+              Suppliers.ofInstance(new ColumnBuilder()
                   .setType(ValueDesc.of(metricHolder.getTypeName()))
                   .setComplexColumn(
                       new ComplexColumnPartSupplier(
@@ -967,6 +969,7 @@ public class IndexIO
                       )
                   )
                   .build(metric)
+              )
           );
         }
       }
@@ -981,10 +984,11 @@ public class IndexIO
 
       String[] cols = colSet.toArray(new String[0]);
       columns.put(
-          Column.TIME_COLUMN_NAME, new ColumnBuilder()
+          Column.TIME_COLUMN_NAME, Suppliers.ofInstance(new ColumnBuilder()
               .setType(ValueDesc.LONG)
               .setGenericColumn(new LongGenericColumnSupplier(index.timestamps, NO_NULLS))
               .build(Column.TIME_COLUMN_NAME)
+          )
       );
       return new SimpleQueryableIndex(
           index.getInterval(),
@@ -1055,12 +1059,12 @@ public class IndexIO
         }
       }
 
-      Map<String, Column> columns = Maps.newHashMap();
+      Map<String, Supplier<Column>> columns = Maps.newHashMap();
 
       for (String columnName : GuavaUtils.concat(cols, Column.TIME_COLUMN_NAME)) {
         ByteBuffer mapped = smooshedFiles.mapFile(columnName);
         ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-        columns.put(columnName, descriptor.read(columnName, mapped, serdeFactory));
+        columns.put(columnName, Suppliers.memoize(() -> descriptor.read(columnName, mapped, serdeFactory)));
       }
 
       // load cuboids
@@ -1072,32 +1076,51 @@ public class IndexIO
           return !columns.containsKey(input);
         }
       });
+
       final Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids = Maps.newTreeMap();
       for (Map.Entry<BigInteger, CuboidSpec> cuboid : Cuboids.extractCuboids(remaining).entrySet()) {
-        final Map<String, Column> cuboidColumns = Maps.newTreeMap();
+        final Map<String, Supplier<Column>> cuboidColumns = Maps.newTreeMap();
         final BigInteger cubeId = cuboid.getKey();
         final CuboidSpec cuboidSpec = cuboid.getValue();
         log.debug("-------> [%d] %s", cubeId, cuboidSpec);
         for (String dimension : cuboidSpec.getDimensions()) {
-          Column source = Preconditions.checkNotNull(columns.get(dimension), dimension);
-          ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, dimension));
-          ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-          Preconditions.checkArgument(source.getCapabilities().isDictionaryEncoded(), dimension);
-          desc = desc.withParts(GuavaUtils.concat(desc.getParts(), delegateDictionary(source)));
-          cuboidColumns.put(dimension, desc.read(dimension, mapped, serdeFactory));
+          cuboidColumns.put(dimension, Suppliers.memoize(() -> {
+            Column source = Preconditions.checkNotNull(columns.get(dimension), dimension).get();
+            try {
+              ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, dimension));
+              ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
+              Preconditions.checkArgument(source.getCapabilities().isDictionaryEncoded(), dimension);
+              desc = desc.withParts(GuavaUtils.concat(desc.getParts(), delegateDictionary(source)));
+              return desc.read(dimension, mapped, serdeFactory);
+            }
+            catch (Exception e) {
+              log.warn(e, "Failed to load cuboid [%d] %s", cubeId, dimension);
+              return null;
+            }
+          }));
         }
         for (Map.Entry<String, Set<String>> entry : cuboidSpec.getMetrics().entrySet()) {
           String metric = entry.getKey();
           for (String aggregator : entry.getValue()) {
             String column = metric.equals(Cuboids.COUNT_ALL_METRIC) ? metric : Cuboids.metricColumn(metric, aggregator);
-            ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.metric(cubeId, metric, aggregator));
-            ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-            cuboidColumns.put(column, descriptor.read(metric, mapped, serdeFactory));
+            cuboidColumns.put(column, Suppliers.memoize(() -> {
+              try {
+                ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.metric(cubeId, metric, aggregator));
+                ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
+                return descriptor.read(metric, mapped, serdeFactory);
+              }
+              catch (Exception e) {
+                log.warn(e, "Failed to load cuboid [%d] %s", cubeId, metric);
+                return null;
+              }
+            }));
           }
         }
         ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME));
         ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-        cuboidColumns.put(Column.TIME_COLUMN_NAME, desc.read(Column.TIME_COLUMN_NAME, mapped, serdeFactory));
+        cuboidColumns.put(
+            Column.TIME_COLUMN_NAME, Suppliers.memoize(() -> desc.read(Column.TIME_COLUMN_NAME, mapped, serdeFactory))
+        );
 
         Indexed<String> dimensionNames = ListIndexed.ofString(cuboidSpec.getDimensions());
         Indexed<String> columnNames = ListIndexed.ofString(
@@ -1144,7 +1167,7 @@ public class IndexIO
         return new ColumnPartSerde.Deserializer()
         {
           @Override
-          public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException
+          public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
           {
             DictionarySupport provider = Preconditions.checkNotNull(builder.getDictionaryEncodedColumn());
             builder.setDictionaryEncodedColumn(new DictionarySupport.Delegated(provider)

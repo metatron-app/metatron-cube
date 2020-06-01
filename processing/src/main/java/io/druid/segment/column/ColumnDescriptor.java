@@ -121,7 +121,6 @@ public class ColumnDescriptor
   }
 
   public Column read(String columnName, ByteBuffer buffer, BitmapSerdeFactory serdeFactory)
-      throws IOException
   {
     final ColumnBuilder builder = new ColumnBuilder()
         .setType(valueType)

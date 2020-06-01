@@ -101,11 +101,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
       return new Deserializer()
       {
         @Override
-        public void read(
-            ByteBuffer buffer,
-            ColumnBuilder builder,
-            BitmapSerdeFactory serdeFactory
-        ) throws IOException
+        public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
         {
           builder.setMetricBitmap(
               ColumnPartProviders.ofType(

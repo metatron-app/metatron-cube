@@ -76,7 +76,7 @@ public interface ColumnPartSerde
 
   interface Deserializer
   {
-    void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException;
+    void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory);
   }
 
   class Abstract implements ColumnPartSerde
@@ -106,7 +106,7 @@ public interface ColumnPartSerde
             ByteBuffer buffer,
             ColumnBuilder builder,
             BitmapSerdeFactory serdeFactory
-        ) throws IOException
+        )
         {
           ByteBufferSerializer.prepareForRead(buffer);  // skip this part
         }

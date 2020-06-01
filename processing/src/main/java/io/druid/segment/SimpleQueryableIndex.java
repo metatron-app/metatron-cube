@@ -63,7 +63,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   private final Indexed<String> columnNames;
   private final Indexed<String> availableDimensions;
   private final BitmapFactory bitmapFactory;
-  private final Map<String, Column> columns;
+  private final Map<String, Supplier<Column>> columns;
   private final SmooshedFileMapper fileMapper;
   private final Metadata metadata;
   private final Supplier<TimeStats> stats;
@@ -75,7 +75,7 @@ public class SimpleQueryableIndex implements QueryableIndex
       Indexed<String> columnNames,
       Indexed<String> dimNames,
       BitmapFactory bitmapFactory,
-      Map<String, Column> columns,
+      Map<String, Supplier<Column>> columns,
       Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids,
       SmooshedFileMapper fileMapper,
       Metadata metadata
@@ -91,7 +91,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.fileMapper = fileMapper;
     this.metadata = metadata;
     this.stats = Suppliers.memoize(() -> {
-      final GenericColumn column = columns.get(Column.TIME_COLUMN_NAME).getGenericColumn();
+      final GenericColumn column = columns.get(Column.TIME_COLUMN_NAME).get().getGenericColumn();
       try {
         final int numRows = column.getNumRows();
         return new TimeStats(numRows, Intervals.utc(column.getLong(0), column.getLong(numRows - 1)));
@@ -147,7 +147,8 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public Column getColumn(String columnName)
   {
-    return columns.get(columnName);
+    final Supplier<Column> supplier = columns.get(columnName);
+    return supplier == null ? null : supplier.get();
   }
 
   @Override

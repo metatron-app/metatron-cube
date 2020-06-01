@@ -22,6 +22,8 @@ package io.druid.segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -241,12 +243,12 @@ public class IndexMergerV9 extends IndexMerger
       if (!GuavaUtils.isNullOrEmpty(indexSpec.getCuboidSpecs())) {
         // make temporary segment for cube
         SmooshedFileMapper smooshedFiles = v9Smoosher.asMapped(outDir);
-        Map<String, Column> columns = Maps.newHashMap();
+        Map<String, Supplier<Column>> columns = Maps.newHashMap();
         for (String columnName : GuavaUtils.concat(
             Arrays.<String>asList(Column.TIME_COLUMN_NAME), mergedMetrics, mergedDimensions)) {
           ByteBuffer mapped = smooshedFiles.mapFile(columnName);
           ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-          columns.put(columnName, descriptor.read(columnName, mapped, bitmapSerdeFactory));
+          columns.put(columnName, Suppliers.ofInstance(descriptor.read(columnName, mapped, bitmapSerdeFactory)));
         }
         Indexed<String> dimNames = ListIndexed.ofString(mergedDimensions);
         Indexed<String> columnNames = ListIndexed.ofString(GuavaUtils.concat(mergedMetrics, mergedDimensions));

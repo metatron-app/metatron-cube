@@ -58,13 +58,13 @@ public class SerializerUtils
     return StringUtils.fromUtf8(stringBytes);
   }
 
-  public static String readString(ByteBuffer in) throws IOException
+  public static String readString(ByteBuffer in)
   {
     final int length = in.getInt();
     return StringUtils.fromUtf8(readBytes(in, length));
   }
 
-  public static byte[] readBytes(ByteBuffer in, int length) throws IOException
+  public static byte[] readBytes(ByteBuffer in, int length)
   {
     byte[] bytes = new byte[length];
     in.get(bytes);
