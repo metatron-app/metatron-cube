@@ -19,20 +19,19 @@
 
 package io.druid.query.aggregation.hll;
 
-import io.druid.java.util.common.IAE;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.hll.HllSketch;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.IAE;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 
 public class HllSketchMergeComplexMetricSerde extends ComplexMetricSerde
 {
@@ -82,7 +81,7 @@ public class HllSketchMergeComplexMetricSerde extends ComplexMetricSerde
   static HllSketch deserializeSketch(final Object object)
   {
     if (object instanceof String) {
-      return HllSketch.wrap(Memory.wrap(Base64.decodeBase64(((String) object).getBytes(StandardCharsets.UTF_8))));
+      return HllSketch.wrap(Memory.wrap(StringUtils.decodeBase64((String) object)));
     } else if (object instanceof byte[]) {
       return HllSketch.wrap(Memory.wrap((byte[]) object));
     } else if (object instanceof HllSketch) {

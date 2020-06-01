@@ -32,7 +32,6 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DoubleColumnSelector;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -157,7 +156,7 @@ public class AverageAggregatorFactory extends AggregatorFactory implements Aggre
     } else if (object instanceof ByteBuffer) {
       buffer = (ByteBuffer) object;
     } else if (object instanceof String) {
-      buffer = ByteBuffer.wrap(Base64.decodeBase64(StringUtils.toUtf8((String) object)));
+      buffer = ByteBuffer.wrap(StringUtils.decodeBase64((String) object));
     } else {
       return object;
     }

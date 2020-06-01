@@ -29,7 +29,6 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.StringUtils;
 import io.druid.segment.ColumnSelectorFactory;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -117,7 +116,7 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
     } else if (object instanceof ByteBuffer) {
       return Histogram.fromBytes((ByteBuffer) object);
     } else if (object instanceof String) {
-      byte[] bytes = Base64.decodeBase64(StringUtils.toUtf8((String) object));
+      byte[] bytes = StringUtils.decodeBase64((String) object);
       return Histogram.fromBytes(bytes);
     }
     return object;

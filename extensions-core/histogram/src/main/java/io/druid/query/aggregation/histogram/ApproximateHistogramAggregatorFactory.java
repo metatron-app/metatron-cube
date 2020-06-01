@@ -33,7 +33,6 @@ import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -197,7 +196,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     } else if (object instanceof ByteBuffer) {
       ah.fromBytes((ByteBuffer) object);
     } else if (object instanceof String) {
-      ah.fromBytes(Base64.decodeBase64(StringUtils.toUtf8((String) object)));
+      ah.fromBytes(StringUtils.decodeBase64((String) object));
     } else {
       throw new IllegalArgumentException("Invalid object"  + object);
     }

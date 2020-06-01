@@ -34,7 +34,6 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.GenericAggregatorFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -263,7 +262,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
       return VarianceAggregatorCollector.from((ByteBuffer) object);
     } else if (object instanceof String) {
       return VarianceAggregatorCollector.from(
-          ByteBuffer.wrap(Base64.decodeBase64(StringUtils.toUtf8((String) object)))
+          ByteBuffer.wrap(StringUtils.decodeBase64((String) object))
       );
     }
     return object;

@@ -19,9 +19,9 @@
 
 package io.druid.query.aggregation.histogram;
 
+import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
 import io.druid.segment.serde.ComplexMetricExtractor;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -39,8 +39,6 @@ public class ApproximateHistogramBase64CompactFoldingSerde extends ApproximateHi
   {
     return new ComplexMetricExtractor()
     {
-      private final Base64 base64 = new Base64();
-
       @Override
       public Class<ApproximateCompactHistogram> extractedClass()
       {
@@ -57,9 +55,9 @@ public class ApproximateHistogramBase64CompactFoldingSerde extends ApproximateHi
         }
         ApproximateCompactHistogram histogram = new ApproximateCompactHistogram();
         if (rawValue instanceof String) {
-          histogram.fromBytes(base64.decode((String) rawValue));
+          histogram.fromBytes(StringUtils.decodeBase64((String) rawValue));
         } else if (rawValue instanceof byte[]) {
-          histogram.fromBytes(base64.decode((byte[]) rawValue));
+          histogram.fromBytes(StringUtils.decodeBase64((byte[]) rawValue));
         } else if (rawValue instanceof ByteBuffer) {
           ByteBuffer buffer = (ByteBuffer) rawValue;
           byte[] array;
@@ -69,7 +67,7 @@ public class ApproximateHistogramBase64CompactFoldingSerde extends ApproximateHi
             array = new byte[buffer.remaining()];
             buffer.get(array);
           }
-          histogram.fromBytes(base64.decode(array));
+          histogram.fromBytes(StringUtils.decodeBase64(array));
         } else {
           throw new IllegalArgumentException("Not supported type " + rawValue.getClass());
         }

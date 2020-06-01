@@ -34,7 +34,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -224,7 +223,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
       return KurtosisAggregatorCollector.from((ByteBuffer) object);
     } else if (object instanceof String) {
       return KurtosisAggregatorCollector.from(
-          ByteBuffer.wrap(Base64.decodeBase64(StringUtils.toUtf8((String) object)))
+          ByteBuffer.wrap(StringUtils.decodeBase64((String) object))
       );
     }
     return object;

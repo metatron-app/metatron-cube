@@ -31,7 +31,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
-import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -118,7 +117,7 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
     } else if (object instanceof ByteBuffer) {
       return MetricArea.fromBytes((ByteBuffer)object);
     } else if (object instanceof String) {
-      return  MetricArea.fromBytes(Base64.decodeBase64(StringUtils.toUtf8((String) object)));
+      return MetricArea.fromBytes(StringUtils.decodeBase64((String) object));
     }
     return object;
   }

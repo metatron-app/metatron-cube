@@ -34,7 +34,6 @@ import io.druid.query.GeomUtils;
 import io.druid.query.GeometryDeserializer;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
-import org.apache.commons.codec.binary.Base64;
 import org.locationtech.jts.geom.Geometry;
 
 import java.util.Arrays;
@@ -154,7 +153,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
     if (object instanceof byte[]) {
       buffer = (byte[]) object;
     } else if (object instanceof String) {
-      buffer = Base64.decodeBase64(StringUtils.toUtf8((String) object));
+      buffer = StringUtils.decodeBase64((String) object);
     } else {
       throw new ISE("?? %s", object.getClass().getSimpleName());
     }

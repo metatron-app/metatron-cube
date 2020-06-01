@@ -23,14 +23,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.codec.binary.StringUtils;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -120,7 +119,7 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory
     } else if (object instanceof ByteBuffer) {
       return DruidTDigest.fromBytes((ByteBuffer) object);
     } else if (object instanceof String) {
-      byte[] bytes = Base64.decodeBase64(StringUtils.getBytesUtf8((String) object));
+      byte[] bytes = StringUtils.decodeBase64((String) object);
       return DruidTDigest.fromBytes(ByteBuffer.wrap(bytes));
     } else {
       return object;

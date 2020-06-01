@@ -27,11 +27,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Ranges;
-import org.apache.commons.codec.binary.Base64;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -893,7 +892,7 @@ public class ExpressionConverter
       return (byte[]) literal;
     }
     if (literal instanceof String) {
-      return Base64.decodeBase64(io.druid.common.utils.StringUtils.toUtf8((String) literal));
+      return io.druid.common.utils.StringUtils.decodeBase64((String) literal);
     }
     return null;
   }

@@ -19,7 +19,6 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.base.Charsets;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
@@ -30,8 +29,8 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import org.apache.commons.codec.binary.Base64;
 
 import java.util.Comparator;
 
@@ -47,7 +46,7 @@ public class ThetaOperations
   public static byte[] asBytes(Object serialized)
   {
     if (serialized instanceof String) {
-      return Base64.decodeBase64(((String) serialized).getBytes(Charsets.UTF_8));
+      return StringUtils.decodeBase64((String) serialized);
     } else if (serialized instanceof byte[]) {
       return (byte[]) serialized;
     }
@@ -76,11 +75,7 @@ public class ThetaOperations
 
   public static Sketch deserializeFromBase64EncodedString(String str)
   {
-    return deserializeFromByteArray(
-        Base64.decodeBase64(
-            str.getBytes(Charsets.UTF_8)
-        )
-    );
+    return deserializeFromByteArray(StringUtils.decodeBase64(str));
   }
 
   public static Sketch deserializeFromByteArray(byte[] data)
@@ -124,7 +119,7 @@ public class ThetaOperations
       Comparator comparator
   )
   {
-    return deserializeQuantileFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type, comparator);
+    return deserializeQuantileFromByteArray(StringUtils.decodeBase64(str), type, comparator);
   }
 
   public static ItemsSketch deserializeQuantileFromByteArray(byte[] data, ValueDesc type, Comparator comparator)
@@ -156,7 +151,7 @@ public class ThetaOperations
 
   public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromBase64EncodedString(String str, ValueDesc type)
   {
-    return deserializeFrequencyFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type);
+    return deserializeFrequencyFromByteArray(StringUtils.decodeBase64(str), type);
   }
 
   public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromByteArray(byte[] data, ValueDesc type)
@@ -187,7 +182,7 @@ public class ThetaOperations
 
   public static ReservoirItemsSketch deserializeSamplingFromBase64EncodedString(String str, ValueDesc type)
   {
-    return deserializeSamplingFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type);
+    return deserializeSamplingFromByteArray(StringUtils.decodeBase64(str), type);
   }
 
   public static ReservoirItemsSketch deserializeSamplingFromByteArray(byte[] data, ValueDesc type)

@@ -29,7 +29,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
-import org.apache.commons.codec.binary.Base64;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 
@@ -336,7 +335,7 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
     } else if (object instanceof ByteBuffer) {
       buffer = (ByteBuffer) object;
     } else if (object instanceof String) {
-      buffer = ByteBuffer.wrap(Base64.decodeBase64(StringUtils.toUtf8((String) object)));
+      buffer = ByteBuffer.wrap(StringUtils.decodeBase64((String) object));
     } else {
       return object;
     }

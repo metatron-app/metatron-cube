@@ -260,8 +260,8 @@ public class SketchHandlerTest
 
   private TypedSketch writeAndRead(SketchHandler handler, TypedSketch sketch) throws Exception
   {
-    final Object object = TestHelper.JSON_MAPPER.writeValueAsString(handler.toSketch(sketch));
-    return TypedSketch.deserialize(handler.op(), object, null);
+    final String object = TestHelper.JSON_MAPPER.writeValueAsString(new Object[] {handler.toSketch(sketch)});
+    return TypedSketch.deserialize(handler.op(), TestHelper.JSON_MAPPER.readValue(object, Object[].class)[0], null);
   }
 
   @Test

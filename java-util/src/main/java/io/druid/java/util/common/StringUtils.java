@@ -20,7 +20,6 @@
 package io.druid.java.util.common;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -30,6 +29,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.Base64;
 import java.util.IllegalFormatException;
 import java.util.Iterator;
 import java.util.Locale;
@@ -43,32 +43,8 @@ public class StringUtils
   public static final Charset UTF8_CHARSET = Charsets.UTF_8;
   public static final String UTF8_STRING = com.google.common.base.Charsets.UTF_8.toString();
 
-  public static final Function<String, String> NULL_TO_EMPTY = new Function<String, String>()
-  {
-    @Override
-    public String apply(String s)
-    {
-      return Strings.nullToEmpty(s);
-    }
-  };
-
-  public static final Function<String, String> TO_UPPER = new Function<String, String>()
-  {
-    @Override
-    public String apply(String s)
-    {
-      return s.toUpperCase();
-    }
-  };
-
-  public static final Function<String, String> TO_LOWER = new Function<String, String>()
-  {
-    @Override
-    public String apply(String s)
-    {
-      return s.toLowerCase();
-    }
-  };
+  private static final Base64.Encoder BASE64_ENCODER = Base64.getEncoder();
+  private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
 
   public static final byte[] EMPTY_BYTES = new byte[0];
 
@@ -93,6 +69,21 @@ public class StringUtils
       // Should never happen
       throw Throwables.propagate(e);
     }
+  }
+
+  public static byte[] encodeBase64(byte[] input)
+  {
+    return BASE64_ENCODER.encode(input);
+  }
+
+  public static byte[] decodeBase64(byte[] input)
+  {
+    return BASE64_DECODER.decode(input);
+  }
+
+  public static byte[] decodeBase64(String input)
+  {
+    return BASE64_DECODER.decode(input);
   }
 
   @Nullable
