@@ -57,6 +57,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.function.Predicate;
 
 /**
  */
@@ -117,7 +118,8 @@ public class LoadRuleTest
     mockPeon.loadSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
@@ -221,7 +223,8 @@ public class LoadRuleTest
     mockPeon.dropSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
@@ -328,7 +331,8 @@ public class LoadRuleTest
     mockPeon.loadSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
@@ -415,7 +419,8 @@ public class LoadRuleTest
     mockPeon.dropSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();

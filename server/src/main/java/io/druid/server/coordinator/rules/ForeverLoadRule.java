@@ -23,17 +23,32 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import io.druid.client.DruidServer;
+import io.druid.server.coordinator.LoadQueuePeon;
+import io.druid.timeline.DataSegment;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  */
 public class ForeverLoadRule extends LoadRule.Always
 {
-  public static LoadRule of(int replicant)
+  public static LoadRule of(final int replicant, final Predicate<DataSegment> predicate)
   {
-    return new ForeverLoadRule(ImmutableMap.of(DruidServer.DEFAULT_TIER, replicant));
+    if (predicate == null) {
+      return new ForeverLoadRule(ImmutableMap.of(DruidServer.DEFAULT_TIER, replicant));
+    }
+    return new ForeverLoadRule(ImmutableMap.of(DruidServer.DEFAULT_TIER, replicant))
+    {
+      @Override
+      protected void assign(DataSegment segment, LoadQueuePeon peon, String reason)
+      {
+        if (predicate.test(segment)) {
+          peon.loadSegment(segment, reason, null, predicate);
+        }
+      }
+    };
   }
 
   private final Map<String, Integer> tieredReplicants;

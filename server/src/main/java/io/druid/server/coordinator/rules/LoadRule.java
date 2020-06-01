@@ -32,6 +32,7 @@ import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
+import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.coordinator.SegmentReplicantLookup;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
@@ -149,10 +150,10 @@ public abstract class LoadRule implements Rule
         break;
       }
 
-      holder.getPeon().loadSegment(
+      assign(
           segment,
-          StringUtils.safeFormat("under-replicated(%d/%d)", currReplicantsInTier, expectedReplicantsInTier),
-          null
+          holder.getPeon(),
+          StringUtils.safeFormat("under-replicated(%d/%d)", currReplicantsInTier, expectedReplicantsInTier)
       );
 
       ++assigned;
@@ -161,6 +162,11 @@ public abstract class LoadRule implements Rule
     }
 
     return assigned;
+  }
+
+  protected void assign(DataSegment segment, LoadQueuePeon peon, String reason)
+  {
+    peon.loadSegment(segment, reason, null, null);
   }
 
   private void drop(
@@ -226,6 +232,7 @@ public abstract class LoadRule implements Rule
                 loadedNumReplicantsForTier,
                 expectedNumReplicantsForTier
             ),
+            null,
             null
         );
         --currentNumReplicantsForTier;

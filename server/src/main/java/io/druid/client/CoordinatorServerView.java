@@ -24,9 +24,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.concurrent.Execs;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.core.Emitter;
-import io.druid.concurrent.Execs;
 import io.druid.query.DataSource;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.log.Events;
@@ -224,11 +224,5 @@ public class CoordinatorServerView implements InventoryView
   public boolean isStarted()
   {
     return baseView.isStarted();
-  }
-
-  @Override
-  public boolean isSegmentLoadedByServer(String serverKey, DataSegment segment)
-  {
-    return baseView.isSegmentLoadedByServer(serverKey, segment);
   }
 }

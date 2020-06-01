@@ -42,13 +42,7 @@ public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
           "Moving [%s] from [%s] to [%s]", segmentName, fromServer.getName(), toServer.getName()
       );
       try {
-        toPeon.loadSegment(segment, new LoadPeonCallback()
-        {
-          @Override
-          public void execute()
-          {
-          }
-        });
+        toPeon.loadSegment(segment, null);
 
         currentlyMovingSegments.get("normal").put(segmentName, new BalancerSegmentHolder(fromServer, segment));
 

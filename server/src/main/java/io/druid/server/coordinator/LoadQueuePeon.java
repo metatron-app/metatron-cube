@@ -45,6 +45,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 
 /**
  */
@@ -54,11 +55,11 @@ public class LoadQueuePeon
   private static final int DROP = 0;
   private static final int LOAD = 1;
 
-  private static void executeCallbacks(List<LoadPeonCallback> callbacks)
+  private static void executeCallbacks(List<LoadPeonCallback> callbacks, boolean canceled)
   {
     for (LoadPeonCallback callback : callbacks) {
       if (callback != null) {
-        callback.execute();
+        callback.execute(canceled);
       }
     }
   }
@@ -147,37 +148,41 @@ public class LoadQueuePeon
     return failedAssignCount.getAndSet(0);
   }
 
-  public void loadSegment(
-      final DataSegment segment,
-      final LoadPeonCallback callback
-  )
+  public void loadSegment(final DataSegment segment, final LoadPeonCallback callback)
   {
-    loadSegment(segment, "test", callback);
+    loadSegment(segment, "test", callback, null);
   }
 
   public void loadSegment(
       final DataSegment segment,
       final String loadReason,
-      final LoadPeonCallback callback
+      final LoadPeonCallback callback,
+      final Predicate<DataSegment> validity
   )
   {
     if (!checkInProcessing(segment, segmentsToLoad, callback)) {
       log.info("Asking server [%s] to load segment[%s] for [%s]", server, segment.getIdentifier(), loadReason);
       queuedSize.addAndGet(segment.getSize());
-      segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, callback));
+      segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, callback, validity));
       doNext();
     }
+  }
+
+  public void dropSegment(final DataSegment segment, final LoadPeonCallback callback)
+  {
+    dropSegment(segment, "test", callback, null);
   }
 
   public void dropSegment(
       final DataSegment segment,
       final String dropReason,
-      final LoadPeonCallback callback
+      final LoadPeonCallback callback,
+      final Predicate<DataSegment> validity
   )
   {
     if (!checkInProcessing(segment, segmentsToDrop, callback)) {
       log.info("Asking server [%s] to drop segment[%s] for [%s]", server, segment.getIdentifier(), dropReason);
-      segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, callback));
+      segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, callback, validity));
       doNext();
     }
   }
@@ -230,7 +235,11 @@ public class LoadQueuePeon
                         log.makeAlert("Crazy race condition! server[%s]", server)
                            .emit();
                       }
-                      actionCompleted();
+                      actionCompleted(true);
+                      doNext();
+                      return;
+                    } else if (!currentlyProcessing.isValid()) {
+                      actionCompleted(true);
                       doNext();
                       return;
                     }
@@ -313,7 +322,7 @@ public class LoadQueuePeon
     }
   }
 
-  private void actionCompleted()
+  private void actionCompleted(boolean canceled)
   {
     if (currentlyProcessing != null) {
       switch (currentlyProcessing.getType()) {
@@ -331,7 +340,7 @@ public class LoadQueuePeon
       final List<LoadPeonCallback> callbacks = currentlyProcessing.getCallbacks();
       currentlyProcessing = null;
       if (!callbacks.isEmpty()) {
-        callBackExecutor.execute(() -> executeCallbacks(callbacks));
+        callBackExecutor.execute(() -> executeCallbacks(callbacks, canceled));
       }
     }
   }
@@ -340,16 +349,16 @@ public class LoadQueuePeon
   {
     synchronized (lock) {
       if (currentlyProcessing != null) {
-        executeCallbacks(currentlyProcessing.getCallbacks());
+        executeCallbacks(currentlyProcessing.getCallbacks(), true);
         currentlyProcessing = null;
       }
       for (SegmentHolder holder : segmentsToDrop.values()) {
-        executeCallbacks(holder.getCallbacks());
+        executeCallbacks(holder.getCallbacks(), true);
       }
       segmentsToDrop.clear();
 
       for (SegmentHolder holder : segmentsToLoad.values()) {
-        executeCallbacks(holder.getCallbacks());
+        executeCallbacks(holder.getCallbacks(), true);
       }
       segmentsToLoad.clear();
 
@@ -373,7 +382,7 @@ public class LoadQueuePeon
         );
         return;
       }
-      actionCompleted();
+      actionCompleted(false);
       log.debug("Server[%s] done processing [%s]", basePath, path);
     }
 
@@ -386,7 +395,7 @@ public class LoadQueuePeon
       log.debug(e, "Server[%s], throwable caught when submitting [%s].", server, currentlyProcessing);
       failedAssignCount.getAndIncrement();
       // Act like it was completed so that the coordinator gives it to someone else
-      actionCompleted();
+      actionCompleted(true);
       doNext();
     }
   }
@@ -396,14 +405,21 @@ public class LoadQueuePeon
     private final DataSegment segment;
     private final int type;
     private final List<LoadPeonCallback> callbacks = Lists.newLinkedList();
+    private final Predicate<DataSegment> validity;
 
-    private SegmentHolder(DataSegment segment, int type, LoadPeonCallback callback)
+    private SegmentHolder(DataSegment segment, int type, LoadPeonCallback callback, Predicate<DataSegment> validity)
     {
       this.segment = segment;
       this.type = type;
       if (callback != null) {
         this.callbacks.add(callback);
       }
+      this.validity = validity;
+    }
+
+    public boolean isValid()
+    {
+      return validity == null || validity.test(segment);
     }
 
     public DataSegment getSegment()

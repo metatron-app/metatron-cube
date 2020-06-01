@@ -294,16 +294,7 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
   public Iterable<DruidServer> getInventory()
   {
     synchronized (servers) {
-      return Iterables.transform(
-          servers.values(), new com.google.common.base.Function<DruidServerHolder, DruidServer>()
-          {
-            @Override
-            public DruidServer apply(DruidServerHolder input)
-            {
-              return input.druidServer;
-            }
-          }
-      );
+      return Iterables.transform(servers.values(), server -> server.druidServer);
     }
   }
 
@@ -404,19 +395,6 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
   public boolean isStarted()
   {
     return lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS);
-  }
-
-  @Override
-  public boolean isSegmentLoadedByServer(String serverKey, DataSegment segment)
-  {
-    synchronized (servers) {
-      DruidServerHolder holder = servers.get(serverKey);
-      if (holder != null) {
-        return holder.druidServer.getSegment(segment.getIdentifier()) != null;
-      } else {
-        return false;
-      }
-    }
   }
 
   private class DruidServerHolder

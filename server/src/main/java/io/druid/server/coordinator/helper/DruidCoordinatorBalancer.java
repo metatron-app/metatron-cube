@@ -180,7 +180,9 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       final Map<String, BalancerSegmentHolder> movingSegments = getTierMap(toServer.getTier());
       movingSegments.put(segmentId, new BalancerSegmentHolder(fromServer, segment));
 
-      return coordinator.moveSegment(segment, fromServer, toServer, () -> movingSegments.remove(segmentId));
+      return coordinator.moveSegment(
+          segment, fromServer, toServer, (boolean canceled) -> movingSegments.remove(segmentId), null
+      );
     }
     return false;
   }

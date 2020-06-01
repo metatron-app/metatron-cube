@@ -192,10 +192,10 @@ public class LoadQueuePeonTest extends CuratorTestBase
 
     for (DataSegment segment : segmentToDrop) {
       loadQueuePeon.dropSegment(
-          segment, "test", new LoadPeonCallback()
+          segment, new LoadPeonCallback()
           {
             @Override
-            public void execute()
+            public void execute(boolean canceled)
             {
               segmentDroppedSignal[segmentSignalIdx.get()].countDown();
             }
@@ -208,7 +208,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
           segment, new LoadPeonCallback()
           {
             @Override
-            public void execute()
+            public void execute(boolean canceled)
             {
               segmentLoadedSignal[segmentSignalIdx.get()].countDown();
             }
@@ -318,7 +318,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
         segment, new LoadPeonCallback()
         {
           @Override
-          public void execute()
+          public void execute(boolean canceled)
           {
             segmentLoadedSignal.countDown();
           }

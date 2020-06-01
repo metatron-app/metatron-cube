@@ -40,6 +40,8 @@ public interface ServerView
 
   static interface ServerCallback
   {
+    CallbackAction serverAdded(DruidServer server);
+
     /**
      * Called when a server is removed.
      *
@@ -60,6 +62,13 @@ public interface ServerView
 
     enum Type
     {
+      ADDED {
+        @Override
+        public CallbackAction execute(ServerCallback callback, DruidServer server)
+        {
+          return callback.serverAdded(server);
+        }
+      },
       REMOVED {
         @Override
         public CallbackAction execute(ServerCallback callback, DruidServer server)
@@ -81,6 +90,12 @@ public interface ServerView
 
   class AbstractServerCallback implements ServerCallback
   {
+    @Override
+    public CallbackAction serverAdded(DruidServer server)
+    {
+      return CallbackAction.CONTINUE;
+    }
+
     @Override
     public CallbackAction serverRemoved(DruidServer server)
     {

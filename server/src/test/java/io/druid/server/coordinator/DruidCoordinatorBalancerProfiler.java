@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 public class DruidCoordinatorBalancerProfiler
 {
@@ -83,7 +84,8 @@ public class DruidCoordinatorBalancerProfiler
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().anyTimes();
     EasyMock.replay(coordinator);
@@ -206,7 +208,8 @@ public class DruidCoordinatorBalancerProfiler
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().anyTimes();
     EasyMock.replay(coordinator);

@@ -701,7 +701,7 @@ public class DataSourcesResource
     DataSegment theSegment = null;
     Set<String> servers = Sets.newHashSet();
     for (DruidServer druidServer : serverInventoryView.getInventory()) {
-      DataSegment currSegment = druidServer.getSegments().get(segmentId);
+      DataSegment currSegment = druidServer.getSegment(segmentId);
       if (currSegment != null) {
         theSegment = currSegment;
         servers.add(druidServer.getHost());

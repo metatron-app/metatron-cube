@@ -34,7 +34,6 @@ import io.druid.java.util.common.lifecycle.LifecycleStop;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.timeline.DataSegment;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.utils.ZKPaths;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -48,9 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public abstract class AbstractCuratorServerInventoryView<InventoryType> implements ServerInventoryView
 {
-
   private final EmittingLogger log;
-  private final CuratorFramework curator;
   private final CuratorInventoryManager<DruidServer, InventoryType> inventoryManager;
   private final AtomicBoolean started = new AtomicBoolean(false);
 
@@ -70,7 +67,6 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
   )
   {
     this.log = log;
-    this.curator = curator;
     this.inventoryManager = new CuratorInventoryManager<>(
         curator,
         new InventoryManagerConfig()
@@ -117,7 +113,8 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           @Override
           public void newContainer(DruidServer container)
           {
-            log.info("New Server [%s:%s] Created", container.getType(), container.getName());
+            log.info("Server[%s:%s] Registered", container.getType(), container.getName());
+            runServerCallback(container, ServerCallback.Type.ADDED);
           }
 
           @Override
@@ -130,7 +127,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           @Override
           public DruidServer updateContainer(DruidServer oldContainer, DruidServer newContainer)
           {
-            log.debug("[%s:%s] Updated", oldContainer.getType(), newContainer);
+            log.debug("Server[%s:%s] Updated", oldContainer.getType(), newContainer);
             DruidServer updated = newContainer.addDataSegments(oldContainer);
             runServerCallback(updated, ServerCallback.Type.UPDATED);
             return updated;
@@ -307,20 +304,6 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
     final DataSegment removed = container.removeDataSegment(inventoryKey);
     if (removed != null) {
       runSegmentCallbacks(input -> input.segmentRemoved(container.getMetadata(), removed));
-    }
-  }
-
-  @Override
-  public boolean isSegmentLoadedByServer(String serverKey, DataSegment segment)
-  {
-    try {
-      String toServedSegPath = ZKPaths.makePath(
-          ZKPaths.makePath(getInventoryManagerConfig().getInventoryPath(), serverKey),
-          segment.getIdentifier()
-      );
-      return curator.checkExists().forPath(toServedSegPath) != null;
-    } catch (Exception ex) {
-      throw Throwables.propagate(ex);
     }
   }
 

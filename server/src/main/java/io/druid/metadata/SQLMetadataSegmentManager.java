@@ -361,6 +361,13 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   }
 
   @Override
+  public boolean isAvailable(DataSegment segment)
+  {
+    final DruidDataSource ds = getInventoryValue(segment.getDataSource());
+    return ds != null && ds.contains(segment.getIdentifier());
+  }
+
+  @Override
   public boolean enableSegment(final String segmentId, final boolean now)
   {
     try {
@@ -645,9 +652,13 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       //
       // setting connection to read-only will allow some database such as MySQL
       // to automatically use read-only transaction mode, further optimizing the query
+      long start = System.currentTimeMillis();
       int added = syncNewSegments();
       if (added > 0) {
-        log.info("Polled and found new %,d segments in the database", added);
+        log.info(
+            "Polled and found new %,d segments in the database, took %,d msec",
+            added, System.currentTimeMillis() - start
+        );
       }
       int deleted = syncDeletedSegments();
       if (deleted > 0) {

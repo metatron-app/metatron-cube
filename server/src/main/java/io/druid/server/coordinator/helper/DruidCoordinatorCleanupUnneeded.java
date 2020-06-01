@@ -63,7 +63,7 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
         for (ImmutableDruidDataSource dataSource : server.getDataSources()) {
           for (DataSegment segment : dataSource.getSegments()) {
             if (!coordinator.isAvailable(segment) && !queuePeon.isDroppingSegment(segment)) {
-              queuePeon.dropSegment(segment, "cleanup", null);
+              queuePeon.dropSegment(segment, "cleanup", null, null);
               stats.addToTieredStat("unneededCount", server.getTier(), 1);
             }
           }

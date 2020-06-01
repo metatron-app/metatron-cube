@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.joda.time.Interval;
 
+import java.util.Objects;
+
 /**
 */
 public class SegmentDescriptor
@@ -85,13 +87,13 @@ public class SegmentDescriptor
     if (partitionNumber != that.partitionNumber) {
       return false;
     }
-    if (dataSource != null ? !dataSource.equals(that.dataSource) : that.dataSource != null) {
+    if (!Objects.equals(dataSource, that.dataSource)) {
       return false;
     }
-    if (interval != null ? !interval.equals(that.interval) : that.interval != null) {
+    if (!Objects.equals(interval, that.interval)) {
       return false;
     }
-    if (version != null ? !version.equals(that.version) : that.version != null) {
+    if (!Objects.equals(version, that.version)) {
       return false;
     }
 
@@ -101,11 +103,7 @@ public class SegmentDescriptor
   @Override
   public int hashCode()
   {
-    int result = interval != null ? interval.hashCode() : 0;
-    result = 31 * result + (dataSource != null ? dataSource.hashCode() : 0);
-    result = 31 * result + (version != null ? version.hashCode() : 0);
-    result = 31 * result + partitionNumber;
-    return result;
+    return Objects.hash(dataSource, interval, version, partitionNumber);
   }
 
   @Override

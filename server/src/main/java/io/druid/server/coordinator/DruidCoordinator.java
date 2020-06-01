@@ -96,6 +96,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 /**
  */
@@ -226,13 +227,22 @@ public class DruidCoordinator
     }
     serverInventoryView.registerServerCallback(
         exec,
-        new ServerView.AbstractServerCallback()
+        new ServerView.ServerCallback()
         {
+          @Override
+          public ServerView.CallbackAction serverAdded(DruidServer server)
+          {
+            if (leader) {
+              balanceNow();
+            }
+            return ServerView.CallbackAction.CONTINUE;
+          }
+
           @Override
           public ServerView.CallbackAction serverRemoved(DruidServer server)
           {
             if (leader) {
-              balanceNow();
+              serverDown(server);
             }
             return ServerView.CallbackAction.CONTINUE;
           }
@@ -334,17 +344,21 @@ public class DruidCoordinator
   {
     final Map<String, Double> loadStatus = Maps.newHashMap();
     for (DruidDataSource dataSource : metadataSegmentManager.getInventory()) {
-      final Set<DataSegment> segments = Sets.newHashSet(dataSource.getCopyOfSegments());
-      final int availableSegmentSize = segments.size();
-
+      final Set<String> segmentIds = Sets.newHashSet(dataSource.getCopyOfSegmentIds());
+      final int availableSegmentSize = segmentIds.size();
+      if (availableSegmentSize == 0) {
+        continue;
+      }
       // remove loaded segments
       for (DruidServer druidServer : serverInventoryView.getInventory()) {
         final DruidDataSource loadedView = druidServer.getDataSource(dataSource.getName());
         if (loadedView != null) {
-          segments.removeAll(loadedView.getCopyOfSegments());
+          for (String segmentId : loadedView.getCopyOfSegmentIdsAsList()) {
+            segmentIds.remove(segmentId);
+          }
         }
       }
-      final int unloadedSegmentSize = segments.size();
+      final int unloadedSegmentSize = segmentIds.size();
       loadStatus.put(
           dataSource.getName(),
           100 * ((double) (availableSegmentSize - unloadedSegmentSize) / (double) availableSegmentSize)
@@ -395,7 +409,8 @@ public class DruidCoordinator
       final DataSegment segment,
       final ServerHolder fromServer,
       final ServerHolder toServer,
-      final LoadPeonCallback callback
+      final LoadPeonCallback callback,
+      final Predicate<DataSegment> validity   // load validity
   )
   {
     final String segmentId = segment.getIdentifier();
@@ -415,27 +430,31 @@ public class DruidCoordinator
           new LoadPeonCallback()
           {
             @Override
-            public void execute()
+            public void execute(boolean canceled)
             {
+              if (canceled) {
+                return;   // nothing to do
+              }
               try {
                 if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
-                  dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback);
+                  dropPeon.dropSegment(segment, String.format("balanced to %s", toServer.getName()), callback, null);
                 } else if (callback != null) {
-                  callback.execute();
+                  callback.execute(canceled);
                 }
               }
               catch (Exception e) {
                 throw Throwables.propagate(e);
               }
             }
-          }
+          },
+          validity
       );
       return true;
     }
     catch (Exception e) {
       log.makeAlert(e, "Exception moving segment %s", segmentId).emit();
       if (callback != null) {
-        callback.execute();
+        callback.execute(true);
       }
     }
     return false;
@@ -450,8 +469,7 @@ public class DruidCoordinator
 
   public boolean isAvailable(DataSegment segment)
   {
-    final DruidDataSource ds = metadataSegmentManager.getInventoryValue(segment.getDataSource());
-    return ds != null && ds.contains(segment.getIdentifier());
+    return metadataSegmentManager.isAvailable(segment);
   }
 
   @LifecycleStart
@@ -648,56 +666,66 @@ public class DruidCoordinator
     }
   }
 
+  private Future<CoordinatorStats> serverDown(DruidServer server)
+  {
+    // stop immediately if the server revives
+    return scheduleNow(ImmutableSet.copyOf(server.getSegments().values()), MetadataRuleManager.of(
+        ForeverLoadRule.of(1, segment -> serverInventoryView.getInventoryValue(server.getName()) == null)
+    ));
+  }
+
   private Future<CoordinatorStats> scheduleNow(Set<DataSegment> segments)
   {
-    return runNow(segments, new DruidCoordinatorRuleRunner(this), "scheduleNow");
+    return scheduleNow(segments, MetadataRuleManager.of(ForeverLoadRule.of(1, null)));
+  }
+
+  private Future<CoordinatorStats> scheduleNow(Set<DataSegment> segments, MetadataRuleManager manager)
+  {
+    return runNow(segments, manager, new DruidCoordinatorRuleRunner(this), false, "scheduleNow");
   }
 
   private Future<CoordinatorStats> balanceNow()
   {
-    return runNow(ImmutableSet.<DataSegment>of(), new DruidCoordinatorBalancer(this), "balanceNow");
+    MetadataRuleManager manager = MetadataRuleManager.of(ForeverLoadRule.of(1, null));
+    return runNow(ImmutableSet.<DataSegment>of(), manager, new DruidCoordinatorBalancer(this), true, "balanceNow");
   }
 
   private Future<CoordinatorStats> runNow(
       final Set<DataSegment> segments,
+      final MetadataRuleManager ruleManager,
       final DruidCoordinatorHelper helper,
+      final boolean majorTick,
       final String action
   )
   {
     return exec.submit(
-          new Callable<CoordinatorStats>()
+        new Callable<CoordinatorStats>()
+        {
+          @Override
+          public CoordinatorStats call()
           {
-            @Override
-            public CoordinatorStats call()
-            {
+            DruidCoordinatorRuntimeParams params = buildParam(
+                DruidCoordinatorRuntimeParams.newBuilder()
+                                             .withMajorTick(majorTick)
+                                             .withDatabaseRuleManager(ruleManager)
+                                             .withAvailableSegments(Suppliers.ofInstance(segments))
+            );
+            if (leader) {
               for (DataSegment segment : segments) {
-                metadataSegmentManager.registerToView(segment);   // prevent from cleanup for a while
+                metadataSegmentManager.registerToView(segment);   // for isAvailable() to return true
               }
-              DruidCoordinatorRuntimeParams params = buildParam(
-                  DruidCoordinatorRuntimeParams.newBuilder().withAvailableSegments(Suppliers.ofInstance(segments))
-              );
-              if (leader) {
-                final List<Rule> loader = Arrays.<Rule>asList(ForeverLoadRule.of(1));
-                params = params.buildFromExisting()
-                               .withDatabaseRuleManager(
-                                   new MetadataRuleManager.Abstract()
-                                   {
-                                     @Override
-                                     public List<Rule> getRulesWithDefault(String dataSource) { return loader;}
-                                   }
-                               ).build();
-                helper.run(params);
-              }
-              return params.getCoordinatorStats();
+              helper.run(params);
             }
-
-            @Override
-            public String toString()
-            {
-              return action;
-            }
+            return params.getCoordinatorStats();
           }
-      );
+
+          @Override
+          public String toString()
+          {
+            return action;
+          }
+        }
+    );
   }
 
   private void stopBeingLeader()

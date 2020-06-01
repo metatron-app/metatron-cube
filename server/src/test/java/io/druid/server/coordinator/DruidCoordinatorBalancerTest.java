@@ -42,6 +42,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.function.Predicate;
 
 /**
  */
@@ -170,7 +171,8 @@ public class DruidCoordinatorBalancerTest
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
@@ -259,7 +261,8 @@ public class DruidCoordinatorBalancerTest
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);
@@ -360,7 +363,8 @@ public class DruidCoordinatorBalancerTest
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
         EasyMock.<ServerHolder>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().andReturn(true).anyTimes();
     EasyMock.replay(coordinator);

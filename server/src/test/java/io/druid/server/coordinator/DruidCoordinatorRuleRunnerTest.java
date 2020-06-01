@@ -53,6 +53,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executors;
+import java.util.function.Predicate;
 
 /**
  */
@@ -218,7 +219,8 @@ public class DruidCoordinatorRuleRunnerTest
     mockPeon.loadSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
@@ -229,7 +231,8 @@ public class DruidCoordinatorRuleRunnerTest
     mockPeon.dropSegment(
         EasyMock.<DataSegment>anyObject(),
         EasyMock.<String>anyObject(),
-        EasyMock.<LoadPeonCallback>anyObject()
+        EasyMock.<LoadPeonCallback>anyObject(),
+        EasyMock.<Predicate<DataSegment>>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
   }
@@ -1004,7 +1007,10 @@ public class DruidCoordinatorRuleRunnerTest
     availableSegments.add(v2);
 
     mockCoordinator();
-    mockPeon.loadSegment(EasyMock.eq(v2), EasyMock.<String>anyObject(), EasyMock.<LoadPeonCallback>anyObject());
+    mockPeon.loadSegment(
+        EasyMock.eq(v2), EasyMock.<String>anyObject(),
+        EasyMock.<LoadPeonCallback>anyObject(), EasyMock.<Predicate<DataSegment>>anyObject()
+    );
     EasyMock.expectLastCall().once();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();

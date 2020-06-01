@@ -244,6 +244,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
         segment,
         new ServerHolder(druidServer.toImmutableDruidServer(), loadQueuePeon),
         new ServerHolder(druidServer2.toImmutableDruidServer(), loadQueuePeon),
+        null,
         null
     );
     EasyMock.verify(druidServer);
@@ -284,6 +285,8 @@ public class DruidCoordinatorTest extends CuratorTestBase
     EasyMock.expect(databaseSegmentManager.getInventory()).andReturn(
         ImmutableList.of(druidDataSources[0])
     ).atLeastOnce();
+
+    EasyMock.expect(databaseSegmentManager.isAvailable(EasyMock.anyObject())).andReturn(true).anyTimes();
     EasyMock.expect(databaseSegmentManager.getInventoryValue(EasyMock.anyObject())).andReturn(dsInMeta).anyTimes();
     EasyMock.replay(databaseSegmentManager);
 

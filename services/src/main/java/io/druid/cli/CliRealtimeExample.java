@@ -24,7 +24,6 @@ import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
-import io.druid.java.util.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.druid.client.DruidServer;
 import io.druid.client.InventoryView;
@@ -32,6 +31,7 @@ import io.druid.client.ServerView;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.RealtimeModule;
 import io.druid.jackson.FunctionModule;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.ManagementQueryModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.segment.loading.DataSegmentPusher;
@@ -129,12 +129,6 @@ public class CliRealtimeExample extends ServerRunnable
     public boolean isStarted()
     {
       return true;
-    }
-
-    @Override
-    public boolean isSegmentLoadedByServer(String serverKey, DataSegment segment)
-    {
-      return false;
     }
   }
 

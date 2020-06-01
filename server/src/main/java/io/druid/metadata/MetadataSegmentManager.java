@@ -47,6 +47,8 @@ public interface MetadataSegmentManager
 
   boolean unregisterFromView(DataSegment segment);
 
+  boolean isAvailable(DataSegment segment);
+
   boolean enableDatasource(String ds, boolean now);
 
   boolean disableDatasource(String ds);

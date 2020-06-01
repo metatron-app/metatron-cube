@@ -81,6 +81,11 @@ public class DruidDataSource
     return Sets.newHashSet(segmentsMap.keySet());
   }
 
+  public synchronized List<String> getCopyOfSegmentIdsAsList()
+  {
+    return Lists.newArrayList(segmentsMap.keySet());
+  }
+
   public List<DataSegment> getSegmentsSorted()
   {
     List<DataSegment> segments = Lists.newArrayList(segmentsMap.values());

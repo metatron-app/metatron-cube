@@ -19,7 +19,6 @@
 
 package io.druid.curator.inventory;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.MapMaker;
 import com.google.common.collect.Sets;
@@ -161,20 +160,11 @@ public class CuratorInventoryManager<ContainerClass, InventoryClass>
 
   public Iterable<ContainerClass> getInventory()
   {
-    return Iterables.transform(
-        containers.values(),
-        new Function<ContainerHolder, ContainerClass>()
-        {
-          @Override
-          public ContainerClass apply(ContainerHolder input)
-          {
-            return input.getContainer();
-          }
-        }
-    );
+    return Iterables.transform(containers.values(), ContainerHolder::getContainer);
   }
 
-  private byte[] getZkDataForNode(String path) {
+  private byte[] getZkDataForNode(String path)
+  {
     try {
       return curatorFramework.getData().decompressed().forPath(path);
     } catch(Exception ex) {

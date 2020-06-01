@@ -146,7 +146,7 @@ public class BrokerQueryResource extends QueryResource
     final RequestContext context = new RequestContext(req, pretty != null);
     try {
       Query<?> query = context.getInputMapper(false).readValue(in, Query.class);
-      return context.ok(getTargetLocations(query.getDataSource(), query.getIntervals()));
+      return context.ok(getTargetLocations(DataSources.getName(query), query.getIntervals()));
     }
     catch (Exception e) {
       return context.gotError(e);
@@ -169,8 +169,7 @@ public class BrokerQueryResource extends QueryResource
       intervalList.add(Interval.parse(interval.trim()));
     }
     List<LocatedSegmentDescriptor> located = getTargetLocations(
-        new TableDataSource(datasource),
-        JodaUtils.condenseIntervals(intervalList)
+        datasource, JodaUtils.condenseIntervals(intervalList)
     );
     try {
       return context.ok(located);
@@ -195,9 +194,8 @@ public class BrokerQueryResource extends QueryResource
     return doPost(in, pretty, smile, req);
   }
 
-  private List<LocatedSegmentDescriptor> getTargetLocations(DataSource datasource, List<Interval> intervals)
+  private List<LocatedSegmentDescriptor> getTargetLocations(String dataSourceName, List<Interval> intervals)
   {
-    final String dataSourceName = DataSources.getName(datasource);
     TimelineLookup<String, ServerSelector> timeline = brokerServerView.getTimeline(dataSourceName);
     if (timeline == null) {
       return Collections.emptyList();

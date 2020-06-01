@@ -22,6 +22,7 @@ package io.druid.metadata;
 import io.druid.audit.AuditInfo;
 import io.druid.server.coordinator.rules.Rule;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -44,8 +45,8 @@ public interface MetadataRuleManager
 
   public boolean overrideRule(final String dataSource, final List<Rule> rulesConfig, final AuditInfo auditInfo);
 
-  abstract class Abstract implements MetadataRuleManager {
-
+  abstract class Abstract implements MetadataRuleManager
+  {
     @Override
     public void start() {}
 
@@ -66,5 +67,17 @@ public interface MetadataRuleManager
 
     @Override
     public boolean overrideRule(String dataSource, List<Rule> rulesConfig, AuditInfo auditInfo) { return false;}
+  }
+
+  public static MetadataRuleManager of(final Rule rule)
+  {
+    return new Abstract()
+    {
+      @Override
+      public List<Rule> getRulesWithDefault(String dataSource)
+      {
+        return Arrays.asList(rule);
+      }
+    };
   }
 }

@@ -200,7 +200,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }
 
     final String dataSource = DataSources.getName(query);
-    TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(dataSource);
+    final TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(dataSource);
 
     if (timeline == null) {
       return Sequences.empty();
