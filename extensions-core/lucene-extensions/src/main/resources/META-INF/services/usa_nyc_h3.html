@@ -50,16 +50,16 @@
            //           ')';
            // var sql = 'SELECT geom_transform(geom_intersection(h3_to_boundary_geom(h3),(select geom_union(geom_fromWKT(shape)) from nyc_boundaries)),4326,3857), number, OpCerts, PFIs FROM (' +
            //           '  SELECT geom_to_h3(geom_fromWKT(Point), 6) as h3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
-           //           '  FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') GROUP BY geom_to_h3(geom_fromWKT(Point), 6)' +
+           //           '  FROM nyc_nursing WHERE ST_WITHIN(Point, \'' + wkt + '\') GROUP BY geom_to_h3(geom_fromWKT(Point), 6)' +
            //           ')';
            var sql = 'SELECT geom_transform(geom_intersection(geohex_to_boundary_geom(geohex),(select geom_union(geom_fromWKT(shape)) from nyc_boundaries)),4326,3857), number, OpCerts, PFIs FROM (' +
                      '  SELECT geom_to_geohex(geom_fromWKT(Point), 6) as geohex, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
-                     '  FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') GROUP BY geom_to_geohex(geom_fromWKT(Point), 6)' +
+                     '  FROM nyc_nursing WHERE ST_WITHIN(Point, \'' + wkt + '\') GROUP BY geom_to_geohex(geom_fromWKT(Point), 6)' +
                      ')';
             // var sql = 'WITH G AS (' +
             //           '  SELECT H3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs FROM (' +
             //           '    SELECT geom_to_h3(geom_fromWKT(Point),6) as H3, OpCert, PFI ' +
-            //           '      FROM nyc_nursing WHERE lucene_shape(Point, \'' + wkt + '\') ' +
+            //           '      FROM nyc_nursing WHERE ST_WITHIN(Point, \'' + wkt + '\') ' +
             //           '  )' +
             //           '  GROUP BY H3' +
             //           ')' +

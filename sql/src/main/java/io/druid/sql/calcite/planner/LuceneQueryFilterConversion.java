@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.LuceneNearestFilter;
+import io.druid.query.filter.LuceneQueryFilter;
 import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
@@ -42,13 +42,11 @@ public class LuceneQueryFilterConversion implements DimFilterConversion
   {
     final RexCall call = (RexCall) rexNode;
     final List<RexNode> operands = call.getOperands();
-    if (operands.size() != 4) {
+    if (operands.size() != 2) {
       return null;
     }
     String field = DruidOperatorTable.getFieldName(operands.get(0), plannerContext, rowSignature);
-    double latitude = ((Number) RexLiteral.value(operands.get(1))).doubleValue();
-    double longitude = ((Number) RexLiteral.value(operands.get(2))).doubleValue();
-    int count = RexLiteral.intValue(operands.get(3));
-    return new LuceneNearestFilter(field, latitude, longitude, count);
+    String expression = RexLiteral.stringValue(operands.get(1));
+    return new LuceneQueryFilter(field, null, expression);
   }
 }

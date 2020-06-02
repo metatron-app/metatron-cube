@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import io.druid.common.guava.GuavaUtils;
 import io.druid.segment.lucene.ShapeFormat;
+import io.druid.segment.lucene.SpatialOperations;
 import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerContext;
@@ -31,12 +32,24 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.List;
 
-public class LuceneShapeFilterConversion implements DimFilterConversion
+public abstract class LuceneShapeFilterConversion implements DimFilterConversion
 {
-  @Override
-  public String name()
+  public static LuceneShapeFilterConversion of(final String name, final SpatialOperations operation)
   {
-    return "lucene_shape";
+    return new LuceneShapeFilterConversion()
+    {
+      @Override
+      public String name()
+      {
+        return name;
+      }
+
+      @Override
+      protected SpatialOperations getOperation()
+      {
+        return operation;
+      }
+    };
   }
 
   @Override
@@ -50,6 +63,8 @@ public class LuceneShapeFilterConversion implements DimFilterConversion
     String field = DruidOperatorTable.getFieldName(operands.get(0), plannerContext, rowSignature);
     ShapeFormat format = operands.size() == 3 ? ShapeFormat.valueOf(RexLiteral.stringValue(operands.get(1))) : null;
     String shape = RexLiteral.stringValue(GuavaUtils.lastOf(operands));
-    return new LuceneShapeFilter(field, null, format, shape);
+    return new LuceneShapeFilter(field, getOperation(), format, shape);
   }
+
+  protected abstract SpatialOperations getOperation();
 }

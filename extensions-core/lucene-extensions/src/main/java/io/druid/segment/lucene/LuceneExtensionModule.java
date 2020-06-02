@@ -76,7 +76,11 @@ public class LuceneExtensionModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.class);
+    SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.of("ST_EQUALS", SpatialOperations.EQUALTO));
+    SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.of("ST_WITHIN", SpatialOperations.COVEREDBY));
+    SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.of("ST_CONTAINS", SpatialOperations.COVERS));
+    SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.of("ST_INTERSECTS", SpatialOperations.INTERSECTS));
+    SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.of("ST_OVERLAPS", SpatialOperations.OVERLAPS));
     SqlBindings.addAggregator(binder, AggregatorFactory.bundleSQL(
         new GeomUnionAggregatorFactory("<name>", "<columnName>"))
     );

@@ -72,6 +72,7 @@
                // features.forEach(function (f) {
                     // console.log(f.getGeometry().getCoordinates()); // features are parsed correctly
                 // });
+               console.log(' returned # of rows ---> ' + features.length);
                inspection_source.addFeatures(features);
              } else {
                xhr.onerror();
@@ -81,10 +82,17 @@
            xhr.open('POST', 'http://localhost:8082/druid/v2/sql/geojson');
            xhr.setRequestHeader('Content-type', 'text/plain');
            var extentWKT = WKT.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
-                dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
+                featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326'
            });
+           var extent_filter = 'ST_WITHIN(gis, \'' + extentWKT + '\')';
+           var nearest_filter = 'lucene_nearest(gis, 40.779515, -73.968278, 400)';
+
+           // var sql = 'SELECT city, inspection_score, geom_transform(geom_fromlatlon(gis.lat, gis.lon), 4326, 3857) as geom ' +
+           //           'FROM property_inspect WHERE ' + extent_filter + ' LIMIT 10000';
+           // var sql = 'SELECT city, inspection_score, geom_transform(geom_fromlatlon(gis.lat, gis.lon), 4326, 3857) as geom ' +
+           //           'FROM property_inspect WHERE ' + nearest_filter;
            var sql = 'SELECT city, inspection_score, geom_transform(geom_fromlatlon(gis.lat, gis.lon), 4326, 3857) as geom ' +
-                     'FROM property_inspect WHERE lucene_shape(gis, \'' + extentWKT + '\') LIMIT 10000';
+                     'FROM property_inspect WHERE ' + extent_filter + ' AND ' + nearest_filter + ' LIMIT 1000';
            console.log(' extent : ' + extent + " --> " + extentWKT);
            console.log(' inspection_source fire!! ---> ' + sql);
            xhr.send(sql);
@@ -201,7 +209,7 @@
         // addCondition: ol.events.condition.altKeyOnly,
         // removeCondition: ol.events.condition.shiftKeyOnly
       });
-      map.addInteraction(selectInteraction);
+      // map.addInteraction(selectInteraction);
       // map.on('singleclick',function(event) {console.info("????")});
     </script>
   </body>

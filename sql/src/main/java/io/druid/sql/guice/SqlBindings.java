@@ -67,4 +67,12 @@ public class SqlBindings
   {
     Multibinder.newSetBinder(binder, DimFilterConversion.class).addBinding().to(clazz);
   }
+
+  public static void addDimFilterConversion(
+      final Binder binder,
+      final DimFilterConversion instance
+  )
+  {
+    Multibinder.newSetBinder(binder, DimFilterConversion.class).addBinding().toInstance(instance);
+  }
 }

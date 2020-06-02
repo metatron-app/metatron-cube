@@ -41,8 +41,8 @@
             });
             xhr.send(
                 'SELECT geom_transform(geohex_to_boundary_geom(geohex),4326,3857), counts FROM (' +
-                '  SELECT to_geohex(gis.lat, gis.lon, 4) as geohex, count(*) as counts' +
-                '    FROM property_inspect WHERE lucene_shape(gis, \'' + extentWKT + '\') GROUP BY 1' +
+                '  SELECT to_geohex(gis.lat, gis.lon, 3) as geohex, count(*) as counts' +
+                '    FROM property_inspect WHERE ST_WITHIN(gis, \'' + extentWKT + '\') GROUP BY 1' +
                 ')'
             );
         },
