@@ -21,6 +21,7 @@ package io.druid.client;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Predicates;
 import io.druid.java.util.common.Pair;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -47,10 +48,14 @@ public class FilteredBatchServerInventoryViewProvider implements FilteredServerI
   @Override
   public BatchServerInventoryView get()
   {
+    final ObjectMapper hacked = jsonMapper.copy().registerModule(new SimpleModule().addDeserializer(
+        DataSegment.class, DataSegment.DS_SKIP_LOADSPEC
+    ));
+
     return new BatchServerInventoryView(
         zkPaths,
         curator,
-        jsonMapper,
+        hacked,
         Predicates.<Pair<DruidServerMetadata, DataSegment>>alwaysFalse()
     );
   }

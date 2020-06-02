@@ -30,8 +30,9 @@ import java.util.List;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
-                  @JsonSubTypes.Type(name = "none", value = NoneShardSpec.class),
-              })
+    @JsonSubTypes.Type(name = "none", value = NoneShardSpec.class),
+    @JsonSubTypes.Type(name = "linear", value = LinearShardSpec.class),
+})
 public interface ShardSpec
 {
   public <T> PartitionChunk<T> createChunk(T obj);

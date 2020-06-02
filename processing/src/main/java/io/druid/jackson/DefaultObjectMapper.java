@@ -43,6 +43,7 @@ public class DefaultObjectMapper extends ObjectMapper
   public DefaultObjectMapper(DefaultObjectMapper mapper)
   {
     super(mapper);
+    setInjectableValues(mapper._injectableValues);
   }
 
   public DefaultObjectMapper(JsonFactory factory)

@@ -21,10 +21,12 @@ package io.druid.timeline;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.TestObjectMapper;
 import io.druid.data.input.InputRow;
+import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.ShardSpec;
@@ -43,6 +45,10 @@ import java.util.Map;
 public class DataSegmentTest
 {
   private final static ObjectMapper mapper = new TestObjectMapper();
+  private final static ObjectMapper skip_mapper = mapper.copy().registerModule(
+      new SimpleModule().addDeserializer(DataSegment.class, DataSegment.DS_SKIP_LOADSPEC)
+  );
+
   private final static int TEST_VERSION = 0x7;
 
   private static ShardSpec getShardSpec(final int partitionNum)
@@ -89,14 +95,15 @@ public class DataSegmentTest
         loadSpec,
         Arrays.asList("dim1", "dim2"),
         Arrays.asList("met1", "met2"),
-        NoneShardSpec.instance(),
+        LinearShardSpec.of(100),
         TEST_VERSION,
         1,
         2
     );
 
-    final Map<String, Object> objectMap = mapper.readValue(
-        mapper.writeValueAsString(segment),
+    final String content = mapper.writeValueAsString(segment);
+    Map<String, Object> objectMap = mapper.readValue(
+        content,
         new TypeReference<Map<String, Object>>()
         {
         }
@@ -109,12 +116,12 @@ public class DataSegmentTest
     Assert.assertEquals(loadSpec, objectMap.get("loadSpec"));
     Assert.assertEquals("dim1,dim2", objectMap.get("dimensions"));
     Assert.assertEquals("met1,met2", objectMap.get("metrics"));
-    Assert.assertEquals(ImmutableMap.of("type", "none"), objectMap.get("shardSpec"));
+    Assert.assertEquals(ImmutableMap.of("type", "linear", "partitionNum", 100), objectMap.get("shardSpec"));
     Assert.assertEquals(TEST_VERSION, objectMap.get("binaryVersion"));
     Assert.assertEquals(1, objectMap.get("size"));
     Assert.assertEquals(2, objectMap.get("numRows"));
 
-    DataSegment deserializedSegment = mapper.readValue(mapper.writeValueAsString(segment), DataSegment.class);
+    DataSegment deserializedSegment = mapper.readValue(content, DataSegment.class);
 
     Assert.assertEquals(segment.getDataSource(), deserializedSegment.getDataSource());
     Assert.assertEquals(segment.getInterval(), deserializedSegment.getInterval());
@@ -122,18 +129,31 @@ public class DataSegmentTest
     Assert.assertEquals(segment.getLoadSpec(), deserializedSegment.getLoadSpec());
     Assert.assertEquals(segment.getDimensions(), deserializedSegment.getDimensions());
     Assert.assertEquals(segment.getMetrics(), deserializedSegment.getMetrics());
-    Assert.assertEquals(segment.getShardSpecWithDefault(), deserializedSegment.getShardSpecWithDefault());
+    Assert.assertEquals(segment.getShardSpec(), deserializedSegment.getShardSpec());
     Assert.assertEquals(segment.getSize(), deserializedSegment.getSize());
     Assert.assertEquals(segment.getNumRows(), deserializedSegment.getNumRows());
     Assert.assertEquals(segment.getIdentifier(), deserializedSegment.getIdentifier());
 
-    deserializedSegment = mapper.readValue(mapper.writeValueAsString(segment), DataSegment.class);
+    DataSegment deserializedSegment2 = skip_mapper.readValue(content, DataSegment.class);
+
+    Assert.assertEquals(segment.getDataSource(), deserializedSegment2.getDataSource());
+    Assert.assertEquals(segment.getInterval(), deserializedSegment2.getInterval());
+    Assert.assertEquals(segment.getVersion(), deserializedSegment2.getVersion());
+    Assert.assertEquals(DataSegment.MASKED, deserializedSegment2.getLoadSpec());
+    Assert.assertEquals(segment.getDimensions(), deserializedSegment2.getDimensions());
+    Assert.assertEquals(segment.getMetrics(), deserializedSegment2.getMetrics());
+    Assert.assertEquals(segment.getShardSpec(), deserializedSegment2.getShardSpec());
+    Assert.assertEquals(segment.getSize(), deserializedSegment2.getSize());
+    Assert.assertEquals(segment.getNumRows(), deserializedSegment2.getNumRows());
+    Assert.assertEquals(segment.getIdentifier(), deserializedSegment2.getIdentifier());
+
+    deserializedSegment = mapper.readValue(content, DataSegment.class);
     Assert.assertEquals(0, segment.compareTo(deserializedSegment));
 
-    deserializedSegment = mapper.readValue(mapper.writeValueAsString(segment), DataSegment.class);
+    deserializedSegment = mapper.readValue(content, DataSegment.class);
     Assert.assertEquals(0, deserializedSegment.compareTo(segment));
 
-    deserializedSegment = mapper.readValue(mapper.writeValueAsString(segment), DataSegment.class);
+    deserializedSegment = mapper.readValue(content, DataSegment.class);
     Assert.assertEquals(segment.hashCode(), deserializedSegment.hashCode());
   }
 

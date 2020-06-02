@@ -23,6 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -39,6 +44,7 @@ import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,6 +54,43 @@ import java.util.Map;
  */
 public class DataSegment implements Comparable<DataSegment>
 {
+  public static final Map<String, Object> MASKED = ImmutableMap.of("masked", "intentionally");
+
+  public static final JsonDeserializer<DataSegment> DS_SKIP_LOADSPEC = new JsonDeserializer<DataSegment>()
+  {
+    @Override
+    public DataSegment deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
+    {
+      Preconditions.checkArgument(jp.getCurrentToken() == JsonToken.START_OBJECT, "not object?");
+      JsonNode root = jp.readValueAsTree();
+
+      String dataSource = root.get("dataSource").asText();
+      Interval interval = new Interval(root.get("interval").asText());
+      String version = root.get("version").asText();
+      String dimensions = root.get("dimensions").asText();
+      String metrics = root.get("metrics").asText();
+
+      ShardSpec shardSpec = jp.getCodec().treeToValue(root.get("shardSpec"), ShardSpec.class);
+      JsonNode binaryVersionNode = root.get("binaryVersion");
+      Integer binaryVersion = binaryVersionNode == null || binaryVersionNode.isNull() ? null : binaryVersionNode.asInt();
+      long size = root.get("size").asLong();
+      int numRows = root.get("numRows").asInt();
+
+      return new DataSegment(
+          dataSource,
+          interval,
+          version,
+          MASKED,
+          dimensions,
+          metrics,
+          shardSpec,
+          binaryVersion,
+          size,
+          numRows
+      );
+    }
+  };
+
   public static final Comparator<DataSegment> TIME_DESCENDING = Ordering.from(JodaUtils.intervalsByEndThenStart())
                                                                         .onResultOf(DataSegment::getInterval)
                                                                         .compound(Ordering.<DataSegment>natural())

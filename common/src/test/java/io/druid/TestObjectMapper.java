@@ -48,6 +48,18 @@ public class TestObjectMapper extends ObjectMapper
     registerModule(new TestModule());
   }
 
+  public TestObjectMapper(TestObjectMapper mapper)
+  {
+    super(mapper);
+    setInjectableValues(mapper._injectableValues);
+  }
+
+  @Override
+  public ObjectMapper copy()
+  {
+    return new TestObjectMapper(this);
+  }
+
   public static class TestModule extends SimpleModule
   {
     TestModule()

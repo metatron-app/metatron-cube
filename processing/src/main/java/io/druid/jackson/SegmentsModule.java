@@ -22,6 +22,7 @@ package io.druid.jackson;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 
@@ -39,7 +40,7 @@ public class SegmentsModule extends SimpleModule
   @JsonTypeInfo(use= JsonTypeInfo.Id.NAME, property="type")
   @JsonSubTypes({
       @JsonSubTypes.Type(name="none", value=NoneShardSpec.class),
+      @JsonSubTypes.Type(name="linear", value=LinearShardSpec.class),
   })
-  public static interface ShardSpecMixin
-  {}
+  public static interface ShardSpecMixin {}
 }

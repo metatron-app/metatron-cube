@@ -21,11 +21,13 @@ package io.druid.timeline.partition;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.data.input.InputRow;
 
 import java.util.List;
 
+@JsonTypeName("linear")
 public class LinearShardSpec implements ShardSpec
 {
   public static LinearShardSpec of(int partitionNum)
@@ -70,6 +72,12 @@ public class LinearShardSpec implements ShardSpec
   @Override
   public boolean isInChunk(long timestamp, InputRow inputRow) {
     return true;
+  }
+
+  @Override
+  public boolean equals(Object other)
+  {
+    return other instanceof LinearShardSpec && partitionNum == ((LinearShardSpec) other).partitionNum;
   }
 
   @Override

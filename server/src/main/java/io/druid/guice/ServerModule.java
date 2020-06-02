@@ -23,15 +23,14 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
+import io.druid.guice.annotations.Self;
+import io.druid.initialization.DruidModule;
 import io.druid.java.util.common.concurrent.ScheduledExecutorFactory;
 import io.druid.java.util.common.concurrent.ScheduledExecutors;
 import io.druid.java.util.common.lifecycle.Lifecycle;
-import io.druid.guice.annotations.Self;
-import io.druid.initialization.DruidModule;
 import io.druid.server.DruidNode;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
-import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.SingleDimensionShardSpec;
 
@@ -64,7 +63,6 @@ public class ServerModule implements DruidModule
         new SimpleModule()
             .registerSubtypes(
                 new NamedType(SingleDimensionShardSpec.class, "single"),
-                new NamedType(LinearShardSpec.class, "linear"),
                 new NamedType(NumberedShardSpec.class, "numbered"),
                 new NamedType(HashBasedNumberedShardSpec.class, "hashed")
             )
