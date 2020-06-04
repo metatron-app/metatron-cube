@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Throwables;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
@@ -57,10 +58,7 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.lang.management.LockInfo;
 import java.lang.management.ManagementFactory;
-import java.lang.management.MonitorInfo;
-import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -117,7 +115,7 @@ public class AdminResource
   public Response stack(@QueryParam("longest") String longest)
   {
     if (longest != null) {
-      return Response.ok(dump(JMXQueryRunnerFactory.findLongestStack()), MediaType.TEXT_PLAIN).build();
+      return Response.ok(GuavaUtils.dump(JMXQueryRunnerFactory.findLongestStack()), MediaType.TEXT_PLAIN).build();
     }
     final StreamingOutput output = new StreamingOutput()
     {
@@ -127,79 +125,12 @@ public class AdminResource
         final OutputStreamWriter writer = new OutputStreamWriter(output, StringUtils.UTF8_STRING);
         final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
         for (long threadId : threadMXBean.getAllThreadIds()) {
-          writer.write(dump(threadMXBean.getThreadInfo(threadId, Integer.MAX_VALUE)));
+          writer.write(GuavaUtils.dump(threadMXBean.getThreadInfo(threadId, Integer.MAX_VALUE)));
         }
         writer.flush();
       }
     };
     return Response.ok(output, MediaType.TEXT_PLAIN).build();
-  }
-
-  // copied from ThreadInfo.toString() to dump all stack traces
-  private static String dump(ThreadInfo thread)
-  {
-    StringBuilder sb = new StringBuilder(1024);
-
-    sb.append('\"').append(thread.getThreadName()).append('\"')
-      .append(" Id=").append(thread.getThreadId()).append(' ').append(thread.getThreadState());
-
-    if (thread.getLockName() != null) {
-      sb.append(" on ").append(thread.getLockName());
-    }
-    if (thread.getLockOwnerName() != null) {
-      sb.append(" owned by \"").append(thread.getLockOwnerName()).append("\" Id=").append(thread.getLockOwnerId());
-    }
-    if (thread.isSuspended()) {
-      sb.append(" (suspended)");
-    }
-    if (thread.isInNative()) {
-      sb.append(" (in native)");
-    }
-    sb.append('\n');
-
-    StackTraceElement[] stackTrace = thread.getStackTrace();
-    for (int i = 0; i < stackTrace.length; i++) {
-      StackTraceElement ste = stackTrace[i];
-      sb.append("\tat ").append(ste.toString());
-      sb.append('\n');
-      if (i == 0 && thread.getLockInfo() != null) {
-        Thread.State ts = thread.getThreadState();
-        switch (ts) {
-          case BLOCKED:
-            sb.append("\t-  blocked on ").append(thread.getLockInfo());
-            sb.append('\n');
-            break;
-          case WAITING:
-            sb.append("\t-  waiting on ").append(thread.getLockInfo());
-            sb.append('\n');
-            break;
-          case TIMED_WAITING:
-            sb.append("\t-  waiting on ").append(thread.getLockInfo());
-            sb.append('\n');
-            break;
-          default:
-        }
-      }
-
-      for (MonitorInfo mi : thread.getLockedMonitors()) {
-        if (mi.getLockedStackDepth() == i) {
-          sb.append("\t-  locked ").append(mi);
-          sb.append('\n');
-        }
-      }
-    }
-
-    LockInfo[] locks = thread.getLockedSynchronizers();
-    if (locks.length > 0) {
-      sb.append("\n\tNumber of locked synchronizers = ").append(locks.length);
-      sb.append('\n');
-      for (LockInfo li : locks) {
-        sb.append("\t- ").append(li);
-        sb.append('\n');
-      }
-    }
-    sb.append('\n');
-    return sb.toString();
   }
 
   @GET

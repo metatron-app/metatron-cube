@@ -49,6 +49,7 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
@@ -197,12 +198,22 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   @Override
   public List<OrderByColumnSpec> getResultOrdering()
   {
-    return limitSpec.getColumns();
+    if (!GuavaUtils.isNullOrEmpty(limitSpec.getColumns())) {
+      return limitSpec.getColumns();
+    }
+    if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      return ImmutableList.of();
+    }
+    return DimensionSpecs.asOrderByColumnSpec(getDimensions());
   }
 
   @Override
   public BaseAggregationQuery withResultOrdering(List<OrderByColumnSpec> orderingSpecs)
   {
+    if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
+        LimitSpecs.inGroupByOrdering(limitSpec.getColumns(), getDimensions())) {
+      return this;
+    }
     return withLimitSpec(limitSpec.withOrderingSpec(orderingSpecs));
   }
 

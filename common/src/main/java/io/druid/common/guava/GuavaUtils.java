@@ -43,6 +43,11 @@ import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.lang.management.LockInfo;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MonitorInfo;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -777,5 +782,80 @@ public class GuavaUtils
         return String.format("identity(%s)", log);
       }
     };
+  }
+
+  public static void dump(Logger LOG)
+  {
+    final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
+    for (long threadId : threadMXBean.getAllThreadIds()) {
+      LOG.info(GuavaUtils.dump(threadMXBean.getThreadInfo(threadId, Integer.MAX_VALUE)));
+    }
+  }
+
+  // copied from ThreadInfo.toString() to dump all stack traces
+  public static String dump(ThreadInfo thread)
+  {
+    StringBuilder sb = new StringBuilder(1024);
+
+    sb.append('\"').append(thread.getThreadName()).append('\"')
+      .append(" Id=").append(thread.getThreadId()).append(' ').append(thread.getThreadState());
+
+    if (thread.getLockName() != null) {
+      sb.append(" on ").append(thread.getLockName());
+    }
+    if (thread.getLockOwnerName() != null) {
+      sb.append(" owned by \"").append(thread.getLockOwnerName()).append("\" Id=").append(thread.getLockOwnerId());
+    }
+    if (thread.isSuspended()) {
+      sb.append(" (suspended)");
+    }
+    if (thread.isInNative()) {
+      sb.append(" (in native)");
+    }
+    sb.append('\n');
+
+    StackTraceElement[] stackTrace = thread.getStackTrace();
+    for (int i = 0; i < stackTrace.length; i++) {
+      StackTraceElement ste = stackTrace[i];
+      sb.append("\tat ").append(ste.toString());
+      sb.append('\n');
+      if (i == 0 && thread.getLockInfo() != null) {
+        Thread.State ts = thread.getThreadState();
+        switch (ts) {
+          case BLOCKED:
+            sb.append("\t-  blocked on ").append(thread.getLockInfo());
+            sb.append('\n');
+            break;
+          case WAITING:
+            sb.append("\t-  waiting on ").append(thread.getLockInfo());
+            sb.append('\n');
+            break;
+          case TIMED_WAITING:
+            sb.append("\t-  waiting on ").append(thread.getLockInfo());
+            sb.append('\n');
+            break;
+          default:
+        }
+      }
+
+      for (MonitorInfo mi : thread.getLockedMonitors()) {
+        if (mi.getLockedStackDepth() == i) {
+          sb.append("\t-  locked ").append(mi);
+          sb.append('\n');
+        }
+      }
+    }
+
+    LockInfo[] locks = thread.getLockedSynchronizers();
+    if (locks.length > 0) {
+      sb.append("\n\tNumber of locked synchronizers = ").append(locks.length);
+      sb.append('\n');
+      for (LockInfo li : locks) {
+        sb.append("\t- ").append(li);
+        sb.append('\n');
+      }
+    }
+    sb.append('\n');
+    return sb.toString();
   }
 }

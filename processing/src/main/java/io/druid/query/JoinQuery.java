@@ -303,35 +303,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (rightEstimated > 0) {
         query = query.withOverriddenContext(CARDINALITY, rightEstimated);
       }
-      switch (element.getJoinType()) {
-        case INNER:
-          if (currentEstimation > 0 && rightEstimated > 0) {
-            currentEstimation = Math.min(currentEstimation, rightEstimated);
-          }
-          break;
-        case LO:
-          if (currentEstimation > 0 && rightEstimated > currentEstimation) {
-            currentEstimation *= ((double) rightEstimated) / currentEstimation;
-          }
-          break;
-        case RO:
-          if (rightEstimated > 0) {
-            if (currentEstimation > 0 && currentEstimation > rightEstimated) {
-              currentEstimation = rightEstimated * (currentEstimation / rightEstimated);
-            } else {
-              currentEstimation = rightEstimated;
-            }
-          }
-          break;
-        case FULL:
-          if (currentEstimation > 0 && rightEstimated > 0) {
-            currentEstimation = (currentEstimation + rightEstimated) << 1;
-          } else {
-            currentEstimation = ROWNUM_UNKNOWN;
-          }
-          break;
-      }
       queries.add(query);
+
+      if (rightEstimated > 0) {
+        currentEstimation = resultEstimation(element.getJoinType(), currentEstimation, rightEstimated);
+      }
     }
 
     final Query query0 = queries.get(0);
@@ -340,11 +316,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     final JoinType type = element.getJoinType();
     if (type.isLeftDrivable() && query0.hasFilters() && estimation1 > bloomFilterThreshold) {
       // left to right
-      queries.set(1, inject(query0, element.getLeftJoinColumns(), estimation0, query1, element.getRightJoinColumns()));
+      queries.set(1, bloom(query0, element.getLeftJoinColumns(), estimation0, query1, element.getRightJoinColumns()));
     }
     if (type.isRightDrivable() && query1.hasFilters() && estimation0 > bloomFilterThreshold) {
       // right to left
-      queries.set(0, inject(query1, element.getRightJoinColumns(), estimation1, query0, element.getLeftJoinColumns()));
+      queries.set(0, bloom(query1, element.getRightJoinColumns(), estimation1, query0, element.getLeftJoinColumns()));
     }
 
     List<String> prefixAliases;
@@ -359,20 +335,47 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     // no parallelism.. executed parallel in join post processor
     Map<String, Object> context = BaseQuery.copyContextForMeta(this);
-    JoinDelegate query = new JoinDelegate(queries, prefixAliases, timeColumn, currentEstimation, limit, context).withSchema(schema);
+    JoinDelegate query = new JoinDelegate(queries, prefixAliases, timeColumn, currentEstimation, limit, context);
     return PostProcessingOperators.append(
-        query,
+        query.withSchema(schema),
         segmentWalker.getObjectMapper(),
         new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, maxRowsInGroup)
     );
   }
 
-  private boolean isHashed(Query query)
+  private long resultEstimation(JoinType type, long currentEstimation, long rightEstimated)
   {
-    return query.getContextBoolean(HASHING, false);
+    switch (type) {
+      case INNER:
+        if (currentEstimation > 0) {
+          currentEstimation = Math.min(currentEstimation, rightEstimated) +
+                              Math.abs(currentEstimation - rightEstimated) / 2;
+        } else {
+          currentEstimation = Math.max(rightEstimated, Short.MAX_VALUE);
+        }
+        break;
+      case LO:
+        if (currentEstimation > 0 && rightEstimated > currentEstimation) {
+          currentEstimation *= ((double) rightEstimated) / currentEstimation;
+        }
+        break;
+      case RO:
+        if (currentEstimation > 0 && currentEstimation > rightEstimated) {
+          currentEstimation = (long) (rightEstimated * ((double) currentEstimation / rightEstimated));
+        } else {
+          currentEstimation = (long) (rightEstimated * 1.2);
+        }
+        break;
+      case FULL:
+        if (currentEstimation > 0) {
+          currentEstimation += rightEstimated;
+        }
+        break;
+    }
+    return currentEstimation;
   }
 
-  private Query inject(
+  private Query bloom(
       Query source,
       List<String> sourceJoinOn,
       long sourceCardinality,
