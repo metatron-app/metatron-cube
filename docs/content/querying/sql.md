@@ -94,7 +94,6 @@ Segments table provides details on all Druid segments, whether they are publishe
 |is_published|Boolean is represented as long type where 1 = true, 0 = false. 1 represents this segment has been published to the metadata store|
 |is_available|Boolean is represented as long type where 1 = true, 0 = false. 1 if this segment is currently being served by any server(historical or realtime)|
 |is_realtime|Boolean is represented as long type where 1 = true, 0 = false. 1 if this segment is being served on any type of realtime tasks|
-|payload|JSON-serialized data segment payload|
 
 ### SERVERS table
 Servers table lists all data servers(any server that hosts a segment). It includes both historicals and peons.

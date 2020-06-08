@@ -18,7 +18,6 @@
  */
 package io.druid.sql.calcite.schema;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -99,7 +98,6 @@ public class SystemSchema extends AbstractSchema
       .add("is_published", ValueDesc.LONG)
       .add("is_available", ValueDesc.LONG)
       .add("is_realtime", ValueDesc.LONG)
-      .add("payload", ValueDesc.STRING)
       .build();
 
   static final RowSignature SERVERS_SIGNATURE = RowSignature
@@ -253,29 +251,20 @@ public class SystemSchema extends AbstractSchema
             isRealtime += server.isAssignable() ? 0 : 1;
             isPublished += server.isHistorical() ? 1 : 0;
           }
-          try {
-            return new Object[]{
-                segment.getIdentifier(),
-                segment.getDataSource(),
-                segment.getInterval().getStart().toString(),
-                segment.getInterval().getEnd().toString(),
-                segment.getSize(),
-                segment.getVersion(),
-                Long.valueOf(segment.getShardSpecWithDefault().getPartitionNum()),
-                candidates.size(),
-                segment.getNumRows(),
-                isPublished,
-                1,
-                isRealtime,
-                jsonMapper.writeValueAsString(segment)
-            };
-          }
-          catch (JsonProcessingException e) {
-            throw new RuntimeException(StringUtils.format(
-                "Error getting segment payload for segment %s",
-                segment.getIdentifier()
-            ), e);
-          }
+          return new Object[]{
+              segment.getIdentifier(),
+              segment.getDataSource(),
+              segment.getInterval().getStart().toString(),
+              segment.getInterval().getEnd().toString(),
+              segment.getSize(),
+              segment.getVersion(),
+              Long.valueOf(segment.getShardSpecWithDefault().getPartitionNum()),
+              candidates.size(),
+              segment.getNumRows(),
+              isPublished,
+              1,
+              isRealtime
+          };
         }
       });
       return Linq4j.asEnumerable(segments).where(t -> t != null);

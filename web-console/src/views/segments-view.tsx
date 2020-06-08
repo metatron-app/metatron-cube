@@ -71,15 +71,7 @@ export class SegmentsView extends React.Component<SegmentsViewProps, SegmentsVie
 
     this.segmentsQueryManager = new QueryManager({
       processQuery: async (query: QueryAndSkip) => {
-        const results: any[] = (await queryDruidSql({ query: query.query })).slice(query.skip);
-        results.forEach(result => {
-          try {
-            result.payload = JSON.parse(result.payload);
-          } catch {
-            result.payload = {};
-          }
-        });
-        return results;
+          return (await queryDruidSql({query: query.query})).slice(query.skip);
       },
       onStateChange: ({ result, loading, error }) => {
         this.setState({
@@ -100,7 +92,7 @@ export class SegmentsView extends React.Component<SegmentsViewProps, SegmentsVie
     const totalQuerySize = (page + 1) * pageSize;
 
     let queryParts = [
-      `SELECT "segment_id", "datasource", "start", "end", "size", "version", "partition_num", "num_replicas", "num_rows", "is_published", "is_available", "is_realtime", "payload"`,
+      `SELECT "segment_id", "datasource", "start", "end", "size", "version", "partition_num", "num_replicas", "num_rows", "is_published", "is_available", "is_realtime"`,
       `FROM sys.segments`
     ];
 
