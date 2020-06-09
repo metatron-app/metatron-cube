@@ -125,9 +125,12 @@ public class DataSegment implements Comparable<DataSegment>
   private final ShardSpec shardSpec;
   private final Integer binaryVersion;
   private final long size;
-  private final int numRows;
 
   private final String identifier;
+
+  // allow update cause it's only set in segments reproted from historical nodes
+  // see MetadataSegmentManager.dedupSegment()
+  private int numRows;
 
   private DataSegment()
   {
@@ -139,7 +142,6 @@ public class DataSegment implements Comparable<DataSegment>
     this.metrics = null;
     this.shardSpec = null;
     this.size = 0;
-    this.numRows = 0;
     this.binaryVersion = null;
     this.identifier = null;
   }
@@ -369,7 +371,8 @@ public class DataSegment implements Comparable<DataSegment>
 
   public DataSegment withNumRows(int numRows)
   {
-    return builder(this).numRows(numRows).build();
+    this.numRows = numRows;
+    return this;
   }
 
   public DataSegment withVersion(String version)
@@ -437,6 +440,8 @@ public class DataSegment implements Comparable<DataSegment>
            ", interval=" + interval +
            ", dataSource='" + dataSource + '\'' +
            ", binaryVersion='" + binaryVersion + '\'' +
+           ", size=" + size +
+           ", numRows=" + numRows +
            '}';
   }
 

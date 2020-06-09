@@ -20,15 +20,21 @@
 package io.druid.client;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.Pair;
+import io.druid.metadata.MetadataSegmentManager;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.timeline.DataSegment;
 import org.apache.curator.framework.CuratorFramework;
 
 import javax.validation.constraints.NotNull;
+import java.io.IOException;
 
 /**
  */
@@ -46,13 +52,38 @@ public class BatchServerInventoryViewProvider implements ServerInventoryViewProv
   @NotNull
   private ObjectMapper jsonMapper = null;
 
+  @JacksonInject
+  @NotNull
+  private MetadataSegmentManager segmentManager;
+
   @Override
   public BatchServerInventoryView get()
+  {
+    ObjectMapper mapper = jsonMapper;
+    if (segmentManager != null) {
+      mapper = DefaultObjectMapper.withDeserializer(mapper, DataSegment.class, toDedupDeserializer(mapper));
+    }
+    return newInventoryView(mapper);
+  }
+
+  private JsonDeserializer<DataSegment> toDedupDeserializer(final ObjectMapper mapper)
+  {
+    return new JsonDeserializer<DataSegment>()
+    {
+      @Override
+      public DataSegment deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
+      {
+        return segmentManager.dedupSegment(mapper.readValue(jp, DataSegment.class));
+      }
+    };
+  }
+
+  private BatchServerInventoryView newInventoryView(ObjectMapper mapper)
   {
     return new BatchServerInventoryView(
         zkPaths,
         curator,
-        jsonMapper,
+        mapper,
         Predicates.<Pair<DruidServerMetadata, DataSegment>>alwaysTrue()
     );
   }

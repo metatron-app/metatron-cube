@@ -110,6 +110,11 @@ public class DruidDataSource
     return this;
   }
 
+  public synchronized DataSegment getSegment(String segmentId)
+  {
+    return segmentsMap.get(segmentId);
+  }
+
   public synchronized boolean removeSegment(String segmentId)
   {
     return segmentsMap.remove(segmentId) != null;

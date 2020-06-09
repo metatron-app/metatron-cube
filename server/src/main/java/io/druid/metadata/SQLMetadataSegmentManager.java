@@ -20,6 +20,7 @@
 package io.druid.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
@@ -29,7 +30,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
-import com.google.common.util.concurrent.ListeningScheduledExecutorService;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.MapUtils;
@@ -49,7 +50,6 @@ import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
-import org.joda.time.Duration;
 import org.joda.time.Interval;
 import org.skife.jdbi.v2.BaseResultSetMapper;
 import org.skife.jdbi.v2.Batch;
@@ -97,7 +97,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   private final IndexerSQLMetadataStorageCoordinator metaDataCoordinator;
   private final SQLMetadataConnector connector;
 
-  private volatile ListeningScheduledExecutorService exec = null;
+  private volatile ListeningExecutorService exec = null;
 
   private static class State
   {
@@ -173,29 +173,32 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
         return;
       }
 
-      final Duration delay = config.get().getPollDuration().toStandardDuration();
-      Preconditions.checkArgument(delay.getMillis() > 0);
+      final long delay = config.get().getInitialDelay().getMillis();
+      final long polling = config.get().getPollDuration().toStandardDuration().getMillis();
+      Preconditions.checkArgument(polling > 0);
 
-      String name = String.format("MetadataSegmentManager(%s)", delay);
-      exec = MoreExecutors.listeningDecorator(Execs.scheduledSingleThreaded(name));
+      lock.started = true;
+      String name = String.format("MetadataSegmentManager(%s)", polling);
+      exec = MoreExecutors.listeningDecorator(Execs.singleThreaded(name));
+
       exec.execute(
           new Runnable()
           {
             @Override
             public void run()
             {
-              while (lock.next(delay.getMillis())) {
+              lock.next(delay);
+              do {
                 try {
                   poll();
                 }
                 catch (Throwable t) {
                   log.makeAlert(t, "uncaught exception in segment manager polling thread").emit();
                 }
-              }
+              } while (lock.next(polling));
             }
           }
       );
-      lock.started = true;
     }
   }
 
@@ -365,6 +368,14 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   {
     final DruidDataSource ds = getInventoryValue(segment.getDataSource());
     return ds != null && ds.contains(segment.getIdentifier());
+  }
+
+  @Override
+  public DataSegment dedupSegment(DataSegment segment)
+  {
+    final DruidDataSource ds = getInventoryValue(segment.getDataSource());
+    final DataSegment existing = ds == null ? null : ds.getSegment(segment.getIdentifier());
+    return existing == null ? segment : existing.withNumRows(segment.getNumRows());
   }
 
   @Override
@@ -638,7 +649,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     ));
   }
 
-  @Override
+  @VisibleForTesting
   public void poll()
   {
     if (!lock.isStarted()) {

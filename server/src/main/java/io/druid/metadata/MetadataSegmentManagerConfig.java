@@ -20,6 +20,7 @@
 package io.druid.metadata;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.joda.time.Duration;
 import org.joda.time.Period;
 
 /**
@@ -27,7 +28,15 @@ import org.joda.time.Period;
 public class MetadataSegmentManagerConfig
 {
   @JsonProperty
+  private Duration initialDelay = new Duration("PT10S");
+
+  @JsonProperty
   private Period pollDuration = new Period("PT1M");
+
+  public Duration getInitialDelay()
+  {
+    return initialDelay;
+  }
 
   public Period getPollDuration()
   {

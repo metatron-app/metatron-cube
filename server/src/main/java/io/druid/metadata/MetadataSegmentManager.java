@@ -20,13 +20,12 @@
 package io.druid.metadata;
 
 import com.google.common.collect.ImmutableList;
-import io.druid.java.util.common.Pair;
 import io.druid.client.DruidDataSource;
+import io.druid.java.util.common.Pair;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -48,6 +47,8 @@ public interface MetadataSegmentManager
   boolean unregisterFromView(DataSegment segment);
 
   boolean isAvailable(DataSegment segment);
+
+  DataSegment dedupSegment(DataSegment segment);
 
   boolean enableDatasource(String ds, boolean now);
 
@@ -79,6 +80,4 @@ public interface MetadataSegmentManager
   );
 
   Interval getUmbrellaInterval(String ds);
-
-  void poll();
 }
