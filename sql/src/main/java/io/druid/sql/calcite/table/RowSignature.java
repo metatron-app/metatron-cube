@@ -106,6 +106,13 @@ public class RowSignature extends io.druid.query.RowSignature.Simple
     return new Builder();
   }
 
+  public static Builder builderFrom(RowSignature signature)
+  {
+    Builder builder = new Builder();
+    Iterables.addAll(builder.columnTypeList, signature.columnAndTypes());
+    return builder;
+  }
+
   /**
    * Return the "natural" {@link StringComparator} for an extraction from this row signature. This will be a
    * lexicographic comparator for String types and a numeric comparator for Number types.

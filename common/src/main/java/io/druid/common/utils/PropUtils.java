@@ -20,6 +20,8 @@
 package io.druid.common.utils;
 
 import com.google.common.primitives.Ints;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Rows;
 import io.druid.java.util.common.ISE;
 
 import java.util.Map;
@@ -89,20 +91,20 @@ public class PropUtils
 
   public static long parseLong(Map<String, ?> context, String key, long defaultValue)
   {
-    if (context == null) {
+    if (GuavaUtils.isNullOrEmpty(context)) {
       return defaultValue;
     }
-    Object val = context.get(key);
-    if (val == null) {
+    final Object value = context.get(key);
+    return value == null ? defaultValue : Rows.parseLong(value, defaultValue);
+  }
+
+  public static double parseDouble(Map<String, ?> context, String key, double defaultValue)
+  {
+    if (GuavaUtils.isNullOrEmpty(context)) {
       return defaultValue;
     }
-    if (val instanceof String) {
-      return Long.parseLong((String) val);
-    } else if (val instanceof Number) {
-      return ((Number) val).longValue();
-    } else {
-      throw new ISE("Unknown type [%s]", val.getClass());
-    }
+    final Object value = context.get(key);
+    return value == null ? defaultValue : Rows.parseDouble(value, defaultValue);
   }
 
   public static boolean parseBoolean(Map<String, ?> context, String key)

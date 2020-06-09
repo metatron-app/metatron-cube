@@ -305,10 +305,10 @@ public class SystemSchemaTest extends CalciteTestBase
   @Test
   public void testGetTableMap()
   {
-    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks", "functions"), schema.getTableNames());
+    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "servers_extended", "server_segments", "tasks", "functions"), schema.getTableNames());
 
     final Map<String, Table> tableMap = schema.getTableMap();
-    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers", "server_segments", "tasks", "functions"), tableMap.keySet());
+    Assert.assertEquals(ImmutableSet.of("locks", "segments", "servers_extended", "servers", "server_segments", "tasks", "functions"), tableMap.keySet());
     final SystemSchema.SegmentsTable segmentsTable = (SystemSchema.SegmentsTable) schema.getTableMap().get("segments");
     final RelDataType rowType = segmentsTable.getRowType(new JavaTypeFactoryImpl());
     final List<RelDataTypeField> fields = rowType.getFieldList();

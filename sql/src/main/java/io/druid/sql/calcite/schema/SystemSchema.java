@@ -36,12 +36,17 @@ import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.guava.HostAndPort;
+import io.druid.common.utils.PropUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.indexer.TaskStatusPlus;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.java.util.http.client.Request;
+import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
+import io.druid.query.jmx.JMXQuery;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.BytesAccumulatingResponseHandler;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -71,6 +76,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 public class SystemSchema extends AbstractSchema
 {
@@ -79,6 +85,7 @@ public class SystemSchema extends AbstractSchema
   public static final String NAME = "sys";
   private static final String SEGMENTS_TABLE = "segments";
   private static final String SERVERS_TABLE = "servers";
+  private static final String SERVERS_EXTENDED_TABLE = "servers_extended";
   private static final String SERVER_SEGMENTS_TABLE = "server_segments";
   private static final String TASKS_TABLE = "tasks";
   private static final String LOCKS_TABLE = "locks";
@@ -110,6 +117,23 @@ public class SystemSchema extends AbstractSchema
       .add("tier", ValueDesc.STRING)
       .add("curr_size", ValueDesc.LONG)
       .add("max_size", ValueDesc.LONG)
+      .build();
+
+  static final RowSignature SERVERS_EXTENDED_SIGNATURE = RowSignature
+      .builderFrom(SERVERS_SIGNATURE)
+      .add("availableProcessor", ValueDesc.LONG)
+      .add("systemLoadAverage", ValueDesc.DOUBLE)
+      .add("heap_max", ValueDesc.LONG)
+      .add("heap_used", ValueDesc.LONG)
+      .add("heap_committed", ValueDesc.LONG)
+      .add("non_heap_max", ValueDesc.LONG)
+      .add("non_heap_used", ValueDesc.LONG)
+      .add("non_heap_committed", ValueDesc.LONG)
+      .add("threadCount", ValueDesc.LONG)
+      .add("peakThreadCount", ValueDesc.LONG)
+      .add("totalStartedThreadCount", ValueDesc.LONG)
+      .add("gc_collectionCount", ValueDesc.MAP)
+      .add("gc_collectionTime", ValueDesc.MAP)
       .build();
 
   static final RowSignature SERVER_SEGMENTS_SIGNATURE = RowSignature
@@ -172,6 +196,10 @@ public class SystemSchema extends AbstractSchema
       .put(
           SERVERS_TABLE,
           new ServersTable(serverView)
+      )
+      .put(
+          SERVERS_EXTENDED_TABLE,
+          new ServersExtendedTable(serverView)
       )
       .put(
           SERVER_SEGMENTS_TABLE,
@@ -325,6 +353,73 @@ public class SystemSchema extends AbstractSchema
               val.getMaxSize()
           });
       return Linq4j.asEnumerable(results);
+    }
+  }
+
+  // todo implement FilterableTable
+  static class ServersExtendedTable extends AbstractTable implements ScannableTable
+  {
+    private final TimelineServerView serverView;
+
+    public ServersExtendedTable(TimelineServerView serverView)
+    {
+      this.serverView = serverView;
+    }
+
+    @Override
+    public RelDataType getRowType(RelDataTypeFactory typeFactory)
+    {
+      return SERVERS_EXTENDED_SIGNATURE.toRelDataType(typeFactory);
+    }
+
+    @Override
+    public TableType getJdbcTableType()
+    {
+      return TableType.SYSTEM_TABLE;
+    }
+
+    @Override
+    public Enumerable<Object[]> scan(DataContext root)
+    {
+      final List<ImmutableDruidServer> druidServers = serverView.getDruidServers();
+      final FluentIterable<Object[]> results = FluentIterable
+          .from(druidServers)
+          .transform(val -> {
+            final Map<String, Object> stat = getStatFrom(val);
+            return new Object[]{
+                val.getHost(),
+                extractHost(val.getHost()),
+                (long) extractPort(val.getHostAndPort()),
+                (long) extractPort(val.getHostAndTlsPort()),
+                toStringOrNull(val.getType()),
+                val.getTier(),
+                val.getCurrSize(),
+                val.getMaxSize(),
+                PropUtils.parseLong(stat, "availableProcessor", -1),
+                PropUtils.parseDouble(stat, "systemLoadAverage", -1),
+                PropUtils.parseLong(stat, "heap.max", -1),
+                PropUtils.parseLong(stat, "heap.used", -1),
+                PropUtils.parseLong(stat, "heap.committed", -1),
+                PropUtils.parseLong(stat, "non-heap.max", -1),
+                PropUtils.parseLong(stat, "non-heap.used", -1),
+                PropUtils.parseLong(stat, "non-heap.committed", -1),
+                PropUtils.parseLong(stat, "threadCount", -1),
+                PropUtils.parseLong(stat, "peakThreadCount", -1),
+                PropUtils.parseLong(stat, "totalStartedThreadCount", -1),
+                stat.get("gc.collectionCount"),
+                stat.get("gc.collectionTime")
+            };
+          });
+      return Linq4j.asEnumerable(results);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getStatFrom(ImmutableDruidServer val)
+    {
+      JMXQuery query = (JMXQuery) JMXQuery.of(null).withId(UUID.randomUUID().toString());
+      QueryRunner<Map<String, Object>> runner = serverView.getQueryRunner(query, val.toDruidServer());
+      Map<String, Object> stats = Sequences.only(QueryRunners.run(query, runner), ImmutableMap.of());
+      return (Map<String, Object>) Iterables.getOnlyElement(stats.values(), ImmutableMap.of());
     }
   }
 

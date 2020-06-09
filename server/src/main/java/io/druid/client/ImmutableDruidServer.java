@@ -138,6 +138,11 @@ public class ImmutableDruidServer
     return metadata.isDecommissioned();
   }
 
+  public DruidServer toDruidServer()
+  {
+    return metadata.toDruidServer();
+  }
+
   @Override
   public String toString()
   {

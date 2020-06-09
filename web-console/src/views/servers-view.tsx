@@ -26,6 +26,7 @@ import { Button, H1, Switch } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import { addFilter, formatBytes, formatBytesCompact, QueryManager, queryDruidSql } from "../utils";
 import "./servers-view.scss";
+import * as numeral from "numeral";
 
 function formatQueues(segmentsToLoad: number, segmentsToLoadSize: number, segmentsToDrop: number, segmentsToDropSize: number): string {
   let queueParts: string[] = [];
@@ -103,8 +104,9 @@ export class ServersView extends React.Component<ServersViewProps, ServersViewSt
     });
 
     this.serverQueryManager.runQuery(`SELECT
-  "tier", "server", "host", "plaintext_port", "tls_port", "curr_size", "max_size"
-FROM sys.servers
+  "tier", "server", "host", "plaintext_port", "tls_port", "curr_size", "max_size",
+  "availableProcessor", "systemLoadAverage", "threadCount", "heap_used", "heap_max", "non_heap_used"
+FROM sys.servers_extended
 WHERE "server_type" = 'historical'`);
 
     this.middleManagerQueryManager = new QueryManager({
@@ -153,12 +155,13 @@ WHERE "server_type" = 'historical'`);
         {
           Header: "Server",
           accessor: "server",
-          width: 300,
+          width: 200,
           Aggregated: row => ''
         },
         {
           Header: "Tier",
           accessor: "tier",
+          width: 100,
           Cell: row => {
             const value = row.value;
             return <a onClick={() => { this.setState({ serverFilter: addFilter(serverFilter, 'tier', value) }) }}>{value}</a>
@@ -219,7 +222,7 @@ WHERE "server_type" = 'historical'`);
         {
           Header: "Load/drop queues",
           id: 'queue',
-          width: 400,
+          width: 150,
           filterable: false,
           accessor: (row) => (row.segmentsToLoad || 0) + (row.segmentsToDrop || 0),
           Cell: (row => {
@@ -237,25 +240,57 @@ WHERE "server_type" = 'historical'`);
           },
         },
         {
-          Header: "Host",
-          accessor: "host",
-          Aggregated: () => ''
+          Header: "Processor",
+          id: 'avail_proc',
+          width: 80,
+          filterable: false,
+          accessor: 'availableProcessor'
         },
         {
-          Header: "Port",
-          id: 'port',
-          accessor: (row) => {
-            let ports: string[] = [];
-            if (row.plaintext_port !== -1) {
-              ports.push(`${row.plaintext_port} (plain)`);
-            }
-            if (row.tls_port !== -1) {
-              ports.push(`${row.tls_port} (TLS)`);
-            }
-            return ports.join(', ') || 'No port';
-          },
-          Aggregated: () => ''
+          Header: "System Load",
+          id: 'load_avr',
+          width: 120,
+          filterable: false,
+          accessor: 'systemLoadAverage',
+          Cell: row => {
+            return numeral(row.value).format('0.000');
+          }
         },
+        {
+          Header: "Heap",
+          id: 'heap',
+          width: 100,
+          filterable: false,
+          Cell: row => {
+            return formatBytes(row.original.heap_used);
+          }
+        },
+        {
+          Header: "Heap Max",
+          id: 'heap_max',
+          width: 100,
+          filterable: false,
+          Cell: row => {
+            return formatBytes(row.original.heap_max);
+          }
+        },
+        {
+          Header: "Non-Heap",
+          id: 'non_heap',
+          width: 100,
+          filterable: false,
+          accessor: 'non_heap_used',
+          Cell: row => {
+            return formatBytes(row.value);
+          }
+        },
+        {
+          Header: "Threads",
+          id: 'threads',
+          width: 100,
+          filterable: false,
+          accessor: 'threadCount'
+        }
       ]}
       defaultPageSize={10}
       className="-striped -highlight"

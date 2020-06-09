@@ -21,6 +21,7 @@ package io.druid.server.coordination;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.client.DruidServer;
 
 /**
  */
@@ -105,6 +106,11 @@ public class DruidServerMetadata
   public DruidServerMetadata decommission()
   {
     return new DruidServerMetadata(name, host, -1, type, tier, priority);
+  }
+
+  public DruidServer toDruidServer()
+  {
+    return new DruidServer(name, host, maxSize, type, tier, priority);
   }
 
   @Override

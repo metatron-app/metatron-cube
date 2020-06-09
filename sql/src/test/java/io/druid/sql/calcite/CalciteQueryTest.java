@@ -466,6 +466,7 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{"sys", "segments", "SYSTEM_TABLE"},
             new Object[]{"sys", "server_segments", "SYSTEM_TABLE"},
             new Object[]{"sys", "servers", "SYSTEM_TABLE"},
+            new Object[]{"sys", "servers_extended", "SYSTEM_TABLE"},
             new Object[]{"sys", "tasks", "SYSTEM_TABLE"}
         )
     );
@@ -497,6 +498,7 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{"sys", "segments", "SYSTEM_TABLE"},
             new Object[]{"sys", "server_segments", "SYSTEM_TABLE"},
             new Object[]{"sys", "servers", "SYSTEM_TABLE"},
+            new Object[]{"sys", "servers_extended", "SYSTEM_TABLE"},
             new Object[]{"sys", "tasks", "SYSTEM_TABLE"}
         )
     );
