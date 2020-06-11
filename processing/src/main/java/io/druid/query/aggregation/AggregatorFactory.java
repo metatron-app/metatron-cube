@@ -477,44 +477,62 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static PostAggregator asFinalizer(final String outputName, final AggregatorFactory factory)
   {
-    return new PostAggregator.Abstract()
+    return new FinalizingPostAggregator(outputName, factory);
+  }
+
+  private static class FinalizingPostAggregator extends PostAggregator.Abstract
+  {
+    private final String outputName;
+    private final AggregatorFactory factory;
+
+    private FinalizingPostAggregator(String outputName, AggregatorFactory factory)
     {
-      @Override
-      public String getName()
-      {
-        return outputName;
-      }
+      this.outputName = outputName;
+      this.factory = factory;
+    }
 
-      @Override
-      public Set<String> getDependentFields()
-      {
-        return ImmutableSet.of(factory.getName());
-      }
+    @Override
+    public String getName()
+    {
+      return outputName;
+    }
 
-      @Override
-      public Comparator getComparator()
-      {
-        return factory.getFinalizedComparator();
-      }
+    @Override
+    public Set<String> getDependentFields()
+    {
+      return ImmutableSet.of(factory.getName());
+    }
 
-      @Override
-      public Processor processor()
+    @Override
+    public Comparator getComparator()
+    {
+      return factory.getFinalizedComparator();
+    }
+
+    @Override
+    public Processor processor()
+    {
+      return new AbstractProcessor()
       {
-        return new AbstractProcessor()
+        @Override
+        public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
         {
-          @Override
-          public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
-          {
-            return factory.finalizeComputation(combinedAggregators.get(factory.getName()));
-          }
-        };
-      }
+          return factory.finalizeComputation(combinedAggregators.get(factory.getName()));
+        }
+      };
+    }
 
-      @Override
-      public ValueDesc resolve(TypeResolver bindings)
-      {
-        return factory.finalizedType();
-      }
-    };
+    @Override
+    public ValueDesc resolve(TypeResolver bindings)
+    {
+      return factory.finalizedType();
+    }
+
+    @Override
+    public boolean equals(Object other)
+    {
+      return outputName.equals(((FinalizingPostAggregator) other).outputName) &&
+             factory.equals(((FinalizingPostAggregator) other).factory);
+    }
   }
 }

@@ -41,12 +41,14 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.UnionAllQuery;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HLLCV1;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
@@ -6821,6 +6823,99 @@ public class CalciteQueryTest extends CalciteTestBase
             new Object[]{"upfront", "mezzanine", 800.0, 4034.2614135742188},
             new Object[]{"upfront", "mezzanine", 826.0601806640625, 4860.321594238281},
             new Object[]{"upfront", "mezzanine", 1006.402099609375, 5866.723693847656}
+        )
+    );
+  }
+
+  @Test
+  public void testEarliestAggregators() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "EARLIEST(cnt), EARLIEST(m1), EARLIEST(dim1), "
+        + "EARLIEST(cnt + 1), EARLIEST(m1 + 1), EARLIEST(dim1 || CAST(cnt AS VARCHAR)) "
+        + "FROM druid.foo",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .virtualColumns(
+                      EXPR_VC("a3:v", "(\"cnt\" + 1)"),
+                      EXPR_VC("a4:v", "(\"m1\" + 1)"),
+                      EXPR_VC("a5:v", "concat(\"dim1\",CAST(\"cnt\", 'STRING'))")
+                  )
+                  .aggregators(
+                      new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MIN"),
+                      new RelayAggregatorFactory("a1", "m1", "double", "TIME_MIN"),
+                      new RelayAggregatorFactory("a2", "dim1", "string", "TIME_MIN"),
+                      new RelayAggregatorFactory("a3", "a3:v", "long", "TIME_MIN"),
+                      new RelayAggregatorFactory("a4", "a4:v", "double", "TIME_MIN"),
+                      new RelayAggregatorFactory("a5", "a5:v", "string", "TIME_MIN")
+                  )
+                  .outputColumns("a0", "a1", "a2", "a3", "a4", "a5")
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{1L, 1.0d, "", 2L, 2.0d, "1"}
+        )
+    );
+  }
+
+  @Test
+  public void testLatestAggregators() throws Exception
+  {
+    testQuery(
+        "SELECT "
+        + "LATEST(cnt), LATEST(m1), LATEST(dim1), "
+        + "LATEST(cnt + 1), LATEST(m1 + 1), LATEST(dim1 || CAST(cnt AS VARCHAR)) "
+        + "FROM druid.foo",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(CalciteTests.DATASOURCE1)
+                  .virtualColumns(
+                      EXPR_VC("a3:v", "(\"cnt\" + 1)"),
+                      EXPR_VC("a4:v", "(\"m1\" + 1)"),
+                      EXPR_VC("a5:v", "concat(\"dim1\",CAST(\"cnt\", 'STRING'))")
+                  )
+                  .aggregators(
+                      new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MAX"),
+                      new RelayAggregatorFactory("a1", "m1", "double", "TIME_MAX"),
+                      new RelayAggregatorFactory("a2", "dim1", "string", "TIME_MAX"),
+                      new RelayAggregatorFactory("a3", "a3:v", "long", "TIME_MAX"),
+                      new RelayAggregatorFactory("a4", "a4:v", "double", "TIME_MAX"),
+                      new RelayAggregatorFactory("a5", "a5:v", "string", "TIME_MAX")
+                  )
+                  .outputColumns("a0", "a1", "a2", "a3", "a4", "a5")
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{1L, 6.0d, "abc", 2L, 7.0d, "abc1"}
+        )
+    );
+  }
+
+  @Test
+  public void testLatestInSubquery() throws Exception
+  {
+    RelayAggregatorFactory factory = new RelayAggregatorFactory("a0:a", "m1", "double", "TIME_MAX");
+    testQuery(
+        "SELECT SUM(val) FROM (SELECT dim2, LATEST(m1) AS val FROM foo GROUP BY dim2)",
+        ImmutableList.of(
+            Druids.newTimeseriesQueryBuilder()
+                  .dataSource(
+                      GroupByQuery.builder()
+                                  .setDataSource(CalciteTests.DATASOURCE1)
+                                  .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                                  .setAggregatorSpecs(factory)
+                                  .setPostAggregatorSpecs(AggregatorFactory.asFinalizer("a0", factory))
+                                  .outputColumns("d0", "a0")
+                                  .build()
+                  )
+                  .aggregators(new GenericSumAggregatorFactory("_a0", "a0", ValueDesc.DOUBLE))
+                  .outputColumns("_a0")
+                  .build()
+        ),
+        ImmutableList.of(
+            new Object[]{15.0d}
         )
     );
   }

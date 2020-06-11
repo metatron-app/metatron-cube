@@ -38,6 +38,7 @@ import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.groupby.orderby.WindowContext;
 import io.druid.segment.ExprVirtualColumn;
@@ -51,6 +52,7 @@ import io.druid.sql.calcite.aggregation.builtin.AvgSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.CountSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.MaxSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.MinSqlAggregator;
+import io.druid.sql.calcite.aggregation.builtin.RelayAggregator;
 import io.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.SumZeroSqlAggregator;
 import io.druid.sql.calcite.expression.AliasedOperatorConversion;
@@ -101,6 +103,7 @@ import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
@@ -131,6 +134,9 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new MaxSqlAggregator())
           .add(new SumSqlAggregator())
           .add(new SumZeroSqlAggregator())
+          .add(new RelayAggregator(new RelayAggFunction("ANY"), RELAY_TYPE.FIRST))
+          .add(new RelayAggregator(new RelayAggFunction("EARLIEST"), RELAY_TYPE.TIME_MIN))
+          .add(new RelayAggregator(new RelayAggFunction("LATEST"), RELAY_TYPE.TIME_MAX))
           .build();
 
   // STRLEN has so many aliases.
@@ -243,10 +249,7 @@ public class DruidOperatorTable implements SqlOperatorTable
     }
 
     for (SqlAggregator aggregator : STANDARD_AGGREGATORS) {
-      final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction());
-
-      // Don't complain if the name already exists; we allow standard operators to be overridden.
-      aggregators.putIfAbsent(operatorKey, aggregator);
+      aggregators.putIfAbsent(OperatorKey.of(aggregator.calciteFunction()), aggregator);
     }
 
     for (AggregatorFactory.SQLBundle bundle : userAggregatorFactories) {
@@ -590,6 +593,25 @@ public class DruidOperatorTable implements SqlOperatorTable
           ReturnTypes.cascade(retType, SqlTypeTransforms.TO_NULLABLE),
           null,
           OperandTypes.VARIADIC,
+          SqlFunctionCategory.SYSTEM,
+          false,
+          false,
+          Optionality.FORBIDDEN
+      );
+    }
+  }
+
+  private static class RelayAggFunction extends SqlAggFunction
+  {
+    RelayAggFunction(String name)
+    {
+      super(
+          name,
+          null,
+          SqlKind.OTHER_FUNCTION,
+          ReturnTypes.ARG0,
+          InferTypes.RETURN_TYPE,
+          OperandTypes.ANY,
           SqlFunctionCategory.SYSTEM,
           false,
           false,
