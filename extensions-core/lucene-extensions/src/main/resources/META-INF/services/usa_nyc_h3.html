@@ -53,8 +53,8 @@
            //           '  FROM nyc_nursing WHERE ST_WITHIN(Point, \'' + wkt + '\') GROUP BY geom_to_h3(geom_fromWKT(Point), 6)' +
            //           ')';
            var sql = 'SELECT geom_transform(geom_intersection(geohex_to_boundary_geom(geohex),(select geom_union(geom_fromWKT(shape)) from nyc_boundaries)),4326,3857), number, OpCerts, PFIs FROM (' +
-                     '  SELECT geom_to_geohex(geom_fromWKT(Point), 6) as geohex, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
-                     '  FROM nyc_nursing WHERE ST_WITHIN(Point, \'' + wkt + '\') GROUP BY geom_to_geohex(geom_fromWKT(Point), 6)' +
+                     '  SELECT geom_to_geohex(geom_fromWKT(Point), 5) as geohex, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs' +
+                     '  FROM nyc_nursing WHERE ST_WITHIN(Point, \'' + wkt + '\') GROUP BY 1' +
                      ')';
             // var sql = 'WITH G AS (' +
             //           '  SELECT H3, count(*) as number, sum(OpCert) as OpCerts, sum(PFI) as PFIs FROM (' +
@@ -93,16 +93,16 @@
           //   color = [215, 222, 231, 0.6];
           //   tcolor = [0,0,0,1];
           // }
-          if (sum > 24000) {
+          if (sum > 30000) {
             color = [46, 18, 58, 0.6];
             tcolor = [255,255,255,1];
-          } else if (sum > 15000) {
+          } else if (sum > 20000) {
             color = [96, 38, 99, 0.6];
             tcolor = [255,255,255,1];
-          } else if (sum > 9000) {
+          } else if (sum > 10000) {
             color = [116, 100, 130, 0.6];
             tcolor = [0,0,0,1];
-          } else if (sum > 6000) {
+          } else if (sum > 5000) {
             color = [154, 148, 170, 0.6];
             tcolor = [0,0,0,1];
           } else {

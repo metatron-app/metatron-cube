@@ -576,7 +576,7 @@ public class GeomFunctions implements Function.Library
   }
 
   @Function.Named("geom_intersection")
-  public static class Intersection extends BinaryGeomFunc
+  public static class GeomIntersection extends BinaryGeomFunc
   {
     @Override
     protected Geometry op(Geometry geom1, Geometry geom2)
@@ -585,6 +585,20 @@ public class GeomFunctions implements Function.Library
         return null;
       } else if (geom2 == null) {
         return geom1;
+      }
+      if (geom2 instanceof GeometryCollection) {
+        List<Geometry> geometries = Lists.newArrayList();
+        int size = geom2.getNumGeometries();
+        for (int i = 0; i < size; i++) {
+          final Geometry geometryN = geom2.getGeometryN(i);
+          if (geom1.intersects(geometryN)) {
+            geometries.add(geometryN);
+          }
+        }
+        if (geometries.isEmpty()) {
+          return geom1;
+        }
+        geom2 = new GeometryCollection(geometries.toArray(new Geometry[0]), geom2.getFactory());
       }
       return geom1.intersection(geom2);
     }

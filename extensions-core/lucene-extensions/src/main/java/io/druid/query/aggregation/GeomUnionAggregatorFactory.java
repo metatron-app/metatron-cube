@@ -169,7 +169,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.GEOMETRY;
+    return GeomUtils.GEOM_TYPE;
   }
 
   @Override
