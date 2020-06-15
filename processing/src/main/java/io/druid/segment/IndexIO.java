@@ -90,6 +90,7 @@ import io.druid.segment.serde.FloatGenericColumnSupplier;
 import io.druid.segment.serde.LongGenericColumnPartSerde;
 import io.druid.segment.serde.LongGenericColumnSupplier;
 import io.druid.segment.serde.SpatialIndexColumnPartSupplier;
+import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
 import java.io.ByteArrayOutputStream;
@@ -234,6 +235,16 @@ public class IndexIO
       return loader.load(inDir, mapper);
     } else {
       throw new ISE("Unknown index version[%s]", version);
+    }
+  }
+
+  public DataSegment decorateMeta(DataSegment segment, File directory) throws IOException
+  {
+    try (QueryableIndex index = loadIndex(directory)) {
+      return segment
+          .withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
+          .withMetrics(Lists.newArrayList(index.getAvailableMetrics()))
+          .withNumRows(index.getNumRows());
     }
   }
 

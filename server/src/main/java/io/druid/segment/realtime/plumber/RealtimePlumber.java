@@ -629,13 +629,10 @@ public class RealtimePlumber implements Plumber
               metrics.incrementMergeCpuTime(VMUtils.safeGetThreadCpuTime() - mergeThreadCpuTime);
               metrics.incrementMergeTimeMillis(mergeStopwatch.elapsed(TimeUnit.MILLISECONDS));
 
-              QueryableIndex index = indexIO.loadIndex(mergedFile);
+              final DataSegment template = indexIO.decorateMeta(sink.getSegment(), mergedFile);
               log.info("Pushing [%s] to deep storage", sink.getSegment().getIdentifier());
 
-              DataSegment segment = dataSegmentPusher.push(
-                  mergedFile,
-                  sink.getSegment().withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
-              );
+              final DataSegment segment = dataSegmentPusher.push(mergedFile, template);
               log.info("Inserting [%s] to the metadata store", sink.getSegment().getIdentifier());
               segmentPublisher.publishSegment(segment);
 

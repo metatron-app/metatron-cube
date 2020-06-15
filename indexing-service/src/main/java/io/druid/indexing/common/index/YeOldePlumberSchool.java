@@ -26,20 +26,18 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.QueryableIndex;
-import io.druid.segment.SegmentUtils;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
@@ -193,16 +191,10 @@ public class YeOldePlumberSchool implements PlumberSchool
           // Map merged segment so we can extract dimensions
           final QueryableIndex mappedSegment = indexIO.loadIndex(fileToUpload);
 
-          final DataSegment segmentToUpload = theSink.getSegment()
-                                                     .withDimensions(ImmutableList.copyOf(mappedSegment.getAvailableDimensions()))
-                                                     .withBinaryVersion(SegmentUtils.getVersionFromDir(fileToUpload));
+          final DataSegment template = indexIO.decorateMeta(theSink.getSegment(), fileToUpload);
+          final DataSegment segment = dataSegmentPusher.push(fileToUpload, template);
 
-          dataSegmentPusher.push(fileToUpload, segmentToUpload);
-
-          log.info(
-              "Uploaded segment[%s]",
-              segmentToUpload.getIdentifier()
-          );
+          log.info("Uploaded segment[%s]", segment.getIdentifier());
 
         }
         catch (Exception e) {

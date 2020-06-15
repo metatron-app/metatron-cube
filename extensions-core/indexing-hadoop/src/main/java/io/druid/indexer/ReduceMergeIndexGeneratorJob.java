@@ -19,16 +19,14 @@
 
 package io.druid.indexer;
 
-import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.CompressionUtils;
 import io.druid.data.input.InputRow;
 import io.druid.indexer.path.HadoopCombineInputFormat;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.BaseProgressIndicator;
@@ -68,7 +66,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
-import java.util.Set;
 
 /**
  */
@@ -249,7 +246,9 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         throws IOException, InterruptedException
     {
       // not null only with HadoopCombineInputFormat
-      final String dataSource = dynamicDataSource ? HadoopCombineInputFormat.CURRENT_DATASOURCE.get() : currentDataSource;
+      final String dataSource = dynamicDataSource
+                                ? HadoopCombineInputFormat.CURRENT_DATASOURCE.get()
+                                : currentDataSource;
       if (dynamicDataSource && !Objects.equals(currentDataSource, dataSource) && !indices.isEmpty()) {
         persistAll(context);
       }
@@ -594,7 +593,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           version = descriptor.getVersion();
         }
       }
-      final List<String> files = Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction()));
+      final List<String> files = Lists.newArrayList(Iterables.transform(values, Object::toString));
       final List<List<File>> groups = groupToShards(files, maxShardLength);
 
       log.info("Merging %d segments of %s [%s] into %d shards", files.size(), dataSource, interval, groups.size());
@@ -602,20 +601,14 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final boolean singleShard = groups.size() == 1;
 
       for (int i = 0; i < groups.size(); i++) {
-        Set<String> dimensions = Sets.newLinkedHashSet();
         List<File> shard = groups.get(i);
         File mergedBase;
         if (shard.size() == 1 && GuavaUtils.isNullOrEmpty(indexSpec.getSecondaryIndexing())) {
           mergedBase = shard.get(0);
-          QueryableIndex index = HadoopDruidIndexerConfig.INDEX_IO.loadIndex(mergedBase);
-          dimensions.addAll(Lists.newArrayList(index.getAvailableDimensions()));
-          index.close();
         } else {
           final List<QueryableIndex> indexes = Lists.newArrayListWithCapacity(shard.size());
           for (File file : shard) {
-            QueryableIndex index = HadoopDruidIndexerConfig.INDEX_IO.loadIndex(file);
-            dimensions.addAll(Lists.newArrayList(index.getAvailableDimensions()));
-            indexes.add(index);
+            indexes.add(HadoopDruidIndexerConfig.INDEX_IO.loadIndex(file));
           }
           mergedBase = merger.mergeQueryableIndexAndClose(
               indexes,
@@ -626,9 +619,36 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
               progressIndicator
           );
         }
-        int increment = scatterParam > 1 ? (i * scatterParam + scatterKey) : i;
-        ShardSpec shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + increment);
-        writeShard(dataSource, mergedBase, version, interval, Lists.newArrayList(dimensions), shardSpec, context);
+        int delta = scatterParam > 1 ? (i * scatterParam + scatterKey) : i;
+        ShardSpec shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + delta);
+        DataSegment segment = toDataSegment(mergedBase, dataSource, interval, version, shardSpec);
+        writeShard(segment, mergedBase, context);
+      }
+    }
+
+    private DataSegment toDataSegment(
+        File directory,
+        String dataSource,
+        Interval interval,
+        String version,
+        ShardSpec shardSpec
+    ) throws IOException
+    {
+      try (QueryableIndex index = HadoopDruidIndexerConfig.INDEX_IO.loadIndex(directory)) {
+        List<String> dimensions = Lists.newArrayList(index.getAvailableDimensions());
+        List<String> metrics = Lists.newArrayList(index.getAvailableMetrics());
+        return new DataSegment(
+            dataSource,
+            interval,
+            version,
+            null,
+            dimensions,
+            metrics,
+            shardSpec,
+            -1,
+            -1,
+            index.getNumRows()
+        );
       }
     }
 
@@ -667,39 +687,14 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       return groups;
     }
 
-    private void writeShard(
-        String dataSource,
-        File directory,
-        String version,
-        Interval interval,
-        List<String> dimensions,
-        ShardSpec shardSpec,
-        Context context
-    )
-        throws IOException
+    private void writeShard(DataSegment segment, File directory, Context context) throws IOException
     {
-      final DataSegment segmentTemplate = new DataSegment(
-          dataSource,
-          interval,
-          version,
-          null,
-          dimensions,
-          metricNames,
-          shardSpec,
-          -1,
-          -1
-      );
+      final Path basePath = new Path(config.getSchema().getIOConfig().getSegmentOutputPath());
+      final Path segmentBasePath = JobHelper.makeSegmentOutputPath(basePath, outputFS, segment);
 
-      Path basePath = new Path(config.getSchema().getIOConfig().getSegmentOutputPath());
-      final Path segmentBasePath = JobHelper.makeSegmentOutputPath(
-          basePath,
-          outputFS,
-          segmentTemplate
-      );
-
-      log.info("Zipping shard [%s] to path [%s]", shardSpec, segmentBasePath);
-      final DataSegment segment = JobHelper.serializeOutIndex(
-          segmentTemplate,
+      log.info("Zipping shard [%s] to path [%s]", segment.getShardSpec(), segmentBasePath);
+      segment = JobHelper.serializeOutIndex(
+          segment,
           context.getConfiguration(),
           context,
           context.getTaskAttemptID(),

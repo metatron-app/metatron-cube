@@ -909,8 +909,7 @@ public class AppenderatorImpl implements Appenderator
         indexes.add(queryableIndex);
       }
 
-      final File mergedFile;
-      mergedFile = indexMerger.mergeQueryableIndex(
+      final File mergedFile = indexMerger.mergeQueryableIndex(
           indexes,
           schema.getGranularitySpec().isRollup(),
           schema.getAggregators(),
@@ -918,14 +917,10 @@ public class AppenderatorImpl implements Appenderator
           tuningConfig.getIndexSpec()
       );
 
-      QueryableIndex index = indexIO.loadIndex(mergedFile);
-
+      final DataSegment template = indexIO.decorateMeta(sink.getSegment(), mergedFile);
       // Retry pushing segments because uploading to deep storage might fail especially for cloud storage types
       final DataSegment segment = RetryUtils.retry(
-          () -> dataSegmentPusher.push(
-              mergedFile,
-              sink.getSegment().withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
-          ),
+          () -> dataSegmentPusher.push(mergedFile, template),
           exception -> exception instanceof Exception,
           5
       );
