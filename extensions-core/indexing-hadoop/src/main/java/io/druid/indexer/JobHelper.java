@@ -20,6 +20,7 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -298,6 +299,8 @@ public class JobHelper
   public static void injectSystemProperties(Job job)
   {
     injectSystemProperties(job.getConfiguration());
+    job.getConfiguration().setBoolean("mapreduce.job.user.classpath.first", true);
+    job.setJarByClass(Preconditions.class);   // force override druid-common over guava in fxxx hadoop MR
   }
 
   public static Configuration injectSystemProperties(Configuration conf)
