@@ -35,9 +35,12 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
+
+import java.util.List;
 
 /**
  */
@@ -115,6 +118,32 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
                          .append(query.getDimensions())
                          .append(query.getMetrics())
                          .build();
+      }
+
+      @Override
+      public Function<Object[], Object[]> pullFromCache()
+      {
+        final SketchOp sketchOp = query.getSketchOp();
+        final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+        final List<String> metrics = query.getMetrics();
+        return new Function<Object[], Object[]>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public Object[] apply(final Object[] input)
+          {
+            int index = 1;
+            for (String dimension : dimensions) {
+              input[index] = TypedSketch.deserialize(sketchOp, input[index], null);
+              index++;
+            }
+            for (String metric : metrics) {
+              input[index] = TypedSketch.deserialize(sketchOp, input[index], null);
+              index++;
+            }
+            return input;
+          }
+        };
       }
     };
   }
