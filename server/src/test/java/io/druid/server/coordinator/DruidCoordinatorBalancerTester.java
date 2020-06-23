@@ -35,7 +35,7 @@ public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
     final LoadQueuePeon toPeon = toServer.getPeon();
     final String segmentName = segment.getIdentifier();
 
-    if (!toPeon.getSegmentsToLoad().contains(segment) &&
+    if (!toPeon.isLoadingSegment(segment) &&
         !currentlyMovingSegments.get("normal").containsKey(segmentName) &&
         !toServer.isServingSegment(segment) && toServer.getAvailableSize() > segment.getSize()) {
       log.info(

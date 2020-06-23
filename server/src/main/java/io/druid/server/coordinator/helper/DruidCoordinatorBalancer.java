@@ -105,7 +105,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
 
       int segmentsToLoad = 0;
       for (ServerHolder holder : holders) {
-        segmentsToLoad += holder.getPeon().getSegmentsToLoad().size();
+        segmentsToLoad += holder.getPeon().getNumSegmentsToLoad();
       }
       if (segmentsToLoad > params.getMaxSegmentsToMove()) {
         // skip when busy (server down, etc.)

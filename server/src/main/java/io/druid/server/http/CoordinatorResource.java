@@ -20,9 +20,9 @@
 package io.druid.server.http;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
@@ -33,6 +33,7 @@ import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.http.security.StateResourceFilter;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -109,21 +110,17 @@ public class CoordinatorResource
                 @Override
                 public Object apply(LoadQueuePeon input)
                 {
-                  long loadSize = 0;
-                  for (DataSegment dataSegment : input.getSegmentsToLoad()) {
-                    loadSize += dataSegment.getSize();
-                  }
+                  final MutableLong loadSize = new MutableLong();
+                  input.getSegmentsToLoad(segment -> loadSize.add(segment.getSize()));
 
-                  long dropSize = 0;
-                  for (DataSegment dataSegment : input.getSegmentsToDrop()) {
-                    dropSize += dataSegment.getSize();
-                  }
+                  final MutableLong dropSize = new MutableLong();
+                  input.getSegmentsToDrop(segment -> dropSize.add(segment.getSize()));
 
                   return new ImmutableMap.Builder<>()
-                      .put("segmentsToLoad", input.getSegmentsToLoad().size())
-                      .put("segmentsToDrop", input.getSegmentsToDrop().size())
-                      .put("segmentsToLoadSize", loadSize)
-                      .put("segmentsToDropSize", dropSize)
+                      .put("segmentsToLoad", input.getNumSegmentsToLoad())
+                      .put("segmentsToDrop", input.getNumSegmentsToDrop())
+                      .put("segmentsToLoadSize", loadSize.longValue())
+                      .put("segmentsToDropSize", dropSize.longValue())
                       .build();
                 }
               }
@@ -138,41 +135,12 @@ public class CoordinatorResource
     return Response.ok(
         Maps.transformValues(
             coordinator.getLoadManagementPeons(),
-            new Function<LoadQueuePeon, Object>()
-            {
-              @Override
-              public Object apply(LoadQueuePeon input)
-              {
-                return new ImmutableMap.Builder<>()
-                    .put(
-                        "segmentsToLoad",
-                        Collections2.transform(
-                            input.getSegmentsToLoad(),
-                            new Function<DataSegment, Object>()
-                            {
-                              @Override
-                              public String apply(DataSegment segment)
-                              {
-                                return segment.getIdentifier();
-                              }
-                            }
-                        )
-                    )
-                    .put(
-                        "segmentsToDrop", Collections2.transform(
-                        input.getSegmentsToDrop(),
-                        new Function<DataSegment, Object>()
-                        {
-                          @Override
-                          public String apply(DataSegment segment)
-                          {
-                            return segment.getIdentifier();
-                          }
-                        }
-                    )
-                    )
-                    .build();
-              }
+            peon -> {
+              List<String> loading = Lists.newArrayList();
+              peon.getSegmentsToLoad(segment -> loading.add(segment.getIdentifier()));
+              List<String> dropping = Lists.newArrayList();
+              peon.getSegmentsToDrop(segment -> dropping.add(segment.getIdentifier()));
+              return ImmutableMap.of("segmentsToLoad", loading, "segmentsToDrop", dropping);
             }
         )
     ).build();

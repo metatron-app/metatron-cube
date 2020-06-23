@@ -322,7 +322,7 @@ public class DruidCoordinator
     final SegmentReplicantLookup segmentReplicantLookup = prevParam.getSegmentReplicantLookup();
 
     for (DataSegment segment : getAvailableDataSegments().get()) {
-      int available = (segmentReplicantLookup.getTotalReplicants(segment.getIdentifier()) == 0) ? 0 : 1;
+      int available = segmentReplicantLookup.getTotalReplicants(segment.getIdentifier()) == 0 ? 0 : 1;
       retVal.add(segment.getDataSource(), 1 - available);
     }
 
@@ -333,9 +333,7 @@ public class DruidCoordinator
   {
     final CountingMap<String> retVal = new CountingMap<>();
     for (LoadQueuePeon peon : loadManagementPeons.values()) {
-      for (DataSegment segment : peon.getSegmentsToLoad()) {
-        retVal.add(segment.getDataSource(), 1);
-      }
+      peon.getSegmentsToLoad(segment -> retVal.add(segment.getDataSource(), 1));
     }
     return retVal;
   }
@@ -707,6 +705,8 @@ public class DruidCoordinator
             DruidCoordinatorRuntimeParams params = buildParam(
                 DruidCoordinatorRuntimeParams.newBuilder()
                                              .withMajorTick(majorTick)
+                                             .withStartTime(System.currentTimeMillis())
+                                             .withPollingInterval(config.getCoordinatorPeriod().getMillis())
                                              .withDatabaseRuleManager(ruleManager)
                                              .withAvailableSegments(Suppliers.ofInstance(segments))
             );
@@ -855,6 +855,7 @@ public class DruidCoordinator
             DruidCoordinatorRuntimeParams.newBuilder()
                                          .withMajorTick(ready && counter.getAndIncrement() % lazyTick == 0)
                                          .withStartTime(startTime)
+                                         .withPollingInterval(config.getCoordinatorPeriod().getMillis())
                                          .withDatasources(metadataSegmentManager.getInventory())
                                          .withAvailableSegments(getAvailableDataSegments())
                                          .withDynamicConfigs(getDynamicConfigs())

@@ -190,8 +190,8 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
         ImmutableDruidServer server = serverHolder.getServer();
         LoadQueuePeon queuePeon = serverHolder.getPeon();
         int segments = server.getSegments().size();
-        int toLoad = queuePeon.getSegmentsToLoad().size();
-        int toDrop = queuePeon.getSegmentsToDrop().size();
+        int toLoad = queuePeon.getNumSegmentsToLoad();
+        int toDrop = queuePeon.getNumSegmentsToDrop();
         long queued = queuePeon.getLoadQueueSize();
         if (dumpAll || toLoad > 0 || toDrop > 0 || queued > 0) {
           if (!printedHeader) {
@@ -210,14 +210,6 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
               segments,
               server.getMaxSize() > 0 ? ((double) server.getCurrSize() / server.getMaxSize() * 100) : -1
           );
-        }
-        if (log.isDebugEnabled()) {
-          for (DataSegment segment : queuePeon.getSegmentsToLoad()) {
-            log.debug("Segment to load[%s]", segment);
-          }
-          for (DataSegment segment : queuePeon.getSegmentsToDrop()) {
-            log.debug("Segment to drop[%s]", segment);
-          }
         }
       }
     }
@@ -242,13 +234,13 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
       emitter.emit(
           new ServiceMetricEvent.Builder()
               .setDimension(DruidMetrics.SERVER, serverName).build(
-              "segment/loadQueue/count", queuePeon.getSegmentsToLoad().size()
+              "segment/loadQueue/count", queuePeon.getNumSegmentsToLoad()
           )
       );
       emitter.emit(
           new ServiceMetricEvent.Builder()
               .setDimension(DruidMetrics.SERVER, serverName).build(
-              "segment/dropQueue/count", queuePeon.getSegmentsToDrop().size()
+              "segment/dropQueue/count", queuePeon.getNumSegmentsToDrop()
           )
       );
     }

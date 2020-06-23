@@ -19,114 +19,133 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.common.collect.Table;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.timeline.DataSegment;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
  * A lookup for the number of replicants of a given segment for a certain tier.
  */
-public class SegmentReplicantLookup
+public interface SegmentReplicantLookup
 {
-  public static SegmentReplicantLookup make(DruidCluster cluster)
-  {
-    final Table<String, String, Integer> segmentsInCluster = HashBasedTable.create();
-    final Table<String, String, Integer> loadingSegments = HashBasedTable.create();
+  int LOADED = 0;
+  int LOADING = 1;
+  int[] NOT_EXISTS = new int[2];
 
+  static SegmentReplicantLookup make(DruidCluster cluster)
+  {
+    List<String> tierNames = Lists.newArrayList(cluster.getTierNames());
+    if (tierNames.size() == 1) {
+      final Map<String, int[]> segmentsInCluster = Maps.newHashMap();
+      for (MinMaxPriorityQueue<ServerHolder> serversByType : cluster.getSortedServersByTier()) {
+        for (ServerHolder serverHolder : serversByType) {
+          final ImmutableDruidServer server = serverHolder.getServer();
+          for (DataSegment segment : server.getSegments().values()) {
+            segmentsInCluster.computeIfAbsent(segment.getIdentifier(), k -> new int[2])[LOADED]++;
+          }
+
+          // Also account for queued segments
+          final LoadQueuePeon peon = serverHolder.getPeon();
+          peon.getSegmentsToLoad(segment -> {
+            segmentsInCluster.computeIfAbsent(segment.getIdentifier(), k -> new int[2])[LOADING]++;
+          });
+        }
+      }
+      return new SingleTier(tierNames.get(0), segmentsInCluster);
+    }
+
+    final Map<String, Map<String, int[]>> segmentsInCluster = Maps.newHashMap();
     for (MinMaxPriorityQueue<ServerHolder> serversByType : cluster.getSortedServersByTier()) {
       for (ServerHolder serverHolder : serversByType) {
-        ImmutableDruidServer server = serverHolder.getServer();
-
+        final ImmutableDruidServer server = serverHolder.getServer();
         for (DataSegment segment : server.getSegments().values()) {
-          Integer numReplicants = segmentsInCluster.get(segment.getIdentifier(), server.getTier());
-          if (numReplicants == null) {
-            numReplicants = 0;
-          }
-          segmentsInCluster.put(segment.getIdentifier(), server.getTier(), ++numReplicants);
+          segmentsInCluster.computeIfAbsent(segment.getIdentifier(), k1 -> Maps.newHashMap())
+                           .computeIfAbsent(server.getTier(), k -> new int[2])[LOADED]++;
         }
 
         // Also account for queued segments
-        for (DataSegment segment : serverHolder.getPeon().getSegmentsToLoad()) {
-          Integer numReplicants = loadingSegments.get(segment.getIdentifier(), server.getTier());
-          if (numReplicants == null) {
-            numReplicants = 0;
-          }
-          loadingSegments.put(segment.getIdentifier(), server.getTier(), ++numReplicants);
-        }
+        final LoadQueuePeon peon = serverHolder.getPeon();
+        peon.getSegmentsToLoad(segment -> {
+          segmentsInCluster.computeIfAbsent(segment.getIdentifier(), k1 -> Maps.newHashMap())
+                           .computeIfAbsent(server.getTier(), k -> new int[2])[LOADING]++;
+        });
       }
     }
 
-    return new SegmentReplicantLookup(segmentsInCluster, loadingSegments);
+    return new MultiTier(segmentsInCluster);
   }
 
-  private final Table<String, String, Integer> segmentsInCluster;
-  private final Table<String, String, Integer> loadingSegments;
+  Map<String, int[]> getClusterTiers(String segmentId);
 
-  private SegmentReplicantLookup(
-      Table<String, String, Integer> segmentsInCluster,
-      Table<String, String, Integer> loadingSegments
-  )
-  {
-    this.segmentsInCluster = segmentsInCluster;
-    this.loadingSegments = loadingSegments;
-  }
+  int getTotalReplicants(String segmentId, String tier);
 
-  public Map<String, Integer> getClusterTiers(String segmentId)
-  {
-    Map<String, Integer> retVal = segmentsInCluster.row(segmentId);
-    return (retVal == null) ? Maps.<String, Integer>newHashMap() : retVal;
-  }
+  int getTotalReplicants(String segmentId);
 
-  public Map<String, Integer> getLoadingTiers(String segmentId)
+  class SingleTier implements SegmentReplicantLookup
   {
-    Map<String, Integer> retVal = loadingSegments.row(segmentId);
-    return (retVal == null) ? Maps.<String, Integer>newHashMap() : retVal;
-  }
+    private final String tierName;
+    private final Map<String, int[]> segmentsInCluster;
 
-  public int getLoadedReplicants(String segmentId)
-  {
-    Map<String, Integer> allTiers = segmentsInCluster.row(segmentId);
-    int retVal = 0;
-    for (Integer replicants : allTiers.values()) {
-      retVal += replicants;
+    public SingleTier(String tierName, Map<String, int[]> segmentsInCluster)
+    {
+      this.tierName = tierName;
+      this.segmentsInCluster = segmentsInCluster;
     }
-    return retVal;
-  }
 
-  public int getLoadedReplicants(String segmentId, String tier)
-  {
-    Integer retVal = segmentsInCluster.get(segmentId, tier);
-    return (retVal == null) ? 0 : retVal;
-  }
-
-  public int getLoadingReplicants(String segmentId, String tier)
-  {
-    Integer retVal = loadingSegments.get(segmentId, tier);
-    return (retVal == null) ? 0 : retVal;
-  }
-
-  public int getLoadingReplicants(String segmentId)
-  {
-    Map<String, Integer> allTiers = loadingSegments.row(segmentId);
-    int retVal = 0;
-    for (Integer replicants : allTiers.values()) {
-      retVal += replicants;
+    @Override
+    public Map<String, int[]> getClusterTiers(String segmentId)
+    {
+      return ImmutableMap.of(tierName, segmentsInCluster.getOrDefault(segmentId, NOT_EXISTS));
     }
-    return retVal;
+
+    @Override
+    public int getTotalReplicants(String segmentId, String tier)
+    {
+      return tierName.equals(tier) ? getTotalReplicants(segmentId) : 0;
+    }
+
+    @Override
+    public int getTotalReplicants(String segmentId)
+    {
+      final int[] counts = segmentsInCluster.getOrDefault(segmentId, NOT_EXISTS);
+      return counts[LOADED] + counts[LOADING];
+    }
   }
 
-  public int getTotalReplicants(String segmentId)
+  class MultiTier implements SegmentReplicantLookup
   {
-    return getLoadedReplicants(segmentId) + getLoadingReplicants(segmentId);
-  }
+    private final Map<String, Map<String, int[]>> segmentsInCluster;
 
-  public int getTotalReplicants(String segmentId, String tier)
-  {
-    return getLoadedReplicants(segmentId, tier) + getLoadingReplicants(segmentId, tier);
+    private MultiTier(Map<String, Map<String, int[]>> segmentsInCluster)
+    {
+      this.segmentsInCluster = segmentsInCluster;
+    }
+
+    public Map<String, int[]> getClusterTiers(String segmentId)
+    {
+      return segmentsInCluster.getOrDefault(segmentId, Collections.emptyMap());
+    }
+
+    public int getTotalReplicants(String segmentId, String tier)
+    {
+      final int[] counts = getClusterTiers(segmentId).getOrDefault(tier, NOT_EXISTS);
+      return counts[LOADED] + counts[LOADING];
+    }
+
+    public int getTotalReplicants(String segmentId)
+    {
+      int retVal = 0;
+      for (int[] replicants : getClusterTiers(segmentId).values()) {
+        retVal += replicants[LOADED] + replicants[LOADING];
+      }
+      return retVal;
+    }
   }
 }

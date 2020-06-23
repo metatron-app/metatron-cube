@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.lang.mutable.MutableDouble;
 import org.apache.commons.math3.util.FastMath;
 import org.joda.time.Interval;
 
@@ -202,6 +203,12 @@ public class CostBalancerStrategy extends BalancerStrategy.Abstract
     return totalCost;
   }
 
+  static double computeJointSegmentsCost(final DataSegment segment, final LoadQueuePeon peon)
+  {
+    final MutableDouble totalCost = new MutableDouble();
+    peon.getSegmentsToLoad(s -> totalCost.add(computeJointSegmentsCost(segment, s)));
+    return totalCost.doubleValue();
+  }
 
   public BalancerSegmentHolder pickSegmentToMove(final List<ServerHolder> serverHolders)
   {
@@ -297,7 +304,7 @@ public class CostBalancerStrategy extends BalancerStrategy.Abstract
       );
 
       /**  plus the costs of segments that will be loaded */
-      cost += computeJointSegmentsCost(proposalSegment, server.getPeon().getSegmentsToLoad());
+      cost += computeJointSegmentsCost(proposalSegment, server.getPeon());
 
       return cost;
     }

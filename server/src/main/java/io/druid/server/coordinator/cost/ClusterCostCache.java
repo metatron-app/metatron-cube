@@ -21,16 +21,14 @@ package io.druid.server.coordinator.cost;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.timeline.DataSegment;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class ClusterCostCache
 {
@@ -52,25 +50,16 @@ public class ClusterCostCache
     return new Builder();
   }
 
-  public static Builder builder(Map<String, Set<DataSegment>> segmentsByServerName)
+  public static Builder builder(Map<String, LoadQueuePeon> segmentsByServerName)
   {
     final Builder builder = builder();
     segmentsByServerName.forEach(
-        new BiConsumer<String, Set<DataSegment>>()
+        new BiConsumer<String, LoadQueuePeon>()
         {
           @Override
-          public void accept(final String serverName, Set<DataSegment> segments)
+          public void accept(final String serverName, LoadQueuePeon peon)
           {
-            segments.forEach(
-                new Consumer<DataSegment>()
-                {
-                  @Override
-                  public void accept(DataSegment segment)
-                  {
-                    builder.addSegment(serverName, segment);
-                  }
-                }
-            );
+            peon.getSegmentsToLoad(segment -> builder.addSegment(serverName, segment));
           }
         }
     );

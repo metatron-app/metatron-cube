@@ -28,6 +28,8 @@ import java.util.Set;
 
 public class CoordinatorDynamicConfig
 {
+  public static final CoordinatorDynamicConfig DEFAULT = new Builder().build();
+
   public static final String CONFIG_KEY = "coordinator.config";
 
   @JsonProperty

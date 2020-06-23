@@ -99,6 +99,11 @@ public final class DateTimes
     return dt1.compareTo(dt2) < 0 ? dt1 : dt2;
   }
 
+  public static long elapsed(long start)
+  {
+    return System.currentTimeMillis() - start;
+  }
+
   private DateTimes()
   {
   }

@@ -25,8 +25,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import io.druid.server.coordinator.cost.ClusterCostCache;
 import io.druid.timeline.DataSegment;
 
-import java.util.Set;
-
 
 public class CachingCostBalancerStrategy extends CostBalancerStrategy
 {
@@ -70,8 +68,7 @@ public class CachingCostBalancerStrategy extends CostBalancerStrategy
 
   private ClusterCostCache costCacheForLoadingSegments(ServerHolder server)
   {
-    final Set<DataSegment> loadingSegments = server.getPeon().getSegmentsToLoad();
-    return ClusterCostCache.builder(ImmutableMap.of(server.getServer().getName(), loadingSegments)).build();
+    return ClusterCostCache.builder(ImmutableMap.of(server.getServer().getName(), server.getPeon())).build();
   }
 
 }

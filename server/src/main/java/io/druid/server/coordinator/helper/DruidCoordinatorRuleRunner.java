@@ -46,6 +46,8 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
   private static final int MAX_MISSING_RULES = 10;
   private static final int MAX_NOT_ASSIGNED = 100;
 
+  private static final int TIMEOUT_CHECK_INTERVAL = 2000;
+
   private final DruidCoordinator coordinator;
 
   public DruidCoordinatorRuleRunner(DruidCoordinator coordinator)
@@ -93,6 +95,9 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
         missingRules++;
       } else if (notAssigned) {
         notAssignedCount++;
+      }
+      if (segments % TIMEOUT_CHECK_INTERVAL == 0 && params.hasPollinIntervalElapsed(now.getMillis())) {
+        break;
       }
     }
     final int maxNotAssigned = Math.max(10, Math.min((int)(segments * 0.3), MAX_NOT_ASSIGNED));

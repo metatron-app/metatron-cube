@@ -22,6 +22,7 @@ package io.druid.server.coordinator;
 import io.druid.timeline.DataSegment;
 
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.function.Consumer;
 
 public class LoadQueuePeonTester extends LoadQueuePeon
 {
@@ -41,8 +42,21 @@ public class LoadQueuePeonTester extends LoadQueuePeon
     segmentsToLoad.add(segment);
   }
 
+  @Override
   public ConcurrentSkipListSet<DataSegment> getSegmentsToLoad()
   {
     return segmentsToLoad;
+  }
+
+  @Override
+  public int getNumSegmentsToLoad()
+  {
+    return segmentsToLoad.size();
+  }
+
+  @Override
+  public void getSegmentsToLoad(Consumer<DataSegment> sink)
+  {
+    segmentsToLoad.forEach(sink);
   }
 }

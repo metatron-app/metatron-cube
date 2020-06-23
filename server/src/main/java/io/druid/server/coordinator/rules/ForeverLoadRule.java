@@ -42,11 +42,12 @@ public class ForeverLoadRule extends LoadRule.Always
     return new ForeverLoadRule(ImmutableMap.of(DruidServer.DEFAULT_TIER, replicant))
     {
       @Override
-      protected void assign(DataSegment segment, LoadQueuePeon peon, String reason)
+      protected boolean assign(DataSegment segment, LoadQueuePeon peon, String reason)
       {
         if (predicate.test(segment)) {
-          peon.loadSegment(segment, reason, null, predicate);
+          return peon.loadSegment(segment, reason, null, predicate);
         }
+        return false;
       }
     };
   }
@@ -74,12 +75,6 @@ public class ForeverLoadRule extends LoadRule.Always
   public Map<String, Integer> getTieredReplicants()
   {
     return tieredReplicants;
-  }
-
-  @Override
-  public int getExpectedReplicants(String tier)
-  {
-    return tieredReplicants.getOrDefault(tier, 0);
   }
 
   @Override

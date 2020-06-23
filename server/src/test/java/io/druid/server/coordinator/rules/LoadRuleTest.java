@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.client.DruidServer;
@@ -44,6 +43,7 @@ import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.coordinator.SegmentReplicantLookup;
 import io.druid.server.coordinator.ServerHolder;
+import io.druid.server.coordinator.SimpleBalancerStrategy;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.EasyMock;
@@ -121,9 +121,12 @@ public class LoadRuleTest
         EasyMock.<LoadPeonCallback>anyObject(),
         EasyMock.<Predicate<DataSegment>>anyObject()
     );
-    EasyMock.expectLastCall().atLeastOnce();
+    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
-    EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
+    EasyMock.expect(mockPeon.getNumSegmentsToLoad()).andReturn(0).atLeastOnce();
+    EasyMock.expect(mockPeon.getNumSegmentsToDrop()).andReturn(0).atLeastOnce();
+    mockPeon.getSegmentsToLoad(EasyMock.anyObject());
+    EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
     EasyMock.replay(mockPeon);
 
@@ -138,12 +141,6 @@ public class LoadRuleTest
       public Map<String, Integer> getTieredReplicants()
       {
         return tiers;
-      }
-
-      @Override
-      public int getExpectedReplicants(String tier)
-      {
-        return tiers.get(tier);
       }
 
       @Override
@@ -198,8 +195,8 @@ public class LoadRuleTest
 
     ListeningExecutorService exec = MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(1));
-    BalancerStrategy balancerStrategy =
-            new CostBalancerStrategyFactory().createBalancerStrategy(exec);
+    BalancerStrategy balancerStrategy = new SimpleBalancerStrategy();
+//            new CostBalancerStrategyFactory().createBalancerStrategy(exec);
 
     DruidCoordinatorRuntimeParams params =
         DruidCoordinatorRuntimeParams.newBuilder()
@@ -226,8 +223,9 @@ public class LoadRuleTest
         EasyMock.<LoadPeonCallback>anyObject(),
         EasyMock.<Predicate<DataSegment>>anyObject()
     );
+    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
+    mockPeon.getSegmentsToLoad(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
-    EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).anyTimes();
     EasyMock.replay(mockPeon);
 
@@ -242,12 +240,6 @@ public class LoadRuleTest
       public Map<String, Integer> getTieredReplicants()
       {
         return tiers;
-      }
-
-      @Override
-      public int getExpectedReplicants(String tier)
-      {
-        return tiers.get(tier);
       }
 
       @Override
@@ -334,9 +326,10 @@ public class LoadRuleTest
         EasyMock.<LoadPeonCallback>anyObject(),
         EasyMock.<Predicate<DataSegment>>anyObject()
     );
-    EasyMock.expectLastCall().atLeastOnce();
+    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
     EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
-    EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
+    mockPeon.getSegmentsToLoad(EasyMock.anyObject());
+    EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
     EasyMock.replay(mockPeon);
 
@@ -351,12 +344,6 @@ public class LoadRuleTest
       public Map<String, Integer> getTieredReplicants()
       {
         return tiers;
-      }
-
-      @Override
-      public int getExpectedReplicants(String tier)
-      {
-        return tiers.get(tier);
       }
 
       @Override
@@ -422,8 +409,9 @@ public class LoadRuleTest
         EasyMock.<LoadPeonCallback>anyObject(),
         EasyMock.<Predicate<DataSegment>>anyObject()
     );
+    EasyMock.expectLastCall().andReturn(true).atLeastOnce();
+    mockPeon.getSegmentsToLoad(EasyMock.anyObject());
     EasyMock.expectLastCall().atLeastOnce();
-    EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).anyTimes();
     EasyMock.replay(mockPeon);
 
@@ -438,12 +426,6 @@ public class LoadRuleTest
       public Map<String, Integer> getTieredReplicants()
       {
         return tiers;
-      }
-
-      @Override
-      public int getExpectedReplicants(String tier)
-      {
-        return tiers.get(tier);
       }
 
       @Override

@@ -62,13 +62,6 @@ public class IntervalLoadRule extends LoadRule
     return tieredReplicants;
   }
 
-  @Override
-  public int getExpectedReplicants(String tier)
-  {
-    final Integer retVal = tieredReplicants.get(tier);
-    return retVal == null ? 0 : retVal;
-  }
-
   @JsonProperty
   public Interval getInterval()
   {

@@ -217,8 +217,8 @@ public class LoadQueuePeonTest extends CuratorTestBase
     }
 
     Assert.assertEquals(6000, loadQueuePeon.getLoadQueueSize());
-    Assert.assertEquals(5, loadQueuePeon.getSegmentsToLoad().size());
-    Assert.assertEquals(5, loadQueuePeon.getSegmentsToDrop().size());
+    Assert.assertEquals(5, loadQueuePeon.getNumSegmentsToLoad());
+    Assert.assertEquals(5, loadQueuePeon.getNumSegmentsToDrop());
 
     for (DataSegment segment : segmentToDrop) {
       String dropRequestPath = ZKPaths.makePath(LOAD_QUEUE_PATH, segment.getIdentifier());
@@ -244,7 +244,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
       Assert.assertTrue(timing.forWaiting().awaitLatch(segmentDroppedSignal[segmentSignalIdx.get()]));
 
       int expectedNumSegmentToDrop = 5 - segmentSignalIdx.get() - 1;
-      Assert.assertEquals(expectedNumSegmentToDrop, loadQueuePeon.getSegmentsToDrop().size());
+      Assert.assertEquals(expectedNumSegmentToDrop, loadQueuePeon.getNumSegmentsToDrop());
 
       if (segmentSignalIdx.get() == 4) {
         segmentSignalIdx.set(0);
@@ -274,7 +274,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
 
       int expectedNumSegmentToLoad = 5 - segmentSignalIdx.get() - 1;
       Assert.assertEquals(1200 * expectedNumSegmentToLoad, loadQueuePeon.getLoadQueueSize());
-      Assert.assertEquals(expectedNumSegmentToLoad, loadQueuePeon.getSegmentsToLoad().size());
+      Assert.assertEquals(expectedNumSegmentToLoad, loadQueuePeon.getNumSegmentsToLoad());
       segmentSignalIdx.incrementAndGet();
     }
   }
@@ -339,7 +339,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
 
     // don't simulate completion of load request here
     Assert.assertTrue(timing.forWaiting().awaitLatch(segmentLoadedSignal));
-    Assert.assertEquals(0, loadQueuePeon.getSegmentsToLoad().size());
+    Assert.assertEquals(0, loadQueuePeon.getNumSegmentsToLoad());
     Assert.assertEquals(0L, loadQueuePeon.getLoadQueueSize());
   }
 

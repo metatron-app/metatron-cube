@@ -38,13 +38,15 @@ import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
@@ -75,10 +77,10 @@ public class LoadQueuePeon
   private final AtomicLong queuedSize = new AtomicLong(0);
   private final AtomicInteger failedAssignCount = new AtomicInteger(0);
 
-  private final ConcurrentSkipListMap<DataSegment, SegmentHolder> segmentsToLoad = new ConcurrentSkipListMap<>(
+  private final NavigableMap<DataSegment, SegmentHolder> segmentsToLoad = new TreeMap<>(
       DataSegment.TIME_DESCENDING
   );
-  private final ConcurrentSkipListMap<DataSegment, SegmentHolder> segmentsToDrop = new ConcurrentSkipListMap<>(
+  private final NavigableMap<DataSegment, SegmentHolder> segmentsToDrop = new TreeMap<>(
       DataSegment.TIME_DESCENDING
   );
 
@@ -123,19 +125,53 @@ public class LoadQueuePeon
     return segmentsToDrop.keySet();
   }
 
+  public int getNumSegmentsToLoad()
+  {
+    synchronized (lock) {
+      return segmentsToLoad.size();
+    }
+  }
+
+  public int getNumSegmentsToDrop()
+  {
+    synchronized (lock) {
+      return segmentsToDrop.size();
+    }
+  }
+
+  public void getSegmentsToLoad(Consumer<DataSegment> sink)
+  {
+    synchronized (lock) {
+      segmentsToLoad.keySet().forEach(sink);
+    }
+  }
+
+  public void getSegmentsToDrop(Consumer<DataSegment> sink)
+  {
+    synchronized (lock) {
+      segmentsToDrop.keySet().forEach(sink);
+    }
+  }
+
   public boolean isLoadingSegment(DataSegment segment)
   {
-    return segmentsToLoad.containsKey(segment);
+    synchronized (lock) {
+      return segmentsToLoad.containsKey(segment);
+    }
   }
 
   public boolean isDroppingSegment(DataSegment segment)
   {
-    return segmentsToDrop.containsKey(segment);
+    synchronized (lock) {
+      return segmentsToDrop.containsKey(segment);
+    }
   }
 
   public int getNumberOfQueuedSegments()
   {
-    return segmentsToDrop.size() + segmentsToLoad.size();
+    synchronized (lock) {
+      return segmentsToDrop.size() + segmentsToLoad.size();
+    }
   }
 
   public long getLoadQueueSize()
@@ -153,19 +189,21 @@ public class LoadQueuePeon
     loadSegment(segment, "test", callback, null);
   }
 
-  public void loadSegment(
+  public boolean loadSegment(
       final DataSegment segment,
       final String loadReason,
       final LoadPeonCallback callback,
       final Predicate<DataSegment> validity
   )
   {
-    if (!checkInProcessing(segment, segmentsToLoad, callback)) {
+    if (checkInProcessing(segment, segmentsToLoad, callback)) {
       log.info("Asking server [%s] to load segment[%s] for [%s]", server, segment.getIdentifier(), loadReason);
       queuedSize.addAndGet(segment.getSize());
       segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, callback, validity));
       doNext();
+      return true;
     }
+    return false;
   }
 
   public void dropSegment(final DataSegment segment, final LoadPeonCallback callback)
@@ -173,18 +211,20 @@ public class LoadQueuePeon
     dropSegment(segment, "test", callback, null);
   }
 
-  public void dropSegment(
+  public boolean dropSegment(
       final DataSegment segment,
       final String dropReason,
       final LoadPeonCallback callback,
       final Predicate<DataSegment> validity
   )
   {
-    if (!checkInProcessing(segment, segmentsToDrop, callback)) {
+    if (checkInProcessing(segment, segmentsToDrop, callback)) {
       log.info("Asking server [%s] to drop segment[%s] for [%s]", server, segment.getIdentifier(), dropReason);
       segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, callback, validity));
       doNext();
+      return true;
     }
+    return false;
   }
 
   private boolean checkInProcessing(
@@ -196,14 +236,14 @@ public class LoadQueuePeon
     synchronized (lock) {
       if (currentlyProcessing != null && currentlyProcessing.getSegment().equals(segment)) {
         currentlyProcessing.addCallback(callback);
-        return true;
+        return false;
       }
       final SegmentHolder existingHolder = queued.get(segment);
       if (existingHolder != null) {
         existingHolder.addCallback(callback);
-        return true;
+        return false;
       }
-      return false;
+      return true;
     }
   }
 

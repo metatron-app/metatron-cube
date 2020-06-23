@@ -93,7 +93,7 @@ public class ServerHolder implements Comparable<ServerHolder>
 
   public int getNumExpectedSegments()
   {
-    return peon.getSegmentsToLoad().size() - peon.getSegmentsToDrop().size() + server.getSegments().size();
+    return peon.getNumSegmentsToLoad() - peon.getNumSegmentsToDrop() + server.getSegments().size();
   }
 
   public long getAvailableSize()

@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.client.DruidDataSource;
+import io.druid.common.DateTimes;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.timeline.DataSegment;
@@ -46,6 +47,7 @@ import java.util.function.Function;
 public class DruidCoordinatorRuntimeParams
 {
   private final long startTime;
+  private final long pollingInterval;
   private final DruidCluster druidCluster;
   private final MetadataRuleManager databaseRuleManager;
   private final SegmentReplicantLookup segmentReplicantLookup;
@@ -64,6 +66,7 @@ public class DruidCoordinatorRuntimeParams
 
   public DruidCoordinatorRuntimeParams(
       long startTime,
+      long pollingInterval,
       DruidCluster druidCluster,
       MetadataRuleManager databaseRuleManager,
       SegmentReplicantLookup segmentReplicantLookup,
@@ -79,6 +82,7 @@ public class DruidCoordinatorRuntimeParams
   )
   {
     this.startTime = startTime;
+    this.pollingInterval = pollingInterval;
     this.druidCluster = druidCluster;
     this.databaseRuleManager = databaseRuleManager;
     this.segmentReplicantLookup = segmentReplicantLookup;
@@ -218,7 +222,12 @@ public class DruidCoordinatorRuntimeParams
 
   public boolean hasDeletionWaitTimeElapsed()
   {
-    return (System.currentTimeMillis() - getStartTime() > coordinatorDynamicConfig.getMillisToWaitBeforeDeleting());
+    return DateTimes.elapsed(startTime) > coordinatorDynamicConfig.getMillisToWaitBeforeDeleting();
+  }
+
+  public boolean hasPollinIntervalElapsed(long startTime)
+  {
+    return pollingInterval > 0 && DateTimes.elapsed(startTime) > (majorTick ? pollingInterval << 1 : pollingInterval);
   }
 
   public static Builder newBuilder()
@@ -257,6 +266,7 @@ public class DruidCoordinatorRuntimeParams
   public static class Builder
   {
     private long startTime;
+    private long pollingInterval;
     private DruidCluster druidCluster;
     private MetadataRuleManager databaseRuleManager;
     private SegmentReplicantLookup segmentReplicantLookup;
@@ -284,7 +294,7 @@ public class DruidCoordinatorRuntimeParams
       this.loadManagementPeons = Maps.newHashMap();
       this.emitter = null;
       this.stats = new CoordinatorStats();
-      this.coordinatorDynamicConfig = new CoordinatorDynamicConfig.Builder().build();
+      this.coordinatorDynamicConfig = CoordinatorDynamicConfig.DEFAULT;
       this.balancerReferenceTimestamp = DateTime.now();
     }
 
@@ -323,6 +333,7 @@ public class DruidCoordinatorRuntimeParams
     {
       DruidCoordinatorRuntimeParams params = new DruidCoordinatorRuntimeParams(
           startTime,
+          pollingInterval,
           druidCluster,
           databaseRuleManager,
           segmentReplicantLookup,
@@ -350,6 +361,12 @@ public class DruidCoordinatorRuntimeParams
     public Builder withStartTime(long time)
     {
       startTime = time;
+      return this;
+    }
+
+    public Builder withPollingInterval(long pollingInterval)
+    {
+      this.pollingInterval = pollingInterval;
       return this;
     }
 
