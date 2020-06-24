@@ -213,6 +213,18 @@ public class BatchServerInventoryViewTest
         inventoryUpdateCounter.incrementAndGet();
         return server;
       }
+
+      @Override
+      protected DruidServer updateInnerInventory(
+          final DruidServer container,
+          String inventoryKey,
+          final Set<DataSegment> inventory
+      )
+      {
+        DruidServer server = super.updateInnerInventory(container, inventoryKey, inventory);
+        inventoryUpdateCounter.incrementAndGet();
+        return server;
+      }
     };
     filteredBatchServerInventoryView.start();
   }

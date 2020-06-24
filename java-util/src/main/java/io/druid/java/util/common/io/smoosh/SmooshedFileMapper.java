@@ -18,6 +18,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 import io.druid.java.util.common.ByteBufferUtils;
@@ -29,8 +30,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,21 +84,28 @@ public class SmooshedFileMapper implements Closeable
         );
       }
 
-      return new SmooshedFileMapper(outFiles, internalFiles);
+      return new SmooshedFileMapper(baseDir, outFiles, internalFiles);
     }
     finally {
       Closeables.close(in, false);
     }
   }
 
+  private final File baseDir;
   private final List<File> outFiles;
   private final Map<String, Metadata> internalFiles;
   private final List<MappedByteBuffer> buffersList = Lists.newArrayList();
 
-  SmooshedFileMapper(List<File> outFiles, Map<String, Metadata> internalFiles)
+  SmooshedFileMapper(File baseDir, List<File> outFiles, Map<String, Metadata> internalFiles)
   {
+    this.baseDir = baseDir;
     this.outFiles = outFiles;
     this.internalFiles = internalFiles;
+  }
+
+  public File getBaseDir()
+  {
+    return baseDir;
   }
 
   public Set<String> getInternalFilenames()
@@ -109,7 +119,6 @@ public class SmooshedFileMapper implements Closeable
     if (metadata == null) {
       return null;
     }
-
     final int fileNum = metadata.getFileNum();
     while (buffersList.size() <= fileNum) {
       buffersList.add(null);
@@ -117,13 +126,39 @@ public class SmooshedFileMapper implements Closeable
 
     MappedByteBuffer mappedBuffer = buffersList.get(fileNum);
     if (mappedBuffer == null) {
-      mappedBuffer = Files.map(outFiles.get(fileNum));
-      buffersList.set(fileNum, mappedBuffer);
+      buffersList.set(fileNum, mappedBuffer = Files.map(outFiles.get(fileNum)));
     }
+    return metadata.slice(mappedBuffer);
+  }
 
-    ByteBuffer retVal = mappedBuffer.duplicate();
-    retVal.position(metadata.getStartOffset()).limit(metadata.getEndOffset());
-    return retVal.slice();
+  private static final String TIME_COLUMN = "__time";
+  private static final Set<String> META_COLUMNS = Sets.newHashSet("index.drd", "metadata.drd");
+
+  // hack for lazy mapping of index file
+  public ByteBuffer mapFile(String name, boolean readOnly) throws IOException
+  {
+    if (!readOnly) {
+      return mapFile(name);
+    }
+    final Metadata metadata = internalFiles.get(name);
+    if (metadata == null) {
+      return null;
+    }
+    // it's header and footer of smoosh file.. possibly cut the size of memory mapping
+    if (TIME_COLUMN.equals(name)) {
+      try (FileChannel channel = new RandomAccessFile(outFiles.get(metadata.getFileNum()), "r").getChannel()) {
+        return channel.map(FileChannel.MapMode.READ_ONLY, metadata.getStartOffset(), metadata.getLength());
+      }
+    } else if (META_COLUMNS.contains(name)) {
+      try (RandomAccessFile file = new RandomAccessFile(outFiles.get(metadata.getFileNum()), "r")) {
+        file.seek(metadata.getStartOffset());
+        final byte[] array = new byte[metadata.getLength()];
+        file.readFully(array);
+        return ByteBuffer.wrap(array);
+      }
+    } else {
+      return mapFile(name);
+    }
   }
 
   @Override
@@ -131,6 +166,9 @@ public class SmooshedFileMapper implements Closeable
   {
     Throwable thrown = null;
     for (MappedByteBuffer mappedByteBuffer : buffersList) {
+      if (mappedByteBuffer == null) {
+        continue;
+      }
       try {
         ByteBufferUtils.unmap(mappedByteBuffer);
       } catch (Throwable t) {

@@ -29,7 +29,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import io.druid.common.Progressing;
@@ -48,7 +47,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MonitorInfo;
 import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
-import java.util.AbstractList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -57,7 +55,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -345,33 +342,6 @@ public class GuavaUtils
     return Lists.newArrayList(Iterables.concat(lists));
   }
 
-  public static <T> List<T> concatish(final List<T> list1, final List<T> list2)
-  {
-    if (list1 == null && list2 == null) {
-      return Lists.newArrayList();
-    }
-    if (list1 == null) {
-      return list2;
-    }
-    if (list2 == null) {
-      return list1;
-    }
-    return new AbstractList<T>()
-    {
-      @Override
-      public int size()
-      {
-        return list1.size() + list2.size();
-      }
-
-      @Override
-      public T get(int index)
-      {
-        return index < list1.size() ? list1.get(index) : list2.get(index - list1.size());
-      }
-    };
-  }
-
   @SuppressWarnings("unchecked")
   public static <T, X extends T> X firstOf(List<T> list)
   {
@@ -382,6 +352,11 @@ public class GuavaUtils
   public static <T, X extends T> X lastOf(List<T> list)
   {
     return list.isEmpty() ? null : (X) list.get(list.size() - 1);
+  }
+
+  public static <T> T get(List<T> list, int x)
+  {
+    return list == null || x >= list.size() ? null : list.get(x);
   }
 
   public static int[] indexOf(List<String> list, List<String> indexing)
@@ -454,20 +429,6 @@ public class GuavaUtils
   public static boolean isNullOrEmpty(Map<?, ?> collection)
   {
     return collection == null || collection.isEmpty();
-  }
-
-  @SafeVarargs
-  public static <T> List<T> dedupConcat(Iterable<T>... iterables)
-  {
-    Set<T> columns = Sets.newLinkedHashSet();
-    for (Iterable<T> iterable : iterables) {
-      for (T value : iterable) {
-        if (!columns.contains(value)) {
-          columns.add(value);
-        }
-      }
-    }
-    return Lists.newArrayList(columns);
   }
 
   public static String arrayOfArrayToString(Object[][] array)

@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -156,8 +157,8 @@ public class IndexIO
 
   public void validateTwoSegments(File dir1, File dir2) throws IOException
   {
-    try (QueryableIndex queryableIndex1 = loadIndex(dir1)) {
-      try (QueryableIndex queryableIndex2 = loadIndex(dir2)) {
+    try (QueryableIndex queryableIndex1 = loadIndex(dir1, true)) {
+      try (QueryableIndex queryableIndex2 = loadIndex(dir2, true)) {
         validateTwoSegments(
             new QueryableIndexIndexableAdapter(queryableIndex1),
             new QueryableIndexIndexableAdapter(queryableIndex2)
@@ -227,24 +228,25 @@ public class IndexIO
 
   public QueryableIndex loadIndex(File inDir) throws IOException
   {
+    return loadIndex(inDir, false);
+  }
+
+  public QueryableIndex loadIndex(File inDir, boolean readOnly) throws IOException
+  {
     final int version = SegmentUtils.getVersionFromDir(inDir);
 
-    final IndexLoader loader = indexLoaders.get(version);
-
-    if (loader != null) {
-      return loader.load(inDir, mapper);
-    } else {
-      throw new ISE("Unknown index version[%s]", version);
-    }
+    final IndexLoader loader = Preconditions.checkNotNull(
+        indexLoaders.get(version), "Unknown index version[%s]", version
+    );
+    return loader.load(inDir, mapper, readOnly);
   }
 
   public DataSegment decorateMeta(DataSegment segment, File directory) throws IOException
   {
-    try (QueryableIndex index = loadIndex(directory)) {
-      return segment
-          .withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
-          .withMetrics(Lists.newArrayList(index.getAvailableMetrics()))
-          .withNumRows(index.getNumRows());
+    try (QueryableIndex index = loadIndex(directory, true)) {
+      return segment.withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
+                    .withMetrics(Lists.newArrayList(index.getAvailableMetrics()))
+                    .withNumRows(index.getNumRows());
     }
   }
 
@@ -897,7 +899,7 @@ public class IndexIO
 
   static interface IndexLoader
   {
-    public QueryableIndex load(File inDir, ObjectMapper mapper) throws IOException;
+    QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly) throws IOException;
   }
 
   static class LegacyIndexLoader implements IndexLoader
@@ -910,7 +912,7 @@ public class IndexIO
     }
 
     @Override
-    public QueryableIndex load(File inDir, ObjectMapper mapper) throws IOException
+    public QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly) throws IOException
     {
       MMappedIndex index = legacyHandler.mapDir(inDir);
 
@@ -1017,7 +1019,7 @@ public class IndexIO
   static class V9IndexLoader implements IndexLoader
   {
     @Override
-    public QueryableIndex load(File inDir, ObjectMapper mapper) throws IOException
+    public QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly) throws IOException
     {
       log.debug("Mapping v9 index[%s]", inDir);
       long startTime = System.currentTimeMillis();
@@ -1027,9 +1029,10 @@ public class IndexIO
         throw new IllegalArgumentException(String.format("Expected version[9], got[%s]", theVersion));
       }
 
-      SmooshedFileMapper smooshedFiles = Smoosh.map(inDir);
+      final SmooshedFileMapper smooshedFiles = Smoosh.map(inDir);
 
-      ByteBuffer indexBuffer = smooshedFiles.mapFile("index.drd");
+      final ByteBuffer indexBuffer = smooshedFiles.mapFile("index.drd", readOnly);
+
       /**
        * Index.drd should consist of the segment version, the columns and dimensions of the segment as generic
        * indexes, the interval start and end millis as longs (in 16 bytes), and a bitmap index type.
@@ -1052,7 +1055,7 @@ public class IndexIO
       final BitmapFactory bitmapFactory = serdeFactory.getBitmapFactory();
 
       Metadata metadata = null;
-      ByteBuffer metadataBB = smooshedFiles.mapFile("metadata.drd");
+      ByteBuffer metadataBB = smooshedFiles.mapFile("metadata.drd", readOnly);
       if (metadataBB != null) {
         try {
           metadata = mapper.readValue(
@@ -1072,11 +1075,21 @@ public class IndexIO
 
       Map<String, Supplier<Column>> columns = Maps.newHashMap();
 
-      for (String columnName : GuavaUtils.concat(cols, Column.TIME_COLUMN_NAME)) {
-        ByteBuffer mapped = smooshedFiles.mapFile(columnName);
-        ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-        columns.put(columnName, Suppliers.memoize(() -> descriptor.read(columnName, mapped, serdeFactory)));
+      for (String columnName : cols) {
+        columns.put(columnName, Suppliers.memoize(() -> {
+          try {
+            final ByteBuffer mapped = smooshedFiles.mapFile(columnName);
+            return readDescriptor(mapper, mapped).read(columnName, mapped, serdeFactory);
+          }
+          catch (Exception e) {
+            throw Throwables.propagate(e);
+          }
+        }));
       }
+      ByteBuffer meta = smooshedFiles.mapFile(Column.TIME_COLUMN_NAME, readOnly);
+      columns.put(Column.TIME_COLUMN_NAME, Suppliers.ofInstance(
+          readDescriptor(mapper, meta).read(Column.TIME_COLUMN_NAME, meta, serdeFactory)
+      ));
 
       // load cuboids
       Iterable<String> remaining = Iterables.filter(smooshedFiles.getInternalFilenames(), new Predicate<String>()
@@ -1099,7 +1112,7 @@ public class IndexIO
             Column source = Preconditions.checkNotNull(columns.get(dimension), dimension).get();
             try {
               ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, dimension));
-              ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
+              ColumnDescriptor desc = readDescriptor(mapper, mapped);
               Preconditions.checkArgument(source.getCapabilities().isDictionaryEncoded(), dimension);
               desc = desc.withParts(GuavaUtils.concat(desc.getParts(), delegateDictionary(source)));
               return desc.read(dimension, mapped, serdeFactory);
@@ -1116,9 +1129,8 @@ public class IndexIO
             String column = metric.equals(Cuboids.COUNT_ALL_METRIC) ? metric : Cuboids.metricColumn(metric, aggregator);
             cuboidColumns.put(column, Suppliers.memoize(() -> {
               try {
-                ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.metric(cubeId, metric, aggregator));
-                ColumnDescriptor descriptor = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-                return descriptor.read(metric, mapped, serdeFactory);
+                final ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.metric(cubeId, metric, aggregator));
+                return readDescriptor(mapper, mapped).read(metric, mapped, serdeFactory);
               }
               catch (Exception e) {
                 log.warn(e, "Failed to load cuboid [%d] %s", cubeId, metric);
@@ -1127,11 +1139,17 @@ public class IndexIO
             }));
           }
         }
-        ByteBuffer mapped = smooshedFiles.mapFile(Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME));
-        ColumnDescriptor desc = mapper.readValue(SerializerUtils.readString(mapped), ColumnDescriptor.class);
-        cuboidColumns.put(
-            Column.TIME_COLUMN_NAME, Suppliers.memoize(() -> desc.read(Column.TIME_COLUMN_NAME, mapped, serdeFactory))
-        );
+        cuboidColumns.put(Column.TIME_COLUMN_NAME, Suppliers.memoize(() -> {
+          String cuboidTimeColumn = Cuboids.dimension(cubeId, Column.TIME_COLUMN_NAME);
+          try {
+            final ByteBuffer mapped = smooshedFiles.mapFile(cuboidTimeColumn);
+            return readDescriptor(mapper, mapped).read(Column.TIME_COLUMN_NAME, mapped, serdeFactory);
+          }
+          catch (Exception e) {
+            log.warn(e, "Failed to load cuboid [%d] %s", cubeId, cuboidTimeColumn);
+            return null;
+          }
+        }));
 
         Indexed<String> dimensionNames = ListIndexed.ofString(cuboidSpec.getDimensions());
         Indexed<String> columnNames = ListIndexed.ofString(
@@ -1150,6 +1168,11 @@ public class IndexIO
       log.debug("Mapped v9 index[%s] in %,d millis", inDir, System.currentTimeMillis() - startTime);
 
       return index;
+    }
+
+    private ColumnDescriptor readDescriptor(ObjectMapper mapper, ByteBuffer cuboidMeta) throws IOException
+    {
+      return mapper.readValue(SerializerUtils.readString(cuboidMeta), ColumnDescriptor.class);
     }
   }
 

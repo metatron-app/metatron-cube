@@ -634,7 +634,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         ShardSpec shardSpec
     ) throws IOException
     {
-      try (QueryableIndex index = HadoopDruidIndexerConfig.INDEX_IO.loadIndex(directory)) {
+      try (QueryableIndex index = HadoopDruidIndexerConfig.INDEX_IO.loadIndex(directory, true)) {
         List<String> dimensions = Lists.newArrayList(index.getAvailableDimensions());
         List<String> metrics = Lists.newArrayList(index.getAvailableMetrics());
         return new DataSegment(

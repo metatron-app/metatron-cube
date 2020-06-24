@@ -45,9 +45,6 @@ public class BatchDataSegmentAnnouncerConfig
   @JsonProperty
   private boolean skipDimensionsAndMetrics = false;
 
-  @JsonProperty
-  private boolean skipSegmentAnnouncementOnZk = false;
-
   public int getSegmentsPerNode()
   {
     return segmentsPerNode;
@@ -66,10 +63,5 @@ public class BatchDataSegmentAnnouncerConfig
   public boolean isSkipDimensionsAndMetrics()
   {
     return skipDimensionsAndMetrics;
-  }
-
-  public boolean isSkipSegmentAnnouncementOnZk()
-  {
-    return skipSegmentAnnouncementOnZk;
   }
 }

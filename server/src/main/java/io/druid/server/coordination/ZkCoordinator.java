@@ -55,9 +55,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -593,8 +593,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
     private final Object lock = new Object();
 
     private volatile boolean finished = false;
-    private volatile ScheduledFuture startedAnnouncing = null;
-    private volatile ScheduledFuture nextAnnoucement = null;
+    private volatile Future startedAnnouncing = null;
+    private volatile Future nextAnnoucement = null;
 
     public BackgroundSegmentAnnouncer(
         DataSegmentAnnouncer announcer,
@@ -667,12 +667,13 @@ public class ZkCoordinator implements DataSegmentChangeHandler
         finished = true;
         // announce any remaining segments
         try {
-          final List<DataSegment> segments = Lists.newLinkedList();
-          queue.drainTo(segments);
-          announcer.announceSegments(segments);
+          announcer.announceSegments(queue);
         }
         catch (Exception e) {
           throw new SegmentLoadingException(e, "Failed to announce segments[%s]", queue);
+        }
+        finally {
+          queue.clear();
         }
 
         // get any exception that may have been thrown in background annoucing

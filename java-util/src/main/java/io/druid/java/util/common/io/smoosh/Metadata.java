@@ -14,19 +14,17 @@
 
 package io.druid.java.util.common.io.smoosh;
 
+import java.nio.ByteBuffer;
+
 /**
-*/
+ */
 class Metadata
 {
   private final int fileNum;
   private final int startOffset;
   private final int endOffset;
 
-  Metadata(
-      int fileNum,
-      int startOffset,
-      int endOffset
-  )
+  Metadata(int fileNum, int startOffset, int endOffset)
   {
     this.fileNum = fileNum;
     this.startOffset = startOffset;
@@ -46,5 +44,23 @@ class Metadata
   public int getEndOffset()
   {
     return endOffset;
+  }
+
+  public int getLength()
+  {
+    return endOffset - startOffset;
+  }
+
+  public ByteBuffer slice(ByteBuffer buffer)
+  {
+    final ByteBuffer duplicate = buffer.duplicate();
+    duplicate.position(startOffset).limit(endOffset);
+    return duplicate.slice();
+  }
+
+  @Override
+  public String toString()
+  {
+    return String.format("%d:%d~%d(%d)", fileNum, startOffset, endOffset, getLength());
   }
 }

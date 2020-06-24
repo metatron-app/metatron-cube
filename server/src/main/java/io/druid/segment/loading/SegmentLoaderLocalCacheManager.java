@@ -92,7 +92,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   @Override
   public Segment getSegment(DataSegment segment) throws SegmentLoadingException
   {
-    File segmentFiles = getSegmentFiles(segment);
+    final File segmentFiles = getSegmentFiles(segment);
     final QueryableIndex index = factory.factorize(segmentFiles);
 
     return new QueryableIndexSegment(segment.getIdentifier(), index);

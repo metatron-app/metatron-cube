@@ -380,7 +380,7 @@ public class HdfsStorageHandler implements StorageHandler
           }
           int rowCount;
           Interval interval;
-          try (QueryableIndex merged = merger.getIndexIO().loadIndex(mergedBase)) {
+          try (QueryableIndex merged = merger.getIndexIO().loadIndex(mergedBase, true)) {
             rowCount = merged.getNumRows();
             interval = merged.getInterval();
           }

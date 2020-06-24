@@ -310,6 +310,6 @@ public class FileSmoosher implements Closeable
     if (currOut != null) {
       currOut.sync();
     }
-    return new SmooshedFileMapper(ImmutableList.copyOf(outFiles), ImmutableMap.copyOf(internalFiles));
+    return new SmooshedFileMapper(baseDir, ImmutableList.copyOf(outFiles), ImmutableMap.copyOf(internalFiles));
   }
 }

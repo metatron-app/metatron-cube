@@ -629,7 +629,7 @@ public class IndexViewer extends CommonShell.WithUtils
         public QueryableIndex get()
         {
           try {
-            return indexIO.loadIndex(location);
+            return indexIO.loadIndex(location, true);
           }
           catch (Exception e) {
             LOG.info(e, "Failed to load segment %s from %s", Objects.toString(segment, "x"), location);

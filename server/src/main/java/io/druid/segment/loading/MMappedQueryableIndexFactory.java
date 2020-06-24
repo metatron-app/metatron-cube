@@ -43,7 +43,7 @@ public class MMappedQueryableIndexFactory implements QueryableIndexFactory
   public QueryableIndex factorize(File parentDir) throws SegmentLoadingException
   {
     try {
-      return indexIO.loadIndex(parentDir);
+      return indexIO.loadIndex(parentDir, true);
     }
     catch (IOException e) {
       throw new SegmentLoadingException(e, "%s", e.getMessage());
