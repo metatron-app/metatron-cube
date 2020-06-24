@@ -75,7 +75,7 @@ public class LoadQueuePeonTest extends CuratorTestBase
     );
   }
 
-  @Test
+  @Test(timeout = 20_000L)
   public void testMultipleLoadDropSegments() throws Exception
   {
     final AtomicInteger requestSignalIdx = new AtomicInteger(0);

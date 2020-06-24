@@ -42,6 +42,8 @@ public class RandomBalancerStrategy extends BalancerStrategy.Abstract
     return chooseRandomServer(segment, holders, true);
   }
 
+  private final Random random = new Random();
+
   private ServerHolder chooseRandomServer(
       DataSegment proposalSegment,
       List<ServerHolder> serverHolders,
@@ -49,7 +51,7 @@ public class RandomBalancerStrategy extends BalancerStrategy.Abstract
   )
   {
     serverHolders = filter(proposalSegment, serverHolders, includeCurrentServer);
-    return serverHolders.isEmpty() ? null : serverHolders.get(new Random().nextInt(serverHolders.size()));
+    return serverHolders.isEmpty() ? null : serverHolders.get(random.nextInt(serverHolders.size()));
   }
 
   public static List<ServerHolder> filter(

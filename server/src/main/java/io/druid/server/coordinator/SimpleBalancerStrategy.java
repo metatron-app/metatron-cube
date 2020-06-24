@@ -56,22 +56,22 @@ public class SimpleBalancerStrategy implements BalancerStrategy
   private final Random random = new Random();
 
   @Override
-  public void balance(
+  public int balance(
       final List<ServerHolder> serverHolders,
       final DruidCoordinatorBalancer balancer,
       final DruidCoordinatorRuntimeParams params
   )
   {
     if (serverHolders.isEmpty()) {
-      return;
+      return 0;
     }
     int numberOfQueuedSegments = 0;
     for (ServerHolder holder : serverHolders) {
       numberOfQueuedSegments += holder.getPeon().getNumberOfQueuedSegments();
     }
-    int segmentsToMove = params.getMaxSegmentsToMove() - numberOfQueuedSegments;
+    final int segmentsToMove = params.getMaxSegmentsToMove() - numberOfQueuedSegments;
     if (segmentsToMove <= 0) {
-      return;
+      return 0;
     }
     final long start = Granularities.DAY.bucketStart(DateTimes.nowUtc()).getMillis();
 
@@ -100,6 +100,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
       totalSegmentsPerGroup[x] = Lists.newArrayList();
     }
 
+    int balanced = 0;
     for (String dataSourceName : dataSourceNames) {
       List<IntTagged<DataSegment>> allSegmentsInDS = Lists.newArrayList();
       for (int i = 0; i < serverCount; i++) {
@@ -121,7 +122,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
       final int firstGroupSize = Math.max(serverCount, numSegmentsInDS / FIRST_GROUPING_DENOMITOR);
 
       int i = 0;
-      while (segmentsToMove > 0 && i < numSegmentsInDS) {
+      while (segmentsToMove - balanced > 0 && i < numSegmentsInDS) {
         for (int x = 0; x < serverCount; x++) {
           totalSegmentsPerGroup[x].clear();
         }
@@ -173,7 +174,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
             }
             final DataSegment segment = totalSegmentsPerGroup[from].get(index);
             if (balancer.moveSegment(segment, holders[from], holders[to])) {
-              segmentsToMove--;
+              balanced++;
               totalSegmentsPerGroup[from].set(index, null);
               totalSegmentsPerDs[from]--;
               totalSegmentsPerDs[to]++;
@@ -186,6 +187,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
         }
       }
     }
+    return balanced;
   }
 
   private IntStream serversBelowBaseLine(ServerHolder[] servers, int[] segmentsPerServer, int baseLine, int expected)

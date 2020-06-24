@@ -169,7 +169,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
       throws SegmentLoadingException
   {
 
-    log.info("Pulling index at path[%s] to outDir[%s]", s3Coords, outDir);
+    log.debug("Pulling index at path[%s] to outDir[%s]", s3Coords, outDir);
 
     if (!isObjectInBucket(s3Coords)) {
       throw new SegmentLoadingException("IndexFile[%s] does not exist.", s3Coords);
@@ -210,7 +210,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
             S3Utils.S3RETRY,
             true
         );
-        log.info("Loaded %d bytes from [%s] to [%s]", result.size(), s3Coords.toString(), outDir.getAbsolutePath());
+        log.debug("Loaded %d bytes from [%s] to [%s]", result.size(), s3Coords, outDir.getAbsolutePath());
         return result;
       }
       if (CompressionUtils.isGz(s3Coords.path)) {
@@ -218,7 +218,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
         final File outFile = new File(outDir, fname);
 
         final FileUtils.FileCopyResult result = CompressionUtils.gunzip(byteSource, outFile, S3Utils.S3RETRY);
-        log.info("Loaded %d bytes from [%s] to [%s]", result.size(), s3Coords.toString(), outFile.getAbsolutePath());
+        log.debug("Loaded %d bytes from [%s] to [%s]", result.size(), s3Coords, outFile.getAbsolutePath());
         return result;
       }
       throw new IAE("Do not know how to load file type at [%s]", uri.toString());
@@ -376,6 +376,7 @@ public class S3DataSegmentPuller implements DataSegmentPuller, URIDataPuller
       this.path = key;
     }
 
+    @Override
     public String toString()
     {
       return String.format("s3://%s/%s", bucket, path);

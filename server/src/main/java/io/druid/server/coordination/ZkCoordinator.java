@@ -173,7 +173,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
                               try {
                                 if (!hasRun) {
                                   curator.delete().guaranteed().forPath(path);
-                                  log.info("Completed request [%s]", request.asString());
+                                  log.debug("Completed request [%s]", request.asString());
                                   hasRun = true;
                                 }
                               }
@@ -207,7 +207,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
 
                     break;
                   case CHILD_REMOVED:
-                    log.info("zNode[%s] was removed", event.getData().getPath());
+                    log.debug("zNode[%s] was removed", event.getData().getPath());
                     break;
                   default:
                     log.info("Ignoring event[%s]", event);
@@ -414,7 +414,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
   public void addSegment(DataSegment segment, DataSegmentChangeCallback callback)
   {
     try {
-      log.info("Loading segment %s", segment.getIdentifier());
+      log.debug("Loading segment %s", segment.getIdentifier());
       /*
          The lock below is used to prevent a race condition when the scheduled runnable in removeSegment() starts,
          and if(segmentsToDelete.remove(segment)) returns true, in which case historical will start deleting segment
@@ -540,7 +540,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       announcer.unannounceSegment(segment);
       segmentsToDelete.add(segment);
 
-      log.info("Completely removing [%s] in [%,d] millis", segment.getIdentifier(), dropDelay);
+      log.debug("Removing [%s] in [%,d] millis", segment.getIdentifier(), dropDelay);
       exec.schedule(
           new Runnable()
           {

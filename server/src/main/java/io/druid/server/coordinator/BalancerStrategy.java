@@ -19,9 +19,6 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.collect.Lists;
-import io.druid.client.ImmutableDruidServer;
-import io.druid.data.Pair;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
 
@@ -29,7 +26,7 @@ import java.util.List;
 
 public interface BalancerStrategy
 {
-  void balance(
+  int balance(
       final List<ServerHolder> holders,
       final DruidCoordinatorBalancer balancer,
       final DruidCoordinatorRuntimeParams params
@@ -42,25 +39,29 @@ public interface BalancerStrategy
   abstract class Abstract implements BalancerStrategy
   {
     @Override
-    public void balance(
+    public int balance(
         final List<ServerHolder> holders,
         final DruidCoordinatorBalancer balancer,
         final DruidCoordinatorRuntimeParams params
     )
     {
       // why split selection logic into two ?
-      List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
+      int balanced = 0;
       int maxSegmentsToMove = params.getMaxSegmentsToMove();
       for (int iter = 0; iter < maxSegmentsToMove; iter++) {
         final BalancerSegmentHolder segmentToMove = pickSegmentToMove(holders);
-
-        if (segmentToMove != null && balancer.isAvailable(segmentToMove.getSegment())) {
-          final ServerHolder holder = findNewSegmentHomeBalancer(segmentToMove.getSegment(), holders);
-          if (holder != null) {
-            balancer.moveSegment(segmentToMove.getSegment(), segmentToMove.getServerHolder(), holder);
+        if (segmentToMove == null) {
+          continue;
+        }
+        final DataSegment segment = segmentToMove.getSegment();
+        if (balancer.isAvailable(segment)) {
+          final ServerHolder holder = findNewSegmentHomeBalancer(segment, holders);
+          if (holder != null && balancer.moveSegment(segment, segmentToMove.getServerHolder(), holder)) {
+            balanced++;
           }
         }
       }
+      return balanced;
     }
 
     public abstract BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders);

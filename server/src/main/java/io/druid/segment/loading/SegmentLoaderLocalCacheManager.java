@@ -22,9 +22,9 @@ package io.druid.segment.loading;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.guice.annotations.Json;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
@@ -47,8 +47,6 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   private final ObjectMapper jsonMapper;
 
   private final List<StorageLocation> locations;
-
-  private final Object lock = new Object();
 
   @Inject
   public SegmentLoaderLocalCacheManager(
@@ -75,18 +73,35 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   @Override
   public boolean isSegmentLoaded(final DataSegment segment)
   {
-    return findStorageLocationIfLoaded(segment) != null;
+    return findExistingLocation(DataSegmentPusherUtil.getStorageDir(segment)) != null;
   }
 
-  public StorageLocation findStorageLocationIfLoaded(final DataSegment segment)
+  private StorageLocation findExistingLocation(String relativePath)
   {
     for (StorageLocation location : locations) {
-      File localStorageDir = new File(location.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
+      final File localStorageDir = new File(location.getPath(), relativePath);
       if (localStorageDir.exists()) {
         return location;
       }
     }
     return null;
+  }
+
+  private StorageLocation allocateStorageLocation(DataSegment segment)
+  {
+    final Iterator<StorageLocation> iterator = locations.iterator();
+    StorageLocation loc = iterator.next();
+    while (iterator.hasNext()) {
+      loc = loc.mostEmpty(iterator.next());
+    }
+
+    if (!loc.canHandle(segment.getSize())) {
+      throw new ISE(
+          "Segment[%s:%,d] too large for storage[%s:%,d].",
+          segment.getIdentifier(), segment.getSize(), loc.getPath(), loc.available()
+      );
+    }
+    return loc;
   }
 
   @Override
@@ -101,30 +116,20 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   @Override
   public File getSegmentFiles(DataSegment segment) throws SegmentLoadingException
   {
-    StorageLocation loc = findStorageLocationIfLoaded(segment);
+    final String relativePath = DataSegmentPusherUtil.getStorageDir(segment);
 
-    final File retVal;
+    final File storageDir;
 
+    StorageLocation loc = findExistingLocation(relativePath);
     if (loc == null) {
-      Iterator<StorageLocation> locIter = locations.iterator();
-      loc = locIter.next();
-      while (locIter.hasNext()) {
-        loc = loc.mostEmpty(locIter.next());
-      }
+      loc = allocateStorageLocation(segment);
 
-      if (!loc.canHandle(segment.getSize())) {
-        throw new ISE(
-            "Segment[%s:%,d] too large for storage[%s:%,d].",
-            segment.getIdentifier(), segment.getSize(), loc.getPath(), loc.available()
-        );
-      }
-
-      File storageDir = new File(loc.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
+      storageDir = new File(loc.getPath(), relativePath);
 
       // We use a marker to prevent the case where a segment is downloaded, but before the download completes,
       // the parent directories of the segment are removed
       final File downloadStartMarker = new File(storageDir, "downloadStartMarker");
-      synchronized (lock) {
+      synchronized (loc) {
         if (!storageDir.mkdirs()) {
           log.debug("Unable to make parent file[%s]", storageDir);
         }
@@ -141,22 +146,23 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
       // LoadSpec isn't materialized until here so that any system can interpret Segment without having to have all the LoadSpec dependencies.
       final LoadSpec loadSpec = jsonMapper.convertValue(segment.getLoadSpec(), LoadSpec.class);
       final LoadSpec.LoadSpecResult result = loadSpec.loadSegment(storageDir);
-      if(result.getSize() != segment.getSize()){
-        log.warn("Segment [%s] is different than expected size. Expected [%d] found [%d]", segment.getIdentifier(), segment.getSize(), result.getSize());
+      if (result.getSize() != segment.getSize()) {
+        log.warn(
+            "Segment [%s] is different than expected size. Expected [%d] found [%d]",
+            segment.getIdentifier(), segment.getSize(), result.getSize()
+        );
       }
 
       if (!downloadStartMarker.delete()) {
         throw new SegmentLoadingException("Unable to remove marker file for [%s]", storageDir);
       }
-
-      retVal = storageDir;
     } else {
-      retVal = new File(loc.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
+      storageDir = new File(loc.getPath(), relativePath);
     }
 
     loc.addSegment(segment);
 
-    return retVal;
+    return storageDir;
   }
 
   @Override
@@ -166,7 +172,8 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
       return;
     }
 
-    StorageLocation loc = findStorageLocationIfLoaded(segment);
+    final String relativePath = DataSegmentPusherUtil.getStorageDir(segment);
+    final StorageLocation loc = findExistingLocation(relativePath);
 
     if (loc == null) {
       log.debug("Asked to cleanup something[%s] that didn't exist.  Skipping.", segment);
@@ -176,8 +183,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     try {
       // Druid creates folders of the form dataSource/interval/version/partitionNum.
       // We need to clean up all these directories if they are all empty.
-      File cacheFile = new File(loc.getPath(), DataSegmentPusherUtil.getStorageDir(segment));
-      cleanupCacheFiles(loc.getPath(), cacheFile);
+      cleanupCacheFiles(loc, new File(loc.getPath(), relativePath));
       loc.removeSegment(segment);
     }
     catch (IOException e) {
@@ -185,14 +191,14 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     }
   }
 
-  public void cleanupCacheFiles(File baseFile, File cacheFile) throws IOException
+  private void cleanupCacheFiles(final StorageLocation location, final File cacheFile) throws IOException
   {
-    if (cacheFile.equals(baseFile)) {
+    if (cacheFile.equals(location.getPath())) {
       return;
     }
 
-    synchronized (lock) {
-      log.info("Deleting directory[%s]", cacheFile);
+    synchronized (location) {
+      log.debug("Deleting directory[%s]", cacheFile);
       try {
         FileUtils.deleteDirectory(cacheFile);
       }
@@ -201,8 +207,9 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
       }
     }
 
-    if (cacheFile.getParentFile() != null && cacheFile.getParentFile().listFiles().length == 0) {
-      cleanupCacheFiles(baseFile, cacheFile.getParentFile());
+    final File parent = cacheFile.getParentFile();
+    if (parent != null && parent.listFiles().length == 0) {
+      cleanupCacheFiles(location, parent);
     }
   }
 }

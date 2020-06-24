@@ -19,11 +19,17 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.collect.Maps;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
 {
+  protected final Map<String, ConcurrentHashMap<String, BalancerSegmentHolder>> currentlyMovingSegments = Maps.newHashMap();
+
   public DruidCoordinatorBalancerTester(DruidCoordinator coordinator)
   {
     super(coordinator);
@@ -35,12 +41,15 @@ public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
     final LoadQueuePeon toPeon = toServer.getPeon();
     final String segmentName = segment.getIdentifier();
 
+    final Map<String, BalancerSegmentHolder> movingSegments = getTierMap(toServer.getTier());
+
     if (!toPeon.isLoadingSegment(segment) &&
         !currentlyMovingSegments.get("normal").containsKey(segmentName) &&
         !toServer.isServingSegment(segment) && toServer.getAvailableSize() > segment.getSize()) {
       log.info(
           "Moving [%s] from [%s] to [%s]", segmentName, fromServer.getName(), toServer.getName()
       );
+      movingSegments.put(segmentName, new BalancerSegmentHolder(fromServer, segment));
       try {
         toPeon.loadSegment(segment, null);
 
@@ -55,5 +64,10 @@ public class DruidCoordinatorBalancerTester extends DruidCoordinatorBalancer
       currentlyMovingSegments.get("normal").remove(new BalancerSegmentHolder(fromServer, segment));
     }
     return false;
+  }
+
+  private Map<String, BalancerSegmentHolder> getTierMap(String tier)
+  {
+    return currentlyMovingSegments.computeIfAbsent(tier, s -> new ConcurrentHashMap<String, BalancerSegmentHolder>());
   }
 }

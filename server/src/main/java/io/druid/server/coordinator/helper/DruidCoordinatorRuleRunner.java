@@ -23,6 +23,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
+import io.druid.common.DateTimes;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.server.coordinator.DruidCluster;
@@ -65,7 +66,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     }
 
     // Run through all matched rules for available segments
-    final DateTime now = new DateTime();
+    final DateTime now = DateTimes.nowUtc();
     final MetadataRuleManager databaseRuleManager = params.getDatabaseRuleManager();
 
     final List<String> segmentsWithMissingRules = Lists.newArrayListWithCapacity(MAX_MISSING_RULES);

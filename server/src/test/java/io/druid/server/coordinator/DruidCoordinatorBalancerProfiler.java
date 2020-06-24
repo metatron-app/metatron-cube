@@ -156,7 +156,6 @@ public class DruidCoordinatorBalancerProfiler
                                                                      .withReplicationThrottleLimit(5)
                                                                      .build()
                                 )
-                                .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                 .withEmitter(emitter)
                                 .withDatabaseRuleManager(manager)
                                 .withSegmentReplicantLookup(
@@ -244,7 +243,6 @@ public class DruidCoordinatorBalancerProfiler
                                         MAX_SEGMENTS_TO_MOVE
                                     ).build()
                                 )
-                                .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                 .build();
     DruidCoordinatorBalancerTester tester = new DruidCoordinatorBalancerTester(coordinator);
     watch.start();

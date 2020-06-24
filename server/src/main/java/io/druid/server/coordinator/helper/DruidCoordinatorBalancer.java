@@ -24,7 +24,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.java.util.common.guava.Comparators;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.server.coordinator.BalancerSegmentHolder;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCoordinator;
@@ -36,7 +35,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  */
@@ -56,23 +54,9 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
 
   protected final DruidCoordinator coordinator;
 
-  protected final Map<String, ConcurrentHashMap<String, BalancerSegmentHolder>> currentlyMovingSegments = Maps.newHashMap();
-
   public DruidCoordinatorBalancer(DruidCoordinator coordinator)
   {
     this.coordinator = coordinator;
-  }
-
-  private void reduceLifetimes(String tier, Map<String, BalancerSegmentHolder> tierMap)
-  {
-    for (BalancerSegmentHolder holder : tierMap.values()) {
-      if (holder.reduceLifetime() <= 0) {
-        log.makeAlert("[%s]: Balancer move segments queue has a segment stuck", tier)
-           .addData("segment", holder.getSegment().getIdentifier())
-           .addData("server", holder.getFromServer().getMetadata())
-           .emit();
-      }
-    }
   }
 
   @Override
@@ -90,13 +74,6 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
         params.getDruidCluster().getCluster().entrySet()) {
       String tier = entry.getKey();
 
-      final Map<String, BalancerSegmentHolder> tierMap = getTierMap(tier);
-      if (!tierMap.isEmpty()) {
-        reduceLifetimes(tier, tierMap);
-        log.info("[%s]: Still waiting on %,d segments to be moved", tier, tierMap.size());
-        continue;
-      }
-
       final List<ServerHolder> holders = Lists.newArrayList(entry.getValue());
       if (holders.size() <= 1) {
         log.debug("[%s]: One or fewer servers found.  Cannot balance.", tier);
@@ -109,6 +86,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       }
       if (segmentsToLoad > params.getMaxSegmentsToMove()) {
         // skip when busy (server down, etc.)
+        log.info("[%s]: Still waiting on %,d segments to be moved", tier, segmentsToLoad);
         continue;
       }
 
@@ -122,14 +100,14 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
         continue;
       }
 
-      strategy.balance(holders, this, params);
+      int balanced = strategy.balance(holders, this, params);
 
-      stats.addToTieredStat("movedCount", tier, tierMap.size());
+      stats.addToTieredStat("movedCount", tier, balanced);
       if (params.getCoordinatorDynamicConfig().emitBalancingStats()) {
         strategy.emitStats(tier, stats, holders);
       }
-      if (tierMap.size() > 0) {
-        log.info("[%s] : Moved %d segments for balancing", tier, tierMap.size());
+      if (balanced > 0) {
+        log.info("[%s] : Moved %d segments for balancing", tier, balanced);
       }
     }
 
@@ -170,19 +148,11 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
 
   public boolean moveSegment(final DataSegment segment, final ServerHolder fromServer, final ServerHolder toServer)
   {
-    final String segmentId = segment.getIdentifier();
-
     if (!toServer.isLoadingSegment(segment) &&
         !toServer.isServingSegment(segment) &&
         toServer.getAvailableSize() > segment.getSize()) {
-      log.debug("Moving [%s] from [%s] to [%s]", segmentId, fromServer.getName(), toServer.getName());
-
-      final Map<String, BalancerSegmentHolder> movingSegments = getTierMap(toServer.getTier());
-      movingSegments.put(segmentId, new BalancerSegmentHolder(fromServer, segment));
-
-      return coordinator.moveSegment(
-          segment, fromServer, toServer, (boolean canceled) -> movingSegments.remove(segmentId), null
-      );
+      log.debug("Moving [%s] from [%s] to [%s]", segment.getIdentifier(), fromServer.getName(), toServer.getName());
+      return coordinator.moveSegment(segment, fromServer, toServer, null, null);
     }
     return false;
   }
@@ -190,10 +160,5 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
   public boolean isAvailable(DataSegment segment)
   {
     return coordinator.isAvailable(segment);
-  }
-
-  private Map<String, BalancerSegmentHolder> getTierMap(String tier)
-  {
-    return currentlyMovingSegments.computeIfAbsent(tier, s -> new ConcurrentHashMap<String, BalancerSegmentHolder>());
   }
 }

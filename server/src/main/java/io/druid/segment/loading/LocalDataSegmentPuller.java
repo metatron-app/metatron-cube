@@ -149,7 +149,7 @@ public class LocalDataSegmentPuller implements DataSegmentPuller, URIDataPuller
             ).getFiles()
         );
       }
-      log.info(
+      log.debug(
           "Coppied %d bytes from [%s] to [%s]",
           result.size(),
           sourceFile.getAbsolutePath(),
@@ -165,7 +165,7 @@ public class LocalDataSegmentPuller implements DataSegmentPuller, URIDataPuller
             shouldRetryPredicate(),
             false
         );
-        log.info(
+        log.debug(
             "Unzipped %d bytes from [%s] to [%s]",
             result.size(),
             sourceFile.getAbsolutePath(),
@@ -184,7 +184,7 @@ public class LocalDataSegmentPuller implements DataSegmentPuller, URIDataPuller
           outFile,
           shouldRetryPredicate()
       );
-      log.info(
+      log.debug(
           "Gunzipped %d bytes from [%s] to [%s]",
           result.size(),
           sourceFile.getAbsolutePath(),

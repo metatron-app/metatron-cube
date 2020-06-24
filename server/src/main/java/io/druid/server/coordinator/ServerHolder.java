@@ -19,6 +19,7 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.client.ImmutableDruidServer;
@@ -32,13 +33,10 @@ public class ServerHolder implements Comparable<ServerHolder>
   private final ImmutableDruidServer server;
   private final LoadQueuePeon peon;
 
-  public ServerHolder(
-      ImmutableDruidServer server,
-      LoadQueuePeon peon
-  )
+  public ServerHolder(ImmutableDruidServer server, LoadQueuePeon peon)
   {
-    this.server = server;
-    this.peon = peon;
+    this.server = Preconditions.checkNotNull(server);
+    this.peon = Preconditions.checkNotNull(peon);
   }
 
   public ImmutableDruidServer getServer()

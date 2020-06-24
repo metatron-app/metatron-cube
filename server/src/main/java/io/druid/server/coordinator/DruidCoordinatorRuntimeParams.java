@@ -32,7 +32,6 @@ import io.druid.metadata.MetadataRuleManager;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
-import org.joda.time.DateTime;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -57,7 +56,6 @@ public class DruidCoordinatorRuntimeParams
   private final ServiceEmitter emitter;
   private final CoordinatorDynamicConfig coordinatorDynamicConfig;
   private final CoordinatorStats stats;
-  private final DateTime balancerReferenceTimestamp;
   private final BalancerStrategy balancerStrategy;
   private final boolean majorTick;
 
@@ -76,7 +74,6 @@ public class DruidCoordinatorRuntimeParams
       ServiceEmitter emitter,
       CoordinatorDynamicConfig coordinatorDynamicConfig,
       CoordinatorStats stats,
-      DateTime balancerReferenceTimestamp,
       BalancerStrategy balancerStrategy,
       boolean majorTick
   )
@@ -92,7 +89,6 @@ public class DruidCoordinatorRuntimeParams
     this.emitter = emitter;
     this.coordinatorDynamicConfig = coordinatorDynamicConfig;
     this.stats = stats;
-    this.balancerReferenceTimestamp = balancerReferenceTimestamp;
     this.balancerStrategy = balancerStrategy;
     this.majorTick = majorTick;
   }
@@ -210,11 +206,6 @@ public class DruidCoordinatorRuntimeParams
     return stats;
   }
 
-  public DateTime getBalancerReferenceTimestamp()
-  {
-    return balancerReferenceTimestamp;
-  }
-
   public BalancerStrategy getBalancerStrategy()
   {
     return balancerStrategy;
@@ -249,7 +240,6 @@ public class DruidCoordinatorRuntimeParams
         emitter,
         coordinatorDynamicConfig,
         stats,
-        balancerReferenceTimestamp,
         balancerStrategy
     );
     builder.materializedOvershadowedSegments = materializedOvershadowedSegments;
@@ -276,7 +266,6 @@ public class DruidCoordinatorRuntimeParams
     private ServiceEmitter emitter;
     private CoordinatorDynamicConfig coordinatorDynamicConfig;
     private CoordinatorStats stats;
-    private DateTime balancerReferenceTimestamp;
     private BalancerStrategy balancerStrategy;
     private boolean majorTick = true;     // test compatible
 
@@ -295,7 +284,6 @@ public class DruidCoordinatorRuntimeParams
       this.emitter = null;
       this.stats = new CoordinatorStats();
       this.coordinatorDynamicConfig = CoordinatorDynamicConfig.DEFAULT;
-      this.balancerReferenceTimestamp = DateTime.now();
     }
 
     Builder(
@@ -310,7 +298,6 @@ public class DruidCoordinatorRuntimeParams
         ServiceEmitter emitter,
         CoordinatorDynamicConfig coordinatorDynamicConfig,
         CoordinatorStats stats,
-        DateTime balancerReferenceTimestamp,
         BalancerStrategy balancerStrategy
     )
     {
@@ -325,7 +312,6 @@ public class DruidCoordinatorRuntimeParams
       this.emitter = emitter;
       this.coordinatorDynamicConfig = coordinatorDynamicConfig;
       this.stats = stats;
-      this.balancerReferenceTimestamp = balancerReferenceTimestamp;
       this.balancerStrategy = balancerStrategy;
     }
 
@@ -343,7 +329,6 @@ public class DruidCoordinatorRuntimeParams
           emitter,
           coordinatorDynamicConfig,
           stats,
-          balancerReferenceTimestamp,
           balancerStrategy,
           majorTick
       );
@@ -428,12 +413,6 @@ public class DruidCoordinatorRuntimeParams
     public Builder withDynamicConfigs(CoordinatorDynamicConfig configs)
     {
       this.coordinatorDynamicConfig = configs;
-      return this;
-    }
-
-    public Builder withBalancerReferenceTimestamp(DateTime balancerReferenceTimestamp)
-    {
-      this.balancerReferenceTimestamp = balancerReferenceTimestamp;
       return this;
     }
 

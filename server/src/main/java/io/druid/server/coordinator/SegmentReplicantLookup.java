@@ -41,7 +41,7 @@ public interface SegmentReplicantLookup
 
   static SegmentReplicantLookup make(DruidCluster cluster)
   {
-    List<String> tierNames = Lists.newArrayList(cluster.getTierNames());
+    final List<String> tierNames = Lists.newArrayList(cluster.getTierNames());
     if (tierNames.size() == 1) {
       final Map<String, int[]> segmentsInCluster = Maps.newHashMap();
       for (MinMaxPriorityQueue<ServerHolder> serversByType : cluster.getSortedServersByTier()) {

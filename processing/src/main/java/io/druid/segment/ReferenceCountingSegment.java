@@ -127,7 +127,7 @@ public class ReferenceCountingSegment implements Segment
     }
 
     if (numReferences > 0) {
-      log.info("%d references to %s still exist. Decrementing.", numReferences, baseSegment.getIdentifier());
+      log.debug("%d references to %s still exist. Decrementing.", numReferences, baseSegment.getIdentifier());
 
       decrement();
     } else {
@@ -172,7 +172,7 @@ public class ReferenceCountingSegment implements Segment
 
   private synchronized void innerClose() throws IOException
   {
-    log.info("Closing %s, numReferences: %d", baseSegment.getIdentifier(), numReferences);
+    log.debug("Closing %s, numReferences: %d", baseSegment.getIdentifier(), numReferences);
 
     numReferences = -1;
     baseSegment.close();

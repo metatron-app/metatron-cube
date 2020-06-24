@@ -275,7 +275,7 @@ public class ServerManager implements ForwardingSegmentWalker
         }
 
         try {
-          log.info("Attempting to close segment %s", segment.getIdentifier());
+          log.debug("Attempting to close segment %s", segment.getIdentifier());
           oldQueryable.close();
         }
         catch (IOException e) {

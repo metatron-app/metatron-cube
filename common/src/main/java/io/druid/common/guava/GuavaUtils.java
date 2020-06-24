@@ -21,6 +21,7 @@ package io.druid.common.guava;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -375,6 +376,20 @@ public class GuavaUtils
       indices.add(i);
     }
     return Ints.toArray(indices);
+  }
+
+  public static <T> Pair<List<T>, List<T>> partition(Iterable<T> iterable, Predicate<T> predicate)
+  {
+    final List<T> trues = Lists.newArrayList();
+    final List<T> falses = Lists.newArrayList();
+    for (T e : iterable) {
+      if (predicate.apply(e)) {
+        trues.add(e);
+      } else {
+        falses.add(e);
+      }
+    }
+    return Pair.of(trues, falses);
   }
 
   public static int[] checkedCast(long[] longs)

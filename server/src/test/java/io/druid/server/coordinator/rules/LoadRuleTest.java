@@ -204,7 +204,6 @@ public class LoadRuleTest
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withBalancerStrategy(balancerStrategy)
-                                     .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
     rule.run(coordinator, params, segment);
 
@@ -307,7 +306,6 @@ public class LoadRuleTest
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withBalancerStrategy(balancerStrategy)
-                                     .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
     rule.run(coordinator, params, segment);
 
@@ -391,7 +389,6 @@ public class LoadRuleTest
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withBalancerStrategy(balancerStrategy)
-                                     .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
     rule.run(coordinator, params, segment);
 
@@ -489,7 +486,6 @@ public class LoadRuleTest
                                      .withCoordinatorStats(new CoordinatorStats())
                                      .withSegmentReplicantLookup(SegmentReplicantLookup.make(druidCluster))
                                      .withBalancerStrategy(balancerStrategy)
-                                     .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
                                      .withAvailableSegments(Arrays.asList(segment)).build();
     rule.run(coordinator, params, segment);
 

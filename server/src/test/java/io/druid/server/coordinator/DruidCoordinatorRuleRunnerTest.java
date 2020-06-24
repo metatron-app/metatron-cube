@@ -197,7 +197,6 @@ public class DruidCoordinatorRuleRunnerTest
             .withDatabaseRuleManager(databaseRuleManager)
             .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster()))
             .withBalancerStrategy(balancerStrategy)
-            .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
             .withDynamicConfigs(new CoordinatorDynamicConfig.Builder().withMaxSegmentsToMove(5).build())
             .build();
 
@@ -322,7 +321,6 @@ public class DruidCoordinatorRuleRunnerTest
             .withDatabaseRuleManager(databaseRuleManager)
             .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster()))
             .withBalancerStrategy(balancerStrategy)
-            .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
             .build();
 
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
@@ -418,7 +416,6 @@ public class DruidCoordinatorRuleRunnerTest
             .withDatabaseRuleManager(databaseRuleManager)
             .withSegmentReplicantLookup(segmentReplicantLookup)
             .withBalancerStrategy(balancerStrategy)
-            .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
             .build();
 
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
@@ -485,7 +482,6 @@ public class DruidCoordinatorRuleRunnerTest
             .withDatabaseRuleManager(databaseRuleManager)
             .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster()))
             .withBalancerStrategy(balancerStrategy)
-            .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
             .build();
 
     ruleRunner.run(params);
@@ -610,7 +606,6 @@ public class DruidCoordinatorRuleRunnerTest
         .withDatabaseRuleManager(databaseRuleManager)
         .withSegmentReplicantLookup(segmentReplicantLookup)
         .withBalancerStrategy(balancerStrategy)
-        .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
         .build();
 
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
@@ -694,7 +689,6 @@ public class DruidCoordinatorRuleRunnerTest
         .withDatabaseRuleManager(databaseRuleManager)
         .withSegmentReplicantLookup(segmentReplicantLookup)
         .withBalancerStrategy(balancerStrategy)
-        .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
         .build();
 
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
@@ -784,7 +778,6 @@ public class DruidCoordinatorRuleRunnerTest
         .withDatabaseRuleManager(databaseRuleManager)
         .withSegmentReplicantLookup(segmentReplicantLookup)
         .withBalancerStrategy(balancerStrategy)
-        .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
         .build();
 
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
@@ -871,7 +864,6 @@ public class DruidCoordinatorRuleRunnerTest
         .withDatabaseRuleManager(databaseRuleManager)
         .withSegmentReplicantLookup(segmentReplicantLookup)
         .withBalancerStrategy(balancerStrategy)
-        .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
         .build();
 
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
@@ -973,7 +965,6 @@ public class DruidCoordinatorRuleRunnerTest
         .withDatabaseRuleManager(databaseRuleManager)
         .withSegmentReplicantLookup(segmentReplicantLookup)
         .withBalancerStrategy(balancerStrategy)
-        .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
         .build();
 
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
@@ -1066,7 +1057,6 @@ public class DruidCoordinatorRuleRunnerTest
             .withDatabaseRuleManager(databaseRuleManager)
             .withSegmentReplicantLookup(SegmentReplicantLookup.make(new DruidCluster()))
             .withBalancerStrategy(balancerStrategy)
-            .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
             .withDynamicConfigs(new CoordinatorDynamicConfig.Builder().withMaxSegmentsToMove(5).build())
             .build();
 

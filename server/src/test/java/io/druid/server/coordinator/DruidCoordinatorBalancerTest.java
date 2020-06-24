@@ -54,10 +54,6 @@ public class DruidCoordinatorBalancerTest
   private ImmutableDruidServer druidServer2;
   private ImmutableDruidServer druidServer3;
   private ImmutableDruidServer druidServer4;
-  private DataSegment segment1;
-  private DataSegment segment2;
-  private DataSegment segment3;
-  private DataSegment segment4;
   Map<String, DataSegment> segments;
 
   @Before
@@ -68,15 +64,12 @@ public class DruidCoordinatorBalancerTest
     druidServer2 = EasyMock.createMock(ImmutableDruidServer.class);
     druidServer3 = EasyMock.createMock(ImmutableDruidServer.class);
     druidServer4 = EasyMock.createMock(ImmutableDruidServer.class);
-    segment1 = EasyMock.createMock(DataSegment.class);
-    segment2 = EasyMock.createMock(DataSegment.class);
-    segment3 = EasyMock.createMock(DataSegment.class);
-    segment4 = EasyMock.createMock(DataSegment.class);
 
     DateTime start1 = new DateTime("2012-01-01");
     DateTime start2 = new DateTime("2012-02-01");
     DateTime version = new DateTime("2012-03-01");
-    segment1 = new DataSegment(
+
+    DataSegment segment1 = new DataSegment(
         "datasource1",
         new Interval(start1, start1.plusHours(1)),
         version.toString(),
@@ -87,7 +80,7 @@ public class DruidCoordinatorBalancerTest
         0,
         11L
     );
-    segment2 = new DataSegment(
+    DataSegment segment2 = new DataSegment(
         "datasource1",
         new Interval(start2, start2.plusHours(1)),
         version.toString(),
@@ -98,7 +91,7 @@ public class DruidCoordinatorBalancerTest
         0,
         7L
     );
-    segment3 = new DataSegment(
+    DataSegment segment3 = new DataSegment(
         "datasource2",
         new Interval(start1, start1.plusHours(1)),
         version.toString(),
@@ -109,7 +102,7 @@ public class DruidCoordinatorBalancerTest
         0,
         4L
     );
-    segment4 = new DataSegment(
+    DataSegment segment4 = new DataSegment(
         "datasource2",
         new Interval(start2, start2.plusHours(1)),
         version.toString(),
@@ -143,6 +136,7 @@ public class DruidCoordinatorBalancerTest
   public void testMoveToEmptyServerBalancer() throws IOException
   {
     EasyMock.expect(druidServer1.getName()).andReturn("from").atLeastOnce();
+    EasyMock.expect(druidServer1.getTier()).andReturn("normal").anyTimes();
     EasyMock.expect(druidServer1.getCurrSize()).andReturn(30L).atLeastOnce();
     EasyMock.expect(druidServer1.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer1.getSegments()).andReturn(segments).anyTimes();
@@ -214,8 +208,7 @@ public class DruidCoordinatorBalancerTest
                                         MAX_SEGMENTS_TO_MOVE
                                     ).build()
                                 )
-                                     .withBalancerStrategy(balancerStrategy)
-                                     .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
+                                .withBalancerStrategy(balancerStrategy)
                                 .build();
 
     params = new DruidCoordinatorBalancerTester(coordinator).run(params);
@@ -233,6 +226,7 @@ public class DruidCoordinatorBalancerTest
     // Mock some servers of different usages
 
     EasyMock.expect(druidServer1.getName()).andReturn("from").atLeastOnce();
+    EasyMock.expect(druidServer1.getTier()).andReturn("normal").anyTimes();
     EasyMock.expect(druidServer1.getCurrSize()).andReturn(30L).atLeastOnce();
     EasyMock.expect(druidServer1.getMaxSize()).andReturn(100L).atLeastOnce();
     EasyMock.expect(druidServer1.getSegments()).andReturn(segments).anyTimes();
@@ -303,8 +297,7 @@ public class DruidCoordinatorBalancerTest
                                     new CoordinatorDynamicConfig.Builder().withMaxSegmentsToMove(MAX_SEGMENTS_TO_MOVE)
                                                                      .build()
                                 )
-                                     .withBalancerStrategy(balancerStrategy)
-                                     .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
+                                .withBalancerStrategy(balancerStrategy)
                                 .build();
 
     params = new DruidCoordinatorBalancerTester(coordinator).run(params);
@@ -415,8 +408,7 @@ public class DruidCoordinatorBalancerTest
                                         MAX_SEGMENTS_TO_MOVE
                                     ).build()
                                 )
-                                     .withBalancerStrategy(balancerStrategy)
-                                     .withBalancerReferenceTimestamp(new DateTime("2013-01-01"))
+                                .withBalancerStrategy(balancerStrategy)
                                 .build();
 
     params = new DruidCoordinatorBalancerTester(coordinator).run(params);

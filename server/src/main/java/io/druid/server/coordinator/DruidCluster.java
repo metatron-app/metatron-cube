@@ -19,10 +19,8 @@
 
 package io.druid.server.coordinator;
 
-import com.google.common.collect.Maps;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.common.collect.Ordering;
-import io.druid.client.ImmutableDruidServer;
 
 import java.util.Map;
 
@@ -36,7 +34,7 @@ public class DruidCluster
 
   public DruidCluster()
   {
-    this.cluster = Maps.newLinkedHashMap();
+    this(ImmutableMap.of());
   }
 
   public DruidCluster(Map<String, MinMaxPriorityQueue<ServerHolder>> cluster)
@@ -44,45 +42,14 @@ public class DruidCluster
     this.cluster = cluster;
   }
 
-  public void add(ServerHolder serverHolder)
-  {
-    ImmutableDruidServer server = serverHolder.getServer();
-    MinMaxPriorityQueue<ServerHolder> tierServers = cluster.get(server.getTier());
-    if (tierServers == null) {
-      tierServers = MinMaxPriorityQueue.orderedBy(Ordering.natural().reverse()).create();
-      cluster.put(server.getTier(), tierServers);
-    }
-    tierServers.add(serverHolder);
-  }
-
   public Map<String, MinMaxPriorityQueue<ServerHolder>> getCluster()
   {
     return cluster;
   }
 
-  public long getAvailableSizeForTier(String tier)
-  {
-    MinMaxPriorityQueue<ServerHolder> tierServers = cluster.get(tier);
-    if (tierServers == null) {
-      return -1;
-    }
-    long available = 0L;
-    for (ServerHolder holder : tierServers) {
-      if (!holder.isDecommissioned()) {
-        available += holder.getAvailableSize();
-      }
-    }
-    return available;
-  }
-
   public Iterable<String> getTierNames()
   {
     return cluster.keySet();
-  }
-
-  public MinMaxPriorityQueue<ServerHolder> getServersByTier(String tier)
-  {
-    return cluster.get(tier);
   }
 
   public Iterable<MinMaxPriorityQueue<ServerHolder>> getSortedServersByTier()
@@ -93,12 +60,6 @@ public class DruidCluster
   public boolean isEmpty()
   {
     return cluster.isEmpty();
-  }
-
-  public boolean hasTier(String tier)
-  {
-    MinMaxPriorityQueue<ServerHolder> servers = cluster.get(tier);
-    return (servers == null) || servers.isEmpty();
   }
 
   public MinMaxPriorityQueue<ServerHolder> get(String tier)

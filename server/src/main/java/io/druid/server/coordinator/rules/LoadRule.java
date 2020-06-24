@@ -19,8 +19,9 @@
 
 package io.druid.server.coordinator.rules;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
@@ -42,6 +43,7 @@ import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * LoadRules indicate the number of replicants a segment should have in a given tier.
@@ -55,7 +57,7 @@ public abstract class LoadRule implements Rule
   @Override
   public boolean run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
   {
-    final Pair<Long, List<String>> fails = coordinator.getRecentlyFailedServers(segment);
+    final Pair<Long, Set<String>> fails = coordinator.getRecentlyFailedServers(segment);
     if (fails != null && fails.rhs.size() > 3) {
       log.info("Skip segment [%s] for recent [%s] fails on %s", segment, DateTimes.utc(fails.lhs), fails.rhs);
       return false;
@@ -71,7 +73,7 @@ public abstract class LoadRule implements Rule
     final Map<String, Integer> tieredReplicants = getTieredReplicants();
     for (Map.Entry<String, Integer> entry : tieredReplicants.entrySet()) {
       final String tier = entry.getKey();
-      final MinMaxPriorityQueue<ServerHolder> serverQueue = cluster.getServersByTier(tier);
+      final MinMaxPriorityQueue<ServerHolder> serverQueue = cluster.get(tier);
       if (GuavaUtils.isNullOrEmpty(serverQueue)) {
         continue;
       }
@@ -80,33 +82,18 @@ public abstract class LoadRule implements Rule
       if (totalReplicantsInTier >= expectedReplicantsInTier) {
         continue;
       }
-
-      List<ServerHolder> serverHolderList = Lists.newArrayList(serverQueue);
-      if (fails != null) {
-        final Map<String, ServerHolder> serverHolderMap = Maps.newHashMap();
-        for (ServerHolder holder : serverHolderList) {
-          serverHolderMap.put(holder.getServer().getName(), holder);
-        }
-        for (String server : fails.rhs) {
-          serverHolderMap.remove(server);
-        }
-        if (serverHolderMap.isEmpty()) {
-          continue;
-        }
-        serverHolderList = Lists.newArrayList(serverHolderMap.values());
-        if (serverHolderList.isEmpty()) {
-          continue;
-        }
+      final List<ServerHolder> servers = filterServers(serverQueue, fails);
+      if (servers.isEmpty()) {
+        continue;
       }
 
       int assigned = assign(
           tier,
           segment,
-          totalReplicantsInCluster,
-          expectedReplicantsInTier,
           totalReplicantsInTier,
+          expectedReplicantsInTier,
           params.getBalancerStrategy(),
-          serverHolderList
+          servers
       );
       if (assigned > 0) {
         stats.addToTieredStat(assignedCount, tier, assigned);
@@ -121,19 +108,25 @@ public abstract class LoadRule implements Rule
     return totalReplicantsInCluster == 0;
   }
 
+  private List<ServerHolder> filterServers(Iterable<ServerHolder> servers, Pair<Long, Set<String>> fails)
+  {
+    if (fails != null && !fails.rhs.isEmpty()) {
+      servers = Iterables.filter(servers, server -> !fails.rhs.contains(server.getName()));
+    }
+    return Lists.newArrayList(servers);
+  }
+
   private int assign(
       final String tier,
       final DataSegment segment,
-      final int totalReplicantsInCluster,
-      final int expectedReplicantsInTier,
       final int totalReplicantsInTier,
+      final int expectedReplicantsInTier,
       final BalancerStrategy strategy,
       final List<ServerHolder> serverHolderList
   )
   {
     int assigned = 0;
     int currReplicantsInTier = totalReplicantsInTier;
-    int currTotalReplicantsInCluster = totalReplicantsInCluster;
     while (currReplicantsInTier < expectedReplicantsInTier) {
 
       final ServerHolder holder = strategy.findNewSegmentHomeReplicator(segment, serverHolderList);
@@ -154,7 +147,6 @@ public abstract class LoadRule implements Rule
       )) {
         ++assigned;
         ++currReplicantsInTier;
-        ++currTotalReplicantsInCluster;
       }
     }
 
@@ -176,7 +168,7 @@ public abstract class LoadRule implements Rule
     for (Map.Entry<String, int[]> entry : replicantsByTier.entrySet()) {
       String tier = entry.getKey();
       MinMaxPriorityQueue<ServerHolder> serverQueue = params.getDruidCluster().get(tier);
-      if (serverQueue == null || serverQueue.isEmpty()) {
+      if (GuavaUtils.isNullOrEmpty(serverQueue)) {
         log.makeAlert("No holders found for tier[%s]", tier).emit();
         continue;
       }
@@ -202,8 +194,8 @@ public abstract class LoadRule implements Rule
 
     int dropped = 0;
     List<ServerHolder> droppedServers = Lists.newArrayList();
-    while (currentNumReplicantsForTier > expectedNumReplicantsForTier) {
-      final ServerHolder holder = serverQueue.pollLast();
+    while (!serverQueue.isEmpty() && currentNumReplicantsForTier > expectedNumReplicantsForTier) {
+      final ServerHolder holder = Preconditions.checkNotNull(serverQueue.pollLast());
       if (holder.isServingSegment(segment) && holder.getPeon().dropSegment(
           segment,
           StringUtils.safeFormat("over-replicated(%d/%d)", currentNumReplicantsForTier, expectedNumReplicantsForTier),

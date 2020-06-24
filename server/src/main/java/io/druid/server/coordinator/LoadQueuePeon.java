@@ -23,11 +23,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.server.coordination.DataSegmentChangeRequest;
 import io.druid.server.coordination.SegmentChangeRequestDrop;
 import io.druid.server.coordination.SegmentChangeRequestLoad;
-import io.druid.server.coordination.SegmentChangeRequestNoop;
 import io.druid.timeline.DataSegment;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorWatcher;
@@ -36,6 +36,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.data.Stat;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -56,6 +57,8 @@ public class LoadQueuePeon
   private static final EmittingLogger log = new EmittingLogger(LoadQueuePeon.class);
   private static final int DROP = 0;
   private static final int LOAD = 1;
+
+  private static final byte[] NOOP_PAYLOAD = StringUtils.toUtf8("{\"action\": \"noop\"}");
 
   private static void executeCallbacks(List<LoadPeonCallback> callbacks, boolean canceled)
   {
@@ -257,7 +260,9 @@ public class LoadQueuePeon
         } else if (!segmentsToLoad.isEmpty()) {
           currentlyProcessing = segmentsToLoad.firstEntry().getValue();
           log.debug("Server[%s] loading [%s]", server, currentlyProcessing.getSegmentIdentifier());
-        } else {
+        }
+
+        if (currentlyProcessing == null) {
           return;
         }
 
@@ -283,10 +288,9 @@ public class LoadQueuePeon
                       doNext();
                       return;
                     }
-                    String identifier = currentlyProcessing.getSegmentIdentifier();
-                    log.debug("Server[%s] processing segment[%s]", server, identifier);
+                    log.debug("Server[%s] processing segment[%s]", server, currentlyProcessing);
 
-                    final String path = ZKPaths.makePath(basePath, identifier);
+                    final String path = ZKPaths.makePath(basePath, currentlyProcessing.getSegmentIdentifier());
                     final byte[] payload = jsonMapper.writeValueAsBytes(currentlyProcessing.getChangeRequest());
                     curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
 
@@ -325,7 +329,6 @@ public class LoadQueuePeon
                     ).forPath(path);
 
                     if (stat == null) {
-                      final byte[] noopPayload = jsonMapper.writeValueAsBytes(new SegmentChangeRequestNoop());
 
                       // Create a node and then delete it to remove the registered watcher.  This is a work-around for
                       // a zookeeper race condition.  Specifically, when you set a watcher, it fires on the next event
@@ -340,7 +343,7 @@ public class LoadQueuePeon
                       //
                       // We do not create the existence watcher first, because then it will fire when we create the
                       // node and we'll have the same race when trying to refresh that watcher.
-                      curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, noopPayload);
+                      curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, NOOP_PAYLOAD);
 
                       entryRemoved(path);
                     }
@@ -354,9 +357,7 @@ public class LoadQueuePeon
         );
       } else {
         log.debug(
-            "Server[%s] skipping doNext() because something is currently loading[%s].",
-            server,
-            currentlyProcessing.getSegmentIdentifier()
+            "Server[%s] skipping doNext() because something is currently loading[%s].", server, currentlyProcessing
         );
       }
     }
@@ -425,7 +426,6 @@ public class LoadQueuePeon
       actionCompleted(false);
       log.debug("Server[%s] done processing [%s]", basePath, path);
     }
-
     doNext();
   }
 
@@ -436,7 +436,26 @@ public class LoadQueuePeon
       failedAssignCount.getAndIncrement();
       // Act like it was completed so that the coordinator gives it to someone else
       actionCompleted(true);
-      doNext();
+    }
+    doNext();
+  }
+
+  public void tick(final int threshold)
+  {
+    synchronized (lock) {
+      final Iterator<SegmentHolder> iterator = segmentsToLoad.values().iterator();
+      while (iterator.hasNext()) {
+        final SegmentHolder holder = iterator.next();
+        if (holder != currentlyProcessing && ++holder.tick > threshold) {
+          iterator.remove();
+          queuedSize.addAndGet(-holder.getSegmentSize());
+          List<LoadPeonCallback> callbacks = holder.getCallbacks();
+          if (!callbacks.isEmpty()) {
+            callBackExecutor.execute(() -> executeCallbacks(callbacks, true));
+          }
+          log.debug("Dropped [%s] from load queue of Server[%s]", holder.segment.getIdentifier(), server);
+        }
+      }
     }
   }
 
@@ -446,6 +465,7 @@ public class LoadQueuePeon
     private final int type;
     private final List<LoadPeonCallback> callbacks = Lists.newLinkedList();
     private final Predicate<DataSegment> validity;
+    private int tick;
 
     private SegmentHolder(DataSegment segment, int type, LoadPeonCallback callback, Predicate<DataSegment> validity)
     {
@@ -501,6 +521,12 @@ public class LoadQueuePeon
     public DataSegmentChangeRequest getChangeRequest()
     {
       return type == LOAD ? new SegmentChangeRequestLoad(segment) : new SegmentChangeRequestDrop(segment);
+    }
+
+    @Override
+    public String toString()
+    {
+      return segment.getIdentifier();
     }
   }
 }

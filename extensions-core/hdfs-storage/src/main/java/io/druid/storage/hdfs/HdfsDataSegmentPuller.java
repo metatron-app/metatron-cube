@@ -191,7 +191,7 @@ public class HdfsDataSegmentPuller implements DataSegmentPuller, URIDataPuller
                 public FileUtils.FileCopyResult call() throws Exception
                 {
                   if (!fs.exists(path)) {
-                    throw new SegmentLoadingException("No files found at [%s]", path.toString());
+                    throw new SegmentLoadingException("No files found at [%s]", path);
                   }
 
                   final RemoteIterator<LocatedFileStatus> children = fs.listFiles(path, false);
@@ -202,7 +202,7 @@ public class HdfsDataSegmentPuller implements DataSegmentPuller, URIDataPuller
                     final Path childPath = child.getPath();
                     final String fname = childPath.getName();
                     if (fs.isDirectory(childPath)) {
-                      log.warn("[%s] is a child directory, skipping", childPath.toString());
+                      log.warn("[%s] is a child directory, skipping", childPath);
                     } else {
                       final File outFile = new File(outDir, fname);
 
@@ -211,12 +211,7 @@ public class HdfsDataSegmentPuller implements DataSegmentPuller, URIDataPuller
                       result.addFile(outFile);
                     }
                   }
-                  log.info(
-                      "Copied %d bytes from [%s] to [%s]",
-                      result.size(),
-                      path.toString(),
-                      outDir.getAbsolutePath()
-                  );
+                  log.debug("Copied %d bytes from [%s] to [%s]", result.size(), path, outDir.getAbsolutePath());
                   return result;
                 }
 
@@ -243,12 +238,7 @@ public class HdfsDataSegmentPuller implements DataSegmentPuller, URIDataPuller
             }, outDir, shouldRetryPredicate(), false
         );
 
-        log.info(
-            "Unzipped %d bytes from [%s] to [%s]",
-            result.size(),
-            path.toString(),
-            outDir.getAbsolutePath()
-        );
+        log.debug("Unzipped %d bytes from [%s] to [%s]", result.size(), path, outDir.getAbsolutePath());
 
         return result;
       } else if (CompressionUtils.isGz(path.getName())) {
@@ -269,26 +259,21 @@ public class HdfsDataSegmentPuller implements DataSegmentPuller, URIDataPuller
             outFile
         );
 
-        log.info(
-            "Gunzipped %d bytes from [%s] to [%s]",
-            result.size(),
-            path.toString(),
-            outFile.getAbsolutePath()
-        );
+        log.debug("Gunzipped %d bytes from [%s] to [%s]", result.size(), path, outFile.getAbsolutePath());
         return result;
       } else {
-        throw new SegmentLoadingException("Do not know how to handle file type at [%s]", path.toString());
+        throw new SegmentLoadingException("Do not know how to handle file type at [%s]", path);
       }
     }
     catch (IOException e) {
-      throw new SegmentLoadingException(e, "Error loading [%s]", path.toString());
+      throw new SegmentLoadingException(e, "Error loading [%s]", path);
     }
   }
 
   public FileUtils.FileCopyResult getSegmentFiles(URI uri, File outDir) throws SegmentLoadingException
   {
     if (!uri.getScheme().equalsIgnoreCase(HdfsStorageDruidModule.SCHEME)) {
-      throw new SegmentLoadingException("Don't know how to load SCHEME for URI [%s]", uri.toString());
+      throw new SegmentLoadingException("Don't know how to load SCHEME for URI [%s]", uri);
     }
     return getSegmentFiles(new Path(uri), outDir);
   }
@@ -302,7 +287,7 @@ public class HdfsDataSegmentPuller implements DataSegmentPuller, URIDataPuller
   public InputStream getInputStream(URI uri) throws IOException
   {
     if (!uri.getScheme().equalsIgnoreCase(HdfsStorageDruidModule.SCHEME)) {
-      throw new IAE("Don't know how to load SCHEME [%s] for URI [%s]", uri.getScheme(), uri.toString());
+      throw new IAE("Don't know how to load SCHEME [%s] for URI [%s]", uri.getScheme(), uri);
     }
     return buildFileObject(uri, config).openInputStream();
   }

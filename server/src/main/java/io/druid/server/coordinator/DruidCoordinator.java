@@ -27,6 +27,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.MinMaxPriorityQueue;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -40,6 +42,7 @@ import io.druid.client.ServerView;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.collections.CountingMap;
 import io.druid.common.config.JacksonConfigManager;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.discovery.ServiceAnnouncer;
 import io.druid.data.KeyedData.StringKeyed;
@@ -79,7 +82,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -564,13 +566,10 @@ public class DruidCoordinator
                 config.getCoordinatorPeriod()
             )
         );
-        if (indexingServiceClient != null) {
+        if (indexingServiceClient != null && !GuavaUtils.isNullOrEmpty(indexingServiceHelpers)) {
           coordinatorRunnables.add(
               Pair.of(
-                  new CoordinatorIndexingServiceRunnable(
-                      ImmutableList.copyOf(indexingServiceHelpers),
-                      startingLeaderCounter
-                  ),
+                  new CoordinatorIndexingServiceRunnable(startingLeaderCounter),
                   config.getCoordinatorIndexingPeriod()
               )
           );
@@ -773,10 +772,10 @@ public class DruidCoordinator
     }
   }
 
-  public Pair<Long, List<String>> getRecentlyFailedServers(DataSegment segment)
+  public Pair<Long, Set<String>> getRecentlyFailedServers(DataSegment segment)
   {
     synchronized (reports) {
-      Set<StringKeyed<Long>> report = reports.get(segment);
+      final Set<StringKeyed<Long>> report = reports.get(segment);
       if (report != null) {
         expire(report, System.currentTimeMillis() - (config.getCoordinatorPeriod().getMillis() << 2));
         if (report.isEmpty()) {
@@ -784,7 +783,7 @@ public class DruidCoordinator
           return null;
         }
         Long max = null;
-        List<String> servers = Lists.newArrayListWithCapacity(report.size());
+        final Set<String> servers = Sets.newHashSet();
         for (StringKeyed<Long> server : report) {
           servers.add(server.key);
           if (max == null || max < server.value) {
@@ -835,16 +834,13 @@ public class DruidCoordinator
           }
         }
 
-        List<Boolean> allStarted = Arrays.asList(
-            metadataSegmentManager.isStarted(),
-            serverInventoryView.isStarted()
-        );
-        for (Boolean aBoolean : allStarted) {
-          if (!aBoolean) {
-            log.error("InventoryManagers not started[%s]", allStarted);
-            stopBeingLeader();
-            return;
-          }
+        if (!metadataSegmentManager.isStarted()) {
+          log.error("MetadataSegmentManager is not started");
+          stopBeingLeader();
+        }
+        if (!serverInventoryView.isStarted()) {
+          log.error("InventoryManager is not started");
+          stopBeingLeader();
         }
 
         // prevent cleanup before polling is ended
@@ -908,7 +904,7 @@ public class DruidCoordinator
   private DruidCoordinatorRuntimeParams buildParam(DruidCoordinatorRuntimeParams.Builder builder)
   {
     // Display info about all historical servers
-    List<ImmutableDruidServer> servers = Lists.newArrayList(
+    final List<ImmutableDruidServer> servers = Lists.newArrayList(
         Iterables.transform(
             Iterables.filter(serverInventoryView.getInventory(), DruidServer::isAssignable),
             DruidServer::toImmutableDruidServer
@@ -932,17 +928,19 @@ public class DruidCoordinator
     }
 
     // Find all historical servers, group them by subType and sort by ascending usage
-    final DruidCluster cluster = new DruidCluster();
+    final Ordering<Comparable> ordering = Ordering.natural().reverse();
+    final Map<String, MinMaxPriorityQueue<ServerHolder>> tierMap = Maps.newLinkedHashMap();
     for (ImmutableDruidServer server : servers) {
       LoadQueuePeon loadQueuePeon = loadManagementPeons.get(server.getName());
-      if (loadQueuePeon == null) {
+      if (loadQueuePeon != null) {
+        loadQueuePeon.tick(defaultConfig.getReplicantLifetime());
+      } else {
         loadQueuePeon = taskMaster.giveMePeon(zkPaths.getLoadQueuePath(), server.getName());
         log.info("Creating LoadQueuePeon for server[%s] at path[%s]", server.getName(), loadQueuePeon.getBasePath());
-
         loadManagementPeons.put(server.getName(), loadQueuePeon);
       }
-
-      cluster.add(new ServerHolder(server, loadQueuePeon));
+      tierMap.computeIfAbsent(server.getTier(), k -> MinMaxPriorityQueue.orderedBy(ordering).create())
+             .add(new ServerHolder(server, loadQueuePeon));
     }
 
     // Stop peons for servers that aren't there anymore.
@@ -951,25 +949,28 @@ public class DruidCoordinator
       disappeared.remove(server.getName());
     }
     for (String name : disappeared) {
-      log.info("Removing listener for server[%s] which is no longer there.", name);
       LoadQueuePeon peon = loadManagementPeons.remove(name);
-      peon.stop();
+      if (peon != null) {
+        log.info("Removing listener for server[%s] which is no longer there.", name);
+        peon.stop();
+      }
     }
+
+    final DruidCluster cluster = new DruidCluster(tierMap);
 
     return builder.withDruidCluster(cluster)
                   .withDatabaseRuleManager(metadataRuleManager)
                   .withLoadManagementPeons(loadManagementPeons)
                   .withSegmentReplicantLookup(SegmentReplicantLookup.make(cluster))
-                  .withBalancerReferenceTimestamp(DateTime.now())
                   .withBalancerStrategy(factory.createBalancerStrategy(balancerExec))
                   .build();
   }
 
   private class CoordinatorIndexingServiceRunnable extends CoordinatorRunnable
   {
-    public CoordinatorIndexingServiceRunnable(List<DruidCoordinatorHelper> helpers, final int startingLeaderCounter)
+    public CoordinatorIndexingServiceRunnable(final int startingLeaderCounter)
     {
-      super(helpers, startingLeaderCounter);
+      super(ImmutableList.copyOf(indexingServiceHelpers), startingLeaderCounter);
     }
   }
 }

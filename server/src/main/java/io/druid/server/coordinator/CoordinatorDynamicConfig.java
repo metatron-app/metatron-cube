@@ -48,6 +48,9 @@ public class CoordinatorDynamicConfig
   private int maxSegmentsToMove = -1;
 
   @JsonProperty
+  private int replicantLifetime = 10;
+
+  @JsonProperty
   private int balancerComputeThreads = 1;
 
   @JsonProperty
@@ -84,6 +87,7 @@ public class CoordinatorDynamicConfig
     this.mergeSegmentsLimit = mergeSegmentsLimit;
     this.mergeBytesLimit = mergeBytesLimit;
     this.mergeTaskLimit = mergeTaskLimit;
+    this.replicantLifetime = replicantLifetime;
     this.emitBalancingStats = emitBalancingStats;
     this.balancerComputeThreads = Math.max(balancerComputeThreads, 1);
 
@@ -140,6 +144,12 @@ public class CoordinatorDynamicConfig
   }
 
   @JsonProperty
+  public int getReplicantLifetime()
+  {
+    return replicantLifetime;
+  }
+
+  @JsonProperty
   public int getBalancerComputeThreads()
   {
     return balancerComputeThreads;
@@ -160,6 +170,7 @@ public class CoordinatorDynamicConfig
            ", mergeSegmentsLimit=" + mergeSegmentsLimit +
            ", mergeTaskLimit=" + mergeTaskLimit +
            ", maxSegmentsToMove=" + maxSegmentsToMove +
+           ", replicantLifetime=" + replicantLifetime +
            ", balancerComputeThreads=" + balancerComputeThreads +
            ", emitBalancingStats=" + emitBalancingStats +
            ", killDataSourceWhitelist=" + killDataSourceWhitelist +
@@ -193,6 +204,9 @@ public class CoordinatorDynamicConfig
     if (maxSegmentsToMove != that.maxSegmentsToMove) {
       return false;
     }
+    if (replicantLifetime != that.replicantLifetime) {
+      return false;
+    }
     if (balancerComputeThreads != that.balancerComputeThreads) {
       return false;
     }
@@ -213,6 +227,7 @@ public class CoordinatorDynamicConfig
     result = 31 * result + mergeSegmentsLimit;
     result = 31 * result + mergeTaskLimit;
     result = 31 * result + maxSegmentsToMove;
+    result = 31 * result + replicantLifetime;
     result = 31 * result + balancerComputeThreads;
     result = 31 * result + (emitBalancingStats ? 1 : 0);
     result = 31 * result + (killDataSourceWhitelist != null ? killDataSourceWhitelist.hashCode() : 0);
