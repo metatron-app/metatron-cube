@@ -397,6 +397,12 @@ public class HttpServerInventoryView implements ServerInventoryView, FilteredSer
     return lifecycleLock.awaitStarted(1, TimeUnit.MILLISECONDS);
   }
 
+  @Override
+  public int getInventorySize()
+  {
+    return servers.size();
+  }
+
   private class DruidServerHolder
   {
     private final Object lock = new Object();

@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableSet;
 
+import javax.validation.constraints.Min;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -59,9 +60,13 @@ public class CoordinatorDynamicConfig
   @JsonProperty
   private Set<String> killDataSourceWhitelist;
 
+  @JsonProperty
+  @Min(1)
+  private int minimumServersForCoordination = 1;
+
   public CoordinatorDynamicConfig()
   {
-    this(15 * 60 * 1000L, 524288000L, 100, 0, -1, 15, 10, 1, false, null);
+    this(15 * 60 * 1000L, 524288000L, 100, 0, -1, 15, 10, 1, false, null, null);
   }
 
   @JsonCreator
@@ -79,7 +84,8 @@ public class CoordinatorDynamicConfig
       // Type is Object here so that we can support both string and list as
       // coordinator console can not send array of strings in the update request.
       // See https://github.com/druid-io/druid/issues/3055
-      @JsonProperty("killDataSourceWhitelist") Object killDataSourceWhitelist
+      @JsonProperty("killDataSourceWhitelist") Object killDataSourceWhitelist,
+      @JsonProperty("minimumServersForCoordination") Integer minimumServersForCoordination
   )
   {
     this.maxSegmentsToMove = maxSegmentsToMove;
@@ -104,6 +110,9 @@ public class CoordinatorDynamicConfig
       this.killDataSourceWhitelist = ImmutableSet.copyOf(((Collection) killDataSourceWhitelist));
     } else {
       this.killDataSourceWhitelist = ImmutableSet.of();
+    }
+    if (minimumServersForCoordination != null && minimumServersForCoordination > 0) {
+      this.minimumServersForCoordination = minimumServersForCoordination;
     }
   }
 
@@ -161,6 +170,12 @@ public class CoordinatorDynamicConfig
     return killDataSourceWhitelist;
   }
 
+  @JsonProperty
+  public int getMinimumServersForCoordination()
+  {
+    return minimumServersForCoordination;
+  }
+
   @Override
   public String toString()
   {
@@ -174,6 +189,7 @@ public class CoordinatorDynamicConfig
            ", balancerComputeThreads=" + balancerComputeThreads +
            ", emitBalancingStats=" + emitBalancingStats +
            ", killDataSourceWhitelist=" + killDataSourceWhitelist +
+           ", minimumServersForCoordination=" + minimumServersForCoordination +
            '}';
   }
 
@@ -210,6 +226,9 @@ public class CoordinatorDynamicConfig
     if (balancerComputeThreads != that.balancerComputeThreads) {
       return false;
     }
+    if (minimumServersForCoordination != that.minimumServersForCoordination) {
+      return false;
+    }
     if (emitBalancingStats != that.emitBalancingStats) {
       return false;
     }
@@ -229,6 +248,7 @@ public class CoordinatorDynamicConfig
     result = 31 * result + maxSegmentsToMove;
     result = 31 * result + replicantLifetime;
     result = 31 * result + balancerComputeThreads;
+    result = 31 * result + minimumServersForCoordination;
     result = 31 * result + (emitBalancingStats ? 1 : 0);
     result = 31 * result + (killDataSourceWhitelist != null ? killDataSourceWhitelist.hashCode() : 0);
     return result;
@@ -246,6 +266,7 @@ public class CoordinatorDynamicConfig
     private boolean emitBalancingStats;
     private int balancerComputeThreads;
     private Set<String> killDataSourceWhitelist;
+    private Integer minimumServersForCoordination;
 
     public Builder()
     {
@@ -341,7 +362,8 @@ public class CoordinatorDynamicConfig
           replicationThrottleLimit,
           balancerComputeThreads,
           emitBalancingStats,
-          killDataSourceWhitelist
+          killDataSourceWhitelist,
+          minimumServersForCoordination
       );
     }
   }

@@ -19,6 +19,7 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.collections.CountingMap;
 
@@ -29,13 +30,20 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class CoordinatorStats
 {
+  public static final CoordinatorStats EMPTY = new CoordinatorStats(ImmutableMap.of(), new CountingMap<>());
+
   private final Map<String, CountingMap<String>> perTierStats;
   private final CountingMap<String> globalStats;
 
   public CoordinatorStats()
   {
-    perTierStats = Maps.newHashMap();
-    globalStats = new CountingMap<String>();
+    this(Maps.newHashMap(), new CountingMap<String>());
+  }
+
+  public CoordinatorStats(Map<String, CountingMap<String>> perTierStats, CountingMap<String> globalStats)
+  {
+    this.perTierStats = perTierStats;
+    this.globalStats = globalStats;
   }
 
   public Map<String, CountingMap<String>> getPerTierStats()

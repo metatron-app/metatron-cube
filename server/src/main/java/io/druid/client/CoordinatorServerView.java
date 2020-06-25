@@ -225,4 +225,10 @@ public class CoordinatorServerView implements InventoryView
   {
     return baseView.isStarted();
   }
+
+  @Override
+  public int getInventorySize()
+  {
+    return baseView.getInventorySize();
+  }
 }

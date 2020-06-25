@@ -209,9 +209,16 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
     }
   }
 
+  @Override
   public boolean isStarted()
   {
     return started.get();
+  }
+
+  @Override
+  public int getInventorySize()
+  {
+    return inventoryManager.getInventorySize();
   }
 
   @Override

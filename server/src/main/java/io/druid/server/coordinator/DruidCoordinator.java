@@ -234,7 +234,7 @@ public class DruidCoordinator
           @Override
           public ServerView.CallbackAction serverAdded(DruidServer server)
           {
-            if (leader) {
+            if (leader && isClusterReady(false)) {
               balanceNow();
             }
             return ServerView.CallbackAction.CONTINUE;
@@ -243,7 +243,7 @@ public class DruidCoordinator
           @Override
           public ServerView.CallbackAction serverRemoved(DruidServer server)
           {
-            if (leader) {
+            if (leader && isClusterReady(false)) {
               serverDown(server);
             }
             return ServerView.CallbackAction.CONTINUE;
@@ -542,6 +542,16 @@ public class DruidCoordinator
     }
   }
 
+  private boolean isClusterReady(boolean logNotReady)
+  {
+    final int currentNumServer = serverInventoryView.getInventorySize();
+    final int minimumNumServers = getDynamicConfigs().getMinimumServersForCoordination();
+    if (logNotReady && currentNumServer < minimumNumServers) {
+      log.info("Need more servers for coordination.. [%d/%d]", currentNumServer, minimumNumServers);
+    }
+    return currentNumServer >= minimumNumServers;
+  }
+
   private void becomeLeader()
   {
     synchronized (lock) {
@@ -587,7 +597,7 @@ public class DruidCoordinator
                 @Override
                 public ScheduledExecutors.Signal call()
                 {
-                  if (leader && startingLeaderCounter == leaderCounter) {
+                  if (leader && startingLeaderCounter == leaderCounter && isClusterReady(true)) {
                     theRunnable.run();
                   }
                   if (leader && startingLeaderCounter == leaderCounter) { // (We might no longer be leader)

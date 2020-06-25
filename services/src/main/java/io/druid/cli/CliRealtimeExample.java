@@ -130,6 +130,12 @@ public class CliRealtimeExample extends ServerRunnable
     {
       return true;
     }
+
+    @Override
+    public int getInventorySize()
+    {
+      return 0;
+    }
   }
 
   private static class NoopDataSegmentPusher implements DataSegmentPusher

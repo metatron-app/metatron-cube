@@ -303,6 +303,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
         ImmutableList.of(druidServer)
     ).atLeastOnce();
     EasyMock.expect(serverInventoryView.isStarted()).andReturn(true).anyTimes();
+    EasyMock.expect(serverInventoryView.getInventorySize()).andReturn(1).anyTimes();
     EasyMock.replay(serverInventoryView);
 
     coordinator.start();

@@ -163,6 +163,11 @@ public class CuratorInventoryManager<ContainerClass, InventoryClass>
     return Iterables.transform(containers.values(), ContainerHolder::getContainer);
   }
 
+  public int getInventorySize()
+  {
+    return containers.size();
+  }
+
   private byte[] getZkDataForNode(String path)
   {
     try {

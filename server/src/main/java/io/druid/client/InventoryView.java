@@ -19,11 +19,20 @@
 
 package io.druid.client;
 
+import com.google.common.collect.Iterables;
+
 /**
  */
 public interface InventoryView
 {
   DruidServer getInventoryValue(String string);
+
   Iterable<DruidServer> getInventory();
+
   boolean isStarted();
+
+  default int getInventorySize()
+  {
+    return Iterables.size(getInventory());
+  }
 }
