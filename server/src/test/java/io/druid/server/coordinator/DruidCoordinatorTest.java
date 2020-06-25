@@ -32,6 +32,7 @@ import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.SingleServerInventoryView;
 import io.druid.collections.CountingMap;
+import io.druid.collections.String2IntMap;
 import io.druid.common.DateTimes;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.concurrent.Execs;
@@ -339,14 +340,14 @@ public class DruidCoordinatorTest extends CuratorTestBase
     Assert.assertEquals(ImmutableMap.of(dataSource, 100.0), coordinator.getLoadStatus());
     curator.delete().guaranteed().forPath(ZKPaths.makePath(LOADPATH, dataSegment.getIdentifier()));
     // Wait for coordinator thread to run so that replication status is updated
-    while (coordinator.getSegmentAvailability().snapshot().get(dataSource) != 0) {
+    while (coordinator.getSegmentAvailability().getInt(dataSource) != 0) {
       Thread.sleep(50);
     }
-    Map segmentAvailability = coordinator.getSegmentAvailability().snapshot();
+    String2IntMap segmentAvailability = coordinator.getSegmentAvailability();
     Assert.assertEquals(1, segmentAvailability.size());
-    Assert.assertEquals(0L, segmentAvailability.get(dataSource));
+    Assert.assertEquals(0, segmentAvailability.getInt(dataSource));
 
-    while (coordinator.getLoadPendingDatasources().get(dataSource).get() > 0) {
+    while (coordinator.getLoadPendingDatasources().getInt(dataSource) > 0) {
       Thread.sleep(50);
     }
 
@@ -357,17 +358,17 @@ public class DruidCoordinatorTest extends CuratorTestBase
       Thread.sleep(100);
     }
 
-    Map<String, CountingMap<String>> replicationStatus = coordinator.getReplicationStatus();
+    Map<String, String2IntMap> replicationStatus = coordinator.getReplicationStatus();
     Assert.assertNotNull(replicationStatus);
     Assert.assertEquals(1, replicationStatus.entrySet().size());
 
-    CountingMap<String> dataSourceMap = replicationStatus.get(tier);
+    String2IntMap dataSourceMap = replicationStatus.get(tier);
     Assert.assertNotNull(dataSourceMap);
     Assert.assertEquals(1, dataSourceMap.size());
-    Assert.assertNotNull(dataSourceMap.get(dataSource));
+    Assert.assertEquals(1, dataSourceMap.getInt(dataSource));
     // Simulated the adding of segment to druidServer during SegmentChangeRequestLoad event
     // The load rules asks for 2 replicas, therefore 1 replica should still be pending
-    while(dataSourceMap.get(dataSource).get() != 1L) {
+    while(dataSourceMap.getInt(dataSource) != 1) {
       Thread.sleep(50);
     }
 

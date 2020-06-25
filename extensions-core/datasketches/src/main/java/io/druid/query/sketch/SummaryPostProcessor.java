@@ -140,7 +140,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
         final List<VirtualColumn> virtualColumns = ((SketchQuery) representative).getVirtualColumns();
         final List<ListenableFuture<Integer>> futures = Lists.newArrayList();
         final Map<String, Map<String, Object>> results = Maps.newLinkedHashMap();
-        Sequence<Pair<Query, Sequence<Object[]>>> sequences = baseRunner.run(query, responseContext);
+        final Sequence<Pair<Query, Sequence<Object[]>>> sequences = baseRunner.run(query, responseContext);
         for (Pair<Query, Sequence<Object[]>> pair : Sequences.toList(sequences)) {
           SketchQuery sketchQuery = (SketchQuery) pair.lhs;
 
@@ -445,9 +445,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
       postAggregators.add(new StandardDeviationPostAggregator(column + ".stddev", column + ".variance", null));
     }
 
-    return query
-        .withAggregatorSpecs(GuavaUtils.concat(query.getAggregatorSpecs(), aggregators))
-        .withPostAggregatorSpecs(GuavaUtils.concat(query.getPostAggregatorSpecs(), postAggregators));
+    return query.withAggregatorSpecs(GuavaUtils.concat(query.getAggregatorSpecs(), aggregators))
+                .withPostAggregatorSpecs(GuavaUtils.concat(query.getPostAggregatorSpecs(), postAggregators));
   }
-
 }

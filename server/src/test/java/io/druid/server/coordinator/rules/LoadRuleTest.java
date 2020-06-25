@@ -208,8 +208,8 @@ public class LoadRuleTest
     rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 1);
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get(DruidServer.DEFAULT_TIER).get() == 2);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("hot") == 1);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong(DruidServer.DEFAULT_TIER) == 2);
     exec.shutdown();
   }
 
@@ -310,8 +310,8 @@ public class LoadRuleTest
     rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
-    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("hot").get() == 1);
-    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get(DruidServer.DEFAULT_TIER).get() == 1);
+    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").getLong("hot") == 1);
+    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").getLong(DruidServer.DEFAULT_TIER) == 1);
     exec.shutdown();
   }
 
@@ -393,7 +393,7 @@ public class LoadRuleTest
     rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 1);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("hot") == 1);
     exec.shutdown();
   }
 
@@ -490,7 +490,7 @@ public class LoadRuleTest
     rule.run(coordinator, params, segment);
 
     CoordinatorStats stats = params.getCoordinatorStats();
-    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("hot").get() == 1);
+    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").getLong("hot") == 1);
     exec.shutdown();
   }
 }

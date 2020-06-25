@@ -203,9 +203,9 @@ public class DruidCoordinatorRuleRunnerTest
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 6);
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("normal").get() == 6);
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("cold").get() == 12);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("hot") == 6);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("normal") == 6);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("cold") == 12);
     Assert.assertTrue(stats.getPerTierStats().get("unassignedCount") == null);
     Assert.assertTrue(stats.getPerTierStats().get("unassignedSize") == null);
 
@@ -326,8 +326,8 @@ public class DruidCoordinatorRuleRunnerTest
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 12);
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("cold").get() == 18);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("hot") == 12);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("cold") == 18);
     Assert.assertTrue(stats.getPerTierStats().get("unassignedCount") == null);
     Assert.assertTrue(stats.getPerTierStats().get("unassignedSize") == null);
 
@@ -421,8 +421,8 @@ public class DruidCoordinatorRuleRunnerTest
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("hot").get() == 12);
-    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").get("normal").get() == 0);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("hot") == 12);
+    Assert.assertTrue(stats.getPerTierStats().get("assignedCount").getLong("normal") == 0);
     Assert.assertTrue(stats.getPerTierStats().get("unassignedCount") == null);
     Assert.assertTrue(stats.getPerTierStats().get("unassignedSize") == null);
 
@@ -611,7 +611,7 @@ public class DruidCoordinatorRuleRunnerTest
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
-    Assert.assertTrue(stats.getGlobalStats().get("deletedCount").get() == 12);
+    Assert.assertTrue(stats.getGlobalStats().getLong("deletedCount") == 12);
 
     exec.shutdown();
     EasyMock.verify(coordinator);
@@ -694,8 +694,8 @@ public class DruidCoordinatorRuleRunnerTest
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
-    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("normal").get() == 1);
-    Assert.assertTrue(stats.getGlobalStats().get("deletedCount").get() == 12);
+    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").getLong("normal") == 1);
+    Assert.assertTrue(stats.getGlobalStats().getLong("deletedCount") == 12);
 
     exec.shutdown();
     EasyMock.verify(mockPeon);
@@ -783,8 +783,8 @@ public class DruidCoordinatorRuleRunnerTest
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
-    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("normal").get() == 1);
-    Assert.assertTrue(stats.getGlobalStats().get("deletedCount").get() == 12);
+    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").getLong("normal") == 1);
+    Assert.assertTrue(stats.getGlobalStats().getLong("deletedCount") == 12);
 
     exec.shutdown();
     EasyMock.verify(mockPeon);
@@ -870,7 +870,7 @@ public class DruidCoordinatorRuleRunnerTest
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
     Assert.assertTrue(stats.getPerTierStats().get("droppedCount") == null);
-    Assert.assertTrue(stats.getGlobalStats().get("deletedCount").get() == 12);
+    Assert.assertTrue(stats.getGlobalStats().getLong("deletedCount") == 12);
 
     exec.shutdown();
     EasyMock.verify(mockPeon);
@@ -970,7 +970,7 @@ public class DruidCoordinatorRuleRunnerTest
     DruidCoordinatorRuntimeParams afterParams = ruleRunner.run(params);
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
-    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").get("normal").get() == 1);
+    Assert.assertTrue(stats.getPerTierStats().get("droppedCount").getLong("normal") == 1);
 
     exec.shutdown();
     EasyMock.verify(mockPeon);
@@ -1064,7 +1064,7 @@ public class DruidCoordinatorRuleRunnerTest
     CoordinatorStats stats = afterParams.getCoordinatorStats();
 
     Assert.assertEquals(1, stats.getPerTierStats().get("assignedCount").size());
-    Assert.assertEquals(1, stats.getPerTierStats().get("assignedCount").get("_default_tier").get());
+    Assert.assertEquals(1, stats.getPerTierStats().get("assignedCount").getLong("_default_tier"));
     Assert.assertNull(stats.getPerTierStats().get("unassignedCount"));
     Assert.assertNull(stats.getPerTierStats().get("unassignedSize"));
 

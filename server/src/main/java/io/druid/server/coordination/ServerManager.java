@@ -29,7 +29,8 @@ import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
-import io.druid.collections.CountingMap;
+import io.druid.collections.String2IntMap;
+import io.druid.collections.String2LongMap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -105,8 +106,8 @@ public class ServerManager implements ForwardingSegmentWalker
   private final ExecutorService exec;
   private final ExecutorService cachingExec;
   private final Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> dataSources;
-  private final CountingMap<String> dataSourceSizes = new CountingMap<String>();
-  private final CountingMap<String> dataSourceCounts = new CountingMap<String>();
+  private final String2LongMap dataSourceSizes = new String2LongMap();
+  private final String2IntMap dataSourceCounts = new String2IntMap();
   private final Cache cache;
   private final ObjectMapper objectMapper;
   private final CacheConfig cacheConfig;
@@ -157,16 +158,12 @@ public class ServerManager implements ForwardingSegmentWalker
 
   public Map<String, Long> getDataSourceSizes()
   {
-    synchronized (dataSourceSizes) {
-      return dataSourceSizes.snapshot();
-    }
+    return dataSourceSizes;
   }
 
-  public Map<String, Long> getDataSourceCounts()
+  public Map<String, Integer> getDataSourceCounts()
   {
-    synchronized (dataSourceCounts) {
-      return dataSourceCounts.snapshot();
-    }
+    return dataSourceCounts;
   }
 
   public boolean isEmpty()
@@ -235,10 +232,10 @@ public class ServerManager implements ForwardingSegmentWalker
           segment.getShardSpecWithDefault().createChunk(new ReferenceCountingSegment(adapter))
       );
       synchronized (dataSourceSizes) {
-        dataSourceSizes.add(dataSource, segment.getSize());
+        dataSourceSizes.addTo(dataSource, segment.getSize());
       }
       synchronized (dataSourceCounts) {
-        dataSourceCounts.add(dataSource, 1L);
+        dataSourceCounts.addTo(dataSource, 1);
       }
       final QueryableIndex index = adapter.asQueryableIndex(false);
       if (index != null) {
@@ -268,10 +265,10 @@ public class ServerManager implements ForwardingSegmentWalker
 
       if (oldQueryable != null) {
         synchronized (dataSourceSizes) {
-          dataSourceSizes.add(dataSource, -segment.getSize());
+          dataSourceSizes.addTo(dataSource, -segment.getSize());
         }
         synchronized (dataSourceCounts) {
-          dataSourceCounts.add(dataSource, -1L);
+          dataSourceCounts.addTo(dataSource, -1);
         }
 
         try {

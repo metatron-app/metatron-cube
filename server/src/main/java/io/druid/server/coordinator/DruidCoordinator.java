@@ -40,7 +40,7 @@ import io.druid.client.ImmutableDruidServer;
 import io.druid.client.ServerInventoryView;
 import io.druid.client.ServerView;
 import io.druid.client.indexing.IndexingServiceClient;
-import io.druid.collections.CountingMap;
+import io.druid.collections.String2IntMap;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
@@ -281,13 +281,13 @@ public class DruidCoordinator
     return loadManagementPeons;
   }
 
-  public Map<String, CountingMap<String>> getReplicationStatus()
+  public Map<String, String2IntMap> getReplicationStatus()
   {
-    final Map<String, CountingMap<String>> retVal = Maps.newHashMap();
+    final Map<String, String2IntMap> retVal = Maps.newHashMap();
     if (prevParam == null) {
       return retVal;
     }
-    final SegmentReplicantLookup segmentReplicantLookup = prevParam.getSegmentReplicantLookup();
+    final SegmentReplicantLookup replicantLookup = prevParam.getSegmentReplicantLookup();
 
     final DateTime now = new DateTime();
     for (DataSegment segment : getAvailableDataSegments().get()) {
@@ -295,17 +295,11 @@ public class DruidCoordinator
       for (Rule rule : rules) {
         if (rule instanceof LoadRule && rule.appliesTo(segment, now)) {
           for (Map.Entry<String, Integer> entry : ((LoadRule) rule).getTieredReplicants().entrySet()) {
-            CountingMap<String> dataSourceMap = retVal.get(entry.getKey());
-            if (dataSourceMap == null) {
-              dataSourceMap = new CountingMap<>();
-              retVal.put(entry.getKey(), dataSourceMap);
-            }
-
-            int diff = Math.max(
-                entry.getValue() - segmentReplicantLookup.getTotalReplicants(segment.getIdentifier(), entry.getKey()),
-                0
-            );
-            dataSourceMap.add(segment.getDataSource(), diff);
+            final String tier = entry.getKey();
+            final int totalReplicants = replicantLookup.getTotalReplicants(segment.getIdentifier(), tier);
+            final int diff = Math.max(entry.getValue() - totalReplicants, 0);
+            String2IntMap dataSourceMap = retVal.computeIfAbsent(tier, k -> new String2IntMap());
+            dataSourceMap.addTo(segment.getDataSource(), diff);
           }
           break;
         }
@@ -315,9 +309,9 @@ public class DruidCoordinator
     return retVal;
   }
 
-  public CountingMap<String> getSegmentAvailability()
+  public String2IntMap getSegmentAvailability()
   {
-    final CountingMap<String> retVal = new CountingMap<>();
+    final String2IntMap retVal = new String2IntMap();
     if (prevParam == null) {
       return retVal;
     }
@@ -325,17 +319,17 @@ public class DruidCoordinator
 
     for (DataSegment segment : getAvailableDataSegments().get()) {
       int available = segmentReplicantLookup.getTotalReplicants(segment.getIdentifier()) == 0 ? 0 : 1;
-      retVal.add(segment.getDataSource(), 1 - available);
+      retVal.addTo(segment.getDataSource(), 1 - available);
     }
 
     return retVal;
   }
 
-  CountingMap<String> getLoadPendingDatasources()
+  String2IntMap getLoadPendingDatasources()
   {
-    final CountingMap<String> retVal = new CountingMap<>();
+    final String2IntMap retVal = new String2IntMap();
     for (LoadQueuePeon peon : loadManagementPeons.values()) {
-      peon.getSegmentsToLoad(segment -> retVal.add(segment.getDataSource(), 1));
+      peon.getSegmentsToLoad(segment -> retVal.addTo(segment.getDataSource(), 1));
     }
     return retVal;
   }

@@ -21,72 +21,73 @@ package io.druid.server.coordinator;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import io.druid.collections.CountingMap;
+import io.druid.collections.String2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 /**
  */
-public class CoordinatorStats
+public class CoordinatorStats implements Function<String, String2LongMap>
 {
-  public static final CoordinatorStats EMPTY = new CoordinatorStats(ImmutableMap.of(), new CountingMap<>());
+  public static final CoordinatorStats EMPTY = new CoordinatorStats(ImmutableMap.of(), new String2LongMap());
 
-  private final Map<String, CountingMap<String>> perTierStats;
-  private final CountingMap<String> globalStats;
+  private final Map<String, String2LongMap> perTierStats;
+  private final String2LongMap globalStats;
 
   public CoordinatorStats()
   {
-    this(Maps.newHashMap(), new CountingMap<String>());
+    this(Maps.newHashMap(), new String2LongMap());
   }
 
-  public CoordinatorStats(Map<String, CountingMap<String>> perTierStats, CountingMap<String> globalStats)
+  public CoordinatorStats(
+      Map<String, String2LongMap> perTierStats,
+      String2LongMap globalStats
+  )
   {
     this.perTierStats = perTierStats;
     this.globalStats = globalStats;
   }
 
-  public Map<String, CountingMap<String>> getPerTierStats()
+  public Map<String, String2LongMap> getPerTierStats()
   {
     return perTierStats;
   }
 
-  public CountingMap<String> getGlobalStats()
+  public String2LongMap getGlobalStats()
   {
     return globalStats;
   }
 
   public void addToTieredStat(String statName, String tier, long value)
   {
-    CountingMap<String> theStat = perTierStats.get(statName);
-    if (theStat == null) {
-      theStat = new CountingMap<String>();
-      perTierStats.put(statName, theStat);
-    }
-    theStat.add(tier, value);
+    perTierStats.computeIfAbsent(statName, this).addTo(tier, value);
   }
 
   public void addToGlobalStat(String statName, long value)
   {
-    globalStats.add(statName, value);
+    globalStats.addTo(statName, value);
   }
 
   public CoordinatorStats accumulate(CoordinatorStats stats)
   {
-    for (Map.Entry<String, CountingMap<String>> entry : stats.perTierStats.entrySet()) {
-      String tier = entry.getKey();
-      CountingMap<String> theStat = perTierStats.get(tier);
-      if (theStat == null) {
-        theStat = new CountingMap<String>();
-        perTierStats.put(tier, theStat);
-      }
-      for (Map.Entry<String, AtomicLong> tiers : entry.getValue().entrySet()) {
-        theStat.add(tiers.getKey(), tiers.getValue().get());
+    for (Map.Entry<String, String2LongMap> entry : stats.perTierStats.entrySet()) {
+      String statName = entry.getKey();
+      String2LongMap theStat = perTierStats.computeIfAbsent(statName, this);
+      for (Object2LongMap.Entry<String> tiers : entry.getValue().object2LongEntrySet()) {
+        theStat.addTo(tiers.getKey(), tiers.getLongValue());
       }
     }
-    for (Map.Entry<String, AtomicLong> entry : stats.globalStats.entrySet()) {
-      globalStats.add(entry.getKey(), entry.getValue().get());
+    for (Object2LongMap.Entry<String> entry : stats.globalStats.object2LongEntrySet()) {
+      globalStats.addTo(entry.getKey(), entry.getLongValue());
     }
     return this;
+  }
+
+  @Override
+  public String2LongMap apply(String s)
+  {
+    return new String2LongMap();
   }
 }

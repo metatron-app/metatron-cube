@@ -26,9 +26,10 @@ import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.client.ImmutableDruidServer;
-import io.druid.collections.CountingMap;
+import io.druid.collections.String2LongMap;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -212,10 +213,10 @@ public class DruidCoordinatorBalancerTest
                                 .build();
 
     params = new DruidCoordinatorBalancerTester(coordinator).run(params);
-    Map<String, CountingMap<String>> stats = params.getCoordinatorStats().getPerTierStats();
-    CountingMap<String> movedCount = stats.get("movedCount");
-    Assert.assertTrue(stats.toString(), movedCount.get("normal").get() > 0);
-    Assert.assertTrue(stats.toString(), movedCount.get("normal").get() <= segments.size());
+    Map<String, String2LongMap> stats = params.getCoordinatorStats().getPerTierStats();
+    Object2LongOpenHashMap<String> movedCount = stats.get("movedCount");
+    Assert.assertTrue(stats.toString(), movedCount.getLong("normal") > 0);
+    Assert.assertTrue(stats.toString(), movedCount.getLong("normal") <= segments.size());
     exec.shutdown();
   }
 
@@ -301,7 +302,7 @@ public class DruidCoordinatorBalancerTest
                                 .build();
 
     params = new DruidCoordinatorBalancerTester(coordinator).run(params);
-    Assert.assertTrue(params.getCoordinatorStats().getPerTierStats().get("movedCount").get("normal").get() > 0);
+    Assert.assertTrue(params.getCoordinatorStats().getPerTierStats().get("movedCount").getLong("normal") > 0);
     exec.shutdown();
   }
 
@@ -412,7 +413,7 @@ public class DruidCoordinatorBalancerTest
                                 .build();
 
     params = new DruidCoordinatorBalancerTester(coordinator).run(params);
-    Assert.assertTrue(params.getCoordinatorStats().getPerTierStats().get("movedCount").get("normal").get() > 0);
+    Assert.assertTrue(params.getCoordinatorStats().getPerTierStats().get("movedCount").getLong("normal") > 0);
     exec.shutdown();
   }
 

@@ -26,13 +26,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.sun.jersey.spi.container.ResourceFilters;
-import io.druid.collections.CountingMap;
+import io.druid.collections.String2LongMap;
 import io.druid.guice.PropertiesModule;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.LoadQueuePeon;
 import io.druid.server.http.security.StateResourceFilter;
 import io.druid.timeline.DataSegment;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import org.apache.commons.lang.mutable.MutableLong;
 
 import javax.ws.rs.Consumes;
@@ -195,13 +196,13 @@ public class CoordinatorResource
   {
     // seemed not very useful
     assertTimeout = assertTimeout <= 0 ? DEFAULT_ASSERT_TIMEOUT : assertTimeout;
-    CountingMap<String> stats;
+    Object2LongMap<String> stats;
     try {
       stats = coordinator.scheduleNow(segments, assertLoaded, assertTimeout).getGlobalStats();
     }
     catch (Exception e) {
       // ignore
-      stats = new CountingMap<>();
+      stats = new String2LongMap();
     }
     return Response.ok(stats).build();
   }
