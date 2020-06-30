@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.collect.ImmutableMap;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.segment.TestHelper;
@@ -39,5 +40,18 @@ public class ModuleBuiltinFunctionsTest
     Expr expr = Parser.parse("lookupMap('{\"key\": \"value\"}', x, retainMissingValue='true')");
     Assert.assertEquals("value", expr.eval(Parser.withMap(ImmutableMap.of("x", "key"))).value());
     Assert.assertEquals("key2", expr.eval(Parser.withMap(ImmutableMap.of("x", "key2"))).value());
+  }
+
+  @Test
+  public void testMurmurHash3()
+  {
+    Assert.assertEquals(104593805, Evals.eval(Parser.parse("hash('navis')"), null).intValue());
+    Assert.assertEquals(13, Evals.eval(Parser.parse("hash('navis') % 32"), null).intValue());
+
+    Assert.assertEquals(994288410, Evals.eval(Parser.parse("murmur32('navis')"), null).intValue());
+    Assert.assertEquals(26, Evals.eval(Parser.parse("murmur32('navis') % 32"), null).intValue());
+
+    Assert.assertEquals(1058442040386139741L, Evals.eval(Parser.parse("murmur64('navis')"), null).longValue());
+    Assert.assertEquals(29, Evals.eval(Parser.parse("murmur64('navis') % 32"), null).longValue());
   }
 }

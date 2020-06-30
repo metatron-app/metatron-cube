@@ -20,19 +20,20 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;
 
 /**
  */
-public abstract class AbstractIteratingQuery<T extends Comparable<T>, V> extends BaseQuery<T>
-    implements Query.IteratingQuery<T, V>
+public abstract class AbstractIteratingQuery<I, F> extends BaseQuery<I> implements Query.IteratingQuery<I, F>
 {
-  protected final Query<T> query;
+  protected int index;
+  protected final Query<I> query;
 
   public AbstractIteratingQuery(
-      @JsonProperty("query") Query<T> query,
+      @JsonProperty("query") Query<I> query,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -43,27 +44,27 @@ public abstract class AbstractIteratingQuery<T extends Comparable<T>, V> extends
   @Override
   public String getType()
   {
-    return Query.ITERATE;
+    return getClass().getAnnotation(JsonTypeName.class).value();
   }
 
   @Override
-  public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
+  public Query<I> withOverriddenContext(Map<String, Object> contextOverride)
   {
     Map<String, Object> context = computeOverriddenContext(contextOverride);
     return newInstance(query.withOverriddenContext(contextOverride), context);
   }
 
   @Override
-  public Query<T> withQuerySegmentSpec(QuerySegmentSpec spec)
+  public Query<I> withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     return newInstance(query.withQuerySegmentSpec(spec), getContext());
   }
 
   @Override
-  public Query<T> withDataSource(DataSource dataSource)
+  public Query<I> withDataSource(DataSource dataSource)
   {
     return newInstance(query.withDataSource(dataSource), getContext());
   }
 
-  protected abstract Query<T> newInstance(Query<T> query, Map<String, Object> context);
+  protected abstract Query<I> newInstance(Query<I> query, Map<String, Object> context);
 }

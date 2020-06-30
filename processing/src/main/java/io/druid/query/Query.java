@@ -94,7 +94,6 @@ public interface Query<T> extends QueryContextKeys
   String TOPN = "topN";
   String DATASOURCE_METADATA = "dataSourceMetadata";
   String UNION_ALL = "unionAll";
-  String ITERATE = "iterate";
   String JOIN = "join";
 
   DataSource getDataSource();

@@ -22,6 +22,8 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
@@ -29,12 +31,14 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.StringUtils;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import io.druid.query.aggregation.Murmur3;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupExtractorFactory;
 import io.druid.query.lookup.LookupReferencesManager;
@@ -195,6 +199,80 @@ public class ModuleBuiltinFunctions implements Function.Library
           return ExprEval.of(SloppyMath.haversinMeters(lat1, lon1, lat2, lon2));
         }
       };
+    }
+  }
+
+  @Function.Named("hash")
+  public static class Hash extends NamedFactory.LongType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("function '%s' needs 1 argument", name());
+      }
+      return new LongChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(Objects.hashCode(Evals.evalValue(args.get(0), bindings)));
+        }
+      };
+    }
+  }
+
+  private static final int NULL32 = Murmur3.hash32(StringUtils.EMPTY_BYTES);
+
+  @Function.Named("murmur32")
+  public static class Murmur32 extends NamedFactory.LongType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() != 1) {
+        throw new IAE("function '%s' needs 1 argument", name());
+      }
+      return new LongChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return hashBytes(asBytes(Evals.eval(args.get(0), bindings)));
+        }
+
+        private byte[] asBytes(ExprEval eval)
+        {
+          if (eval.isNull()) {
+            return StringUtils.EMPTY_BYTES;
+          } else if (eval.isLong()) {
+            return Longs.toByteArray(eval.longValue());
+          } else if (eval.isFloat()) {
+            return Ints.toByteArray(Float.floatToIntBits(eval.floatValue()));
+          } else if (eval.isDouble()) {
+            return Longs.toByteArray(Double.doubleToLongBits(eval.doubleValue()));
+          } else {
+            return StringUtils.toUtf8(eval.asString());
+          }
+        }
+      };
+    }
+
+    protected ExprEval hashBytes(byte[] bytes)
+    {
+      return ExprEval.of(bytes.length == 0 ? NULL32 : Murmur3.hash32(bytes));
+    }
+  }
+
+  private static final long NULL64 = Murmur3.hash64(StringUtils.EMPTY_BYTES);
+
+  @Function.Named("murmur64")
+  public static class Murmur64 extends Murmur32
+  {
+    @Override
+    protected ExprEval hashBytes(byte[] bytes)
+    {
+      return ExprEval.of(bytes.length == 0 ? NULL64 : Murmur3.hash64(bytes));
     }
   }
 }

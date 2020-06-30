@@ -32,12 +32,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * just for test
+ * for test
  */
-@JsonTypeName("selectEach")
+@JsonTypeName("select.each")
 public class SelectEachQuery extends AbstractIteratingQuery<Result<SelectResultValue>, Result<SelectResultValue>>
 {
-  private int index;
   private final List<Interval> intervals;
 
   public SelectEachQuery(

@@ -31,6 +31,7 @@ import io.druid.data.input.ExpressionTimestampSpec;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.RequestLogParseSpec;
 import io.druid.data.input.Row;
+import io.druid.query.HashPartitionedQuery;
 import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
@@ -128,6 +129,7 @@ public class AggregatorsModule extends SimpleModule
     registerSubtypes(SelectEachQuery.class);
     registerSubtypes(RequestLogParseSpec.class);
     registerSubtypes(FrequencyQuery.class);
+    registerSubtypes(HashPartitionedQuery.class);
   }
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RelayAggregatorFactory.class)
