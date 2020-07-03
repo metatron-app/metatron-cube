@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import io.druid.data.TypeUtils;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Comparators;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -328,7 +329,7 @@ public class JodaUtils
         }
         int seek = TypeUtils.seekWithEscape(formatString, i + 1, ']');  // don't support nested optionals
         if (seek < 0) {
-          throw new IllegalArgumentException("not matching ']' in " + formatString);
+          throw new IAE("not matching ']' in %s", formatString);
         }
         // there is no optional printer
         b.appendOptional(toTimeFormatter(formatString.substring(i + 1, seek), timeZone, locale).getParser());
@@ -339,7 +340,7 @@ public class JodaUtils
         }
         int seek = TypeUtils.seekWithEscape(formatString, i + 1, ')');  // don't support nested optionals
         if (seek < 0) {
-          throw new IllegalArgumentException("not matching ']' in " + formatString);
+          throw new IAE("not matching ')' in %s", formatString);
         }
         List<DateTimeParser> formatters = Lists.newArrayList();
         for (String element : formatString.substring(i + 1, seek).split("\\|")) {

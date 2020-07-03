@@ -42,6 +42,12 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public static final ExprEval UNKNOWN = ExprEval.of(null, ValueDesc.UNKNOWN);
 
+  public static final ExprEval NULL_STRING = ExprEval.of(null, ValueDesc.STRING);
+  public static final ExprEval NULL_FLOAT = ExprEval.of(null, ValueDesc.FLOAT);
+  public static final ExprEval NULL_DOUBLE = ExprEval.of(null, ValueDesc.DOUBLE);
+  public static final ExprEval NULL_LONG = ExprEval.of(null, ValueDesc.LONG);
+  public static final ExprEval NULL_DATETIME = ExprEval.of(null, ValueDesc.DATETIME);
+
   public static ExprEval bestEffortOf(Object val)
   {
     return bestEffortOf(val, null);
@@ -89,22 +95,22 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public static ExprEval of(Long longValue)
   {
-    return of(longValue, ValueDesc.LONG);
+    return longValue == null ? ExprEval.NULL_LONG : new ExprEval(longValue, ValueDesc.LONG);
   }
 
   public static ExprEval of(Integer intValue)
   {
-    return of(intValue == null ? null : intValue.longValue(), ValueDesc.LONG);
+    return intValue == null ? ExprEval.NULL_LONG : new ExprEval(intValue.longValue(), ValueDesc.LONG);
   }
 
   public static ExprEval of(Float floatValue)
   {
-    return of(floatValue, ValueDesc.FLOAT);
+    return floatValue == null ? ExprEval.NULL_FLOAT : new ExprEval(floatValue, ValueDesc.FLOAT);
   }
 
   public static ExprEval of(Double doubleValue)
   {
-    return of(doubleValue, ValueDesc.DOUBLE);
+    return doubleValue == null ? ExprEval.NULL_DOUBLE : new ExprEval(doubleValue, ValueDesc.DOUBLE);
   }
 
   public static ExprEval of(BigDecimal decimal)
@@ -114,7 +120,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public static ExprEval of(DateTime dateTimeValue)
   {
-    return of(dateTimeValue, ValueDesc.DATETIME);
+    return dateTimeValue == null ? ExprEval.NULL_DATETIME : new ExprEval(dateTimeValue, ValueDesc.DATETIME);
   }
 
   public static ExprEval of(Interval interval)
@@ -124,12 +130,12 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public static ExprEval of(String stringValue)
   {
-    return of(stringValue, ValueDesc.STRING);
+    return stringValue == null ? ExprEval.NULL_STRING : new ExprEval(stringValue, ValueDesc.STRING);
   }
 
   public static ExprEval of(Boolean bool)
   {
-    return of(bool, ValueDesc.BOOLEAN);
+    return bool == null ? ExprEval.NULL_BOOL : of(bool.booleanValue());
   }
 
   public static ExprEval of(boolean bool)

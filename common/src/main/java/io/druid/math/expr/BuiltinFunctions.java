@@ -158,7 +158,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected Function toFunction(List<Expr> args, int start, Map<String, ExprEval> parameter)
     {
-      return asChild(start, toFunction(parameterize(args.subList(0, start), parameter)));
+      return asChild(start, toFunction(parameterize(args.size() == start ? args : args.subList(0, start), parameter)));
     }
 
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)

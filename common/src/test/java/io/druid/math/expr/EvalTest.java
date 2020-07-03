@@ -606,6 +606,23 @@ public class EvalTest
   }
 
   @Test
+  public void testTimeDiff()
+  {
+    DateTime time = new DateTime("2016-03-04T22:25:00");
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", time));
+
+    Assert.assertEquals(0, evalLong("datediff(x, timestamp('2016-03-05T22:20', 'yyyy-MM-dd\\'T\\'HH:mm'))", bindings));
+    Assert.assertEquals(1, evalLong("datediff(x, timestamp('2016-03-05T22:30', 'yyyy-MM-dd\\'T\\'HH:mm'))", bindings));
+
+    Assert.assertEquals(0, evalLong("years_between(x, timestamp('2017-03-04T22:20', 'yyyy-MM-dd\\'T\\'HH:mm'))", bindings));
+    Assert.assertEquals(1, evalLong("years_between(x, timestamp('2017-03-04T22:30', 'yyyy-MM-dd\\'T\\'HH:mm'))", bindings));
+
+    // invalid
+    Assert.assertNull( _eval("years_between(x, timestamp('2017-03-04 22:20', 'yyyy-MM-dd\\'T\\'HH:mm'))", bindings).value());
+    Assert.assertNull( _eval("years_between(y, timestamp('2017-03-04T22:20', 'yyyy-MM-dd\\'T\\'HH:mm'))", bindings).value());
+  }
+
+  @Test
   public void testComplexTimeFunctions()
   {
     DateTimeZone home = DateTimeZone.forID("Asia/Seoul");
@@ -632,6 +649,15 @@ public class EvalTest
             bindings
         )
     );
+
+    Assert.assertEquals("257", evalString(
+        "nvl(cast(datediff(x, timestamp('2016-11-17 10:11:39.662', 'yyyy-MM-dd HH:mm:ss.SSS')), 'STRING'), 'N/A')", bindings
+    ));
+    Assert.assertEquals("N/A", evalString(
+        "nvl(cast(datediff(x, timestamp('2016-11-17T10:11:39', 'yyyy-MM-dd HH:mm:ss.SSS')), 'STRING'), 'N/A')", bindings
+    ));
+
+    Assert.assertEquals(4, evalLong("2020 - cast(left('20161117',4), 'LONG')", bindings));
 
     Assert.assertEquals(new DateTime(0L), evalDateTime("datetime(0)", bindings));
     Assert.assertEquals(new DateTime(-1L), evalDateTime("datetime(-1)", bindings));
