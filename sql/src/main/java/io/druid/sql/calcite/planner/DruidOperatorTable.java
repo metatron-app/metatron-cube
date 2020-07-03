@@ -307,7 +307,7 @@ public class DruidOperatorTable implements SqlOperatorTable
             for (int i = 0; i < opBinding.getOperandCount(); i++) {
               final ValueDesc type = Calcites.getValueDescForRelDataType(opBinding.getOperandType(i));
               if (opBinding.isOperandNull(i, false) || opBinding.isOperandLiteral(i, false)) {
-                operands.add(Evals.constant(opBinding.getOperandLiteralValue(i, Object.class), type));
+                operands.add(Evals.constant(opBinding.getOperandLiteralValue(i, type.asClass()), type));
               } else {
                 String identifier = "p" + i;
                 operands.add(Evals.identifierExpr(identifier, type));

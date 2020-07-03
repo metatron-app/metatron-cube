@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -167,10 +168,9 @@ public class Evals
 
   public static String getConstantString(Expr arg)
   {
-    if (!(arg instanceof StringExpr)) {
-      throw new IllegalArgumentException(arg + " is not constant string");
-    }
-    return eval(arg, null).stringValue();
+    final ExprEval eval = getConstantEval(arg);
+    Preconditions.checkArgument(ValueDesc.STRING.equals(eval.type()), "%s is not constant string", arg);
+    return eval.stringValue();
   }
 
   public static String getConstantString(List<Expr> args, int index)
@@ -261,7 +261,7 @@ public class Evals
 
   public static boolean isConstantString(Expr arg)
   {
-    return arg instanceof StringExpr;
+    return arg instanceof Constant && arg.returns() == ValueDesc.STRING;
   }
 
   public static boolean isConstant(Expr arg)
@@ -380,7 +380,7 @@ public class Evals
 
   public static boolean isExplicitNull(Expr expr)
   {
-    return expr == null || (Evals.isConstantString(expr) && ((StringExpr) expr).get() == null);
+    return expr == null || Evals.isConstantString(expr) && ((Constant) expr).get() == null;
   }
 
   private static class RelayExpr implements Constant
