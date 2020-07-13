@@ -42,6 +42,8 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedID;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
 
 import java.util.Set;
 
@@ -110,9 +112,9 @@ public class InFilter implements Filter
     }
     if (ValueDesc.isDimension(type) && extractionFn == null) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
-      final Set<Integer> ids = Sets.newHashSet();
+      final IntSet ids = new IntOpenHashSet();
       for (String value : values) {
-        int index = selector.lookupId(value);
+        final int index = selector.lookupId(value);
         if (index >= 0) {
           ids.add(index);
         }
@@ -133,7 +135,7 @@ public class InFilter implements Filter
         return new ValueMatcher()
         {
           private boolean ready;
-          private final Set<Integer> find = Sets.newHashSet();
+          private final IntSet find = new IntOpenHashSet();
 
           @Override
           public boolean matches()
@@ -141,7 +143,7 @@ public class InFilter implements Filter
             final IndexedID indexed = indexedSelector.get();
             if (!ready) {
               for (String value : values) {
-                int id = indexed.lookupId(value);
+                final int id = indexed.lookupId(value);
                 if (id >= 0) {
                   find.add(id);
                 }

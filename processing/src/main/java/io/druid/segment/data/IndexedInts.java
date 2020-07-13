@@ -27,6 +27,7 @@ import java.io.Closeable;
 public interface IndexedInts extends Closeable
 {
   int size();
+
   int get(int index);
 
   abstract class Abstract implements IndexedInts

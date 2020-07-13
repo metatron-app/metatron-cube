@@ -30,7 +30,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.dimension.DimensionSpec;
@@ -40,6 +39,8 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
 import java.util.Iterator;
 import java.util.List;
@@ -57,7 +58,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     if (type.isMap()) {
       String[] descriptiveType = TypeUtils.splitDescriptiveType(type.typeName());
       if (descriptiveType == null) {
-        throw new ISE("cannot resolve value type of map %s [%s]", type, dimension);
+        throw new IAE("cannot resolve value type of map %s [%s]", type, dimension);
       }
       type = ValueDesc.of(descriptiveType[1]);
     }
@@ -88,7 +89,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     Map<String, VirtualColumn> map = Maps.newLinkedHashMap();
     for (VirtualColumn vc : virtualColumns) {
       if (map.put(vc.getOutputName(), vc.duplicate()) != null) {
-        throw new IllegalArgumentException("duplicated columns in virtualColumns");
+        throw new IAE("overriding dimension [%s] by virtualColumn", vc.getOutputName());
       }
     }
     return map;
@@ -130,15 +131,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
   public static DimensionSelector toDimensionSelector(final LongColumnSelector selector)
   {
-    final Supplier<Long> supplier = new Supplier<Long>()
-    {
-      @Override
-      public Long get()
-      {
-        return selector.get();
-      }
-    };
-    return new MimicDimension(ValueDesc.LONG, supplier);
+    return new MimicDimension(ValueDesc.LONG, () -> selector.get());
   }
 
   public static DimensionSelector toDimensionSelector(
@@ -149,35 +142,18 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     if (selector == null) {
       if (extractionFn == null) {
         return NullDimensionSelector.STRING_TYPE;
+      } else {
+        return new ColumnSelectors.SingleValuedDimensionSelector(extractionFn.apply(null));
       }
-      return new ColumnSelectors.SingleValuedDimensionSelector(extractionFn.apply(null));
+    } else if (extractionFn != null) {
+      return new MimicDimension(ValueDesc.STRING, () -> extractionFn.apply(selector.get()));
     }
-
-    final ValueDesc type;
-    final ValueDesc valueDesc = selector.type();
-    if (extractionFn != null || !ValueDesc.isPrimitive(valueDesc)) {
-      type = ValueDesc.STRING;
+    final ValueDesc type = selector.type();
+    if (!ValueDesc.isPrimitive(type)) {
+      return new MimicDimension(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
     } else {
-      type = valueDesc;
+      return new MimicDimension(type, () -> (Comparable) selector.get());
     }
-    final Supplier<Comparable> supplier = new Supplier<Comparable>()
-    {
-      @Override
-      public Comparable get()
-      {
-        final Object selected = selector.get();
-        final Comparable value;
-        if (extractionFn != null) {
-          value = extractionFn.apply(selected);
-        } else if (!type.isPrimitive()) {
-          value = Objects.toString(selected, null);
-        } else {
-          value = (Comparable) selected;
-        }
-        return value;
-      }
-    };
-    return new MimicDimension(type, supplier);
   }
 
   private static class MimicDimension implements DimensionSelector
@@ -185,39 +161,34 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     private final ValueDesc type;
     private final Supplier<? extends Comparable> supplier;
 
-    private int counter;
-    private final Map<Comparable, Integer> valToId = Maps.newHashMap();
+    private final Object2IntMap<Comparable> valToId = new Object2IntOpenHashMap<>();
     private final List<Comparable> idToVal = Lists.newArrayList();
+    private final IndexedInts row;
 
-    private MimicDimension(ValueDesc type, Supplier<? extends Comparable> supplier) {
+    private MimicDimension(ValueDesc type, Supplier<? extends Comparable> supplier)
+    {
       this.type = type;
       this.supplier = supplier;
-    }
-
-    @Override
-    public IndexedInts getRow()
-    {
-      final Comparable value = supplier.get();
-      Integer index = valToId.get(value);
-      if (index == null) {
-        valToId.put(value, index = counter++);
-        idToVal.add(value);
-      }
-      final int result = index;
-      return new IndexedInts.SingleValued()
+      this.row = new IndexedInts.SingleValued()
       {
         @Override
         protected final int get()
         {
-          return result;
+          return valToId.computeIntIfAbsent(supplier.get(), value -> { idToVal.add(value);return idToVal.size() - 1; });
         }
       };
     }
 
     @Override
+    public IndexedInts getRow()
+    {
+      return row;
+    }
+
+    @Override
     public int getValueCardinality()
     {
-      return -1;
+      return idToVal.size();
     }
 
     @Override
@@ -235,7 +206,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     @Override
     public int lookupId(Comparable name)
     {
-      return valToId.get(name);
+      return valToId.getOrDefault(name, -1);
     }
   }
 
