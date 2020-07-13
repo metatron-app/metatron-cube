@@ -52,7 +52,7 @@ public abstract class SketchBufferAggregator implements BufferAggregator
   public void init(ByteBuffer buf, int position)
   {
     if (nm == null) {
-      nm = WritableMemory.wrap(buf, ByteOrder.nativeOrder());
+      nm = WritableMemory.wrap(buf, ByteOrder.LITTLE_ENDIAN);
     }
 
     WritableMemory mem = nm.writableRegion(position, maxIntermediateSize);

@@ -51,7 +51,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
   public static Object readPart(ByteBuffer buffer, SketchOp sketchOp, ValueDesc type)
   {
-    return deserialize(sketchOp, Memory.wrap(buffer.slice(), ByteOrder.nativeOrder()), type, type.comparator());
+    return deserialize(sketchOp, Memory.wrap(buffer.slice(), ByteOrder.LITTLE_ENDIAN), type, type.comparator());
   }
 
   public static TypedSketch deserialize(SketchOp sketchOp, Object value, Comparator comparator)
@@ -61,7 +61,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
     }
     ByteBuffer buffer = ByteBuffer.wrap(ThetaOperations.asBytes(value));
     ValueDesc type = TypedSketch.typeFromBytes(buffer);
-    Memory memory = Memory.wrap(buffer.slice(), ByteOrder.nativeOrder());
+    Memory memory = Memory.wrap(buffer.slice(), ByteOrder.LITTLE_ENDIAN);
     return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));
   }
 

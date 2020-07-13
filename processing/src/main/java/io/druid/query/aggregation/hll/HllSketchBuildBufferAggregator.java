@@ -81,6 +81,6 @@ public class HllSketchBuildBufferAggregator implements BufferAggregator
 
   private WritableMemory asWritableMemory(final ByteBuffer buf, final int position)
   {
-    return WritableMemory.wrap(buf, ByteOrder.nativeOrder()).writableRegion(position, size);
+    return WritableMemory.wrap(buf, ByteOrder.LITTLE_ENDIAN).writableRegion(position, size);
   }
 }
