@@ -147,18 +147,33 @@ public class AdminResource
   }
 
   @GET
+  @Path("/logLevel/{name}")
+  @Produces(MediaType.TEXT_PLAIN)
+  public Response getLogLevel(@PathParam("name") String name)
+  {
+    return handleLogLevel(name, null);
+  }
+
+  @GET
   @Path("/logLevel/{name}/{level}")
   @Produces(MediaType.TEXT_PLAIN)
-  public Response logLevel(@PathParam("name") String name, @PathParam("level") String levelString)
+  public Response setLogLevel(@PathParam("name") String name, @PathParam("level") String levelString)
   {
     Level level = Level.toLevel(levelString, null);
     if (level == null) {
       throw new IAE("Invalid level [%s]", levelString);
     }
+    return handleLogLevel(name, level);
+  }
+
+  private Response handleLogLevel(String name, Level level)
+  {
     LoggerContext context = (LoggerContext) LogManager.getContext(false);
     Logger logger = "root".equalsIgnoreCase(name) ? context.getRootLogger() : context.getLogger(name);
-    logger.setLevel(level);
-    return Response.ok().build();
+    if (level != null) {
+      logger.setLevel(level);
+    }
+    return Response.ok(String.format("%s --> %s", name, logger.getLevel())).build();
   }
 
   private static final int DEFAULT_LOG_QUEUE_SIZE = 1024;

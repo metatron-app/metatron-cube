@@ -91,6 +91,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -181,6 +182,22 @@ public class DruidShell extends CommonShell.WithUtils
   private static final String SQL_PROMPT = "sql> ";
   private static final String INDEX_PROMPT = "index> ";
 
+  private static final Function<String, Candidate> toCandidate = new Function<String, Candidate>()
+  {
+    @Override
+    public Candidate apply(String input) { return new Candidate(input); }
+  };
+
+  private static final Function<URL, Candidate> urlToCandidate = new Function<URL, Candidate>()
+  {
+    @Override
+    public Candidate apply(URL input)
+    {
+      LOG.info("------>" + input);
+      return new Candidate(String.format("%s:%s", input.getHost(), input.getPort()));
+    }
+  };
+
   private void execute(
       final Supplier<URL> coordinatorURL,
       final Supplier<URL> overlordURL,
@@ -205,11 +222,6 @@ public class DruidShell extends CommonShell.WithUtils
 
     DefaultParser parser = new DefaultParser();
 
-    final Function<String, Candidate> toCandidate = new Function<String, Candidate>()
-    {
-      public Candidate apply(String input) { return new Candidate(input); }
-    };
-
     final List<String> commands = Arrays.asList(
         "loadstatus",
         "loadqueue",
@@ -232,6 +244,9 @@ public class DruidShell extends CommonShell.WithUtils
         "queries",
         "candidates",
         "query",
+        "jmx",
+        "stack",
+        "logLevel",
         "help",
         "sql",
         "index",
@@ -258,9 +273,7 @@ public class DruidShell extends CommonShell.WithUtils
       {
         String command = line.words().get(0);
         if (line.wordIndex() == 1 && dsRequired.contains(command)) {
-          candidates.addAll(
-              Lists.transform(execute(coordinatorURL, "/druid/coordinator/v1/datasources", LIST), toCandidate)
-          );
+          runWithIgnore(() -> Iterables.addAll(candidates, candidates(coordinatorURL, "datasources")));
         }
       }
     };
@@ -272,10 +285,24 @@ public class DruidShell extends CommonShell.WithUtils
       {
         String command = line.words().get(0);
         if (line.wordIndex() == 1 && serverRequired.contains(command)) {
-          candidates.addAll(
-              Lists.transform(execute(coordinatorURL, "/druid/coordinator/v1/servers", LIST), toCandidate)
-          );
+          runWithIgnore(() -> Iterables.addAll(candidates, candidates(coordinatorURL, "servers")));
         }
+      }
+    };
+
+    final Set<String> allServerRequired = ImmutableSet.of("stack", "logLevel");
+    Completer allServerCompleter = new Completer()
+    {
+      @Override
+      public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates)
+      {
+        String command = line.words().get(0);
+        if (line.wordIndex() != 1 || !allServerRequired.contains(command)) {
+          return;
+        }
+        runWithIgnore(() -> candidates.add(urlToCandidate.apply(coordinatorURL.get())));
+        runWithIgnore(() -> Iterables.addAll(candidates, Iterables.transform(brokerURLs.get(), urlToCandidate)));
+        runWithIgnore(() -> Iterables.addAll(candidates, candidates(coordinatorURL, "servers")));
       }
     };
     Completer tierCompleter = new Completer()
@@ -285,13 +312,9 @@ public class DruidShell extends CommonShell.WithUtils
       {
         String command = line.words().get(0);
         if (line.wordIndex() == 1 && "tier".equals(command)) {
-          candidates.addAll(
-              Lists.transform(execute(coordinatorURL, "/druid/coordinator/v1/tiers", LIST), toCandidate)
-          );
+          runWithIgnore(() -> Iterables.addAll(candidates, candidates(coordinatorURL, "tiers")));
         } else if (line.wordIndex() == 1 && "lookup".equals(command)) {
-          candidates.addAll(
-              Lists.transform(execute(coordinatorURL, "/druid/coordinator/v1/lookups", LIST), toCandidate)
-          );
+          runWithIgnore(() -> Iterables.addAll(candidates, candidates(coordinatorURL, "lookup")));
         }
       }
     };
@@ -319,11 +342,8 @@ public class DruidShell extends CommonShell.WithUtils
       {
         String command = line.words().get(0);
         if (line.wordIndex() == 2 && "lookup".equals(command)) {
-          candidates.addAll(
-              Lists.transform(
-                  execute(coordinatorURL, "/druid/coordinator/v1/lookups/" + line.words().get(1), LIST), toCandidate
-              )
-          );
+          String lookup = line.words().get(1);
+          runWithIgnore(() -> Iterables.addAll(candidates, candidates(coordinatorURL, "lookups/" + lookup)));
         }
       }
     };
@@ -403,6 +423,9 @@ public class DruidShell extends CommonShell.WithUtils
           candidates.add(new Candidate("-segments"));
           candidates.add(new Candidate("-log"));
         }
+        if (line.wordIndex() == 2 && command.equals("stack")) {
+          candidates.add(new Candidate("-longest"));
+        }
       }
     };
 
@@ -450,6 +473,7 @@ public class DruidShell extends CommonShell.WithUtils
         commandCompleter,
         dsCompleter,
         serverCompleter,
+        allServerCompleter,
         tierCompleter,
         descTypeCompleter,
         lookupCompleter,
@@ -594,6 +618,22 @@ public class DruidShell extends CommonShell.WithUtils
     }
   }
 
+  private Iterable<Candidate> candidates(Supplier<URL> coordinatorURL, String resource)
+  {
+    return Iterables.transform(execute(coordinatorURL, "/druid/coordinator/v1/" + resource, LIST), toCandidate);
+  }
+
+  private <T> T runWithIgnore(Callable<T> callable)
+  {
+    try {
+      return callable.call();
+    }
+    catch (Exception e) {
+      // ignore
+    }
+    return null;
+  }
+
   private boolean hasOption(List<String> commands, String option) {
     for (String command : commands) {
       if (command.startsWith(option)) {
@@ -647,6 +687,8 @@ public class DruidShell extends CommonShell.WithUtils
         writer.println("query <file-name>");
         writer.println("sql <sql-string>");
         writer.println("jmx");
+        writer.println("stack <server-name> [-longest]");
+        writer.println("logLevel <server-name> <log-name> [log-level]");
         writer.println("queries");
         writer.println("exit/quit");
         writer.println(">> index");
@@ -1101,6 +1143,43 @@ public class DruidShell extends CommonShell.WithUtils
         }
         break;
       }
+      case "stack": {
+        if (!cursor.hasMore()) {
+          writer.println("!! needs server address");
+          return;
+        }
+        resource.append("/druid/admin/stack");
+        URL url = new URL("http://" + cursor.next());
+        if (cursor.hasMore() && cursor.next().equals("-longest")) {
+          resource.appendOption(cursor.current());
+        }
+        try {
+          writer.println();
+          writer.print(execute(() -> url, resource.get(), CONTENTS));
+        }
+        catch (Exception e) {
+          writer.println(String.format("!! failed to get stacktrace from %s by %s", url, e));
+        }
+        break;
+      }
+      case "logLevel": {
+        if (!cursor.hasMore()) {
+          writer.println("!! needs server address");
+          return;
+        }
+        resource.append("/druid/admin/logLevel");
+        URL url = new URL("http://" + cursor.next());
+        if (!cursor.hasMore()) {
+          writer.println("!! needs logger name");
+          return;
+        }
+        resource.append(cursor.next());
+        if (cursor.hasMore()) {
+          resource.append(cursor.next());
+        }
+        writer.println(PREFIX[0] + execute(() -> url, resource.get(), CONTENTS));
+        break;
+      }
       case "candidates": {
         if (!cursor.hasMore()) {
           writer.println("!! needs datasource & comma separated intervals");
@@ -1374,6 +1453,10 @@ public class DruidShell extends CommonShell.WithUtils
   {
   };
 
+  private static final TypeReference<String> CONTENTS = new TypeReference<String>()
+  {
+  };
+
   private static final TypeReference<String> STRING = new TypeReference<String>()
   {
   };
@@ -1448,6 +1531,9 @@ public class DruidShell extends CommonShell.WithUtils
             response.getStatus(),
             response.getContent()
         );
+      }
+      if (resultType == CONTENTS) {
+        return (T) response.getContent();
       }
       return jsonMapper.readValue(response.getContent(), resultType);
     }
