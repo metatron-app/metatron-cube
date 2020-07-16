@@ -29,6 +29,8 @@ import io.druid.query.aggregation.AggregatorFactory.SQLBundle;
 import io.druid.query.aggregation.corr.PearsonAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonFoldingAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonSerde;
+import io.druid.query.aggregation.corr.RegressionQuery;
+import io.druid.query.aggregation.corr.Regressions;
 import io.druid.query.aggregation.covariance.CovarianceAggregatorFactory;
 import io.druid.query.aggregation.covariance.CovarianceFoldingAggregatorFactory;
 import io.druid.query.aggregation.covariance.CovariancePostProcessor;
@@ -65,7 +67,17 @@ public class DruidStatsModule implements DruidModule
             KurtosisAggregatorFactory.class,
             KurtosisFoldingAggregatorFactory.class,
             CovarianceQuery.class,
-            CovariancePostProcessor.class
+            CovariancePostProcessor.class,
+            Regressions.RegrSlope.class,
+            Regressions.RegrR2.class,
+            Regressions.RegrSXY.class,
+            Regressions.RegrIntercept.class,
+            Regressions.RegrSXX.class,
+            Regressions.RegrSYY.class,
+            Regressions.RegrAvgX.class,
+            Regressions.RegrAvgY.class,
+            Regressions.RegrCount.class,
+            RegressionQuery.class
         )
     );
   }

@@ -104,7 +104,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   {
     super(dataSource, querySegmentSpec, descending, context);
     this.filter = filter;
-    this.granularity = Preconditions.checkNotNull(granularity, "Must specify a granularity");
+    this.granularity = granularity == null ? Granularities.ALL : granularity;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.aggregatorSpecs = aggregatorSpecs == null ? ImmutableList.<AggregatorFactory>of() : aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;

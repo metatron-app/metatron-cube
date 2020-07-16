@@ -203,7 +203,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory implements Aggre
   }
 
   @Override
-  public Object finalizeComputation(Object object)
+  public Double finalizeComputation(Object object)
   {
     return ((PearsonAggregatorCollector) object).getCorr();
   }

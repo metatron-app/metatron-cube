@@ -185,14 +185,10 @@ class PearsonAggregatorCollector
     return this;
   }
 
-  public double getCorr()
+  public Double getCorr()
   {
-    if (count < 2) { // SQL standard - return null for zero or one pair
-      // in SQL standard, we should return null for zero elements. But druid there should not be such a case
-      return Double.NaN;
-    } else {
-      return covar / java.lang.Math.sqrt(xvar) / java.lang.Math.sqrt(yvar);
-    }
+    // SQL standard - return null for zero or one pair
+    return count < 2 ? null : covar / Math.sqrt(xvar) / Math.sqrt(yvar);
   }
 
   @JsonValue
