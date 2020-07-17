@@ -23,8 +23,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.common.utils.VMUtils;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.java.util.common.IAE;
@@ -46,12 +48,16 @@ import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.eclipse.jetty.io.EofException;
 
 import javax.inject.Inject;
+import javax.management.MBeanOperationInfo;
+import javax.management.MBeanParameterInfo;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
@@ -60,6 +66,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -164,6 +171,43 @@ public class AdminResource
       throw new IAE("Invalid level [%s]", levelString);
     }
     return handleLogLevel(name, level);
+  }
+
+  @GET
+  @Path("/jcmd/help")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response jcmdHelp(@Context HttpServletRequest req) throws Exception
+  {
+    final Map<String, String> result = Maps.newLinkedHashMap();
+    String command = req.getQueryString();
+    if (StringUtils.isNullOrEmpty(command)) {
+      for (MBeanOperationInfo entity : VMUtils.jcmdCommands()) {
+        result.put(entity.getName(), entity.getDescription());
+      }
+    } else {
+      final MBeanOperationInfo operation = VMUtils.jcmdCommandHelp(command);
+      if (operation == null) {
+        throw new IAE("Invalid command %s", command);
+      }
+      result.put("description", operation.getDescription());
+      for (MBeanParameterInfo info : operation.getSignature()) {
+        result.put(String.format("- %s[%s]", info.getName(), info.getType()), info.getDescription());
+      }
+    }
+    return Response.ok(result).build();
+  }
+
+  @GET
+  @Path("/jcmd/{command}")
+  @Produces(MediaType.TEXT_PLAIN)
+  public Response jcmd(
+      @PathParam("command") String command,
+      @Context HttpServletRequest req
+  ) throws Exception
+  {
+    String query = req.getQueryString();
+    Object[] params = StringUtils.isNullOrEmpty(query) ? new Object[1] : new Object[] { query.split("&") };
+    return Response.ok(VMUtils.jcmd(command, params)).build();
   }
 
   private Response handleLogLevel(String name, Level level)

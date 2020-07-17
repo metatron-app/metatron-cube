@@ -19,6 +19,13 @@
 
 package io.druid.common.utils;
 
+import com.sun.management.HotSpotDiagnosticMXBean;
+
+import javax.management.MBeanInfo;
+import javax.management.MBeanOperationInfo;
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.InvocationTargetException;
@@ -62,12 +69,9 @@ public class VMUtils
       Class<?> vmClass = Class.forName("sun.misc.VM");
       Object maxDirectMemoryObj = vmClass.getMethod("maxDirectMemory").invoke(null);
 
-      if (maxDirectMemoryObj == null || !(maxDirectMemoryObj instanceof Number)) {
+      if (!(maxDirectMemoryObj instanceof Number)) {
         throw new UnsupportedOperationException(
-            String.format(
-                "Cannot determine maxDirectMemory from [%s]",
-                maxDirectMemoryObj
-            )
+            String.format("Cannot determine maxDirectMemory from [%s]", maxDirectMemoryObj)
         );
       } else {
         return ((Number) maxDirectMemoryObj).longValue();
@@ -85,5 +89,39 @@ public class VMUtils
     catch (IllegalAccessException e) {
       throw new UnsupportedOperationException("public method, shouldn't throw this", e);
     }
+  }
+
+  public static void dumpHeap(String filePath, boolean live) throws IOException
+  {
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    HotSpotDiagnosticMXBean mxBean = ManagementFactory.newPlatformMXBeanProxy(
+        server, "com.sun.management:type=HotSpotDiagnostic", HotSpotDiagnosticMXBean.class);
+    mxBean.dumpHeap(filePath, live);
+  }
+
+  public static Object jcmd(String command, Object[] params) throws Exception
+  {
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    return server.invoke(
+        new ObjectName("com.sun.management:type=DiagnosticCommand"),
+        command, params, new String[]{String[].class.getName()}
+    );
+  }
+
+  public static MBeanOperationInfo[] jcmdCommands() throws Exception
+  {
+    MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    MBeanInfo mBeanInfo = server.getMBeanInfo(new ObjectName("com.sun.management:type=DiagnosticCommand"));
+    return mBeanInfo.getOperations();
+  }
+
+  public static MBeanOperationInfo jcmdCommandHelp(String command) throws Exception
+  {
+    for (MBeanOperationInfo info : jcmdCommands()) {
+      if (info.getName().equalsIgnoreCase(command)) {
+        return info;
+      }
+    }
+    return null;
   }
 }

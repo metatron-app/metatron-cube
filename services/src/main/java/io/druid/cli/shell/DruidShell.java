@@ -245,6 +245,7 @@ public class DruidShell extends CommonShell.WithUtils
         "candidates",
         "query",
         "jmx",
+        "jcmd",
         "stack",
         "logLevel",
         "help",
@@ -290,7 +291,7 @@ public class DruidShell extends CommonShell.WithUtils
       }
     };
 
-    final Set<String> allServerRequired = ImmutableSet.of("stack", "logLevel");
+    final Set<String> allServerRequired = ImmutableSet.of("jcmd", "stack", "logLevel");
     Completer allServerCompleter = new Completer()
     {
       @Override
@@ -1140,6 +1141,36 @@ public class DruidShell extends CommonShell.WithUtils
             }
             writer.println("]");
           }
+        }
+        break;
+      }
+      case "jcmd": {
+        if (!cursor.hasMore()) {
+          writer.println("!! needs server address");
+          return;
+        }
+        resource.append("/druid/admin/jcmd");
+        URL url = new URL("http://" + cursor.next());
+        if (!cursor.hasMore()) {
+          writer.println("!! needs command");
+          return;
+        }
+        String command = cursor.next();
+        resource.append(command);
+        while (cursor.hasMore()) {
+          resource.appendOption(cursor.next());
+        }
+        try {
+          if (command.equalsIgnoreCase("help")) {
+            for (Map.Entry<String, Object> entry : execute(() -> url, resource.get(), MAP).entrySet()) {
+              writer.println(PREFIX[0] + entry.getKey() + " = " + entry.getValue());
+            }
+          } else {
+            writer.println(execute(() -> url, resource.get(), CONTENTS));
+          }
+        }
+        catch (Exception e) {
+          writer.println(String.format("!! failed to run jcmd from %s by %s", url, e));
         }
         break;
       }
