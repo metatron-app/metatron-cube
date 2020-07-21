@@ -49,7 +49,10 @@ public interface DimensionSpec extends Cacheable, TypeResolver.LazyResolvable
   DimensionSpec withOutputName(String outputName);
 
   //ExtractionFn can be implemented with decorate(..) fn
-  ExtractionFn getExtractionFn();
+  default ExtractionFn getExtractionFn()
+  {
+    return null;
+  }
 
   default DimensionSelector decorate(DimensionSelector selector, TypeResolver resolver)
   {
@@ -62,8 +65,7 @@ public interface DimensionSpec extends Cacheable, TypeResolver.LazyResolvable
   default ValueDesc resolve(Supplier<? extends TypeResolver> resolver)
   {
     // dimension : dimensions, __time, not-existing or virtual columns
-    ValueDesc resolved = resolver.get().resolve(getDimension(), ValueDesc.STRING);
-    return resolved.isUnknown() && getExtractionFn() != null ? ValueDesc.STRING : resolved;
+    return resolver.get().resolve(getDimension(), ValueDesc.STRING);
   }
 
   // for logging

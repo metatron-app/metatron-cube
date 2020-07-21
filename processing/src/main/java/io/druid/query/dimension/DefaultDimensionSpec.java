@@ -25,7 +25,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
-import io.druid.query.extraction.ExtractionFn;
 
 import java.util.Arrays;
 import java.util.List;
@@ -98,12 +97,6 @@ public class DefaultDimensionSpec implements DimensionSpec
   public String getOutputName()
   {
     return outputName;
-  }
-
-  @Override
-  public ExtractionFn getExtractionFn()
-  {
-    return null;
   }
 
   @Override

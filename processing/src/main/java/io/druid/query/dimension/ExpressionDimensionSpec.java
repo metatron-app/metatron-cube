@@ -30,7 +30,6 @@ import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.RowResolver;
-import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 
@@ -83,12 +82,6 @@ public class ExpressionDimensionSpec implements DimensionSpec
   public ValueDesc resolve(final Supplier<? extends TypeResolver> resolver)
   {
     return Parser.parse(expression, resolver.get()).returns();
-  }
-
-  @Override
-  public ExtractionFn getExtractionFn()
-  {
-    return null;
   }
 
   @Override
