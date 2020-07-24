@@ -79,7 +79,7 @@ public class MapVirtualColumn implements VirtualColumn
     if (index < 0) {
       ValueDesc keyType = types.resolve(keyDimension);
       ValueDesc valueType = types.resolve(valueDimension != null ? valueDimension : valueMetric);
-      return ValueDesc.of(ValueDesc.MAP_TYPE + "(" + keyType + "," + valueType + ")");
+      return ValueDesc.ofMap(keyType, valueType);
     }
     if (valueDimension != null) {
       return ValueDesc.STRING;

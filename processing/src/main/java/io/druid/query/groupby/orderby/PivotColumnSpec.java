@@ -32,6 +32,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
@@ -101,11 +102,15 @@ public class PivotColumnSpec extends OrderingSpec
     return columnSpecs;
   }
 
-  public static List<Function<Row, String>> toExtractors(List<PivotColumnSpec> pivotColumnSpecs, String nullValue)
+  public static List<Function<Row, String>> toExtractors(
+      List<PivotColumnSpec> pivotColumnSpecs,
+      String nullValue,
+      TypeResolver resolver
+  )
   {
     List<Function<Row, String>> extractors = Lists.newArrayList();
     for (PivotColumnSpec columnSpec : pivotColumnSpecs) {
-      extractors.add(columnSpec.toExtractor(nullValue));
+      extractors.add(columnSpec.toExtractor(nullValue, resolver));
     }
     return extractors;
   }
@@ -195,7 +200,7 @@ public class PivotColumnSpec extends OrderingSpec
     return values;
   }
 
-  private Function<Row, String> toExtractor(final String nullValue)
+  private Function<Row, String> toExtractor(final String nullValue, final TypeResolver resolver)
   {
     if (expression == null) {
       return new Function<Row, String>()
@@ -207,7 +212,7 @@ public class PivotColumnSpec extends OrderingSpec
         }
       };
     } else {
-      final Expr expr = Parser.parse(expression);
+      final Expr expr = Parser.parse(expression, resolver);
       final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<>();
       final Expr.NumericBinding binding = Parser.withRowSupplier(supplier);
       return new Function<Row, String>()

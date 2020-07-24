@@ -370,7 +370,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       };
     }
     final List<String> partitionColumns = context.partitionColumns();
-    final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns, nullValue);
+    final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns, nullValue, context);
 
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
     final String[] values = valueColumns.toArray(new String[0]);

@@ -78,11 +78,10 @@ public class RowResolver implements RowSignature
     if (clazz != null && clazz != Object.class) {
       return clazz;
     }
-    String typeName = valueDesc.typeName();
-    if (typeName.startsWith(ValueDesc.INDEXED_ID_PREFIX)) {
+    if (ValueDesc.isIndexedId(valueDesc)) {
       return IndexedID.class;
     }
-    ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
+    ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(valueDesc.typeName());
     if (serde != null) {
       return serde.getObjectStrategy().getClazz();
     }

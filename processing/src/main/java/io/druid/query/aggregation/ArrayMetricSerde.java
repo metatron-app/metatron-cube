@@ -45,8 +45,8 @@ import java.util.Objects;
  */
 public class ArrayMetricSerde extends ComplexMetricSerde
 {
-  private final ValueType element;
-  private final String typeName;
+  private final ValueType elementType;
+  private final ValueDesc arrayType;
 
   private final ComplexMetricExtractor extractor;
   private final ObjectStrategy strategy;
@@ -54,8 +54,8 @@ public class ArrayMetricSerde extends ComplexMetricSerde
   public ArrayMetricSerde(ValueType element)
   {
     Preconditions.checkArgument(element.isPrimitive(), "not for complex type");
-    this.element = element;
-    this.typeName = ValueDesc.ARRAY_PREFIX + element.name().toLowerCase();
+    this.elementType = element;
+    this.arrayType = ValueDesc.ofArray(element.name());
     this.extractor = null;
     this.strategy = null;
   }
@@ -63,8 +63,8 @@ public class ArrayMetricSerde extends ComplexMetricSerde
   public ArrayMetricSerde(ComplexMetricSerde serde)
   {
     Preconditions.checkNotNull(serde, "complex serde is null");
-    this.element = ValueType.COMPLEX;
-    this.typeName = ValueDesc.ARRAY_PREFIX + serde.getTypeName();
+    this.elementType = ValueType.COMPLEX;
+    this.arrayType = ValueDesc.ofArray(serde.getTypeName());
     this.extractor = serde.getExtractor();
     this.strategy = serde.getObjectStrategy();
   }
@@ -72,7 +72,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
   @Override
   public String getTypeName()
   {
-    return typeName;
+    return arrayType.typeName();
   }
 
   @Override
@@ -123,7 +123,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
           }
         } else {
           for (int i = 0; i < list.size(); i++) {
-            list.set(i, element.cast(list.get(i)));
+            list.set(i, elementType.cast(list.get(i)));
           }
         }
         return list;
@@ -160,7 +160,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
         }
         int size = buffer.getShort();
         List<Object> value = Lists.newArrayListWithCapacity(size);
-        switch (element) {
+        switch (elementType) {
           case FLOAT:
             for (int i = 0; i < size; i++) {
               value.add(buffer.getFloat());
@@ -201,20 +201,20 @@ public class ArrayMetricSerde extends ComplexMetricSerde
         List<Object> value = (List<Object>) val;
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
         out.writeShort(value.size());
-        switch (element) {
+        switch (elementType) {
           case FLOAT:
             for (Object v : value) {
-              out.writeFloat((Float) v);
+              out.writeFloat(((Number) v).floatValue());
             }
             break;
           case DOUBLE:
             for (Object v : value) {
-              out.writeDouble((Double) v);
+              out.writeDouble(((Number) v).doubleValue());
             }
             break;
           case LONG:
             for (Object v : value) {
-              out.writeLong((Long) v);
+              out.writeLong(((Number) v).longValue());
             }
             break;
           case STRING:

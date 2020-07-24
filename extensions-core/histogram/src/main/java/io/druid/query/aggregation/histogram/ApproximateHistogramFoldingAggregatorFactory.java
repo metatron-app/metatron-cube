@@ -79,8 +79,9 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       };
     }
 
-    String typeName = selector.type().typeName();
-    if (typeName.equals(ValueDesc.UNKNOWN_TYPE) ||
+    final ValueDesc type = selector.type();
+    final String typeName = type.typeName();
+    if (type.isUnknown() ||
         typeName.equals("approximateHistogram") ||
         typeName.equals("approximateCompactHistogram") ||
         typeName.equals("approximateBase64Histogram") ||
@@ -126,8 +127,9 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       };
     }
 
-    String typeName = selector.type().typeName();
-    if (typeName.equals(ValueDesc.UNKNOWN_TYPE) ||
+    final ValueDesc type = selector.type();
+    final String typeName = type.typeName();
+    if (type.isUnknown() ||
         typeName.equals("approximateHistogram") ||
         typeName.equals("approximateCompactHistogram")) {
       return new ApproximateHistogramFoldingBufferAggregator(

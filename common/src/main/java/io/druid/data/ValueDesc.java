@@ -55,21 +55,22 @@ public class ValueDesc implements Serializable, Cacheable
   public static final String DATETIME_TYPE = "datetime";
 
   // non primitives
-  public static final String MAP_TYPE = "map";
-  public static final String LIST_TYPE = "list";
-  public static final String INDEXED_ID_TYPE = "indexed";
-  public static final String UNKNOWN_TYPE = "unknown";
+  private static final String MAP_TYPE = "map";
+  private static final String LIST_TYPE = "list";
+  private static final String INDEXED_ID_TYPE = "indexed";
+  private static final String UNKNOWN_TYPE = "unknown";
 
-  public static final String ARRAY_PREFIX = "array.";
+  private static final String ARRAY_PREFIX = "array.";
   // aka. IndexedInts.WithLookup
   // this is return type of object selector which simulates dimension selector (used for some filter optimization)
-  public static final String INDEXED_ID_PREFIX = "indexed.";
+  private static final String INDEXED_ID_PREFIX = "indexed.";
   // this is return type of object selector which can return element type or array of element type,
   // which is trait of dimension
-  public static final String MULTIVALUED_PREFIX = "multivalued.";
+  private static final String MULTIVALUED_PREFIX = "multivalued.";
 
   // prefix of dimension
-  public static final String DIMENSION_PREFIX = "dimension.";
+  private static final String DIMENSION_PREFIX = "dimension.";
+  private static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
 
   // descriptive type
   public static final String DECIMAL_TYPE = "decimal";
@@ -99,16 +100,17 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc DATETIME = new ValueDesc(ValueType.DATETIME);
 
   // dimension
-  public static ValueDesc DIM_STRING = new ValueDesc(DIMENSION_PREFIX + STRING_TYPE);
+  public static ValueDesc DIM_STRING = new ValueDesc(STRING_DIMENSION_TYPE);
+  public static ValueDesc MV_STRING = new ValueDesc(MULTIVALUED_PREFIX + STRING_TYPE);
 
   // internal types
   public static ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
-  public static ValueDesc LIST = new ValueDesc(LIST_TYPE);
+  public static ValueDesc LIST = new ValueDesc(LIST_TYPE, List.class);
   public static ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
 
   // from expression
   public static ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE, BigDecimal.class);
-  public static ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE, Object[].class);
+  public static ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE, List.class);
   public static ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
   public static ValueDesc STRING_ARRAY = new ValueDesc(ARRAY_PREFIX + STRING_TYPE);
@@ -147,7 +149,12 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static ValueDesc ofList(String element)
   {
-    return ValueDesc.of(String.format("%s(%s)", LIST_TYPE, element));
+    return ValueDesc.of(String.format("%s(%s)", LIST_TYPE, element), List.class);
+  }
+
+  public static ValueDesc ofMap(ValueDesc key, ValueDesc value)
+  {
+    return ValueDesc.of(String.format("%s(%s,%s)", MAP_TYPE, key.typeName, value.typeName), Map.class);
   }
 
   public static ValueDesc ofStruct(String elements)
@@ -167,18 +174,18 @@ public class ValueDesc implements Serializable, Cacheable
       builder.append(names[i]).append(':').append(types[i] == null ? UNKNOWN_TYPE : types[i]);
     }
     builder.append(')');
-    return of(builder.toString());
+    return of(builder.toString(), List.class);
   }
 
   public static ValueDesc ofDimension(ValueType valueType)
   {
     Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");
-    return of(DIMENSION_PREFIX + valueType.getName());
+    return valueType == ValueType.STRING ? DIM_STRING : of(DIMENSION_PREFIX + valueType.getName());
   }
 
   public static ValueDesc ofMultiValued(ValueType valueType)
   {
-    return ValueDesc.of(MULTIVALUED_PREFIX + valueType.getName());
+    return valueType == ValueType.STRING ? MV_STRING : ValueDesc.of(MULTIVALUED_PREFIX + valueType.getName());
   }
 
   public static ValueDesc ofMultiValued(ValueDesc valueType)
@@ -606,6 +613,7 @@ public class ValueDesc implements Serializable, Cacheable
       case STRUCT_TYPE: return STRUCT;
       case MAP_TYPE: return MAP;
       case LIST_TYPE: return LIST;
+      case STRING_DIMENSION_TYPE: return DIM_STRING;
     }
     return new ValueDesc(typeName, clazz);
   }
@@ -662,12 +670,12 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isDecimal()
   {
-    return typeName == DECIMAL_TYPE || typeName.startsWith(DECIMAL_TYPE);
+    return DECIMAL_TYPE.equals(typeName) || typeName.startsWith(DECIMAL_TYPE);
   }
 
   public boolean isMap()
   {
-    return typeName == MAP_TYPE || typeName.startsWith(MAP_TYPE);
+    return MAP_TYPE.equals(typeName) || typeName.startsWith(MAP_TYPE);
   }
 
   public boolean isString()
@@ -677,7 +685,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isDimension()
   {
-    return isDimension(typeName);
+    return STRING_DIMENSION_TYPE.equals(typeName) || isDimension(typeName);
   }
 
   public boolean isArray()
@@ -712,17 +720,17 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isStruct()
   {
-    return typeName == STRUCT_TYPE || typeName.toLowerCase().startsWith(STRUCT_TYPE);
+    return STRUCT_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(STRUCT_TYPE);
   }
 
   public boolean isList()
   {
-    return typeName == LIST_TYPE || typeName.toLowerCase().startsWith(LIST_TYPE);
+    return LIST_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(LIST_TYPE);
   }
 
   public boolean isUnknown()
   {
-    return typeName == UNKNOWN_TYPE || typeName.equals(UNKNOWN_TYPE);
+    return UNKNOWN_TYPE.equals(typeName);
   }
 
   public boolean hasDescription()
@@ -740,7 +748,7 @@ public class ValueDesc implements Serializable, Cacheable
     return clazz == null ? type.cast(value) : clazz.cast(value);
   }
 
-  public Class asClass()
+  public Class<?> asClass()
   {
     if (clazz != null) {
       return clazz;
@@ -748,7 +756,7 @@ public class ValueDesc implements Serializable, Cacheable
     if (isPrimitive()) {
       return type.classOfObject();
     }
-    String type = typeName.toLowerCase();
+    final String type = typeName.toLowerCase();
     if (type.startsWith(STRUCT_TYPE) || type.startsWith(LIST_TYPE)) {
       return List.class;
     } else if (type.startsWith(MAP_TYPE)) {

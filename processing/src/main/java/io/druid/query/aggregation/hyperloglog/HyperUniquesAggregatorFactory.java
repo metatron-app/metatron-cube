@@ -115,8 +115,9 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
       return BufferAggregator.NULL;
     }
 
-    final String typeName = selector.type().typeName();
-    if ("hyperUnique".equals(typeName) || ValueDesc.UNKNOWN_TYPE.equals(typeName)) {
+    final ValueDesc type = selector.type();
+    final String typeName = type.typeName();
+    if (type.isUnknown() || "hyperUnique".equals(typeName)) {
       return new HyperUniquesBufferAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector);
     }
 
