@@ -30,7 +30,6 @@ import io.druid.java.util.common.guava.Sequence;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class AsyncQueryRunner<T> implements QueryRunner<T>
@@ -68,8 +67,7 @@ public class AsyncQueryRunner<T> implements QueryRunner<T>
       public Sequence<T> get()
       {
         try {
-          final long timeout = queryWatcher.remainingTime(query.getId());
-          return timeout <= 0 ? future.get() : future.get(timeout, TimeUnit.MILLISECONDS);
+          return QueryRunners.wainOn(query, future, queryWatcher);
         } catch (ExecutionException | InterruptedException | TimeoutException ex) {
           throw Throwables.propagate(ex);
         }

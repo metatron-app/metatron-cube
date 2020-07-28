@@ -20,7 +20,6 @@
 package io.druid.cli;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -162,13 +161,13 @@ public class EmbeddedBroker extends ServerRunnable
 
     public Sequence runQuery(Query query, Map<String, Object> context)
     {
-      String queryId = query.getId();
-      if (queryId == null) {
-        queryId = UUID.randomUUID().toString();
-        query = query.withId(queryId);
+      if (query.getId() == null) {
+        query = query.withId(UUID.randomUUID().toString());
       }
-      long timeout = warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextInt(Query.TIMEOUT, -1));
-      query = query.withOverriddenContext(ImmutableMap.of(Query.TIMEOUT, timeout));
+      if (query.getContextValue(Query.TIMEOUT) != null) {
+        long timeout = warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextInt(Query.TIMEOUT, -1));
+        query = query.withOverriddenContext(Query.TIMEOUT, timeout);
+      }
 
       return query.run(texasRanger, context);
     }

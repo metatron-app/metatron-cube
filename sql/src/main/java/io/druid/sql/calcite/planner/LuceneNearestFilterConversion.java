@@ -51,4 +51,10 @@ public class LuceneNearestFilterConversion implements DimFilterConversion
     int count = RexLiteral.intValue(operands.get(3));
     return new LuceneNearestFilter(field, latitude, longitude, count);
   }
+
+  @Override
+  public String toString()
+  {
+    return "LuceneNearestFilterConversion";
+  }
 }

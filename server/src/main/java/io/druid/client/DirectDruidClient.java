@@ -25,10 +25,13 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
@@ -43,6 +46,7 @@ import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Query;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
@@ -53,8 +57,6 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.ws.rs.core.MediaType;
-import java.io.Closeable;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
@@ -75,6 +77,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   private final HttpClient httpClient;
   private final String host;
   private final String type;
+  private final URL hostURL;
   private final BrokerIOConfig ioConfig;
   private final ExecutorService backgroundExecutorService;
 
@@ -103,6 +106,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     this.httpClient = httpClient;
     this.host = host;
     this.type = type;
+    this.hostURL = StringUtils.toURL(String.format("http://%s/druid/v2/", host));
     this.ioConfig = ioConfig;
     this.backgroundExecutorService = backgroundExecutorService;
     this.contentType = objectMapper.getFactory() instanceof SmileFactory
@@ -125,61 +129,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {
-    QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
-
-    final URL url;
-    final URL cancelUrl;
-    final ListenableFuture<InputStream> future;
-    final StreamHandler handler;
-    try {
-      url = new URL(String.format("http://%s/druid/v2/", host));
-      cancelUrl = new URL(String.format("http://%s/druid/v2/%s", host, query.getId()));
-
-      if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
-        log.debug("Querying [%s][%s:%s] to url[%s]", query.getId(), query.getType(), query.getDataSource(), url);
-      }
-
-      final QueryMetrics<? super Query<T>> queryMetrics = toolChest.makeMetrics(query);
-      queryMetrics.server(host);
-
-      final long start = System.currentTimeMillis();
-      handler = handlerFactory.create(query, url, ioConfig.getQueueSize(), queryMetrics, context);
-      future = httpClient.go(
-          new Request(HttpMethod.POST, url)
-              .setContent(objectMapper.writeValueAsBytes(query))
-              .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
-          handler
-      );
-      final long elapsed = System.currentTimeMillis() - start;
-      if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
-        log.info("Took %,d msec to write query[%s:%s] to url[%s]", elapsed, query.getType(), query.getId(), url);
-      }
-
-      queryWatcher.registerQuery(query, Execs.tag(future, host));
-
-      openConnections.getAndIncrement();
-      Futures.addCallback(
-          future, new FutureCallback<InputStream>()
-          {
-            @Override
-            public void onSuccess(InputStream result)
-            {
-              openConnections.getAndDecrement();
-            }
-
-            @Override
-            public void onFailure(Throwable t)
-            {
-              openConnections.getAndDecrement();
-              IOUtils.closeQuietly(future.isCancelled() ? cancelAsResource(query, cancelUrl, handler) : handler);
-            }
-          }
-      );
-    }
-    catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
-
+    final QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
     final ObjectMapper mapper = query.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
                                 ? customMapper
                                 : objectMapper;
@@ -197,20 +147,86 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       typeRef = baseType;
     }
 
+    final byte[] contents;
+    try {
+      contents = objectMapper.writeValueAsBytes(query);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+
+    final Supplier<URL> cancelUrl = Suppliers.memoize(
+        () -> StringUtils.toURL(String.format("http://%s/druid/v2/%s", host, query.getId()))
+    );
+
+    final QueryMetrics<?> queryMetrics = toolChest.makeMetrics(query);
+    queryMetrics.server(host);
+
+    final StreamHandler handler = handlerFactory.create(query, host, ioConfig.getQueueSize(), queryMetrics, context);
+
+    if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
+      log.debug("Querying [%s][%s:%s] to url[%s]", query.getId(), query.getType(), query.getDataSource(), hostURL);
+    }
+
+    final long start = System.currentTimeMillis();
+    final ListenableFuture<InputStream> future = httpClient.go(
+        new Request(HttpMethod.POST, hostURL)
+            .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType)
+            .setContent(contents),
+        handler
+    );
+
+    final long elapsed = System.currentTimeMillis() - start;
+    if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
+      log.info("Took %,d msec to write query[%s:%s] to url[%s]", elapsed, query.getType(), query.getId(), hostURL);
+    }
+
+    openConnections.getAndIncrement();
+
+    Futures.addCallback(
+        future, new FutureCallback<InputStream>()
+        {
+          @Override
+          public void onSuccess(InputStream result)
+          {
+            openConnections.getAndDecrement();
+          }
+
+          @Override
+          public void onFailure(Throwable t)
+          {
+            openConnections.getAndDecrement();
+            IOUtils.closeQuietly(handler);
+            queryWatcher.unregisterResource(query, handler);
+            if (future.isCancelled()) {
+              cancelRemote(query, cancelUrl.get());
+            }
+          }
+        }
+    );
+
+    queryWatcher.registerQuery(query, Execs.tag(future, host), handler);
+
     Sequence<T> sequence = new BaseSequence<>(
         new BaseSequence.IteratorMaker<T, JsonParserIterator<T>>()
         {
           @Override
           public JsonParserIterator<T> make()
           {
-            long remaining = queryWatcher.remainingTime(query.getId());
-            return new JsonParserIterator.FromFutureStream<T>(mapper, typeRef, url, type, future, remaining);
+            return new JsonParserIterator.FromCallable<T>(
+                mapper, typeRef, hostURL, type, () -> QueryRunners.wainOn(query, future, queryWatcher)
+            );
           }
 
           @Override
           public void cleanup(JsonParserIterator<T> parser)
           {
-            IOUtils.closeQuietly(parser.close() ? handler : cancelAsResource(query, cancelUrl, handler));
+            IOUtils.closeQuietly(handler);
+            queryWatcher.unregisterResource(query, handler);
+            if (!parser.close()) {
+              future.cancel(true);
+              cancelRemote(query, cancelUrl.get());
+            }
           }
         }
     );
@@ -224,38 +240,26 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     return sequence;
   }
 
-  private Closeable cancelAsResource(Query query, URL cancelUrl, StreamHandler handler)
+  public void cancelRemote(Query<T> query, URL cancelUrl)
   {
-    return new Closeable()
-    {
-      @Override
-      public void close() throws IOException
-      {
-        backgroundExecutorService.submit(
-            () -> {
-              try {
-                StatusResponseHolder response = httpClient.go(
-                    new Request(HttpMethod.DELETE, cancelUrl),
-                    new StatusResponseHandler(Charsets.UTF_8)
-                ).get();
-                HttpResponseStatus status = response.getStatus();
-                if (status.getCode() >= 500) {
-                  log.info(
-                      "Error cancelling query[%s]: [%s] returned status[%d] [%s].",
-                      query.getId(),
-                      cancelUrl.getHost(),
-                      status.getCode(),
-                      status.getReasonPhrase()
-                  );
-                }
-                return response;
-              }
-              finally {
-                IOUtils.closeQuietly(handler);
-              }
-            }
-        );
-      }
-    };
+    backgroundExecutorService.submit(
+        () -> {
+          StatusResponseHolder response = httpClient.go(
+              new Request(HttpMethod.DELETE, cancelUrl),
+              new StatusResponseHandler(Charsets.UTF_8)
+          ).get();
+          HttpResponseStatus status = response.getStatus();
+          if (status.getCode() >= 500) {
+            log.info(
+                "Error cancelling query[%s]: [%s] returned status[%d] [%s].",
+                query.getId(),
+                cancelUrl.getHost(),
+                status.getCode(),
+                status.getReasonPhrase()
+            );
+          }
+          return response;
+        }
+    );
   }
 }

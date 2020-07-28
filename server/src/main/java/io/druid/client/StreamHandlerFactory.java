@@ -70,14 +70,14 @@ public class StreamHandlerFactory
 
   public StreamHandler create(final Query query, final URL url, final int queueSize)
   {
-    return new BaseHandler(query, url, queueSize);
+    return new BaseHandler(query, String.format("%s:%s", url.getHost(), url.getPort()), queueSize);
   }
 
   private class BaseHandler implements StreamHandler
   {
     private final Query query;
     private final boolean disableLog;
-    private final URL url;
+    private final String host;
 
     private final long requestStartTimeNs = System.nanoTime();
     private long responseStartTimeNs;
@@ -86,11 +86,11 @@ public class StreamHandlerFactory
     private final AtomicLong byteCount = new AtomicLong(0);
     private final AtomicBoolean done = new AtomicBoolean(false);
 
-    private BaseHandler(Query query, URL url, int queueSize)
+    private BaseHandler(Query query, String host, int queueSize)
     {
       this.query = query;
       this.disableLog = query.getContextBoolean(Query.DISABLE_LOG, false);
-      this.url = url;
+      this.host = host;
       this.queue = new LinkedBlockingDeque<InputStream>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize)
       {
         @Override
@@ -119,7 +119,7 @@ public class StreamHandlerFactory
       if (!disableLog) {
         log.debug(
             "Initial response from url[%s] for [%s][%s:%s] with status[%s] in %,d msec",
-            url, query.getId(), query.getType(), query.getDataSource(),
+            host, query.getId(), query.getType(), query.getDataSource(),
             status, TimeUnit.NANOSECONDS.toMillis(responseStartTimeNs - requestStartTimeNs)
         );
       }
@@ -152,7 +152,7 @@ public class StreamHandlerFactory
         queue.put(new ChannelBufferInputStream(response.getContent()));
       }
       catch (final IOException e) {
-        log.error(e, "Error parsing response context from url [%s]", url);
+        log.error(e, "Error parsing response context from url [%s]", host);
         return ClientResponse.<InputStream>finished(
             new InputStream()
             {
@@ -228,7 +228,7 @@ public class StreamHandlerFactory
           queue.put(new ChannelBufferInputStream(channelBuffer));
         }
         catch (InterruptedException e) {
-          log.error(e, "Unable to put finalizing input stream into Sequence queue for url [%s]", url);
+          log.error(e, "Unable to put finalizing input stream into Sequence queue for url [%s]", host);
           Thread.currentThread().interrupt();
           throw Throwables.propagate(e);
         }
@@ -246,7 +246,7 @@ public class StreamHandlerFactory
         log.debug(
             "Completed [%s][%s:%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
             query.getId(), query.getType(), query.getDataSource(),
-            url,
+            host,
             byteCount.get(),
             TimeUnit.NANOSECONDS.toMillis(nodeTimeNs),
             StringUtils.toKMGT(byteCount.get() * 1000 / Math.max(1, TimeUnit.NANOSECONDS.toMillis(nodeTimeNs)))
@@ -255,6 +255,7 @@ public class StreamHandlerFactory
       finished(responseStartTimeNs, stopTimeNs, byteCount.get());
       synchronized (done) {
         done.set(true);
+        done.notifyAll();
         // An empty byte array is put at the end to give the SequenceInputStream.close() as something to close out
         // after done is set to true, regardless of the rest of the stream's state.
         queue.offer(new ByteArrayInputStream(new byte[0]));
@@ -273,6 +274,7 @@ public class StreamHandlerFactory
       // Don't wait for lock in case the lock had something to do with the error
       synchronized (done) {
         done.set(true);
+        done.notifyAll();
         queue.offer(thrower);
       }
     }
@@ -282,7 +284,8 @@ public class StreamHandlerFactory
     {
       synchronized (done) {
         done.set(true);
-        queue.clear();  // blocked worker in handleChunk prevents shutdown process. I don't know why
+        done.notifyAll();
+        queue.clear();
       }
     }
   }
@@ -299,13 +302,13 @@ public class StreamHandlerFactory
 
     public StreamHandler create(
         final Query query,
-        final URL url,
+        final String host,
         final int queueSize,
         final QueryMetrics queryMetrics,
         final Map<String, Object> context
     )
     {
-      return new BaseHandler(query, url, queueSize)
+      return new BaseHandler(query, host, queueSize)
       {
         @Override
         public void handleHeader(HttpHeaders headers) throws IOException

@@ -30,12 +30,9 @@ import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
-import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.output.OutputDecorator;
 import io.druid.guice.annotations.Json;
@@ -49,7 +46,6 @@ import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -83,8 +79,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
@@ -149,7 +145,7 @@ public class QueryResource
   public Response cancelQuery(@PathParam("id") String queryId, @Context final HttpServletRequest req)
   {
     log.info("Received cancel request for query [%s]", queryId);
-    Set<String> dataSources = queryManager.getQueryDatasources(queryId);
+    List<String> dataSources = queryManager.getQueryDatasources(queryId);
     Access authResult = AuthorizationUtils.authorizeAllResourceActions(
         req,
         Iterables.transform(dataSources, AuthorizationUtils.DATASOURCE_WRITE_RA_GENERATOR),
@@ -232,7 +228,6 @@ public class QueryResource
   {
     final String remote = req.getRemoteAddr();
     final RequestContext context = new RequestContext(req, pretty != null, Boolean.valueOf(smile));
-    final String contentType = context.getContentType();
 
     final Thread currThread = Thread.currentThread();
     final String currThreadName = resetThreadName(currThread);
@@ -309,7 +304,7 @@ public class QueryResource
           // json serializer will always close the yielder
           CountingOutputStream os = new CountingOutputStream(outputStream);
           if (future.isCancelled()) {
-            throw new QueryInterruptedException(new InterruptedException());
+            throw QueryInterruptedException.wrapIfNeeded(new InterruptedException(), node);
           }
           writer.set(Thread.currentThread());
           try {
@@ -350,7 +345,7 @@ public class QueryResource
         responseCtxString = responseCtxString.substring(0, RESPONSE_CTX_HEADER_LEN_LIMIT);
       }
 
-      return Response.ok(output, contentType)
+      return Response.ok(output, context.getContentType())
                      .header("X-Druid-Query-Id", prepared.getId())
                      .header("X-Druid-Response-Context", responseCtxString)
                      .build();
@@ -363,18 +358,18 @@ public class QueryResource
     }
   }
 
-  protected Query readQuery(InputStream in, RequestContext context) throws IOException
+  private Query readQuery(InputStream in, RequestContext context) throws IOException
   {
     Query query = context.getInputMapper(false).readValue(in, Query.class);
-    Map<String, Object> adding = Maps.newHashMap();
     if (query.getId() == null) {
-      adding.put(Query.QUERYID, UUID.randomUUID().toString());
+      query = query.withOverriddenContext(Query.QUERYID, UUID.randomUUID().toString());
     }
-    adding.put(
-        Query.TIMEOUT,
-        warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextInt(QueryContextKeys.TIMEOUT, -1))
-    );
-    return query.withOverriddenContext(adding);
+    if (query.getContextValue(Query.TIMEOUT) != null) {
+      query = query.withOverriddenContext(
+          Query.TIMEOUT, warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextLong(Query.TIMEOUT, -1))
+      );
+    }
+    return query;
   }
 
   // clear previous query name if exists (should not)
@@ -491,11 +486,7 @@ public class QueryResource
     {
       return Response.serverError()
                      .type(contentType)
-                     .entity(
-                         getOutputWriter().writeValueAsBytes(
-                             QueryInterruptedException.wrapIfNeeded(e, node.getHostAndPort(), node.getServiceName())
-                         )
-                     )
+                     .entity(getOutputWriter().writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(e, node)))
                      .build();
     }
   }

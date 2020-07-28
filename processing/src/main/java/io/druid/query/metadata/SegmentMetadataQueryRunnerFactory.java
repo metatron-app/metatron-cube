@@ -26,12 +26,12 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.ConcatQueryRunner;
@@ -39,6 +39,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryWatcher;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
@@ -58,7 +59,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstract<SegmentAnalysis, SegmentMetadataQuery>
@@ -204,8 +204,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                     );
                     try {
                       queryWatcher.registerQuery(query, future);
-                      final long timeout = queryWatcher.remainingTime(query.getId());
-                      return timeout <= 0 ? future.get() : future.get(timeout, TimeUnit.MILLISECONDS);
+                      return QueryRunners.wainOn(query, future, queryWatcher);
                     }
                     catch (CancellationException e) {
                       log.info("Query canceled, id [%s]", query.getId());

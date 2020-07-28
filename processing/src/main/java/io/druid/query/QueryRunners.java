@@ -41,7 +41,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class QueryRunners
@@ -225,12 +224,7 @@ public class QueryRunners
   {
     queryWatcher.registerQuery(query, future);
     try {
-      final long timeout = queryWatcher.remainingTime(query.getId());
-      if (timeout <= 0) {
-        return future.get();
-      } else {
-        return future.get(timeout, TimeUnit.MILLISECONDS);
-      }
+      return wainOn(query, future, queryWatcher);
     }
     catch (CancellationException e) {
       LOG.info("Query [%s] is canceled", query.getId());
@@ -251,6 +245,12 @@ public class QueryRunners
       IOUtils.closeQuietly(closeOnFailure);
       throw Throwables.propagate(e.getCause());
     }
+  }
+
+  public static <T> T wainOn(Query<?> query, ListenableFuture<T> future, QueryWatcher queryWatcher)
+      throws InterruptedException, ExecutionException, TimeoutException
+  {
+    return Execs.waitOn(future, queryWatcher.remainingTime(query.getId()));
   }
 
   public static <I, T> QueryRunner<T> getIteratingRunner(

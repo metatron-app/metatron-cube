@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 
-public class FrequenceQueryConfig
+public class FrequencyQueryConfig
 {
   @JsonProperty
   @Min(1) @Max(12)

@@ -108,6 +108,7 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable>
@@ -736,7 +737,9 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
         streamHandler = new StreamHandlerFactory(logger, mapper).create(
             query, request.getUrl(), threshold
         );
-        events = new JsonParserIterator.FromFutureStream<Map<String, Object>>(
+        final ListenableFuture<InputStream> future = submitQuery(query, streamHandler);
+        final long timeout = configuration.getLong(CONF_DRUID_QUERY_TIMEOUT, DEFAULT_QUERY_TIMEOUT);
+        events = new JsonParserIterator.FromCallable<Map<String, Object>>(
             mapper,
             mapper.getTypeFactory().constructType(
                 new TypeReference<Map<String, Object>>()
@@ -745,8 +748,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
             ),
             request.getUrl(),
             "input-format",
-            submitQuery(query, streamHandler),
-            configuration.getLong(CONF_DRUID_QUERY_TIMEOUT, DEFAULT_QUERY_TIMEOUT)
+            () -> future.get(timeout, TimeUnit.MILLISECONDS)
         );
       }
 

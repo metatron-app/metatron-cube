@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import io.druid.indexing.common.TaskLock;
 import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.LockListAction;
 import io.druid.query.Query;
@@ -236,11 +236,5 @@ public abstract class AbstractTask implements Task
   public Object getContextValue(String key)
   {
     return context == null ? null : context.get(key);
-  }
-
-  @Override
-  public float progress()
-  {
-    return -1;
   }
 }

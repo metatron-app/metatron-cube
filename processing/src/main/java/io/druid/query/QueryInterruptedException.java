@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.ResourceLimitExceededException;
 import io.druid.common.utils.ExceptionUtils;
+import io.druid.server.DruidNode;
 
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -194,6 +195,11 @@ public class QueryInterruptedException extends RuntimeException
   public static QueryInterruptedException wrapIfNeeded(Throwable e)
   {
     return wrapIfNeeded(e, getHostFromThrowable(e), getServiceNameFromThrowable(e));
+  }
+
+  public static QueryInterruptedException wrapIfNeeded(Throwable e, DruidNode node)
+  {
+    return wrapIfNeeded(e, node.getHostAndPort(), node.getServiceName());
   }
 
   public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort, String serviceName)

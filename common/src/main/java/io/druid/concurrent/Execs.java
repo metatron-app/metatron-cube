@@ -505,4 +505,30 @@ public class Execs
     future.run();
     return future;
   }
+
+  public static ThreadFactory simpleDaemonFactory(final String name)
+  {
+    return new ThreadFactory()
+    {
+      private final ThreadFactory factory = Executors.defaultThreadFactory();
+
+      @Override
+      public Thread newThread(Runnable r)
+      {
+        Thread thread = factory.newThread(r);
+        thread.setDaemon(true);
+        thread.setName(name);
+        return thread;
+      }
+    };
+  }
+
+  public static <T> T waitOn(Future<T> future, long remain)
+      throws TimeoutException, ExecutionException, InterruptedException
+  {
+    if (remain <= 0) {
+      throw new TimeoutException();
+    }
+    return future.get(remain, TimeUnit.MILLISECONDS);
+  }
 }

@@ -27,6 +27,8 @@ import io.druid.data.UTF8Bytes;
 
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.IllegalFormatException;
 import java.util.Iterator;
 import java.util.Locale;
@@ -110,6 +112,16 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     }
   }
 
+  public static URL toURL(String address)
+  {
+    try {
+      return new URL(address);
+    }
+    catch (MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   public static byte[] toUtf8WithNullToEmpty(final String string)
   {
     return string == null ? EMPTY_BYTES : toUtf8(string);
@@ -122,7 +134,7 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
 
   public static boolean isNullOrEmpty(Object value)
   {
-    return value == null || (value instanceof String && ((String)value).isEmpty());
+    return value == null || (value instanceof String && ((String) value).isEmpty());
   }
 
   public static Object emptyToNull(Object comparable)

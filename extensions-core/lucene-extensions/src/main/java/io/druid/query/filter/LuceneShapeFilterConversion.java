@@ -49,6 +49,12 @@ public abstract class LuceneShapeFilterConversion implements DimFilterConversion
       {
         return operation;
       }
+
+      @Override
+      public String toString()
+      {
+        return String.format("LuceneShapeFilterConversion[%s]", operation);
+      }
     };
   }
 

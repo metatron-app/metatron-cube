@@ -49,4 +49,10 @@ public class LuceneQueryFilterConversion implements DimFilterConversion
     String expression = RexLiteral.stringValue(operands.get(1));
     return new LuceneQueryFilter(field, null, expression);
   }
+
+  @Override
+  public String toString()
+  {
+    return "LuceneQueryFilterConversion";
+  }
 }

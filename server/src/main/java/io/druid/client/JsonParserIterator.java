@@ -25,19 +25,18 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.common.utils.StringUtils;
 import io.druid.query.QueryInterruptedException;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -127,27 +126,24 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     return normalClose;
   }
 
-  public static class FromFutureStream<T> extends JsonParserIterator<T>
+  public static class FromCallable<T> extends JsonParserIterator<T>
   {
     private final URL url;
     private final String type;
-    private final Future<InputStream> future;
-    private final long timeout;
+    private final Callable<InputStream> callable;
 
-    public FromFutureStream(
+    public FromCallable(
         ObjectMapper mapper,
         JavaType typeRef,
         URL url,
         String type,
-        Future<InputStream> future,
-        long timeout
+        Callable<InputStream> callable
     )
     {
       super(mapper, typeRef);
       this.url = url;
       this.type = type;
-      this.future = future;
-      this.timeout = timeout;
+      this.callable = callable;
     }
 
     @Override
@@ -167,7 +163,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     @Override
     protected JsonParser createParser(JsonFactory factory) throws Exception
     {
-      return factory.createParser(timeout <= 0 ? future.get() : future.get(timeout, TimeUnit.MILLISECONDS));
+      return factory.createParser(callable.call());
     }
   }
 }

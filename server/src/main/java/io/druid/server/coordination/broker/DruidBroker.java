@@ -36,7 +36,7 @@ import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @ManageLifecycle
@@ -71,20 +71,10 @@ public class DruidBroker
         // We are not interested in any segment callbacks except view initialization
         Predicates.<Pair<DruidServerMetadata, DataSegment>>alwaysFalse()
     );
-    final ThreadFactory factory = Executors.defaultThreadFactory();
-    Executors.newSingleThreadScheduledExecutor(
-        new ThreadFactory()
-        {
-          @Override
-          public Thread newThread(Runnable r)
-          {
-            Thread thread = factory.newThread(r);
-            thread.setDaemon(true);
-            thread.setName("QueryManager");
-            return thread;
-          }
-        }
-    ).scheduleWithFixedDelay(queryManager, 5, 5, TimeUnit.MINUTES);
+    ScheduledExecutorService background = Executors.newSingleThreadScheduledExecutor(
+        Execs.simpleDaemonFactory("QueryManager")
+    );
+    background.scheduleWithFixedDelay(queryManager, 10, 10, TimeUnit.SECONDS);
   }
 
   @LifecycleStart

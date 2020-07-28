@@ -19,16 +19,17 @@
 
 package io.druid.server;
 
-import com.google.common.base.Predicate;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.inject.Inject;
 import io.druid.common.DateTimes;
 import io.druid.common.Progressing;
 import io.druid.common.Tagged;
@@ -36,15 +37,17 @@ import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
-import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryWatcher;
+import org.apache.commons.io.IOUtils;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.function.Function;
 
@@ -52,32 +55,41 @@ public class QueryManager implements QueryWatcher, Runnable
 {
   private static final Logger LOG = new Logger(QueryManager.class);
 
-  private static final long DEFAULT_EXPIRE = 300_000;   // 5 min
+  private static final long DEFAULT_EXPIRE = 180_000;   // 3 min
   private static final long LOG_THRESHOLD = 200;
 
-  private final Map<String, QueryStatus> queries;
+  private final long queryTimeout;
+  private final Map<String, QueryStatus> queries = Maps.newConcurrentMap();
+  private final ListeningExecutorService executor = Execs.newDirectExecutorService();
 
+  @VisibleForTesting
   public QueryManager()
   {
-    this.queries = Maps.newConcurrentMap();
+    this(new QueryConfig());
+  }
+
+  @Inject
+  public QueryManager(QueryConfig config)
+  {
+    this.queryTimeout = config.getMaxQueryTimeout();
   }
 
   @Override
-  public boolean cancelQuery(String id)
+  public boolean cancelQuery(String queryId)
   {
-    QueryStatus status = queries.get(id);
+    QueryStatus status = queries.get(queryId);
     if (status != null) {
       return status.cancel();
     }
     return true;
   }
 
-  public boolean isCanceled(String id)
+  public boolean isCanceled(String queryId)
   {
-    if (id == null) {
+    if (queryId == null) {
       return false;
     }
-    QueryStatus status = queries.get(id);
+    QueryStatus status = queries.get(queryId);
     if (status != null) {
       return status.canceled;
     }
@@ -85,44 +97,49 @@ public class QueryManager implements QueryWatcher, Runnable
   }
 
   @Override
-  public void registerQuery(final Query query, final ListenableFuture future)
+  public void registerQuery(final Query query, final ListenableFuture future, final Closeable resource)
   {
     final String id = query.getId();
+    final List<String> dataSources = query.getDataSource().getNames();
     if (id == null) {
-      LOG.warn("Query id for %s%s is null.. fix that", query.getType(), query.getDataSource().getNames());
+      LOG.warn("Query id for %s%s is null.. fix that", query.getType(), dataSources);
       return;
     }
     final QueryStatus status = queries.computeIfAbsent(
         id, new Function<String, QueryStatus>()
         {
           @Override
-          public QueryStatus apply(String s)
+          public QueryStatus apply(String id)
           {
-            int timeout = query.getContextInt(QueryContextKeys.TIMEOUT, -1);
-            return new QueryStatus(query.getType(), timeout);
+            long timeout = query.getContextLong(Query.TIMEOUT, queryTimeout);
+            return new QueryStatus(query.getType(), dataSources, timeout);
           }
         }
     );
-    if (status.canceled) {
-      throw new CancellationException();
-    }
-    final List<String> dataSources = query.getDataSource().getNames();
-
-    status.start(future, dataSources);
+    status.start(future, resource);
     future.addListener(
         new Runnable()
         {
           @Override
           public void run()
           {
-            if (status.end(future, dataSources)) {
+            if (!status.isCancelled() && status.end(future)) {
               // query completed
               status.log();
             }
           }
         },
-        Execs.newDirectExecutorService()
+        executor
     );
+  }
+
+  @Override
+  public void unregisterResource(Query query, Closeable resource)
+  {
+    final QueryStatus status = queries.get(query.getId());
+    if (status != null) {
+      status.unregisterResource(resource);
+    }
   }
 
   @Override
@@ -135,10 +152,10 @@ public class QueryManager implements QueryWatcher, Runnable
     return status == null ? -1 : status.remaining();
   }
 
-  public Set<String> getQueryDatasources(final String queryId)
+  public List<String> getQueryDatasources(final String queryId)
   {
     QueryStatus status = queries.get(queryId);
-    return status == null ? Sets.<String>newHashSet() : Sets.newHashSet(status.dataSources);
+    return status == null ? ImmutableList.of() : status.dataSources;
   }
 
   public long getQueryStartTime(final String queryId)
@@ -150,8 +167,8 @@ public class QueryManager implements QueryWatcher, Runnable
   public float progress(String queryId) throws IOException, InterruptedException
   {
     QueryStatus status = queries.get(queryId);
-    if (status != null && status.futures != null && status.futures.size() == 1) {
-      ListenableFuture future = Iterables.getFirst(status.futures, null);
+    if (status != null && status.pendings.size() == 1) {
+      ListenableFuture future = Iterables.getFirst(status.pendings.keySet(), null);
       if (future instanceof Progressing) {
         return ((Progressing) future).progress();
       }
@@ -161,16 +178,17 @@ public class QueryManager implements QueryWatcher, Runnable
 
   public List<Map<String, Object>> getRunningQueryStatus()
   {
-    List<Map<String, Object>> result = Lists.newArrayList();
+    final List<Map<String, Object>> result = Lists.newArrayList();
     for (Map.Entry<String, QueryStatus> entry : queries.entrySet()) {
-      QueryStatus status = entry.getValue();
-      if (status.canceled || status.end >= 0) {
+      final QueryStatus status = entry.getValue();
+      if (status.isFinished()) {
         continue;
       }
       result.add(ImmutableMap.of(
           "queryId", entry.getKey(),
           "queryType", status.type,
-          "start", DateTimes.utc(status.start).toString()
+          "start", DateTimes.utc(status.start).toString(),
+          "pendingTags", status.pendingTags()
       ));
     }
     return result;
@@ -181,119 +199,139 @@ public class QueryManager implements QueryWatcher, Runnable
     LOG.info("Dumping query manager..");
     for (Map.Entry<String, QueryStatus> entry : queries.entrySet()) {
       QueryStatus status = entry.getValue();
-      LOG.info("-- %s (%s) : started=%s, end=%s, duration=%d, canceled=%s, pending=%d, tagged=%s",
-               entry.getKey(),
-               status.type,
-               DateTimes.utc(status.start),
-               status.end < 0 ? "<not>" : DateTimes.utc(status.end),
-               status.end < 0 ? -1 : status.end - status.start,
-               status.canceled,
-               status.futures.size(),
-               status.timers.values()
-      );
+      if (status.isFinished()) {
+        LOG.info(
+            "-- %s (%s) : started=%s, end=%s, duration=%d, canceled=%s, pending=%d, tagged=%s",
+            entry.getKey(),
+            status.type,
+            DateTimes.utc(status.start),
+            DateTimes.utc(status.end),
+            status.end - status.start,
+            status.canceled,
+            status.pendings.size(),
+            status.pendingTags()
+        );
+      } else {
+        LOG.info(
+            "-- %s (%s) : started=%s, pending=%d, tagged=%s",
+            entry.getKey(),
+            status.type,
+            DateTimes.utc(status.start),
+            status.pendings.size(),
+            status.pendingTags()
+        );
+      }
     }
   }
 
   private static class QueryStatus
   {
     private final String type;
-    private final int timeout;
+    private final long timeout;
+    private final List<String> dataSources;
+
     private final long start = System.currentTimeMillis();
-    private final Set<String> dataSources = Sets.newConcurrentHashSet();
-    private final Set<ListenableFuture> futures = Sets.newConcurrentHashSet();
-    private final Map<ListenableFuture, Timer> timers =
-        Collections.synchronizedMap(Maps.<ListenableFuture, Timer>newIdentityHashMap());
+    private final Map<ListenableFuture, Timer> pendings = new IdentityHashMap<>();
+    private final List<Closeable> resources = Lists.newArrayList();   // for cancel
 
     private volatile boolean canceled;
     private volatile long end = -1;
 
-    public QueryStatus(String type, int timeout)
+    public QueryStatus(String type, List<String> dataSources, long timeout)
     {
       this.type = type;
       this.timeout = timeout;
+      this.dataSources = dataSources;
+      assert timeout > 0;
     }
 
-    private void start(ListenableFuture future, List<String> dataSource)
+    private synchronized boolean isCancelled()
     {
-      futures.add(future);
-      dataSources.addAll(dataSource);
-      if (future instanceof Tagged) {
-        timers.put(future, new Timer(((Tagged) future).getTag()));
+      return canceled;
+    }
+
+    private synchronized boolean isFinished()
+    {
+      return canceled || end > 0 && pendings.isEmpty();
+    }
+
+    private synchronized void start(ListenableFuture future, Closeable resource)
+    {
+      if (canceled) {
+        Execs.cancelQuietly(future);
+        IOUtils.closeQuietly(resource);
+        throw new CancellationException();
+      }
+      pendings.put(future, Timer.of(future));
+      if (resource != null) {
+        resources.add(resource);
       }
     }
 
-    private boolean end(ListenableFuture future, List<String> dataSource)
+    private synchronized boolean end(ListenableFuture future)
     {
-      futures.remove(future);
-      dataSources.removeAll(dataSource);
-      if (future instanceof Tagged) {
-        Timer timer = timers.get(future);
-        if (timer != null) {
-          timer.end();
-        }
+      Timer timer = pendings.remove(future);
+      if (timer != null) {
+        timer.end();
       }
       // this is possible because druid registers queries before fire to historical nodes
-      if (!canceled && futures.isEmpty() && dataSources.isEmpty()) {
+      if (!canceled && end < 0 && pendings.isEmpty()) {
         end = System.currentTimeMillis();
         return true;
       }
       return false;
     }
 
-    private boolean cancel()
+    private synchronized boolean cancel()
     {
+      if (canceled) {
+        return true;
+      }
       canceled = true;
       end = System.currentTimeMillis();
-      return clear();
-    }
-
-    private boolean clear()
-    {
       boolean success = true;
-      for (ListenableFuture future : futures) {
+      for (Map.Entry<ListenableFuture, Timer> entry : pendings.entrySet()) {
+        final ListenableFuture future = entry.getKey();
+        final Timer timer = entry.getValue();
         success = success & Execs.cancelQuietly(future);  // cancel all
-        if (future instanceof Tagged) {
-          Timer timer = timers.get(future);
-          if (timer != null) {
-            timer.end();
-          }
+        if (timer != null) {
+          timer.end();
         }
       }
-      futures.clear();
-      dataSources.clear();
+      pendings.clear();
+
+      for (Closeable closeable : resources) {
+        IOUtils.closeQuietly(closeable);
+      }
+      resources.clear();
       return success;
     }
 
-    private long remaining()
+    private synchronized long remaining()
     {
-      return timeout <= 0 ? timeout : Math.max(1000, timeout - (System.currentTimeMillis() - start));
+      return timeout - (System.currentTimeMillis() - start);
     }
 
-    private boolean isExpired(long expire)
+    private synchronized boolean isExpired(long current, long expire)
     {
       long endTime = end < 0 ? start + timeout : end;
-      return endTime > 0 && (System.currentTimeMillis() - endTime) > expire;
+      return endTime > 0 && (current - endTime) > expire;
     }
 
-    public void log()
+    private synchronized boolean isTimedOut(long current)
     {
-      if (timers.isEmpty()) {
+      return !isFinished() && start + timeout < current;
+    }
+
+    public synchronized void log()
+    {
+      if (pendings.isEmpty()) {
         return;
       }
-      List<Timer> filtered = Lists.newArrayList(
-          Iterables.filter(
-              Lists.<Timer>newArrayList(timers.values()),
-              new Predicate<Timer>()
-              {
-                @Override
-                public boolean apply(Timer input)
-                {
-                  return input.elapsed >= 0;
-                }
-              }
-          )
+      List<Timer> filtered = ImmutableList.copyOf(
+          Iterables.filter(pendings.values(), timer -> timer != null && timer.elapsed >= 0)
       );
-      timers.clear();
+      pendings.clear();
       if (filtered.isEmpty()) {
         return;
       }
@@ -311,19 +349,10 @@ public class QueryManager implements QueryWatcher, Runnable
         }
       }
       final long mean = total / counter;
-      final double threshold = Math.max(LOG_THRESHOLD / 2, mean * 1.2);
+      final double threshold = Math.max(LOG_THRESHOLD / 2, mean * 1.5);
 
-      List<Timer> log = Lists.newArrayList(
-          Iterables.filter(
-              filtered, new Predicate<Timer>()
-              {
-                @Override
-                public boolean apply(Timer input)
-                {
-                  return input.elapsed > threshold;
-                }
-              }
-          )
+      List<Timer> log = ImmutableList.copyOf(
+          Iterables.limit(Iterables.filter(filtered, input -> input.elapsed > threshold), 8)
       );
       if (log.isEmpty()) {
         log = Arrays.asList(filtered.get(0));
@@ -331,41 +360,44 @@ public class QueryManager implements QueryWatcher, Runnable
 
       LOG.info("%d item(s) averaging %,d msec.. mostly from %s", counter, mean, log);
     }
+
+    private synchronized List<String> pendingTags()
+    {
+      return Lists.newArrayList(
+          Iterables.transform(Iterables.filter(pendings.values(), Predicates.notNull()), timer -> timer.tag)
+      );
+    }
+
+    public synchronized void unregisterResource(Closeable resource)
+    {
+      resources.remove(resource);
+    }
   }
+
+  private long lastCleanup;
 
   @Override
   public void run()
   {
-    List<String> expiredQueries = ImmutableList.copyOf(
-        Maps.filterValues(
-            queries, new Predicate<QueryStatus>()
-            {
-              @Override
-              public boolean apply(QueryStatus input)
-              {
-                return input.isExpired(DEFAULT_EXPIRE);
-              }
-            }
-        ).keySet()
-    );
-    if (!expiredQueries.isEmpty()) {
-      LOG.info("Expiring %d queries", expiredQueries.size());
+    final long current = System.currentTimeMillis();
+    for (QueryStatus status : Maps.filterValues(queries, input -> input.isTimedOut(current)).values()) {
+      status.cancel();
     }
-    for (String queryId : expiredQueries) {
-      QueryStatus status = queries.remove(queryId);
-      if (status != null) {
-        try {
-          status.clear();
-        }
-        catch (Exception e) {
-          // ignore
-        }
+    if (current > lastCleanup + DEFAULT_EXPIRE) {
+      for (String queryId : Maps.filterValues(queries, input -> input.isExpired(current, DEFAULT_EXPIRE)).keySet()) {
+        queries.remove(queryId);
       }
+      lastCleanup = current;
     }
   }
 
   private static class Timer implements Comparable<Timer>
   {
+    private static Timer of(ListenableFuture future)
+    {
+      return future instanceof Tagged ? new Timer(((Tagged) future).getTag()) : null;
+    }
+
     private final String tag;
     private final long start = System.currentTimeMillis();
     private long elapsed = -1;

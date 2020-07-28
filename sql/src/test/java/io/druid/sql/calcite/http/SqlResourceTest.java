@@ -31,6 +31,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.sql.SQLFunctions;
+import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
 import io.druid.server.QueryResource;
 import io.druid.server.log.NoopRequestLogger;
@@ -144,7 +145,8 @@ public class SqlResourceTest extends CalciteTestBase
             new NoopServiceEmitter(),
             new NoopRequestLogger(),
             null
-        )
+        ),
+        new DruidNode("test", "test", -1)
     );
   }
 

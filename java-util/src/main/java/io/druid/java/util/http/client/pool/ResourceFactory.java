@@ -18,7 +18,11 @@ package io.druid.java.util.http.client.pool;
  */
 public interface ResourceFactory<K, V>
 {
-  public V generate(K key);
-  public boolean isGood(V resource);
-  public void close(V resource);
+  V generate(K key);
+
+  boolean isGood(V resource);
+
+  boolean isValid(V resource);
+
+  void close(V resource);
 }

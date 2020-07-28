@@ -14,6 +14,8 @@
 
 package io.druid.java.util.common.guava;
 
+import com.google.common.base.Throwables;
+
 import java.io.Closeable;
 
 /**
@@ -49,9 +51,9 @@ public class ResourceClosingSequence<T> implements Sequence<T>
     try {
       baseYielder = baseSequence.toYielder(initValue, accumulator);
     }
-    catch (RuntimeException e) {
+    catch (Throwable e) {
       CloseQuietly.close(closeable);
-      throw e;
+      throw Throwables.propagate(e);
     }
 
     return new ResourceClosingYielder<>(baseYielder, closeable);

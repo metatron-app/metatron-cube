@@ -32,11 +32,13 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.output.OutputDecorator;
 import io.druid.guice.annotations.Json;
+import io.druid.guice.annotations.Self;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
+import io.druid.server.DruidNode;
 import io.druid.server.QueryResource;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthorizationUtils;
@@ -78,15 +80,18 @@ public class SqlResource
 
   private final ObjectMapper jsonMapper;
   private final SqlLifecycleFactory lifecycleFactory;
+  private final DruidNode node;
 
   @Inject
   public SqlResource(
       @Json ObjectMapper jsonMapper,
-      SqlLifecycleFactory lifecycleFactory
+      SqlLifecycleFactory lifecycleFactory,
+      @Self DruidNode node
   )
   {
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "jsonMapper");
     this.lifecycleFactory = Preconditions.checkNotNull(lifecycleFactory, "sqlLifecycleFactory");
+    this.node = node;
   }
 
   @POST
@@ -267,17 +272,20 @@ public class SqlResource
       log.warn(e, "Failed to handle query: %s %s", query, sqlQuery.getContext());
       lifecycle.emitLogsAndMetrics(e, remoteAddr, -1, -1);
       currThread.setName(currThreadName);
-      final Throwable exceptionToReport;
 
+      final Throwable exceptionToReport;
       if (e instanceof RelOptPlanner.CannotPlanException) {
-        exceptionToReport = new ISE("Cannot build plan for query: %s", query);
+        // cause this can be huge
+        exceptionToReport = new ISE("Cannot build plan by %s for query: %s", e, query);
       } else {
         exceptionToReport = e;
       }
 
       return Response.serverError()
                      .type(MediaType.APPLICATION_JSON_TYPE)
-                     .entity(jsonMapper.writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(exceptionToReport)))
+                     .entity(jsonMapper.writeValueAsBytes(
+                         QueryInterruptedException.wrapIfNeeded(exceptionToReport, node))
+                     )
                      .build();
     }
   }

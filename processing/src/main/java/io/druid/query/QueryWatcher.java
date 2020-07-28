@@ -21,6 +21,8 @@ package io.druid.query;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
+import java.io.Closeable;
+
 /**
  * This interface is in a very early stage and should not be considered stable.
  *
@@ -35,30 +37,39 @@ import com.google.common.util.concurrent.ListenableFuture;
  */
 public interface QueryWatcher
 {
+  default void registerQuery(Query query, ListenableFuture future)
+  {
+    registerQuery(query, future, null);
+  }
+
   /**
    * QueryRunners must use this method to register any pending queries.
    *
    * The given future may have cancel(true) called at any time, if cancellation of this query has been requested.
-   *
    * @param query a query, which may be a subset of a larger query, as long as the underlying queryId is unchanged
    * @param future the future holding the execution status of the query
    */
-  void registerQuery(Query query, ListenableFuture future);
+  void registerQuery(Query query, ListenableFuture future, Closeable resource);
+
+  void unregisterResource(Query query, Closeable resource);
 
   long remainingTime(String queryId);
 
-  boolean cancelQuery(String id);
+  boolean cancelQuery(String queryId);
 
   class Abstract implements QueryWatcher
   {
     @Override
-    public void registerQuery(Query query, ListenableFuture future) {}
+    public void registerQuery(Query query, ListenableFuture future, Closeable resource) {}
 
     @Override
-    public long remainingTime(String queryId) { return 0;}
+    public void unregisterResource(Query query, Closeable resource) {}
 
     @Override
-    public boolean cancelQuery(String id)
+    public long remainingTime(String queryId) { return 60_000L;}
+
+    @Override
+    public boolean cancelQuery(String queryId)
     {
       return false;
     }

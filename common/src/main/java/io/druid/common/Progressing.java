@@ -28,7 +28,7 @@ import java.util.Iterator;
  */
 public interface Progressing
 {
-  float progress();
+  default float progress() { return -1;}
 
   interface OnFirehose extends Progressing, Firehose, Closeable { }
 

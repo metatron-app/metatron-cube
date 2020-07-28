@@ -43,7 +43,6 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -137,10 +136,8 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
             queryWatcher.registerQuery(query, futures);
 
-            long timeout = queryWatcher.remainingTime(query.getId());
             try {
-              List<Iterable<T>> iterables = timeout <= 0 ? futures.get() : futures.get(timeout, TimeUnit.MILLISECONDS);
-              return mergeResults(query, iterables).iterator();
+              return mergeResults(query, QueryRunners.wainOn(query, futures, queryWatcher)).iterator();
             }
             catch (CancellationException e) {
               log.info("Query canceled, id [%s]", query.getId());

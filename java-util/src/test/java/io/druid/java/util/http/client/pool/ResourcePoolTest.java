@@ -74,8 +74,15 @@ public class ResourcePoolTest
     EasyMock.verify(resourceFactory);
     EasyMock.reset(resourceFactory);
 
+    EasyMock.expect(resourceFactory.isValid("billy0")).andReturn(true).times(1);
+    EasyMock.expect(resourceFactory.isValid("sally0")).andReturn(true).times(1);
+    EasyMock.replay(resourceFactory);
+
     billyString.returnResource();
     sallyString.returnResource();
+
+    EasyMock.verify(resourceFactory);
+    EasyMock.reset(resourceFactory);
   }
 
   @Test
@@ -87,6 +94,7 @@ public class ResourcePoolTest
     resourceFactory.close("billy1");
     EasyMock.expectLastCall();
     EasyMock.expect(resourceFactory.generate("billy")).andReturn("billy2").times(1);
+    EasyMock.expect(resourceFactory.isValid("billy2")).andReturn(true).times(1);
     EasyMock.replay(resourceFactory);
 
     ResourceContainer<String> billy = pool.take("billy");
@@ -111,6 +119,7 @@ public class ResourcePoolTest
     EasyMock.expectLastCall();
     EasyMock.expect(resourceFactory.generate("billy")).andThrow(new ISE("where's billy?")).times(1);
     EasyMock.expect(resourceFactory.generate("billy")).andReturn("billy2").times(1);
+    EasyMock.expect(resourceFactory.isValid("billy2")).andReturn(true).times(1);
     EasyMock.replay(resourceFactory);
 
     IllegalStateException e1 = null;
@@ -147,6 +156,8 @@ public class ResourcePoolTest
     primePool();
     EasyMock.expect(resourceFactory.isGood("billy1")).andReturn(true).times(1);
     EasyMock.expect(resourceFactory.isGood("billy0")).andReturn(true).times(1);
+//    EasyMock.expect(resourceFactory.isValid("billy1")).andReturn(true).times(1);
+//    EasyMock.expect(resourceFactory.isValid("billy0")).andReturn(true).times(1);
     EasyMock.replay(resourceFactory);
 
     CountDownLatch latch1 = new CountDownLatch(1);
@@ -165,6 +176,7 @@ public class ResourcePoolTest
 
     EasyMock.verify(resourceFactory);
     EasyMock.reset(resourceFactory);
+    EasyMock.expect(resourceFactory.isValid("billy0")).andReturn(true).times(1);
     EasyMock.expect(resourceFactory.isGood("billy0")).andReturn(true).times(1);
     EasyMock.replay(resourceFactory);
 
@@ -249,15 +261,19 @@ public class ResourcePoolTest
 
     EasyMock.verify(resourceFactory);
     EasyMock.reset(resourceFactory);
+    EasyMock.expect(resourceFactory.isValid("billy0")).andReturn(true).times(1);
+    EasyMock.replay(resourceFactory);
 
     billyString.returnResource();
 
     //make sure resources have been timed out.
     Thread.sleep(100);
 
+    EasyMock.reset(resourceFactory);
     EasyMock.expect(resourceFactory.generate("billy")).andReturn("billy1").times(1);
     resourceFactory.close("billy1");
     EasyMock.expect(resourceFactory.isGood("billy1")).andReturn(true).times(1);
+    EasyMock.expect(resourceFactory.isValid("billy1")).andReturn(true).times(1);
     EasyMock.replay(resourceFactory);
 
     ResourceContainer<String> billy = pool.take("billy");

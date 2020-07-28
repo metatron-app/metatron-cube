@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import io.druid.query.frequency.FrequenceQueryConfig;
+import io.druid.query.frequency.FrequencyQueryConfig;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
@@ -86,7 +86,7 @@ public class QueryConfig
 
   @JacksonInject
   @NotNull
-  public Supplier<FrequenceQueryConfig> frequency = Suppliers.ofInstance(new FrequenceQueryConfig());
+  public Supplier<FrequencyQueryConfig> frequency = Suppliers.ofInstance(new FrequencyQueryConfig());
 
   public int getMaxResults(Query<?> query)
   {
@@ -197,7 +197,7 @@ public class QueryConfig
     return join.get();
   }
 
-  public FrequenceQueryConfig getFrequency()
+  public FrequencyQueryConfig getFrequency()
   {
     return frequency.get();
   }

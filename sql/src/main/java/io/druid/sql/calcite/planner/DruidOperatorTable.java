@@ -273,7 +273,7 @@ public class DruidOperatorTable implements SqlOperatorTable
 
     for (DimFilterConversion conversion : userDimFilterConversions) {
       if (dimFilterConversions.putIfAbsent(OperatorKey.of(conversion.calciteOperator(), true), conversion) == null) {
-        LOG.info("> SQL Filter '%s' is registered with %s", conversion.name(), conversion.getClass().getSimpleName());
+        LOG.info("> SQL Filter '%s' is registered with %s", conversion.name(), conversion);
       }
     }
 

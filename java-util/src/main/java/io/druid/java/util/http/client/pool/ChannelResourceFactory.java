@@ -168,9 +168,15 @@ public class ChannelResourceFactory implements ResourceFactory<String, ChannelFu
   }
 
   @Override
+  public boolean isValid(ChannelFuture resource)
+  {
+    return resource.isDone() && resource.getChannel().isConnected();
+  }
+
+  @Override
   public void close(ChannelFuture resource)
   {
-    log.trace("Closing");
-    resource.awaitUninterruptibly().getChannel().close();
+    resource.cancel();
+    resource.getChannel().close();
   }
 }

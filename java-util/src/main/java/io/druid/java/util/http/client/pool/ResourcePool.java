@@ -166,7 +166,7 @@ public class ResourcePool<K, V> implements Closeable
             this.wait();
           }
           catch (InterruptedException e) {
-            Thread.interrupted();
+            Thread.currentThread().interrupt();
             return null;
           }
         }
@@ -220,6 +220,11 @@ public class ResourcePool<K, V> implements Closeable
       synchronized (this) {
         if (closed) {
           log.info(String.format("giveBack called after being closed. key[%s]", key));
+          factory.close(object);
+          return;
+        }
+        if (!factory.isValid(object)) {
+          deficit++;
           factory.close(object);
           return;
         }
