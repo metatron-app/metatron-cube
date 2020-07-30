@@ -33,7 +33,6 @@ import org.joda.time.Interval;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -187,13 +186,13 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
         return null;
       }
 
-      PartitionChunk<ObjectType> retVal = entry.getPartitionHolder().remove(chunk);
-      if (entry.getPartitionHolder().isEmpty()) {
+      PartitionHolder<ObjectType> holder = entry.getPartitionHolder();
+      PartitionChunk<ObjectType> retVal = holder.remove(chunk);
+      if (holder.isEmpty()) {
         versionEntries.remove(version);
         if (versionEntries.isEmpty()) {
           allTimelineEntries.remove(interval);
         }
-
         remove(incompletePartitionsTimeline, interval, entry, true);
       }
 
@@ -511,9 +510,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     TimelineEntry removed = timeline.get(interval);
 
     if (removed == null) {
-      Iterator<Map.Entry<Interval, TimelineEntry>> iter = timeline.entrySet().iterator();
-      while (iter.hasNext()) {
-        Map.Entry<Interval, TimelineEntry> timelineEntry = iter.next();
+      for (Map.Entry<Interval, TimelineEntry> timelineEntry : timeline.entrySet()) {
         if (timelineEntry.getValue() == entry) {
           intervalsToRemove.add(timelineEntry.getKey());
         }

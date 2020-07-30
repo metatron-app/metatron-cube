@@ -31,10 +31,7 @@ public class LinearPartitionChunk <T> implements PartitionChunk<T>
     return new LinearPartitionChunk<T>(chunkNumber, obj);
   }
 
-  public LinearPartitionChunk(
-      int chunkNumber,
-      T object
-  )
+  public LinearPartitionChunk(int chunkNumber, T object)
   {
     this.chunkNumber = chunkNumber;
     this.object = object;
@@ -91,8 +88,7 @@ public class LinearPartitionChunk <T> implements PartitionChunk<T>
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
-    return compareTo((LinearPartitionChunk<T>) o) == 0;
+    return chunkNumber == ((LinearPartitionChunk) o).chunkNumber;
   }
 
   @Override

@@ -107,17 +107,13 @@ public class IntegerPartitionChunk<T> implements PartitionChunk<T>
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
-    return compareTo((IntegerPartitionChunk<T>) o) == 0;
+    return chunkNumber == ((IntegerPartitionChunk) o).chunkNumber;
   }
 
   @Override
   public int hashCode()
   {
-    int result = start != null ? start.hashCode() : 0;
-    result = 31 * result + (end != null ? end.hashCode() : 0);
-    result = 31 * result + (object != null ? object.hashCode() : 0);
-    return result;
+    return chunkNumber;
   }
 
   @Override

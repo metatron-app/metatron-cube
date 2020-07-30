@@ -129,73 +129,68 @@ public class CoordinatorServerView implements InventoryView
 
   private void serverAddedSegment(final DruidServerMetadata server, final DataSegment segment)
   {
-    String segmentId = segment.getIdentifier();
+    final String segmentId = segment.getIdentifier();
+
+    log.debug("Adding segment[%s] to server[%s]", segmentId, server);
+
     synchronized (lock) {
-      log.debug("Adding segment[%s] for server[%s]", segment, server);
-
-      SegmentLoadInfo segmentLoadInfo = segmentLoadInfos.get(segmentId);
-      if (segmentLoadInfo == null) {
-        // servers escape the scope of this object so use ConcurrentSet
-        segmentLoadInfo = new SegmentLoadInfo(segment.toDescriptor());
-
-        VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.get(segment.getDataSource());
-        if (timeline == null) {
-          timeline = new VersionedIntervalTimeline<>(Ordering.natural());
-          emitter.emit(
-              new Events.SimpleEvent(
-                  ImmutableMap.<String, Object>of(
-                      "feed", "CoordinatorServerView",
-                      "type", "newDataSource",
-                      "createdDate", System.currentTimeMillis(),
-                      "dataSource", segment.getDataSource())
-              )
-          );
-          timelines.put(segment.getDataSource(), timeline);
-        }
-
+      SegmentLoadInfo loadInfo = segmentLoadInfos.computeIfAbsent(segmentId, id -> {
+        SegmentLoadInfo info = new SegmentLoadInfo(segment.toDescriptor());
+        VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.computeIfAbsent(
+            segment.getDataSource(), ds -> {
+              emitter.emit(
+                  new Events.SimpleEvent(
+                      ImmutableMap.<String, Object>of(
+                          "feed", "CoordinatorServerView",
+                          "type", "newDataSource",
+                          "createdDate", System.currentTimeMillis(),
+                          "dataSource", ds
+                      )
+                  )
+              );
+              return new VersionedIntervalTimeline<>(Ordering.natural());
+            });
         timeline.add(
             segment.getInterval(),
             segment.getVersion(),
-            segment.getShardSpecWithDefault().createChunk(segmentLoadInfo)
+            segment.getShardSpecWithDefault().createChunk(info)
         );
-        segmentLoadInfos.put(segmentId, segmentLoadInfo);
-      }
-      segmentLoadInfo.addServer(server);
+        return info;
+      });
+      loadInfo.addServer(server);
     }
   }
 
   private void serverRemovedSegment(DruidServerMetadata server, DataSegment segment)
   {
-    String segmentId = segment.getIdentifier();
+    final String segmentId = segment.getIdentifier();
 
+    log.debug("Removing segment[%s] from server[%s]", segmentId, server);
 
     synchronized (lock) {
-      log.debug("Removing segment[%s] from server[%s].", segmentId, server);
-
-      final SegmentLoadInfo segmentLoadInfo = segmentLoadInfos.get(segmentId);
-      if (segmentLoadInfo == null) {
-        log.warn("Told to remove non-existant segment[%s]", segmentId);
-        return;
-      }
-      segmentLoadInfo.removeServer(server);
-      if (segmentLoadInfo.isEmpty()) {
-        VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.get(segment.getDataSource());
-        segmentLoadInfos.remove(segmentId);
-
-        final PartitionChunk<SegmentLoadInfo> removedPartition = timeline.remove(
-            segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(
-                new SegmentLoadInfo(segment.toDescriptor())
-            )
-        );
-
-        if (removedPartition == null) {
-          log.warn(
-              "Asked to remove timeline entry[interval: %s, version: %s] that doesn't exist",
-              segment.getInterval(),
-              segment.getVersion()
-          );
+      segmentLoadInfos.compute(segmentId, (id, segmentLoadInfo) -> {
+        if (segmentLoadInfo == null) {
+          log.warn("Told to remove non-existant segment[%s]", segmentId);
+          return null;
         }
-      }
+        segmentLoadInfo.removeServer(server);
+        if (segmentLoadInfo.isEmpty()) {
+          final VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.get(segment.getDataSource());
+          final PartitionChunk<SegmentLoadInfo> removedPartition = timeline.remove(
+              segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(null)
+          );
+
+          if (removedPartition == null) {
+            log.warn(
+                "Asked to remove timeline entry[interval: %s, version: %s] that doesn't exist",
+                segment.getInterval(),
+                segment.getVersion()
+            );
+          }
+          return null;  // remove
+        }
+        return segmentLoadInfo;
+      });
     }
   }
 

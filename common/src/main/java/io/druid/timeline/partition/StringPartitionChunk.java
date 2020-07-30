@@ -35,12 +35,7 @@ public class StringPartitionChunk<T> implements PartitionChunk<T>
     return new StringPartitionChunk<T>(start, end, chunkNumber, obj);
   }
 
-  public StringPartitionChunk(
-      String start,
-      String end,
-      int chunkNumber,
-      T object
-  )
+  public StringPartitionChunk(String start, String end, int chunkNumber, T object)
   {
     this.start = start;
     this.end = end;
@@ -105,16 +100,12 @@ public class StringPartitionChunk<T> implements PartitionChunk<T>
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
-    return compareTo((StringPartitionChunk<T>) o) == 0;
+    return chunkNumber == ((StringPartitionChunk) o).chunkNumber;
   }
 
   @Override
   public int hashCode()
   {
-    int result = start != null ? start.hashCode() : 0;
-    result = 31 * result + (end != null ? end.hashCode() : 0);
-    result = 31 * result + (object != null ? object.hashCode() : 0);
-    return result;
+    return chunkNumber;
   }
 }

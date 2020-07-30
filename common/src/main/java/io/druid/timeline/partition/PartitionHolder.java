@@ -39,13 +39,13 @@ public class PartitionHolder<T> implements Iterable<PartitionChunk<T>>
 
   public PartitionHolder(PartitionChunk<T> initialChunk)
   {
-    this.holderSet = Lists.newArrayListWithCapacity(2);
+    this.holderSet = Lists.newLinkedList();
     this.holderSet.add(initialChunk);
   }
 
   public PartitionHolder(List<PartitionChunk<T>> initialChunks)
   {
-    this.holderSet = Lists.newArrayList(initialChunks);
+    this.holderSet = Lists.newLinkedList(initialChunks);
   }
 
   public PartitionHolder(PartitionHolder<T> partitionHolder)

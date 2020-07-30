@@ -25,10 +25,7 @@ public class SingleElementPartitionChunk<T> implements PartitionChunk<T>
 {
   private final T element;
 
-  public SingleElementPartitionChunk
-      (
-          T element
-      )
+  public SingleElementPartitionChunk(T element)
   {
     this.element = element;
   }
@@ -89,14 +86,13 @@ public class SingleElementPartitionChunk<T> implements PartitionChunk<T>
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    return element != null ? element.hashCode() : 0;
+    return 0;
   }
 
   @Override

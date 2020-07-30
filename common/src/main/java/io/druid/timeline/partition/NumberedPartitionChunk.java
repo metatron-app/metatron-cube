@@ -19,7 +19,6 @@
 
 package io.druid.timeline.partition;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ComparisonChain;
 
@@ -29,20 +28,12 @@ public class NumberedPartitionChunk<T> implements PartitionChunk<T>
   private final int chunks;
   private final T object;
 
-  public static <T> NumberedPartitionChunk<T> make(
-      int chunkNumber,
-      int chunks,
-      T obj
-  )
+  public static <T> NumberedPartitionChunk<T> make(int chunkNumber, int chunks, T obj)
   {
     return new NumberedPartitionChunk<T>(chunkNumber, chunks, obj);
   }
 
-  public NumberedPartitionChunk(
-      int chunkNumber,
-      int chunks,
-      T object
-  )
+  public NumberedPartitionChunk(int chunkNumber, int chunks, T object)
   {
     Preconditions.checkArgument(chunkNumber >= 0, "chunkNumber >= 0");
     Preconditions.checkArgument(chunks >= 0, "chunks >= 0");
@@ -75,13 +66,13 @@ public class NumberedPartitionChunk<T> implements PartitionChunk<T>
   @Override
   public boolean isStart()
   {
-    return chunks > 0 ? chunkNumber == 0 : true;
+    return chunks <= 0 || chunkNumber == 0;
   }
 
   @Override
   public boolean isEnd()
   {
-    return chunks > 0 ? chunkNumber == chunks - 1 : true;
+    return chunks <= 0 || chunkNumber == chunks - 1;
   }
 
   @Override
@@ -114,13 +105,13 @@ public class NumberedPartitionChunk<T> implements PartitionChunk<T>
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
-    return compareTo((NumberedPartitionChunk<T>) o) == 0;
+    final NumberedPartitionChunk other = (NumberedPartitionChunk) o;
+    return chunks == other.chunks && chunkNumber == other.chunkNumber;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hashCode(chunks, chunkNumber);
+    return chunkNumber;
   }
 }
