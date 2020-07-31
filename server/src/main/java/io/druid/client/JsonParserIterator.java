@@ -37,6 +37,7 @@ import java.net.URL;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -108,7 +109,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
           objectCodec = jp.getCodec();
         }
       }
-      catch (Exception e) {
+      catch (Throwable e) {
         throw handleException(e);
       }
     }
@@ -116,7 +117,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
 
   protected abstract JsonParser createParser(JsonFactory factory) throws Exception;
 
-  protected abstract RuntimeException handleException(Exception ex);
+  protected abstract RuntimeException handleException(Throwable ex);
 
   public boolean close()
   {
@@ -147,12 +148,16 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     }
 
     @Override
-    protected RuntimeException handleException(Exception ex)
+    protected final RuntimeException handleException(Throwable ex)
     {
+      if (ex instanceof ExecutionException && ex.getCause() != null) {
+        ex = ex.getCause();
+      }
       if (ex instanceof IOException ||
           ex instanceof TimeoutException ||
           ex instanceof InterruptedException ||
           ex instanceof QueryInterruptedException ||
+          ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
           ex instanceof CancellationException) {
         // todo should retry to other replica if exists?
         throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
@@ -161,7 +166,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     }
 
     @Override
-    protected JsonParser createParser(JsonFactory factory) throws Exception
+    protected final JsonParser createParser(JsonFactory factory) throws Exception
     {
       return factory.createParser(callable.call());
     }

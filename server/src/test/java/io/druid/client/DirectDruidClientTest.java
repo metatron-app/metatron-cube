@@ -58,6 +58,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 
 public class DirectDruidClientTest
 {
@@ -87,6 +88,15 @@ public class DirectDruidClientTest
     )
             .andReturn(futureException)
             .times(1);
+    SettableFuture<Object> cancellationFuture = SettableFuture.create();
+    EasyMock.expect(
+        httpClient.go(
+            EasyMock.capture(capturedRequest),
+            EasyMock.<HttpResponseHandler>anyObject()
+        )
+    )
+            .andReturn(cancellationFuture)
+            .once();
 
     EasyMock.expect(
         httpClient.go(
@@ -162,6 +172,15 @@ public class DirectDruidClientTest
     Sequence s2 = client1.run(query, context);
     Assert.assertEquals(2, client1.getNumOpenConnections());
     futureException.setException(new ReadTimeoutException());
+    cancellationFuture.set(new StatusResponseHolder(HttpResponseStatus.OK, new StringBuilder("cancelled")));
+    try {
+      Sequences.toList(s2, Lists.<Result>newArrayList());
+    }
+    catch (Exception e) {
+      Assert.assertTrue(e instanceof QueryInterruptedException);
+      Assert.assertTrue(e.getCause() instanceof ReadTimeoutException);
+    }
+
     Assert.assertEquals(1, client1.getNumOpenConnections());
 
     // subsequent connections should work
@@ -255,18 +274,15 @@ public class DirectDruidClientTest
     HashMap<String, List> context = Maps.newHashMap();
     cancellationFuture.set(new StatusResponseHolder(HttpResponseStatus.OK, new StringBuilder("cancelled")));
     Sequence results = client1.run(query, context);
+    try {
+      Sequences.toList(results, Lists.<Result>newArrayList());
+    }
+    catch (Exception e) {
+      Assert.assertTrue(e instanceof QueryInterruptedException);
+      Assert.assertTrue(e.getCause() instanceof CancellationException);
+    }
     Assert.assertEquals(HttpMethod.DELETE, capturedRequest.getValue().getMethod());
     Assert.assertEquals(0, client1.getNumOpenConnections());
-
-
-    QueryInterruptedException exception = null;
-    try {
-      Sequences.toList(results, Lists.newArrayList());
-    }
-    catch (QueryInterruptedException e) {
-      exception = e;
-    }
-    Assert.assertNotNull(exception);
 
     EasyMock.verify(httpClient);
   }

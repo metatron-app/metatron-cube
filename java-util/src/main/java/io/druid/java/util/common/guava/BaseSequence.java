@@ -43,15 +43,19 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
           @Override
           public void cleanup(Iterator<T> iterFromMake)
           {
-
+            if (iterFromMake instanceof Closeable) {
+              try {
+                ((Closeable) iterFromMake).close();
+              }
+              catch (Exception e) {
+              }
+            }
           }
         }
     );
   }
 
-  public BaseSequence(
-      IteratorMaker<T, IterType> maker
-  )
+  public BaseSequence(IteratorMaker<T, IterType> maker)
   {
     this.maker = maker;
   }
@@ -93,7 +97,7 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
   }
 
   private <OutType> Yielder<OutType> makeYielder(
-      OutType initValue,
+      final OutType initValue,
       final YieldingAccumulator<OutType, T> accumulator,
       final IterType iter
   )
@@ -162,8 +166,8 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
 
   public static interface IteratorMaker<T, IterType extends Iterator<T>>
   {
-    public IterType make();
+    IterType make();
 
-    public void cleanup(IterType iterFromMake);
+    void cleanup(IterType iterFromMake);
   }
 }

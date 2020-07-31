@@ -131,13 +131,11 @@ public interface Cache
 
     protected final byte[] serialize(byte[] value)
     {
-      final int len = LZ4_COMPRESSOR.maxCompressedLength(value.length);
-      final byte[] out = new byte[len];
-      final int compressedSize = LZ4_COMPRESSOR.compress(value, 0, value.length, out, 0);
-      return ByteBuffer.allocate(compressedSize + Ints.BYTES)
-                       .putInt(value.length)
-                       .put(out, 0, compressedSize)
-                       .array();
+      final byte[] length = Ints.toByteArray(value.length);
+      final byte[] out = new byte[Ints.BYTES + LZ4_COMPRESSOR.maxCompressedLength(value.length)];
+      System.arraycopy(length, 0, out, 0, Ints.BYTES);
+      final int compressedSize = LZ4_COMPRESSOR.compress(value, 0, value.length, out, Ints.BYTES);
+      return Arrays.copyOf(out, compressedSize + Ints.BYTES);
     }
   }
 }

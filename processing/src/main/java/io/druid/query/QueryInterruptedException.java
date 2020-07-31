@@ -162,7 +162,7 @@ public class QueryInterruptedException extends RuntimeException
       return QUERY_INTERRUPTED;
     } else if (e instanceof CancellationException) {
       return QUERY_CANCELLED;
-    } else if (e instanceof TimeoutException) {
+    } else if (e instanceof TimeoutException || e instanceof org.jboss.netty.handler.timeout.TimeoutException) {
       return QUERY_TIMEOUT;
     } else if (e instanceof ResourceLimitExceededException || e instanceof RejectedExecutionException) {
       return RESOURCE_LIMIT_EXCEEDED;

@@ -25,11 +25,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
@@ -121,11 +117,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     return openConnections.get();
   }
 
-  public ObjectMapper getObjectMapper()
-  {
-    return objectMapper;
-  }
-
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {
@@ -147,18 +138,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       typeRef = baseType;
     }
 
-    final byte[] contents;
-    try {
-      contents = objectMapper.writeValueAsBytes(query);
-    }
-    catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
-
-    final Supplier<URL> cancelUrl = Suppliers.memoize(
-        () -> StringUtils.toURL(String.format("http://%s/druid/v2/%s", host, query.getId()))
-    );
-
     final QueryMetrics<?> queryMetrics = toolChest.makeMetrics(query);
     queryMetrics.server(host);
 
@@ -172,39 +151,15 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     final ListenableFuture<InputStream> future = httpClient.go(
         new Request(HttpMethod.POST, hostURL)
             .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType)
-            .setContent(contents),
+            .setContent(serializeQuery(query)),
         handler
     );
-
     final long elapsed = System.currentTimeMillis() - start;
     if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
       log.info("Took %,d msec to write query[%s:%s] to url[%s]", elapsed, query.getType(), query.getId(), hostURL);
     }
 
     openConnections.getAndIncrement();
-
-    Futures.addCallback(
-        future, new FutureCallback<InputStream>()
-        {
-          @Override
-          public void onSuccess(InputStream result)
-          {
-            openConnections.getAndDecrement();
-          }
-
-          @Override
-          public void onFailure(Throwable t)
-          {
-            openConnections.getAndDecrement();
-            IOUtils.closeQuietly(handler);
-            queryWatcher.unregisterResource(query, handler);
-            if (future.isCancelled()) {
-              cancelRemote(query, cancelUrl.get());
-            }
-          }
-        }
-    );
-
     queryWatcher.registerQuery(query, Execs.tag(future, host), handler);
 
     Sequence<T> sequence = new BaseSequence<>(
@@ -222,10 +177,11 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           public void cleanup(JsonParserIterator<T> parser)
           {
             IOUtils.closeQuietly(handler);
+            openConnections.getAndDecrement();
             queryWatcher.unregisterResource(query, handler);
             if (!parser.close()) {
               future.cancel(true);
-              cancelRemote(query, cancelUrl.get());
+              cancelRemote(query);
             }
           }
         }
@@ -240,10 +196,21 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     return sequence;
   }
 
-  public void cancelRemote(Query<T> query, URL cancelUrl)
+  private byte[] serializeQuery(Query<T> query)
+  {
+    try {
+      return objectMapper.writeValueAsBytes(query);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  public void cancelRemote(Query<T> query)
   {
     backgroundExecutorService.submit(
         () -> {
+          URL cancelUrl = StringUtils.toURL(String.format("http://%s/druid/v2/%s", host, query.getId()));
           StatusResponseHolder response = httpClient.go(
               new Request(HttpMethod.DELETE, cancelUrl),
               new StatusResponseHandler(Charsets.UTF_8)
