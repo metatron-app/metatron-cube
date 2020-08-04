@@ -156,7 +156,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     }
   }
 
-  private static class MimicDimension implements DimensionSelector
+  private static class MimicDimension implements DimensionSelector.SingleValued
   {
     private final ValueDesc type;
     private final Supplier<? extends Comparable> supplier;
