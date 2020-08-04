@@ -42,6 +42,7 @@ import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -58,14 +59,16 @@ import java.util.Map;
 
 @JsonTypeName("regression")
 public class RegressionQuery extends BaseQuery<Object[]>
-    implements Query.RewritingQuery<Object[]>, Query.ArrayOutput
+    implements Query.RewritingQuery<Object[]>, Query.ArrayOutput, Query.FilterSupport<Object[]>
 {
   private static final Logger LOG = new Logger(RegressionQuery.class);
   private static final double DEFAULT_CONFIDENCE = 0.95f;
 
+  private final DimFilter filter;
   private final List<VirtualColumn> virtualColumns;
   private final boolean exponential;  // todo
   private final String y;
+  private final boolean regressionOnly;
   private final int numPredict;
   private final Period predictPeriod;
   private final double confidence;
@@ -74,9 +77,11 @@ public class RegressionQuery extends BaseQuery<Object[]>
   public RegressionQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("filter") DimFilter filter,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("exponential") boolean exponential,
       @JsonProperty("y") String y,
+      @JsonProperty("regressionOnly") boolean regressionOnly,
       @JsonProperty("numPredict") int numPredict,
       @JsonProperty("predictGranulariry") Period predictPeriod,
       @JsonProperty("confidence") Double confidence,
@@ -85,9 +90,11 @@ public class RegressionQuery extends BaseQuery<Object[]>
   )
   {
     super(dataSource, querySegmentSpec, false, context);
+    this.filter = filter;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.exponential = exponential;
     this.y = Preconditions.checkNotNull(y, "y should not be null");
+    this.regressionOnly = regressionOnly;
     this.numPredict = numPredict;
     this.predictPeriod = predictPeriod;
     this.confidence = confidence == null ? DEFAULT_CONFIDENCE : confidence;
@@ -101,6 +108,14 @@ public class RegressionQuery extends BaseQuery<Object[]>
   public String getType()
   {
     return "regression";
+  }
+
+  @Override
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public DimFilter getFilter()
+  {
+    return filter;
   }
 
   @JsonProperty
@@ -120,6 +135,12 @@ public class RegressionQuery extends BaseQuery<Object[]>
   public String getY()
   {
     return y;
+  }
+
+  @JsonProperty
+  public boolean isRegressionOnly()
+  {
+    return regressionOnly;
   }
 
   @JsonProperty
@@ -154,9 +175,11 @@ public class RegressionQuery extends BaseQuery<Object[]>
     return new RegressionQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        filter,
         virtualColumns,
         exponential,
         y,
+        regressionOnly,
         numPredict,
         predictPeriod,
         confidence,
@@ -171,9 +194,11 @@ public class RegressionQuery extends BaseQuery<Object[]>
     return new RegressionQuery(
         getDataSource(),
         spec,
+        filter,
         virtualColumns,
         exponential,
         y,
+        regressionOnly,
         numPredict,
         predictPeriod,
         confidence,
@@ -188,9 +213,49 @@ public class RegressionQuery extends BaseQuery<Object[]>
     return new RegressionQuery(
         dataSource,
         getQuerySegmentSpec(),
+        filter,
         virtualColumns,
         exponential,
         y,
+        regressionOnly,
+        numPredict,
+        predictPeriod,
+        confidence,
+        threshold,
+        getContext()
+    );
+  }
+
+  @Override
+  public RegressionQuery withFilter(DimFilter filter)
+  {
+    return new RegressionQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        virtualColumns,
+        exponential,
+        y,
+        regressionOnly,
+        numPredict,
+        predictPeriod,
+        confidence,
+        threshold,
+        getContext()
+    );
+  }
+
+  @Override
+  public RegressionQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new RegressionQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        virtualColumns,
+        exponential,
+        y,
+        regressionOnly,
         numPredict,
         predictPeriod,
         confidence,
@@ -217,7 +282,7 @@ public class RegressionQuery extends BaseQuery<Object[]>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        null,
+        filter,
         Granularities.ALL,
         virtualColumns,
         Arrays.asList(
@@ -269,8 +334,8 @@ public class RegressionQuery extends BaseQuery<Object[]>
     final Sequence<Object[]> sequence = Sequences.map(
         QueryRunners.run(
             new StreamQuery(
-                getDataSource(), getQuerySegmentSpec(), isDescending(), null, Arrays.asList("__time", y), virtualColumns,
-                null, null, null, null, context
+                getDataSource(), getQuerySegmentSpec(), isDescending(),
+                filter, Arrays.asList("__time", y), virtualColumns, null, null, null, null, context
             ), segmentWalker),
         input -> {
           final Object[] row = Arrays.copyOf(input, input.length + 1);
@@ -301,6 +366,9 @@ public class RegressionQuery extends BaseQuery<Object[]>
       DateTime dateTime = DateTimes.utc((long) rul);
       long days = new Duration(dateTime.getMillis() - timeMax.getMillis()).getStandardDays();
       result.add(new Object[]{dateTime.getMillis(), dateTime, days});
+    }
+    if (regressionOnly) {
+      return DummyQuery.of(Sequences.simple(result));
     }
     return DummyQuery.of(Sequences.concat(sequence, Sequences.simple(result)));
   }
