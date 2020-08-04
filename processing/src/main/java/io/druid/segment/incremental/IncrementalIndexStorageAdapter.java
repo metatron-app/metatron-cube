@@ -47,7 +47,6 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
-import io.druid.segment.CursorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -77,20 +76,20 @@ import java.util.Map;
 
 /**
  */
-public class IncrementalIndexStorageAdapter extends CursorFactory.Abstract implements StorageAdapter
+public class IncrementalIndexStorageAdapter implements StorageAdapter
 {
-  private final String segmentIdentifier;
   private final IncrementalIndex index;
+  private final String segmentIdentifier;
 
-  public IncrementalIndexStorageAdapter(String segmentIdentifier, IncrementalIndex index)
+  public IncrementalIndexStorageAdapter(IncrementalIndex index, String segmentIdentifier)
   {
-    this.segmentIdentifier = segmentIdentifier;
     this.index = index;
+    this.segmentIdentifier = segmentIdentifier;
   }
 
   public IncrementalIndexStorageAdapter(IncrementalIndex index)
   {
-    this(null, index);
+    this(index, null);
   }
 
   @Override

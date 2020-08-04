@@ -155,16 +155,10 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
     return Aggregators.relayBufferAggregator(metricFactory, columnName, relayType);
   }
 
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+  protected boolean isMergeable(AggregatorFactory other)
   {
-    if (other instanceof RelayAggregatorFactory) {
-      RelayAggregatorFactory relay = (RelayAggregatorFactory)other;
-      if (Objects.equals(name, relay.name) && Objects.equals(typeName, relay.typeName)) {
-        return new RelayAggregatorFactory(name, name, typeName, relayType);
-      }
-    }
-    throw new AggregatorFactoryNotMergeableException(this, other);
+    return getName().equals(other.getName()) && other instanceof RelayAggregatorFactory &&
+           Objects.equals(typeName, ((RelayAggregatorFactory) other).typeName);
   }
 
   @Override

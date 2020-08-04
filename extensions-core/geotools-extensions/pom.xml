@@ -90,11 +90,6 @@
             <artifactId>ejml-ddense</artifactId>
             <version>0.32</version>
         </dependency>
-        <dependency>
-            <groupId>org.locationtech.spatial4j</groupId>
-            <artifactId>spatial4j</artifactId>
-            <version>0.7</version>
-        </dependency>
 
         <!-- WARN : LGPL -->
         <dependency>

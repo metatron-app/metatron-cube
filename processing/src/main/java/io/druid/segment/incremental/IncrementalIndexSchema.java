@@ -34,7 +34,6 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.java.util.common.Pair;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -285,7 +284,7 @@ public class IncrementalIndexSchema
     public Builder()
     {
       this.minTimestamp = 0L;
-      this.gran = QueryGranularities.NONE;
+      this.gran = Granularities.NONE;
       this.dimensionsSpec = new DimensionsSpec(null, null, null);
       this.metrics = new AggregatorFactory[]{};
       this.rollup = true;

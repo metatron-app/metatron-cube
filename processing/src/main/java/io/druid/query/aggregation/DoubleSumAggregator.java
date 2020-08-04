@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
+import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -41,10 +42,14 @@ public abstract class DoubleSumAggregator implements Aggregator<MutableDouble>
     }
   }.nullsFirst();
 
-  static double combineValues(Object lhs, Object rhs)
+  static final Combiner<Number> COMBINER = new Combiner.Abstract<Number>()
   {
-    return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
-  }
+    @Override
+    protected final Number _combine(Number param1, Number param2)
+    {
+      return param1.doubleValue() + param2.doubleValue();
+    }
+  };
 
   @Override
   public Object get(MutableDouble current)

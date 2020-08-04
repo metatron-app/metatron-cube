@@ -27,7 +27,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 
@@ -83,10 +82,10 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory
   @SuppressWarnings("unchecked")
   public Combiner combiner()
   {
-    return new Combiner<DruidTDigest>() {
+    return new Combiner.Abstract<DruidTDigest>() {
 
       @Override
-      public DruidTDigest combine(DruidTDigest param1, DruidTDigest param2)
+      protected final DruidTDigest _combine(DruidTDigest param1, DruidTDigest param2)
       {
         param1.add(param2);
         return param1;
@@ -98,18 +97,6 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     return new DruidTDigestAggregatorFactory(name, name, compression);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if(other.getName().equals(getName()) && other instanceof DruidTDigestAggregatorFactory) {
-      return new DruidTDigestAggregatorFactory(
-          name, name, compression
-      );
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override

@@ -205,7 +205,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory implements Aggre
   @Override
   public Double finalizeComputation(Object object)
   {
-    return ((PearsonAggregatorCollector) object).getCorr();
+    return object == null ? null : ((PearsonAggregatorCollector) object).getCorr();
   }
 
   @Override

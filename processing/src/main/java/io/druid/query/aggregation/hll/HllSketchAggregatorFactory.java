@@ -130,8 +130,7 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
   @Override
   public Double finalizeComputation(final Object object)
   {
-    final HllSketch sketch = (HllSketch) object;
-    return sketch.getEstimate();
+    return object == null ? null : ((HllSketch) object).getEstimate();
   }
 
   @Override

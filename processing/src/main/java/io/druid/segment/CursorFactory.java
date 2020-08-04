@@ -20,19 +20,34 @@
 package io.druid.segment;
 
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.DimFilter;
 import org.joda.time.Interval;
 
+import java.util.Optional;
+
 /**
  */
 public interface CursorFactory extends SchemaProvider
 {
+  default Sequence<Cursor> makeCursors(Query<?> query, Cache cache)
+  {
+    return makeCursors(
+        BaseQuery.getDimFilter(query),
+        Iterables.getOnlyElement(query.getIntervals()),
+        RowResolver.of(this, BaseQuery.getVirtualColumns(query)),
+        Optional.ofNullable(query.getGranularity()).orElse(Granularities.ALL),
+        query.isDescending(),
+        cache
+    );
+  }
+
   Sequence<Cursor> makeCursors(
       DimFilter filter,
       Interval interval,
@@ -41,22 +56,4 @@ public interface CursorFactory extends SchemaProvider
       boolean descending,
       Cache cache
   );
-
-  Sequence<Cursor> makeCursors(Query<?> query, Cache cache);
-
-  abstract class Abstract implements CursorFactory
-  {
-    @Override
-    public Sequence<Cursor> makeCursors(Query<?> query, Cache cache)
-    {
-      return makeCursors(
-          BaseQuery.getDimFilter(query),
-          Iterables.getOnlyElement(query.getIntervals()),
-          RowResolver.of(this, BaseQuery.getVirtualColumns(query)),
-          query.getGranularity(),
-          query.isDescending(),
-          cache
-      );
-    }
-  }
 }

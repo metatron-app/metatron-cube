@@ -210,32 +210,20 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     switch (outputType.type()) {
       case FLOAT:
       case DOUBLE:
-        return new Combiner<Number>()
-        {
-          @Override
-          public Number combine(Number param1, Number param2)
-          {
-            return param1.doubleValue() + param2.doubleValue();
-          }
-        };
+        return DoubleSumAggregator.COMBINER;
       case LONG:
-        return new Combiner<Number>()
-        {
-          @Override
-          public Number combine(Number param1, Number param2)
-          {
-            return param1.longValue() + param2.longValue();
-          }
-        };
+        return LongSumAggregator.COMBINER;
       case COMPLEX:
-        return new Combiner<BigDecimal>()
-        {
-          @Override
-          public BigDecimal combine(BigDecimal param1, BigDecimal param2)
+        if (outputType.isDecimal()) {
+          return new Combiner.Abstract<BigDecimal>()
           {
-            return param1.add(param2);
-          }
-        };
+            @Override
+            protected final BigDecimal _combine(BigDecimal param1, BigDecimal param2)
+            {
+              return param1.add(param2);
+            }
+          };
+        }
     }
     throw new IllegalStateException();
   }

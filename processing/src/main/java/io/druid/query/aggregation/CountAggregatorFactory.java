@@ -113,14 +113,7 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   @SuppressWarnings("unchecked")
   public Combiner<Number> combiner()
   {
-    return new Combiner<Number>()
-    {
-      @Override
-      public Number combine(Number param1, Number param2)
-      {
-        return param1.longValue() + param2.longValue();
-      }
-    };
+    return LongSumAggregator.COMBINER;
   }
 
   @Override

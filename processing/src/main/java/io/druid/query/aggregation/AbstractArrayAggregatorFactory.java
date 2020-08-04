@@ -117,6 +117,9 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   @Override
   public Object deserialize(Object object)
   {
+    if (object == null) {
+      return null;
+    }
     List value = (List) object;
     for (int i = 0; i < value.size(); i++) {
       value.set(i, delegate.deserialize(value.get(i)));
@@ -127,6 +130,9 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   @Override
   public Object finalizeComputation(Object object)
   {
+    if (object == null) {
+      return null;
+    }
     List<Object> values = (List<Object>) object;
     for (int i = 0; i < values.size(); i++) {
       values.set(i, delegate.finalizeComputation(values.get(i)));

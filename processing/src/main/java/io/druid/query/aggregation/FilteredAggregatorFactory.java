@@ -87,13 +87,20 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  protected boolean isMergeable(AggregatorFactory other)
+  {
+    return super.isMergeable(other) && Objects.equals(filter, ((FilteredAggregatorFactory) other).filter);
+  }
+
+  @Override
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    FilteredAggregatorFactory filtered = checkMergeable(other);
-    if (!Objects.equals(filter, filtered.filter)) {
+    if (!isMergeable(other)) {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
-    return new FilteredAggregatorFactory(delegate.getMergingFactory(filtered.delegate), filter);
+    return new FilteredAggregatorFactory(
+        delegate.getMergingFactory(((FilteredAggregatorFactory) other).delegate), filter
+    );
   }
 
   @Override

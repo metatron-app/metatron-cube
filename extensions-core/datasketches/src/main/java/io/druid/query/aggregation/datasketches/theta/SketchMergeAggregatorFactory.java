@@ -58,23 +58,26 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
     return new SketchMergeAggregatorFactory(name, name, size, shouldFinalize, false, errorBoundsStdDev);
   }
 
+  protected boolean isMergeable(AggregatorFactory other)
+  {
+    return getName().equals(other.getName()) && other instanceof SketchMergeAggregatorFactory;
+  }
+
   @Override
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    if (other.getName().equals(this.getName()) && other instanceof SketchMergeAggregatorFactory) {
-      SketchMergeAggregatorFactory castedOther = (SketchMergeAggregatorFactory) other;
-
-      return new SketchMergeAggregatorFactory(
-          name,
-          name,
-          Math.max(size, castedOther.size),
-          shouldFinalize,
-          false,
-          errorBoundsStdDev
-      );
-    } else {
+    if (!isMergeable(other)) {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
+    final SketchMergeAggregatorFactory castedOther = (SketchMergeAggregatorFactory) other;
+    return new SketchMergeAggregatorFactory(
+        name,
+        name,
+        Math.max(size, castedOther.size),
+        shouldFinalize,
+        false,
+        errorBoundsStdDev
+    );
   }
 
   @JsonProperty
@@ -106,21 +109,19 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
   @Override
   public Object finalizeComputation(Object object)
   {
-    if (shouldFinalize) {
-      Sketch sketch = object instanceof Union ? ((Union) object).getResult() : (Sketch) object;
-      if (errorBoundsStdDev != null) {
-        SketchEstimateWithErrorBounds result = new SketchEstimateWithErrorBounds(
-            sketch.getEstimate(),
-            sketch.getUpperBound(errorBoundsStdDev),
-            sketch.getLowerBound(errorBoundsStdDev),
-            errorBoundsStdDev);
-        return result;
-      } else {
+    if (object != null && shouldFinalize) {
+      final Sketch sketch = object instanceof Union ? ((Union) object).getResult() : (Sketch) object;
+      if (errorBoundsStdDev == null) {
         return sketch.getEstimate();
       }
-    } else {
-      return object;
+      return new SketchEstimateWithErrorBounds(
+          sketch.getEstimate(),
+          sketch.getUpperBound(errorBoundsStdDev),
+          sketch.getLowerBound(errorBoundsStdDev),
+          errorBoundsStdDev
+      );
     }
+    return object;
   }
 
   @Override

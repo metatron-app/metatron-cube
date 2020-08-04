@@ -205,7 +205,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((KurtosisAggregatorCollector) object).getKurtosis();
+    return object == null ? null : ((KurtosisAggregatorCollector) object).getKurtosis();
   }
 
   @Override

@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
+import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -40,10 +41,14 @@ public abstract class LongSumAggregator implements Aggregator<MutableLong>
     }
   }.nullsFirst();
 
-  static long combineValues(Object lhs, Object rhs)
+  static final Combiner<Number> COMBINER = new Combiner<Number>()
   {
-    return ((Number) lhs).longValue() + ((Number) rhs).longValue();
-  }
+    @Override
+    public Number combine(Number lhs, Number rhs)
+    {
+      return (lhs == null ? 0L : lhs.longValue()) + (rhs == null ? 0L : rhs.longValue());
+    }
+  };
 
   @Override
   public Object get(MutableLong current)

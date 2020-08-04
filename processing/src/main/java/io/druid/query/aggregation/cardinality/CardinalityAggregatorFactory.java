@@ -31,7 +31,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -184,9 +183,9 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+  protected boolean isMergeable(AggregatorFactory other)
   {
-    throw new UnsupportedOperationException("can't merge CardinalityAggregatorFactory");
+    return false;
   }
 
   @Override

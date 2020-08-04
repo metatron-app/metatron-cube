@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -31,10 +32,14 @@ public abstract class LongMinAggregator implements Aggregator<MutableLong>
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
-  static long combineValues(Object lhs, Object rhs)
+  static final Combiner<Number> COMBINER = new Combiner.Abstract<Number>()
   {
-    return Math.min(((Number) lhs).longValue(), ((Number) rhs).longValue());
-  }
+    @Override
+    protected final Number _combine(Number lhs, Number rhs)
+    {
+      return Math.min(lhs.longValue(), rhs.longValue());
+    }
+  };
 
   @Override
   public Long get(MutableLong current)

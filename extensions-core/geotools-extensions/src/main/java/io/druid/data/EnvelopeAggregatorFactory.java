@@ -196,10 +196,10 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
   @SuppressWarnings("unchecked")
   public Combiner<List> combiner()
   {
-    return new Combiner<List>()
+    return new Combiner.Abstract<List>()
     {
       @Override
-      public List combine(List param1, List param2)
+      protected final List _combine(List param1, List param2)
       {
         final double minX1 = ((Number) param1.get(0)).doubleValue();
         final double maxX1 = ((Number) param1.get(1)).doubleValue();

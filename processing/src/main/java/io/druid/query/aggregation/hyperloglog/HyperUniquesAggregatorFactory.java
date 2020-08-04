@@ -28,7 +28,6 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -134,17 +133,11 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @SuppressWarnings("unchecked")
   public Combiner combiner()
   {
-    return new Combiner<HyperLogLogCollector>()
+    return new Combiner.Abstract<HyperLogLogCollector>()
     {
       @Override
-      public HyperLogLogCollector combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
+      protected final HyperLogLogCollector _combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
       {
-        if (param2 == null) {
-          return param1;
-        }
-        if (param1 == null) {
-          return param2;
-        }
         return param1.fold(param2);
       }
     };
@@ -154,16 +147,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   public AggregatorFactory getCombiningFactory()
   {
     return new HyperUniquesAggregatorFactory(name, name, null, round);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override

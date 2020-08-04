@@ -392,7 +392,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @SuppressWarnings("unchecked")
   public Object finalizeComputation(Object object)
   {
-    return sketchOp == SketchOp.THETA ? ((TypedSketch<Sketch>) object).value().getEstimate() : object;
+    return object == null || sketchOp != SketchOp.THETA ? object : ((TypedSketch<Sketch>) object).value().getEstimate();
   }
 
   @Override

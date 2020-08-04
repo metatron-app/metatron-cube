@@ -322,12 +322,20 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
   }
 
   @Override
+  protected boolean isMergeable(AggregatorFactory other)
+  {
+    return super.isMergeable(other) &&
+           Objects.equals(column, ((DimensionArrayAggregatorFactory) other).column) &&
+           delegate.isMergeable(((DimensionArrayAggregatorFactory) other).delegate);
+  }
+
+  @Override
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    DimensionArrayAggregatorFactory array = checkMergeable(other);
-    if (!Objects.equals(column, array.column)) {
+    if (!isMergeable(other)) {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
+    final DimensionArrayAggregatorFactory array = (DimensionArrayAggregatorFactory) other;
     return new DimensionArrayAggregatorFactory(
         column,
         delegate.getMergingFactory(array.delegate),

@@ -27,7 +27,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 
@@ -95,20 +94,6 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && other instanceof MetricRangeAggregatorFactory) {
-      return new MetricRangeAggregatorFactory(
-          name,
-          name
-      );
-
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     if (object instanceof byte[]) {
@@ -124,7 +109,7 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory implements A
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((MetricRange)object).getRange();
+    return object == null ? null : ((MetricRange)object).getRange();
   }
 
   @Override

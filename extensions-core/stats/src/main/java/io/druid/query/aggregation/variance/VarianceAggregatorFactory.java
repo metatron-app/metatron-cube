@@ -244,7 +244,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((VarianceAggregatorCollector) object).getVariance(isVariancePop);
+    return object == null ? null : ((VarianceAggregatorCollector) object).getVariance(isVariancePop);
   }
 
   @Override

@@ -43,7 +43,7 @@ import io.druid.client.StreamHandlerFactory;
 import io.druid.collections.CountingMap;
 import io.druid.common.guava.HostAndPort;
 import io.druid.common.utils.StringUtils;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.DruidDefaultSerializersModule;
 import io.druid.java.util.common.Pair;
@@ -494,7 +494,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       builder = new Druids.SelectQueryBuilder()
           .dataSource(split.getDataSource())
           .columns(columns)
-          .granularity(QueryGranularities.ALL)
+          .granularity(Granularities.ALL)
           .context(ImmutableMap.<String, Object>of(
                        BaseQuery.ALL_DIMENSIONS_FOR_EMPTY, false,
                        BaseQuery.ALL_METRICS_FOR_EMPTY, false

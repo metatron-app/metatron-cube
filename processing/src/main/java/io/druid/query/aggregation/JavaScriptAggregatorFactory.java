@@ -156,16 +156,12 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
     return new JavaScriptAggregatorFactory(name, Lists.newArrayList(name), fnCombine, fnReset, fnCombine, config);
   }
 
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+    @Override
+  protected boolean isMergeable(AggregatorFactory other)
   {
-    if (other.getName().equals(this.getName()) && other.getClass() == this.getClass()) {
-      JavaScriptAggregatorFactory castedOther = (JavaScriptAggregatorFactory) other;
-      if (this.fnCombine.equals(castedOther.fnCombine) && this.fnReset.equals(castedOther.fnReset)) {
-        return getCombiningFactory();
-      }
-    }
-    throw new AggregatorFactoryNotMergeableException(this, other);
+    return super.isMergeable(other) &&
+           fnCombine.equals(((JavaScriptAggregatorFactory) other).fnCombine) &&
+           fnReset.equals(((JavaScriptAggregatorFactory) other).fnReset);
   }
 
   @Override

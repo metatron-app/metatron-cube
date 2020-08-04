@@ -95,10 +95,10 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory implements Agg
   @SuppressWarnings("unchecked")
   public Combiner<Number> combiner()
   {
-    return new Combiner<Number>()
+    return new Combiner.Abstract<Number>()
     {
       @Override
-      public Number combine(Number param1, Number param2)
+      protected final Number _combine(Number param1, Number param2)
       {
         return Math.min(param1.doubleValue(), param2.doubleValue());
       }
@@ -109,16 +109,6 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory implements Agg
   public AggregatorFactory getCombiningFactory()
   {
     return new DoubleMinAggregatorFactory(name, name, null);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override

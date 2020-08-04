@@ -37,7 +37,7 @@ import io.airlift.airline.Option;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.ValueDesc;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Json;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
@@ -223,7 +223,7 @@ public class DumpSegment extends GuiceRunnable
         filter,
         index.getInterval().withChronology(ISOChronology.getInstanceUTC()),
         RowResolver.of(index, ImmutableList.<VirtualColumn>of()),
-        QueryGranularities.ALL,
+        Granularities.ALL,
         false,
         null
     );

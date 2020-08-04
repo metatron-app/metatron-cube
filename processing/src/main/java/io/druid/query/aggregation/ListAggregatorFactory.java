@@ -287,7 +287,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public Comparator getComparator()
   {
-    return outputType.type().comparator();  // always throws exception
+    return outputType.comparator();  // always throws exception
   }
 
   @Override
@@ -323,15 +323,6 @@ public class ListAggregatorFactory extends AggregatorFactory
   {
     // takes array as input
     return new ListAggregatorFactory(name, name, outputType.typeName(), limit, dedup, sort);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (getClass() == other.getClass() && other.getName().equals(getName())) {
-      return getCombiningFactory();
-    }
-    throw new AggregatorFactoryNotMergeableException(this, other);
   }
 
   @Override

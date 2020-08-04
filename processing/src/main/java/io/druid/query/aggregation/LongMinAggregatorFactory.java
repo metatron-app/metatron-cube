@@ -94,30 +94,13 @@ public class LongMinAggregatorFactory extends AggregatorFactory implements Aggre
   @SuppressWarnings("unchecked")
   public Combiner<Number> combiner()
   {
-    return new Combiner<Number>()
-    {
-      @Override
-      public Number combine(Number param1, Number param2)
-      {
-        return Math.min(param1.longValue(), param2.longValue());
-      }
-    };
+    return LongMinAggregator.COMBINER;
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
     return new LongMinAggregatorFactory(name, name, null);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override

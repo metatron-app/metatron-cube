@@ -41,7 +41,6 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
-import io.druid.segment.CursorFactory;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
@@ -62,7 +61,7 @@ import java.util.Map;
 
 public class ColumnExpanderTest
 {
-  public static class TestStorageAdapter extends CursorFactory.Abstract implements StorageAdapter
+  public static class TestStorageAdapter implements StorageAdapter
   {
     private final List<String> dimensions;
     private final List<String> metrics = Lists.newArrayList();

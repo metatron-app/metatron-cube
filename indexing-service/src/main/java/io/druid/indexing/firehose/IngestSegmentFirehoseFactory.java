@@ -30,16 +30,16 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Injector;
-import io.druid.java.util.common.parsers.ParseException;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.TaskToolboxFactory;
 import io.druid.indexing.common.actions.SegmentListUsedAction;
 import io.druid.indexing.common.task.NoopTask;
+import io.druid.java.util.common.parsers.ParseException;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndexStorageAdapter;
@@ -274,7 +274,7 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
           )
       );
 
-      return new IngestSegmentFirehose(adapters, dims, metricsList, filter, QueryGranularities.NONE);
+      return new IngestSegmentFirehose(adapters, dims, metricsList, filter, Granularities.NONE);
     }
     catch (IOException e) {
       throw Throwables.propagate(e);

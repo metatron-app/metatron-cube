@@ -206,12 +206,12 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   @SuppressWarnings("unchecked")
   public final Combiner combiner()
   {
-    return new Combiner()
+    return new Combiner.Abstract<Object>()
     {
       @Override
-      public Object combine(Object lhs, Object rhs)
+      protected final Object _combine(Object lhs, Object rhs)
       {
-        return lhs == null ? rhs : comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
+        return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
       }
     };
   }

@@ -24,12 +24,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpecs;
@@ -74,7 +74,7 @@ public class SelectMetaQueryEngine
 
     // minor optimization.. todo: we can do this even with filters set
     if (filter == null && offset.startDelta() == 0 &&
-        QueryGranularities.ALL.equals(granularity) &&
+        Granularities.ALL.equals(granularity) &&
         interval.contains(segment.getInterval())) {
       int row = adapter.getNumRows();
       return Sequences.of(

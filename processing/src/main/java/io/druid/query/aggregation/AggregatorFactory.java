@@ -103,20 +103,16 @@ public abstract class AggregatorFactory implements Cacheable
    */
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    throw new UnsupportedOperationException(String.format(
-        "[%s] does not implement getMergingFactory(..)",
-        this.getClass().getName()
-    ));
+    if (isMergeable(other)) {
+      return getCombiningFactory();
+    } else {
+      throw new AggregatorFactoryNotMergeableException(this, other);
+    }
   }
 
-  @SuppressWarnings("unchecked")
-  protected <T extends AggregatorFactory> T checkMergeable(AggregatorFactory other)
-      throws AggregatorFactoryNotMergeableException
+  protected boolean isMergeable(AggregatorFactory other)
   {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return (T) other;
-    }
-    throw new AggregatorFactoryNotMergeableException(this, other);
+    return getName().equals(other.getName()) && getClass() == other.getClass();
   }
 
   /**

@@ -125,7 +125,7 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((Histogram) object).asVisual();
+    return object == null ? null : ((Histogram) object).asVisual();
   }
 
   @Override

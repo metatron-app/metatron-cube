@@ -59,7 +59,8 @@ public class LongSumAggregatorFactory extends AggregatorFactory implements Aggre
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
     Preconditions.checkArgument(
         fieldName == null ^ fieldExpression == null,
-        "Must have a valid, non-null fieldName or fieldExpression");
+        "Must have a valid, non-null fieldName or fieldExpression"
+    );
 
     this.name = name;
     this.fieldName = fieldName;
@@ -108,32 +109,15 @@ public class LongSumAggregatorFactory extends AggregatorFactory implements Aggre
 
   @Override
   @SuppressWarnings("unchecked")
-  public Combiner combiner()
+  public Combiner<Number> combiner()
   {
-    return new Combiner()
-    {
-      @Override
-      public Object combine(Object lhs, Object rhs)
-      {
-        return LongSumAggregator.combineValues(lhs, rhs);
-      }
-    };
+    return LongSumAggregator.COMBINER;
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
     return new LongSumAggregatorFactory(name, name);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override
@@ -210,9 +194,9 @@ public class LongSumAggregatorFactory extends AggregatorFactory implements Aggre
   {
     return "LongSumAggregatorFactory{" +
            "name='" + name + '\'' +
-           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
-           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
-           (predicate == null ? "": ", predicate='" + predicate + '\'') +
+           (fieldName == null ? "" : ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "" : ", fieldExpression='" + fieldExpression + '\'') +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            '}';
   }
 

@@ -82,9 +82,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
     this.outputType = inputType == null ? null : toOutputType(inputType);
-    this.comparator = ValueDesc.isPrimitive(outputType)
-                      ? outputType.type().comparator()
-                      : GuavaUtils.NULL_FIRST_NATURAL;
+    this.comparator = ValueDesc.isPrimitive(outputType) ? outputType.comparator() : GuavaUtils.NULL_FIRST_NATURAL;
   }
 
   public GenericAggregatorFactory(String name, String fieldName, ValueDesc inputType)
@@ -192,16 +190,6 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   public AggregatorFactory getCombiningFactory()
   {
     return withName(name, name, getOutputType());
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override

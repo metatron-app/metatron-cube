@@ -43,7 +43,7 @@ import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.Granularities;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
@@ -184,7 +184,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 representative.getQuerySegmentSpec(),
                 false,
                 null,
-                QueryGranularities.ALL,
+                Granularities.ALL,
                 virtualColumns,
                 aggregators,
                 ImmutableList.<PostAggregator>of(),
@@ -242,7 +242,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
                 final SearchQuery search = new SearchQuery(
                     representative.getDataSource(),
                     null,
-                    QueryGranularities.ALL,
+                    Granularities.ALL,
                     10,
                     representative.getQuerySegmentSpec(),
                     virtualColumns,

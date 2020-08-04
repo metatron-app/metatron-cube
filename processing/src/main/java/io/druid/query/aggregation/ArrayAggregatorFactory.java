@@ -232,12 +232,20 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   }
 
   @Override
+  protected boolean isMergeable(AggregatorFactory other)
+  {
+    return super.isMergeable(other) &&
+           Objects.equals(column, ((ArrayAggregatorFactory) other).column) &&
+           delegate.isMergeable(((ArrayAggregatorFactory) other).delegate);
+  }
+
+  @Override
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    ArrayAggregatorFactory array = checkMergeable(other);
-    if (!Objects.equals(column, array.column)) {
+    if (!isMergeable(other)) {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
+    final ArrayAggregatorFactory array = (ArrayAggregatorFactory) other;
     return new ArrayAggregatorFactory(column, delegate.getMergingFactory(array.delegate), Math.max(limit, array.limit));
   }
 }

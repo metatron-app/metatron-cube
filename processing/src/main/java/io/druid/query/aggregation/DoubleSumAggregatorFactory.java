@@ -106,30 +106,13 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory implements Agg
   @SuppressWarnings("unchecked")
   public Combiner<Number> combiner()
   {
-    return new Combiner<Number>()
-    {
-      @Override
-      public Number combine(Number param1, Number param2)
-      {
-        return param1.doubleValue() + param2.doubleValue();
-      }
-    };
+    return DoubleSumAggregator.COMBINER;
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
     return new DoubleSumAggregatorFactory(name, name);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override

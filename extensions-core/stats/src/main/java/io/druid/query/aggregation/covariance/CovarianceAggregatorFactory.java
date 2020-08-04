@@ -205,7 +205,7 @@ public class CovarianceAggregatorFactory extends AggregatorFactory implements Ag
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((CovarianceAggregatorCollector) object).getCorr();
+    return object == null ? null : ((CovarianceAggregatorCollector) object).getCorr();
   }
 
   @Override

@@ -30,7 +30,6 @@ import com.google.common.collect.Maps;
 import io.druid.common.Intervals;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -84,7 +83,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     Builder builder = new Builder()
         .setDataSource(source.getDataSource())
         .setQuerySegmentSpec(source.getQuerySegmentSpec())
-        .setGranularity(QueryGranularities.ALL)
+        .setGranularity(Granularities.ALL)
         .setContext(BaseQuery.copyContextForMeta(source.getContext()))
         .addContext(BaseQuery.BY_SEGMENT, bySegment);
 

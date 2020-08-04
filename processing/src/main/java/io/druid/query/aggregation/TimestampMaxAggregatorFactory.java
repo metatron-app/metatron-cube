@@ -82,10 +82,10 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory implements 
   @SuppressWarnings("unchecked")
   public Combiner<Number> combiner()
   {
-    return new Combiner<Number>()
+    return new Combiner.Abstract<Number>()
     {
       @Override
-      public Number combine(Number param1, Number param2)
+      protected final Number _combine(Number param1, Number param2)
       {
         return Math.max(param1.longValue(), param2.longValue());
       }
@@ -96,16 +96,6 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory implements 
   public AggregatorFactory getCombiningFactory()
   {
     return new TimestampMaxAggregatorFactory(name, name, timeFormat);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
   }
 
   @Override

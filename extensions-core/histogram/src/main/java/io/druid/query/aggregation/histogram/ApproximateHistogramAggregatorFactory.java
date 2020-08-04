@@ -162,26 +162,29 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  protected boolean isMergeable(AggregatorFactory other)
+  {
+    return getName().equals(other.getName()) && other instanceof ApproximateHistogramAggregatorFactory;
+  }
+
+  @Override
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    if (other.getName().equals(this.getName()) && other instanceof ApproximateHistogramAggregatorFactory) {
-      ApproximateHistogramAggregatorFactory castedOther = (ApproximateHistogramAggregatorFactory) other;
-
-      return new ApproximateHistogramFoldingAggregatorFactory(
-          name,
-          name,
-          Math.max(resolution, castedOther.resolution),
-          numBuckets,
-          Math.min(lowerLimit, castedOther.lowerLimit),
-          Math.max(upperLimit, castedOther.upperLimit),
-          compact,
-          base64,
-          null
-      );
-
-    } else {
+    if (!isMergeable(other)) {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
+    final ApproximateHistogramAggregatorFactory castedOther = (ApproximateHistogramAggregatorFactory) other;
+    return new ApproximateHistogramFoldingAggregatorFactory(
+        name,
+        name,
+        Math.max(resolution, castedOther.resolution),
+        numBuckets,
+        Math.min(lowerLimit, castedOther.lowerLimit),
+        Math.max(upperLimit, castedOther.upperLimit),
+        compact,
+        base64,
+        null
+    );
   }
 
   @Override
@@ -209,7 +212,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((ApproximateHistogramHolder) object).toHistogram(numBuckets);
+    return object == null ? null : ((ApproximateHistogramHolder) object).toHistogram(numBuckets);
   }
 
   @Override
