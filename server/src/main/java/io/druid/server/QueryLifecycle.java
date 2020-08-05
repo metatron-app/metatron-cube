@@ -52,7 +52,9 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.InterruptedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Class that helps a Druid server (broker, historical, etc) manage the lifecycle of a query that it is handling. It
@@ -234,7 +236,7 @@ public class QueryLifecycle
     }
     state = State.DONE;
 
-    final boolean success = e == null || queryManager.isCanceled(query.getId());
+    final boolean success = e == null || queryManager.isCancelled(query.getId());
     final boolean interrupted = isInterrupted(e);
 
     if (success) {
@@ -310,7 +312,10 @@ public class QueryLifecycle
     for (; e != null; e = e.getCause()) {
       if (e instanceof QueryInterruptedException ||
           e instanceof InterruptedIOException ||
-          e instanceof InterruptedException) {
+          e instanceof InterruptedException ||
+          e instanceof TimeoutException ||
+          e instanceof org.jboss.netty.handler.timeout.TimeoutException ||
+          e instanceof CancellationException) {
         return true;
       }
     }

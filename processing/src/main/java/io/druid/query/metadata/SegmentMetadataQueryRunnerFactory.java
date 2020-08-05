@@ -39,7 +39,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunners;
 import io.druid.query.QueryWatcher;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
@@ -50,6 +49,7 @@ import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.Column;
+import io.druid.utils.StopWatch;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -202,9 +202,9 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                           }
                         }
                     );
+                    final StopWatch watch = queryWatcher.registerQuery(query, future);
                     try {
-                      queryWatcher.registerQuery(query, future);
-                      return QueryRunners.wainOn(query, future, queryWatcher);
+                      return watch.wainOn(future);
                     }
                     catch (CancellationException e) {
                       log.info("Query canceled, id [%s]", query.getId());
@@ -214,12 +214,12 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                     catch (InterruptedException e) {
                       log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
                       future.cancel(true);
-                      throw new QueryInterruptedException(e);
+                      throw QueryInterruptedException.wrapIfNeeded(e);
                     }
                     catch (TimeoutException e) {
                       log.info("Query timeout, cancelling pending results for query id [%s]", query.getId());
                       future.cancel(true);
-                      throw new QueryInterruptedException(e);
+                      throw QueryInterruptedException.wrapIfNeeded(e);
                     }
                     catch (ExecutionException e) {
                       throw Throwables.propagate(e.getCause());

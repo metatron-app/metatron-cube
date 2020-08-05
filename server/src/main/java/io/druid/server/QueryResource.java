@@ -364,12 +364,7 @@ public class QueryResource
     if (query.getId() == null) {
       query = query.withOverriddenContext(Query.QUERYID, UUID.randomUUID().toString());
     }
-    if (query.getContextValue(Query.TIMEOUT) != null) {
-      query = query.withOverriddenContext(
-          Query.TIMEOUT, warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextLong(Query.TIMEOUT, -1))
-      );
-    }
-    return query;
+    return BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout());
   }
 
   // clear previous query name if exists (should not)

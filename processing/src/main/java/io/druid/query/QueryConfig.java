@@ -162,11 +162,6 @@ public class QueryConfig
     return maxQueryTimeout;
   }
 
-  public long getMaxQueryTimeout(long required)
-  {
-    return required <= 0 ? maxQueryTimeout : Math.min(required, maxQueryTimeout);
-  }
-
   public GroupByQueryConfig getGroupBy()
   {
     return groupBy.get();

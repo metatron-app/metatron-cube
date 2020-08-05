@@ -40,13 +40,14 @@ import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Query;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -57,6 +58,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -160,7 +162,8 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     }
 
     openConnections.getAndIncrement();
-    queryWatcher.registerQuery(query, Execs.tag(future, host), handler);
+
+    StopWatch watch = queryWatcher.registerQuery(query, Execs.tag(future, host), handler);
 
     Sequence<T> sequence = new BaseSequence<>(
         new BaseSequence.IteratorMaker<T, JsonParserIterator<T>>()
@@ -168,9 +171,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           @Override
           public JsonParserIterator<T> make()
           {
-            return new JsonParserIterator.FromCallable<T>(
-                mapper, typeRef, hostURL, type, () -> QueryRunners.wainOn(query, future, queryWatcher)
-            );
+            return new JsonParserIterator.FromCallable<T>(mapper, typeRef, hostURL, type, () -> watch.wainOn(future));
           }
 
           @Override
@@ -198,8 +199,12 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
   private byte[] serializeQuery(Query<T> query)
   {
+    final long remain = queryWatcher.remainingTime(query.getId());
+    if (remain <= 0) {
+      throw new QueryInterruptedException(new TimeoutException());
+    }
     try {
-      return objectMapper.writeValueAsBytes(query);
+      return objectMapper.writeValueAsBytes(query.withOverriddenContext(Query.TIMEOUT, remain));
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

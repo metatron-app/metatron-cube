@@ -47,6 +47,7 @@ import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.metadata.DescLookupProvider;
+import io.druid.query.BaseQuery;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
@@ -74,6 +75,7 @@ import java.util.UUID;
 public class EmbeddedBroker extends ServerRunnable
 {
   private static final Logger log = new Logger(EmbeddedBroker.class);
+  private static final long CHECK_INTERVAL = 10;  // 10 seconds
 
   public EmbeddedBroker()
   {
@@ -157,6 +159,7 @@ public class EmbeddedBroker extends ServerRunnable
       this.texasRanger = texasRanger;
       this.queryManager = queryManager;
       this.lifecycle = lifecycle;
+      queryManager.start(CHECK_INTERVAL);
     }
 
     public Sequence runQuery(Query query, Map<String, Object> context)
@@ -164,11 +167,7 @@ public class EmbeddedBroker extends ServerRunnable
       if (query.getId() == null) {
         query = query.withId(UUID.randomUUID().toString());
       }
-      if (query.getContextValue(Query.TIMEOUT) != null) {
-        long timeout = warehouse.getQueryConfig().getMaxQueryTimeout(query.getContextInt(Query.TIMEOUT, -1));
-        query = query.withOverriddenContext(Query.TIMEOUT, timeout);
-      }
-
+      query = BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout());
       return query.run(texasRanger, context);
     }
 
@@ -208,6 +207,7 @@ public class EmbeddedBroker extends ServerRunnable
         System.out.println("[EmbeddedBroker/main] " + o);
         yielder = yielder.next(null);
       }
+      e.queryManager.stop();
     }
   }
 }

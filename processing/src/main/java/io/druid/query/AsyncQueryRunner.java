@@ -19,27 +19,24 @@
 
 package io.druid.query;
 
-import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.guava.LazySequence;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.utils.StopWatch;
 
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeoutException;
 
 public class AsyncQueryRunner<T> implements QueryRunner<T>
 {
-
   private final QueryRunner<T> baseRunner;
   private final ListeningExecutorService executor;
   private final QueryWatcher queryWatcher;
 
-  public AsyncQueryRunner(QueryRunner<T> baseRunner, ExecutorService executor, QueryWatcher queryWatcher) {
+  public AsyncQueryRunner(QueryRunner<T> baseRunner, ExecutorService executor, QueryWatcher queryWatcher)
+  {
     this.baseRunner = baseRunner;
     this.executor = MoreExecutors.listeningDecorator(executor);
     this.queryWatcher = queryWatcher;
@@ -50,28 +47,16 @@ public class AsyncQueryRunner<T> implements QueryRunner<T>
   {
     final int priority = BaseQuery.getContextPriority(query, 0);
     final ListenableFuture<Sequence<T>> future = executor.submit(new AbstractPrioritizedCallable<Sequence<T>>(priority)
-        {
-          @Override
-          public Sequence<T> call() throws Exception
-          {
-            //Note: this is assumed that baseRunner does most of the work eagerly on call to the
-            //run() method and resulting sequence accumulate/yield is fast.
-            return baseRunner.run(query, responseContext);
-          }
-        });
-    queryWatcher.registerQuery(query, future);
-    
-    return new LazySequence<>(new Supplier<Sequence<T>>()
     {
       @Override
-      public Sequence<T> get()
+      public Sequence<T> call() throws Exception
       {
-        try {
-          return QueryRunners.wainOn(query, future, queryWatcher);
-        } catch (ExecutionException | InterruptedException | TimeoutException ex) {
-          throw Throwables.propagate(ex);
-        }
+        //Note: this is assumed that baseRunner does most of the work eagerly on call to the
+        //run() method and resulting sequence accumulate/yield is fast.
+        return baseRunner.run(query, responseContext);
       }
     });
+    final StopWatch watch = queryWatcher.registerQuery(query, future);
+    return Sequences.lazy(() -> QueryInterruptedException.wrap(() -> watch.wainOn(future)));
   }
 }

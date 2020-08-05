@@ -30,7 +30,9 @@ import io.druid.common.utils.ExceptionUtils;
 import io.druid.server.DruidNode;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -101,6 +103,19 @@ public class QueryInterruptedException extends RuntimeException
     this.errorStack = cause == null ? null : stackTrace(cause);
     this.host = host;
     this.serviceName = serviceName;
+  }
+
+  public static <T> T wrap(Callable<T> callable) throws QueryInterruptedException
+  {
+    try {
+      return callable.call();
+    }
+    catch (ExecutionException e) {
+      throw wrapIfNeeded(e.getCause());
+    }
+    catch (Exception e) {
+      throw wrapIfNeeded(e);
+    }
   }
 
   @JsonProperty("error")
@@ -194,15 +209,24 @@ public class QueryInterruptedException extends RuntimeException
 
   public static QueryInterruptedException wrapIfNeeded(Throwable e)
   {
-    return wrapIfNeeded(e, getHostFromThrowable(e), getServiceNameFromThrowable(e));
+    e = unwrap(e);
+    if (e instanceof QueryInterruptedException) {
+      return (QueryInterruptedException) e;
+    }
+    return new QueryInterruptedException(e, null, null);
   }
 
   public static QueryInterruptedException wrapIfNeeded(Throwable e, DruidNode node)
   {
-    return wrapIfNeeded(e, node.getHostAndPort(), node.getServiceName());
+    return _wrapIfNeeded(unwrap(e), node.getHostAndPort(), node.getServiceName());
   }
 
   public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort, String serviceName)
+  {
+    return _wrapIfNeeded(unwrap(e), hostPort, serviceName);
+  }
+
+  private static QueryInterruptedException _wrapIfNeeded(Throwable e, String hostPort, String serviceName)
   {
     if (e instanceof QueryInterruptedException) {
       QueryInterruptedException qie = (QueryInterruptedException) e;
@@ -218,9 +242,18 @@ public class QueryInterruptedException extends RuntimeException
     }
   }
 
+  private static Throwable unwrap(Throwable e)
+  {
+    for (Throwable t = e; t != null; t = t.getCause()) {
+      if (t instanceof QueryInterruptedException) {
+        return t;
+      }
+    }
+    return e;
+  }
+
   public static List<String> stackTrace(Throwable e)
   {
     return ExceptionUtils.stackTrace(e, Sets.<Throwable>newHashSet(), Lists.<String>newArrayList(), "");
   }
-
 }

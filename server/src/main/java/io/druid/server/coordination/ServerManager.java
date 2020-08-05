@@ -86,10 +86,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -97,6 +94,9 @@ import java.util.concurrent.atomic.AtomicLong;
 public class ServerManager implements ForwardingSegmentWalker
 {
   private static final EmittingLogger log = new EmittingLogger(ServerManager.class);
+
+  private static final long CHECK_INTERVAL = 60;  // 1 minute
+
   private final Object lock = new Object();
   private final QueryManager queryManager;
   private final SegmentLoader segmentLoader;
@@ -140,20 +140,7 @@ public class ServerManager implements ForwardingSegmentWalker
     this.dataSources = new HashMap<>();
     this.cacheConfig = cacheConfig;
 
-    final ThreadFactory factory = Executors.defaultThreadFactory();
-    Executors.newSingleThreadScheduledExecutor(
-        new ThreadFactory()
-        {
-          @Override
-          public Thread newThread(Runnable r)
-          {
-            Thread thread = factory.newThread(r);
-            thread.setName("QueryManager");
-            thread.setDaemon(true);
-            return thread;
-          }
-        }
-    ).scheduleWithFixedDelay(queryManager, 1, 1, TimeUnit.HOURS);
+    queryManager.start(CHECK_INTERVAL);
   }
 
   public Map<String, Long> getDataSourceSizes()
@@ -526,16 +513,7 @@ public class ServerManager implements ForwardingSegmentWalker
         queryManager.registerQuery(baseQuery, future);
         return Sequences.withBaggage(
             Sequences.interruptible(future, Sequences.concat(
-                Iterables.transform(
-                    queries, new Function<Query<T>, Sequence<T>>()
-                    {
-                      @Override
-                      public Sequence<T> apply(final Query<T> splitQuery)
-                      {
-                        return runner.run(splitQuery, responseContext);
-                      }
-                    }
-                )
+                Iterables.transform(queries, query -> runner.run(query, responseContext))
             )),
             future
         );

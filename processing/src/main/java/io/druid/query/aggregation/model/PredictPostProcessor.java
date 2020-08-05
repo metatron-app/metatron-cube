@@ -39,7 +39,6 @@ import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.LazySequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Expr;
@@ -234,7 +233,7 @@ public abstract class PredictPostProcessor extends PostProcessingOperator.Abstra
               );
             }
           };
-          return Sequences.concat(Arrays.asList(tapping, new LazySequence<Row>(supplier)));
+          return Sequences.concat(Arrays.asList(tapping, Sequences.lazy(supplier)));
         } else if (query instanceof Query.ArrayOutputSupport) {
           final List<String> outputColumns = ((Query.ArrayOutputSupport) query).estimatedOutputColumns();
           final int timeIdx = outputColumns.indexOf(Row.TIME_COLUMN_NAME);

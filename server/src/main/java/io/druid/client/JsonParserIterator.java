@@ -37,7 +37,6 @@ import java.net.URL;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -81,7 +80,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
       jp.nextToken();
       return retVal;
     }
-    catch (IOException e) {
+    catch (Throwable e) {
       throw handleException(e);
     }
   }
@@ -148,21 +147,19 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     }
 
     @Override
-    protected final RuntimeException handleException(Throwable ex)
+    protected final RuntimeException handleException(final Throwable t)
     {
-      if (ex instanceof ExecutionException && ex.getCause() != null) {
-        ex = ex.getCause();
+      for (Throwable ex = t; ex != null; ex = ex.getCause()) {
+        if (ex instanceof TimeoutException ||
+            ex instanceof InterruptedException ||
+            ex instanceof QueryInterruptedException ||
+            ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
+            ex instanceof CancellationException) {
+          // todo should retry to other replica if exists?
+          throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
+        }
       }
-      if (ex instanceof IOException ||
-          ex instanceof TimeoutException ||
-          ex instanceof InterruptedException ||
-          ex instanceof QueryInterruptedException ||
-          ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
-          ex instanceof CancellationException) {
-        // todo should retry to other replica if exists?
-        throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
-      }
-      throw new RE(ex, "Failure getting results from[%s] because of [%s]", url, ex.getMessage());
+      throw new RE(t, "Failure getting results from[%s] because of [%s]", url, t.getMessage());
     }
 
     @Override

@@ -27,11 +27,14 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.utils.StopWatch;
 import org.easymock.EasyMock;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.Closeable;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -40,7 +43,6 @@ import java.util.concurrent.TimeoutException;
 
 public class AsyncQueryRunnerTest
 {
-
   private final static long TEST_TIMEOUT = 60000;
   
   private final ExecutorService executor;
@@ -57,6 +59,7 @@ public class AsyncQueryRunnerTest
   
   @Test(timeout = TEST_TIMEOUT)
   public void testAsyncNature() throws Exception {
+    final List<Integer> result = Lists.newArrayList(1);
     final CountDownLatch latch = new CountDownLatch(1);
     QueryRunner baseRunner = new QueryRunner()
     {
@@ -65,7 +68,7 @@ public class AsyncQueryRunnerTest
       {
         try {
           latch.await();
-          return Sequences.simple(Lists.newArrayList(1));
+          return Sequences.simple(result);
         } catch(InterruptedException ex) {
           throw Throwables.propagate(ex);
         }
@@ -77,7 +80,7 @@ public class AsyncQueryRunnerTest
     
     Sequence lazy = asyncRunner.run(query, Collections.EMPTY_MAP);
     latch.countDown();
-    Assert.assertEquals(Lists.newArrayList(1), Sequences.toList(lazy, Lists.newArrayList()));
+    Assert.assertEquals(result, Sequences.toList(lazy, Lists.newArrayList()));
   }
   
   @Test(timeout = TEST_TIMEOUT)
@@ -95,13 +98,13 @@ public class AsyncQueryRunnerTest
         }
       }
     };
-    
+
     AsyncQueryRunner asyncRunner = new AsyncQueryRunner<>(baseRunner, executor,
         new QueryWatcher.Abstract() {
           @Override
-          public long remainingTime(String queryId)
+          public StopWatch registerQuery(Query query, ListenableFuture future, Closeable resource)
           {
-            return 1L;
+            return new StopWatch(1L);
           }
         });
 
@@ -112,6 +115,7 @@ public class AsyncQueryRunnerTest
     try {
       Sequences.toList(lazy, Lists.newArrayList());
     } catch(RuntimeException ex) {
+      Assert.assertTrue(ex instanceof QueryInterruptedException);
       Assert.assertTrue(ex.getCause() instanceof TimeoutException);
       return;
     }
@@ -119,7 +123,8 @@ public class AsyncQueryRunnerTest
   }
 
   @Test
-  public void testQueryRegistration() {
+  public void testQueryRegistration() throws TimeoutException
+  {
     QueryRunner baseRunner = new QueryRunner()
     {
       @Override
@@ -128,6 +133,7 @@ public class AsyncQueryRunnerTest
 
     QueryWatcher mock = EasyMock.createMock(QueryWatcher.class);
     mock.registerQuery(EasyMock.eq(query), EasyMock.anyObject(ListenableFuture.class));
+    EasyMock.expectLastCall().andReturn(new StopWatch(60000));
     EasyMock.replay(mock);
 
     AsyncQueryRunner asyncRunner = new AsyncQueryRunner<>(baseRunner, executor,

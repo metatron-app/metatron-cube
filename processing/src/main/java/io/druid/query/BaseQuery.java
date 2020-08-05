@@ -31,6 +31,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
@@ -78,6 +79,35 @@ public abstract class BaseQuery<T> implements Query<T>
   public static <T> int getContextPriority(Query<T> query, int defaultValue)
   {
     return PropUtils.parseInt(query.getContext(), PRIORITY, defaultValue);
+  }
+
+  public static <T> Query<T> enforceTimeout(Query<T> query, long maxTimeout)
+  {
+    final Long timeout = getTimeout(query);
+    if (timeout == null || timeout > maxTimeout) {
+      return query.withOverriddenContext(TIMEOUT, maxTimeout);
+    }
+    return query;
+  }
+
+  public static long getTimeout(Query query, long maxTimeout)
+  {
+    final Long timeout = getTimeout(query);
+    if (timeout == null || timeout > maxTimeout) {
+      return maxTimeout;
+    }
+    return timeout;
+  }
+
+  private static Long getTimeout(Query query)
+  {
+    final Object value = query.getContextValue(TIMEOUT);
+    if (value instanceof Number) {
+      return ((Number) value).longValue();
+    } else if (value instanceof String) {
+      return Longs.tryParse((String) value);
+    }
+    return null;
   }
 
   public static <T> boolean isBySegment(Query<T> query)

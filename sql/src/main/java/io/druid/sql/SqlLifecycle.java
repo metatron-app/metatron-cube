@@ -203,7 +203,7 @@ public class SqlLifecycle
 
       state = State.DONE;
 
-      final boolean success = e == null || plannerContext.isCanceled();
+      final boolean success = e == null || plannerContext.isCancelled();
       final boolean interrupted = QueryLifecycle.isInterrupted(e);
 
       final long queryTimeNs = System.nanoTime() - startNs;

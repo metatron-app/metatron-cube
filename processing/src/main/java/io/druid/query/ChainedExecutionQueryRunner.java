@@ -35,6 +35,7 @@ import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.MergeIterable;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.utils.StopWatch;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -134,28 +135,27 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
                 )
             );
 
-            queryWatcher.registerQuery(query, futures);
-
+            StopWatch watch = queryWatcher.registerQuery(query, futures);
             try {
-              return mergeResults(query, QueryRunners.wainOn(query, futures, queryWatcher)).iterator();
+              return mergeResults(query, watch.wainOn(futures)).iterator();
             }
             catch (CancellationException e) {
               log.info("Query canceled, id [%s]", query.getId());
               Execs.cancelQuietly(futures);
               if (query.getContextBoolean("IN_TEST", false)) {
-                throw new QueryInterruptedException(e);
+                throw QueryInterruptedException.wrapIfNeeded(e);
               }
               return Collections.emptyIterator();
             }
             catch (InterruptedException e) {
               log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
               futures.cancel(true);
-              throw new QueryInterruptedException(e);
+              throw QueryInterruptedException.wrapIfNeeded(e);
             }
             catch (TimeoutException e) {
               log.info("Query timeout, cancelling pending results for query id [%s]", query.getId());
               futures.cancel(true);
-              throw new QueryInterruptedException(e);
+              throw QueryInterruptedException.wrapIfNeeded(e);
             }
             catch (ExecutionException e) {
               throw Throwables.propagate(e.getCause());

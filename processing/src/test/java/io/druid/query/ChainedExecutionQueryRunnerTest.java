@@ -28,6 +28,7 @@ import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.utils.StopWatch;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.easymock.IAnswer;
@@ -90,20 +91,17 @@ public class ChainedExecutionQueryRunnerTest
     );
     EasyMock.expectLastCall()
             .andAnswer(
-                new IAnswer<Void>()
+                new IAnswer<StopWatch>()
                 {
                   @Override
-                  public Void answer() throws Throwable
+                  public StopWatch answer() throws Throwable
                   {
                     queryIsRegistered.countDown();
-                    return null;
+                    return new StopWatch(100L);
                   }
                 }
             )
             .once();
-
-    watcher.remainingTime(EasyMock.anyString());
-    EasyMock.expectLastCall().andReturn(100L).once();
 
     EasyMock.replay(watcher);
 
@@ -220,20 +218,18 @@ public class ChainedExecutionQueryRunnerTest
     );
     EasyMock.expectLastCall()
             .andAnswer(
-                new IAnswer<Void>()
+                new IAnswer<StopWatch>()
                 {
                   @Override
-                  public Void answer() throws Throwable
+                  public StopWatch answer() throws Throwable
                   {
                     queryIsRegistered.countDown();
-                    return null;
+                    return new StopWatch(100L);
                   }
                 }
             )
             .once();
 
-    watcher.remainingTime(EasyMock.anyString());
-    EasyMock.expectLastCall().andReturn(100L).once();
     EasyMock.replay(watcher);
 
 

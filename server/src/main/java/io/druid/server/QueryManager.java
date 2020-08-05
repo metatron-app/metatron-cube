@@ -36,9 +36,12 @@ import io.druid.common.Tagged;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryWatcher;
+import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -49,6 +52,10 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 public class QueryManager implements QueryWatcher, Runnable
@@ -56,9 +63,9 @@ public class QueryManager implements QueryWatcher, Runnable
   private static final Logger LOG = new Logger(QueryManager.class);
 
   private static final long DEFAULT_EXPIRE = 180_000;   // 3 min
-  private static final long LOG_THRESHOLD = 200;
+  private static final long LOG_THRESHOLD_MSEC = 200;
 
-  private final long queryTimeout;
+  private final long maxQueryTimeout;
   private final Map<String, QueryStatus> queries = Maps.newConcurrentMap();
   private final ListeningExecutorService executor = Execs.newDirectExecutorService();
 
@@ -71,7 +78,15 @@ public class QueryManager implements QueryWatcher, Runnable
   @Inject
   public QueryManager(QueryConfig config)
   {
-    this.queryTimeout = config.getMaxQueryTimeout();
+    this.maxQueryTimeout = config.getMaxQueryTimeout();
+  }
+
+  public void start(long intervalSec)
+  {
+    ScheduledExecutorService background = Executors.newSingleThreadScheduledExecutor(
+        Execs.simpleDaemonFactory("QueryManager")
+    );
+    background.scheduleWithFixedDelay(this, intervalSec, intervalSec, TimeUnit.SECONDS);
   }
 
   @Override
@@ -84,7 +99,8 @@ public class QueryManager implements QueryWatcher, Runnable
     return true;
   }
 
-  public boolean isCanceled(String queryId)
+  @Override
+  public boolean isCancelled(String queryId)
   {
     if (queryId == null) {
       return false;
@@ -97,13 +113,13 @@ public class QueryManager implements QueryWatcher, Runnable
   }
 
   @Override
-  public void registerQuery(final Query query, final ListenableFuture future, final Closeable resource)
+  public StopWatch registerQuery(final Query query, final ListenableFuture future, final Closeable resource)
   {
     final String id = query.getId();
     final List<String> dataSources = query.getDataSource().getNames();
     if (id == null) {
       LOG.warn("Query id for %s%s is null.. fix that", query.getType(), dataSources);
-      return;
+      return new StopWatch(maxQueryTimeout);
     }
     final QueryStatus status = queries.computeIfAbsent(
         id, new Function<String, QueryStatus>()
@@ -111,12 +127,11 @@ public class QueryManager implements QueryWatcher, Runnable
           @Override
           public QueryStatus apply(String id)
           {
-            long timeout = query.getContextLong(Query.TIMEOUT, queryTimeout);
-            return new QueryStatus(query.getType(), dataSources, timeout);
+            return new QueryStatus(query.getType(), dataSources, BaseQuery.getTimeout(query, maxQueryTimeout));
           }
         }
     );
-    status.start(future, resource);
+    final long remaining = status.start(future, resource);
     future.addListener(
         new Runnable()
         {
@@ -131,11 +146,16 @@ public class QueryManager implements QueryWatcher, Runnable
         },
         executor
     );
+    return new StopWatch(remaining);
   }
 
   @Override
   public void unregisterResource(Query query, Closeable resource)
   {
+    if (query.getId() == null) {
+      LOG.warn("Query id for %s is null.. fix that", query.getType());
+      return;
+    }
     final QueryStatus status = queries.get(query.getId());
     if (status != null) {
       status.unregisterResource(resource);
@@ -146,10 +166,10 @@ public class QueryManager implements QueryWatcher, Runnable
   public long remainingTime(String queryId)
   {
     if (queryId == null) {
-      return -1L;  // bug
+      return maxQueryTimeout;  // bug
     }
-    QueryStatus status = queries.get(queryId);
-    return status == null ? -1 : status.remaining();
+    final QueryStatus status = queries.get(queryId);  // some internal queries?
+    return status == null ? maxQueryTimeout : status.remaining();
   }
 
   public List<String> getQueryDatasources(final String queryId)
@@ -255,22 +275,24 @@ public class QueryManager implements QueryWatcher, Runnable
       return canceled || end > 0 && pendings.isEmpty();
     }
 
-    private synchronized void start(ListenableFuture future, Closeable resource)
+    private synchronized long start(ListenableFuture future, Closeable resource)
     {
-      if (canceled) {
+      final long remaining = remaining();
+      if (canceled || remaining <= 0) {
         Execs.cancelQuietly(future);
         IOUtils.closeQuietly(resource);
-        throw new CancellationException();
+        throw QueryInterruptedException.wrapIfNeeded(canceled ? new CancellationException() : new TimeoutException());
       }
       pendings.put(future, Timer.of(future));
       if (resource != null) {
         resources.add(resource);
       }
+      return remaining;
     }
 
     private synchronized boolean end(ListenableFuture future)
     {
-      Timer timer = pendings.remove(future);
+      final Timer timer = pendings.remove(future);
       if (timer != null) {
         timer.end();
       }
@@ -314,7 +336,7 @@ public class QueryManager implements QueryWatcher, Runnable
 
     private synchronized boolean isExpired(long current, long expire)
     {
-      long endTime = end < 0 ? start + timeout : end;
+      final long endTime = end < 0 ? start + timeout : end;
       return endTime > 0 && (current - endTime) > expire;
     }
 
@@ -336,7 +358,7 @@ public class QueryManager implements QueryWatcher, Runnable
         return;
       }
       Collections.sort(filtered);
-      if (filtered.get(0).elapsed < LOG_THRESHOLD) {
+      if (filtered.get(0).elapsed < LOG_THRESHOLD_MSEC) {
         // skip for trivial queries (meta queries, etc.)
         return;
       }
@@ -349,7 +371,7 @@ public class QueryManager implements QueryWatcher, Runnable
         }
       }
       final long mean = total / counter;
-      final double threshold = Math.max(LOG_THRESHOLD / 2, mean * 1.5);
+      final double threshold = Math.max(LOG_THRESHOLD_MSEC / 2, mean * 1.5);
 
       List<Timer> log = ImmutableList.copyOf(
           Iterables.limit(Iterables.filter(filtered, input -> input.elapsed > threshold), 8)
@@ -363,7 +385,7 @@ public class QueryManager implements QueryWatcher, Runnable
 
     private synchronized List<String> pendingTags()
     {
-      return Lists.newArrayList(
+      return ImmutableList.copyOf(
           Iterables.transform(Iterables.filter(pendings.values(), Predicates.notNull()), timer -> timer.tag)
       );
     }
@@ -372,6 +394,14 @@ public class QueryManager implements QueryWatcher, Runnable
     {
       resources.remove(resource);
     }
+  }
+
+  public void stop()
+  {
+    for (QueryStatus status : queries.values()) {
+      status.cancel();
+    }
+    queries.clear();
   }
 
   private long lastCleanup;

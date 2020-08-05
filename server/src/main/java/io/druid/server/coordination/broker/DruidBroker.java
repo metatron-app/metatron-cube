@@ -35,14 +35,13 @@ import io.druid.server.QueryManager;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 @ManageLifecycle
 public class DruidBroker
 {
+  private static final long CHECK_INTERVAL = 10;  // 10 seconds
+
   private final DruidNode self;
+  private final QueryManager queryManager;
   private final ServiceAnnouncer serviceAnnouncer;
   private volatile boolean started = false;
 
@@ -55,6 +54,7 @@ public class DruidBroker
   )
   {
     this.self = self;
+    this.queryManager = queryManager;
     this.serviceAnnouncer = serviceAnnouncer;
 
     serverInventoryView.registerSegmentCallback(
@@ -71,10 +71,6 @@ public class DruidBroker
         // We are not interested in any segment callbacks except view initialization
         Predicates.<Pair<DruidServerMetadata, DataSegment>>alwaysFalse()
     );
-    ScheduledExecutorService background = Executors.newSingleThreadScheduledExecutor(
-        Execs.simpleDaemonFactory("QueryManager")
-    );
-    background.scheduleWithFixedDelay(queryManager, 10, 10, TimeUnit.SECONDS);
   }
 
   @LifecycleStart
@@ -86,6 +82,7 @@ public class DruidBroker
       }
       started = true;
     }
+    queryManager.start(CHECK_INTERVAL);
   }
 
   @LifecycleStop
@@ -98,5 +95,6 @@ public class DruidBroker
       serviceAnnouncer.unannounce(self);
       started = false;
     }
+    queryManager.stop();
   }
 }

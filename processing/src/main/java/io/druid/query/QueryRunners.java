@@ -31,6 +31,7 @@ import io.druid.concurrent.Execs;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -45,7 +46,7 @@ import java.util.concurrent.TimeoutException;
 
 public class QueryRunners
 {
-  private static final Logger LOG = new Logger(QueryWatcher.class);
+  private static final Logger LOG = new Logger(QueryRunners.class);
 
   public static <T> QueryRunner<T> concat(final Iterable<QueryRunner<T>> runners)
   {
@@ -222,9 +223,13 @@ public class QueryRunners
       final Closeable closeOnFailure
   )
   {
-    queryWatcher.registerQuery(query, future);
+    final StopWatch watch = queryWatcher.registerQuery(query, future);
     try {
-      return wainOn(query, future, queryWatcher);
+      return watch.wainOn(future);
+    }
+    catch (QueryInterruptedException e) {
+      IOUtils.closeQuietly(closeOnFailure);
+      throw e;
     }
     catch (CancellationException e) {
       LOG.info("Query [%s] is canceled", query.getId());
@@ -235,22 +240,12 @@ public class QueryRunners
       String reason = e instanceof InterruptedException ? "interrupted" : "timeout";
       LOG.info("Cancelling query [%s] by reason [%s]", query.getId(), reason);
       IOUtils.closeQuietly(closeOnFailure);
-      throw new QueryInterruptedException(e);
-    }
-    catch (QueryInterruptedException e) {
-      IOUtils.closeQuietly(closeOnFailure);
-      throw e;
+      throw QueryInterruptedException.wrapIfNeeded(e);
     }
     catch (ExecutionException e) {
       IOUtils.closeQuietly(closeOnFailure);
       throw Throwables.propagate(e.getCause());
     }
-  }
-
-  public static <T> T wainOn(Query<?> query, ListenableFuture<T> future, QueryWatcher queryWatcher)
-      throws InterruptedException, ExecutionException, TimeoutException
-  {
-    return Execs.waitOn(future, queryWatcher.remainingTime(query.getId()));
   }
 
   public static <I, T> QueryRunner<T> getIteratingRunner(

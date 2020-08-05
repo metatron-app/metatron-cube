@@ -20,36 +20,37 @@
 package io.druid.query;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.utils.StopWatch;
 
 import java.io.Closeable;
 
 /**
  * This interface is in a very early stage and should not be considered stable.
- *
+ * <p>
  * The purpose of the QueryWatcher is to give overall visibility into queries running
  * or pending at the QueryRunner level. This is currently used to cancel all the
  * parts of a pending query, but may be expanded in the future to offer more direct
  * visibility into query execution and resource usage.
- *
+ * <p>
  * QueryRunners executing any computation asynchronously must register their queries
  * with the QueryWatcher.
- *
  */
 public interface QueryWatcher
 {
-  default void registerQuery(Query query, ListenableFuture future)
+  default StopWatch registerQuery(Query query, ListenableFuture future)
   {
-    registerQuery(query, future, null);
+    return registerQuery(query, future, null);
   }
 
   /**
    * QueryRunners must use this method to register any pending queries.
-   *
+   * <p>
    * The given future may have cancel(true) called at any time, if cancellation of this query has been requested.
-   * @param query a query, which may be a subset of a larger query, as long as the underlying queryId is unchanged
+   *
+   * @param query  a query, which may be a subset of a larger query, as long as the underlying queryId is unchanged
    * @param future the future holding the execution status of the query
    */
-  void registerQuery(Query query, ListenableFuture future, Closeable resource);
+  StopWatch registerQuery(Query query, ListenableFuture future, Closeable resource);
 
   void unregisterResource(Query query, Closeable resource);
 
@@ -57,10 +58,15 @@ public interface QueryWatcher
 
   boolean cancelQuery(String queryId);
 
+  boolean isCancelled(String queryId);
+
   class Abstract implements QueryWatcher
   {
     @Override
-    public void registerQuery(Query query, ListenableFuture future, Closeable resource) {}
+    public StopWatch registerQuery(Query query, ListenableFuture future, Closeable resource)
+    {
+      return new StopWatch(60_000L);
+    }
 
     @Override
     public void unregisterResource(Query query, Closeable resource) {}
@@ -70,6 +76,12 @@ public interface QueryWatcher
 
     @Override
     public boolean cancelQuery(String queryId)
+    {
+      return false;
+    }
+
+    @Override
+    public boolean isCancelled(String queryId)
     {
       return false;
     }

@@ -339,20 +339,17 @@ public class BrokerQueryResource extends QueryResource
       // now it's blocking call
       final QueryRunner runner = forward.handle(query, QueryRunners.wrap(sequence));
       if (async) {
-        queryManager.registerQuery(
-            query, new ProgressingFuture(
-                exec.submit(
-                    new PrioritizedCallable.Background<Sequence>()
-                    {
-                      @Override
-                      public Sequence call() throws Exception
-                      {
-                        return QueryRunners.run(query, runner);
-                      }
-                    }
-                ), sequence
-            )
+        final ListenableFuture<Sequence> future = exec.submit(
+            new PrioritizedCallable.Background<Sequence>()
+            {
+              @Override
+              public Sequence call() throws Exception
+              {
+                return QueryRunners.run(query, runner);
+              }
+            }
         );
+        queryManager.registerQuery(query, new ProgressingFuture(future, sequence));
         return context.ok(ImmutableMap.of("queryId", query.getId(), "broker", node.getHostAndPort()));
       } else {
         List result = Sequences.toList(QueryRunners.run(query, runner));

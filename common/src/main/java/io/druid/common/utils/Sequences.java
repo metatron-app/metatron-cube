@@ -54,7 +54,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -106,30 +105,6 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
   public static <T> Sequence<T> lazy(Supplier<Sequence<T>> supplier)
   {
     return new LazySequence<>(supplier);
-  }
-
-  public static <T> Function<Callable<Sequence<T>>, Sequence<T>> callableToLazy()
-  {
-    return new Function<Callable<Sequence<T>>, Sequence<T>>()
-    {
-      @Override
-      public Sequence<T> apply(final Callable<Sequence<T>> callable)
-      {
-        return new LazySequence<>(new Supplier<Sequence<T>>()
-        {
-          @Override
-          public Sequence<T> get()
-          {
-            try {
-              return callable.call();
-            }
-            catch (Exception e) {
-              throw Throwables.propagate(e);
-            }
-          }
-        });
-      }
-    };
   }
 
   public static <T> Sequence<T> mergeSort(Ordering<T> ordering, Iterable<Sequence<T>> baseSequences)
