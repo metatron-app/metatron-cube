@@ -164,7 +164,7 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
       Key<Supplier<T>> supplierKey
   )
   {
-    binder.bind(supplierKey).toProvider((Provider) of(propertyBase, clazz, defaultValue)).in(LazySingleton.class);
+    binder.bind(supplierKey).toProvider(of(propertyBase, clazz, defaultValue)).in(LazySingleton.class);
     binder.bind(instanceKey).toProvider(new SupplierProvider<T>(supplierKey));
     BASE_TO_CLASS.put(propertyBase, supplierKey);
   }
@@ -252,7 +252,8 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
   private Properties props;
   private JsonConfigurator configurator;
 
-  private Supplier<T> retVal = null;
+  private Map<String, String> overrides = Maps.newHashMap();
+  private Supplier<T> retVal;
 
   public JsonConfigProvider(
       String propertyBase,
@@ -283,7 +284,7 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
     }
 
     try {
-      final T config = configurator.configurate(props, propertyBase, classToProvide, defaultValue, null);
+      final T config = configurator.configurate(props, propertyBase, classToProvide, defaultValue, overrides);
       retVal = Suppliers.ofInstance(config);
     }
     catch (RuntimeException e) {
@@ -299,9 +300,11 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
 
   private void configure(Map<String, String> properties)
   {
-    Supplier<T> supplier = get();
+    Map<String, String> overriding = Maps.newHashMap(overrides);
+    overriding.putAll(properties);
     retVal = Suppliers.ofInstance(
-        configurator.configurate(props, propertyBase, classToProvide, supplier.get(), properties)
+        configurator.configurate(props, propertyBase, classToProvide, defaultValue, overriding)
     );
+    overrides = overriding;
   }
 }

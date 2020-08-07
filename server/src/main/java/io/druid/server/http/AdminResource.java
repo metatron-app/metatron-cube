@@ -22,11 +22,14 @@ package io.druid.server.http;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
+import com.google.inject.Injector;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.common.utils.VMUtils;
+import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.java.util.common.IAE;
@@ -78,17 +81,20 @@ public class AdminResource
   private final DruidNode node;
   private final Shutdown.Proc shutdown;
   private final ObjectMapper objectMapper;
+  private final Injector injector;
 
   @Inject
   public AdminResource(
       @Self DruidNode node,
       @Shutdown Shutdown.Proc shutdown,
-      @Json ObjectMapper objectMapper
+      @Json ObjectMapper objectMapper,
+      Injector injector
   )
   {
     this.node = node;
     this.shutdown = shutdown;
     this.objectMapper = objectMapper;
+    this.injector = injector;
   }
 
   @GET
@@ -114,6 +120,16 @@ public class AdminResource
       }
     }
     return Response.ok(result).build();
+  }
+
+  @GET
+  @Path("/config/{configKey}")
+  @Produces(MediaType.TEXT_PLAIN)
+  public Response getConfig(@PathParam("configKey") String configKey) throws JsonProcessingException
+  {
+    final Object value = JsonConfigProvider.get(injector, configKey);
+    final Object entity = value instanceof Supplier ? ((Supplier) value).get() : value;
+    return Response.ok(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(entity)).build();
   }
 
   @GET
@@ -173,6 +189,16 @@ public class AdminResource
     return handleLogLevel(name, level);
   }
 
+  private Response handleLogLevel(String name, Level level)
+  {
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    Logger logger = "root".equalsIgnoreCase(name) ? context.getRootLogger() : context.getLogger(name);
+    if (level != null) {
+      logger.setLevel(level);
+    }
+    return Response.ok(String.format("%s --> %s", name, logger.getLevel())).build();
+  }
+
   @GET
   @Path("/jcmd/help")
   @Produces(MediaType.APPLICATION_JSON)
@@ -208,16 +234,6 @@ public class AdminResource
     String query = req.getQueryString();
     Object[] params = StringUtils.isNullOrEmpty(query) ? new Object[1] : new Object[] { query.split("&") };
     return Response.ok(VMUtils.jcmd(command, params)).build();
-  }
-
-  private Response handleLogLevel(String name, Level level)
-  {
-    LoggerContext context = (LoggerContext) LogManager.getContext(false);
-    Logger logger = "root".equalsIgnoreCase(name) ? context.getRootLogger() : context.getLogger(name);
-    if (level != null) {
-      logger.setLevel(level);
-    }
-    return Response.ok(String.format("%s --> %s", name, logger.getLevel())).build();
   }
 
   private static final int DEFAULT_LOG_QUEUE_SIZE = 1024;

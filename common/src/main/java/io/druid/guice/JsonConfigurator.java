@@ -35,6 +35,7 @@ import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.ProvisionException;
 import com.google.inject.spi.Message;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
 
 import javax.validation.ConstraintViolation;
@@ -129,7 +130,7 @@ public class JsonConfigurator
         values.put(prop.substring(propertyBase.length()), value);
       }
     }
-    if (override != null) {
+    if (!GuavaUtils.isNullOrEmpty(override)) {
       values.putAll(override);
     }
 

@@ -22,6 +22,7 @@ package io.druid.query.config;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Ordering;
 import io.druid.client.DruidServer;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -112,6 +113,12 @@ public class ConfigQuery extends BaseQuery<Map<String, Object>> implements Filte
   public Map<String, Map<String, String>> getConfig()
   {
     return config;
+  }
+
+  @Override
+  public Ordering<Map<String, Object>> getMergeOrdering()
+  {
+    return null;
   }
 
   @Override
