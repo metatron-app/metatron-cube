@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.planner;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -36,6 +37,7 @@ import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunners;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.sql.calcite.Utils;
@@ -290,17 +292,27 @@ public class DruidPlanner implements Closeable, ForwardConstants
 
   private PlannerResult handleExplain(final RelNode rel, final SqlExplain explain)
   {
-    final String explanation = RelOptUtil.dumpPlan("", rel, explain.getFormat(), explain.getDetailLevel());
+    final String explanation;
+    if (explain.withImplementation() && rel instanceof DruidRel) {
+      try {
+        plannerContext.disableQueryId();
+        Query query = ((DruidRel) rel).toDruidQuery(true).getQuery();
+        explanation = plannerContext.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(query);
+      }
+      catch (JsonProcessingException e) {
+        throw QueryInterruptedException.wrapIfNeeded(e);
+      }
+    } else {
+      explanation = RelOptUtil.dumpPlan("", rel, explain.getFormat(), explain.getDetailLevel());
+    }
+    final RelDataTypeFactory typeFactory = rel.getCluster().getTypeFactory();
+    final RelDataType resultType = typeFactory.createStructType(
+        ImmutableList.of(typeFactory.createSqlType(SqlTypeName.VARCHAR)),
+        ImmutableList.of("PLAN")
+    );
     final Supplier<Sequence<Object[]>> resultsSupplier = Suppliers.ofInstance(
         Sequences.simple(ImmutableList.of(new Object[]{explanation})));
-    final RelDataTypeFactory typeFactory = rel.getCluster().getTypeFactory();
-    return new PlannerResult(
-        resultsSupplier,
-        typeFactory.createStructType(
-            ImmutableList.of(typeFactory.createSqlType(SqlTypeName.VARCHAR)),
-            ImmutableList.of("PLAN")
-        )
-    );
+    return new PlannerResult(resultsSupplier, resultType);
   }
 
   @SuppressWarnings("unchecked")

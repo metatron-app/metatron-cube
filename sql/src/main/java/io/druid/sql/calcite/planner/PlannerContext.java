@@ -134,6 +134,12 @@ public class PlannerContext
     return (String) queryContext.get(Query.QUERYID);
   }
 
+  // for explain with implementation
+  public void disableQueryId()
+  {
+    queryContext.remove(Query.QUERYID);
+  }
+
   public DruidOperatorTable getOperatorTable()
   {
     return operatorTable;

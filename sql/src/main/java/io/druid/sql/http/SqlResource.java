@@ -103,7 +103,8 @@ public class SqlResource
       @Context HttpServletRequest req
   ) throws SQLException, IOException
   {
-    return execute(new SqlQuery(String.format("DESCRIBE %s", sqlQuery), null, false, contextFromParam(req)), req);
+    final String explain = String.format("EXPLAIN PLAN WITH IMPLEMENTATION FOR %s", sqlQuery);
+    return execute(new SqlQuery(explain, null, false, contextFromParam(req)), req);
   }
 
   @POST

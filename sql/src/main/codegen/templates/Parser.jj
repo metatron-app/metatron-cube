@@ -1173,7 +1173,7 @@ SqlExplain.Depth ExplainDepth() :
         }
         |
         {
-            return SqlExplain.Depth.PHYSICAL;
+            return SqlExplain.Depth.LOGICAL;
         }
 
     )

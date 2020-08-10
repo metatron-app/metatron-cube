@@ -2056,7 +2056,7 @@ public class CalciteQueryTest extends CalciteTestBase
   @Test
   public void testExplainCountStarOnView() throws Exception
   {
-    final String explanation =
+    String explanation =
         "DruidQueryRel(query=["
         + "{\"queryType\":\"timeseries\","
         + "\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},"
@@ -2066,6 +2066,57 @@ public class CalciteQueryTest extends CalciteTestBase
 
     testQuery(
         "EXPLAIN PLAN FOR SELECT COUNT(*) FROM aview WHERE dim1_firstchar <> 'z'",
+        ImmutableList.of(),
+        ImmutableList.of(
+            new Object[]{explanation}
+        )
+    );
+
+    explanation = "{\n"
+                  + "  \"queryType\" : \"timeseries\",\n"
+                  + "  \"dataSource\" : {\n"
+                  + "    \"type\" : \"table\",\n"
+                  + "    \"name\" : \"foo\"\n"
+                  + "  },\n"
+                  + "  \"descending\" : false,\n"
+                  + "  \"filter\" : {\n"
+                  + "    \"type\" : \"and\",\n"
+                  + "    \"fields\" : [ {\n"
+                  + "      \"type\" : \"selector\",\n"
+                  + "      \"dimension\" : \"dim2\",\n"
+                  + "      \"value\" : \"a\"\n"
+                  + "    }, {\n"
+                  + "      \"type\" : \"not\",\n"
+                  + "      \"field\" : {\n"
+                  + "        \"type\" : \"selector\",\n"
+                  + "        \"dimension\" : \"dim1\",\n"
+                  + "        \"value\" : \"z\",\n"
+                  + "        \"extractionFn\" : {\n"
+                  + "          \"type\" : \"substring\",\n"
+                  + "          \"index\" : 0,\n"
+                  + "          \"length\" : 1\n"
+                  + "        }\n"
+                  + "      }\n"
+                  + "    } ]\n"
+                  + "  },\n"
+                  + "  \"granularity\" : {\n"
+                  + "    \"type\" : \"all\"\n"
+                  + "  },\n"
+                  + "  \"aggregations\" : [ {\n"
+                  + "    \"type\" : \"count\",\n"
+                  + "    \"name\" : \"a0\"\n"
+                  + "  } ],\n"
+                  + "  \"limitSpec\" : {\n"
+                  + "    \"type\" : \"noop\"\n"
+                  + "  },\n"
+                  + "  \"outputColumns\" : [ \"a0\" ],\n"
+                  + "  \"context\" : {\n"
+                  + "    \"sqlCurrentTimestamp\" : \"2000-01-01T00:00:00Z\",\n"
+                  + "    \"groupby.sort.on.time\" : false\n"
+                  + "  }\n"
+                  + "}";
+    testQuery(
+        "EXPLAIN PLAN WITH IMPLEMENTATION FOR SELECT COUNT(*) FROM aview WHERE dim1_firstchar <> 'z'",
         ImmutableList.of(),
         ImmutableList.of(
             new Object[]{explanation}
