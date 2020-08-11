@@ -16,6 +16,8 @@
 
 package io.druid.segment.bitmap;
 
+import org.roaringbitmap.IntIterator;
+
 import java.util.BitSet;
 
 public class WrappedBitSetBitmap extends com.metamx.collections.bitmap.WrappedBitSetBitmap
@@ -33,5 +35,47 @@ public class WrappedBitSetBitmap extends com.metamx.collections.bitmap.WrappedBi
   public BitSet bitset()
   {
     return bitmap;
+  }
+
+  public static IntIterator iterator(BitSet bitmap)
+  {
+    return new SimpleIterator(bitmap);
+  }
+
+  private static class SimpleIterator implements IntIterator
+  {
+    private final BitSet bitmap;
+    private int next;
+
+    private SimpleIterator(BitSet bitmap)
+    {
+      this(bitmap, bitmap.nextSetBit(0));
+    }
+
+    private SimpleIterator(BitSet bitmap, int next)
+    {
+      this.bitmap = bitmap;
+      this.next = next;
+    }
+
+    @Override
+    public boolean hasNext()
+    {
+      return next >= 0;
+    }
+
+    @Override
+    public int next()
+    {
+      final int ret = next;
+      next = bitmap.nextSetBit(next + 1);
+      return ret;
+    }
+
+    @Override
+    public IntIterator clone()
+    {
+      return new SimpleIterator(bitmap, next);
+    }
   }
 }

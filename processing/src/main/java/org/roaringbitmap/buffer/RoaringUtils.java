@@ -16,7 +16,7 @@
 
 package org.roaringbitmap.buffer;
 
-import com.metamx.collections.bitmap.WrappedImmutableBitSetBitmap;
+import io.druid.segment.bitmap.WrappedBitSetBitmap;
 import org.roaringbitmap.IntIterator;
 
 import java.nio.ShortBuffer;
@@ -42,24 +42,26 @@ public class RoaringUtils
 
   public static void addContainer(MutableRoaringArray array, short key, BitSet values)
   {
-    array.append(key, container(values));
+    addContainer(array, key, values, values.cardinality());
   }
 
-  private static MappeableContainer container(BitSet bitSet)
+  public static void addContainer(MutableRoaringArray array, short key, BitSet values, int cardinality)
   {
-    final int cardinality = bitSet.cardinality();
+    array.append(key, container(values, cardinality));
+  }
+
+  private static MappeableContainer container(final BitSet bitSet, final int cardinality)
+  {
     if (cardinality < MappeableArrayContainer.DEFAULT_MAX_SIZE) {
       final ShortBuffer buffer = ShortBuffer.allocate(cardinality);
-      final IntIterator iterator = new WrappedImmutableBitSetBitmap(bitSet).iterator();
+      final IntIterator iterator = WrappedBitSetBitmap.iterator(bitSet);
       while (iterator.hasNext()) {
         buffer.put(lowbits(iterator.next()));
       }
       return new MappeableArrayContainer(buffer, cardinality);
     } else {
       final MappeableBitmapContainer container = new MappeableBitmapContainer();
-      for (long word : bitSet.toLongArray()) {
-        container.bitmap.put(word);
-      }
+      container.bitmap.put(bitSet.toLongArray());
       container.cardinality = cardinality;
       return container;
     }

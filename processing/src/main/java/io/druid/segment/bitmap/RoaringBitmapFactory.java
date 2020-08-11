@@ -18,7 +18,6 @@ package io.druid.segment.bitmap;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.collections.bitmap.WrappedImmutableBitSetBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.data.VLongUtils;
 import io.druid.data.input.BytesOutputStream;
@@ -182,7 +181,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (bitSet == null || bitSet.isEmpty()) {
       return makeEmptyImmutableBitmap();
     }
-    return copyToBitmap(new WrappedImmutableBitSetBitmap(bitSet).iterator());
+    return copyToBitmap(WrappedBitSetBitmap.iterator(bitSet));
   }
 
   // should return -1 instead of NoSuchElementException
@@ -192,20 +191,22 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     final MutableRoaringArray roaringArray = mutable.getMappeableRoaringArray();
 
     short current_hb = 0;
+    int cardinality = 0;
     final BitSet values = new BitSet(0xFFFF);
     for (int x = iterator.next(); x >= 0; x = iterator.next()) {
       final short hb = RoaringUtils.highbits(x);
       if (hb != current_hb && !values.isEmpty()) {
-        RoaringUtils.addContainer(roaringArray, current_hb, values);
+        RoaringUtils.addContainer(roaringArray, current_hb, values, cardinality);
         values.clear();
+        cardinality = 0;
       }
       current_hb = hb;
       values.set(x & 0xFFFF);
+      cardinality++;
     }
     if (!values.isEmpty()) {
-      RoaringUtils.addContainer(roaringArray, current_hb, values);
+      RoaringUtils.addContainer(roaringArray, current_hb, values, cardinality);
     }
-    values.clear();
     return new WrappedImmutableRoaringBitmap(mutable);
   }
 
