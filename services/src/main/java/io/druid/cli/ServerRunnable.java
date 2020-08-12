@@ -132,7 +132,7 @@ public abstract class ServerRunnable extends GuiceRunnable implements Shutdown.P
     Ordering<String> ordering = Ordering.explicit(
         "zookeeper", "coordinator", "broker", "historical", "overlord", "middleManager", "realtime", "router"
     );
-    Arrays.sort(args, ordering);
+    Arrays.sort(args, ordering.onResultOf(arg -> arg.indexOf(':') > 0 ? arg.substring(0, arg.indexOf(':')) : arg));
     List<String> params = Lists.newArrayList(Arrays.asList(args));
     if (params.contains("zookeeper")) {
       Properties startupProperties = new Properties();
