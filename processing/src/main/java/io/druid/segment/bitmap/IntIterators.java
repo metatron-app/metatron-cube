@@ -26,6 +26,7 @@ import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.roaringbitmap.IntIterator;
 
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -56,26 +57,40 @@ public class IntIterators
     }
   };
 
-  public static class UpTo extends Abstract
+  public static class Range implements IntIterator
   {
-    private final int limit;
+    private final int from;
+    private final int to;
     private int index;
 
-    public UpTo(int limit) {this.limit = limit;}
+    public Range(int from, int to)
+    {
+      this.from = from;
+      this.to = to;
+      this.index = from;
+    }
 
     @Override
     public boolean hasNext()
     {
-      return index < limit;
+      return index <= to;    // inclusive
     }
 
     @Override
     public int next()
     {
-      if (index >= limit) {
-        throw new NoSuchElementException();
-      }
-      return index++;
+      return index <= to ? index++ : -1;
+    }
+
+    @Override
+    public IntIterator clone()
+    {
+      return new Range(index, to);
+    }
+
+    public void union(BitSet bitSet)
+    {
+      bitSet.set(from, to + 1);   // exclusive
     }
   }
 
@@ -84,7 +99,16 @@ public class IntIterators
     private int index;
     private final int[] array;
 
-    public FromArray(int[] array) {this.array = array;}
+    public FromArray(int[] array)
+    {
+      this(array, 0);
+    }
+
+    public FromArray(int[] array, int index)
+    {
+      this.array = array;
+      this.index = index;
+    }
 
     @Override
     public boolean hasNext()
@@ -95,8 +119,38 @@ public class IntIterators
     @Override
     public int next()
     {
-      return array[index++];
+      return index < array.length ? array[index++] : -1;
     }
+
+    @Override
+    public IntIterator clone()
+    {
+      return new FromArray(array, index);
+    }
+  }
+
+  public static class UpTo extends Abstract
+  {
+    private final int limit;
+
+    private int index;
+
+    public UpTo(int limit) {this.limit = limit;}
+
+    @Override
+    public boolean hasNext()
+    {
+      return index < limit;
+    }
+    @Override
+    public int next()
+    {
+      if (index >= limit) {
+        throw new NoSuchElementException();
+      }
+      return index++;
+    }
+
   }
 
   public static int[] toArray(final IntIterator iterator)

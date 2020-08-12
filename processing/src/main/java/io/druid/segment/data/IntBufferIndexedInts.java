@@ -20,7 +20,6 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
-import io.druid.common.guava.GuavaUtils;
 
 import java.nio.ByteBuffer;
 
@@ -93,12 +92,6 @@ public class IntBufferIndexedInts extends IndexedInts.Abstract implements Compar
       buffer.get(bytes);
 
       return bytes;
-    }
-
-    @Override
-    public int compare(IntBufferIndexedInts o1, IntBufferIndexedInts o2)
-    {
-      return GuavaUtils.nullFirstNatural().compare(o1, o2);
     }
   }
 }

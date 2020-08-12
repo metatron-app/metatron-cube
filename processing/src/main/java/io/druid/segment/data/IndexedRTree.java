@@ -99,11 +99,5 @@ public class IndexedRTree implements Comparable<IndexedRTree>
       }
       return val.toBytes();
     }
-
-    @Override
-    public int compare(ImmutableRTree o1, ImmutableRTree o2)
-    {
-      return comparator.compare(o1, o2);
-    }
   }
 }

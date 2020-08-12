@@ -16,6 +16,9 @@
 
 package io.druid.segment.bitmap;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.Iterables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
@@ -124,7 +127,28 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     while (iterator.hasNext()) {
       copyTo(iterator.next(), bitSet);
     }
-    return finalize(bitSet);
+    if (bitSet.isEmpty()) {
+      return makeEmptyImmutableBitmap();
+    }
+    return from(bitSet);
+  }
+
+  @Override
+  public ImmutableBitmap intersection(Iterable<ImmutableBitmap> b)
+  {
+    return super.intersection(Iterables.transform(b, bitmap -> unwrapLazy(bitmap)));
+  }
+
+  @Override
+  public ImmutableBitmap complement(ImmutableBitmap b)
+  {
+    return super.complement(unwrapLazy(b));
+  }
+
+  @Override
+  public ImmutableBitmap complement(ImmutableBitmap b, int length)
+  {
+    return super.complement(unwrapLazy(b), length);
   }
 
   // seemed not effective for small number of large bitmaps
@@ -167,11 +191,15 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     return finalize(bitSet);
   }
 
-  private BitSet copyTo(final ImmutableBitmap bitmap, final BitSet bitSet)
+  private static BitSet copyTo(final ImmutableBitmap bitmap, final BitSet bitSet)
   {
-    final IntIterator iterator = bitmap.iterator();
-    while (iterator.hasNext()) {
-      bitSet.set(iterator.next());
+    if (bitmap instanceof LazyImmutableBitmap) {
+      ((LazyImmutableBitmap) bitmap).union(bitSet);
+    } else {
+      final IntIterator iterator = bitmap.iterator();
+      while (iterator.hasNext()) {
+        bitSet.set(iterator.next());
+      }
     }
     return bitSet;
   }
@@ -185,7 +213,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   }
 
   // should return -1 instead of NoSuchElementException
-  private ImmutableBitmap copyToBitmap(final IntIterator iterator)
+  private static ImmutableBitmap copyToBitmap(final IntIterator iterator)
   {
     final MutableRoaringBitmap mutable = new MutableRoaringBitmap();
     final MutableRoaringArray roaringArray = mutable.getMappeableRoaringArray();
@@ -220,47 +248,131 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       bigEndian.getInt();   // skip
       final int from = VLongUtils.readUnsignedVarInt(bigEndian);
       final int to = from + VLongUtils.readUnsignedVarInt(bigEndian);
-      return copyToBitmap(new IntIterators.Abstract()
-      {
-        private int index = from;
-
-        @Override
-        public boolean hasNext()
-        {
-          return index <= to;    // inclusive
-        }
-
-        @Override
-        public int next()
-        {
-          return index <= to ? index++ : -1;
-        }
-      });
+      return from(to - from + 1, new IntIterators.Range(from, to));
     } else if (cookie == SMALL_COOKIE) {
       final ByteBuffer readOnly = buffer.asReadOnlyBuffer().order(ByteOrder.LITTLE_ENDIAN); // order is not propagated
       final int size = readOnly.getInt() >>> 16;
       if (size == 0) {
         return makeEmptyImmutableBitmap();
       }
-      return copyToBitmap(new IntIterators.Abstract()
-      {
-        private final ByteBuffer bigEndian = readOnly.order(ByteOrder.BIG_ENDIAN);
-        private int index = 0;
-        private int prev = 0;
-
-        @Override
-        public boolean hasNext()
-        {
-          return index < size;
-        }
-
-        @Override
-        public int next()
-        {
-          return index++ < size ? (prev += VLongUtils.readUnsignedVarInt(bigEndian)) : -1;
-        }
-      });
+      final ByteBuffer bigEndian = readOnly.order(ByteOrder.BIG_ENDIAN);
+      final int[] indices = new int[size];
+      for (int i = 0; i < indices.length; i++) {
+        indices[i] = (i == 0 ? 0 : indices[i - 1]) + VLongUtils.readUnsignedVarInt(bigEndian);
+      }
+      return from(size, new IntIterators.FromArray(indices));
     }
     return super.mapImmutableBitmap(bbf);
+  }
+
+  private static ImmutableBitmap unwrapLazy(ImmutableBitmap bitmap)
+  {
+    if (bitmap instanceof LazyImmutableBitmap) {
+      return ((LazyImmutableBitmap) bitmap).materializer.get();
+    } else {
+      return bitmap;
+    }
+  }
+
+  public static LazyImmutableBitmap from(final int cardinality, final IntIterator iterator)
+  {
+    return new LazyImmutableBitmap(cardinality)
+    {
+      @Override
+      public IntIterator iterator()
+      {
+        return iterator.clone();
+      }
+    };
+  }
+
+  public static LazyImmutableBitmap from(final BitSet bitSet)
+  {
+    return new LazyImmutableBitmap(bitSet.cardinality())
+    {
+      @Override
+      public IntIterator iterator()
+      {
+        return WrappedBitSetBitmap.iterator(bitSet);
+      }
+
+      @Override
+      public void union(BitSet target)
+      {
+        target.or(bitSet);
+      }
+    };
+  }
+
+  private static abstract class LazyImmutableBitmap implements ImmutableBitmap
+  {
+    private final int cardinality;
+    private final Supplier<ImmutableBitmap> materializer;
+
+    public LazyImmutableBitmap(int cardinality)
+    {
+      this.cardinality = cardinality;
+      this.materializer = Suppliers.memoize(() -> copyToBitmap(iterator()));
+    }
+
+    @Override
+    public int size()
+    {
+      return cardinality;
+    }
+
+    @Override
+    public byte[] toBytes()
+    {
+      return materializer.get().toBytes();
+    }
+
+    @Override
+    public int compareTo(ImmutableBitmap other)
+    {
+      return materializer.get().compareTo(other);
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+      return cardinality == 0;
+    }
+
+    @Override
+    public boolean get(int value)
+    {
+      return materializer.get().get(value);
+    }
+
+    @Override
+    public ImmutableBitmap union(ImmutableBitmap otherBitmap)
+    {
+      return materializer.get().union(otherBitmap);
+    }
+
+    @Override
+    public ImmutableBitmap intersection(ImmutableBitmap otherBitmap)
+    {
+      return materializer.get().intersection(otherBitmap);
+    }
+
+    @Override
+    public ImmutableBitmap difference(ImmutableBitmap otherBitmap)
+    {
+      return materializer.get().difference(otherBitmap);
+    }
+
+    public void union(BitSet target)
+    {
+      final IntIterator iterator = iterator();
+      if (iterator instanceof IntIterators.Range) {
+        ((IntIterators.Range) iterator).union(target);
+      } else {
+        while (iterator.hasNext()) {
+          target.set(iterator.next());
+        }
+      }
+    }
   }
 }

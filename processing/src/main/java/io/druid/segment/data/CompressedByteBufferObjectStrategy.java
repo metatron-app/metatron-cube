@@ -49,12 +49,6 @@ public class CompressedByteBufferObjectStrategy extends FixedSizeCompressedObjec
           }
 
           @Override
-          public int compare(ByteBuffer lhs, ByteBuffer rhs)
-          {
-            return ORDERING.compare(lhs, rhs);
-          }
-
-          @Override
           public int sizeOf(int count)
           {
             return count; // 1 byte per element

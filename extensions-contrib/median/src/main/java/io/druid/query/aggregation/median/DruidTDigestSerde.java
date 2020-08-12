@@ -98,7 +98,8 @@ public class DruidTDigestSerde extends ComplexMetricSerde
     columnBuilder.setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), column));
   }
 
-  public ObjectStrategy getObjectStrategy()
+  @Override
+  public ObjectStrategy<DruidTDigest> getObjectStrategy()
   {
     return new ObjectStrategy<DruidTDigest>()
     {
@@ -124,12 +125,6 @@ public class DruidTDigestSerde extends ComplexMetricSerde
         }
 
         return digest.toBytes();
-      }
-
-      @Override
-      public int compare(DruidTDigest o1, DruidTDigest o2)
-      {
-        return comparator.compare(o1, o2);
       }
     };
   }

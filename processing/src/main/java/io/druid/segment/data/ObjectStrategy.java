@@ -23,9 +23,8 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 
 import java.nio.ByteBuffer;
-import java.util.Comparator;
 
-public interface ObjectStrategy<T> extends Comparator<T>
+public interface ObjectStrategy<T>
 {
   Class<? extends T> getClazz();
 
@@ -43,16 +42,11 @@ public interface ObjectStrategy<T> extends Comparator<T>
 
   byte[] toBytes(T val);
 
-  abstract class NotComparable<T> implements ObjectStrategy<T>
+  interface CompareSupport<T> extends ObjectStrategy<T>, java.util.Comparator<T>
   {
-    @Override
-    public final int compare(T o1, T o2)
-    {
-      throw new UnsupportedOperationException();
-    }
   }
 
-  ObjectStrategy<String> STRING_STRATEGY = new CacheableObjectStrategy<String>()
+  ObjectStrategy<String> STRING_STRATEGY = new CompareSupport<String>()
   {
     @Override
     public Class<? extends String> getClazz()

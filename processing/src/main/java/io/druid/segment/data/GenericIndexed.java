@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -75,7 +76,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return new GenericIndexed<T>(buffer, strategy, true);
     }
 
-    boolean allowReverseLookup = !(strategy instanceof ObjectStrategy.NotComparable);
+    boolean allowReverseLookup = strategy instanceof Comparator;
     int count = 0;
 
     ByteArrayOutputStream headerBytes = new ByteArrayOutputStream();
@@ -86,7 +87,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       do {
         count++;
         T next = objects.next();
-        if (allowReverseLookup && prevVal != null && !(strategy.compare(prevVal, next) < 0)) {
+        if (allowReverseLookup && prevVal != null && !(((Comparator<T>) strategy).compare(prevVal, next) < 0)) {
           allowReverseLookup = false;
         }
 
@@ -196,7 +197,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   {
     this.theBuffer = buffer;
     this.strategy = strategy;
-    this.allowReverseLookup = allowReverseLookup;
+    this.allowReverseLookup = allowReverseLookup && strategy instanceof Comparator;
 
     size = theBuffer.getInt();
     indexOffset = theBuffer.position();
@@ -375,7 +376,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         int currIndex = (minIndex + maxIndex) >>> 1;
 
         T currValue = GenericIndexed.this.get(currIndex);
-        int comparison = strategy.compare(currValue, value);
+        int comparison = ((Comparator<T>) strategy).compare(currValue, value);
         if (comparison == 0) {
           return currIndex;
         }

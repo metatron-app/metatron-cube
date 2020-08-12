@@ -20,7 +20,6 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Doubles;
-import io.druid.common.guava.GuavaUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -49,12 +48,6 @@ public class CompressedDoubleBufferObjectStrategy extends FixedSizeCompressedObj
           public DoubleBuffer convert(ByteBuffer buf)
           {
             return buf.asDoubleBuffer();
-          }
-
-          @Override
-          public int compare(DoubleBuffer lhs, DoubleBuffer rhs)
-          {
-            return GuavaUtils.nullFirstNatural().compare(lhs, rhs);
           }
 
           @Override

@@ -31,6 +31,7 @@ import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.ArrayMetricSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -50,8 +51,9 @@ public class ComplexMetrics
     if (type.isPrimitive()) {
       return type.comparator();
     } else {
-      ComplexMetricSerde serde = getSerdeForType(type.typeName());
-      return serde == null ? null : serde.getObjectStrategy();
+      final ComplexMetricSerde serde = getSerdeForType(type.typeName());
+      final ObjectStrategy strategy = serde == null ? null : serde.getObjectStrategy();
+      return strategy instanceof Comparator ? (Comparator) strategy : null;
     }
   }
 

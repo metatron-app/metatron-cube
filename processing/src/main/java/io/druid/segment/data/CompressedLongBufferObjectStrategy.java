@@ -20,7 +20,6 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Longs;
-import io.druid.common.guava.GuavaUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -45,12 +44,6 @@ public class CompressedLongBufferObjectStrategy extends FixedSizeCompressedObjec
           public LongBuffer convert(ByteBuffer buf)
           {
             return buf.asLongBuffer();
-          }
-
-          @Override
-          public int compare(LongBuffer lhs, LongBuffer rhs)
-          {
-            return GuavaUtils.nullFirstNatural().compare(lhs, rhs);
           }
 
           @Override

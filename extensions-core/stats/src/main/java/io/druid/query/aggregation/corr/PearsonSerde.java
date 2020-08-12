@@ -72,9 +72,9 @@ public class PearsonSerde extends ComplexMetricSerde
   }
 
   @Override
-  public ObjectStrategy getObjectStrategy()
+  public ObjectStrategy<PearsonAggregatorCollector> getObjectStrategy()
   {
-    return new ObjectStrategy<PearsonAggregatorCollector>()
+    return new ObjectStrategy.CompareSupport<PearsonAggregatorCollector>()
     {
       @Override
       public Class<? extends PearsonAggregatorCollector> getClazz()

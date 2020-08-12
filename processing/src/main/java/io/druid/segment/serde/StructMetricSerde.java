@@ -23,12 +23,12 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.Pair;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -206,7 +206,7 @@ public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pa
   @Override
   public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy.NotComparable<Object[]>()
+    return new ObjectStrategy<Object[]>()
     {
       @Override
       public Class<Object[]> getClazz()

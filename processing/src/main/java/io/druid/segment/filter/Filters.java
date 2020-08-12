@@ -475,7 +475,7 @@ public class Filters
     if (cache == null || segmentId == null || bitmapCode >= BITMAP_FACTORIES.length) {
       return new FilterContext(selector);
     }
-    final byte[] namespace = io.druid.java.util.common.StringUtils.toUtf8(segmentId);
+    final byte[] namespace = StringUtils.toUtf8(segmentId);
     return new FilterContext(selector)
     {
       @Override

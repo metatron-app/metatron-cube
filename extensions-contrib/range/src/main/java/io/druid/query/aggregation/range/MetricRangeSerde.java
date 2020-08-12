@@ -40,9 +40,11 @@ public class MetricRangeSerde extends ComplexMetricSerde
     }
   }.nullsFirst();
 
-  private ObjectStrategy strategy = new ObjectStrategy<MetricRange>() {
+  private ObjectStrategy<MetricRange> strategy = new ObjectStrategy.CompareSupport<MetricRange>()
+  {
     @Override
-    public Class getClazz() {
+    public Class<MetricRange> getClazz()
+    {
       return MetricRange.class;
     }
 
@@ -109,7 +111,7 @@ public class MetricRangeSerde extends ComplexMetricSerde
   }
 
   @Override
-  public ObjectStrategy getObjectStrategy()
+  public ObjectStrategy<MetricRange> getObjectStrategy()
   {
     return strategy;
   }

@@ -20,7 +20,6 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Floats;
-import io.druid.common.guava.GuavaUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -45,12 +44,6 @@ public class CompressedFloatBufferObjectStrategy extends FixedSizeCompressedObje
           public FloatBuffer convert(ByteBuffer buf)
           {
             return buf.asFloatBuffer();
-          }
-
-          @Override
-          public int compare(FloatBuffer lhs, FloatBuffer rhs)
-          {
-            return GuavaUtils.nullFirstNatural().compare(lhs, rhs);
           }
 
           @Override

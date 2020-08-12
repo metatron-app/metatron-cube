@@ -144,7 +144,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
   @Override
   public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy.NotComparable()
+    return new ObjectStrategy()
     {
       @Override
       public Class getClazz()

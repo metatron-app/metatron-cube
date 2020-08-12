@@ -135,9 +135,9 @@ public class DecimalMetricSerde extends ComplexMetricSerde
   }
 
   @Override
-  public ObjectStrategy getObjectStrategy()
+  public ObjectStrategy<BigDecimal> getObjectStrategy()
   {
-    return new ObjectStrategy.NotComparable<BigDecimal>()
+    return new ObjectStrategy<BigDecimal>()
     {
       @Override
       public Class<BigDecimal> getClazz()

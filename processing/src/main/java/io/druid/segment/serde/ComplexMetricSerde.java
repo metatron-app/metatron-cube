@@ -90,7 +90,7 @@ public abstract class ComplexMetricSerde
     @Override
     public ObjectStrategy getObjectStrategy()
     {
-      return new ObjectStrategy.NotComparable<Object>()
+      return new ObjectStrategy<Object>()
       {
         @Override
         public Class getClazz()

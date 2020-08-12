@@ -72,9 +72,9 @@ public class KurtosisSerde extends ComplexMetricSerde
   }
 
   @Override
-  public ObjectStrategy getObjectStrategy()
+  public ObjectStrategy<KurtosisAggregatorCollector> getObjectStrategy()
   {
-    return new ObjectStrategy<KurtosisAggregatorCollector>()
+    return new ObjectStrategy.CompareSupport<KurtosisAggregatorCollector>()
     {
       @Override
       public Class<? extends KurtosisAggregatorCollector> getClazz()

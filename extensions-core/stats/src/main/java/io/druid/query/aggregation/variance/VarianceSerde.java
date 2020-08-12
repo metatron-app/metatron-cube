@@ -87,9 +87,9 @@ public class VarianceSerde extends ComplexMetricSerde
   }
 
   @Override
-  public ObjectStrategy getObjectStrategy()
+  public ObjectStrategy<VarianceAggregatorCollector> getObjectStrategy()
   {
-    return new ObjectStrategy<VarianceAggregatorCollector>()
+    return new ObjectStrategy.CompareSupport<VarianceAggregatorCollector>()
     {
       @Override
       public Class<? extends VarianceAggregatorCollector> getClazz()

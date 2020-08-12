@@ -48,12 +48,6 @@ public class CompressedIntBufferObjectStrategy extends FixedSizeCompressedObject
           }
 
           @Override
-          public int compare(IntBuffer lhs, IntBuffer rhs)
-          {
-            return ORDERING.compare(lhs, rhs);
-          }
-
-          @Override
           public int sizeOf(int count)
           {
             return count * Ints.BYTES;

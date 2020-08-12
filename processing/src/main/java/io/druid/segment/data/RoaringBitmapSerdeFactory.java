@@ -19,12 +19,9 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Ordering;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
-import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
 import java.nio.ByteBuffer;
 
@@ -54,27 +51,6 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
     return optimizeForSerialization ? bitmapFactory : bitmapFactoryOptimized;
   }
 
-  private static Ordering<WrappedImmutableRoaringBitmap> roaringComparator = new Ordering<WrappedImmutableRoaringBitmap>()
-  {
-    @Override
-    public int compare(
-        WrappedImmutableRoaringBitmap set1, WrappedImmutableRoaringBitmap set2
-    )
-    {
-      if (set1.isEmpty() && set2.isEmpty()) {
-        return 0;
-      }
-      if (set1.isEmpty()) {
-        return -1;
-      }
-      if (set2.isEmpty()) {
-        return 1;
-      }
-
-      return set1.compareTo(set2);
-    }
-  }.nullsFirst();
-
   private static class ImmutableRoaringBitmapObjectStrategy
       implements ObjectStrategy<ImmutableBitmap>
   {
@@ -102,12 +78,6 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
         return new byte[]{};
       }
       return val.toBytes();
-    }
-
-    @Override
-    public int compare(ImmutableBitmap o1, ImmutableBitmap o2)
-    {
-      return roaringComparator.compare((WrappedImmutableRoaringBitmap) o1, (WrappedImmutableRoaringBitmap) o2);
     }
   }
 

@@ -113,7 +113,7 @@ public class BitSlicedBitmaps
   public static ObjectStrategy<BitSlicedBitmap> getStrategy(final BitmapSerdeFactory serdeFactory, final ValueType type)
   {
     final ObjectStrategy<ImmutableBitmap> strategy = serdeFactory.getObjectStrategy();
-    return new ObjectStrategy.NotComparable<BitSlicedBitmap>()
+    return new ObjectStrategy<BitSlicedBitmap>()
     {
       @Override
       public Class<? extends BitSlicedBitmap> getClazz()

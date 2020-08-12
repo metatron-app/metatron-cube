@@ -26,7 +26,7 @@ import io.druid.segment.data.ObjectStrategy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class HllSketchObjectStrategy implements ObjectStrategy<HllSketch>
+public class HllSketchObjectStrategy implements ObjectStrategy.CompareSupport<HllSketch>
 {
 
   static final HllSketchObjectStrategy STRATEGY = new HllSketchObjectStrategy();

@@ -357,34 +357,20 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
     return ByteBuffer.allocate(converter.sizeOf(val.remaining())).order(order);
   }
 
-  @Override
-  public int compare(ResourceHolder<T> o1, ResourceHolder<T> o2)
-  {
-    return converter.compare(o1.get(), o2.get());
-  }
-
   public static interface BufferConverter<T>
   {
-    public T convert(ByteBuffer buf);
+    T convert(ByteBuffer buf);
 
-    public int compare(T lhs, T rhs);
+    int sizeOf(int count);
 
-    public int sizeOf(int count);
+    T combine(ByteBuffer into, T from);
 
-    public T combine(ByteBuffer into, T from);
-
-    public static abstract class Abstract<T> implements BufferConverter<T>
+    abstract class Abstract<T> implements BufferConverter<T>
     {
       @Override
       public T convert(ByteBuffer buf)
       {
         throw new UnsupportedOperationException("convert");
-      }
-
-      @Override
-      public int compare(T lhs, T rhs)
-      {
-        throw new UnsupportedOperationException("compare");
       }
 
       @Override
@@ -400,7 +386,7 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
       }
     }
 
-    public static BufferConverter<ByteBuffer> IDENTITY = new BufferConverter.Abstract<ByteBuffer>()
+    BufferConverter<ByteBuffer> IDENTITY = new BufferConverter.Abstract<ByteBuffer>()
     {
       @Override
       public ByteBuffer convert(ByteBuffer buf)

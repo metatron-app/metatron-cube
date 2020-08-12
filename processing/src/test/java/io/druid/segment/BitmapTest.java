@@ -50,13 +50,13 @@ public class BitmapTest
     }
     long t = System.currentTimeMillis();
     ImmutableBitmap u = f.union(Arrays.asList(bitmaps));
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    System.out.println("bitset(mod) took.. " + (System.currentTimeMillis() - t) + " msec");
     int size = u.size();
 
     f = new com.metamx.collections.bitmap.BitSetBitmapFactory();
     t = System.currentTimeMillis();
     f.union(Arrays.asList(bitmaps));  // invalid result..
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    System.out.println("bitset(org) took.. " + (System.currentTimeMillis() - t) + " msec");
 
     f = new RoaringBitmapFactory();
     for (int i = 0; i < bitmaps.length; i++) {
@@ -69,13 +69,13 @@ public class BitmapTest
     }
     t = System.currentTimeMillis();
     u = f.union(Arrays.asList(bitmaps));
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    System.out.println("roaring(mod) took.. " + (System.currentTimeMillis() - t) + " msec");
     Assert.assertEquals(size, u.size());
 
     f = new com.metamx.collections.bitmap.RoaringBitmapFactory();
     t = System.currentTimeMillis();
     u = f.union(Arrays.asList(bitmaps));
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    System.out.println("roaring(org) took.. " + (System.currentTimeMillis() - t) + " msec");
     Assert.assertEquals(size, u.size());
   }
 
@@ -83,10 +83,13 @@ public class BitmapTest
   public void testAnd()
   {
     int range = 20_0000;
-    Random r = new Random();
     BitmapFactory f = new BitSetBitmapFactory();
-    ImmutableBitmap[] bitmaps = new ImmutableBitmap[1_0000];
+    ImmutableBitmap[] bitmaps = new ImmutableBitmap[1_000];
     for (int i = 0; i < bitmaps.length; i++) {
+      Random r = new Random(0);
+      for (int j = 0; j < new Random().nextInt(10 * (i + 1)); j++) {
+        r.nextInt();
+      }
       int c = r.nextInt(2500) + 500;
       MutableBitmap mutable = f.makeEmptyMutableBitmap();
       for (int j = 0; j < c; j++) {
@@ -96,13 +99,14 @@ public class BitmapTest
     }
     long t = System.currentTimeMillis();
     ImmutableBitmap u = f.intersection(Arrays.asList(bitmaps));
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    System.out.println("bitset(mod) took.. " + (System.currentTimeMillis() - t) + " msec");
     int size = u.size();
 
     f = new com.metamx.collections.bitmap.BitSetBitmapFactory();
     t = System.currentTimeMillis();
-    f.union(Arrays.asList(bitmaps));  // invalid result..
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    u = f.intersection(Arrays.asList(bitmaps));  // invalid result..
+    System.out.println("bitset(org) took.. " + (System.currentTimeMillis() - t) + " msec");
+//    Assert.assertEquals(size, u.size());
 
     f = new RoaringBitmapFactory();
     for (int i = 0; i < bitmaps.length; i++) {
@@ -115,13 +119,13 @@ public class BitmapTest
     }
     t = System.currentTimeMillis();
     u = f.intersection(Arrays.asList(bitmaps));
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    System.out.println("roaring(mod) took.. " + (System.currentTimeMillis() - t) + " msec");
     Assert.assertEquals(size, u.size());
 
     f = new com.metamx.collections.bitmap.RoaringBitmapFactory();
     t = System.currentTimeMillis();
     u = f.intersection(Arrays.asList(bitmaps));
-    System.out.println(" took.. " + (System.currentTimeMillis() - t) + " msec");
+    System.out.println("roaring(org) took.. " + (System.currentTimeMillis() - t) + " msec");
     Assert.assertEquals(size, u.size());
   }
 }

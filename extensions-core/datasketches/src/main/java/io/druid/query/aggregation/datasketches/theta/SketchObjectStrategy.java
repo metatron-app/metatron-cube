@@ -30,7 +30,7 @@ import io.druid.segment.data.ObjectStrategy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-public class SketchObjectStrategy implements ObjectStrategy
+public class SketchObjectStrategy implements ObjectStrategy.CompareSupport
 {
 
   private static final byte[] EMPTY_BYTES = new byte[]{};

@@ -106,7 +106,7 @@ public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
 
   public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy<ApproximateHistogramHolder>()
+    return new ObjectStrategy.CompareSupport<ApproximateHistogramHolder>()
     {
       @Override
       public Class<? extends ApproximateHistogramHolder> getClazz()

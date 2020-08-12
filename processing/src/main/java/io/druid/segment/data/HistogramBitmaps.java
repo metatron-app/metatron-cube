@@ -118,7 +118,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
   public static ObjectStrategy<HistogramBitmap> getStrategy(final BitmapSerdeFactory serdeFactory, final ValueType type)
   {
     final ObjectStrategy<ImmutableBitmap> strategy = serdeFactory.getObjectStrategy();
-    return new ObjectStrategy.NotComparable<HistogramBitmap>()
+    return new ObjectStrategy<HistogramBitmap>()
     {
       @Override
       public Class<? extends HistogramBitmaps> getClazz()

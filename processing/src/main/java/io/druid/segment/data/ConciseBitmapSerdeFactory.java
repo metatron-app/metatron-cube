@@ -19,7 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Ordering;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -53,26 +52,6 @@ public class ConciseBitmapSerdeFactory implements BitmapSerdeFactory
     return bitmapFactory;
   }
 
-  private static Ordering<WrappedImmutableConciseBitmap> conciseComparator = new Ordering<WrappedImmutableConciseBitmap>()
-  {
-    @Override
-    public int compare(
-        WrappedImmutableConciseBitmap conciseSet, WrappedImmutableConciseBitmap conciseSet1
-    )
-    {
-      if (conciseSet.isEmpty() && conciseSet1.isEmpty()) {
-        return 0;
-      }
-      if (conciseSet.isEmpty()) {
-        return -1;
-      }
-      if (conciseSet1.isEmpty()) {
-        return 1;
-      }
-      return conciseSet.compareTo(conciseSet1);
-    }
-  }.nullsFirst();
-
   private static class ImmutableConciseSetObjectStrategy
       implements ObjectStrategy<ImmutableBitmap>
   {
@@ -97,12 +76,6 @@ public class ConciseBitmapSerdeFactory implements BitmapSerdeFactory
         return new byte[]{};
       }
       return val.toBytes();
-    }
-
-    @Override
-    public int compare(ImmutableBitmap o1, ImmutableBitmap o2)
-    {
-      return conciseComparator.compare((WrappedImmutableConciseBitmap) o1, (WrappedImmutableConciseBitmap) o2);
     }
   }
 

@@ -74,7 +74,7 @@ public class CovarianceSerde extends ComplexMetricSerde
   @Override
   public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy<CovarianceAggregatorCollector>()
+    return new ObjectStrategy.CompareSupport<CovarianceAggregatorCollector>()
     {
       @Override
       public Class<? extends CovarianceAggregatorCollector> getClazz()
