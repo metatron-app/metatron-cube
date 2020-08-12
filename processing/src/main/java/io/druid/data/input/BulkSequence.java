@@ -63,7 +63,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
 
   public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, final int max)
   {
-    Preconditions.checkArgument(max < 0xffff);    // see TimestampRLE
+    Preconditions.checkArgument(max < 0xffff);
     this.max = max;
     this.sequence = sequence;
     this.category = new int[types.size()];

@@ -36,7 +36,7 @@ public interface Accessor<T>
     @Override
     public int compare(T left, T right)
     {
-      return Longs.compare((Long) accessor.get(left), (Long) accessor.get(right));
+      return Longs.compare(((Number) accessor.get(left)).longValue(), ((Number) accessor.get(right)).longValue());
     }
   }
 

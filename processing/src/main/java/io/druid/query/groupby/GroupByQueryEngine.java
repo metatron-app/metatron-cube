@@ -30,7 +30,6 @@ import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.IntArray;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
@@ -70,6 +69,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
 import java.io.Closeable;
@@ -147,8 +147,41 @@ public class GroupByQueryEngine
   }
 
   private static final int DEFAULT_INITIAL_CAPACITY = 1 << 10;
+  private static final int BUFFER_POS = 2;
 
-  public static class RowIterator implements CloseableIterator<Map.Entry<IntArray, int[]>>
+  private static class KeyValue
+  {
+    private final int[] array;
+
+    public KeyValue(int[] array)
+    {
+      this.array = array;
+    }
+
+    @Override
+    public int hashCode()
+    {
+      int result = 1;
+      for (int i = BUFFER_POS; i < array.length; i++) {
+        result = 31 * result + array[i];
+      }
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+      final int[] other = ((KeyValue) obj).array;
+      for (int i = BUFFER_POS; i < array.length; i++) {
+        if (array[i] != other[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+  }
+
+  public static class RowIterator implements CloseableIterator<KeyValue>
   {
     private final Cursor cursor;
     private final RowUpdater rowUpdater;
@@ -169,7 +202,7 @@ public class GroupByQueryEngine
 
     private int counter;
     private List<int[]> unprocessedKeys;
-    private Iterator<Map.Entry<IntArray, int[]>> delegate;
+    private Iterator<KeyValue> delegate;
 
     public RowIterator(
         final GroupByQuery query,
@@ -208,11 +241,11 @@ public class GroupByQueryEngine
         this.rowUpdater = new RowUpdater()
         {
           @Override
-          protected List<int[]> updateValues(DimensionSelector[] dimensions)
+          protected List<int[]> updateValues(final DimensionSelector[] dimensions)
           {
-            final int[] key = new int[dimensions.length];
-            for (int i = 0; i < key.length; i++) {
-              key[i] = dimensions[i].getRow().get(0);
+            final int[] key = new int[BUFFER_POS + dimensions.length];
+            for (int i = 0; i < dimensions.length; i++) {
+              key[BUFFER_POS + i] = dimensions[i].getRow().get(0);
             }
             return update(key);
           }
@@ -236,52 +269,56 @@ public class GroupByQueryEngine
 
     public Sequence<Object[]> asArray()
     {
-      return Sequences.once(GuavaUtils.map(this, new Function<Map.Entry<IntArray, int[]>, Object[]>()
+      return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Object[]>()
       {
         private final int numColumns = dimensions.length + aggregators.length + 1;
         private final DateTime timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getTime();
 
         @Override
-        public Object[] apply(final Map.Entry<IntArray, int[]> input)
+        public Object[] apply(final KeyValue input)
         {
-          final Object[] array = new Object[numColumns];
+          final int[] array = input.array;
 
-          int i = 1;
-          final int[] keyArray = input.getKey().array();
+          int i = 0;
+          final Object[] row = new Object[numColumns];
+
+          row[i++] = new MutableLong(timestamp.getMillis());
           for (int x = 0; x < dimensions.length; x++) {
             if (useRawUTF8 && dimensions[x] instanceof WithRawAccess) {
-              array[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).lookupRaw(keyArray[x]));
+              row[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).lookupRaw(array[x + BUFFER_POS]));
             } else {
-              array[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(keyArray[x]));
+              row[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(array[x + BUFFER_POS]));
             }
           }
 
-          final int[] position = input.getValue();
+          final int position0 = array[0];
+          final int position1 = array[1];
           for (int x = 0; x < aggregators.length; x++) {
-            array[i++] = aggregators[x].get(metricValues[position[0]], position[1] + increments[x]);
+            row[i++] = aggregators[x].get(metricValues[position0], position1 + increments[x]);
           }
 
-          array[0] = timestamp.getMillis();
-          return array;
+          return row;
         }
       }));
     }
 
     public Sequence<Rowboat> asRowboat()
     {
-      return Sequences.once(GuavaUtils.map(this, new Function<Map.Entry<IntArray, int[]>, Rowboat>()
+      return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Rowboat>()
       {
         private final DateTime timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getTime();
 
         @Override
-        public Rowboat apply(final Map.Entry<IntArray, int[]> input)
+        public Rowboat apply(final KeyValue input)
         {
-          final int[][] dims = new int[][]{input.getKey().array()};
+          final int[] array = input.array;
+          final int[][] dims = new int[][]{Arrays.copyOfRange(array, BUFFER_POS, array.length)};
           final Object[] metrics = new Object[aggregators.length];
 
-          final int[] position = input.getValue();
+          final int position0 = array[0];
+          final int position1 = array[1];
           for (int i = 0; i < aggregators.length; i++) {
-            metrics[i] = aggregators[i].get(metricValues[position[0]], position[1] + increments[i]);
+            metrics[i] = aggregators[i].get(metricValues[position0], position1 + increments[i]);
           }
           return new Rowboat(timestamp.getMillis(), dims, metrics, -1);
         }
@@ -340,7 +377,7 @@ public class GroupByQueryEngine
     }
 
     @Override
-    public Map.Entry<IntArray, int[]> next()
+    public KeyValue next()
     {
       return delegate.next();
     }
@@ -357,40 +394,41 @@ public class GroupByQueryEngine
       rowUpdater.close();
     }
 
-    private class RowUpdater implements java.util.function.Function<IntArray, int[]>, Closeable
+    private class RowUpdater implements java.util.function.Function<KeyValue, KeyValue>, Closeable
     {
       private int nextIndex;
       private int endPosition;
       private int maxPosition;
 
-      private final Map<IntArray, int[]> positions = Maps.newHashMapWithExpectedSize(DEFAULT_INITIAL_CAPACITY);
+      private final List<KeyValue> ordering = Lists.newArrayListWithCapacity(DEFAULT_INITIAL_CAPACITY);
+      private final Map<KeyValue, KeyValue> positions = Maps.newHashMapWithExpectedSize(DEFAULT_INITIAL_CAPACITY);
 
       private int getNumRows()
       {
         return positions.size();
       }
 
-      protected List<int[]> updateValues(DimensionSelector[] dimensions)
+      protected List<int[]> updateValues(final DimensionSelector[] dimensions)
       {
-        return updateValues(new int[dimensions.length], 0, dimensions);
+        return updateValues(new int[BUFFER_POS + dimensions.length], 0, dimensions);
       }
 
       private List<int[]> updateValues(final int[] key, final int index, final DimensionSelector[] dims)
       {
-        if (index < key.length) {
+        if (index < dims.length) {
           final IndexedInts row = dims[index].getRow();
           final int size = row.size();
           if (size == 0) {
             // warn: changed semantic.. (we added null and proceeded before)
             return null;
           } else if (size == 1) {
-            key[index] = row.get(0);
+            key[BUFFER_POS + index] = row.get(0);
             return updateValues(key, index + 1, dims);
           }
           List<int[]> retVal = null;
           for (int i = 0; i < size; i++) {
             final int[] newKey = Arrays.copyOf(key, key.length);
-            newKey[index] = row.get(i);
+            newKey[BUFFER_POS + index] = row.get(i);
             List<int[]> unaggregatedBuffers = updateValues(newKey, index + 1, dims);
             if (unaggregatedBuffers != null) {
               if (retVal == null) {
@@ -406,50 +444,49 @@ public class GroupByQueryEngine
         }
       }
 
-      protected final List<int[]> update(int[] key)
+      protected final List<int[]> update(final int[] key)
       {
-        final IntArray wrapper = new IntArray(key);
-        final int[] position;
-        if (hasReserve()) {
-          position = positions.computeIfAbsent(wrapper, this);
-        } else {
-          position = positions.get(wrapper);
-          if (position == null) {
-            return Lists.newArrayList(key);   // buffer full
-          }
+        final KeyValue position = positions.computeIfAbsent(new KeyValue(key), this);
+        if (position == null) {
+          return Lists.newArrayList(key);   // buffer full
         }
+        final int position0 = position.array[0];
+        final int position1 = position.array[1];
         for (int i = 0; i < aggregators.length; i++) {
-          aggregators[i].aggregate(metricValues[position[0]], position[1] + increments[i]);
+          aggregators[i].aggregate(metricValues[position0], position1 + increments[i]);
         }
         return null;
       }
 
       @Override
-      public int[] apply(IntArray wrapper)
+      public final KeyValue apply(final KeyValue array)
       {
-        final int[] position = allocate();
-        for (int i = 0; i < aggregators.length; i++) {
-          aggregators[i].init(metricValues[position[0]], position[1] + increments[i]);
+        final int[] assigned = assign(array.array);
+        if (assigned == null) {
+          return null;
         }
-        return position;
+        final int position0 = assigned[0];
+        final int position1 = assigned[1];
+        for (int i = 0; i < aggregators.length; i++) {
+          aggregators[i].init(metricValues[position0], position1 + increments[i]);
+        }
+        ordering.add(array);
+        return array;
       }
 
-      private boolean hasReserve()
-      {
-        return nextIndex < metricValues.length || endPosition <= maxPosition;
-      }
-
-      private int[] allocate()
+      private int[] assign(int[] array)
       {
         if (nextIndex == 0 || endPosition > maxPosition) {
-          return Preconditions.checkNotNull(nextBuffer(), "buffer overflow");
+          return nextPage(array);
+        } else {
+          array[0] = nextIndex - 1;
+          array[1] = endPosition;
+          endPosition += increment;
+          return array;
         }
-        final int[] allocated = new int[]{nextIndex - 1, endPosition};
-        endPosition += increment;
-        return allocated;
       }
 
-      private int[] nextBuffer()
+      private int[] nextPage(int[] array)
       {
         if (nextIndex >= metricValues.length) {
           return null;
@@ -457,12 +494,13 @@ public class GroupByQueryEngine
         metricValues[nextIndex] = resources.register(bufferPool.take()).get();
         endPosition = increment;
         maxPosition = metricValues[nextIndex].remaining() - increment;
-        return new int[]{nextIndex++, 0};
+        array[0] = nextIndex++;
+        return array;
       }
 
-      private Iterator<Map.Entry<IntArray, int[]>> flush()
+      private Iterator<KeyValue> flush()
       {
-        return GuavaUtils.withResource(positions.entrySet().iterator(), this);
+        return GuavaUtils.withResource(ordering.iterator(), this);
       }
 
       @Override
@@ -474,6 +512,7 @@ public class GroupByQueryEngine
         }
         Arrays.fill(metricValues, null);
         positions.clear();
+        ordering.clear();
         resources.close();
       }
     }

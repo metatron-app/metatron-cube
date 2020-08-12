@@ -38,6 +38,7 @@ import io.druid.data.input.BulkRow;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
@@ -189,6 +190,18 @@ public class DruidDefaultSerializersModule extends SimpleModule
               throws IOException
           {
             jgen.writeBinary(utf8.bytes, 0, utf8.length);
+          }
+        }
+    );
+    addSerializer(
+        MutableLong.class,
+        new JsonSerializer<MutableLong>()
+        {
+          @Override
+          public void serialize(MutableLong value, JsonGenerator jsonGenerator, SerializerProvider provider)
+              throws IOException
+          {
+            jsonGenerator.writeNumber(value.longValue());
           }
         }
     );
