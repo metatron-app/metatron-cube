@@ -70,6 +70,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
+import io.druid.segment.ObjectArray;
 import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -171,33 +172,21 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       }
     }
 
-    final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategyIfExists(query);
-    final Map<DruidServer, List<SegmentDescriptor>> serverSegments = Maps.newTreeMap();
+    final CacheStrategy<T, Object, Query<T>> strategy =
+        cache == Cache.NULL || !cacheConfig.isQueryCacheable(query) ? null : toolChest.getCacheStrategyIfExists(query);
 
-    final List<Pair<Interval, byte[]>> cachedResults = Lists.newArrayList();
-    final Map<String, CachePopulator> cachePopulatorMap = Maps.newHashMap();
+    final boolean useCache = strategy != null && cacheConfig.isUseCache() && BaseQuery.isUseCache(query, true);
+    final boolean populateCache = strategy != null && cacheConfig.isPopulateCache() && BaseQuery.isPopulateCache(query, true);
 
-    final boolean useCache = BaseQuery.isUseCache(query, true)
-                             && strategy != null
-                             && cacheConfig.isUseCache()
-                             && cacheConfig.isQueryCacheable(query);
-    final boolean populateCache = BaseQuery.isPopulateCache(query, true)
-                                  && strategy != null
-                                  && cacheConfig.isPopulateCache()
-                                  && cacheConfig.isQueryCacheable(query);
-    final boolean explicitBySegment = BaseQuery.isBySegment(query);
-
-
-    final ImmutableMap.Builder<String, Object> contextBuilder = new ImmutableMap.Builder<>();
-
-    final int priority = BaseQuery.getContextPriority(query, 0);
-    contextBuilder.put(Query.PRIORITY, priority);
-
+    final ImmutableMap<String, Object> contextOverride;
     if (populateCache) {
       // prevent down-stream nodes from caching results as well if we are populating the cache
-      contextBuilder.put(Query.POPULATE_CACHE, false);
-      contextBuilder.put(Query.BY_SEGMENT, true);
+      contextOverride = ImmutableMap.of(Query.POPULATE_CACHE, false, Query.BY_SEGMENT, true);
+    } else {
+      contextOverride = ImmutableMap.of();
     }
+
+    final boolean explicitBySegment = BaseQuery.isBySegment(query);
 
     final String dataSource = DataSources.getName(query);
     final TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(dataSource);
@@ -296,7 +285,13 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       queryCacheKey = null;
     }
 
+    final List<Pair<Interval, byte[]>> cachedResults;
+    final Map<ObjectArray, CachePopulator> cachePopulatorMap;
+
     if (queryCacheKey != null) {
+      cachedResults = Lists.newArrayList();
+      cachePopulatorMap = Maps.newHashMap();
+
       // cachKeys map must preserve segment ordering, in order for shards to always be combined in the same order
       Map<Pair<ServerSelector, SegmentDescriptor>, Cache.NamedKey> cacheKeys = Maps.newLinkedHashMap();
       for (Pair<ServerSelector, SegmentDescriptor> segment : segments) {
@@ -339,11 +334,14 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           // otherwise, if populating cache, add segment to list of segments to cache
           final String segmentIdentifier = segment.lhs.getSegment().getIdentifier();
           cachePopulatorMap.put(
-              String.format("%s_%s", segmentIdentifier, segmentQueryInterval),
-              new CachePopulator(cache, objectMapper, segmentCacheKey)
+              ObjectArray.of(segmentIdentifier, segmentQueryInterval),
+              results -> CacheUtil.populate(cache, objectMapper, segmentCacheKey, results)
           );
         }
       }
+    } else {
+      cachedResults = Collections.emptyList();
+      cachePopulatorMap = Collections.emptyMap();
     }
 
     Predicate<QueryableDruidServer> predicate = null;
@@ -360,6 +358,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }
 
     final Map<QueryableDruidServer, MutableInt> counts = new HashMap<>();
+    final Map<DruidServer, List<SegmentDescriptor>> serverSegments = Maps.newTreeMap();
+
     // Compile list of all segments not pulled from cache
     for (Pair<ServerSelector, SegmentDescriptor> segment : segments) {
       final QueryableDruidServer selected = segment.lhs.pick(predicate, counts);
@@ -454,7 +454,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
           Query<T> localized = prepared.toLocalQuery();
           if (server.isAssignable() && populateCache) {
-            localized = localized.withOverriddenContext(contextBuilder.build());
+            localized = localized.withOverriddenContext(contextOverride);
           }
           final Query<T> running = localized.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
           final QueryRunner runner = serverView.getQueryRunner(running, server);
@@ -488,7 +488,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
               {
                 final BySegmentResultValueClass<T> value = input.getValue();
                 final CachePopulator cachePopulator = cachePopulatorMap.get(
-                    String.format("%s_%s", value.getSegmentId(), value.getInterval())
+                    ObjectArray.of(value.getSegmentId(), value.getInterval())
                 );
                 if (cachePopulator == null) {
                   return Sequences.<T>simple(Iterables.transform(value.getResults(), deserializer));
@@ -678,22 +678,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }
   }
 
-  private static class CachePopulator
+  private static interface CachePopulator
   {
-    private final Cache cache;
-    private final ObjectMapper mapper;
-    private final Cache.NamedKey key;
-
-    public CachePopulator(Cache cache, ObjectMapper mapper, Cache.NamedKey key)
-    {
-      this.cache = cache;
-      this.mapper = mapper;
-      this.key = key;
-    }
-
-    public void populate(Iterable<Object> results)
-    {
-      CacheUtil.populate(cache, mapper, key, results);
-    }
+    void populate(Iterable<Object> results);
   }
 }

@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Preconditions;
 import io.druid.common.guava.GuavaUtils;
 
 import java.util.Arrays;
@@ -30,6 +31,11 @@ import java.util.Objects;
  */
 public class ObjectArray<T> implements Comparable<ObjectArray<T>>, Iterable<T>
 {
+  public static ObjectArray of(Object... elements)
+  {
+    return new ObjectArray(Preconditions.checkNotNull(elements));
+  }
+
   protected final T[] array;
 
   public ObjectArray(T[] array)

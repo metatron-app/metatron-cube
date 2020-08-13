@@ -39,17 +39,17 @@ public class CacheUtil
       byte[] queryCacheKey
   )
   {
-    final Interval segmentQueryInterval = descriptor.getInterval();
+    final Interval interval = descriptor.getInterval();
     final byte[] versionBytes = StringUtils.toUtf8(descriptor.getVersion());
 
     return new Cache.NamedKey(
-        segmentIdentifier, ByteBuffer
-        .allocate(16 + versionBytes.length + 4 + queryCacheKey.length)
-        .putLong(segmentQueryInterval.getStartMillis())
-        .putLong(segmentQueryInterval.getEndMillis())
-        .put(versionBytes)
-        .putInt(descriptor.getPartitionNumber())
-        .put(queryCacheKey).array()
+        segmentIdentifier,
+        ByteBuffer.allocate(16 + versionBytes.length + 4 + queryCacheKey.length)
+                  .putLong(interval.getStartMillis())
+                  .putLong(interval.getEndMillis())
+                  .put(versionBytes)
+                  .putInt(descriptor.getPartitionNumber())
+                  .put(queryCacheKey).array()
     );
   }
 
@@ -77,5 +77,4 @@ public class CacheUtil
       throw Throwables.propagate(e);
     }
   }
-
 }

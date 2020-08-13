@@ -138,4 +138,28 @@ public interface Cache
       return Arrays.copyOf(out, compressedSize + Ints.BYTES);
     }
   }
+
+  Cache NULL = new Cache()
+  {
+    @Override
+    public byte[] get(NamedKey key) { return null;}
+
+    @Override
+    public void put(NamedKey key, byte[] value) {}
+
+    @Override
+    public Map<NamedKey, byte[]> getBulk(Iterable<NamedKey> keys) { return null;}
+
+    @Override
+    public void close(String namespace) {}
+
+    @Override
+    public CacheStats getStats() { return null;}
+
+    @Override
+    public boolean isLocal() { return true;}
+
+    @Override
+    public void doMonitor(ServiceEmitter emitter) {}
+  };
 }
