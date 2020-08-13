@@ -84,11 +84,11 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
     Map<String, Object> marketStats = summary.get("market");
     Assert.assertEquals(ValueDesc.STRING, marketStats.get("type"));
     Assert.assertEquals(ImmutableMap.of("string", 2), marketStats.get("typeDetail"));
-    Assert.assertEquals("spot", marketStats.get("min"));
-    Assert.assertEquals("upfront", marketStats.get("max"));
-    Assert.assertEquals("spot", marketStats.get("median"));
-    Assert.assertArrayEquals(
-        new String[]{"spot", "total_market", "upfront"}, (String[]) marketStats.get("quantiles")
+    Assert.assertEquals("spot", marketStats.get("min").toString());
+    Assert.assertEquals("upfront", marketStats.get("max").toString());
+    Assert.assertEquals("spot", marketStats.get("median").toString());
+    Assert.assertEquals(
+        "[spot, total_market, upfront]", Arrays.toString((Object[]) marketStats.get("quantiles"))
     );
     Assert.assertArrayEquals(
         new double[]{0.6923076923076923, 0.3076923076923077}, (double[]) marketStats.get("pmf"), 0.0001
@@ -96,8 +96,8 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
     Assert.assertArrayEquals(
         new double[]{0.6923076923076923, 1.0}, (double[]) marketStats.get("cdf"), 0.0001
     );
-    Assert.assertArrayEquals(
-        new Object[]{"spot", "total_market"}, (Object[]) marketStats.get("iqr")
+    Assert.assertEquals(
+        "[spot, total_market]", Arrays.toString((Object[]) marketStats.get("iqr"))
     );
     Assert.assertEquals(1209L, marketStats.get("count"));
     List frequentItems = ((List) marketStats.get("frequentItems"));
@@ -112,15 +112,12 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
     Map<String, Object> qualityStats = summary.get("quality");
     Assert.assertEquals(ValueDesc.STRING, qualityStats.get("type"));
     Assert.assertEquals(ImmutableMap.of("string", 2), qualityStats.get("typeDetail"));
-    Assert.assertEquals("automotive", qualityStats.get("min"));
-    Assert.assertEquals("travel", qualityStats.get("max"));
-    Assert.assertEquals("mezzanine", qualityStats.get("median"));
-    Assert.assertArrayEquals(
-        new String[]{
-            "automotive", "business", "entertainment", "health",
-            "mezzanine", "news", "premium", "technology", "travel"
-        },
-        (String[]) qualityStats.get("quantiles")
+    Assert.assertEquals("automotive", qualityStats.get("min").toString());
+    Assert.assertEquals("travel", qualityStats.get("max").toString());
+    Assert.assertEquals("mezzanine", qualityStats.get("median").toString());
+    Assert.assertEquals(
+        "[automotive, business, entertainment, health, mezzanine, news, premium, technology, travel]",
+        Arrays.toString((Object[]) qualityStats.get("quantiles"))
     );
     final double x = 0.07692307692307693;
     Assert.assertArrayEquals(
@@ -131,7 +128,7 @@ public class SummaryQueryTest extends SketchQueryRunnerTestHelper
         new double[]{x, x * 2, x * 3, x * 4, x * 7, x * 8, x * 11, x * 13},
         (double[]) qualityStats.get("cdf"), 0.0001
     );
-    Assert.assertArrayEquals(new Object[]{"health", "premium"}, (Object[]) qualityStats.get("iqr"));
+    Assert.assertEquals("[health, premium]", Arrays.toString((Object[]) qualityStats.get("iqr")));
     Assert.assertEquals(1209L, qualityStats.get("count"));
     frequentItems = ((List) qualityStats.get("frequentItems"));
     Assert.assertEquals(9, frequentItems.size());

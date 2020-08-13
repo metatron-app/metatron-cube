@@ -29,7 +29,6 @@ import com.yahoo.memory.Memory;
 import com.yahoo.sketches.ArrayOfDoublesSerDe;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 import com.yahoo.sketches.ArrayOfLongsSerDe;
-import com.yahoo.sketches.ArrayOfStringsSerDe;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
@@ -115,7 +114,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     return new TypedSketch<Union>(type, sketch)
     {
-
       @Override
       public byte[] sketchToBytes()
       {
@@ -128,7 +126,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     return new TypedSketch<Sketch>(type, sketch)
     {
-
       @Override
       public byte[] sketchToBytes()
       {
@@ -141,7 +138,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     return new TypedSketch<ItemsUnion>(type, sketch)
     {
-
       @Override
       @SuppressWarnings("unchecked")
       public byte[] sketchToBytes()
@@ -155,7 +151,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     return new TypedSketch<ItemsSketch>(type, sketch)
     {
-
       @Override
       @SuppressWarnings("unchecked")
       public byte[] sketchToBytes()
@@ -171,7 +166,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     return new TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch>(type, sketch)
     {
-
       @Override
       @SuppressWarnings("unchecked")
       public byte[] sketchToBytes()
@@ -185,7 +179,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     return new TypedSketch<ReservoirItemsUnion>(type, sketch)
     {
-
       @Override
       @SuppressWarnings("unchecked")
       public byte[] sketchToBytes()
@@ -199,7 +192,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   {
     return new TypedSketch<ReservoirItemsSketch>(type, sketch)
     {
-
       @Override
       @SuppressWarnings("unchecked")
       public byte[] sketchToBytes()
@@ -232,7 +224,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   private static final ArrayOfItemsSerDe<Float> floatsSerDe = new ArrayOfFloatsSerDe();
   private static final ArrayOfItemsSerDe<Double> doublesSerDe = new ArrayOfDoublesSerDe();
   private static final ArrayOfItemsSerDe<Long> longsSerDe = new ArrayOfLongsSerDe();
-  private static final ArrayOfItemsSerDe<String> stringsSerDe = new ArrayOfStringsSerDe();
+  private static final ArrayOfItemsSerDe stringsSerDe = new ArrayOfStringsSerDe();
 
   public static ArrayOfItemsSerDe toItemsSerDe(ValueDesc type)
   {

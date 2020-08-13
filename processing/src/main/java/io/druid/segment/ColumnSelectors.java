@@ -21,7 +21,10 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import io.druid.common.IntTagged;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.UTF8Bytes;
@@ -31,6 +34,8 @@ import io.druid.math.expr.Evals;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.DimensionSelector.SingleValued;
+import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 
@@ -551,5 +556,53 @@ public class ColumnSelectors
     {
       return (nullOrEmpty && StringUtils.isNullOrEmpty(name)) || Objects.equals(value, name) ? 0 : -1;
     }
+  }
+
+  public static interface Work
+  {
+    void execute(int index, Object value);
+  }
+
+  public static List<Runnable> toWork(final List<DimensionSelector> selectors, final Work work)
+  {
+    final List<Runnable> works = Lists.newArrayList();
+    for (IntTagged<DimensionSelector> tagged : GuavaUtils.zipWithIndex(selectors)) {
+      final DimensionSelector selector = tagged.value;
+      if (selector == null) {
+        continue;
+      }
+      final int index = tagged.tag;
+      if (selector instanceof SingleValued) {
+        if (selector instanceof WithRawAccess) {
+          works.add(() -> work.execute(
+              index, wrapWithNull(((WithRawAccess) selector).lookupRaw(selector.getRow().get(0))))
+          );
+        } else {
+          works.add(() -> work.execute(index, selector.lookupName(selector.getRow().get(0))));
+        }
+      } else {
+        if (selector instanceof WithRawAccess) {
+          works.add(() -> {
+            final IndexedInts vals = selector.getRow();
+            for (int j = 0; j < vals.size(); ++j) {
+              work.execute(index, wrapWithNull((((WithRawAccess) selector).lookupRaw(vals.get(j)))));
+            }
+          });
+        } else {
+          works.add(() -> {
+            final IndexedInts vals = selector.getRow();
+            for (int j = 0; j < vals.size(); ++j) {
+              work.execute(index, selector.lookupName(vals.get(j)));
+            }
+          });
+        }
+      }
+    }
+    return works;
+  }
+
+  private static UTF8Bytes wrapWithNull(byte[] bytes)
+  {
+    return bytes.length == 0 ? null : UTF8Bytes.of(bytes);
   }
 }

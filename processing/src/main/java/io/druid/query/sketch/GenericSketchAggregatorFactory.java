@@ -31,6 +31,7 @@ import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -40,6 +41,8 @@ import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DimensionSelector.SingleValued;
+import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedInts;
 
@@ -125,6 +128,28 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     }
     if (ValueDesc.isDimension(columnType)) {
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
+      if (selector instanceof SingleValued) {
+        if (selector instanceof WithRawAccess) {
+          return new BaseAggregator(selector.type())
+          {
+            @Override
+            public TypedSketch aggregate(TypedSketch current)
+            {
+              return updateWithValue(
+                  current, UTF8Bytes.of(((WithRawAccess) selector).lookupRaw(selector.getRow().get(0)))
+              );
+            }
+          };
+        }
+        return new BaseAggregator(selector.type())
+        {
+          @Override
+          public TypedSketch aggregate(TypedSketch current)
+          {
+            return updateWithValue(current, selector.lookupName(selector.getRow().get(0)));
+          }
+        };
+      }
       return new BaseAggregator(selector.type())
       {
         @Override

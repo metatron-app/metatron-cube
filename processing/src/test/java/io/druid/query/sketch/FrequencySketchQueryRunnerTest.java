@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.yahoo.sketches.frequencies.ItemsSketch;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
@@ -185,6 +186,9 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
       Assert.assertEquals(1, result.size());
       Object[] values = result.get(0);
       TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[1];
+      sketch1 = TypedSketch.deserialize(
+          baseQuery.getSketchOp(), sketch1.toByteArray(), GuavaUtils.nullFirstNatural()
+      );
       System.out.println(sketch1);
       Assert.assertEquals(187L, sketch1.value().getEstimate("upfront"), 5);
       Assert.assertEquals(838L, sketch1.value().getEstimate("spot"), 5);
@@ -192,6 +196,9 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
 
       TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[2];
       System.out.println(sketch2);
+      sketch2 = TypedSketch.deserialize(
+          baseQuery.getSketchOp(), sketch2.toByteArray(), GuavaUtils.nullFirstNatural()
+      );
       Assert.assertEquals(94L, sketch2.value().getEstimate("entertainment"), 5);
       Assert.assertEquals(280L, sketch2.value().getEstimate("mezzanine"), 5);
       Assert.assertEquals(280L, sketch2.value().getEstimate("premium"), 5);
@@ -226,11 +233,19 @@ public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     Object[] values = result.get(0);
     TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[1];
     System.out.println(sketch1);
+    sketch1 = TypedSketch.deserialize(
+        query.getSketchOp(), sketch1.toByteArray(), GuavaUtils.nullFirstNatural()
+    );
+
     Assert.assertEquals(186L, sketch1.value().getEstimate("upfront"), 5);
     Assert.assertEquals(186L, sketch1.value().getEstimate("total_market"), 5);
 
     TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[2];
     System.out.println(sketch2);
+    sketch2 = TypedSketch.deserialize(
+        query.getSketchOp(), sketch2.toByteArray(), GuavaUtils.nullFirstNatural()
+    );
+
     Assert.assertEquals(186L, sketch2.value().getEstimate("mezzanine"), 5);
     Assert.assertEquals(186L, sketch2.value().getEstimate("premium"), 5);
   }

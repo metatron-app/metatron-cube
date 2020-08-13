@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
+import io.druid.common.IntTagged;
 import io.druid.common.Progressing;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Firehose;
@@ -38,7 +39,6 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.InputRowParser.Streaming;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.utils.Runnables;
 import org.apache.commons.io.Charsets;
@@ -148,23 +148,23 @@ public class LocalFirehoseFactory implements FirehoseFactory
     }
     log.info("Found files: " + files);
 
-    final List<Pair<File, Integer>> foundFiles = GuavaUtils.zipWithIndex(files);
+    final List<IntTagged<File>> foundFiles = GuavaUtils.zipWithIndex(files);
     final long[] lengths = new long[foundFiles.size()];
     for (int i = 0; i < foundFiles.size(); i++) {
-      lengths[i] = (i > 0 ? lengths[i - 1] : 0) + foundFiles.get(i).lhs.length();
+      lengths[i] = (i > 0 ? lengths[i - 1] : 0) + foundFiles.get(i).value.length();
     }
 
     final Iterator<Iterator<InputRow>> readers = Iterators.transform(
         foundFiles.iterator(),
-        new Function<Pair<File, Integer>, Iterator<InputRow>>()
+        new Function<IntTagged<File>, Iterator<InputRow>>()
         {
           @Override
           @SuppressWarnings("unchecked")
-          public Iterator<InputRow> apply(Pair<File, Integer> input)
+          public Iterator<InputRow> apply(IntTagged<File> input)
           {
-            final int index = input.rhs;
+            final int index = input.tag;
             try {
-              final FileInputStream stream = new FileInputStream(input.lhs);
+              final FileInputStream stream = new FileInputStream(input.value);
               final Reader reader = new InputStreamReader(stream, Charsets.toCharset(encoding));
               final Iterator<InputRow> iterator;
               if (parser instanceof Streaming && ((Streaming) parser).accept(reader)) {
@@ -173,7 +173,7 @@ public class LocalFirehoseFactory implements FirehoseFactory
                 iterator = Iterators.transform(IOUtils.lineIterator(reader), InputRowParsers.asFunction(parser, false));
               }
               if (extractPartition) {
-                Rows.setPartition(input.lhs);
+                Rows.setPartition(input.value);
               }
               return new GuavaUtils.DelegatedProgressing<InputRow>(GuavaUtils.withResource(iterator, reader))
               {

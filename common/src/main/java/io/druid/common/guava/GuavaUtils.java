@@ -32,6 +32,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import io.druid.common.IntTagged;
 import io.druid.common.Progressing;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.Pair;
@@ -172,18 +173,18 @@ public class GuavaUtils
     return Pair.of(ImmutableList.copyOf(map.keySet()), ImmutableList.copyOf(map.values()));
   }
 
-  public static <T> List<Pair<T, Integer>> zipWithIndex(Iterable<T> as)
+  public static <T> List<IntTagged<T>> zipWithIndex(Iterable<T> as)
   {
     return Lists.newArrayList(
         Iterables.transform(
-            as, new Function<T, Pair<T, Integer>>()
+            as, new Function<T, IntTagged<T>>()
             {
               private int indexer;
 
               @Override
-              public Pair<T, Integer> apply(T input)
+              public IntTagged<T> apply(T input)
               {
-                return Pair.of(input, indexer++);
+                return IntTagged.of(indexer++, input);
               }
             }
         )

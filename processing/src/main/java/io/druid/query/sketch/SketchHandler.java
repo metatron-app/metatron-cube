@@ -28,6 +28,8 @@ import com.yahoo.sketches.sampling.ReservoirItemsUnion;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.IdentityExtractionFn;
@@ -210,9 +212,16 @@ public interface SketchHandler<U>
     @Override
     public void updateWithValue(TypedSketch<Union> union, Object value)
     {
+      if (StringUtils.isNullOrEmpty(value)) {
+        return;
+      }
       switch (union.type().type()) {
         case STRING:
-          union.value().update((String) value);
+          if (value instanceof UTF8Bytes) {
+            union.value().update(((UTF8Bytes) value).getValue());
+          } else {
+            union.value().update((String) value);
+          }
           break;
         case FLOAT:
           union.value().update(((Number) value).floatValue());

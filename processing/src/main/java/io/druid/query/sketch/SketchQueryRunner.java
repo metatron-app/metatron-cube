@@ -51,7 +51,6 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 import org.apache.commons.io.IOUtils;
 
@@ -271,27 +270,20 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
             sketches.add(union);
           }
         }
+        final List<Runnable> works = ColumnSelectors.toWork(
+            dimSelectors, (index, value) -> handler.updateWithValue(sketches.get(index), value)
+        );
+        for (int i = 0; i < metrics.size(); i++) {
+          final TypedSketch sketch = sketches.get(dimSelectors.size() + i);
+          final ObjectColumnSelector selector = metricSelectors.get(i);
+          if (selector != null) {
+            works.add(() -> handler.updateWithValue(sketch, selector.get()));
+          }
+        }
 
         while (!cursor.isDone()) {
-          for (int i = 0; i < dimSelectors.size(); i++) {
-            final DimensionSelector selector = dimSelectors.get(i);
-            if (selector != null) {
-              final TypedSketch sketch = sketches.get(i);
-              final IndexedInts vals = selector.getRow();
-              for (int j = 0; j < vals.size(); ++j) {
-                handler.updateWithValue(sketch, selector.lookupName(vals.get(j)));
-              }
-            }
-          }
-          for (int i = 0; i < metrics.size(); i++) {
-            final ObjectColumnSelector selector = metricSelectors.get(i);
-            if (selector != null) {
-              final TypedSketch sketch = sketches.get(dimSelectors.size() + i);
-              final Object val = selector.get();
-              if (val != null) {
-                handler.updateWithValue(sketch, val);
-              }
-            }
+          for (Runnable work : works) {
+            work.run();
           }
           cursor.advance();
         }

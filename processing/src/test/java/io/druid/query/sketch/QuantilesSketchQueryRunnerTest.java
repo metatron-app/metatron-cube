@@ -25,7 +25,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
@@ -190,7 +192,13 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
       Assert.assertEquals(1, result.size());
       Object[] values = result.get(0);
       TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[1];
+      sketch1 = TypedSketch.deserialize(
+          baseQuery.getSketchOp(), sketch1.toByteArray(), GuavaUtils.nullFirstNatural()
+      );
       TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[2];
+      sketch2 = TypedSketch.deserialize(
+          baseQuery.getSketchOp(), sketch2.toByteArray(), GuavaUtils.nullFirstNatural()
+      );
       Assert.assertEquals("spot", sketch1.value().getQuantile(0.5d));
       final Object quantile = sketch2.value().getQuantile(0.5d);
       Assert.assertTrue(Sets.<Object>newHashSet("mezzanine", "news").contains(quantile));
@@ -221,7 +229,13 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     Assert.assertEquals(1, result.size());
     Object[] values = result.get(0);
     TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[1];
+    sketch1 = TypedSketch.deserialize(
+        query.getSketchOp(), sketch1.toByteArray(), GuavaUtils.nullFirstNatural()
+    );
     TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[2];
+    sketch2 = TypedSketch.deserialize(
+        query.getSketchOp(), sketch2.toByteArray(), GuavaUtils.nullFirstNatural()
+    );
     Assert.assertEquals("total_market", sketch1.value().getQuantile(0.3d));
     Assert.assertEquals("upfront", sketch1.value().getQuantile(0.8d));
     Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.4d));
@@ -236,8 +250,8 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     result = Sequences.toList(postProcessing.run(segmentWalker, Maps.<String, Object>newHashMap()));
     Assert.assertEquals(1, result.size());
     values = result.get(0);
-    Assert.assertArrayEquals(new String[]{"total_market", "upfront"}, (String[]) values[1]);
-    Assert.assertArrayEquals(new String[]{"mezzanine", "premium"}, (String[]) values[2]);
+    Assert.assertEquals("[total_market, upfront]", Arrays.toString((Object[]) values[1]));
+    Assert.assertEquals("[mezzanine, premium]", Arrays.toString((Object[]) values[2]));
   }
 
   @Test
@@ -266,10 +280,10 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
 
     TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values[1];
     Assert.assertEquals("total_market_aa", sketch1.value().getQuantile(0.3d));
-    Assert.assertEquals("upfront_aa", sketch1.value().getQuantile(0.8d));
+    Assert.assertEquals("upfront_aa", sketch1.value().getQuantile(0.8d).toString());
 
     TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values[2];
-    Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.4d));
+    Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.4d).toString());
 
     TypedSketch<ItemsSketch> sketch3 = (TypedSketch<ItemsSketch>) values[3];
     Assert.assertEquals(545, ((Number) sketch3.value().getMinValue()).doubleValue(), 100);
