@@ -41,6 +41,9 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.data.IndexedInts;
+import it.unimi.dsi.fastutil.Hash;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 
@@ -82,19 +85,76 @@ public class SearchQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    final java.util.function.Function<SearchHit, MutableInt> counter =
-        new java.util.function.Function<SearchHit, MutableInt>()
-        {
-          @Override
-          public MutableInt apply(SearchHit objectArray)
-          {
-            return new MutableInt();
-          }
-        };
 
+    final DateTime timestamp = segment.getInterval().getStart();
+
+    if (query.getQuery() instanceof SearchQuerySpec.TakeAll && !query.isValueOnly()) {
+      final List<SearchHit> source = adapter.makeCursors(query, cache).accumulate(
+          Lists.<SearchHit>newArrayList(),
+          new Accumulator<List<SearchHit>, Cursor>()
+          {
+            @Override
+            public List<SearchHit> accumulate(List<SearchHit> accumulated, Cursor cursor)
+            {
+              final List<DimensionSpec> dimensions = query.getDimensions();
+              final String[] names = new String[dimensions.size()];
+              final DimensionSelector[] selectors = new DimensionSelector[dimensions.size()];
+              for (int i = 0; i < selectors.length; i++) {
+                DimensionSpec dimension = dimensions.get(i);
+                names[i] = dimension.getOutputName();
+                selectors[i] = cursor.makeDimensionSelector(dimension);
+              }
+              final Int2IntMap[] mappings = new Int2IntMap[selectors.length];
+              for (int i = 0; i < mappings.length; i++) {
+                final int cardinality = selectors[i].getValueCardinality();
+                mappings[i] = new Int2IntOpenHashMap(
+                    cardinality <= 0 ? Hash.DEFAULT_INITIAL_SIZE : Math.min(4096, cardinality)
+                );
+              }
+              while (!cursor.isDone()) {
+                for (int i = 0; i < selectors.length; i++) {
+                  final IndexedInts vals = selectors[i].getRow();
+                  for (int j = 0; j < vals.size(); ++j) {
+                    mappings[i].compute(vals.get(j), (k, p) -> p == null ? 1 : p + 1);
+                  }
+                }
+                cursor.advance();
+              }
+              for (int i = 0; i < selectors.length; i++) {
+                for (Int2IntMap.Entry entry : mappings[i].int2IntEntrySet()) {
+                  final String value = Objects.toString(selectors[i].lookupName(entry.getIntKey()), "");
+                  accumulated.add(new SearchHit(names[i], value, entry.getIntValue()));
+                }
+              }
+              return accumulated;
+            }
+          }
+      );
+      return makeReturnResult(query, source, timestamp, merge, query.getLimit());
+    }
+
+    final List<SearchHit> source = Lists.newArrayList(
+        Iterables.transform(
+            search(query, adapter).entrySet(), new Function<Map.Entry<SearchHit, MutableInt>, SearchHit>()
+            {
+              @Override
+              public SearchHit apply(Map.Entry<SearchHit, MutableInt> input)
+              {
+                SearchHit hit = input.getKey();
+                MutableInt value = input.getValue();
+                return new SearchHit(hit.getDimension(), hit.getValue(), value == null ? null : value.intValue());
+              }
+            }
+        )
+    );
+    return makeReturnResult(query, source, timestamp, merge, query.getLimit());
+  }
+
+  private Map<SearchHit, MutableInt> search(SearchQuery query, StorageAdapter adapter)
+  {
     final SearchSortSpec sort = query.getSort();
 
-    final Map<SearchHit, MutableInt> retVal = adapter.makeCursors(query, cache).accumulate(
+    return adapter.makeCursors(query, cache).accumulate(
         Maps.<SearchHit, MutableInt>newHashMap(),
         new Accumulator<Map<SearchHit, MutableInt>, Cursor>()
         {
@@ -107,25 +167,27 @@ public class SearchQueryEngine
           @Override
           public Map<SearchHit, MutableInt> accumulate(Map<SearchHit, MutableInt> set, Cursor cursor)
           {
-            final Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
-            for (DimensionSpec dim : query.getDimensions()) {
-              dimSelectors.put(dim.getOutputName(), cursor.makeDimensionSelector(dim));
+            final List<DimensionSpec> dimensions = query.getDimensions();
+            final String[] names = new String[dimensions.size()];
+            final DimensionSelector[] selectors = new DimensionSelector[dimensions.size()];
+            for (int i = 0; i < selectors.length; i++) {
+              DimensionSpec dimension = dimensions.get(i);
+              names[i] = dimension.getOutputName();
+              selectors[i] = cursor.makeDimensionSelector(dimension);
             }
 
             while (!cursor.isDone()) {
-              for (Map.Entry<String, DimensionSelector> entry : dimSelectors.entrySet()) {
-                final String dimension = entry.getKey();
-                final DimensionSelector selector = entry.getValue();
-                final IndexedInts vals = selector.getRow();
-                for (int i = 0; i < vals.size(); ++i) {
-                  final String dimVal = Objects.toString(selector.lookupName(vals.get(i)), "");
+              for (int i = 0; i < selectors.length; i++) {
+                final IndexedInts vals = selectors[i].getRow();
+                for (int j = 0; j < vals.size(); ++j) {
+                  final String dimVal = Objects.toString(selectors[i].lookupName(vals.get(j)), "");
                   if (!searchQuery.accept(dimVal)) {
                     continue;
                   }
                   if (valueOnly) {
-                    set.putIfAbsent(new SearchHit(dimension, dimVal), null);
+                    set.putIfAbsent(new SearchHit(names[i], dimVal), null);
                   } else {
-                    set.computeIfAbsent(new SearchHit(dimension, dimVal), counter).increment();
+                    set.computeIfAbsent(new SearchHit(names[i], dimVal), k -> new MutableInt()).increment();
                   }
                 }
               }
@@ -139,37 +201,20 @@ public class SearchQueryEngine
           }
         }
     );
-    final Comparator<SearchHit> comparator = sort.getComparator();
-    final Comparator<SearchHit> resultComparator = sort.getResultComparator();
-
-    final DateTime timestamp = segment.getInterval().getStart();
-
-    return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, query.getLimit());
   }
 
   private Sequence<Result<SearchResultValue>> makeReturnResult(
-      Map<SearchHit, MutableInt> retVal,
-      Comparator<SearchHit> comparator,
-      Comparator<SearchHit> resultComparator,
+      SearchQuery query,
+      List<SearchHit> source,
       DateTime timestamp,
       boolean merge,
       int limit
   )
   {
-    List<SearchHit> source = Lists.newArrayList(
-        Iterables.transform(
-            retVal.entrySet(), new Function<Map.Entry<SearchHit, MutableInt>, SearchHit>()
-            {
-              @Override
-              public SearchHit apply(Map.Entry<SearchHit, MutableInt> input)
-              {
-                SearchHit hit = input.getKey();
-                MutableInt value = input.getValue();
-                return new SearchHit(hit.getDimension(), hit.getValue(), value == null ? null : value.intValue());
-              }
-            }
-        )
-    );
+    final SearchSortSpec sort = query.getSort();
+    final Comparator<SearchHit> comparator = sort.getComparator();
+    final Comparator<SearchHit> resultComparator = sort.getResultComparator();
+
     boolean needLimiting = limit > 0 && source.size() > limit;
     if (merge) {
       if (needLimiting && resultComparator != null) {

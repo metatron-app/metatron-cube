@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import io.druid.common.KeyBuilder;
+import org.apache.commons.lang.StringUtils;
 
 /**
  */
@@ -65,7 +66,7 @@ public class ContainsSearchQuerySpec implements SearchQuerySpec
     if (caseSensitive) {
       return dimVal.contains(value);
     }
-    return org.apache.commons.lang.StringUtils.containsIgnoreCase(dimVal, value);
+    return StringUtils.containsIgnoreCase(dimVal, value);
   }
 
   @Override
