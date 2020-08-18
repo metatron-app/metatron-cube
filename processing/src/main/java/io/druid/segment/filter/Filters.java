@@ -891,7 +891,7 @@ public class Filters
       }
     }
 
-    switch (expression.op()) {
+    switch (expression.op().toLowerCase()) {
       case "between":
         List<Comparable> constants = getConstants(expression.getChildren(), type);
         if (constants.size() != 2) {
@@ -943,7 +943,7 @@ public class Filters
           );
         }
         return DimFilters.union(factory, bitmaps);
-      case "isNull":
+      case "isnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
           ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(baseBitmap);
           if (withNot) {
@@ -952,7 +952,7 @@ public class Filters
           return bitmap;
         }
         return null;
-      case "isNotNull":
+      case "isnotnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
           ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(baseBitmap);
           if (!withNot) {

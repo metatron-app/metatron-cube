@@ -148,6 +148,12 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   @Override
   public ImmutableBitmap complement(ImmutableBitmap b, int length)
   {
+    if (length == 0) {
+      return makeEmptyImmutableBitmap();
+    }
+    if (b.isEmpty()) {
+      return from(length, new IntIterators.Range(0, length - 1));
+    }
     return super.complement(unwrapLazy(b), length);
   }
 
