@@ -37,6 +37,9 @@ public class SelectQueryConfig
   @JsonProperty
   private boolean useBulkRow = false;
 
+  @JsonProperty
+  private boolean useRawUTF8 = false;
+
   public boolean isUseDateTime()
   {
     return useDateTime;
@@ -60,5 +63,15 @@ public class SelectQueryConfig
   public void setUseBulkRow(boolean useBulkRow)
   {
     this.useBulkRow = useBulkRow;
+  }
+
+  public boolean isUseRawUTF8()
+  {
+    return useRawUTF8;
+  }
+
+  public void setUseRawUTF8(boolean useRawUTF8)
+  {
+    this.useRawUTF8 = useRawUTF8;
   }
 }

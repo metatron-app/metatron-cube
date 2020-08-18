@@ -51,13 +51,16 @@ import java.util.function.ToIntFunction;
 public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
 {
   private final GenericQueryMetricsFactory metricsFactory;
+  private final QueryConfig config;
 
   @Inject
   public StreamQueryToolChest(
-      GenericQueryMetricsFactory metricsFactory
+      GenericQueryMetricsFactory metricsFactory,
+      QueryConfig config
   )
   {
     this.metricsFactory = metricsFactory;
+    this.config = config;
   }
 
   @Override
@@ -178,7 +181,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       @Override
       protected final Function<Cursor, Sequence<Object[]>> streamQuery(Query<Object[]> query)
       {
-        return StreamQueryEngine.processor((StreamQuery) query, new MutableInt());
+        return StreamQueryEngine.processor((StreamQuery) query, config, new MutableInt());
       }
     };
   }

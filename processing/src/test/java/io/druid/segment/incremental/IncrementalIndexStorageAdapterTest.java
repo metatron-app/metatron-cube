@@ -32,6 +32,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.js.JavaScriptConfig;
+import io.druid.query.QueryConfig;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -136,6 +137,7 @@ public class IncrementalIndexStorageAdapterTest
                     .addDimension("sally")
                     .addAggregator(new LongSumAggregatorFactory("cnt", "cnt"))
                     .build(),
+        new QueryConfig(),
         new IncrementalIndexSegment(index, null),
         false
     );
@@ -196,6 +198,7 @@ public class IncrementalIndexStorageAdapterTest
                         )
                     )
                     .build(),
+        new QueryConfig(),
         new IncrementalIndexSegment(index, null),
         false
     );
@@ -344,6 +347,7 @@ public class IncrementalIndexStorageAdapterTest
                     .addAggregator(new LongSumAggregatorFactory("cnt", "cnt"))
                     .setDimFilter(DimFilters.dimEquals("sally", null))
                     .build(),
+        new QueryConfig(),
         new IncrementalIndexSegment(index, null),
         false
     );

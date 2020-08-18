@@ -26,6 +26,7 @@ import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
@@ -47,16 +48,19 @@ public class FindNearestQueryRunnerFactory
     extends QueryRunnerFactory.Abstract<CentroidDesc, FindNearestQuery>
 {
   private final StreamQueryEngine engine;
+  private final QueryConfig config;
 
   @Inject
   public FindNearestQueryRunnerFactory(
       FindNearestQueryToolChest toolChest,
       StreamQueryEngine engine,
+      QueryConfig config,
       QueryWatcher queryWatcher
   )
   {
     super(toolChest, queryWatcher);
     this.engine = engine;
+    this.config = config;
   }
 
   @Override
@@ -82,7 +86,7 @@ public class FindNearestQueryRunnerFactory
         final int dimension = nearestQuery.getMetrics().size();
 
         final StreamQuery stream = nearestQuery.asInput();
-        final Sequence<Object[]> result = engine.process(stream, segment, optimizer, cache);
+        final Sequence<Object[]> result = engine.process(stream, config, segment, optimizer, cache);
 
         final Centroid[] centroids = nearestQuery.getCentroids().toArray(new Centroid[0]);
         final CentroidDesc[] descs = new CentroidDesc[centroids.length];

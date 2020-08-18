@@ -382,10 +382,10 @@ public class GroupByQueryRunnerFactory
       if (query.getContextBoolean(Query.USE_CUBOIDS, config.isUseCuboids())) {
         Segment cuboid = segment.cuboidFor(query);
         if (cuboid != null) {
-          return engine.process(Cuboids.rewrite(query), cuboid, true, null);   // disable filter cache
+          return engine.process(Cuboids.rewrite(query), config, cuboid, true, null);   // disable filter cache
         }
       }
-      return engine.process(query, segment, true, cache);
+      return engine.process(query, config, segment, true, cache);
     }
 
     @Override

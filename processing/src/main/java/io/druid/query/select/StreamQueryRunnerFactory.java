@@ -31,6 +31,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
@@ -63,13 +64,15 @@ public class StreamQueryRunnerFactory
 {
   private static final Logger logger = new Logger(StreamQueryRunnerFactory.class);
 
+  private final QueryConfig config;
   private final StreamQueryEngine engine;
 
   @Inject
-  public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine, QueryWatcher queryWatcher)
+  public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine, QueryConfig config, QueryWatcher queryWatcher)
   {
     super(toolChest, queryWatcher);
     this.engine = engine;
+    this.config = config;
   }
 
   @Override
@@ -216,7 +219,7 @@ public class StreamQueryRunnerFactory
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
-        return engine.process((StreamQuery) query, segment, optimizer, cache);
+        return engine.process((StreamQuery) query, config, segment, optimizer, cache);
       }
     };
   }

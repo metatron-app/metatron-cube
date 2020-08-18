@@ -437,7 +437,7 @@ public class ColumnSelectors
     };
   }
 
-  public static ObjectColumnSelector<UTF8Bytes> asRawAccess(final DimensionSelector.SingleValuedWithRawAccess selector)
+  public static ObjectColumnSelector<UTF8Bytes> asRawAccess(final WithRawAccess selector)
   {
     return new ObjectColumnSelector<UTF8Bytes>()
     {
@@ -451,6 +451,24 @@ public class ColumnSelectors
       public UTF8Bytes get()
       {
         return UTF8Bytes.of(selector.lookupRaw(selector.getRow().get(0)));
+      }
+    };
+  }
+
+  public static ObjectColumnSelector<String> asSingleValued(final SingleValued selector)
+  {
+    return new ObjectColumnSelector<String>()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.STRING;
+      }
+
+      @Override
+      public String get()
+      {
+        return (String) selector.lookupName(selector.getRow().get(0));
       }
     };
   }

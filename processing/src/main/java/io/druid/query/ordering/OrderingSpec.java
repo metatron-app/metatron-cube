@@ -113,7 +113,7 @@ public class OrderingSpec implements Cacheable
 
   public Comparator getComparator()
   {
-    Comparator comparator;
+    Comparator<?> comparator;
     if (dimensionOrder == null) {
       comparator = GuavaUtils.nullFirstNatural();
     } else {

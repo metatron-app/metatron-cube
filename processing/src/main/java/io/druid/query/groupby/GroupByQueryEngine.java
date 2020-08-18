@@ -46,6 +46,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -97,13 +98,14 @@ public class GroupByQueryEngine
     this.intermediateResultsBufferPool = intermediateResultsBufferPool;
   }
 
-  public Sequence<Row> process(GroupByQuery query, Segment segment, boolean compact)
+  public Sequence<Row> process(GroupByQuery query, QueryConfig config, Segment segment, boolean compact)
   {
-    return process(query, segment, compact, null);
+    return process(query, config, segment, compact, null);
   }
 
   public Sequence<Row> process(
       final GroupByQuery query,
+      final QueryConfig config,
       final Segment segment,
       final boolean compact,
       final Cache cache
@@ -116,7 +118,7 @@ public class GroupByQueryEngine
           @Override
           public Sequence<Object[]> apply(final Cursor cursor)
           {
-            return new RowIterator(query, cursor, intermediateResultsBufferPool, 1).asArray();
+            return new RowIterator(query, config, cursor, intermediateResultsBufferPool, 1).asArray();
           }
         });
 
@@ -130,7 +132,8 @@ public class GroupByQueryEngine
   // for cube
   public Sequence<Rowboat> processRowboat(final GroupByQuery query, final Segment segment)
   {
-    StorageAdapter adapter = Preconditions.checkNotNull(segment.asStorageAdapter(true), "segment swapped");
+    final StorageAdapter adapter = Preconditions.checkNotNull(segment.asStorageAdapter(true), "segment swapped");
+    final QueryConfig config = new QueryConfig();
     return QueryRunnerHelper.makeCursorBasedQueryConcat(
         adapter,
         query,
@@ -140,7 +143,7 @@ public class GroupByQueryEngine
           @Override
           public Sequence<Rowboat> apply(final Cursor cursor)
           {
-            return new RowIterator(query, cursor, intermediateResultsBufferPool, Cuboids.PAGES).asRowboat();
+            return new RowIterator(query, config, cursor, intermediateResultsBufferPool, Cuboids.PAGES).asRowboat();
           }
         }
     );
@@ -206,6 +209,7 @@ public class GroupByQueryEngine
 
     public RowIterator(
         final GroupByQuery query,
+        final QueryConfig config,
         final Cursor cursor,
         final StupidPool<ByteBuffer> bufferPool,
         final int maxPage
@@ -215,7 +219,7 @@ public class GroupByQueryEngine
       this.bufferPool = bufferPool;
       this.metricValues = new ByteBuffer[maxPage];
       this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
-                        query.getContextBoolean(Query.GBY_USE_RAW_UTF8, false);
+                        query.getContextBoolean(Query.GBY_USE_RAW_UTF8, config.getGroupBy().isUseRawUTF8());
       this.fixedTimestamp = BaseQuery.getUniversalTimestamp(query);
 
       List<DimensionSpec> dimensionSpecs = query.getDimensions();

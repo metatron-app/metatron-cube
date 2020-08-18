@@ -30,13 +30,15 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.DimensionSelector.SingleValuedWithRawAccess;
+import io.druid.segment.DimensionSelector.SingleValued;
+import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -53,12 +55,13 @@ public class StreamQueryEngine
 
   public Sequence<Object[]> process(
       final StreamQuery query,
+      final QueryConfig config,
       final Segment segment,
       final Future optimizer,
       final Cache cache
   )
   {
-    Sequence<Object[]> result = processRaw(query, segment, optimizer, cache);
+    Sequence<Object[]> result = processRaw(query, config, segment, optimizer, cache);
     if (!GuavaUtils.isNullOrEmpty(query.getOrderingSpecs())) {
       result = LimitSpec.sortLimit(result, query.getMergeOrdering(), -1);
     }
@@ -67,6 +70,7 @@ public class StreamQueryEngine
 
   private Sequence<Object[]> processRaw(
       final StreamQuery query,
+      final QueryConfig config,
       final Segment segment,
       final Future optimizer,
       final Cache cache
@@ -85,16 +89,20 @@ public class StreamQueryEngine
         adapter,
         query,
         cache,
-        processor(query, counter)
+        processor(query, config, counter)
     );
   }
 
-  public static Function<Cursor, Sequence<Object[]>> processor(final StreamQuery query, final MutableInt counter)
+  public static Function<Cursor, Sequence<Object[]>> processor(
+      final StreamQuery query,
+      final QueryConfig config,
+      final MutableInt counter
+  )
   {
     return new Function<Cursor, Sequence<Object[]>>()
     {
       private final boolean useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
-                                         query.getContextBoolean(Query.STREAM_USE_RAW_UTF8, false);
+                                         query.getContextBoolean(Query.STREAM_USE_RAW_UTF8, config.getSelect().isUseRawUTF8());
       private final String[] columns = query.getColumns().toArray(new String[0]);
       private final String concatString = query.getConcatString();
       private final int limit = GuavaUtils.isNullOrEmpty(query.getOrderingSpecs()) ? query.getSimpleLimit() : -1;
@@ -107,8 +115,12 @@ public class StreamQueryEngine
         for (String column : columns) {
           if (cursor.resolve(column, ValueDesc.UNKNOWN).isDimension()) {
             DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
-            if (useRawUTF8 && selector instanceof SingleValuedWithRawAccess) {
-              selectors[index++] = ColumnSelectors.asRawAccess((SingleValuedWithRawAccess) selector);
+            if (selector instanceof SingleValued) {
+              if (useRawUTF8 && selector instanceof WithRawAccess) {
+                selectors[index++] = ColumnSelectors.asRawAccess((WithRawAccess) selector);
+              } else {
+                selectors[index++] = ColumnSelectors.asSingleValued((SingleValued) selector);
+              }
             } else if (concatString != null) {
               selectors[index++] = ColumnSelectors.asConcatValued(selector, concatString);
             } else {

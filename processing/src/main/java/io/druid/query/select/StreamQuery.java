@@ -50,9 +50,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.groupby.orderby.OrderingProcessor;
 import io.druid.query.groupby.orderby.WindowingSpec;
-import io.druid.query.ordering.Accessor;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -285,10 +283,10 @@ public class StreamQuery extends BaseQuery<Object[]>
     }
     final List<Comparator<Object[]>> comparators = Lists.newArrayList();
     for (OrderByColumnSpec ordering : orderingSpecs) {
-      int index = columns.indexOf(ordering.getDimension());
+      final int index = columns.indexOf(ordering.getDimension());
       if (index >= 0) {
-        Accessor<Object[]> accessor = OrderingProcessor.arrayAccessor(index);
-        comparators.add(new Accessor.ComparatorOn<>(ordering.getComparator(), accessor));
+        final Comparator comparator = ordering.getComparator();
+        comparators.add((l, r) -> comparator.compare(l[index], r[index]));
       }
     }
     return comparators.isEmpty() ? null : Comparators.compound(comparators);

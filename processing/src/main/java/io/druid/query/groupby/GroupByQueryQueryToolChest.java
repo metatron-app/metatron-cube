@@ -49,6 +49,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.groupby.GroupByQueryEngine.RowIterator;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Cursor;
@@ -158,7 +159,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
           public Sequence<Row> apply(Interval interval)
           {
             QuerySegmentSpec segmentSpec = MultipleIntervalSegmentSpec.of(interval);
-            return engine.process(groupBy.withQuerySegmentSpec(segmentSpec), segment, true);
+            return engine.process(groupBy.withQuerySegmentSpec(segmentSpec), config, segment, true);
           }
         };
       }
@@ -192,7 +193,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
           @Override
           public Sequence<Row> apply(Cursor cursor)
           {
-            Sequence<Object[]> iterator = new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPages)
+            Sequence<Object[]> iterator = new RowIterator(groupBy, config, cursor, bufferPool, maxPages)
             {
               @Override
               protected void nextIteration(long start, List<int[]> unprocessedKeys)
