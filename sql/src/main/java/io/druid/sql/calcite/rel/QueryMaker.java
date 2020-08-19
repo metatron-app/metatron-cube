@@ -30,6 +30,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.ISE;
@@ -288,8 +289,8 @@ public class QueryMaker
   {
     final SqlTypeName sqlType = dataType.getSqlTypeName();
     if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
-      if (value == null || value instanceof String) {
-        return StringUtils.nullToEmpty((String) value);
+      if (value == null || value instanceof String || value instanceof UTF8Bytes) {
+        return StringUtils.nullToEmpty(Objects.toString(value, null));
       } else if (value instanceof NlsString) {
         return ((NlsString) value).getValue();
       } else if (value instanceof Number) {

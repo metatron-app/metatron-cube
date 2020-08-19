@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -329,7 +330,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     DruidQuery druidQuery = druidRel.toDruidQuery(false);
 
     RowSignature rowSignature = druidQuery.getOutputRowSignature();
-    Map<String, String> mapping = null;
+    Map<String, String> mapping = ImmutableMap.of();
     if (!Iterables.elementsEqual(rowSignature.getColumnNames(), mappedColumns)) {
       mapping = GuavaUtils.zipAsMap(rowSignature.getColumnNames(), mappedColumns);
     }
@@ -371,7 +372,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         result.get("rowCount"),
         data.get("location"),
         data.get("length"),
-        segment.getInterval(),
+        String.valueOf(segment.getInterval()),
         segment.getVersion()
     };
     return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(row)), dataType);
