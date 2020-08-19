@@ -26,13 +26,13 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.collections.CountingMap;
+import io.druid.collections.String2IntMap;
+import io.druid.common.IntTagged;
 import io.druid.data.input.InputRow;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.JobHelper;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -53,9 +53,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class DatasourceInputFormat extends InputFormat<NullWritable, InputRow>
 {
@@ -216,34 +214,29 @@ public class DatasourceInputFormat extends InputFormat<NullWritable, InputRow>
 
   public static String[] getFrequentLocations(Iterable<String> hosts, int topN)
   {
-    final CountingMap<String> counter = new CountingMap<>();
+    final String2IntMap counter = new String2IntMap();
     for (String location : hosts) {
-      counter.add(location, 1);
+      counter.addTo(location, 1);
     }
 
-    final TreeSet<Pair<Long, String>> sorted = Sets.<Pair<Long, String>>newTreeSet(
-        new Comparator<Pair<Long, String>>()
-        {
-          @Override
-          public int compare(Pair<Long, String> o1, Pair<Long, String> o2)
-          {
-            int compare = o2.lhs.compareTo(o1.lhs); // descending
+    final TreeSet<IntTagged<String>> sorted = Sets.<IntTagged<String>>newTreeSet(
+        (l, r) -> {
+            int compare = -Integer.compare(l.tag, r.tag); // descending
             if (compare == 0) {
-              compare = o1.rhs.compareTo(o2.rhs);   // ascending
+              compare = l.value.compareTo(r.value);   // ascending
             }
             return compare;
-          }
         }
     );
 
-    for (Map.Entry<String, AtomicLong> entry : counter.entrySet()) {
-      sorted.add(Pair.of(entry.getValue().get(), entry.getKey()));
+    for (String2IntMap.Entry<String> entry : counter.object2IntEntrySet()) {
+      sorted.add(IntTagged.of(entry.getIntValue(), entry.getKey()));
     }
 
     final List<String> locations = Lists.newArrayListWithCapacity(Math.min(sorted.size(), topN));
-    for (Pair<Long, String> frequent : Iterables.limit(sorted, topN)) {
-      locations.add(frequent.rhs);
+    for (IntTagged<String> frequent : Iterables.limit(sorted, topN)) {
+      locations.add(frequent.value);
     }
-    return locations.toArray(new String[locations.size()]);
+    return locations.toArray(new String[0]);
   }
 }

@@ -19,22 +19,19 @@
 
 package io.druid.collections;
 
-import com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.concurrent.atomic.AtomicLong;
-
-public class CountingMapTest
+public class String2IntMapTest
 {
-  private CountingMap mapObject = null ;
+  private String2IntMap mapObject;
 
   @Before
   public void setUp()
   {
-    mapObject = new CountingMap();
+    mapObject = new String2IntMap();
   }
 
   @After
@@ -46,24 +43,14 @@ public class CountingMapTest
   @Test
   public void testAdd()
   {
-    long defaultValue = 10;
-    String defaultKey = "defaultKey";
-    long actual;
-    actual = mapObject.add(defaultKey,defaultValue);
-    Assert.assertEquals("Values does not match", actual, defaultValue);
-  }
-
-  @Test
-  public void testSnapshot()
-  {
-    long defaultValue = 10;
-    String defaultKey = "defaultKey";
-    mapObject.add(defaultKey, defaultValue);
-    ImmutableMap snapShotMap = (ImmutableMap) mapObject.snapshot();
-    Assert.assertEquals("Maps size does not match",mapObject.size(),snapShotMap.size());
-    long expected = (long) snapShotMap.get(defaultKey);
-    AtomicLong actual = (AtomicLong) mapObject.get(defaultKey);
-    Assert.assertEquals("Values for key = " + defaultKey + " does not match",
-        actual.longValue(),expected);
+    String defaultKey1 = "defaultKey1";
+    String defaultKey2 = "defaultKey2";
+    String defaultKey3 = "defaultKey3";
+    mapObject.addTo(defaultKey1, 10);
+    mapObject.addTo(defaultKey2, 20);
+    mapObject.addTo(defaultKey1, 5);
+    Assert.assertEquals("Values does not match", 15, mapObject.getInt(defaultKey1));
+    Assert.assertEquals("Values does not match", 20, mapObject.getInt(defaultKey2));
+    Assert.assertEquals("Values does not match", 0, mapObject.getInt(defaultKey3));
   }
 }

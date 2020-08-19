@@ -31,22 +31,18 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.client.JsonParserIterator;
 import io.druid.client.StreamHandler;
 import io.druid.client.StreamHandlerFactory;
-import io.druid.collections.CountingMap;
 import io.druid.common.guava.HostAndPort;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.DruidDefaultSerializersModule;
-import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.http.client.HttpClient;
@@ -100,16 +96,13 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable>
     implements org.apache.hadoop.mapred.InputFormat<NullWritable, MapWritable>
@@ -288,41 +281,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
         locations.add(location.getHost());
       }
     }
-    return getMostFrequentLocations(locations);
-  }
-
-  private static String[] getMostFrequentLocations(Iterable<String> hosts)
-  {
-    final CountingMap<String> counter = new CountingMap<>();
-    for (String location : hosts) {
-      counter.add(location, 1);
-    }
-
-    final TreeSet<Pair<Long, String>> sorted = Sets.<Pair<Long, String>>newTreeSet(
-        new Comparator<Pair<Long, String>>()
-        {
-          @Override
-          public int compare(Pair<Long, String> o1, Pair<Long, String> o2)
-          {
-            int compare = o2.lhs.compareTo(o1.lhs); // descending
-            if (compare == 0) {
-              compare = o1.rhs.compareTo(o2.rhs);   // ascending
-            }
-            return compare;
-          }
-        }
-    );
-
-    for (Map.Entry<String, AtomicLong> entry : counter.entrySet()) {
-      sorted.add(Pair.of(entry.getValue().get(), entry.getKey()));
-    }
-
-    // use default replication factor, if possible
-    final List<String> locations = Lists.newArrayListWithCapacity(3);
-    for (Pair<Long, String> frequent : Iterables.limit(sorted, 3)) {
-      locations.add(frequent.rhs);
-    }
-    return locations.toArray(new String[locations.size()]);
+    return DatasourceInputFormat.getFrequentLocations(locations, 3);
   }
 
   public static final class DruidInputSplit extends InputSplit implements org.apache.hadoop.mapred.InputSplit

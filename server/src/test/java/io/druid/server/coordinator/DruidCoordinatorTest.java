@@ -31,7 +31,6 @@ import io.druid.client.DruidServer;
 import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.client.SingleServerInventoryView;
-import io.druid.collections.CountingMap;
 import io.druid.collections.String2IntMap;
 import io.druid.common.DateTimes;
 import io.druid.common.config.JacksonConfigManager;
