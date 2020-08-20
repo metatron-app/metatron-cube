@@ -40,6 +40,7 @@ import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.jackson.JodaStuff;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
@@ -339,6 +340,9 @@ public class BrokerServerView implements TimelineServerView
   {
     log.debug("Adding local dataSource[%s]", dataSource);
     synchronized (lock) {
+      if (timelines.containsKey(dataSource)) {
+        throw new IAE("Conflicting local datasource name %s", dataSource);
+      }
       return getQueryableDruidServer(node).addLocalDataSource(dataSource);
     }
   }
@@ -347,6 +351,7 @@ public class BrokerServerView implements TimelineServerView
   {
     log.debug("Adding local segment[%s]", segment);
     synchronized (lock) {
+      addLocalDataSource(segment.getDataSource());
       addSegment(node, segment).addIndex(segment, index, metaData);
     }
   }
@@ -393,20 +398,19 @@ public class BrokerServerView implements TimelineServerView
           log.info(e, "Failed to close local segment %s", chunk.getObject().dataSegment);
         }
       }
+      timelines.remove(dataSource);
       return true;
     }
   }
 
   private void serverRemovedSegment(final DruidServerMetadata server, final DataSegment segment)
   {
-
-    String segmentId = segment.getIdentifier();
-    final ServerSelector selector;
+    final String segmentId = segment.getIdentifier();
 
     synchronized (lock) {
       log.debug("Removing segment[%s] from server[%s].", segmentId, server);
 
-      selector = selectors.get(segmentId);
+      final ServerSelector selector = selectors.get(segmentId);
       if (selector == null) {
         log.warn("Told to remove non-existant segment[%s]", segmentId);
         return;
