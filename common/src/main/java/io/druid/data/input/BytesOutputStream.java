@@ -21,163 +21,122 @@ package io.druid.data.input;
 
 import com.google.common.io.ByteArrayDataOutput;
 import io.druid.common.guava.BytesRef;
-import io.druid.data.VLongUtils;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
-// copied from ByteStreams.ByteArrayDataOutputStream
 public class BytesOutputStream extends ByteArrayOutputStream implements ByteArrayDataOutput
 {
-  private final DataOutput output;
+  private final byte[] scratch = new byte[Long.BYTES + 2];
 
-  public BytesOutputStream()
-  {
-    this.output = new DataOutputStream(this);
-  }
+  public BytesOutputStream() {}
 
   public BytesOutputStream(int size)
   {
     super(size);
-    this.output = new DataOutputStream(this);
   }
 
   @Override
-  public void write(int b)
-  {
-    super.write(b);
-  }
-
-  @Override
-  public void write(byte[] b)
+  public void write(final byte[] b)
   {
     super.write(b, 0, b.length);
   }
 
   @Override
-  public void write(byte[] b, int off, int len)
+  public void write(final byte[] b, final int off, final int len)
   {
     super.write(b, off, len);
   }
 
   @Override
-  public void writeBoolean(boolean v)
+  public void writeBoolean(final boolean v)
   {
-    try {
-      output.writeBoolean(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
+    super.write(v ? 1 : 0);
+  }
+
+  @Override
+  public void writeByte(final int v)
+  {
+    super.write(v);
+  }
+
+  @Override
+  public void writeBytes(final String s)
+  {
+    int len = s.length();
+    for (int i = 0; i < len; i++) {
+      super.write((byte) s.charAt(i));
     }
   }
 
   @Override
-  public void writeByte(int v)
+  public void writeChar(final int v)
   {
-    try {
-      output.writeByte(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
+    scratch[0] = (byte)(v >>> 8 & 0xFF);
+    scratch[1] = (byte)(v & 0xFF);
+    write(scratch, 0, 2);
+  }
+
+  @Override
+  public void writeChars(final String s)
+  {
+    final int len = s.length();
+    for (int i = 0; i < len; i++) {
+      writeChar(s.charAt(i));
     }
   }
 
   @Override
-  public void writeBytes(String s)
+  public void writeDouble(final double v)
   {
-    try {
-      output.writeBytes(s);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
+    writeLong(Double.doubleToLongBits(v));
   }
 
   @Override
-  public void writeChar(int v)
+  public void writeFloat(final float v)
   {
-    try {
-      output.writeChar(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
+    writeInt(Float.floatToIntBits(v));
   }
 
   @Override
-  public void writeChars(String s)
+  public void writeInt(final int v)
   {
-    try {
-      output.writeChars(s);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
+    scratch[0] = (byte) (v >>> 24);
+    scratch[1] = (byte) (v >>> 16);
+    scratch[2] = (byte) (v >>> 8);
+    scratch[3] = (byte) v;
+    write(scratch, 0, Integer.BYTES);
   }
 
   @Override
-  public void writeDouble(double v)
+  public void writeLong(final long v)
   {
-    try {
-      output.writeDouble(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
-  }
-
-  @Override
-  public void writeFloat(float v)
-  {
-    try {
-      output.writeFloat(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
-  }
-
-  @Override
-  public void writeInt(int v)
-  {
-    try {
-      output.writeInt(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
-  }
-
-  @Override
-  public void writeLong(long v)
-  {
-    try {
-      output.writeLong(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
+    scratch[0] = (byte) (v >>> 56);
+    scratch[1] = (byte) (v >>> 48);
+    scratch[2] = (byte) (v >>> 40);
+    scratch[3] = (byte) (v >>> 32);
+    scratch[4] = (byte) (v >>> 24);
+    scratch[5] = (byte) (v >>> 16);
+    scratch[6] = (byte) (v >>> 8);
+    scratch[7] = (byte) v;
+    write(scratch, 0, Long.BYTES);
   }
 
   @Override
   public void writeShort(int v)
   {
-    try {
-      output.writeShort(v);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
+    scratch[0] = (byte) (v >>> 8);
+    scratch[1] = (byte) v;
+    write(scratch, 0, Short.BYTES);
   }
 
   @Override
   public void writeUTF(String s)
   {
     try {
-      output.writeUTF(s);
+      new DataOutputStream(this).writeUTF(s);
     }
     catch (IOException impossible) {
       throw new AssertionError(impossible);
@@ -210,14 +169,16 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
     write(value);
   }
 
-  // copied from org.apache.parquet.bytes.BytesUtils
-  public void writeUnsignedVarInt(int value)
+  // from org.apache.parquet.bytes.BytesUtils
+  public void writeUnsignedVarInt(int v)
   {
-    while ((long) (value & -128) != 0L) {
-      write(value & 127 | 128);
-      value >>>= 7;
+    int i = 0;
+    while ((long) (v & -128) != 0L) {
+      scratch[i++] = (byte) (v & 127 | 128);
+      v >>>= 7;
     }
-    write(value & 127);
+    scratch[i++] = (byte) (v & 127);
+    write(scratch, 0, i);
   }
 
   public void write(BytesRef ref)
@@ -231,14 +192,42 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
     write(ref.bytes, 0, ref.length);
   }
 
-  public void writeVarInt(int value)
+  public void writeVarInt(int v)
   {
-    VLongUtils.writeVInt(this, value);
+    writeVarLong(v);
   }
 
-  public void writeVarLong(long value)
+  // from org.apache.hadoop.io.WritableUtils
+  public void writeVarLong(long v)
   {
-    VLongUtils.writeVLong(this, value);
+    if (v >= -112 && v <= 127) {
+      write((byte) v);
+      return;
+    }
+
+    int i = 0;
+    int len = -112;
+    if (v < 0) {
+      v ^= -1L; // take one's complement'
+      len = -120;
+    }
+
+    long tmp = v;
+    while (tmp != 0) {
+      tmp = tmp >> 8;
+      len--;
+    }
+
+    scratch[i++] = (byte) len;
+
+    len = (len < -120) ? -(len + 120) : -(len + 112);
+
+    for (int idx = len; idx != 0; idx--) {
+      int shiftbits = (idx - 1) * 8;
+      long mask = 0xFFL << shiftbits;
+      scratch[i++] = ((byte) ((v & mask) >> shiftbits));
+    }
+    write(scratch, 0, i);
   }
 
   public BytesRef asRef()

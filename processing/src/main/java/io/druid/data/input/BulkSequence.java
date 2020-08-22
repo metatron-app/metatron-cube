@@ -183,9 +183,9 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
       final int ix = index++;
       for (int i = 0; i < category.length; i++) {
         switch (category[i]) {
-          case 1: ((Float[]) page[i])[ix] = Rows.parseFloat(values[i]); continue;
-          case 2: ((Long[]) page[i])[ix] = Rows.parseLong(values[i]); continue;
-          case 3: ((Double[]) page[i])[ix] = Rows.parseDouble(values[i]); continue;
+          case 1: ((Float[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).floatValue(); continue;
+          case 2: ((Long[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).longValue(); continue;
+          case 3: ((Double[]) page[i])[ix] = values[i] == null ? null : ((Number) values[i]).doubleValue(); continue;
           case 4: ((Boolean[]) page[i])[ix] = Rows.parseBoolean(values[i]); continue;
           case 5: ((BytesOutputStream) page[i]).writeVarSizeBytes(StringUtils.toUtf8WithNullToEmpty(values[i])); continue;
           case 6: ((Object[]) page[i])[ix] = values[i]; continue;
