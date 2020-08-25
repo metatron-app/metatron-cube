@@ -280,7 +280,7 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
     Assert.assertEquals(outBuffer.getShort(), 2047);
     outBuffer.get();
@@ -296,7 +296,7 @@ public class HyperLogLogCollectorTest
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
     Assert.assertEquals(outBuffer.getShort(), 2047);
     Assert.assertEquals(outBuffer.get(), 0);
@@ -313,7 +313,7 @@ public class HyperLogLogCollectorTest
     ByteBuffer biggerOffset = makeCollectorBuffer(1, (byte) 0x00, 0x11);
     ByteBuffer smallerOffset = makeCollectorBuffer(0, (byte) 0x20, 0x00);
 
-    ByteBuffer buffer = ByteBuffer.allocate(HyperLogLogCollector.getLatestNumBytesForDenseStorage());
+    ByteBuffer buffer = ByteBuffer.allocate(HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE);
     HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(buffer.duplicate());
 
     // make sure the original buffer gets modified
@@ -337,7 +337,7 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
     Assert.assertEquals(outBuffer.getShort(), 2047);
     outBuffer.get();
@@ -353,7 +353,7 @@ public class HyperLogLogCollectorTest
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
     Assert.assertEquals(outBuffer.getShort(), 2047);
     outBuffer.get();
@@ -385,7 +385,7 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     outBuffer.get();
@@ -398,7 +398,7 @@ public class HyperLogLogCollectorTest
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     outBuffer.get();
@@ -409,18 +409,18 @@ public class HyperLogLogCollectorTest
   @Test
   public void testFoldWithUpperNibbleTriggersOffsetChange() throws Exception
   {
-    byte[] arr1 = new byte[HyperLogLogCollector.getLatestNumBytesForDenseStorage()];
+    byte[] arr1 = new byte[HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE];
     Arrays.fill(arr1, (byte) 0x11);
     ByteBuffer buffer1 = ByteBuffer.wrap(arr1);
-    buffer1.put(0, HLLCV1.VERSION);
+    buffer1.put(0, HyperLogLogCollector.VERSION);
     buffer1.put(1, (byte) 0);
     buffer1.putShort(2, (short) (2047));
-    buffer1.put(HLLCV1.HEADER_NUM_BYTES, (byte) 0x1);
+    buffer1.put(HyperLogLogCollector.HEADER_NUM_BYTES, (byte) 0x1);
 
-    byte[] arr2 = new byte[HyperLogLogCollector.getLatestNumBytesForDenseStorage()];
+    byte[] arr2 = new byte[HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE];
     Arrays.fill(arr2, (byte) 0x11);
     ByteBuffer buffer2 = ByteBuffer.wrap(arr2);
-    buffer2.put(0, HLLCV1.VERSION);
+    buffer2.put(0, HyperLogLogCollector.VERSION);
     buffer2.put(1, (byte) 0);
     buffer2.putShort(2, (short) (2048));
 
@@ -429,7 +429,7 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HLLCV1.VERSION);
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
     Assert.assertEquals(outBuffer.getShort(), 0);
     outBuffer.get();
@@ -450,7 +450,7 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     Assert.assertEquals(outBuffer.get(), 0);
@@ -463,7 +463,7 @@ public class HyperLogLogCollectorTest
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), collector.getVersion());
+    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     Assert.assertEquals(outBuffer.get(), 0);
@@ -486,8 +486,8 @@ public class HyperLogLogCollectorTest
     final short numNonZeroInRemaining = computeNumNonZero((byte) remainingBytes);
     numNonZero += (short)((HyperLogLogCollector.NUM_BYTES_FOR_BUCKETS - initialBytes.length) * numNonZeroInRemaining);
 
-    ByteBuffer biggerOffset = ByteBuffer.allocate(HyperLogLogCollector.getLatestNumBytesForDenseStorage());
-    biggerOffset.put(HLLCV1.VERSION);
+    ByteBuffer biggerOffset = ByteBuffer.allocate(HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE);
+    biggerOffset.put(HyperLogLogCollector.VERSION);
     biggerOffset.put((byte) offset);
     biggerOffset.putShort(numNonZero);
     biggerOffset.put((byte) 0);
@@ -618,7 +618,7 @@ public class HyperLogLogCollectorTest
     int valsToCheckIndex = 0;
     HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(
         ByteBuffer.allocateDirect(
-            HyperLogLogCollector.getLatestNumBytesForDenseStorage()
+            HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE
         )
     );
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
@@ -649,7 +649,7 @@ public class HyperLogLogCollectorTest
     HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(
         (ByteBuffer) ByteBuffer.allocate(10000)
                                .position(0)
-                               .limit(HyperLogLogCollector.getLatestNumBytesForDenseStorage())
+                               .limit(HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE)
     );
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
       collector.add(fn.hashLong(random.nextLong()).asBytes());
@@ -818,17 +818,17 @@ public class HyperLogLogCollectorTest
   @Test
   public void testMaxOverflow() {
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
-    collector.add((short)23, (byte)16);
+    collector.addOnBucket((short)23, (byte)16);
     Assert.assertEquals(23, collector.getMaxOverflowRegister());
     Assert.assertEquals(16, collector.getMaxOverflowValue());
     Assert.assertEquals(0, collector.getRegisterOffset());
     Assert.assertEquals(0, collector.getNumNonZeroRegisters());
 
-    collector.add((short)56, (byte)17);
+    collector.addOnBucket((short)56, (byte)17);
     Assert.assertEquals(56, collector.getMaxOverflowRegister());
     Assert.assertEquals(17, collector.getMaxOverflowValue());
 
-    collector.add((short)43, (byte)16);
+    collector.addOnBucket((short)43, (byte)16);
     Assert.assertEquals(56, collector.getMaxOverflowRegister());
     Assert.assertEquals(17, collector.getMaxOverflowValue());
     Assert.assertEquals(0, collector.getRegisterOffset());
@@ -839,10 +839,10 @@ public class HyperLogLogCollectorTest
   public void testMergeMaxOverflow() {
     // no offset
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
-    collector.add((short)23, (byte)16);
+    collector.addOnBucket((short)23, (byte)16);
 
     HyperLogLogCollector other = HyperLogLogCollector.makeLatestCollector();
-    collector.add((short)56, (byte)17);
+    collector.addOnBucket((short)56, (byte)17);
 
     collector.fold(other);
     Assert.assertEquals(56, collector.getMaxOverflowRegister());
@@ -852,11 +852,11 @@ public class HyperLogLogCollectorTest
     // fill up all the buckets so we reach a registerOffset of 49
     collector = HyperLogLogCollector.makeLatestCollector();
     fillBuckets(collector, (byte) 0, (byte) 49);
-    collector.add((short)23, (byte)65);
+    collector.addOnBucket((short)23, (byte)65);
 
     other = HyperLogLogCollector.makeLatestCollector();
     fillBuckets(other, (byte) 0, (byte) 43);
-    other.add((short)47, (byte)67);
+    other.addOnBucket((short)47, (byte)67);
 
     collector.fold(other);
     Assert.assertEquals(47, collector.getMaxOverflowRegister());
@@ -870,7 +870,7 @@ public class HyperLogLogCollectorTest
     while (offset <= endOffset) {
       // fill buckets to shift registerOffset
       for (short bucket = 0; bucket < 2048; ++bucket) {
-        collector.add(bucket, offset);
+        collector.addOnBucket(bucket, offset);
       }
       offset++;
     }

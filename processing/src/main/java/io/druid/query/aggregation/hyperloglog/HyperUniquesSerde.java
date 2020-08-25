@@ -19,10 +19,9 @@
 
 package io.druid.query.aggregation.hyperloglog;
 
-import com.google.common.collect.Ordering;
 import com.google.common.hash.HashFunction;
-import io.druid.java.util.common.StringUtils;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.StringUtils;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -37,22 +36,9 @@ import java.util.List;
  */
 public class HyperUniquesSerde extends ComplexMetricSerde
 {
-  private static Ordering<HyperLogLogCollector> comparator = new Ordering<HyperLogLogCollector>()
-  {
-    @Override
-    public int compare(
-        HyperLogLogCollector arg1, HyperLogLogCollector arg2
-    )
-    {
-      return arg1.toByteBuffer().compareTo(arg2.toByteBuffer());
-    }
-  }.nullsFirst();
-
   private final HashFunction hashFn;
 
-  public HyperUniquesSerde(
-      HashFunction hashFn
-  )
+  public HyperUniquesSerde(HashFunction hashFn)
   {
     this.hashFn = hashFn;
   }
@@ -60,7 +46,7 @@ public class HyperUniquesSerde extends ComplexMetricSerde
   @Override
   public String getTypeName()
   {
-    return "hyperUnique";
+    return HyperLogLogCollector.HLL_TYPE_NAME;
   }
 
   @Override
@@ -101,18 +87,16 @@ public class HyperUniquesSerde extends ComplexMetricSerde
   }
 
   @Override
-  public void deserializeColumn(
-      ByteBuffer byteBuffer, ColumnBuilder columnBuilder
-  )
+  public void deserializeColumn(ByteBuffer byteBuffer, ColumnBuilder columnBuilder)
   {
     final GenericIndexed column = GenericIndexed.read(byteBuffer, getObjectStrategy());
     columnBuilder.setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), column));
   }
 
   @Override
-  public ObjectStrategy getObjectStrategy()
+  public ObjectStrategy<HyperLogLogCollector> getObjectStrategy()
   {
-    return new ObjectStrategy.CompareSupport<HyperLogLogCollector>()
+    return new ObjectStrategy<HyperLogLogCollector>()
     {
       @Override
       public Class<? extends HyperLogLogCollector> getClazz()
@@ -131,19 +115,7 @@ public class HyperUniquesSerde extends ComplexMetricSerde
       @Override
       public byte[] toBytes(HyperLogLogCollector collector)
       {
-        if (collector == null) {
-          return new byte[]{};
-        }
-        ByteBuffer val = collector.toByteBuffer();
-        byte[] retVal = new byte[val.remaining()];
-        val.asReadOnlyBuffer().get(retVal);
-        return retVal;
-      }
-
-      @Override
-      public int compare(HyperLogLogCollector o1, HyperLogLogCollector o2)
-      {
-        return comparator.compare(o1, o2);
+        return collector == null ? StringUtils.EMPTY_BYTES : collector.toByteArray();
       }
     };
   }

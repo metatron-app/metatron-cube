@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Ordering;
 import io.druid.common.KeyBuilder;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
@@ -33,7 +32,6 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ObjectColumnSelector;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -96,7 +94,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     }
 
     final ValueDesc valueType = selector.type();
-    if ("hyperUnique".equals(valueType.typeName())) {
+    if (HyperLogLogCollector.HLL_TYPE.equals(valueType)) {
       return new HyperUniquesAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector);
     }
 
@@ -115,12 +113,11 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     }
 
     final ValueDesc type = selector.type();
-    final String typeName = type.typeName();
-    if (type.isUnknown() || "hyperUnique".equals(typeName)) {
+    if (type.isUnknown() || HyperLogLogCollector.HLL_TYPE.equals(type)) {
       return new HyperUniquesBufferAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector);
     }
 
-    throw new IAE("Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, typeName);
+    throw new IAE("Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, type);
   }
 
   @Override
@@ -152,20 +149,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public Object deserialize(Object object)
   {
-    final ByteBuffer buffer;
-
-    if (object instanceof byte[]) {
-      buffer = ByteBuffer.wrap((byte[]) object);
-    } else if (object instanceof ByteBuffer) {
-      // Be conservative, don't assume we own this buffer.
-      buffer = ((ByteBuffer) object).duplicate();
-    } else if (object instanceof String) {
-      buffer = ByteBuffer.wrap(StringUtils.decodeBase64((String) object));
-    } else {
-      return object;
-    }
-
-    return HyperLogLogCollector.makeCollector(buffer);
+    return HyperLogLogCollector.deserialize(object);
   }
 
   @Override
@@ -236,13 +220,13 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("hyperUnique");
+    return HyperLogLogCollector.HLL_TYPE;
   }
 
   @Override
   public int getMaxIntermediateSize()
   {
-    return HyperLogLogCollector.getLatestNumBytesForDenseStorage();
+    return HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE;
   }
 
   public Object getAggregatorStartValue()

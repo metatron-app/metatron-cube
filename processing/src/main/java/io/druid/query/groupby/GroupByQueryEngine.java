@@ -414,10 +414,10 @@ public class GroupByQueryEngine
 
       protected List<int[]> updateValues(final DimensionSelector[] dimensions)
       {
-        return updateValues(new int[BUFFER_POS + dimensions.length], 0, dimensions);
+        return updateRecursive(new int[BUFFER_POS + dimensions.length], 0, dimensions);
       }
 
-      private List<int[]> updateValues(final int[] key, final int index, final DimensionSelector[] dims)
+      private List<int[]> updateRecursive(final int[] key, final int index, final DimensionSelector[] dims)
       {
         if (index < dims.length) {
           final IndexedInts row = dims[index].getRow();
@@ -427,13 +427,13 @@ public class GroupByQueryEngine
             return null;
           } else if (size == 1) {
             key[BUFFER_POS + index] = row.get(0);
-            return updateValues(key, index + 1, dims);
+            return updateRecursive(key, index + 1, dims);
           }
           List<int[]> retVal = null;
           for (int i = 0; i < size; i++) {
             final int[] newKey = Arrays.copyOf(key, key.length);
             newKey[BUFFER_POS + index] = row.get(i);
-            List<int[]> unaggregatedBuffers = updateValues(newKey, index + 1, dims);
+            List<int[]> unaggregatedBuffers = updateRecursive(newKey, index + 1, dims);
             if (unaggregatedBuffers != null) {
               if (retVal == null) {
                 retVal = unaggregatedBuffers;

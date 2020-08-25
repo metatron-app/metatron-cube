@@ -22,12 +22,11 @@ package io.druid.query.aggregation.cardinality;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
-import io.druid.common.utils.StringUtils;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -43,7 +42,6 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 
-import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -98,7 +96,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   public Aggregator factorize(final ColumnSelectorFactory columnFactory)
   {
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
-    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
+    List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = null;
     if (groupingSets != null) {
@@ -113,7 +111,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory columnFactory)
   {
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
-    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
+    List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = null;
     if (groupingSets != null) {
@@ -123,54 +121,21 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
     return new CardinalityBufferAggregator(predicate, selectors, grouping, byRow);
   }
 
-  private List<DimensionSelector> makeDimensionSelectors(
-      final List<DimensionSpec> dimensionSpecs,
-      final ColumnSelectorFactory columnFactory
-  )
-  {
-    return Lists.newArrayList(
-        Lists.transform(
-            Preconditions.checkNotNull(dimensionSpecs),
-            new Function<DimensionSpec, DimensionSelector>()
-            {
-              @Override
-              public DimensionSelector apply(DimensionSpec input)
-              {
-                return columnFactory.makeDimensionSelector(input);
-              }
-            }
-        )
-    );
-  }
-
   @Override
   public Comparator getComparator()
   {
-    return new Comparator<HyperLogLogCollector>()
-    {
-      @Override
-      public int compare(HyperLogLogCollector lhs, HyperLogLogCollector rhs)
-      {
-        return lhs.compareTo(rhs);
-      }
-    };
+    return GuavaUtils.NULL_FIRST_NATURAL;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public Combiner combiner()
   {
-    return new Combiner<HyperLogLogCollector>()
+    return new Combiner.Abstract<HyperLogLogCollector>()
     {
       @Override
-      public HyperLogLogCollector combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
+      public HyperLogLogCollector _combine(HyperLogLogCollector param1, HyperLogLogCollector param2)
       {
-        if (param1 == null) {
-          return param2;
-        }
-        if (param2 == null) {
-          return param1;
-        }
         return param1.fold(param2);
       }
     };
@@ -191,20 +156,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   @Override
   public Object deserialize(Object object)
   {
-    final ByteBuffer buffer;
-
-    if (object instanceof byte[]) {
-      buffer = ByteBuffer.wrap((byte[]) object);
-    } else if (object instanceof ByteBuffer) {
-      // Be conservative, don't assume we own this buffer.
-      buffer = ((ByteBuffer) object).duplicate();
-    } else if (object instanceof String) {
-      buffer = ByteBuffer.wrap(StringUtils.decodeBase64((String) object));
-    } else {
-      return object;
-    }
-
-    return HyperLogLogCollector.makeCollector(buffer);
+    return HyperLogLogCollector.deserialize(object);
   }
 
   @Override
@@ -302,13 +254,13 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("hyperUnique");
+    return HyperLogLogCollector.HLL_TYPE;
   }
 
   @Override
   public int getMaxIntermediateSize()
   {
-    return HyperLogLogCollector.getLatestNumBytesForDenseStorage();
+    return HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE;
   }
 
   @Override

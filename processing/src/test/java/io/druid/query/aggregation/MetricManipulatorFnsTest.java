@@ -65,7 +65,7 @@ public class MetricManipulatorFnsTest
 
     HyperUniquesAggregatorFactory hyperUniquesAggregatorFactory = new HyperUniquesAggregatorFactory(NAME, FIELD);
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
-    collector.add((short) 1, (byte) 5);
+    collector.addOnBucket((short) 1, (byte) 5);
 
     constructorArrays.add(
         new Object[]{

@@ -638,11 +638,6 @@ public class ValueDesc implements Serializable, Cacheable
     return type != null && type.isPrimitive();
   }
 
-  public static boolean isType(ValueDesc type, String typeName)
-  {
-    return type != null && typeName.equals(type.typeName);
-  }
-
   public Comparator comparator()
   {
     return type.comparator();

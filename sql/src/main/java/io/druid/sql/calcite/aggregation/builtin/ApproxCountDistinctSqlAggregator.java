@@ -21,9 +21,9 @@ package io.druid.sql.calcite.aggregation.builtin;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -95,10 +95,9 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     final AggregatorFactory aggregatorFactory;
     final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
 
-    if (arg.isDirectColumnAccess() && ValueDesc.isType(rowSignature.resolve(arg.getDirectColumn()), "hyperUnique")) {
+    if (arg.isDirectColumnAccess() && HyperLogLogCollector.HLL_TYPE.equals(rowSignature.resolve(arg.getDirectColumn()))) {
       aggregatorFactory = new HyperUniquesAggregatorFactory(aggregatorName, arg.getDirectColumn(), null, true);
     } else {
-      final ValueDesc inputType = Calcites.getValueDescForRelDataType(rexNode);
 
       final DimensionSpec dimensionSpec;
 
@@ -113,13 +112,7 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
       }
 
       aggregatorFactory = new CardinalityAggregatorFactory(
-          aggregatorName,
-          null,
-          ImmutableList.of(dimensionSpec),
-          null,
-          null,
-          false,
-          true
+          aggregatorName, null, ImmutableList.of(dimensionSpec), null, null, false, true
       );
     }
 

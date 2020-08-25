@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -103,7 +102,7 @@ public class CountMinAggregatorFactory extends AggregatorFactory
       );
     }
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
-    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
+    List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = new int[][]{};
     if (groupingSets != null) {
@@ -123,7 +122,7 @@ public class CountMinAggregatorFactory extends AggregatorFactory
       );
     }
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
-    List<DimensionSelector> selectors = makeDimensionSelectors(dimensionSpecs, columnFactory);
+    List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = new int[][]{};
     if (groupingSets != null) {
@@ -131,26 +130,6 @@ public class CountMinAggregatorFactory extends AggregatorFactory
     }
     final ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
     return new CountMinBufferAggregator(predicate, selectors, grouping, byRow, width, depth);
-  }
-
-  private List<DimensionSelector> makeDimensionSelectors(
-      final List<DimensionSpec> dimensionSpecs,
-      final ColumnSelectorFactory columnFactory
-  )
-  {
-    return Lists.newArrayList(
-        Lists.transform(
-            Preconditions.checkNotNull(dimensionSpecs),
-            new Function<DimensionSpec, DimensionSelector>()
-            {
-              @Override
-              public DimensionSelector apply(DimensionSpec input)
-              {
-                return columnFactory.makeDimensionSelector(input);
-              }
-            }
-        )
-    );
   }
 
   @Override

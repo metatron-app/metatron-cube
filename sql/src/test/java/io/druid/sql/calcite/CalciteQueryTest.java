@@ -50,7 +50,7 @@ import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
-import io.druid.query.aggregation.hyperloglog.HLLCV1;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
@@ -602,12 +602,12 @@ public class CalciteQueryTest extends CalciteTestBase
                 .streaming()
         ),
         ImmutableList.of(
-            new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HLLCV1.class.getName()},
-            new Object[]{T("2000-01-02"), 1L, "10.1", "", 2d, 2.0, HLLCV1.class.getName()},
-            new Object[]{T("2000-01-03"), 1L, "2", "", 3d, 3.0, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-01"), 1L, "1", "a", 4d, 4.0, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5.0, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6.0, HLLCV1.class.getName()}
+            new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2000-01-02"), 1L, "10.1", "", 2d, 2.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2000-01-03"), 1L, "2", "", 3d, 3.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-01"), 1L, "1", "a", 4d, 4.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6.0, HyperLogLogCollector.class.getName()}
         )
     );
   }
@@ -632,7 +632,7 @@ public class CalciteQueryTest extends CalciteTestBase
                 .streaming()
         ),
         ImmutableList.of(
-            new Object[]{T("2000-01-01"), 1L, "forbidden", "abcd", 9999.0d, 0.0, HLLCV1.class.getName()}
+            new Object[]{T("2000-01-01"), 1L, "forbidden", "abcd", 9999.0d, 0.0, HyperLogLogCollector.class.getName()}
         )
     );
   }
@@ -683,8 +683,8 @@ public class CalciteQueryTest extends CalciteTestBase
                 .streaming()
         ),
         ImmutableList.of(
-            new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0, HLLCV1.class.getName()},
-            new Object[]{T("2000-01-02"), 1L, "10.1", "", 2.0d, 2.0, HLLCV1.class.getName()}
+            new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2000-01-02"), 1L, "10.1", "", 2.0d, 2.0, HyperLogLogCollector.class.getName()}
         )
     );
   }
@@ -745,8 +745,8 @@ public class CalciteQueryTest extends CalciteTestBase
                   .streaming()
         ),
         ImmutableList.of(
-            new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6d, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5d, HLLCV1.class.getName()}
+            new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6d, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5d, HyperLogLogCollector.class.getName()}
         )
     );
   }
@@ -765,12 +765,12 @@ public class CalciteQueryTest extends CalciteTestBase
                   .streaming()
         ),
         ImmutableList.of(
-            new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HLLCV1.class.getName()},
-            new Object[]{T("2000-01-02"), 1L, "10.1", "", 2d, 2.0, HLLCV1.class.getName()},
-            new Object[]{T("2000-01-03"), 1L, "2", "", 3d, 3.0, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-01"), 1L, "1", "a", 4d, 4.0, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5.0, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6.0, HLLCV1.class.getName()}
+            new Object[]{T("2000-01-01"), 1L, "", "a", 1d, 1.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2000-01-02"), 1L, "10.1", "", 2d, 2.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2000-01-03"), 1L, "2", "", 3d, 3.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-01"), 1L, "1", "a", 4d, 4.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5d, 5.0, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-03"), 1L, "abc", "", 6d, 6.0, HyperLogLogCollector.class.getName()}
         )
     );
   }
@@ -1851,9 +1851,9 @@ public class CalciteQueryTest extends CalciteTestBase
                 .streaming()
         ),
         ImmutableList.of(
-            new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0d, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-01"), 1L, "1", "a", 4.0d, 4.0d, HLLCV1.class.getName()},
-            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5.0d, 5.0d, HLLCV1.class.getName()}
+            new Object[]{T("2000-01-01"), 1L, "", "a", 1.0d, 1.0d, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-01"), 1L, "1", "a", 4.0d, 4.0d, HyperLogLogCollector.class.getName()},
+            new Object[]{T("2001-01-02"), 1L, "def", "abc", 5.0d, 5.0d, HyperLogLogCollector.class.getName()}
         )
     );
   }

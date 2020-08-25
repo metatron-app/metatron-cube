@@ -20,11 +20,11 @@
 package io.druid.math.expr;
 
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.Pair;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.Pair;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -36,9 +36,21 @@ import java.util.Objects;
  */
 public class ExprEval extends Pair<Object, ValueDesc>
 {
-  public static final ExprEval TRUE = ExprEval.of(true, ValueDesc.BOOLEAN);
-  public static final ExprEval FALSE = ExprEval.of(false, ValueDesc.BOOLEAN);
-  public static final ExprEval NULL_BOOL = ExprEval.of(null, ValueDesc.BOOLEAN);
+  public static final ExprEval TRUE = new ExprEval(true, ValueDesc.BOOLEAN)
+  {
+    @Override
+    public boolean asBoolean() { return true;}
+  };
+  public static final ExprEval FALSE = new ExprEval(false, ValueDesc.BOOLEAN)
+  {
+    @Override
+    public boolean asBoolean() { return false;}
+  };
+  public static final ExprEval NULL_BOOL = new ExprEval(null, ValueDesc.BOOLEAN)
+  {
+    @Override
+    public boolean asBoolean() { return false;}
+  };
 
   public static final ExprEval UNKNOWN = ExprEval.of(null, ValueDesc.UNKNOWN);
 

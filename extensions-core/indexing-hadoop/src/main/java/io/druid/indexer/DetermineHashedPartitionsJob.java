@@ -316,7 +316,7 @@ public class DetermineHashedPartitionsJob implements Jobby
     {
       HyperLogLogCollector aggregate = HyperLogLogCollector.makeLatestCollector();
       for (BytesWritable value : values) {
-        aggregate.fold(
+        aggregate = aggregate.fold(
             HyperLogLogCollector.makeCollector(ByteBuffer.wrap(value.getBytes(), 0, value.getLength()))
         );
       }
