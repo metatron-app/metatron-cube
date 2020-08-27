@@ -77,19 +77,19 @@ interface UnaryOp extends Expr
   UnaryOp with(Expr child);
 }
 
-final class BooleanExpr implements Constant
+final class BooleanConst implements Constant
 {
-  public static BooleanExpr of(boolean bool)
+  public static BooleanConst of(boolean bool)
   {
     return bool ? TRUE : FALSE;
   }
 
-  public static final BooleanExpr TRUE = new BooleanExpr(true);
-  public static final BooleanExpr FALSE = new BooleanExpr(false);
+  public static final BooleanConst TRUE = new BooleanConst(true);
+  public static final BooleanConst FALSE = new BooleanConst(false);
 
   private final boolean value;
 
-  private BooleanExpr(boolean value)
+  private BooleanConst(boolean value)
   {
     this.value = value;
   }
@@ -121,15 +121,15 @@ final class BooleanExpr implements Constant
   @Override
   public boolean equals(Object other)
   {
-    return other instanceof BooleanExpr && value == ((BooleanExpr) other).value;
+    return other instanceof BooleanConst && value == ((BooleanConst) other).value;
   }
 }
 
-final class LongExpr implements Constant
+final class LongConst implements Constant
 {
   private final long value;
 
-  public LongExpr(long value)
+  public LongConst(long value)
   {
     this.value = value;
   }
@@ -161,15 +161,15 @@ final class LongExpr implements Constant
   @Override
   public boolean equals(Object other)
   {
-    return other instanceof LongExpr && value == ((LongExpr) other).value;
+    return other instanceof LongConst && value == ((LongConst) other).value;
   }
 }
 
-final class StringExpr implements Constant
+final class StringConst implements Constant
 {
   private final String value;
 
-  public StringExpr(String value)
+  public StringConst(String value)
   {
     this.value = Strings.emptyToNull(value);
   }
@@ -201,15 +201,15 @@ final class StringExpr implements Constant
   @Override
   public boolean equals(Object other)
   {
-    return other instanceof StringExpr && Objects.equals(value, ((StringExpr) other).value);
+    return other instanceof StringConst && Objects.equals(value, ((StringConst) other).value);
   }
 }
 
-final class FloatExpr implements Constant
+final class FloatConst implements Constant
 {
   private final float value;
 
-  public FloatExpr(float value)
+  public FloatConst(float value)
   {
     this.value = value;
   }
@@ -241,15 +241,15 @@ final class FloatExpr implements Constant
   @Override
   public boolean equals(Object other)
   {
-    return other instanceof FloatExpr && value == ((FloatExpr) other).value;
+    return other instanceof FloatConst && value == ((FloatConst) other).value;
   }
 }
 
-final class DoubleExpr implements Constant
+final class DoubleConst implements Constant
 {
   private final double value;
 
-  public DoubleExpr(double value)
+  public DoubleConst(double value)
   {
     this.value = value;
   }
@@ -281,15 +281,15 @@ final class DoubleExpr implements Constant
   @Override
   public boolean equals(Object other)
   {
-    return other instanceof DoubleExpr && value == ((DoubleExpr) other).value;
+    return other instanceof DoubleConst && value == ((DoubleConst) other).value;
   }
 }
 
-final class DecimalExpr implements Constant
+final class DecimalConst implements Constant
 {
   private final BigDecimal value;
 
-  public DecimalExpr(BigDecimal value)
+  public DecimalConst(BigDecimal value)
   {
     this.value = value;
   }
@@ -321,7 +321,7 @@ final class DecimalExpr implements Constant
   @Override
   public boolean equals(Object other)
   {
-    return other instanceof DecimalExpr && Objects.equals(value, ((DecimalExpr) other).value);
+    return other instanceof DecimalConst && Objects.equals(value, ((DecimalConst) other).value);
   }
 }
 
@@ -606,12 +606,16 @@ abstract class BinaryOp implements Expr
   }
 }
 
-abstract interface BooleanBinaryOp {}
+abstract interface BooleanBinaryOp extends Expr
+{
+  public default ValueDesc returns()
+  {
+    return ValueDesc.BOOLEAN;
+  }
+}
 
 abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpression
 {
-  private final boolean booleanOp = this instanceof BooleanBinaryOp;
-
   public BinaryOpExprBase(String op, Expr left, Expr right)
   {
     super(op, left, right);
@@ -627,7 +631,7 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
   @Override
   public ValueDesc returns()
   {
-    if (booleanOp) {
+    if (this instanceof BooleanBinaryOp) {
       return ValueDesc.BOOLEAN;
     }
     final ValueDesc lt = left.returns();

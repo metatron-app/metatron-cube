@@ -103,7 +103,7 @@ public class ExprListenerImpl extends ExprBaseListener
   {
     nodes.put(
         ctx,
-        BooleanExpr.of(Boolean.valueOf(ctx.getText()))
+        BooleanConst.of(Boolean.valueOf(ctx.getText()))
     );
   }
 
@@ -117,7 +117,7 @@ public class ExprListenerImpl extends ExprBaseListener
     }
     nodes.put(
         ctx,
-        new LongExpr(Long.parseLong(text))
+        new LongConst(Long.parseLong(text))
     );
   }
 
@@ -126,7 +126,7 @@ public class ExprListenerImpl extends ExprBaseListener
   {
     nodes.put(
         ctx,
-        new FloatExpr(Float.parseFloat(ctx.getText()))
+        new FloatConst(Float.parseFloat(ctx.getText()))
     );
   }
 
@@ -135,7 +135,7 @@ public class ExprListenerImpl extends ExprBaseListener
   {
     nodes.put(
         ctx,
-        new DoubleExpr(Double.parseDouble(ctx.getText()))
+        new DoubleConst(Double.parseDouble(ctx.getText()))
     );
   }
 
@@ -146,7 +146,7 @@ public class ExprListenerImpl extends ExprBaseListener
     final String value = text.substring(0, text.length() - 1);
     nodes.put(
         ctx,
-        new DecimalExpr(new BigDecimal(value))
+        new DecimalConst(new BigDecimal(value))
     );
   }
 
@@ -211,7 +211,7 @@ public class ExprListenerImpl extends ExprBaseListener
       String unquoted = text.substring(1, text.length() - 1);
       value = unquoted.indexOf('\\') >= 0 ? StringEscapeUtils.unescapeJava(unquoted) : unquoted;
     }
-    nodes.put(ctx, new StringExpr(value));
+    nodes.put(ctx, new StringConst(value));
   }
 
   @Override
@@ -227,22 +227,22 @@ public class ExprListenerImpl extends ExprBaseListener
     final Expr expr;
     switch (opCode) {
       case ExprParser.LT:
-        expr = equals ? BooleanExpr.FALSE : new BinLtExpr(op, left, right);
+        expr = equals ? BooleanConst.FALSE : new BinLtExpr(op, left, right);
         break;
       case ExprParser.LEQ:
-        expr = equals ? BooleanExpr.TRUE : new BinLeqExpr(op, left, right);
+        expr = equals ? BooleanConst.TRUE : new BinLeqExpr(op, left, right);
         break;
       case ExprParser.GT:
-        expr = equals ? BooleanExpr.FALSE : new BinGtExpr(op, left, right);
+        expr = equals ? BooleanConst.FALSE : new BinGtExpr(op, left, right);
         break;
       case ExprParser.GEQ:
-        expr = equals ? BooleanExpr.TRUE : new BinGeqExpr(op, left, right);
+        expr = equals ? BooleanConst.TRUE : new BinGeqExpr(op, left, right);
         break;
       case ExprParser.EQ:
-        expr = equals ? BooleanExpr.TRUE : new BinEqExpr(op, left, right);
+        expr = equals ? BooleanConst.TRUE : new BinEqExpr(op, left, right);
         break;
       case ExprParser.NEQ:
-        expr = equals ? BooleanExpr.FALSE : new BinNeqExpr(op, left, right);
+        expr = equals ? BooleanConst.FALSE : new BinNeqExpr(op, left, right);
         break;
       default:
         throw new RuntimeException("Unrecognized binary operator " + op);
@@ -353,7 +353,7 @@ public class ExprListenerImpl extends ExprBaseListener
     for (int i = 0; i < ctx.getChildCount(); i++) {
       ParseTree child = ctx.getChild(i);
       if (child instanceof TerminalNode && child.getText().equals(",")) {
-        args.add(x < 0 ? new StringExpr(null) : (Expr) nodes.get(ctx.getChild(x)));
+        args.add(x < 0 ? new StringConst(null) : (Expr) nodes.get(ctx.getChild(x)));
         x = -1;
         continue;
       }

@@ -782,8 +782,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else {
-                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<String>()
+                          cachedColumnVals = new ObjectColumnSelector.WithRawAccess<String>()
                           {
+                            private final Dictionary<String> dictionary = columnVals.dictionary();
+
                             @Override
                             public void close() throws IOException
                             {
@@ -799,7 +801,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public String get()
                             {
-                              return columnVals.lookupName(columnVals.getSingleValueRow(cursorOffset.getOffset()));
+                              return dictionary.get(columnVals.getSingleValueRow(cursorOffset.getOffset()));
+                            }
+
+                            @Override
+                            public byte[] getRaw()
+                            {
+                              return dictionary.getAsRaw(columnVals.getSingleValueRow(cursorOffset.getOffset()));
                             }
                           };
                         }

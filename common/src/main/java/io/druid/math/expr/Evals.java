@@ -52,8 +52,8 @@ public class Evals
 {
   static final Logger LOG = new Logger(Evals.class);
 
-  public static final Expr TRUE = new LongExpr(1);
-  public static final Expr FALSE = new LongExpr(0);
+  public static final Expr TRUE = new LongConst(1);
+  public static final Expr FALSE = new LongConst(0);
 
   public static final Predicate<ExprEval> PREDICATE = new Predicate<ExprEval>()
   {
@@ -346,19 +346,19 @@ public class Evals
     final ValueDesc type = eval.type();
     switch (type.type()) {
       case BOOLEAN:
-        return BooleanExpr.of(eval.asBoolean());
+        return BooleanConst.of(eval.asBoolean());
       case FLOAT:
-        return new FloatExpr(eval.asFloat());
+        return new FloatConst(eval.asFloat());
       case DOUBLE:
-        return new DoubleExpr(eval.asDouble());
+        return new DoubleConst(eval.asDouble());
       case LONG:
-        return new LongExpr(eval.asLong());
+        return new LongConst(eval.asLong());
       case STRING:
-        return new StringExpr(eval.asString());
+        return new StringConst(eval.asString());
       default:
     }
     if (type.isDecimal()) {
-      return new DecimalExpr((BigDecimal) eval.value());
+      return new DecimalConst((BigDecimal) eval.value());
     }
     return new RelayExpr(eval);
   }
@@ -571,7 +571,7 @@ public class Evals
       if (required.size() != 1) {
         throw new ISE("cannot resolve assignee from %s", expr);
       }
-      return Pair.<Expr, Expr>of(new StringExpr(required.get(0)), expr);
+      return Pair.<Expr, Expr>of(new StringConst(required.get(0)), expr);
     }
     final AssignExpr assign = (AssignExpr) expr;
     return Pair.of(assign.assignee, assign.assigned);

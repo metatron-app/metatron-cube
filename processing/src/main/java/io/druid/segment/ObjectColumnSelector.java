@@ -28,4 +28,8 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
   interface WithBaggage<T> extends ObjectColumnSelector<T>, Closeable
   {
   }
+
+  interface WithRawAccess<T> extends WithBaggage<T>, DSuppliers.WithRawAccess<T>
+  {
+  }
 }

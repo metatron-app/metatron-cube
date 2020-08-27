@@ -19,8 +19,10 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.DSuppliers.TypedSupplier;
+import io.druid.common.guava.DSuppliers.WithRawAccess;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
@@ -67,24 +69,29 @@ public interface ColumnSelectorFactory extends TypeResolver
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(final Expr parsed)
     {
-      final Map<String, Supplier> values = Maps.newHashMap();
+      final Map<String, TypedSupplier> values = Maps.newHashMap();
+      final Map<String, WithRawAccess> rawAccessible = Maps.newHashMap();
       for (String columnName : Parser.findRequiredBindings(parsed)) {
         ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
         values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
+        if (value instanceof WithRawAccess) {
+          rawAccessible.put(columnName, (WithRawAccess) value);
+        }
       }
-      final Expr.NumericBinding binding = Parser.withSuppliers(values);
+      final Expr optimized = Parser.optimize(parsed, values, rawAccessible);
+      final Expr.NumericBinding binding = Parser.withTypedSuppliers(values);
       return new ExprEvalColumnSelector()
       {
         @Override
         public ValueDesc typeOfObject()
         {
-          return parsed.returns();
+          return optimized.returns();
         }
 
         @Override
         public ExprEval get()
         {
-          return parsed.eval(binding);
+          return optimized.eval(binding);
         }
       };
     }

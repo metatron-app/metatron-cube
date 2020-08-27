@@ -758,7 +758,6 @@ public class Filters
   {
     return new Filter()
     {
-
       @Override
       public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
       {

@@ -62,6 +62,11 @@ public class DSuppliers
     }
   }
 
+  public static interface WithRawAccess<T> extends TypedSupplier<T>
+  {
+    byte[] getRaw();
+  }
+
   public static <T> Supplier<T> of(final AtomicReference<T> ref)
   {
     return new Supplier<T>()

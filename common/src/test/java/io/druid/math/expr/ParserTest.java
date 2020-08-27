@@ -37,18 +37,18 @@ public class ParserTest
   @Test
   public void testNumbers()
   {
-    Assert.assertTrue(Parser.parse("1") instanceof LongExpr);
-    Assert.assertTrue(Parser.parse("1f") instanceof FloatExpr);
-    Assert.assertTrue(Parser.parse("1F") instanceof FloatExpr);
-    Assert.assertTrue(Parser.parse("1d") instanceof DoubleExpr);
-    Assert.assertTrue(Parser.parse("1D") instanceof DoubleExpr);
-    Assert.assertTrue(Parser.parse("1.0") instanceof DoubleExpr);
-    Assert.assertTrue(Parser.parse("1.0d") instanceof DoubleExpr);
-    Assert.assertTrue(Parser.parse("1.0D") instanceof DoubleExpr);
-    Assert.assertTrue(Parser.parse("1b") instanceof DecimalExpr);
-    Assert.assertTrue(Parser.parse("1B") instanceof DecimalExpr);
-    Assert.assertTrue(Parser.parse("1.00000000000001") instanceof DoubleExpr);
-    Assert.assertTrue(Parser.parse("1.00000000000001f") instanceof FloatExpr);
+    Assert.assertTrue(Parser.parse("1") instanceof LongConst);
+    Assert.assertTrue(Parser.parse("1f") instanceof FloatConst);
+    Assert.assertTrue(Parser.parse("1F") instanceof FloatConst);
+    Assert.assertTrue(Parser.parse("1d") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1D") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1.0") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1.0d") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1.0D") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1b") instanceof DecimalConst);
+    Assert.assertTrue(Parser.parse("1B") instanceof DecimalConst);
+    Assert.assertTrue(Parser.parse("1.00000000000001") instanceof DoubleConst);
+    Assert.assertTrue(Parser.parse("1.00000000000001f") instanceof FloatConst);
   }
 
   @Test
@@ -66,10 +66,10 @@ public class ParserTest
     Assert.assertTrue(Parser.parse("\"한글.나비스\"")  instanceof IdentifierExpr);
     Assert.assertEquals("한글.나비스", Parser.parse("\"한글.나비스\"").toString());
 
-    Assert.assertTrue(Parser.parse("'한글.나비스'")  instanceof StringExpr);
+    Assert.assertTrue(Parser.parse("'한글.나비스'")  instanceof StringConst);
     Assert.assertEquals("한글.나비스", Parser.parse("'한글.나비스'").toString());
 
-    Assert.assertTrue(Parser.parse("'\\u0001'") instanceof StringExpr);
+    Assert.assertTrue(Parser.parse("'\\u0001'") instanceof StringConst);
     Assert.assertEquals("\u0001", Parser.parse("'\\u0001'").toString());
   }
 
@@ -77,8 +77,8 @@ public class ParserTest
   public void testNull()
   {
     Expr expr = Parser.parse("NULL");
-    Assert.assertTrue(expr instanceof StringExpr);
-    Assert.assertNull(((StringExpr)expr).get());
+    Assert.assertTrue(expr instanceof StringConst);
+    Assert.assertNull(((StringConst)expr).get());
   }
 
   @Test

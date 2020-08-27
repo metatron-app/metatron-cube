@@ -27,8 +27,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.DSuppliers.TypedSupplier;
+import io.druid.common.guava.DSuppliers.WithRawAccess;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
@@ -129,7 +132,7 @@ public class Parser
     catch (Throwable t) {
       if (t instanceof NoClassDefFoundError) {
         ClassLoader current = parent.getClassLoader();
-        for (;current instanceof URLClassLoader; current = current.getParent()) {
+        for (; current instanceof URLClassLoader; current = current.getParent()) {
           log.info("--- " + Arrays.<URL>asList(((URLClassLoader) current).getURLs()));
         }
       }
@@ -233,6 +236,54 @@ public class Parser
       findRequiredBindings(assign.assigned);
     }
     return found;
+  }
+
+  public static Expr optimize(
+      final Expr expr,
+      final Map<String, TypedSupplier> values,
+      final Map<String, WithRawAccess> rawAccessible
+  )
+  {
+    if (rawAccessible.isEmpty()) {
+      return expr;
+    }
+    return traverse(expr, new ExprVisitor()
+    {
+      @Override
+      public Expr visit(BinaryOp op, Expr left, Expr right)
+      {
+        if (op instanceof BooleanBinaryOp && Evals.isIdentifier(left) && Evals.isIdentifier(right)) {
+          final WithRawAccess leftAccess = rawAccessible.get(Evals.getIdentifier(left));
+          final WithRawAccess rightAccess = rawAccessible.get(Evals.getIdentifier(right));
+          if (leftAccess != null && rightAccess != null) {
+            final BooleanBinaryOp rewritten = rewrite(op.op, leftAccess, rightAccess);
+            if (rewritten != null) {
+              return rewritten;
+            }
+          }
+        }
+        return op;
+      }
+    });
+  }
+
+  private static BooleanBinaryOp rewrite(String op, WithRawAccess left, WithRawAccess right)
+  {
+    switch (op) {
+      case "<":
+        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) < 0);
+      case "<=":
+        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) <= 0);
+      case ">":
+        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) > 0);
+      case ">=":
+        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) >= 0);
+      case "==":
+        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) == 0);
+      case "!=":
+        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) != 0);
+    }
+    return null;
   }
 
   public static interface Visitor<T>
