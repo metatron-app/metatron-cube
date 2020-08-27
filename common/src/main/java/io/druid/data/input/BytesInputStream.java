@@ -23,195 +23,172 @@ import com.google.common.io.ByteArrayDataInput;
 import io.druid.data.VLongUtils;
 import io.druid.java.util.common.StringUtils;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInput;
-import java.io.DataInputStream;
-import java.io.EOFException;
-import java.io.IOException;
+import java.io.InputStream;
 
-// copied from ByteStreams.ByteArrayDataInputStream
-public class BytesInputStream extends ByteArrayInputStream implements ByteArrayDataInput
+public final class BytesInputStream extends InputStream implements ByteArrayDataInput
 {
-  private final DataInput input;
+  private final byte[] bytes;
+  private int pos;
 
   public BytesInputStream(byte[] bytes)
   {
-    super(bytes);
-    this.input = new DataInputStream(this);
+    this.bytes = bytes;
+  }
+
+  @Override
+  public int read()
+  {
+    return pos < bytes.length ? bytes[pos++] & 0xff : -1;
+  }
+
+  @Override
+  public int read(byte[] b, int off, int len)
+  {
+    if (len == 0) {
+      return 0;
+    } else if (pos >= bytes.length) {
+      return -1;
+    }
+    final int read = Math.min(len, bytes.length - pos);
+    System.arraycopy(bytes, pos, b, off, read);
+    pos += read;
+    return read;
+  }
+
+  @Override
+  public long skip(long n)
+  {
+    final long skip = Math.min(n, bytes.length - pos);
+    pos += skip;
+    return skip;
+  }
+
+  @Override
+  public int available()
+  {
+    return bytes.length - pos;
   }
 
   @Override
   public void readFully(byte b[])
   {
-    try {
-      input.readFully(b);
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    readFully(b, 0, b.length);
   }
 
   @Override
   public void readFully(byte b[], int off, int len)
   {
-    try {
-      input.readFully(b, off, len);
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    System.arraycopy(bytes, pos, b, off, len);
+    pos += len;
   }
 
   @Override
   public int skipBytes(int n)
   {
-    try {
-      return input.skipBytes(n);
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    final int skip = Math.min(n, bytes.length - pos);
+    pos += skip;
+    return skip;
   }
 
   @Override
   public boolean readBoolean()
   {
-    try {
-      return input.readBoolean();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    return bytes[pos++] != 0;
   }
 
   @Override
   public byte readByte()
   {
-    try {
-      return input.readByte();
-    }
-    catch (EOFException e) {
-      throw new IllegalStateException(e);
-    }
-    catch (IOException impossible) {
-      throw new AssertionError(impossible);
-    }
+    return (byte) (bytes[pos++] & 0xff);
   }
 
   @Override
   public int readUnsignedByte()
   {
-    try {
-      return input.readUnsignedByte();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    return bytes[pos++] & 0xff;
   }
 
   @Override
   public short readShort()
   {
-    try {
-      return input.readShort();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    final int ch1 = bytes[pos] & 0xff;
+    final int ch2 = bytes[pos + 1] & 0xff;
+    pos += Short.BYTES;
+    return (short) ((ch1 << 8) + ch2);
   }
 
   @Override
   public int readUnsignedShort()
   {
-    try {
-      return input.readUnsignedShort();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    final int ch1 = bytes[pos] & 0xff;
+    final int ch2 = bytes[pos + 1] & 0xff;
+    pos += Short.BYTES;
+    return (ch1 << 8) + ch2;
   }
 
   @Override
   public char readChar()
   {
-    try {
-      return input.readChar();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    final int ch1 = bytes[pos] & 0xff;
+    final int ch2 = bytes[pos + 1] & 0xff;
+    pos += Character.BYTES;
+    return (char) ((ch1 << 8) + ch2);
   }
 
   @Override
   public int readInt()
   {
-    try {
-      return input.readInt();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    final int ch1 = bytes[pos] & 0xff;
+    final int ch2 = bytes[pos + 1] & 0xff;
+    final int ch3 = bytes[pos + 2] & 0xff;
+    final int ch4 = bytes[pos + 3] & 0xff;
+    pos += Integer.BYTES;
+    return (ch1 << 24) + (ch2 << 16) + (ch3 << 8) + ch4;
   }
 
   @Override
   public long readLong()
   {
-    try {
-      return input.readLong();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    final long ch1 = bytes[pos] & 0xff;
+    final long ch2 = bytes[pos + 1] & 0xff;
+    final long ch3 = bytes[pos + 2] & 0xff;
+    final long ch4 = bytes[pos + 3] & 0xff;
+    final int ch5 = bytes[pos + 4] & 0xff;
+    final int ch6 = bytes[pos + 5] & 0xff;
+    final int ch7 = bytes[pos + 6] & 0xff;
+    final int ch8 = bytes[pos + 7] & 0xff;
+    pos += Long.BYTES;
+    return (ch1 << 56) + (ch2 << 48) + (ch3 << 40) + (ch4 << 32) + (ch5 << 24) + (ch6 << 16) + (ch7 << 8) + ch8;
   }
 
   @Override
   public float readFloat()
   {
-    try {
-      return input.readFloat();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    return Float.intBitsToFloat(readInt());
   }
 
   @Override
   public double readDouble()
   {
-    try {
-      return input.readDouble();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    return Double.longBitsToDouble(readLong());
   }
 
   @Override
   public String readLine()
   {
-    try {
-      return input.readLine();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    throw new UnsupportedOperationException("readLine");
   }
 
   @Override
   public String readUTF()
   {
-    try {
-      return input.readUTF();
-    }
-    catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+    throw new UnsupportedOperationException("readUTF");
   }
 
   public String readVarSizeUTF()
   {
     final int length = readUnsignedVarInt();
-    final String value = StringUtils.toUTF8String(buf, pos, length);
+    final String value = StringUtils.toUTF8String(bytes, pos, length);
     pos += length;
     return value;
   }
@@ -229,8 +206,8 @@ public class BytesInputStream extends ByteArrayInputStream implements ByteArrayD
     int value = 0;
     int i;
     int b;
-    for (i = 0; ((b = readUnsignedByte()) & 128) != 0; i += 7) {
-      value |= (b & 127) << i;
+    for (i = 0; ((b = readUnsignedByte()) & 0x80) != 0; i += 7) {
+      value |= (b & 0x7f) << i;
     }
     return value | b << i;
   }
@@ -243,15 +220,5 @@ public class BytesInputStream extends ByteArrayInputStream implements ByteArrayD
   public long readVarLong()
   {
     return VLongUtils.readVLong(this);
-  }
-
-  public byte[] unwrap()
-  {
-    return buf;
-  }
-
-  public int position()
-  {
-    return pos;
   }
 }

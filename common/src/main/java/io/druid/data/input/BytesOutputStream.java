@@ -22,61 +22,99 @@ package io.druid.data.input;
 import com.google.common.io.ByteArrayDataOutput;
 import io.druid.common.guava.BytesRef;
 
-import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 
-public class BytesOutputStream extends ByteArrayOutputStream implements ByteArrayDataOutput
+public final class BytesOutputStream extends OutputStream implements ByteArrayDataOutput
 {
-  private final byte[] scratch = new byte[Long.BYTES + 2];
+  private static final int MAX_VARINT_SIZE = Integer.BYTES + Byte.BYTES;
+  private static final int MAX_VARLONG_SIZE = Long.BYTES + Short.BYTES;
 
-  public BytesOutputStream() {}
+  private byte buf[];
+  private int count;
+
+  public BytesOutputStream()
+  {
+    this(32);
+  }
 
   public BytesOutputStream(int size)
   {
-    super(size);
+    if (size < 0) {
+      throw new IllegalArgumentException("Negative initial size: " + size);
+    }
+    buf = new byte[size];
+  }
+
+  private void ensureCapacity(int minCapacity)
+  {
+    if (minCapacity > buf.length) {
+      buf = Arrays.copyOf(buf, Math.max(minCapacity, buf.length << 1));
+    }
+  }
+
+  public int size()
+  {
+    return count;
+  }
+
+  @Override
+  public byte[] toByteArray()
+  {
+    return Arrays.copyOf(buf, count);
+  }
+
+  @Override
+  public void write(final int b)
+  {
+    ensureCapacity(count + 1);
+    buf[count] = (byte) b;
+    count += 1;
   }
 
   @Override
   public void write(final byte[] b)
   {
-    super.write(b, 0, b.length);
+    write(b, 0, b.length);
   }
 
   @Override
   public void write(final byte[] b, final int off, final int len)
   {
-    super.write(b, off, len);
+    ensureCapacity(count + len);
+    System.arraycopy(b, off, buf, count, len);
+    count += len;
   }
 
   @Override
   public void writeBoolean(final boolean v)
   {
-    super.write(v ? 1 : 0);
+    write(v ? 1 : 0);
   }
 
   @Override
   public void writeByte(final int v)
   {
-    super.write(v);
+    write(v);
   }
 
   @Override
   public void writeBytes(final String s)
   {
-    int len = s.length();
+    final int len = s.length();
     for (int i = 0; i < len; i++) {
-      super.write((byte) s.charAt(i));
+      write((byte) s.charAt(i));
     }
   }
 
   @Override
   public void writeChar(final int v)
   {
-    scratch[0] = (byte)(v >>> 8 & 0xFF);
-    scratch[1] = (byte)(v & 0xFF);
-    write(scratch, 0, 2);
+    ensureCapacity(count + Character.BYTES);
+    buf[count++] = (byte) (v >>> 8);
+    buf[count++] = (byte) v;
   }
 
   @Override
@@ -103,33 +141,33 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
   @Override
   public void writeInt(final int v)
   {
-    scratch[0] = (byte) (v >>> 24);
-    scratch[1] = (byte) (v >>> 16);
-    scratch[2] = (byte) (v >>> 8);
-    scratch[3] = (byte) v;
-    write(scratch, 0, Integer.BYTES);
+    ensureCapacity(count + Integer.BYTES);
+    buf[count++] = (byte) (v >>> 24);
+    buf[count++] = (byte) (v >>> 16);
+    buf[count++] = (byte) (v >>> 8);
+    buf[count++] = (byte) v;
   }
 
   @Override
   public void writeLong(final long v)
   {
-    scratch[0] = (byte) (v >>> 56);
-    scratch[1] = (byte) (v >>> 48);
-    scratch[2] = (byte) (v >>> 40);
-    scratch[3] = (byte) (v >>> 32);
-    scratch[4] = (byte) (v >>> 24);
-    scratch[5] = (byte) (v >>> 16);
-    scratch[6] = (byte) (v >>> 8);
-    scratch[7] = (byte) v;
-    write(scratch, 0, Long.BYTES);
+    ensureCapacity(count + Long.BYTES);
+    buf[count++] = (byte) (v >>> 56);
+    buf[count++] = (byte) (v >>> 48);
+    buf[count++] = (byte) (v >>> 40);
+    buf[count++] = (byte) (v >>> 32);
+    buf[count++] = (byte) (v >>> 24);
+    buf[count++] = (byte) (v >>> 16);
+    buf[count++] = (byte) (v >>> 8);
+    buf[count++] = (byte) v;
   }
 
   @Override
   public void writeShort(int v)
   {
-    scratch[0] = (byte) (v >>> 8);
-    scratch[1] = (byte) v;
-    write(scratch, 0, Short.BYTES);
+    ensureCapacity(count + Short.BYTES);
+    buf[count++] = (byte) (v >>> 8);
+    buf[count++] = (byte) v;
   }
 
   @Override
@@ -153,11 +191,6 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
     count = 0;
   }
 
-  public byte[] toByteArray(int from)
-  {
-    return Arrays.copyOfRange(buf, from, count);
-  }
-
   public byte[] unwrap()
   {
     return buf;
@@ -172,13 +205,13 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
   // from org.apache.parquet.bytes.BytesUtils
   public void writeUnsignedVarInt(int v)
   {
+    ensureCapacity(count + MAX_VARINT_SIZE);
     int i = 0;
     while ((long) (v & -128) != 0L) {
-      scratch[i++] = (byte) (v & 127 | 128);
+      buf[count++] = (byte) (v & 127 | 128);
       v >>>= 7;
     }
-    scratch[i++] = (byte) (v & 127);
-    write(scratch, 0, i);
+    buf[count++] = (byte) (v & 127);
   }
 
   public void write(BytesRef ref)
@@ -200,8 +233,10 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
   // from org.apache.hadoop.io.WritableUtils
   public void writeVarLong(long v)
   {
+    ensureCapacity(count + MAX_VARLONG_SIZE);
+
     if (v >= -112 && v <= 127) {
-      write((byte) v);
+      buf[count++] = (byte) v;
       return;
     }
 
@@ -218,16 +253,15 @@ public class BytesOutputStream extends ByteArrayOutputStream implements ByteArra
       len--;
     }
 
-    scratch[i++] = (byte) len;
+    buf[count++] = (byte) len;
 
     len = (len < -120) ? -(len + 120) : -(len + 112);
 
     for (int idx = len; idx != 0; idx--) {
-      int shiftbits = (idx - 1) * 8;
-      long mask = 0xFFL << shiftbits;
-      scratch[i++] = ((byte) ((v & mask) >> shiftbits));
+      final int shiftbits = (idx - 1) * 8;
+      final long mask = 0xFFL << shiftbits;
+      buf[count++] = ((byte) ((v & mask) >> shiftbits));
     }
-    write(scratch, 0, i);
   }
 
   public BytesRef asRef()
