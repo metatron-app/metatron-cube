@@ -47,10 +47,6 @@
             <version>${project.parent.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.metamx</groupId>
-            <artifactId>java-util</artifactId>
-        </dependency>
-        <dependency>
             <groupId>app.metatron</groupId>
             <artifactId>java-util</artifactId>
             <version>${project.parent.version}</version>
