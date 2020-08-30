@@ -52,7 +52,7 @@ import java.util.Comparator;
  *   vy_(A,B) = vy_A + vy_B + (my_A - my_B)*(my_A - my_B)*n_A*n_B/(n_A+n_B)
  *
  */
-class KurtosisAggregatorCollector
+public class KurtosisAggregatorCollector
 {
   public static KurtosisAggregatorCollector from(ByteBuffer buffer)
   {

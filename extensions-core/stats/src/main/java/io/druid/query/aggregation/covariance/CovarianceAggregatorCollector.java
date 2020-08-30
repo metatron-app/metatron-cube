@@ -45,7 +45,7 @@ import java.util.Comparator;
  *   c_X = c_A + c_B + (mx_A - mx_B)*(my_A - my_B)*n_A*n_B/n_X
  *
  */
-class CovarianceAggregatorCollector
+public class CovarianceAggregatorCollector
 {
   public static CovarianceAggregatorCollector from(ByteBuffer buffer)
   {

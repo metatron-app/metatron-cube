@@ -52,7 +52,7 @@ import java.util.Comparator;
  *   vy_(A,B) = vy_A + vy_B + (my_A - my_B)*(my_A - my_B)*n_A*n_B/(n_A+n_B)
  *
  */
-class PearsonAggregatorCollector
+public class PearsonAggregatorCollector
 {
   public static PearsonAggregatorCollector from(ByteBuffer buffer)
   {

@@ -31,6 +31,7 @@ import io.druid.java.util.common.guava.YieldingSequenceBase;
 import io.druid.query.RowSignature;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 
@@ -93,7 +94,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
           break;
         default:
           category[i] = 6;
-          page[i] = new Object[max];
+          page[i] = Array.newInstance(valueDesc.asClass(), max);
       }
     }
   }

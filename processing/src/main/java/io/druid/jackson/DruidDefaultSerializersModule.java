@@ -38,6 +38,7 @@ import io.druid.data.input.BulkRow;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTimeZone;
 
@@ -212,5 +213,26 @@ public class DruidDefaultSerializersModule extends SimpleModule
     addSerializer(BulkRow.class, BulkRow.SERIALIZER);
 
     addDeserializer(BulkRow.class, BulkRow.DESERIALIZER);
+
+    addSerializer(
+        HyperLogLogCollector[].class,
+        new JsonSerializer<HyperLogLogCollector[]>()
+        {
+          @Override
+          public void serialize(HyperLogLogCollector[] collectors, JsonGenerator generator, SerializerProvider provider)
+              throws IOException
+          {
+            generator.writeStartArray();
+            for (int i = 0; i < collectors.length; i++) {
+              if (collectors[i] == null) {
+                generator.writeNull();
+              } else {
+                generator.writeBinary(collectors[i].toByteArray());
+              }
+            }
+            generator.writeEndArray();
+          }
+        }
+    );
   }
 }
