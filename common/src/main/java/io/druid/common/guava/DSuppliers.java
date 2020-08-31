@@ -37,7 +37,7 @@ public class DSuppliers
 
   public static interface TypedSupplier<T> extends Supplier<T>, Typed
   {
-    public static class Simple<T> implements TypedSupplier<T>
+    class Simple<T> implements TypedSupplier<T>
     {
       private final T value;
       private final ValueDesc type;
@@ -60,6 +60,8 @@ public class DSuppliers
         return type;
       }
     }
+
+    Simple<Object> UNKNOWN = new Simple<Object>(null, ValueDesc.UNKNOWN);
   }
 
   public static interface WithRawAccess<T> extends TypedSupplier<T>

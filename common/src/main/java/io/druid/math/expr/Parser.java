@@ -50,8 +50,10 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class Parser
@@ -244,21 +246,56 @@ public class Parser
       final Map<String, WithRawAccess> rawAccessible
   )
   {
-    if (rawAccessible.isEmpty()) {
-      return expr;
-    }
     return traverse(expr, new ExprVisitor()
     {
       @Override
       public Expr visit(BinaryOp op, Expr left, Expr right)
       {
-        if (op instanceof BooleanBinaryOp && Evals.isIdentifier(left) && Evals.isIdentifier(right)) {
-          final WithRawAccess leftAccess = rawAccessible.get(Evals.getIdentifier(left));
-          final WithRawAccess rightAccess = rawAccessible.get(Evals.getIdentifier(right));
-          if (leftAccess != null && rightAccess != null) {
-            final BooleanBinaryOp rewritten = rewrite(op.op, leftAccess, rightAccess);
-            if (rewritten != null) {
-              return rewritten;
+        if (op instanceof BooleanBinaryOp) {
+          if (Evals.isIdentifier(left) && Evals.isIdentifier(right)) {
+            final String id1 = Evals.getIdentifier(left);
+            final String id2 = Evals.getIdentifier(right);
+            final WithRawAccess leftAccess = rawAccessible.get(id1);
+            final WithRawAccess rightAccess = rawAccessible.get(id2);
+            if (leftAccess != null && rightAccess != null) {
+              final BooleanBinaryOp rewritten = rewriteRaw(op.op, leftAccess, rightAccess);
+              if (rewritten != null) {
+                return rewritten;
+              }
+            }
+            final TypedSupplier supplier1 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
+            final TypedSupplier supplier2 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
+            if (supplier1.type().isPrimitive() && Objects.equals(supplier1.type(), supplier2.type())) {
+              final BooleanBinaryOp rewritten = rewrite(op.op, supplier1, supplier2, supplier1.type().comparator());
+              if (rewritten != null) {
+                return rewritten;
+              }
+            }
+          } else if (Evals.isIdentifier(left) && Evals.isConstant(right)) {
+            final String id1 = Evals.getIdentifier(left);
+            final TypedSupplier supplier1 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
+            final ValueDesc type1 = supplier1.type();
+            if (type1.isPrimitive()) {
+              final TypedSupplier supplier2 = new TypedSupplier.Simple<>(
+                  Evals.castTo(Evals.getConstantEval(right), type1).value(), type1
+              );
+              final BooleanBinaryOp rewritten = rewrite(op.op, supplier1, supplier2, type1.comparator());
+              if (rewritten != null) {
+                return rewritten;
+              }
+            }
+          } else if (Evals.isConstant(left) && Evals.isIdentifier(right)) {
+            final String id2 = Evals.getIdentifier(right);
+            final TypedSupplier supplier2 = values.getOrDefault(id2, TypedSupplier.UNKNOWN);
+            final ValueDesc type2 = supplier2.type();
+            if (type2.isPrimitive()) {
+              final TypedSupplier supplier1 = new TypedSupplier.Simple<>(
+                  Evals.castTo(Evals.getConstantEval(right), type2).value(), type2
+              );
+              final BooleanBinaryOp rewritten = rewrite(op.op, supplier1, supplier2, type2.comparator());
+              if (rewritten != null) {
+                return rewritten;
+              }
             }
           }
         }
@@ -267,7 +304,7 @@ public class Parser
     });
   }
 
-  private static BooleanBinaryOp rewrite(String op, WithRawAccess left, WithRawAccess right)
+  private static BooleanBinaryOp rewriteRaw(String op, WithRawAccess left, WithRawAccess right)
   {
     switch (op) {
       case "<":
@@ -282,6 +319,26 @@ public class Parser
         return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) == 0);
       case "!=":
         return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) != 0);
+    }
+    return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static BooleanBinaryOp rewrite(String op, Supplier left, Supplier right, Comparator cp)
+  {
+    switch (op) {
+      case "<":
+        return x -> ExprEval.of(cp.compare(left.get(), right.get()) < 0);
+      case "<=":
+        return x -> ExprEval.of(cp.compare(left.get(), right.get()) <= 0);
+      case ">":
+        return x -> ExprEval.of(cp.compare(left.get(), right.get()) > 0);
+      case ">=":
+        return x -> ExprEval.of(cp.compare(left.get(), right.get()) >= 0);
+      case "==":
+        return x -> ExprEval.of(cp.compare(left.get(), right.get()) == 0);
+      case "!=":
+        return x -> ExprEval.of(cp.compare(left.get(), right.get()) != 0);
     }
     return null;
   }

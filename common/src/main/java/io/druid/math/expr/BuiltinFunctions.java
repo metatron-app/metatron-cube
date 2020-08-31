@@ -364,7 +364,7 @@ public interface BuiltinFunctions extends Function.Library
         throw new IAE("function 'regex' needs 2 or 3 arguments");
       }
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
-      final int index = args.size() == 3 ? Ints.checkedCast(Evals.getConstantLong(args.get(2))) : 0;
+      final int index = args.size() == 3 ? Evals.getConstantInt(args.get(2)) : 0;
 
       return new StringChild()
       {

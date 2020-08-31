@@ -20,7 +20,6 @@
 package io.druid.segment;
 
 import com.google.common.collect.Maps;
-import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.DSuppliers.TypedSupplier;
 import io.druid.common.guava.DSuppliers.WithRawAccess;
 import io.druid.data.TypeResolver;

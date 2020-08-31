@@ -29,6 +29,7 @@ import io.druid.data.Pair;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import org.apache.commons.lang.StringUtils;
@@ -39,7 +40,6 @@ import org.joda.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -201,7 +201,7 @@ public class Evals
   public static String getIdentifier(Expr arg)
   {
     if (!isIdentifier(arg)) {
-      throw new IllegalArgumentException(arg + " is not identifier");
+      throw new IAE("%s is not an identifier", arg);
     }
     return arg.toString();
   }
@@ -209,10 +209,10 @@ public class Evals
   public static long getConstantLong(Expr arg)
   {
     Object constant = getConstant(arg);
-    if (!(constant instanceof Long)) {
-      throw new IllegalArgumentException(arg + " is not a constant long");
+    if (!(constant instanceof Long || constant instanceof Integer)) {
+      throw new IAE("%s is not a constant long", arg);
     }
-    return (Long) constant;
+    return ((Number) constant).longValue();
   }
 
   public static int getConstantInt(Expr arg)
@@ -224,29 +224,14 @@ public class Evals
   {
     Object constant = getConstant(arg);
     if (!(constant instanceof Number)) {
-      throw new IllegalArgumentException(arg + " is not a constant number");
+      throw new IAE("%s is not a constant number", arg);
     }
     return (Number) constant;
   }
 
-  public static ExprEval getConstantEval(final Expr arg)
+  public static ExprEval getConstantEval(Expr arg)
   {
-    return eval(
-        arg, new Expr.NumericBinding()
-        {
-          @Override
-          public Collection<String> names()
-          {
-            return Collections.emptyList();
-          }
-
-          @Override
-          public Object get(String name)
-          {
-            throw new IllegalArgumentException(arg + " is not a constant");
-          }
-        }
-    );
+    return eval(arg, Expr.NULL_BINDING);
   }
 
   public static Object getConstant(final Expr arg)
@@ -328,7 +313,7 @@ public class Evals
     if (ret.isDecimal()) {
       return ExprEval.of(((BigDecimal) ret.value()).negate());
     }
-    throw new IllegalArgumentException("unsupported type " + ret.type());
+    throw new IAE("unsupported type %s", ret.type());
   }
 
   static ExprEval evalNot(ExprEval ret)
@@ -449,7 +434,7 @@ public class Evals
       }
       return ExprEval.of(new BigDecimal(Rows.parseDouble(eval.value(), null)));
     }
-    throw new IllegalArgumentException("not supported type " + castTo);
+    throw new IAE("not supported type %s", castTo);
   }
 
   public static Object castToValue(ExprEval eval, ValueDesc castTo)
@@ -468,7 +453,7 @@ public class Evals
       case DATETIME:
         return eval.asDateTime();
     }
-    throw new IllegalArgumentException("not supported type " + castTo);
+    throw new IAE("not supported type %s", castTo);
   }
 
   static DateTime toDateTime(ExprEval arg, DateTimeFormatter formatter)

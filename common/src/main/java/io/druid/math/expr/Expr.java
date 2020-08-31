@@ -24,6 +24,7 @@ import com.google.common.math.LongMath;
 import io.druid.common.DateTimes;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -32,6 +33,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -64,6 +66,21 @@ public interface Expr extends Expression
     int index();
     boolean hasMore();
   }
+
+  Expr.NumericBinding NULL_BINDING = new Expr.NumericBinding()
+  {
+    @Override
+    public Collection<String> names()
+    {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public Object get(String name)
+    {
+      throw new IAE("Not a constant (contains '%s')", name);
+    }
+  };
 }
 
 interface Constant extends Expr, Expression.ConstExpression
@@ -678,10 +695,15 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
     if (!lt.isNumeric() && !rt.isNumeric()) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
     }
+    final boolean ln = leftVal.isNull();
+    final boolean rn = rightVal.isNull();
+    if (this instanceof BooleanBinaryOp && (ln || rn)) {
+      return ExprEval.NULL_BOOL;
+    }
     // null - 100 = null
-    if (leftVal.isNull() && rt.isNumeric()) {
+    if (ln && rt.isNumeric()) {
       return leftVal;
-    } else if (rightVal.isNull() && lt.isNumeric()) {
+    } else if (rn && lt.isNumeric()) {
       return rightVal;
     }
     if (lt.isLong() && rt.isLong()) {
