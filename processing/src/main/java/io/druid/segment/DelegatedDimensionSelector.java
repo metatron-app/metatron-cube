@@ -62,4 +62,10 @@ public class DelegatedDimensionSelector implements DimensionSelector
   {
     return delegate.lookupId(name);
   }
+
+  @Override
+  public boolean withSortedDictionary()
+  {
+    return delegate.withSortedDictionary();
+  }
 }

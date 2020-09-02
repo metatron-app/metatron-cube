@@ -149,6 +149,12 @@ public class FilteredAggregatorTest
                       throw new IllegalArgumentException();
                   }
                 }
+
+                @Override
+                public boolean withSortedDictionary()
+                {
+                  return true;
+                }
               },
               this
           );

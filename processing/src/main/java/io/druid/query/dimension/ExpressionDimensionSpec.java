@@ -127,6 +127,12 @@ public class ExpressionDimensionSpec implements DimensionSpec
       {
         throw new UnsupportedOperationException("lookupId");
       }
+
+      @Override
+      public boolean withSortedDictionary()
+      {
+        return false;
+      }
     };
   }
 

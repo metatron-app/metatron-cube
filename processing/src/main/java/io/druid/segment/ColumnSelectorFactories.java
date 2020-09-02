@@ -822,6 +822,12 @@ public class ColumnSelectorFactories
           }
           return in.get().getDimension(dimension).indexOf(name);
         }
+
+        @Override
+        public boolean withSortedDictionary()
+        {
+          return false;
+        }
       };
     }
 

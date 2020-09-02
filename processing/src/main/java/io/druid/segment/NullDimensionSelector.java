@@ -78,4 +78,10 @@ public class NullDimensionSelector implements DimensionSelector
   {
     return StringUtils.isNullOrEmpty(name) ? 0 : -1;
   }
+
+  @Override
+  public boolean withSortedDictionary()
+  {
+    return true;
+  }
 }

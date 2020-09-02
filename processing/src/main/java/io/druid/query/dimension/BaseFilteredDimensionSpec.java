@@ -166,6 +166,12 @@ public abstract class BaseFilteredDimensionSpec implements DimensionSpec
       {
         return forwardMapping.get(selector.lookupId(name));
       }
+
+      @Override
+      public boolean withSortedDictionary()
+      {
+        return false;
+      }
     };
   }
 }

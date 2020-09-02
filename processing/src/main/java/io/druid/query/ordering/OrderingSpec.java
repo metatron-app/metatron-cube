@@ -63,6 +63,17 @@ public class OrderingSpec implements Cacheable
     return comparators;
   }
 
+  public static boolean isAllNaturalOrdering(List<? extends OrderingSpec> orderByColumnSpecs)
+  {
+    List<Comparator<String>> comparators = Lists.newArrayList();
+    for (OrderingSpec orderByColumnSpec : orderByColumnSpecs) {
+      if (!orderByColumnSpec.isNaturalOrdering()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @JsonCreator
   public static OrderingSpec create(Object obj)
   {

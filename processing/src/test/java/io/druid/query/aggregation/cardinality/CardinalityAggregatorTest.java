@@ -158,6 +158,12 @@ public class CardinalityAggregatorTest
     {
       return ids.get(s);
     }
+
+    @Override
+    public boolean withSortedDictionary()
+    {
+      return false;
+    }
   }
 
   /*

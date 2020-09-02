@@ -283,7 +283,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   if (filterMatcher.matches()) {
                     return;
                   }
-                  if (++advanced % 1000 == 0 && Thread.interrupted()) {
+                  if (++advanced % 10000 == 0 && Thread.interrupted()) {
                     throw new QueryInterruptedException(new InterruptedException());
                   }
                 }
@@ -456,6 +456,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                       );
                     }
                     return dimValLookup.getId(name);
+                  }
+
+                  @Override
+                  public boolean withSortedDictionary()
+                  {
+                    return false;
                   }
                 };
               }

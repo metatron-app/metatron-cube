@@ -133,6 +133,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
+  public boolean isSorted()
+  {
+    return allowReverseLookup;
+  }
+
+  @Override
   public Boolean containsNull()
   {
     if (allowReverseLookup) {

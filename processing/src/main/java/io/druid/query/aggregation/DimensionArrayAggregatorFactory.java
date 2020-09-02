@@ -26,6 +26,7 @@ import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
@@ -203,7 +204,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
     @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
-      return new DimensionSelector()
+      return new DelegatedDimensionSelector(selector)
       {
         @Override
         public IndexedInts getRow()
@@ -216,30 +217,6 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
               return selector.getRow().get(index);
             }
           };
-        }
-
-        @Override
-        public int getValueCardinality()
-        {
-          return selector.getValueCardinality();
-        }
-
-        @Override
-        public Comparable lookupName(int id)
-        {
-          return selector.lookupName(id);
-        }
-
-        @Override
-        public ValueDesc type()
-        {
-          return selector.type();
-        }
-
-        @Override
-        public int lookupId(Comparable name)
-        {
-          return selector.lookupId(name);
         }
       };
     }

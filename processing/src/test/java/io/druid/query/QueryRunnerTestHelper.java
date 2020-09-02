@@ -154,7 +154,7 @@ public class QueryRunnerTestHelper
                   .put(
                       StreamQuery.class,
                       new StreamQueryRunnerFactory(
-                          new StreamQueryToolChest(DefaultGenericQueryMetricsFactory.instance(), QUERY_CONFIG),
+                          new StreamQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           new StreamQueryEngine(),
                           QUERY_CONFIG,
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER

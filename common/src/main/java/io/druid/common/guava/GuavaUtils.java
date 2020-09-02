@@ -30,7 +30,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
-import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import io.druid.common.IntTagged;
 import io.druid.common.Progressing;
@@ -368,15 +367,15 @@ public class GuavaUtils
 
   public static int[] indexOf(List<String> list, List<String> indexing, boolean assertExistence)
   {
-    List<Integer> indices = Lists.newArrayList();
-    for (String index : indexing) {
-      final int i = list.indexOf(index);
+    final int[] indices = new int[indexing.size()];
+    for (int i = 0; i < indices.length; i++) {
+      final int x = list.indexOf(indexing.get(i));
       if (assertExistence && i < 0) {
         return null;
       }
-      indices.add(i);
+      indices[i] = x;
     }
-    return Ints.toArray(indices);
+    return indices;
   }
 
   public static <T> Pair<List<T>, List<T>> partition(Iterable<T> iterable, Predicate<T> predicate)

@@ -67,4 +67,10 @@ class TestDimensionSelector implements DimensionSelector
   {
     return ((String) name).charAt(0) - 'a';
   }
+
+  @Override
+  public boolean withSortedDictionary()
+  {
+    return true;
+  }
 }

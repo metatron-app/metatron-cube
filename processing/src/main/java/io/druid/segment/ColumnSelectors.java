@@ -574,6 +574,12 @@ public class ColumnSelectors
     {
       return (nullOrEmpty && StringUtils.isNullOrEmpty(name)) || Objects.equals(value, name) ? 0 : -1;
     }
+
+    @Override
+    public boolean withSortedDictionary()
+    {
+      return true;
+    }
   }
 
   public static interface Work

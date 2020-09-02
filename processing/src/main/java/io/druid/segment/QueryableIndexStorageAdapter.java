@@ -350,11 +350,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public void advance()
                     {
-                      if (Thread.interrupted()) {
-                        throw new QueryInterruptedException(new InterruptedException());
-                      }
-
+                      int advanced = 0;
                       while (cursorOffset.increment() && !filterMatcher.matches()) {
+                        if (++advanced % 10000 == 0 && Thread.interrupted()) {
+                          throw new QueryInterruptedException(new InterruptedException());
+                        }
                       }
                     }
 
@@ -463,6 +463,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                                   "cannot perform lookup when applying an extraction function"
                               );
                             }
+
+                            @Override
+                            public boolean withSortedDictionary()
+                            {
+                              return column.dictionary().isSorted();
+                            }
                           };
                         } else {
                           final Dictionary<String> dictionary = column.dictionary();
@@ -508,6 +514,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public int lookupId(Comparable name)
                             {
                               return column.lookupId((String) name);
+                            }
+
+                            @Override
+                            public boolean withSortedDictionary()
+                            {
+                              return dictionary.isSorted();
                             }
                           };
                         }
@@ -555,6 +567,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                                   "cannot perform lookup when applying an extraction function"
                               );
                             }
+
+                            @Override
+                            public boolean withSortedDictionary()
+                            {
+                              return column.dictionary().isSorted();
+                            }
                           };
                         } else {
                           final Dictionary<String> dictionary = column.dictionary();
@@ -600,6 +618,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public int lookupId(Comparable name)
                             {
                               return column.lookupId((String) name);
+                            }
+
+                            @Override
+                            public boolean withSortedDictionary()
+                            {
+                              return dictionary.isSorted();
                             }
                           };
                         }

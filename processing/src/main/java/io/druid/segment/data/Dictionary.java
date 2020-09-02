@@ -24,6 +24,8 @@ import io.druid.data.input.BytesOutputStream;
 // common interface of non-compressed(GenericIndexed) and compressed dictionary
 public interface Dictionary<T> extends Indexed.Closeable<T>
 {
+  boolean isSorted();
+
   Boolean containsNull();     // null for unknown
 
   byte[] getAsRaw(int index);

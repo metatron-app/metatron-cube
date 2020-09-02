@@ -91,6 +91,8 @@ public interface DimensionSelector
    */
   public int lookupId(Comparable name);
 
+  public boolean withSortedDictionary();
+
   interface SingleValued extends DimensionSelector
   {
   }
@@ -103,6 +105,10 @@ public interface DimensionSelector
   }
 
   interface SingleValuedWithRawAccess extends SingleValued, WithRawAccess
+  {
+  }
+
+  interface SortedDictionary
   {
   }
 }
