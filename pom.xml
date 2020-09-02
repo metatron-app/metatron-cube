@@ -77,9 +77,11 @@
             <url>https://repo1.maven.org/maven2</url>
         </repository>
         <repository>
-            <id>local-repository</id>
-            <name>local repository</name>
-            <url>file://${project.basedir}/local-repository</url>
+            <id>hortonworks.extrepo</id>
+            <name>Hortonworks HDP</name>
+            <url>http://repo.hortonworks.com/content/repositories/releases</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
         </repository>
     </repositories>
 
