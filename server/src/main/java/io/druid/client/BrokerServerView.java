@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
@@ -296,7 +295,7 @@ public class BrokerServerView implements TimelineServerView
 
       VersionedIntervalTimeline<String, ServerSelector> timeline = timelines.get(segment.getDataSource());
       if (timeline == null) {
-        timeline = new VersionedIntervalTimeline<>(Ordering.natural());
+        timeline = new VersionedIntervalTimeline<>();
         timelines.put(segment.getDataSource(), timeline);
       }
 

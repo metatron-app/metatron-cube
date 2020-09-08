@@ -26,14 +26,11 @@ import java.util.Comparator;
 
 public class MetricAreaAggregator implements Aggregator.Simple<MetricArea>
 {
-  public static final Comparator COMPARATOR = new Comparator()
+  public static final Comparator<MetricArea> COMPARATOR = new Comparator<MetricArea>()
   {
     @Override
-    public int compare(Object o1, Object o2)
+    public int compare(MetricArea ma1, MetricArea ma2)
     {
-      MetricArea ma1 = (MetricArea) o1;
-      MetricArea ma2 = (MetricArea) o2;
-
       return Double.compare(ma1.getArea(), ma2.getArea());
     }
   };

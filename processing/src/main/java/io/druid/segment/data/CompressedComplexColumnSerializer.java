@@ -127,9 +127,9 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   {
     return 1 +              // version
            1 +              // compression id
-           Ints.BYTES +     // meta header length
-           Ints.BYTES + Ints.BYTES * mappings.size() +    // length + mappings
-           Short.BYTES * offsets.size() +                 // offsets (unsigned short)
+           Integer.BYTES +  // meta header length
+           Integer.BYTES + Integer.BYTES * mappings.size() +    // length + mappings
+           Short.BYTES * offsets.size() +                       // offsets (unsigned short)
            flattener.getSerializedSize();
   }
 
@@ -140,7 +140,7 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
     channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     // compression meta block
-    int length = Ints.BYTES + Ints.BYTES * mappings.size() + Short.BYTES * offsets.size();
+    int length = Integer.BYTES + Integer.BYTES * mappings.size() + Short.BYTES * offsets.size();
     channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(mappings.size())));
     for (int i = 0; i < mappings.size(); i++) {

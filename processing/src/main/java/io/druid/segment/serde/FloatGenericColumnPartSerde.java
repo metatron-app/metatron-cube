@@ -22,8 +22,6 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
@@ -105,7 +103,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                .setHasMultipleValues(false);
 
         if (compression == CompressionStrategy.NONE) {
-          final FloatBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer, Floats.BYTES * numRows)
+          final FloatBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer, Float.BYTES * numRows)
                                                               .asFloatBuffer();
           final Supplier<ImmutableBitmap> nulls = ComplexMetrics.readBitmap(buffer, serdeFactory);
           builder.setGenericColumn(new ColumnPartProvider<GenericColumn>()
@@ -120,8 +118,8 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
             public long getSerializedSize()
             {
               return 1 +              // version
-                     Ints.BYTES +     // elements num
-                     Ints.BYTES +     // sizePer
+                     Integer.BYTES +  // elements num
+                     Integer.BYTES +  // sizePer
                      1 +              // compression id
                      Float.BYTES * numRows;
             }

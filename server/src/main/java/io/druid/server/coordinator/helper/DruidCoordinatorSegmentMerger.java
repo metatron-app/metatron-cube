@@ -27,15 +27,14 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multiset;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.client.indexing.IndexingServiceClient;
+import io.druid.common.config.JacksonConfigManager;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
-import io.druid.client.indexing.IndexingServiceClient;
-import io.druid.common.config.JacksonConfigManager;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DatasourceWhitelist;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
@@ -103,7 +102,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
       if (whitelist == null || whitelist.contains(dataSegment.getDataSource())) {
         VersionedIntervalTimeline<String, DataSegment> timeline = dataSources.get(dataSegment.getDataSource());
         if (timeline == null) {
-          timeline = new VersionedIntervalTimeline<String, DataSegment>(Ordering.<String>natural());
+          timeline = new VersionedIntervalTimeline<String, DataSegment>();
           dataSources.put(dataSegment.getDataSource(), timeline);
         }
         timeline.add(

@@ -20,7 +20,6 @@
 package io.druid.query.aggregation.range;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.primitives.Doubles;
 
 import java.nio.ByteBuffer;
 
@@ -97,7 +96,7 @@ public class MetricRange
   @JsonValue
   public byte[] toBytes()
   {
-    return ByteBuffer.allocate(Doubles.BYTES * 2)
+    return ByteBuffer.allocate(Double.BYTES * 2)
         .putDouble(min)
         .putDouble(max)
         .array();

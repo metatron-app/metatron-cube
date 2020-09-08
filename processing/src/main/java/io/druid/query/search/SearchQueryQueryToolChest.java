@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Sequences;
@@ -100,7 +99,7 @@ public class SearchQueryQueryToolChest
     return new ResultMergeQueryRunner<Result<SearchResultValue>>(runner)
     {
       @Override
-      protected Ordering<Result<SearchResultValue>> makeOrdering(Query<Result<SearchResultValue>> query)
+      protected Comparator<Result<SearchResultValue>> makeOrdering(Query<Result<SearchResultValue>> query)
       {
         return ResultGranularTimestampComparator.create(query);
       }

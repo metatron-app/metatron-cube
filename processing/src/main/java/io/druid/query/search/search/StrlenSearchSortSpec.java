@@ -21,7 +21,6 @@ package io.druid.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
 
 import java.util.Comparator;
@@ -76,7 +75,7 @@ public class StrlenSearchSortSpec implements SearchSortSpec
         if (v2 == null) {
           return 1;
         }
-        int res = Ints.compare(v1.length(), v2.length());
+        int res = Integer.compare(v1.length(), v2.length());
         if (res == 0) {
           res = v1.compareTo(v2);
         }

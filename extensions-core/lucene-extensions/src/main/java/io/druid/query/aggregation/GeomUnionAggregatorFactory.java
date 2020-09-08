@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
@@ -175,7 +174,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public int getMaxIntermediateSize()
   {
-    return Ints.BYTES * 2;
+    return Integer.BYTES * 2;
   }
 
   @Override

@@ -19,20 +19,20 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Ordering;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.io.smoosh.SmooshedWriter;
-import io.druid.java.util.common.logger.Logger;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.io.smoosh.SmooshedWriter;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.sketch.TypedSketch;
 
 import java.io.IOException;
@@ -81,7 +81,7 @@ public class SketchWriter extends ColumnPartWriter.Abstract<Pair<String, Integer
   public void open() throws IOException
   {
     quantileOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("quantile")));
-    quantile = ItemsUnion.getInstance(1024, Ordering.natural().nullsFirst()); // need not to be exact
+    quantile = ItemsUnion.getInstance(1024, GuavaUtils.nullFirstNatural()); // need not to be exact
 
     thetaOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("theta")));
     theta = (Union) SetOperation.builder().setNominalEntries(16384).build(Family.UNION); // need not to be exact
@@ -117,8 +117,8 @@ public class SketchWriter extends ColumnPartWriter.Abstract<Pair<String, Integer
   {
     return Byte.BYTES +           // version
            Byte.BYTES +           // flag
-           Ints.BYTES + quantileOut.getCount() +   // quantile
-           Ints.BYTES + thetaOut.getCount();       // theta
+           Integer.BYTES + quantileOut.getCount() +   // quantile
+           Integer.BYTES + thetaOut.getCount();       // theta
   }
 
   @Override

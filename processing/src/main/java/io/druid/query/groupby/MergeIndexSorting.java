@@ -28,7 +28,7 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.ordering.Comparators;
+import io.druid.common.guava.Comparators;
 
 import java.util.Comparator;
 import java.util.Map;

@@ -78,8 +78,8 @@ public class DoubleWriter implements ColumnPartWriter.DoubleType
   public long getSerializedSize() throws IOException
   {
     return 1 +              // version
-           Ints.BYTES +     // elements num
-           Ints.BYTES +     // sizePer
+           Integer.BYTES +  // elements num
+           Integer.BYTES +  // sizePer
            1 +              // compression id
            Double.BYTES * count;
   }

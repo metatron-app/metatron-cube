@@ -19,7 +19,6 @@
 
 package io.druid.server.listener.announcer;
 
-import com.google.common.primitives.Longs;
 import io.druid.common.guava.HostAndPort;
 import io.druid.concurrent.Execs;
 import io.druid.curator.CuratorTestBase;
@@ -92,7 +91,7 @@ public class ListenerResourceAnnouncerTest extends CuratorTestBase
     Assert.assertNotNull(curator.checkExists().forPath(announcePath));
     final String nodePath = ZKPaths.makePath(announcePath, node.getHostText());
     Assert.assertNotNull(curator.checkExists().forPath(nodePath));
-    Assert.assertEquals(Longs.BYTES, curator.getData().decompressed().forPath(nodePath).length);
+    Assert.assertEquals(Long.BYTES, curator.getData().decompressed().forPath(nodePath).length);
     Assert.assertNull(curator.checkExists()
                              .forPath(listeningAnnouncerConfig.getAnnouncementPath(listenerKey + "FOO")));
     listenerResourceAnnouncer.stop();

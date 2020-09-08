@@ -22,7 +22,7 @@ package io.druid.server.coordinator.helper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
-import io.druid.java.util.common.guava.Comparators;
+import io.druid.common.guava.Comparators;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
@@ -40,7 +40,7 @@ import java.util.Map;
  */
 public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
 {
-  public static final Comparator<ServerHolder> percentUsedComparator = Comparators.inverse(
+  public static final Comparator<ServerHolder> percentUsedComparator = Comparators.REVERT(
       new Comparator<ServerHolder>()
       {
         @Override

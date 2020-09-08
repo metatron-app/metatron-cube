@@ -24,7 +24,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
@@ -200,7 +199,7 @@ public class ServerManager implements ForwardingSegmentWalker
       VersionedIntervalTimeline<String, ReferenceCountingSegment> loadedIntervals = dataSources.get(dataSource);
 
       if (loadedIntervals == null) {
-        loadedIntervals = new VersionedIntervalTimeline<>(Ordering.natural());
+        loadedIntervals = new VersionedIntervalTimeline<>();
         dataSources.put(dataSource, loadedIntervals);
       }
 

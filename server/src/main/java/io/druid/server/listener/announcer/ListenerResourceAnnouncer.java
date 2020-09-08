@@ -20,7 +20,6 @@
 package io.druid.server.listener.announcer;
 
 import com.google.common.base.Throwables;
-import com.google.common.primitives.Longs;
 import io.druid.common.guava.HostAndPort;
 import io.druid.curator.announcement.Announcer;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
@@ -37,7 +36,7 @@ import java.nio.ByteBuffer;
 public abstract class ListenerResourceAnnouncer
 {
   private static final byte[] ANNOUNCE_BYTES = ByteBuffer
-      .allocate(Longs.BYTES)
+      .allocate(Long.BYTES)
       .putLong(DateTime.now().getMillis())
       .array();
   private static final Logger LOG = new Logger(ListenerResourceAnnouncer.class);

@@ -23,7 +23,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
 import io.druid.client.ImmutableDruidDataSource;
 import io.druid.collections.IntList;
 import io.druid.common.DateTimes;
@@ -201,7 +200,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
     if (taggedSegmentsPerServer.isEmpty()) {
       return IntStream.empty();
     }
-    Collections.sort(taggedSegmentsPerServer, (a, b) -> Ints.compare(a[1], b[1]));
+    Collections.sort(taggedSegmentsPerServer, (a, b) -> Integer.compare(a[1], b[1]));
     return taggedSegmentsPerServer.stream().mapToInt(x -> x[0]).limit(expected);
   }
 

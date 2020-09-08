@@ -24,9 +24,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
@@ -56,7 +56,7 @@ public class OrderingSpec implements Cacheable
     for (OrderingSpec orderByColumnSpec : orderByColumnSpecs) {
       Comparator<String> comparator = StringComparators.makeComparator(orderByColumnSpec.dimensionOrder);
       if (orderByColumnSpec.direction == Direction.DESCENDING) {
-        comparator = Ordering.from(comparator).reverse();
+        comparator = Comparators.REVERT(comparator);
       }
       comparators.add(comparator);
     }
@@ -134,7 +134,7 @@ public class OrderingSpec implements Cacheable
       }
     }
     if (direction == Direction.DESCENDING) {
-      comparator = Ordering.from(comparator).reverse();
+      comparator = Comparators.REVERT(comparator);
     }
     return comparator;
   }

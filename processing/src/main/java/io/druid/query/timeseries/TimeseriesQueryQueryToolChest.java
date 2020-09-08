@@ -21,8 +21,6 @@ package io.druid.query.timeseries;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -63,23 +61,23 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   }
 
   @Override
-  protected Ordering<Row> getMergeOrdering(TimeseriesQuery timeseries)
+  protected Comparator<Row> getMergeOrdering(TimeseriesQuery timeseries)
   {
     final Granularity granularity = timeseries.getGranularity();
     if (Granularities.ALL.equals(granularity)) {
       return null;  // accumulate all
     }
-    return Ordering.from(new Comparator<Row>()
+    return new Comparator<Row>()
     {
       @Override
       public int compare(Row o1, Row o2)
       {
-        return Longs.compare(
+        return Long.compare(
             granularity.bucketStart(o1.getTimestamp()).getMillis(),
             granularity.bucketStart(o2.getTimestamp()).getMillis()
         );
       }
-    });
+    };
   }
 
   @Override

@@ -22,7 +22,6 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
 
@@ -65,7 +64,7 @@ public class CompactRow extends AbstractRow
   @Override
   public int compareTo(Row o)
   {
-    return Longs.compare(getTimestampFromEpoch(), o.getTimestampFromEpoch());
+    return Long.compare(getTimestampFromEpoch(), o.getTimestampFromEpoch());
   }
 
   @Override

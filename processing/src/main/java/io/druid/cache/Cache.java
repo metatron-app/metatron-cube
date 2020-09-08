@@ -75,7 +75,7 @@ public interface Cache
 
     public byte[] toByteArray()
     {
-      return ByteBuffer.allocate(Ints.BYTES + namespace.length + this.key.length)
+      return ByteBuffer.allocate(Integer.BYTES + namespace.length + key.length)
                        .putInt(namespace.length)
                        .put(namespace)
                        .put(key).array();
@@ -125,17 +125,17 @@ public interface Cache
       }
       final int decompressedLen = ByteBuffer.wrap(bytes).getInt();
       final byte[] out = new byte[decompressedLen];
-      LZ4_DECOMPRESSOR.decompress(bytes, Ints.BYTES, out, 0, out.length);
+      LZ4_DECOMPRESSOR.decompress(bytes, Integer.BYTES, out, 0, out.length);
       return out;
     }
 
     protected final byte[] serialize(byte[] value)
     {
       final byte[] length = Ints.toByteArray(value.length);
-      final byte[] out = new byte[Ints.BYTES + LZ4_COMPRESSOR.maxCompressedLength(value.length)];
-      System.arraycopy(length, 0, out, 0, Ints.BYTES);
-      final int compressedSize = LZ4_COMPRESSOR.compress(value, 0, value.length, out, Ints.BYTES);
-      return Arrays.copyOf(out, compressedSize + Ints.BYTES);
+      final byte[] out = new byte[Integer.BYTES + LZ4_COMPRESSOR.maxCompressedLength(value.length)];
+      System.arraycopy(length, 0, out, 0, Integer.BYTES);
+      final int compressedSize = LZ4_COMPRESSOR.compress(value, 0, value.length, out, Integer.BYTES);
+      return Arrays.copyOf(out, compressedSize + Integer.BYTES);
     }
   }
 

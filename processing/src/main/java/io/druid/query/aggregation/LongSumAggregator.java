@@ -19,8 +19,7 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Longs;
+import io.druid.common.guava.Comparators;
 import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
@@ -32,14 +31,9 @@ import java.util.Comparator;
  */
 public abstract class LongSumAggregator implements Aggregator<MutableLong>
 {
-  static final Comparator COMPARATOR = new Ordering()
-  {
-    @Override
-    public int compare(Object o, Object o1)
-    {
-      return Longs.compare(((Number) o).longValue(), ((Number) o1).longValue());
-    }
-  }.nullsFirst();
+  static final Comparator COMPARATOR = Comparators.NULL_FIRST(
+      (o1, o2) -> Long.compare(((Number) o1).longValue(), ((Number) o2).longValue())
+  );
 
   static final Combiner<Number> COMBINER = new Combiner<Number>()
   {

@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -37,7 +37,6 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.ordering.Accessor;
-import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.Direction;
 
 import java.util.Comparator;
@@ -83,7 +82,7 @@ public class OrderingProcessor
   )
   {
     final String[] columnNames = columns.toArray(new String[0]);
-    final Ordering<Object[]> ordering = toArrayOrdering(orderingSpecs, sortOnTimeForLimit);
+    final Comparator<Object[]> ordering = toArrayOrdering(orderingSpecs, sortOnTimeForLimit);
     return GuavaUtils.sequence(
         Sequences.mapper(GroupByQueryEngine.rowToArray(columnNames)),
         new LimitSpec.SortingArrayFn(ordering, limit),
@@ -91,7 +90,7 @@ public class OrderingProcessor
     );
   }
 
-  public Ordering<Object[]> toArrayOrdering(List<OrderByColumnSpec> orderingSpecs, boolean prependTimeOrdering)
+  public Comparator<Object[]> toArrayOrdering(List<OrderByColumnSpec> orderingSpecs, boolean prependTimeOrdering)
   {
     List<Accessor<Object[]>> accessors = Lists.newArrayList();
     if (prependTimeOrdering) {
@@ -124,7 +123,7 @@ public class OrderingProcessor
     return accessors;
   }
 
-  public Ordering<Row> toRowOrdering(List<OrderByColumnSpec> orderingSpecs, List<Accessor<Row>> accessors)
+  public Comparator<Row> toRowOrdering(List<OrderByColumnSpec> orderingSpecs, List<Accessor<Row>> accessors)
   {
     return makeComparator(orderingSpecs, accessors, false);
   }
@@ -151,7 +150,7 @@ public class OrderingProcessor
     };
   }
 
-  private <T> Ordering<T> makeComparator(
+  private <T> Comparator<T> makeComparator(
       List<OrderByColumnSpec> orderingSpecs,
       List<Accessor<T>> accessors,
       boolean prependTimeOrdering
@@ -172,7 +171,7 @@ public class OrderingProcessor
       } else {
         nextOrdering = new Accessor.ComparatorOn<>(comparator, accessor);
         if (columnSpec.getDirection() == Direction.DESCENDING) {
-          nextOrdering = Ordering.from(nextOrdering).reverse();
+          nextOrdering = Comparators.REVERT(nextOrdering);
         }
       }
       comparators.add(nextOrdering);

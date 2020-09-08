@@ -25,11 +25,10 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Ints;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
@@ -430,7 +429,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   public Comparator getComparator()
   {
     if (sketchOp == SketchOp.THETA) {
-      return Ordering.natural();
+      return GuavaUtils.nullFirstNatural();
     }
     throw new UnsupportedOperationException("getComparator");
   }
@@ -532,7 +531,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public int getMaxIntermediateSize()
   {
-    return Ints.BYTES;
+    return Integer.BYTES;
   }
 
   @Override

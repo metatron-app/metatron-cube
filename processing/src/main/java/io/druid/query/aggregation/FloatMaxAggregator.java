@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.Comparators;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
 import org.apache.commons.lang.mutable.MutableFloat;
@@ -30,14 +30,9 @@ import java.util.Comparator;
  */
 public abstract class FloatMaxAggregator implements Aggregator<MutableFloat>
 {
-  static final Comparator COMPARATOR = new Ordering()
-  {
-    @Override
-    public int compare(Object o, Object o1)
-    {
-      return Float.compare(((Number) o).floatValue(), ((Number) o1).floatValue());
-    }
-  }.nullsFirst();
+  static final Comparator COMPARATOR = Comparators.NULL_FIRST(
+      (Object o1, Object o2) -> Float.compare(((Number) o1).floatValue(), ((Number) o2).floatValue())
+  );
 
   static float combineValues(Object lhs, Object rhs)
   {

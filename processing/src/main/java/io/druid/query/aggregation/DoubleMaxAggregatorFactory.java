@@ -22,7 +22,6 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Doubles;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
@@ -181,7 +180,7 @@ public class DoubleMaxAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public int getMaxIntermediateSize()
   {
-    return Byte.BYTES + Doubles.BYTES;
+    return Byte.BYTES + Double.BYTES;
   }
 
   @Override

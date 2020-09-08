@@ -25,7 +25,6 @@ import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
@@ -49,6 +48,7 @@ import io.druid.query.groupby.AggregationQueryBinaryFn;
 import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.DateTime;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
@@ -90,7 +90,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     };
   }
 
-  protected abstract Ordering<Row> getMergeOrdering(final T aggregation);
+  protected abstract Comparator<Row> getMergeOrdering(final T aggregation);
 
   protected BinaryFn getMergeFn(T aggregation)
   {

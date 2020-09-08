@@ -19,12 +19,11 @@
 
 package io.druid.query.aggregation.datasketches.theta;
 
-import com.google.common.primitives.Longs;
-import io.druid.java.util.common.IAE;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
+import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
@@ -61,9 +60,9 @@ public class SketchObjectStrategy implements ObjectStrategy.CompareSupport
         // We have two Ordered Compact sketches, so just compare their last entry if they have the size.
         // This is to produce a deterministic ordering, though it might not match the actual estimate
         // ordering, but that's ok because this comparator is only used by GenericIndexed
-        int retVal = Longs.compare(s1Mem.getCapacity(), s2Mem.getCapacity());
+        int retVal = Long.compare(s1Mem.getCapacity(), s2Mem.getCapacity());
         if (retVal == 0) {
-          retVal = Longs.compare(s1Mem.getLong(s1Mem.getCapacity() - 8), s2Mem.getLong(s2Mem.getCapacity() - 8));
+          retVal = Long.compare(s1Mem.getLong(s1Mem.getCapacity() - 8), s2Mem.getLong(s2Mem.getCapacity() - 8));
         }
 
         return retVal;

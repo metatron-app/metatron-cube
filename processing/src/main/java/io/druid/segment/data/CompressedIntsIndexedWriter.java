@@ -113,8 +113,8 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
   public long getSerializedSize() throws IOException
   {
     return 1 +             // version
-           Ints.BYTES +    // numInserted
-           Ints.BYTES +    // chunkFactor
+           Integer.BYTES + // numInserted
+           Integer.BYTES + // chunkFactor
            1 +             // compression id
            flattener.getSerializedSize();
   }

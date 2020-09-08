@@ -22,7 +22,6 @@ package io.druid.client;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.logger.Logger;
@@ -148,7 +147,7 @@ public class CoordinatorServerView implements InventoryView
                       )
                   )
               );
-              return new VersionedIntervalTimeline<>(Ordering.natural());
+              return new VersionedIntervalTimeline<>();
             });
         timeline.add(
             segment.getInterval(),

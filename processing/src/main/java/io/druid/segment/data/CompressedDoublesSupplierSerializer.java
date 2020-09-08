@@ -128,8 +128,8 @@ public class CompressedDoublesSupplierSerializer implements ColumnPartWriter.Dou
   public long getSerializedSize() throws IOException
   {
     return 1 +              // version
-           Ints.BYTES +     // elements num
-           Ints.BYTES +     // sizePer
+           Integer.BYTES +  // elements num
+           Integer.BYTES +  // sizePer
            1 +              // compression id
            flattener.getSerializedSize();
   }

@@ -19,8 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.primitives.Ints;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -32,7 +30,7 @@ public class IntBufferIndexedInts extends IndexedInts.Abstract implements Compar
 
   public static IntBufferIndexedInts fromArray(int[] array)
   {
-    final ByteBuffer buffer = ByteBuffer.allocate(array.length * Ints.BYTES);
+    final ByteBuffer buffer = ByteBuffer.allocate(array.length * Integer.BYTES);
     buffer.asIntBuffer().put(array);
 
     return new IntBufferIndexedInts(buffer.asReadOnlyBuffer());

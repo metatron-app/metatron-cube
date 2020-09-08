@@ -47,7 +47,7 @@ public class Centroid implements Comparable<Centroid>, Clusterable
   public int compareTo(Centroid o)
   {
     for (int i = 0; i < centroid.length; i++) {
-      int compare = Doubles.compare(centroid[i], o.centroid[i]);
+      int compare = Double.compare(centroid[i], o.centroid[i]);
       if (compare != 0) {
         return compare;
       }

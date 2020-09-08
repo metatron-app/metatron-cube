@@ -39,7 +39,6 @@ package io.druid.server;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Ordering;
 import io.druid.client.DruidServer;
 import io.druid.client.FilteredServerInventoryView;
 import io.druid.client.TimelineServerView;
@@ -76,7 +75,7 @@ public class ClientInfoResourceTest
   @Before
   public void setup()
   {
-    VersionedIntervalTimeline<String, ServerSelector> timeline = new VersionedIntervalTimeline<>(Ordering.<String>natural());
+    VersionedIntervalTimeline<String, ServerSelector> timeline = new VersionedIntervalTimeline<>();
     DruidServer server = new DruidServer("name", "host", 1234, "type", "tier", 0);
 
     addSegment(timeline, server, "1960-02-13/1961-02-14", ImmutableList.of("d5"), ImmutableList.of("m5"), "v0");

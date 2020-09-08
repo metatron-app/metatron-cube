@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Doubles;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
@@ -240,7 +239,7 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Doubles.BYTES;
+    return Double.BYTES;
   }
 
   @Override

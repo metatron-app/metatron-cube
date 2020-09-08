@@ -22,8 +22,8 @@ package io.druid.query.aggregation.post;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.RowResolver;
@@ -61,7 +61,7 @@ public class ConstantPostAggregator extends PostAggregator.Stateless
   @Override
   public Comparator getComparator()
   {
-    return Ordering.allEqual();
+    return GuavaUtils.allEquals();
   }
 
   @Override

@@ -22,7 +22,6 @@ package io.druid.segment.data;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -361,7 +360,7 @@ public class LongHistogram implements MetricHistogram.LongType
     {
       int compare = Long.compare(value, o.value);
       if (compare == 0) {
-        compare = Ints.compare(id, o.id);
+        compare = Integer.compare(id, o.id);
       }
       return compare;
     }

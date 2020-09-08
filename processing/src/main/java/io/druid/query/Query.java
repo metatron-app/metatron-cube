@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Supplier;
-import com.google.common.collect.Ordering;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
@@ -52,6 +51,7 @@ import io.druid.segment.VirtualColumn;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -129,7 +129,7 @@ public interface Query<T> extends QueryContextKeys
   boolean isDescending();
 
   // used for merging partial results.. return null if no need to (concat all: see stream query)
-  Ordering<T> getMergeOrdering();
+  Comparator<T> getMergeOrdering();
 
   Query<T> withOverriddenContext(Map<String, Object> contextOverride);
 

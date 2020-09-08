@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.primitives.Longs;
 import io.druid.data.ValueType;
 
 import java.util.Map;
@@ -230,7 +229,7 @@ public class ColumnAnalysis
     }
     int compare;
     if (obj1 instanceof Long || obj1 instanceof Integer) {
-      compare = Longs.compare(((Number) obj1).longValue(), ((Number) obj2).longValue());
+      compare = Long.compare(((Number) obj1).longValue(), ((Number) obj2).longValue());
     } else if (obj1 instanceof Float || obj1 instanceof Double) {
       compare = Double.compare(((Number) obj1).doubleValue(), ((Number) obj2).doubleValue());
     } else {

@@ -22,7 +22,6 @@ package io.druid.query.aggregation.distinctcount;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
@@ -110,7 +109,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
       @Override
       public int compare(Object o, Object o1)
       {
-        return Longs.compare(((Number) o).longValue(), ((Number) o1).longValue());
+        return Long.compare(((Number) o).longValue(), ((Number) o1).longValue());
       }
     };
   }
@@ -201,7 +200,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES;
+    return Long.BYTES;
   }
 
   @Override

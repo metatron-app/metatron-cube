@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
@@ -186,7 +185,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory implements Aggre
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES;
+    return Long.BYTES;
   }
 
   @Override

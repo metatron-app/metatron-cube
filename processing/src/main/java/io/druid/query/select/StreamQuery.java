@@ -30,7 +30,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
@@ -51,7 +50,7 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
-import io.druid.query.ordering.Comparators;
+import io.druid.common.guava.Comparators;
 import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -276,7 +275,7 @@ public class StreamQuery extends BaseQuery<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Ordering<Object[]> getMergeOrdering()
+  public Comparator<Object[]> getMergeOrdering()
   {
     if (GuavaUtils.isNullOrEmpty(orderingSpecs)) {
       return null;
@@ -289,7 +288,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         comparators.add((l, r) -> comparator.compare(l[index], r[index]));
       }
     }
-    return comparators.isEmpty() ? null : Comparators.compound(comparators);
+    return Comparators.compound(comparators);
   }
 
   @Override

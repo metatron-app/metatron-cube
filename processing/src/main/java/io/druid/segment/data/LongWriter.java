@@ -78,8 +78,8 @@ public class LongWriter implements ColumnPartWriter.LongType
   public long getSerializedSize() throws IOException
   {
     return 1 +              // version
-           Ints.BYTES +     // elements num
-           Ints.BYTES +     // sizePer
+           Integer.BYTES +  // elements num
+           Integer.BYTES +  // sizePer
            1 +              // compression id
            Long.BYTES * count;
   }

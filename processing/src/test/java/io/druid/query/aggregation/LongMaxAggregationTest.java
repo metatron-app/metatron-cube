@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.primitives.Longs;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -74,7 +73,7 @@ public class LongMaxAggregationTest
   {
     LongMaxBufferAggregator agg = (LongMaxBufferAggregator)longMaxAggFactory.factorizeBuffered(colSelectorFactory);
 
-    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Longs.BYTES]);
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Long.BYTES]);
     agg.init(buffer, 0);
 
     aggregate(selector, agg, buffer, 0);

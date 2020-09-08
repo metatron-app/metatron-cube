@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -138,18 +137,18 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
               @Override
               public VersionedIntervalTimeline<String, Segment> apply(String s)
               {
-                return new VersionedIntervalTimeline<>(Ordering.<String>natural());
+                return new VersionedIntervalTimeline<>();
               }
             }
         );
       }
       VersionedIntervalTimeline<String, Segment> timeline1 = node1.get(key);
       if (timeline1 == null) {
-        node1.put(key, timeline1 = new VersionedIntervalTimeline<>(Ordering.<String>natural()));
+        node1.put(key, timeline1 = new VersionedIntervalTimeline<>());
       }
       VersionedIntervalTimeline<String, Segment> timeline2 = node2.get(key);
       if (timeline2 == null) {
-        node2.put(key, timeline2 = new VersionedIntervalTimeline<>(Ordering.<String>natural()));
+        node2.put(key, timeline2 = new VersionedIntervalTimeline<>());
       }
       for (Pair<DataSegment, Segment> pair : populator.get()) {
         DataSegment descriptor = pair.lhs;

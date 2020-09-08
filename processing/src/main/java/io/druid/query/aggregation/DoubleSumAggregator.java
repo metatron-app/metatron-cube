@@ -19,8 +19,7 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Doubles;
+import io.druid.common.guava.Comparators;
 import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
@@ -33,14 +32,9 @@ import java.util.Comparator;
  */
 public abstract class DoubleSumAggregator implements Aggregator<MutableDouble>
 {
-  static final Comparator COMPARATOR = new Ordering()
-  {
-    @Override
-    public int compare(Object o, Object o1)
-    {
-      return Doubles.compare(((Number) o).doubleValue(), ((Number) o1).doubleValue());
-    }
-  }.nullsFirst();
+  static final Comparator COMPARATOR = Comparators.NULL_FIRST(
+      (o1, o2) -> Double.compare(((Number) o1).doubleValue(), ((Number) o2).doubleValue())
+  );
 
   static final Combiner<Number> COMBINER = new Combiner.Abstract<Number>()
   {

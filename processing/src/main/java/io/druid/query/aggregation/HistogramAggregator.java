@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.primitives.Longs;
 import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
@@ -31,7 +30,7 @@ public class HistogramAggregator implements Aggregator.Simple<Histogram>
     @Override
     public int compare(Object o, Object o1)
     {
-      return Longs.compare(((Histogram) o).count, ((Histogram) o1).count);
+      return Long.compare(((Histogram) o).count, ((Histogram) o1).count);
     }
   };
 

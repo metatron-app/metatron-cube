@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.timeline.partition.ImmutablePartitionHolder;
 import io.druid.timeline.partition.PartitionChunk;
@@ -72,9 +73,12 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
 
   private final Comparator<? super VersionType> versionComparator;
 
-  public VersionedIntervalTimeline(
-      Comparator<? super VersionType> versionComparator
-  )
+  public VersionedIntervalTimeline()
+  {
+    this(GuavaUtils.noNullableNatural());
+  }
+
+  public VersionedIntervalTimeline(Comparator<? super VersionType> versionComparator)
   {
     this.versionComparator = versionComparator;
   }

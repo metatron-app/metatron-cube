@@ -19,7 +19,6 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.primitives.Floats;
 import com.yahoo.memory.Memory;
 import com.yahoo.memory.UnsafeUtil;
 import com.yahoo.memory.WritableMemory;
@@ -32,12 +31,12 @@ public class ArrayOfFloatsSerDe extends ArrayOfItemsSerDe<Float>
   @Override
   public byte[] serializeToByteArray(final Float[] items)
   {
-    final byte[] bytes = new byte[Floats.BYTES * items.length];
+    final byte[] bytes = new byte[Float.BYTES * items.length];
     final WritableMemory mem = WritableMemory.wrap(bytes);
     long offsetBytes = 0;
     for (int i = 0; i < items.length; i++) {
       mem.putFloat(offsetBytes, items[i]);
-      offsetBytes += Floats.BYTES;
+      offsetBytes += Float.BYTES;
     }
     return bytes;
   }
@@ -45,12 +44,12 @@ public class ArrayOfFloatsSerDe extends ArrayOfItemsSerDe<Float>
   @Override
   public Float[] deserializeFromMemory(final Memory mem, final int length)
   {
-    UnsafeUtil.checkBounds(0, Floats.BYTES, mem.getCapacity());
+    UnsafeUtil.checkBounds(0, Float.BYTES, mem.getCapacity());
     final Float[] array = new Float[length];
     long offsetBytes = 0;
     for (int i = 0; i < length; i++) {
       array[i] = mem.getFloat(offsetBytes);
-      offsetBytes += Floats.BYTES;
+      offsetBytes += Float.BYTES;
     }
     return array;
   }

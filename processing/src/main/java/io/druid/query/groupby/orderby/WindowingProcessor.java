@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -99,14 +98,14 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     List<OrderByColumnSpec> orderingSpecs = windowingSpec.getRequiredOrdering();
 
     List<Accessor<Row>> accessors = OrderingProcessor.rowAccessors(partitionColumns);
-    Ordering<Row> ordering = processor.toRowOrdering(orderingSpecs, OrderingProcessor.rowAccessors(
+    Comparator<Row> ordering = processor.toRowOrdering(orderingSpecs, OrderingProcessor.rowAccessors(
         Iterables.transform(orderingSpecs, OrderByColumnSpec::getDimension)
     ));
     PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
     return new PartitionDefinition(accessors, ordering, evaluators);
   }
 
-  public Ordering<Row> toRowOrdering(List<OrderByColumnSpec> columns)
+  public Comparator<Row> toRowOrdering(List<OrderByColumnSpec> columns)
   {
     List<OrderByColumnSpec> orderingSpecs = rewriteOrdering(columns);
     return processor.toRowOrdering(
@@ -115,7 +114,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     );
   }
 
-  public Ordering<Object[]> toArrayOrdering(List<OrderByColumnSpec> columns)
+  public Comparator<Object[]> toArrayOrdering(List<OrderByColumnSpec> columns)
   {
     return processor.toArrayOrdering(rewriteOrdering(columns), false);
   }
@@ -141,7 +140,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private static class PartitionDefinition
   {
     private final List<Accessor<Row>> partColumns;
-    private final Ordering<Row> ordering;
+    private final Comparator<Row> ordering;
     private final PartitionEvaluator evaluator;
 
     private final Object[] currPartKeys;
@@ -149,7 +148,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
     public PartitionDefinition(
         List<Accessor<Row>> partColumns,
-        Ordering<Row> ordering,
+        Comparator<Row> ordering,
         PartitionEvaluator evaluator
     )
     {

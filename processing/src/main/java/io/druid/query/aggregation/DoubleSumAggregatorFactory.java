@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Doubles;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
@@ -192,7 +191,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public int getMaxIntermediateSize()
   {
-    return Doubles.BYTES;
+    return Double.BYTES;
   }
 
   @Override

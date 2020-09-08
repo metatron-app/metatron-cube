@@ -22,7 +22,6 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Longs;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
@@ -165,6 +164,6 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
   @Override
   public int compareTo(Row o)
   {
-    return Longs.compare(getTimestampFromEpoch(), o.getTimestampFromEpoch());
+    return Long.compare(getTimestampFromEpoch(), o.getTimestampFromEpoch());
   }
 }

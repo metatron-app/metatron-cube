@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
@@ -61,6 +60,7 @@ import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
@@ -87,7 +87,7 @@ public class QueryUtils
 
   public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences)
   {
-    Ordering<T> ordering = query.getMergeOrdering();
+    Comparator<T> ordering = query.getMergeOrdering();
     return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
   }
 
@@ -104,7 +104,7 @@ public class QueryUtils
 
   public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences, ExecutorService executor)
   {
-    Ordering<T> ordering = query.getMergeOrdering();
+    Comparator<T> ordering = query.getMergeOrdering();
     return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences, executor);
   }
 

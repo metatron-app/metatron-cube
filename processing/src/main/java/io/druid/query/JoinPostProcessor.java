@@ -48,7 +48,7 @@ import io.druid.query.JoinQuery.JoinDelegate;
 import io.druid.query.PostProcessingOperator.Local;
 import io.druid.query.PostProcessingOperator.ReturnRowAs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.ordering.Comparators;
+import io.druid.common.guava.Comparators;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;

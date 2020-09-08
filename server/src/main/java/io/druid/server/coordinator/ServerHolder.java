@@ -20,9 +20,8 @@
 package io.druid.server.coordinator;
 
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Longs;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.client.ImmutableDruidServer;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.timeline.DataSegment;
 
 /**
@@ -136,7 +135,7 @@ public class ServerHolder implements Comparable<ServerHolder>
   @Override
   public int compareTo(ServerHolder serverHolder)
   {
-    return Longs.compare(getAvailableSize(), serverHolder.getAvailableSize());
+    return Long.compare(getAvailableSize(), serverHolder.getAvailableSize());
   }
 
   @Override

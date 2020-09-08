@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.GuavaUtils;
@@ -844,32 +843,30 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
-  public Ordering<Row> getMergeOrdering()
+  public Comparator<Row> getMergeOrdering()
   {
     return isBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getRowOrdering();
   }
 
   @SuppressWarnings("unchecked")
-  private Ordering<Row> getRowOrdering()
+  private Comparator<Row> getRowOrdering()
   {
-    return Ordering.from(
-        new Comparator<Row>()
-        {
-          private final Comparator[] comparators = DimensionSpecs.toComparator(getDimensions(), true);
+    return new Comparator<Row>()
+    {
+      private final Comparator[] comparators = DimensionSpecs.toComparator(getDimensions(), true);
 
-          @Override
-          public int compare(Row lhs, Row rhs)
-          {
-            final Object[] values1 = ((CompactRow) lhs).getValues();
-            final Object[] values2 = ((CompactRow) rhs).getValues();
-            int compare = 0;
-            for (int i = 0; compare == 0 && i < comparators.length; i++) {
-              compare = comparators[i].compare(values1[i], values2[i]);
-            }
-            return compare;
-          }
+      @Override
+      public int compare(Row lhs, Row rhs)
+      {
+        final Object[] values1 = ((CompactRow) lhs).getValues();
+        final Object[] values2 = ((CompactRow) rhs).getValues();
+        int compare = 0;
+        for (int i = 0; compare == 0 && i < comparators.length; i++) {
+          compare = comparators[i].compare(values1[i], values2[i]);
         }
-    );
+        return compare;
+      }
+    };
   }
 
   public TimeseriesQuery asTimeseriesQuery()

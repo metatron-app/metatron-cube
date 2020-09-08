@@ -25,9 +25,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -35,7 +35,6 @@ import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
-import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
 
@@ -77,7 +76,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
       throw new IllegalArgumentException("empty bound");
     }
     Preconditions.checkArgument(
-        comparatorType == null || Comparators.createGeneric(comparatorType, null) != null,
+        comparatorType == null || StringComparators.createGeneric(comparatorType, null) != null,
         "invalid comparator type %s", comparatorType
     );
     ValueType valueType = ValueType.of(comparatorType, ValueType.STRING);
@@ -254,7 +253,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
 
   public Comparator getComparator()
   {
-    return Comparators.createGeneric(comparatorType, Ordering.natural().nullsFirst());
+    return StringComparators.createGeneric(comparatorType, GuavaUtils.nullFirstNatural());
   }
 
   public boolean hasLowerBound()

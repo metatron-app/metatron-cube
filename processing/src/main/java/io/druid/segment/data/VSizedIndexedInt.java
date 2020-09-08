@@ -125,7 +125,7 @@ public class VSizedIndexedInt implements IndexedMultivalue<IndexedInts>
     if (index == 0) {
       endOffset = myBuffer.getInt();
     } else {
-      myBuffer.position(myBuffer.position() + ((index - 1) * Ints.BYTES));
+      myBuffer.position(myBuffer.position() + ((index - 1) * Integer.BYTES));
       startOffset = myBuffer.getInt();
       endOffset = myBuffer.getInt();
     }

@@ -16,18 +16,18 @@ package io.druid.java.util.common.guava;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
  */
 public class MergeSequence<T> extends BaseMergeSequence<T>
 {
-  private final Ordering<T> ordering;
+  private final Comparator<T> ordering;
   private final Sequence<Sequence<T>> sequences;
 
-  public MergeSequence(Ordering<T> ordering, Sequence<Sequence<T>> sequences)
+  public MergeSequence(Comparator<T> ordering, Sequence<Sequence<T>> sequences)
   {
     this.ordering = ordering;
     this.sequences = sequences;

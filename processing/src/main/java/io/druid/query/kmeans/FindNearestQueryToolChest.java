@@ -20,8 +20,8 @@
 package io.druid.query.kmeans;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
@@ -29,6 +29,8 @@ import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
+
+import java.util.Comparator;
 
 /**
  */
@@ -57,9 +59,9 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
     return new ResultMergeQueryRunner<CentroidDesc>(queryRunner)
     {
       @Override
-      protected Ordering<CentroidDesc> makeOrdering(Query<CentroidDesc> query)
+      protected Comparator<CentroidDesc> makeOrdering(Query<CentroidDesc> query)
       {
-        return Ordering.natural();
+        return GuavaUtils.nullFirstNatural();
       }
 
       @Override

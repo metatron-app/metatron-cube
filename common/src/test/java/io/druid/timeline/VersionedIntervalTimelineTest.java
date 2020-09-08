@@ -23,10 +23,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.Pair;
 import io.druid.common.utils.JodaUtils;
+import io.druid.java.util.common.Pair;
 import io.druid.timeline.partition.ImmutablePartitionHolder;
 import io.druid.timeline.partition.IntegerPartitionChunk;
 import io.druid.timeline.partition.LinearPartitionChunk;
@@ -1848,7 +1847,7 @@ public class VersionedIntervalTimelineTest
 
   private VersionedIntervalTimeline<String, Integer> makeStringIntegerTimeline()
   {
-    return new VersionedIntervalTimeline<String, Integer>(Ordering.<String>natural());
+    return new VersionedIntervalTimeline<String, Integer>();
   }
 
 }

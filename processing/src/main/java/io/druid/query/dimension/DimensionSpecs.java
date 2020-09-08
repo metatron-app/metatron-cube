@@ -23,8 +23,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -99,14 +99,14 @@ public class DimensionSpecs
 
   public static Comparator toComparator(DimensionSpec dimensionSpec)
   {
-    Comparator comparator = GuavaUtils.nullFirstNatural();
+    Comparator<?> comparator = GuavaUtils.nullFirstNatural();
     if (dimensionSpec instanceof DimensionSpecWithOrdering) {
       OrderingSpec orderingSpec = ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec();
       if (!orderingSpec.isNaturalOrdering()) {
         comparator = StringComparators.makeComparator(orderingSpec.getDimensionOrder());
       }
       if (orderingSpec.getDirection() == Direction.DESCENDING) {
-        comparator = Ordering.from(comparator).reverse();
+        comparator = Comparators.REVERT(comparator);
       }
     }
     return comparator;

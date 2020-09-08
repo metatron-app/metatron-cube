@@ -20,7 +20,7 @@
 package io.druid.query.aggregation.histogram;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.Comparators;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
@@ -30,21 +30,14 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
 public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
 {
-  static final Ordering<ApproximateHistogramHolder> comparator = new Ordering<ApproximateHistogramHolder>()
-  {
-    @Override
-    public int compare(
-        ApproximateHistogramHolder arg1, ApproximateHistogramHolder arg2
-    )
-    {
-      return ApproximateHistogramAggregator.COMPARATOR.compare(arg1, arg2);
-    }
-  }.nullsFirst();
+  static final Comparator<ApproximateHistogramHolder> comparator = Comparators.NULL_FIRST(
+      ApproximateHistogramAggregator.COMPARATOR);
 
   @Override
   public String getTypeName()

@@ -20,7 +20,6 @@
 package io.druid.segment.bitmap;
 
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
@@ -210,7 +209,7 @@ public class IntIterators
             @Override
             public int compare(Peekable lhs, Peekable rhs)
             {
-              return Ints.compare(lhs.peek(), rhs.peek());
+              return Integer.compare(lhs.peek(), rhs.peek());
             }
           }
       );

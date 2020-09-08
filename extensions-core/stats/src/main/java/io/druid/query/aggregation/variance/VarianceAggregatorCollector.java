@@ -21,8 +21,6 @@ package io.druid.query.aggregation.variance;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Longs;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -62,11 +60,11 @@ public class VarianceAggregatorCollector
     @Override
     public int compare(VarianceAggregatorCollector o1, VarianceAggregatorCollector o2)
     {
-      int compare = Longs.compare(o1.count, o2.count);
+      int compare = Long.compare(o1.count, o2.count);
       if (compare == 0) {
-        compare = Doubles.compare(o1.sum, o2.sum);
+        compare = Double.compare(o1.sum, o2.sum);
         if (compare == 0) {
-          compare = Doubles.compare(o1.nvariance, o2.nvariance);
+          compare = Double.compare(o1.nvariance, o2.nvariance);
         }
       }
       return compare;
@@ -100,7 +98,7 @@ public class VarianceAggregatorCollector
 
   static int getMaxIntermediateSize()
   {
-    return Longs.BYTES + Doubles.BYTES + Doubles.BYTES;
+    return Long.BYTES + Double.BYTES + Double.BYTES;
   }
 
   long count; // number of elements
@@ -188,7 +186,7 @@ public class VarianceAggregatorCollector
 
   public ByteBuffer toByteBuffer()
   {
-    return ByteBuffer.allocate(Longs.BYTES + Doubles.BYTES + Doubles.BYTES)
+    return ByteBuffer.allocate(Long.BYTES + Double.BYTES + Double.BYTES)
                      .putLong(count)
                      .putDouble(sum)
                      .putDouble(nvariance);

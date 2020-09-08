@@ -834,7 +834,7 @@ public class RealtimePlumber implements Plumber
             public int compare(File o1, File o2)
             {
               try {
-                return Ints.compare(Integer.parseInt(o1.getName()), Integer.parseInt(o2.getName()));
+                return Integer.compare(Integer.parseInt(o1.getName()), Integer.parseInt(o2.getName()));
               }
               catch (NumberFormatException e) {
                 log.error(e, "Couldn't compare as numbers? [%s][%s]", o1, o2);

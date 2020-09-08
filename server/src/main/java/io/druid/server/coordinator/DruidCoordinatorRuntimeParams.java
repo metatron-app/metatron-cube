@@ -23,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.client.DruidDataSource;
 import io.druid.common.DateTimes;
@@ -156,7 +155,7 @@ public class DruidCoordinatorRuntimeParams
             @Override
             public VersionedIntervalTimeline<String, DataSegment> apply(String dataSource)
             {
-              return new VersionedIntervalTimeline<>(Ordering.natural());
+              return new VersionedIntervalTimeline<>();
             }
           });
       timeline.add(

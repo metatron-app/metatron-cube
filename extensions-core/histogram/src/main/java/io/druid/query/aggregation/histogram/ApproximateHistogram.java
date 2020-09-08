@@ -24,9 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Longs;
-import com.google.common.primitives.Shorts;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -87,14 +84,14 @@ public class ApproximateHistogram extends ApproximateHistogramHolder
     Preconditions.checkState(canStoreCompact(exactCount), "Approximate histogram cannot be stored in compact form");
 
     if (exactCount == count) {
-      return Shorts.BYTES + 1 + Floats.BYTES * (int) exactCount;
+      return Short.BYTES + 1 + Float.BYTES * (int) exactCount;
     } else {
-      return Shorts.BYTES
+      return Short.BYTES
              + 1
-             + Floats.BYTES * (int) exactCount
+             + Float.BYTES * (int) exactCount
              + 1
-             + Floats.BYTES * (int) (count - exactCount)
-             + Floats.BYTES * 2;
+             + Float.BYTES * (int) (count - exactCount)
+             + Float.BYTES * 2;
     }
   }
 
@@ -158,9 +155,9 @@ public class ApproximateHistogram extends ApproximateHistogramHolder
     buf.putInt(binCount);
 
     buf.asFloatBuffer().put(positions);
-    buf.position(buf.position() + Floats.BYTES * positions.length);
+    buf.position(buf.position() + Float.BYTES * positions.length);
     buf.asLongBuffer().put(bins);
-    buf.position(buf.position() + Longs.BYTES * bins.length);
+    buf.position(buf.position() + Long.BYTES * bins.length);
 
     buf.putFloat(min);
     buf.putFloat(max);
@@ -252,9 +249,9 @@ public class ApproximateHistogram extends ApproximateHistogramHolder
     long[] bins = new long[size];
 
     buf.asFloatBuffer().get(positions);
-    buf.position(buf.position() + Floats.BYTES * positions.length);
+    buf.position(buf.position() + Float.BYTES * positions.length);
     buf.asLongBuffer().get(bins);
-    buf.position(buf.position() + Longs.BYTES * bins.length);
+    buf.position(buf.position() + Long.BYTES * bins.length);
 
     float min = buf.getFloat();
     float max = buf.getFloat();

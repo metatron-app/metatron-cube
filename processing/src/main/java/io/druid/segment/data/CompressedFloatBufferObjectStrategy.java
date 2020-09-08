@@ -19,8 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.primitives.Floats;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
@@ -49,7 +47,7 @@ public class CompressedFloatBufferObjectStrategy extends FixedSizeCompressedObje
           @Override
           public int sizeOf(int count)
           {
-            return count * Floats.BYTES;
+            return count * Float.BYTES;
           }
 
           @Override

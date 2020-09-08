@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.data.input.Committer;
@@ -508,7 +507,7 @@ public class AppenderatorDriverTest
     @Override
     public Set<DataSegment> findUsedSegments(Set<SegmentIdentifier> identifiers) throws IOException
     {
-      final VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>(Ordering.natural());
+      final VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
       for (DataSegment dataSegment : appenderatorTester.getPushedSegments()) {
         timeline.add(
             dataSegment.getInterval(),

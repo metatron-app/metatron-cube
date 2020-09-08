@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.median;
 
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.Comparators;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
@@ -29,21 +29,13 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
 public class DruidTDigestSerde extends ComplexMetricSerde
 {
-  private static Ordering<DruidTDigest> comparator = new Ordering<DruidTDigest>()
-  {
-    @Override
-    public int compare(
-        DruidTDigest arg1, DruidTDigest arg2
-    )
-    {
-      return DruidTDigestAggregator.COMPARATOR.compare(arg1, arg2);
-    }
-  }.nullsFirst();
+  private static Comparator<DruidTDigest> comparator = Comparators.NULL_FIRST(DruidTDigestAggregator.COMPARATOR);
 
   @Override
   public String getTypeName()

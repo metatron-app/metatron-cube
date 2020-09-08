@@ -27,7 +27,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Injector;
 import io.druid.data.input.Firehose;
@@ -136,9 +135,7 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
           .getTaskActionClient()
           .submit(new SegmentListUsedAction(dataSource, interval, null));
       final Map<DataSegment, File> segmentFileMap = toolbox.fetchSegments(usedSegments);
-      VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>(
-          Ordering.<String>natural().nullsFirst()
-      );
+      VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
 
       for (DataSegment segment : usedSegments) {
         timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));

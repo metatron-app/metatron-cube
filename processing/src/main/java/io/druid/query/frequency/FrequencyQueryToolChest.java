@@ -39,7 +39,7 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.TopNSorter;
 import io.druid.query.ordering.Accessor;
-import io.druid.query.ordering.Comparators;
+import io.druid.common.guava.Comparators;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
 

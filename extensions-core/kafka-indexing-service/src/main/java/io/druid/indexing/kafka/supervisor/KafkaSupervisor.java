@@ -36,23 +36,17 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.common.DateTimes;
 import io.druid.concurrent.Execs;
 import io.druid.data.Pair;
-import io.druid.indexing.common.TaskInfoProvider;
 import io.druid.indexer.TaskLocation;
 import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.TaskInfoProvider;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.common.task.TaskResource;
 import io.druid.indexing.kafka.KafkaDataSourceMetadata;
@@ -72,6 +66,10 @@ import io.druid.indexing.overlord.TaskRunnerWorkItem;
 import io.druid.indexing.overlord.TaskStorage;
 import io.druid.indexing.overlord.supervisor.Supervisor;
 import io.druid.indexing.overlord.supervisor.SupervisorReport;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.metadata.EntryExistsException;
 import io.druid.server.metrics.DruidMonitorSchedulerConfig;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -81,11 +79,11 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.joda.time.DateTime;
 
-import java.io.IOException;
 import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.Collections;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -871,7 +869,7 @@ public class KafkaSupervisor implements Supervisor
   private static String getRandomId()
   {
     final StringBuilder suffix = new StringBuilder(8);
-    for (int i = 0; i < Ints.BYTES * 2; ++i) {
+    for (int i = 0; i < Integer.BYTES * 2; ++i) {
       suffix.append((char) ('a' + ((RANDOM.nextInt() >>> (i * 4)) & 0x0F)));
     }
     return suffix.toString();
@@ -1177,7 +1175,7 @@ public class KafkaSupervisor implements Supervisor
         // find the first replica task with earliest sequenceId consistent with datasource metadata in the metadata store
         if (taskSequences.get(taskIndex).rhs.entrySet().stream().anyMatch(
             sequenceCheckpoint -> sequenceCheckpoint.getValue().entrySet().stream().allMatch(
-                partitionOffset -> Longs.compare(
+                partitionOffset -> Long.compare(
                     partitionOffset.getValue(),
                     latestOffsetsFromDb == null
                     ?

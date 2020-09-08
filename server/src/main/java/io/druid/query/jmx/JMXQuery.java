@@ -28,7 +28,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import io.druid.client.DruidServer;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.HostAndPort;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -38,6 +37,7 @@ import io.druid.query.FilterableManagementQuery;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -133,9 +133,9 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
   }
 
   @Override
-  public Ordering<Map<String, Object>> getMergeOrdering()
+  public Comparator<Map<String, Object>> getMergeOrdering()
   {
-    return GuavaUtils.nullFirstNatural().onResultOf(
+    return Ordering.natural().nullsFirst().onResultOf(
         new Function<Map<String, Object>, Comparable>()
         {
           @Override

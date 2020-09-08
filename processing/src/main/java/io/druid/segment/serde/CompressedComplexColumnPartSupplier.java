@@ -19,7 +19,6 @@
 
 package io.druid.segment.serde;
 
-import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
@@ -73,7 +72,7 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<G
   @Override
   public long getSerializedSize()
   {
-    return indexed.getSerializedSize() + (1 + mapping.length) * Ints.BYTES + indexed.size() * Short.BYTES;
+    return indexed.getSerializedSize() + (1 + mapping.length) * Integer.BYTES + indexed.size() * Short.BYTES;
   }
 
   @Override

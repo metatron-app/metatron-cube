@@ -25,8 +25,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.Comparators;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -119,7 +119,7 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
   @Override
   public Comparator getComparator(List<AggregatorFactory> aggregatorSpecs, List<PostAggregator> postAggregatorSpecs)
   {
-    Comparator comp = null;
+    Comparator<?> comp = null;
     for (AggregatorFactory factory : aggregatorSpecs) {
       if (metric.equals(factory.getName())) {
         comp = factory.getComparator();
@@ -133,7 +133,7 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
       }
     }
     if (direction == Direction.ASCENDING) {
-      comp = Ordering.from(comp).reverse();
+      comp = Comparators.REVERT(comp);
     }
 
     return comp;

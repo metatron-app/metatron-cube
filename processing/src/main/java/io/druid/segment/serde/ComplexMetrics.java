@@ -22,12 +22,11 @@ package io.druid.segment.serde;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.ArrayMetricSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
@@ -118,7 +117,7 @@ public class ComplexMetrics
 
   static Supplier<ImmutableBitmap> readBitmap(ByteBuffer buffer, final BitmapSerdeFactory serdeFactory)
   {
-    if (buffer.remaining() > Ints.BYTES) {
+    if (buffer.remaining() > Integer.BYTES) {
       final int size = buffer.getInt();
       final ByteBuffer serialized = ByteBufferSerializer.prepareForRead(buffer, size);
       return new Supplier<ImmutableBitmap>()

@@ -19,8 +19,6 @@
 
 package io.druid.timeline.partition;
 
-import com.google.common.primitives.Ints;
-
 public class LinearPartitionChunk <T> implements PartitionChunk<T>
 {
   private final int chunkNumber;
@@ -73,7 +71,7 @@ public class LinearPartitionChunk <T> implements PartitionChunk<T>
   {
     if (chunk instanceof LinearPartitionChunk) {
       LinearPartitionChunk<T> linearChunk = (LinearPartitionChunk<T>) chunk;
-      return Ints.compare(chunkNumber, linearChunk.chunkNumber);
+      return Integer.compare(chunkNumber, linearChunk.chunkNumber);
     }
     throw new IllegalArgumentException("Cannot compare against something that is not a LinearPartitionChunk.");
   }

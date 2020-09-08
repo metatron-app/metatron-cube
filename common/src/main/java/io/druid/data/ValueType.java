@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.GuavaUtils;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
@@ -252,7 +252,7 @@ public enum ValueType
 
   public Comparator comparator()
   {
-    return Ordering.natural().nullsFirst();
+    return GuavaUtils.NULL_FIRST_NATURAL;
   }
 
   public Comparable cast(Object value)

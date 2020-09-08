@@ -14,18 +14,18 @@
 
 package io.druid.java.util.common.guava;
 
-import com.google.common.collect.Ordering;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeaps;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.List;
 
 /**
  */
 public abstract class BaseMergeSequence<T> extends YieldingSequenceBase<T>
 {
-  protected final Hack<Yielder<T>> createQueue(Ordering<T> ordering, List<Yielder<T>> yielders)
+  protected final Hack<Yielder<T>> createQueue(Comparator<T> ordering, List<Yielder<T>> yielders)
   {
     final Hack<Yielder<T>> queue = createQueue(ordering, yielders.size());
     for (Yielder<T> yielder : yielders) {
@@ -34,9 +34,9 @@ public abstract class BaseMergeSequence<T> extends YieldingSequenceBase<T>
     return queue;
   }
 
-  protected final Hack<Yielder<T>> createQueue(Ordering<T> ordering, int capacity)
+  protected final Hack<Yielder<T>> createQueue(Comparator<T> ordering, int capacity)
   {
-    return new Hack<>(capacity, ordering.onResultOf(Yielder::get));
+    return new Hack<>(capacity, (left, right) -> ordering.compare(left.get(), right.get()));
   }
 
   protected final <OutType> Yielder<OutType> makeYielder(
@@ -96,7 +96,7 @@ public abstract class BaseMergeSequence<T> extends YieldingSequenceBase<T>
 
   private static final class Hack<K> extends ObjectHeapPriorityQueue<K>
   {
-    public Hack(int capacity, Ordering<K> comparator)
+    public Hack(int capacity, Comparator<K> comparator)
     {
       super(capacity, comparator);
     }

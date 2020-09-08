@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.kurtosis;
 
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.Comparators;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
@@ -29,13 +29,14 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Comparator;
 
 /**
  */
 public class KurtosisSerde extends ComplexMetricSerde
 {
-  private static final Ordering<KurtosisAggregatorCollector> comparator =
-      Ordering.from(KurtosisAggregatorCollector.COMPARATOR).nullsFirst();
+  private static final Comparator<KurtosisAggregatorCollector> comparator =
+      Comparators.NULL_FIRST(KurtosisAggregatorCollector.COMPARATOR);
 
   @Override
   public String getTypeName()

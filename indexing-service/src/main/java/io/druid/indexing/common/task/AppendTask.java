@@ -26,7 +26,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexSpec;
@@ -72,9 +71,7 @@ public class AppendTask extends MergeTaskBase
   public File merge(final TaskToolbox toolbox, final Map<DataSegment, File> segments, final File outDir)
       throws Exception
   {
-    VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<String, DataSegment>(
-        Ordering.<String>natural().nullsFirst()
-    );
+    VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<String, DataSegment>();
 
     for (DataSegment segment : segments.keySet()) {
       timeline.add(segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment));

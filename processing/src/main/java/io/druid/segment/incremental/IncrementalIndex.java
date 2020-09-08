@@ -29,8 +29,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
@@ -1243,7 +1241,7 @@ public abstract class IncrementalIndex implements Closeable
       {
         int compare = super.compare(o1, o2);
         if (compare == 0) {
-          compare = Longs.compare(((NoRollup) o1).indexer, ((NoRollup) o2).indexer);
+          compare = Long.compare(((NoRollup) o1).indexer, ((NoRollup) o2).indexer);
         }
         return compare;
       }
@@ -1263,7 +1261,7 @@ public abstract class IncrementalIndex implements Closeable
     @Override
     public int compare(TimeAndDims lhs, TimeAndDims rhs)
     {
-      int retVal = Longs.compare(lhs.timestamp, rhs.timestamp);
+      int retVal = Long.compare(lhs.timestamp, rhs.timestamp);
       int numComparisons = Math.min(lhs.dims.length, rhs.dims.length);
 
       int index = 0;
@@ -1283,7 +1281,7 @@ public abstract class IncrementalIndex implements Closeable
           return 1;
         }
 
-        retVal = Ints.compare(lhsIdxs.length, rhsIdxs.length);
+        retVal = Integer.compare(lhsIdxs.length, rhsIdxs.length);
 
         int valsIndex = 0;
         while (retVal == 0 && valsIndex < lhsIdxs.length) {
@@ -1296,7 +1294,7 @@ public abstract class IncrementalIndex implements Closeable
       }
 
       if (retVal == 0) {
-        return Ints.compare(lhs.dims.length, rhs.dims.length);
+        return Integer.compare(lhs.dims.length, rhs.dims.length);
       }
 
       return retVal;
@@ -1360,7 +1358,7 @@ public abstract class IncrementalIndex implements Closeable
       synchronized (valueToId) {
         Integer prev = valueToId.get(value);
         if (prev != null) {
-          estimatedSize += Ints.BYTES;
+          estimatedSize += Integer.BYTES;
           return prev;
         }
         final int index = valueToId.size();
@@ -1370,7 +1368,7 @@ public abstract class IncrementalIndex implements Closeable
           minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
           maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
         }
-        estimatedSize += estimator.estimate(value) + Ints.BYTES;
+        estimatedSize += estimator.estimate(value) + Integer.BYTES;
         return index;
       }
     }

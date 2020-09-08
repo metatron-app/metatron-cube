@@ -21,8 +21,6 @@ package io.druid.query.aggregation.kurtosis;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Longs;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -70,15 +68,15 @@ public class KurtosisAggregatorCollector
     @Override
     public int compare(KurtosisAggregatorCollector o1, KurtosisAggregatorCollector o2)
     {
-      int compare = Longs.compare(o1.n, o2.n);
+      int compare = Long.compare(o1.n, o2.n);
       if (compare == 0) {
-        compare = Doubles.compare(o1.mean, o2.mean);
+        compare = Double.compare(o1.mean, o2.mean);
         if (compare == 0) {
-          compare = Doubles.compare(o1.M2, o2.M2);
+          compare = Double.compare(o1.M2, o2.M2);
           if (compare == 0) {
-            compare = Doubles.compare(o1.M3, o2.M3);
+            compare = Double.compare(o1.M3, o2.M3);
             if (compare == 0) {
-              compare = Doubles.compare(o1.M4, o2.M4);
+              compare = Double.compare(o1.M4, o2.M4);
             }
           }
         }
@@ -137,7 +135,7 @@ public class KurtosisAggregatorCollector
 
   static int getMaxIntermediateSize()
   {
-    return Longs.BYTES + Doubles.BYTES + Doubles.BYTES + Doubles.BYTES + Doubles.BYTES;
+    return Long.BYTES + Double.BYTES + Double.BYTES + Double.BYTES + Double.BYTES;
   }
 
   long n;
@@ -207,7 +205,7 @@ public class KurtosisAggregatorCollector
 
   public ByteBuffer toByteBuffer()
   {
-    return ByteBuffer.allocate(Longs.BYTES + Doubles.BYTES * 4)
+    return ByteBuffer.allocate(Long.BYTES + Double.BYTES * 4)
                      .putLong(n)
                      .putDouble(mean)
                      .putDouble(M2)

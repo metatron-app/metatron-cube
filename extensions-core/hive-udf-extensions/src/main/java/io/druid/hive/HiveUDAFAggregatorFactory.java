@@ -27,7 +27,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
@@ -353,7 +352,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
   @Override
   public int getMaxIntermediateSize()
   {
-    return Ints.BYTES * 2;
+    return Integer.BYTES * 2;
   }
 
   @Override

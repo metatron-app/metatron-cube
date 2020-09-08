@@ -33,7 +33,7 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.ordering.Comparators;
+import io.druid.common.guava.Comparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
 import org.joda.time.DateTime;

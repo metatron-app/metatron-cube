@@ -278,7 +278,7 @@ public class CachingClusteredClientTest
   @Before
   public void setUp() throws Exception
   {
-    timeline = new VersionedIntervalTimeline<>(Ordering.<String>natural());
+    timeline = new VersionedIntervalTimeline<>();
     serverView = EasyMock.createNiceMock(TimelineServerView.class);
     cache = MapCache.create(100000);
     client = makeClient(Execs.newDirectExecutorService());
@@ -1627,7 +1627,7 @@ public class CachingClusteredClientTest
       List<Object> mocks
   )
   {
-    timeline = new VersionedIntervalTimeline<>(Ordering.natural());
+    timeline = new VersionedIntervalTimeline<>();
 
     final List<Map<DruidServer, ServerExpectations>> serverExpectationList = Lists.newArrayList();
 

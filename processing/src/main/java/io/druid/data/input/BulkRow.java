@@ -219,7 +219,7 @@ public class BulkRow extends AbstractRow
       for (int i = 0; i < category.length; i++) {
         final byte[] array = input.readVarSizeBytes();
         final BytesInputStream decompressed = new BytesInputStream(
-            LZ4_DECOMP.decompress(array, Ints.BYTES, Ints.fromByteArray(array))
+            LZ4_DECOMP.decompress(array, Integer.BYTES, Ints.fromByteArray(array))
         );
         switch (category[i]) {
           case 1:

@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Floats;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
@@ -363,7 +362,7 @@ public class FloatHistogram implements MetricHistogram.FloatType
     {
       int compare = Float.compare(value, o.value);
       if (compare == 0) {
-        compare = Ints.compare(id, o.id);
+        compare = Integer.compare(id, o.id);
       }
       return compare;
     }

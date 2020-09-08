@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.primitives.Doubles;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -74,7 +73,7 @@ public class DoubleMinAggregationTest
   {
     DoubleMinBufferAggregator agg = (DoubleMinBufferAggregator) doubleMinAggFactory.factorizeBuffered(colSelectorFactory);
 
-    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Doubles.BYTES]);
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Double.BYTES]);
     agg.init(buffer, 0);
 
     aggregate(selector, agg, buffer, 0);

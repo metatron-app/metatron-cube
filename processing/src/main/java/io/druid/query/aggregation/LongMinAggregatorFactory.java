@@ -22,7 +22,6 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
@@ -163,7 +162,7 @@ public class LongMinAggregatorFactory extends AggregatorFactory implements Aggre
   @Override
   public int getMaxIntermediateSize()
   {
-    return Byte.BYTES + Longs.BYTES;
+    return Byte.BYTES + Long.BYTES;
   }
 
   @Override

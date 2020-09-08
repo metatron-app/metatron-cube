@@ -21,8 +21,6 @@ package io.druid.query.aggregation.histogram;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Floats;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -1405,21 +1403,21 @@ public abstract class ApproximateHistogramHolder
 
   public int estimateOccupation()
   {
-    return Ints.BYTES * 2
-           + Floats.BYTES * positions.length
-           + Longs.BYTES * bins.length
-           + Floats.BYTES * 4
-           + Longs.BYTES;
+    return Integer.BYTES * 2
+           + Float.BYTES * positions.length
+           + Long.BYTES * bins.length
+           + Float.BYTES * 4
+           + Long.BYTES;
   }
 
   public int getDenseStorageSize()
   {
-    return Ints.BYTES * 2 + Floats.BYTES * size + Longs.BYTES * size + Floats.BYTES * 2;
+    return Integer.BYTES * 2 + Float.BYTES * size + Long.BYTES * size + Float.BYTES * 2;
   }
 
   public int getSparseStorageSize()
   {
-    return Ints.BYTES * 2 + Floats.BYTES * binCount + Longs.BYTES * binCount + Floats.BYTES * 2;
+    return Integer.BYTES * 2 + Float.BYTES * binCount + Long.BYTES * binCount + Float.BYTES * 2;
   }
 
   /**

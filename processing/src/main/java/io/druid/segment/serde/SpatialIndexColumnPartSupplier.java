@@ -18,7 +18,6 @@
  */
 package io.druid.segment.serde;
 
-import com.google.common.primitives.Ints;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.SpatialIndex;
@@ -58,6 +57,6 @@ public class SpatialIndexColumnPartSupplier implements ColumnPartProvider<Spatia
   @Override
   public long getSerializedSize()
   {
-    return indexedTree.size() + Ints.BYTES;
+    return indexedTree.size() + Integer.BYTES;
   }
 }

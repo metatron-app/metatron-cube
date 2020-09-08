@@ -16,7 +16,6 @@ package io.druid.common.guava;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.BaseMergeSequence;
@@ -26,6 +25,7 @@ import io.druid.java.util.common.guava.Yielders;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import org.apache.commons.io.IOUtils;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -33,11 +33,11 @@ import java.util.concurrent.Future;
 
 public class ParallelInitMergeSequence<T> extends BaseMergeSequence<T>
 {
-  private final Ordering<T> ordering;
+  private final Comparator<T> ordering;
   private final Sequence<Sequence<T>> sequences;
   private final ExecutorService executor;
 
-  public ParallelInitMergeSequence(Ordering<T> ordering, Sequence<Sequence<T>> sequences, ExecutorService executor)
+  public ParallelInitMergeSequence(Comparator<T> ordering, Sequence<Sequence<T>> sequences, ExecutorService executor)
   {
     this.ordering = ordering;
     this.sequences = sequences;

@@ -22,7 +22,6 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -170,7 +169,7 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory implements 
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES;
+    return Long.BYTES;
   }
 
   @Override

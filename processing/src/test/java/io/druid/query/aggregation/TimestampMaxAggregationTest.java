@@ -20,13 +20,12 @@
 package io.druid.query.aggregation;
 
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.AggregatorsModule;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.easymock.EasyMock;
@@ -99,7 +98,7 @@ public class TimestampMaxAggregationTest
   {
     TimestampMaxBufferAggregator aggregator = (TimestampMaxBufferAggregator) aggregatorFactory.factorizeBuffered(selectorFactory);
 
-    ByteBuffer buffer = ByteBuffer.wrap(new byte[Longs.BYTES]);
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[Long.BYTES]);
     aggregator.init(buffer, 0);
 
     for (Timestamp value: values) {

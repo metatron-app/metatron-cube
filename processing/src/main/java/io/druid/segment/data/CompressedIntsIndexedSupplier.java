@@ -22,10 +22,10 @@ package io.druid.segment.data;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 
 import java.io.IOException;
@@ -39,7 +39,7 @@ import java.util.List;
 public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedInts>
 {
   public static final byte VERSION = 0x2;
-  public static final int MAX_INTS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Ints.BYTES;
+  public static final int MAX_INTS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Integer.BYTES;
 
 
   private final int totalSize;

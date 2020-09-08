@@ -22,7 +22,6 @@ package io.druid.query.config;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Ordering;
 import io.druid.client.DruidServer;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -31,6 +30,7 @@ import io.druid.query.TableDataSource;
 import io.druid.query.jmx.JMXQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -116,7 +116,7 @@ public class ConfigQuery extends BaseQuery<Map<String, Object>> implements Filte
   }
 
   @Override
-  public Ordering<Map<String, Object>> getMergeOrdering()
+  public Comparator<Map<String, Object>> getMergeOrdering()
   {
     return null;
   }

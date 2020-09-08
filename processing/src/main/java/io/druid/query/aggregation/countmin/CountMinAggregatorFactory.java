@@ -26,7 +26,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -274,7 +273,7 @@ public class CountMinAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return (width * depth + 2) * Ints.BYTES;
+    return (width * depth + 2) * Integer.BYTES;
   }
 
   @Override

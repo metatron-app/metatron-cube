@@ -23,8 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.StringUtils;
@@ -195,7 +193,7 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES * (breaks.length + 1) + Floats.BYTES * 2;
+    return Long.BYTES * (breaks.length + 1) + Float.BYTES * 2;
   }
 
   @Override

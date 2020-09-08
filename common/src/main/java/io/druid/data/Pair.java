@@ -20,7 +20,6 @@
 package io.druid.data;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 
 import java.util.Comparator;

@@ -20,7 +20,6 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 import org.junit.After;
@@ -139,7 +138,7 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
   @Test
   public void testLargeChunks() throws Exception
   {
-    final int maxChunkSize = CompressedPools.BUFFER_SIZE / Longs.BYTES;
+    final int maxChunkSize = CompressedPools.BUFFER_SIZE / Long.BYTES;
 
     setupLargeChunks(maxChunkSize, 10 * maxChunkSize);
     Assert.assertEquals(10, supplier.getBaseIntBuffers().size());
@@ -203,7 +202,7 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
             for (int j = 0; j < indexed.size(); ++j) {
               final long val = vals[j];
               final long indexedVal = indexed.get(j);
-              if (Longs.compare(val, indexedVal) != 0) {
+              if (Long.compare(val, indexedVal) != 0) {
                 failureHappened.set(true);
                 reason.set(String.format("Thread1[%d]: %d != %d", j, val, indexedVal));
                 stopLatch.countDown();
@@ -242,7 +241,7 @@ public class CompressedIntsIndexedSupplierTest extends CompressionStrategyTest
               for (int j = indexed2.size() - 1; j >= 0; --j) {
                 final long val = vals[j];
                 final long indexedVal = indexed2.get(j);
-                if (Longs.compare(val, indexedVal) != 0) {
+                if (Long.compare(val, indexedVal) != 0) {
                   failureHappened.set(true);
                   reason.set(String.format("Thread2[%d]: %d != %d", j, val, indexedVal));
                   stopLatch.countDown();

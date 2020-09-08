@@ -178,7 +178,7 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
   public static CountMinSketch fromCompressedBytes(byte[] compressed)
   {
     final byte[] dest = new byte[Ints.fromByteArray(compressed)];
-    DECOMPRESSOR.decompress(compressed, Ints.BYTES, dest, 0, dest.length);
+    DECOMPRESSOR.decompress(compressed, Integer.BYTES, dest, 0, dest.length);
     return fromBytes(dest);
   }
 

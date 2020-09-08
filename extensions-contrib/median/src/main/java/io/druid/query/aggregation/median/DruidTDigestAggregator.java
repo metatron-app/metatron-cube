@@ -26,12 +26,12 @@ import java.util.Comparator;
 
 public class DruidTDigestAggregator implements Aggregator.Simple<DruidTDigest>
 {
-  public static final Comparator COMPARATOR = new Comparator()
+  public static final Comparator<DruidTDigest> COMPARATOR = new Comparator<DruidTDigest>()
   {
     @Override
-    public int compare(Object o, Object o1)
+    public int compare(DruidTDigest o, DruidTDigest o1)
     {
-      return Double.compare(((DruidTDigest) o).median(), ((DruidTDigest) o1).median());
+      return Double.compare(o.median(), o1.median());
     }
   };
 

@@ -19,8 +19,6 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Longs;
 import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -37,8 +35,8 @@ public class HistogramBufferAggregator implements BufferAggregator
   {
     this.selector = selector;
     this.breaks   = breaks;
-    this.minOffset = Longs.BYTES * (breaks.length + 1);
-    this.maxOffset = this.minOffset + Floats.BYTES;
+    this.minOffset = Long.BYTES * (breaks.length + 1);
+    this.maxOffset = this.minOffset + Float.BYTES;
   }
 
   @Override
@@ -69,7 +67,7 @@ public class HistogramBufferAggregator implements BufferAggregator
     int index = Arrays.binarySearch(breaks, value);
     index = (index >= 0) ? index : -(index + 1);
 
-    final int offset = position + (index * Longs.BYTES);
+    final int offset = position + (index * Long.BYTES);
     final long count = buf.getLong(offset);
     buf.putLong(offset, count + 1);
   }

@@ -23,8 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Queues;
-import com.google.common.primitives.Longs;
-import io.druid.java.util.common.guava.Comparators;
+import io.druid.common.guava.Comparators;
 import io.druid.query.Result;
 import org.joda.time.DateTime;
 
@@ -42,7 +41,7 @@ public class SelectResultValueBuilder
     @Override
     public int compare(EventHolder o1, EventHolder o2)
     {
-      int retVal = Longs.compare(o1.getTimestamp(), o2.getTimestamp());
+      int retVal = Long.compare(o1.getTimestamp(), o2.getTimestamp());
 
       if (retVal == 0) {
         retVal = o1.getSegmentId().compareTo(o2.getSegmentId());
@@ -111,7 +110,7 @@ public class SelectResultValueBuilder
     protected Queue<EventHolder> instantiatePQueue()
     {
       int threshold = pagingSpec.getThreshold();
-      return MinMaxPriorityQueue.orderedBy(descending ? Comparators.inverse(comparator) : comparator)
+      return MinMaxPriorityQueue.orderedBy(descending ? Comparators.REVERT(comparator) : comparator)
                                 .maximumSize(threshold > 0 ? threshold : Integer.MAX_VALUE)
                                 .create();
     }

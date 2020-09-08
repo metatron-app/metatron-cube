@@ -20,7 +20,6 @@ package io.druid.query.aggregation.datasketches.theta;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.primitives.Doubles;
 
 /**
  * Container class used to return estimates in conjunction with 
@@ -115,6 +114,6 @@ public class SketchEstimateWithErrorBounds implements Comparable<SketchEstimateW
   @Override
   public int compareTo(SketchEstimateWithErrorBounds o)
   {
-    return Doubles.compare(estimate, o.estimate);
+    return Double.compare(estimate, o.estimate);
   }
 }

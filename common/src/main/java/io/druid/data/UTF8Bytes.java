@@ -19,8 +19,8 @@
 
 package io.druid.data;
 
-import com.google.common.collect.Ordering;
 import com.google.common.primitives.UnsignedBytes;
+import io.druid.common.guava.Comparators;
 import io.druid.common.utils.StringUtils;
 
 import java.util.Arrays;
@@ -34,7 +34,7 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
   }
 
   public static final Comparator<byte[]> COMPARATOR = UnsignedBytes.lexicographicalComparator();
-  public static final Comparator<byte[]> COMPARATOR_NF = Ordering.from(UnsignedBytes.lexicographicalComparator()).nullsFirst();
+  public static final Comparator<byte[]> COMPARATOR_NF = Comparators.NULL_FIRST(COMPARATOR);
 
   private final byte[] value;
 

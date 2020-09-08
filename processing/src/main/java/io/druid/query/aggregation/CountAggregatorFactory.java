@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
 import io.druid.query.filter.ValueMatcher;
@@ -179,7 +178,7 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES;
+    return Long.BYTES;
   }
 
   @Override

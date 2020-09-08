@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.query.BaseQuery;
@@ -40,6 +39,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -262,7 +262,7 @@ public class SketchQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public Ordering<Object[]> getMergeOrdering()
+  public Comparator<Object[]> getMergeOrdering()
   {
     return GuavaUtils.allEquals();
   }

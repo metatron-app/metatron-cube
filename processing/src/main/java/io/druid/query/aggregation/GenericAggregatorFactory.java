@@ -26,8 +26,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
@@ -277,11 +275,11 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   {
     switch (outputType.type()) {
       case FLOAT:
-        return Floats.BYTES;
+        return Float.BYTES;
       case DOUBLE:
-        return Doubles.BYTES;
+        return Double.BYTES;
       case LONG:
-        return Longs.BYTES;
+        return Long.BYTES;
       case COMPLEX:
         if (outputType.isDecimal()) {
           return 128;

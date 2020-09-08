@@ -26,7 +26,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
@@ -105,27 +104,25 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
   }
 
   @Override
-  protected Ordering<Row> getMergeOrdering(final GroupByQuery groupBy)
+  protected Comparator<Row> getMergeOrdering(final GroupByQuery groupBy)
   {
-    return Ordering.from(
-        new Comparator<Row>()
-        {
-          private final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions(), true);
+    return new Comparator<Row>()
+    {
+      private final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions(), true);
 
-          @Override
-          @SuppressWarnings("unchecked")
-          public int compare(Row lhs, Row rhs)
-          {
-            final Object[] values1 = ((CompactRow) lhs).getValues();
-            final Object[] values2 = ((CompactRow) rhs).getValues();
-            int compare = 0;
-            for (int i = 0; compare == 0 && i < comparators.length; i++) {
-              compare = comparators[i].compare(values1[i], values2[i]);
-            }
-            return compare;
-          }
+      @Override
+      @SuppressWarnings("unchecked")
+      public int compare(Row lhs, Row rhs)
+      {
+        final Object[] values1 = ((CompactRow) lhs).getValues();
+        final Object[] values2 = ((CompactRow) rhs).getValues();
+        int compare = 0;
+        for (int i = 0; compare == 0 && i < comparators.length; i++) {
+          compare = comparators[i].compare(values1[i], values2[i]);
         }
-    );
+        return compare;
+      }
+    };
   }
 
   @Override

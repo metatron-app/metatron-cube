@@ -23,9 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Ordering;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.Comparator;
 import java.util.Map;
 
 /**
@@ -72,7 +72,7 @@ public class SchemaQuery extends BaseQuery<Schema>
   }
 
   @Override
-  public Ordering<Schema> getMergeOrdering()
+  public Comparator<Schema> getMergeOrdering()
   {
     return null;
   }

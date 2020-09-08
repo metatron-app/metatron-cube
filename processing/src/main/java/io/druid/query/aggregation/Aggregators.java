@@ -20,7 +20,6 @@
 package io.druid.query.aggregation;
 
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IntArray;
 import io.druid.data.input.Row;
@@ -238,7 +237,7 @@ public class Aggregators
             final long timestamp = timeSelector.get();
             if (current == null) {
               current = new TimeTagged(timestamp, selector.get());
-            } else if (Longs.compare(timestamp, current.timestamp) < 0) {
+            } else if (Long.compare(timestamp, current.timestamp) < 0) {
               current.timestamp = timestamp;
               current.value = selector.get();
             }
@@ -263,7 +262,7 @@ public class Aggregators
             final long timestamp = timeSelector.get();
             if (current == null) {
               current = new TimeTagged(timestamp, selector.get());
-            } else if (Longs.compare(timestamp, current.timestamp) > 0) {
+            } else if (Long.compare(timestamp, current.timestamp) > 0) {
               current.timestamp = timestamp;
               current.value = selector.get();
             }
@@ -406,7 +405,7 @@ public class Aggregators
           {
             final Number time1 = (Number) ((List) param1).get(0);
             final Number time2 = (Number) ((List) param2).get(0);
-            return Longs.compare(time1.longValue(), time2.longValue()) < 0 ? param1 : param2;
+            return Long.compare(time1.longValue(), time2.longValue()) < 0 ? param1 : param2;
           }
         };
       case TIME_MAX:
@@ -417,7 +416,7 @@ public class Aggregators
           {
             final Number time1 = (Number) ((List) param1).get(0);
             final Number time2 = (Number) ((List) param2).get(0);
-            return Longs.compare(time1.longValue(), time2.longValue()) > 0 ? param1 : param2;
+            return Long.compare(time1.longValue(), time2.longValue()) > 0 ? param1 : param2;
           }
         };
       default:

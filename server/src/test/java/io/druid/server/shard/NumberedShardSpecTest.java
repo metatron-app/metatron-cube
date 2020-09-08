@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import io.druid.TestUtil;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -182,7 +181,7 @@ public class NumberedShardSpecTest
       Set<String> expectedObjects
   )
   {
-    VersionedIntervalTimeline<String, String> timeline = new VersionedIntervalTimeline<>(Ordering.natural());
+    VersionedIntervalTimeline<String, String> timeline = new VersionedIntervalTimeline<>();
     Interval interval = new Interval("2000/3000");
     String version = "v1";
     for (PartitionChunk<String> chunk : chunks) {

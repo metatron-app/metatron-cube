@@ -38,10 +38,10 @@ import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.SegmentLoadInfo;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.Intervals;
+import io.druid.common.guava.Comparators;
 import io.druid.common.utils.JodaUtils;
 import io.druid.java.util.common.MapUtils;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Comparators;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.metadata.ColumnDesc;
 import io.druid.metadata.DescExtractor;
@@ -411,7 +411,7 @@ public class DataSourcesResource
       return Response.noContent().build();
     }
 
-    final Comparator<Interval> comparator = Comparators.inverse(JodaUtils.intervalsByStartThenEnd());
+    final Comparator<Interval> comparator = Comparators.REVERT(JodaUtils.intervalsByStartThenEnd());
 
     if (full != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newTreeMap(comparator);
@@ -474,7 +474,7 @@ public class DataSourcesResource
       return Response.noContent().build();
     }
 
-    final Comparator<Interval> comparator = Comparators.inverse(JodaUtils.intervalsByStartThenEnd());
+    final Comparator<Interval> comparator = Comparators.REVERT(JodaUtils.intervalsByStartThenEnd());
     if (full != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newTreeMap(comparator);
       for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
@@ -514,7 +514,7 @@ public class DataSourcesResource
       return Response.ok(retVal).build();
     }
 
-    final Set<String> retVal = Sets.newTreeSet(Comparators.inverse(String.CASE_INSENSITIVE_ORDER));
+    final Set<String> retVal = Sets.newTreeSet(Comparators.REVERT(String.CASE_INSENSITIVE_ORDER));
     for (DataSegment dataSegment : dataSource.getCopyOfSegments()) {
       if (theInterval.contains(dataSegment.getInterval())) {
         retVal.add(dataSegment.getIdentifier());

@@ -78,7 +78,7 @@ public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter imple
     this.flattener = new GenericIndexedWriter<>(
         ioPeon, filenameBase, CompressedByteBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkBytes)
     );
-    this.intBuffer = ByteBuffer.allocate(Ints.BYTES).order(byteOrder);
+    this.intBuffer = ByteBuffer.allocate(Integer.BYTES).order(byteOrder);
     this.endBuffer = ByteBuffer.allocate(chunkBytes).order(byteOrder);
     this.endBuffer.limit(numBytes * chunkFactor);
     this.numInserted = 0;
@@ -107,7 +107,7 @@ public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter imple
     }
     intBuffer.putInt(0, val);
     if (byteOrder.equals(ByteOrder.BIG_ENDIAN)) {
-      endBuffer.put(intBuffer.array(), Ints.BYTES - numBytes, numBytes);
+      endBuffer.put(intBuffer.array(), Integer.BYTES - numBytes, numBytes);
     } else {
       endBuffer.put(intBuffer.array(), 0, numBytes);
     }
@@ -135,8 +135,8 @@ public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter imple
   {
     return 1 +             // version
            1 +             // numBytes
-           Ints.BYTES +    // numInserted
-           Ints.BYTES +    // chunkFactor
+           Integer.BYTES + // numInserted
+           Integer.BYTES + // chunkFactor
            1 +             // compression id
            flattener.getSerializedSize();
   }

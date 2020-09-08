@@ -21,8 +21,6 @@ package io.druid.query.aggregation.area;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -154,7 +152,7 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Doubles.BYTES + Ints.BYTES + Doubles.BYTES;
+    return Double.BYTES + Integer.BYTES + Double.BYTES;
   }
 
 }

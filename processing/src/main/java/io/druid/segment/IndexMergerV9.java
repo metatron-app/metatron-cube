@@ -27,13 +27,11 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -172,7 +170,7 @@ public class IndexMergerV9 extends IndexMerger
       Files.asByteSink(new File(outDir, "version.bin")).write(Ints.toByteArray(IndexIO.V9_VERSION));
       log.info("Completed version.bin in %,d millis.", System.currentTimeMillis() - startTime);
 
-      final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
+      final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(GuavaUtils.nullFirstNatural());
       final List<ColumnCapabilities> dimCapabilities = Lists.newArrayListWithCapacity(mergedDimensions.size());
       mergeCapabilities(adapters, mergedDimensions, metricTypeNames, dimCapabilities);
 
@@ -443,7 +441,7 @@ public class IndexMergerV9 extends IndexMerger
     final String bitmapSerdeFactoryType = mapper.writeValueAsString(indexSpec.getBitmapSerdeFactory());
     final long numBytes = cols.getSerializedSize()
                           + dims.getSerializedSize()
-                          + Longs.BYTES * 2
+                          + Long.BYTES * 2
                           + SerializerUtils.getSerializedStringByteSize(bitmapSerdeFactoryType);
 
     try (SmooshedWriter writer = v9Smoosher.addWithSmooshedWriter("index.drd", numBytes)) {

@@ -20,7 +20,6 @@ package io.druid.client;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
@@ -67,7 +66,7 @@ public class CachingClusteredClientFunctionalityTest {
   @Before
   public void setUp() throws Exception
   {
-    timeline = new VersionedIntervalTimeline<>(Ordering.<String>natural());
+    timeline = new VersionedIntervalTimeline<>();
     serverView = EasyMock.createNiceMock(TimelineServerView.class);
     cache = MapCache.create(100000);
     client = makeClient(Execs.newDirectExecutorService());

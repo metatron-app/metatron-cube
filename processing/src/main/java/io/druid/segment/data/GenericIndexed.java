@@ -111,7 +111,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       throw new RuntimeException(e);
     }
 
-    ByteBuffer theBuffer = ByteBuffer.allocate(Ints.BYTES + headerBytes.size() + valueBytes.size());
+    ByteBuffer theBuffer = ByteBuffer.allocate(Integer.BYTES + headerBytes.size() + valueBytes.size());
     theBuffer.put(Ints.toByteArray(count));
     theBuffer.put(headerBytes.toByteArray());
     theBuffer.put(valueBytes.toByteArray());
@@ -410,8 +410,8 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     long length = 0;
     length += Byte.BYTES; // version
     length += Byte.BYTES; // flag
-    length += Ints.BYTES + theBuffer.remaining();   // length + binary
-    length += Ints.BYTES; // count
+    length += Integer.BYTES + theBuffer.remaining();   // length + binary
+    length += Integer.BYTES; // count
     return length;
   }
 

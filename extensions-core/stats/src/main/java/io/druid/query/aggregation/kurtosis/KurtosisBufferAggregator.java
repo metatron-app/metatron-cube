@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation.kurtosis;
 
-import com.google.common.primitives.Longs;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
@@ -32,7 +31,7 @@ import java.nio.ByteBuffer;
 public abstract class KurtosisBufferAggregator implements BufferAggregator
 {
   private static final int COUNT_OFFSET = 0;
-  private static final int MEAN_OFFSET = Longs.BYTES;
+  private static final int MEAN_OFFSET = Long.BYTES;
   private static final int M2_OFFSET = MEAN_OFFSET + Double.BYTES;
   private static final int M3_OFFSET = M2_OFFSET + Double.BYTES;
   private static final int M4_OFFSET = M3_OFFSET + Double.BYTES;

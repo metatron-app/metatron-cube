@@ -19,7 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.primitives.Ints;
 import io.druid.java.util.common.IAE;
 
 import java.io.IOException;
@@ -68,7 +67,7 @@ public class ByteBufferSerializer<T>
       throws IOException
   {
     byte[] toWrite = strategy.toBytes(obj);
-    channel.write(ByteBuffer.allocate(Ints.BYTES).putInt(0, toWrite.length));
+    channel.write(ByteBuffer.allocate(Integer.BYTES).putInt(0, toWrite.length));
     channel.write(ByteBuffer.wrap(toWrite));
   }
 }

@@ -30,7 +30,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
@@ -243,7 +242,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       @Override
       public Sequence<Row> apply(List<Row> input)
       {
-        final Ordering<Row> ordering = processor.toRowOrdering(columns);
+        final Comparator<Row> ordering = processor.toRowOrdering(columns);
         if (limit > 0 && limit <= input.size()) {
           return Sequences.once(new TopNSorter<>(ordering).toTopN(input, limit));
         }
@@ -259,7 +258,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     final List<String> inputColumns = query.getColumns();
     final List<String> outputColumns = query.getOutputColumns();
     if (windowingSpecs.isEmpty()) {
-      Ordering<Object[]> ordering = new OrderingProcessor(query.getColumns(), null).toArrayOrdering(columns, false);
+      Comparator<Object[]> ordering = new OrderingProcessor(query.getColumns(), null).toArrayOrdering(columns, false);
       Function<Sequence<Object[]>, Sequence<Object[]>> function = sequenceLimiter(ordering, limit);
       if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
         function = GuavaUtils.sequence(function, Sequences.mapper(remap(inputColumns, outputColumns)));
@@ -296,7 +295,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
         final List<String> sourceColumns =
             GuavaUtils.isNullOrEmpty(outputColumns) ? processor.getFinalColumns() : outputColumns;
         final List<Object[]> processed = Lists.transform(input, GroupByQueryEngine.rowToArray(sourceColumns));
-        final Ordering<Object[]> ordering = processor.ordering().toArrayOrdering(columns, false);
+        final Comparator<Object[]> ordering = processor.ordering().toArrayOrdering(columns, false);
         if (limit > 0 && limit <= input.size()) {
           return Sequences.once(new TopNSorter<>(ordering).toTopN(processed, limit));
         }
@@ -339,12 +338,12 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     }
   }
 
-  private static Function<Sequence<Object[]>, Sequence<Object[]>> sequenceLimiter(Ordering<Object[]> ordering, int limit)
+  private static Function<Sequence<Object[]>, Sequence<Object[]>> sequenceLimiter(Comparator<Object[]> ordering, int limit)
   {
     return ordering != null ? new SortingArrayFn(ordering, limit) : LimitSpec.<Object[]>sequenceLimiter(limit);
   }
 
-  public static Sequence<Object[]> sortLimit(Sequence<Object[]> sequence, Ordering<Object[]> ordering, int limit)
+  public static Sequence<Object[]> sortLimit(Sequence<Object[]> sequence, Comparator<Object[]> ordering, int limit)
   {
     return LimitSpec.sequenceLimiter(ordering, limit).apply(sequence);
   }

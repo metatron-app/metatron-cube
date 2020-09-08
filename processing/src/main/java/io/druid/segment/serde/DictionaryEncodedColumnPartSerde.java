@@ -240,7 +240,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             @Override
             public long getSerializedSize() throws IOException
             {
-              long size = Byte.BYTES + Ints.BYTES;
+              long size = Byte.BYTES + Integer.BYTES;
               if (dictionaryWriter != null) {
                 size += dictionaryWriter.getSerializedSize();
               }
@@ -394,7 +394,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             public long getSerializedSize()
             {
               long size = 1 + // version
-                          (version.compareTo(VERSION.LEGACY_COMPRESSED) >= 0 ? Ints.BYTES : 0);// flag if version >= compressed
+                          (version.compareTo(VERSION.LEGACY_COMPRESSED) >= 0 ? Integer.BYTES : 0);// flag if version >= compressed
 
               size += dictionary.getSerializedSize();
 
@@ -406,7 +406,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
               size += bitmaps.getSerializedSize();
               if (spatialIndex != null) {
-                size += spatialIndex.size() + Ints.BYTES;
+                size += spatialIndex.size() + Integer.BYTES;
               }
               return size;
             }

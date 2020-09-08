@@ -138,8 +138,8 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
   {
     return Byte.BYTES +           // version
            Byte.BYTES +           // flag
-           Ints.BYTES +           // numBytesWritten
-           Ints.BYTES +           // numElements
+           Integer.BYTES +        // numBytesWritten
+           Integer.BYTES +        // numElements
            headerOut.getCount() + // header length
            valuesOut.getCount();  // values length
   }

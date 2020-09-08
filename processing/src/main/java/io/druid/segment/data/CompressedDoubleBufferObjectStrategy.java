@@ -19,8 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.primitives.Doubles;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
@@ -53,7 +51,7 @@ public class CompressedDoubleBufferObjectStrategy extends FixedSizeCompressedObj
           @Override
           public int sizeOf(int count)
           {
-            return count * Doubles.BYTES;
+            return count * Double.BYTES;
           }
 
           @Override

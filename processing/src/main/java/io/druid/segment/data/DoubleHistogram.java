@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
@@ -267,7 +266,7 @@ public class DoubleHistogram implements MetricHistogram.DoubleType
     return new DoubleBitmaps(
         factory,
         Doubles.toArray(mergedBreaks),
-        immutable.toArray(new ImmutableBitmap[immutable.size()]),
+        immutable.toArray(new ImmutableBitmap[0]),
         factory.makeImmutableBitmap(zeros)
     );
   }
@@ -302,7 +301,7 @@ public class DoubleHistogram implements MetricHistogram.DoubleType
     mergedBreaks.add(breaks[prev]);
 
     this.breaks = Doubles.toArray(mergedBreaks);
-    this.bins = mergedBins.toArray(new MutableBitmap[mergedBins.size()]);
+    this.bins = mergedBins.toArray(new MutableBitmap[0]);
   }
 
   public double[] getBreaks()
@@ -361,7 +360,7 @@ public class DoubleHistogram implements MetricHistogram.DoubleType
     {
       int compare = Double.compare(value, o.value);
       if (compare == 0) {
-        compare = Ints.compare(id, o.id);
+        compare = Integer.compare(id, o.id);
       }
       return compare;
     }

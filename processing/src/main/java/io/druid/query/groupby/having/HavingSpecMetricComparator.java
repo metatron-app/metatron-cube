@@ -19,7 +19,6 @@
 
 package io.druid.query.groupby.having;
 
-import com.google.common.primitives.Longs;
 import io.druid.data.input.Row;
 
 import java.util.regex.Pattern;
@@ -36,12 +35,12 @@ class HavingSpecMetricComparator
     if (metricValueObj != null) {
       if (metricValueObj instanceof Long) {
         long l = (Long) metricValueObj;
-        return Longs.compare(l, value.longValue());
+        return Long.compare(l, value.longValue());
       } else if (metricValueObj instanceof String) {
         String metricValueStr = (String) metricValueObj;
         if (LONG_PAT.matcher(metricValueStr).matches()) {
           long l = row.getLongMetric(aggregationName);
-          return Longs.compare(l, value.longValue());
+          return Long.compare(l, value.longValue());
         }
       }
     }

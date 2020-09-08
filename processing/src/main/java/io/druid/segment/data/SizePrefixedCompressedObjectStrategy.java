@@ -63,7 +63,7 @@ public class SizePrefixedCompressedObjectStrategy extends CompressedObjectStrate
     } else {
       holder = StupidResourceHolder.create(ByteBuffer.allocate(size));
     }
-    decompressor.decompress(in, numBytes - Ints.BYTES, holder.get(), size);
+    decompressor.decompress(in, numBytes - Integer.BYTES, holder.get(), size);
     return holder;
   }
 }

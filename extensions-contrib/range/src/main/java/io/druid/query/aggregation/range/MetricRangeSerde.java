@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.range;
 
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.Comparators;
 import io.druid.data.Rows;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
@@ -30,15 +30,13 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Comparator;
 
 public class MetricRangeSerde extends ComplexMetricSerde
 {
-  private static Ordering<MetricRange> comparator = new Ordering<MetricRange>() {
-    @Override
-    public int compare(MetricRange mr1, MetricRange mr2) {
-      return MetricRangeAggregator.COMPARATOR.compare(mr1, mr2);
-    }
-  }.nullsFirst();
+  private static Comparator<MetricRange> comparator = Comparators.NULL_FIRST(
+      (mr1, mr2) -> MetricRangeAggregator.COMPARATOR.compare(mr1, mr2)
+  );
 
   private ObjectStrategy<MetricRange> strategy = new ObjectStrategy.CompareSupport<MetricRange>()
   {

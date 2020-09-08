@@ -30,7 +30,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteSink;
@@ -426,10 +425,10 @@ public class IndexMerger
       for (int i = 0; i < rowNumConversions.length; i++) {
         rowNumConversions[i] = new int[indexes.get(i).getNumRows()];
       }
-      final Ordering<Rowboat> ordering;
+      final Comparator<Rowboat> ordering;
       final BinaryFn.Identical<Rowboat> merger;
       if (rollup) {
-        ordering = Ordering.<Rowboat>natural();
+        ordering = GuavaUtils.nullFirstNatural();
         merger = new RowboatMergeFunction(AggregatorFactory.toCombiner(sortedMetricAggs));
       } else {
         ordering = Rowboat.TIME_ONLY_COMPARATOR;
@@ -516,7 +515,7 @@ public class IndexMerger
           @Override
           public Iterator<Rowboat> apply(ArrayList<Iterator<Rowboat>> boats)
           {
-            return new RowNumIterator(boats, rowNumConversions, Ordering.natural());
+            return new RowNumIterator(boats, rowNumConversions, GuavaUtils.noNullableNatural());
           }
         };
 
@@ -569,7 +568,7 @@ public class IndexMerger
     }
     Metadata segmentMetadata = Metadata.merge(metadataList, combiningMetricAggs);
 
-    final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
+    final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(GuavaUtils.nullFirstNatural());
     final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
 
     for (IndexableAdapter adapter : indexes) {
@@ -1063,7 +1062,7 @@ public class IndexMerger
 
   private static <T extends Comparable> List<T> mergeIndexed(final List<Iterable<T>> indexedLists)
   {
-    Set<T> retVal = Sets.newTreeSet(Ordering.<T>natural().nullsFirst());
+    Set<T> retVal = Sets.newTreeSet(GuavaUtils.nullFirstNatural());
 
     for (Iterable<T> indexedList : indexedLists) {
       for (T val : indexedList) {
@@ -1323,7 +1322,7 @@ public class IndexMerger
         }
         Indexed<String> indexed = dimValueLookups[i];
         if (useDirect) {
-          conversions[i] = ByteBuffer.allocateDirect(indexed.size() * Ints.BYTES).asIntBuffer();
+          conversions[i] = ByteBuffer.allocateDirect(indexed.size() * Integer.BYTES).asIntBuffer();
         } else {
           conversions[i] = IntBuffer.allocate(indexed.size());
         }
@@ -1403,7 +1402,7 @@ public class IndexMerger
     static RowNumIterator create(
         List<Iterator<Rowboat>> rows,
         int[][] conversions,
-        Ordering<Rowboat> ordering,
+        Comparator<Rowboat> ordering,
         BinaryFn.Identical<Rowboat> merger
     )
     {
@@ -1414,11 +1413,11 @@ public class IndexMerger
 
     final PriorityQueue<Pair<Integer, PeekingIterator<Rowboat>>> pQueue;
     final int[][] conversions;
-    final Ordering<Rowboat> ordering;
+    final Comparator<Rowboat> ordering;
 
     int rowNum;
 
-    RowNumIterator(List<Iterator<Rowboat>> rowboats, int[][] conversions, Ordering<Rowboat> ordering)
+    RowNumIterator(List<Iterator<Rowboat>> rowboats, int[][] conversions, Comparator<Rowboat> ordering)
     {
       Preconditions.checkArgument(rowboats.size() == conversions.length);
       pQueue = new ObjectHeapPriorityQueue<>(
@@ -1481,7 +1480,7 @@ public class IndexMerger
       Merging(
           List<Iterator<Rowboat>> rowboats,
           int[][] conversions,
-          Ordering<Rowboat> ordering,
+          Comparator<Rowboat> ordering,
           BinaryFn.Identical<Rowboat> merger
       )
       {

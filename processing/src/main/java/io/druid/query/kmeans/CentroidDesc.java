@@ -21,7 +21,6 @@ package io.druid.query.kmeans;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
 
 /**
  */
@@ -69,7 +68,7 @@ public class CentroidDesc implements Comparable<CentroidDesc>
   @Override
   public int compareTo(CentroidDesc o)
   {
-    return Ints.compare(id, o.id);
+    return Integer.compare(id, o.id);
   }
 
   public void add(double[] values)

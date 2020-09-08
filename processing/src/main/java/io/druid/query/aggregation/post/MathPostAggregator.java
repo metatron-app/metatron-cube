@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
@@ -81,7 +80,7 @@ public class MathPostAggregator extends PostAggregator.Stateless implements Post
     }
     this.finalize = finalize;
     this.ordering = ordering;
-    this.comparator = ordering == null ? Ordering.natural() : NumericOrdering.valueOf(ordering);
+    this.comparator = ordering == null ? GuavaUtils.nullFirstNatural() : NumericOrdering.valueOf(ordering);
   }
 
   @Override

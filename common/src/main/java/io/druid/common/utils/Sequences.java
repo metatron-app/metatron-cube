@@ -25,7 +25,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
@@ -52,6 +51,7 @@ import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -107,18 +107,18 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     return new LazySequence<>(supplier);
   }
 
-  public static <T> Sequence<T> mergeSort(Ordering<T> ordering, Iterable<Sequence<T>> baseSequences)
+  public static <T> Sequence<T> mergeSort(Comparator<T> ordering, Iterable<Sequence<T>> baseSequences)
   {
     return mergeSort(ordering, Sequences.simple(baseSequences));
   }
 
-  public static <T> Sequence<T> mergeSort(Ordering<T> ordering, Sequence<Sequence<T>> baseSequences)
+  public static <T> Sequence<T> mergeSort(Comparator<T> ordering, Sequence<Sequence<T>> baseSequences)
   {
     return new MergeSequence<T>(ordering, baseSequences);
   }
 
   public static <T> Sequence<T> mergeSort(
-      Ordering<T> ordering,
+      Comparator<T> ordering,
       Sequence<Sequence<T>> baseSequences,
       ExecutorService executor
   )

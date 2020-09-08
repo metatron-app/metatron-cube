@@ -17,11 +17,8 @@
  * under the License.
  */
 
-package io.druid.query.ordering;
+package io.druid.common.guava;
 
-import com.google.common.collect.Ordering;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 
 import java.util.Comparator;
@@ -38,7 +35,7 @@ public class Comparators
     }
     switch (valueDesc.type()) {
       case FLOAT:
-        return GuavaUtils.nullFirst(new Comparator<Number>()
+        return NULL_FIRST(new Comparator<Number>()
         {
           @Override
           public int compare(Number o1, Number o2)
@@ -47,7 +44,7 @@ public class Comparators
           }
         });
       case DOUBLE:
-        return GuavaUtils.nullFirst(new Comparator<Number>()
+        return NULL_FIRST(new Comparator<Number>()
         {
           @Override
           public int compare(Number o1, Number o2)
@@ -56,7 +53,7 @@ public class Comparators
           }
         });
       case LONG:
-        return GuavaUtils.nullFirst(new Comparator<Number>()
+        return NULL_FIRST(new Comparator<Number>()
         {
           @Override
           public int compare(Number o1, Number o2)
@@ -71,59 +68,24 @@ public class Comparators
     }
     if (valueDesc.isArray()) {
       final Comparator element = toComparator(valueDesc.subElement());
-      return GuavaUtils.nullFirst(new Comparator<List<Object>>()
-      {
-        @Override
-        public int compare(List<Object> o1, List<Object> o2)
-        {
-          int min = Math.min(o1.size(), o2.size());
-          for (int i = 0; i < min; i++) {
-            int ret = element.compare(o1.get(i), o2.get(i));
-            if (ret != 0) {
-              return ret;
+      return NULL_FIRST(
+          (List<Object> o1, List<Object> o2) ->
+          {
+            int min = Math.min(o1.size(), o2.size());
+            for (int i = 0; i < min; i++) {
+              int ret = element.compare(o1.get(i), o2.get(i));
+              if (ret != 0) {
+                return ret;
+              }
             }
+            return o1.size() - o2.size();
           }
-          return o1.size() - o2.size();
-        }
-      });
+      );
     }
     if (valueDesc.isStruct()) {
       // todo
     }
     return GuavaUtils.NULL_FIRST_NATURAL;
-  }
-
-  public static Comparator createGeneric(String name, Comparator defaultValue)
-  {
-    if (StringUtils.isNullOrEmpty(name)) {
-      return defaultValue;
-    }
-    boolean descending = false;
-    String lowerCased = name.toLowerCase();
-    if (lowerCased.endsWith(":asc")) {
-      name = name.substring(0, name.length() - 4);
-    } else if (lowerCased.endsWith(":desc")) {
-      name = name.substring(0, name.length() - 5);
-      descending = true;
-    }
-    Comparator comparator = createString(name, defaultValue);
-    return descending ? Ordering.from(defaultValue).reverse() : comparator;
-  }
-
-  private static Comparator createString(String name, Comparator defaultValue)
-  {
-    if (StringUtils.isNullOrEmpty(name)) {
-      return defaultValue;
-    }
-    ValueDesc type = ValueDesc.of(name);
-    if (type.isPrimitive()) {
-      return type.comparator();
-    }
-    Comparator comparator = StringComparators.tryMakeComparator(name, null);
-    if (comparator == null) {
-      return defaultValue;
-    }
-    return comparator;
   }
 
   public static Comparator<Object[]> NF_ARRAY = new Comparator<Object[]>()
@@ -185,7 +147,28 @@ public class Comparators
   private static final int RIGHT_IS_GREATER = -1;
   private static final int LEFT_IS_GREATER = 1;
 
-  public static int compareNF(Object[] d1, Object[] d2)
+  public static <T> Comparator<T> NULL_FIRST(final Comparator<T> comparator)
+  {
+    return (left, right) -> {
+      if (left == right) {
+        return 0;
+      }
+      if (left == null) {
+        return RIGHT_IS_GREATER;
+      }
+      if (right == null) {
+        return LEFT_IS_GREATER;
+      }
+      return comparator.compare(left, right);
+    };
+  }
+
+  public static <T> Comparator<T> REVERT(final Comparator<T> comparator)
+  {
+    return (left, right) -> comparator.compare(right, left);
+  }
+
+  public static int compareNF(final Object[] d1, final Object[] d2)
   {
     int compare = 0;
     for (int i = 0; i < d1.length && compare == 0; i++) {
@@ -209,12 +192,26 @@ public class Comparators
     return d1.compareTo(d2);
   }
 
-  public static <T> Ordering<T> compound(final List<Comparator<T>> comparators)
+  public static <T> Comparator<T> compound(final List<Comparator<T>> comparators)
   {
-    if (comparators.size() == 1) {
-      return Ordering.from(comparators.get(0));
+    if (comparators.isEmpty()) {
+      return null;
     }
-    return Ordering.from(new Comparator<T>()
+    if (comparators.size() == 1) {
+      return comparators.get(0);
+    }
+    if (comparators.size() == 2) {
+      final Comparator<T> comp1 = comparators.get(0);
+      final Comparator<T> comp2 = comparators.get(1);
+      return (left, right) -> {
+        int compare = comp1.compare(left, right);
+        if (compare == 0) {
+          compare = comp2.compare(left, right);
+        }
+        return compare;
+      };
+    }
+    return new Comparator<T>()
     {
       @Override
       public int compare(T o1, T o2)
@@ -227,6 +224,6 @@ public class Comparators
         }
         return 0;
       }
-    });
+    };
   }
 }

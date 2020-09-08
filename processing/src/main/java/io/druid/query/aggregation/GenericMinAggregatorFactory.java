@@ -22,9 +22,6 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Longs;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.ColumnSelectorFactory;
@@ -171,11 +168,11 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   {
     switch (outputType.type()) {
       case FLOAT:
-        return Byte.BYTES + Floats.BYTES;
+        return Byte.BYTES + Float.BYTES;
       case DOUBLE:
-        return Byte.BYTES + Doubles.BYTES;
+        return Byte.BYTES + Double.BYTES;
       case LONG:
-        return Byte.BYTES + Longs.BYTES;
+        return Byte.BYTES + Long.BYTES;
       case COMPLEX:
         if (outputType.isDecimal()) {
           return 128;

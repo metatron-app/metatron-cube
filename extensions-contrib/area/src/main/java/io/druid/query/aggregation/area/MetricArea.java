@@ -20,9 +20,6 @@
 package io.druid.query.aggregation.area;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Ints;
 
 import java.nio.ByteBuffer;
 
@@ -118,7 +115,7 @@ public class MetricArea
   @JsonValue
   public byte[] toBytes()
   {
-    return ByteBuffer.allocate(Doubles.BYTES + Ints.BYTES + Doubles.BYTES)
+    return ByteBuffer.allocate(Double.BYTES + Integer.BYTES + Double.BYTES)
         .putDouble(sum)
         .putInt(count)
         .putDouble(min)

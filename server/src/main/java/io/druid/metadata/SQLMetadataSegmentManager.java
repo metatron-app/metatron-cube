@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
@@ -262,7 +261,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                   .bind("dataSource", ds)
                   .map(ByteArrayMapper.FIRST)
                   .fold(
-                      new VersionedIntervalTimeline<String, DataSegment>(Ordering.natural()),
+                      new VersionedIntervalTimeline<String, DataSegment>(),
                       new Folder3<VersionedIntervalTimeline<String, DataSegment>, byte[]>()
                       {
                         @Override

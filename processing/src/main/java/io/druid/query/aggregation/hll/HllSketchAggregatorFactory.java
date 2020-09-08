@@ -20,12 +20,11 @@
 package io.druid.query.aggregation.hll;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Doubles;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
 import com.yahoo.sketches.hll.Union;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.Comparators;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import javax.annotation.Nullable;
@@ -45,15 +44,9 @@ abstract class HllSketchAggregatorFactory extends AggregatorFactory
   static final int DEFAULT_LG_K = 12;
   static final TgtHllType DEFAULT_TGT_HLL_TYPE = TgtHllType.HLL_4;
 
-  static final Comparator<HllSketch> COMPARATOR = Ordering.from(
-      new Comparator<HllSketch>()
-      {
-        @Override
-        public int compare(HllSketch o1, HllSketch o2)
-        {
-          return Doubles.compare(o1.getEstimate(), o2.getEstimate());
-        }
-      }).nullsFirst();
+  static final Comparator<HllSketch> COMPARATOR = Comparators.NULL_FIRST(
+      (o1, o2) -> Double.compare(o1.getEstimate(), o2.getEstimate())
+  );
 
   private final String name;
   private final String fieldName;

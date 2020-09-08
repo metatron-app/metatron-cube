@@ -37,26 +37,20 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.parsers.ParseException;
-import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.common.Intervals;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.indexer.TaskStatus;
 import io.druid.indexing.appenderator.ActionBasedSegmentAllocator;
 import io.druid.indexing.appenderator.ActionBasedUsedSegmentChecker;
-import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.CheckPointDataSourceMetadataAction;
 import io.druid.indexing.common.actions.ResetDataSourceMetadataAction;
@@ -65,7 +59,11 @@ import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.task.AbstractTask;
 import io.druid.indexing.common.task.TaskResource;
 import io.druid.indexing.kafka.supervisor.KafkaSupervisor;
+import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.collect.Utils;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.parsers.ParseException;
+import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.DruidMetrics;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -123,7 +121,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -296,7 +293,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
   private static String makeTaskId(String dataSource, int randomBits)
   {
     final StringBuilder suffix = new StringBuilder(8);
-    for (int i = 0; i < Ints.BYTES * 2; ++i) {
+    for (int i = 0; i < Integer.BYTES * 2; ++i) {
       suffix.append((char) ('a' + ((randomBits >>> (i * 4)) & 0x0F)));
     }
     return Joiner.on("_").join(TYPE, dataSource, suffix);
@@ -495,7 +492,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
         // no persist has happened so far
         // so either this is a brand new task or replacement of a failed task
         Preconditions.checkState(sequences.get(0).startOffsets.entrySet().stream().allMatch(
-            partitionOffsetEntry -> Longs.compare(
+            partitionOffsetEntry -> Long.compare(
                 partitionOffsetEntry.getValue(),
                 ioConfig.getStartPartitions()
                         .getPartitionOffsetMap()
@@ -2035,7 +2032,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
     {
       assignments.clear();
       nextPartitionOffset.entrySet().forEach(partitionOffset -> {
-        if (Longs.compare(endOffsets.get(partitionOffset.getKey()), nextPartitionOffset.get(partitionOffset.getKey()))
+        if (Long.compare(endOffsets.get(partitionOffset.getKey()), nextPartitionOffset.get(partitionOffset.getKey()))
             > 0) {
           assignments.add(partitionOffset.getKey());
         }

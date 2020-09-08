@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.BaseQuery;
@@ -42,6 +43,7 @@ import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -220,9 +222,9 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   }
 
   @Override
-  public Ordering<SegmentAnalysis> getMergeOrdering()
+  public Comparator<SegmentAnalysis> getMergeOrdering()
   {
-    Ordering<SegmentAnalysis> ordering = GuavaUtils.<SegmentAnalysis>noNullableNatural();
+    Comparator<SegmentAnalysis> ordering = GuavaUtils.<SegmentAnalysis>noNullableNatural();
     if (!merge && analyzingInterval()) {
       ordering = Ordering.from(JodaUtils.intervalsByStartThenEnd()).onResultOf(new Function<SegmentAnalysis, Interval>()
       {
@@ -233,7 +235,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         }
       });
     }
-    return isDescending() ? ordering.reverse() : ordering;
+    return isDescending() ? Comparators.REVERT(ordering) : ordering;
   }
 
   public boolean analyzingOnlyInterval()

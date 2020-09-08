@@ -21,8 +21,6 @@ package io.druid.query.aggregation.corr;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Longs;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -71,17 +69,17 @@ public class PearsonAggregatorCollector
     @Override
     public int compare(PearsonAggregatorCollector o1, PearsonAggregatorCollector o2)
     {
-      int compare = Longs.compare(o1.count, o2.count);
+      int compare = Long.compare(o1.count, o2.count);
       if (compare == 0) {
-        compare = Doubles.compare(o1.xavg, o2.xavg);
+        compare = Double.compare(o1.xavg, o2.xavg);
         if (compare == 0) {
-          compare = Doubles.compare(o1.yavg, o2.yavg);
+          compare = Double.compare(o1.yavg, o2.yavg);
           if (compare == 0) {
-            compare = Doubles.compare(o1.xvar, o2.xvar);
+            compare = Double.compare(o1.xvar, o2.xvar);
             if (compare == 0) {
-              compare = Doubles.compare(o1.yvar, o2.yvar);
+              compare = Double.compare(o1.yvar, o2.yvar);
               if (compare == 0) {
-                compare = Doubles.compare(o1.covar, o2.covar);
+                compare = Double.compare(o1.covar, o2.covar);
               }
             }
           }
@@ -135,7 +133,7 @@ public class PearsonAggregatorCollector
 
   static int getMaxIntermediateSize()
   {
-    return Longs.BYTES + Doubles.BYTES + Doubles.BYTES + Doubles.BYTES + Doubles.BYTES + Doubles.BYTES;
+    return Long.BYTES + Double.BYTES + Double.BYTES + Double.BYTES + Double.BYTES + Double.BYTES;
   }
 
   long count; // number n of elements
@@ -204,7 +202,7 @@ public class PearsonAggregatorCollector
 
   public ByteBuffer toByteBuffer()
   {
-    return ByteBuffer.allocate(Longs.BYTES + Doubles.BYTES * 5)
+    return ByteBuffer.allocate(Long.BYTES + Double.BYTES * 5)
                      .putLong(count)
                      .putDouble(xavg)
                      .putDouble(yavg)

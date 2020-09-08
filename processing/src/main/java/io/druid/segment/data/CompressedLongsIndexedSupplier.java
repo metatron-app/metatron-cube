@@ -23,11 +23,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -47,7 +46,7 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
 {
   public static final byte LZF_VERSION = 0x1;
   public static final byte version = 0x2;
-  public static final int MAX_LONGS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Longs.BYTES;
+  public static final int MAX_LONGS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Long.BYTES;
 
 
   private final int totalSize;

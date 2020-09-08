@@ -25,8 +25,8 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
@@ -94,7 +94,7 @@ public class SketchThetaPostAggregator extends PostAggregator.Stateless
   @Override
   public Comparator getComparator()
   {
-    return Ordering.natural().nullsFirst();
+    return GuavaUtils.nullFirstNatural();
   }
 
   @Override

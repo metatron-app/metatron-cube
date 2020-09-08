@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Ordering;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
@@ -125,7 +125,7 @@ public class SketchQuantilesPostAggregator extends PostAggregator.Stateless
   @Override
   public Comparator getComparator()
   {
-    return Ordering.natural();
+    return GuavaUtils.nullFirstNatural();
   }
 
   @Override

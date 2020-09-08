@@ -27,7 +27,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -53,6 +52,7 @@ import io.druid.segment.VirtualColumn;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -121,7 +121,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public Ordering<Object[]> getMergeOrdering()
+  public Comparator<Object[]> getMergeOrdering()
   {
     return null;
   }

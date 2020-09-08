@@ -22,8 +22,8 @@ package io.druid.query.aggregation.hyperloglog;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.Comparators;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
@@ -38,23 +38,23 @@ import java.util.Set;
  */
 public class HyperUniqueFinalizingPostAggregator extends PostAggregator.Stateless
 {
-  private static final Comparator DOUBLE_COMPARATOR = Ordering.from(new Comparator<Number>()
+  private static final Comparator DOUBLE_COMPARATOR = Comparators.NULL_FIRST(new Comparator<Number>()
   {
     @Override
     public int compare(Number lhs, Number rhs)
     {
       return Double.compare(lhs.doubleValue(), rhs.doubleValue());
     }
-  }).nullsFirst();
+  });
 
-  private static final Comparator LONG_COMPARATOR = Ordering.from(new Comparator<Number>()
+  private static final Comparator LONG_COMPARATOR = Comparators.NULL_FIRST(new Comparator<Number>()
   {
     @Override
     public int compare(Number lhs, Number rhs)
     {
       return Long.compare(lhs.longValue(), rhs.longValue());
     }
-  }).nullsFirst();
+  });
 
   private final String name;
   private final String fieldName;

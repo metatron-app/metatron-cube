@@ -23,7 +23,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.guava.Comparators;
+import io.druid.common.guava.Comparators;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.HadoopDruidIndexerConfig;
@@ -76,7 +77,7 @@ public class GranularUnprocessedPathSpec extends GranularityPathSpec
     final Granularity segmentGranularity = config.getGranularitySpec().getSegmentGranularity();
 
     Map<Long, Long> inputModifiedTimes = new TreeMap<>(
-        Comparators.inverse(Comparators.comparable())
+        Comparators.REVERT(GuavaUtils.noNullableNatural())
     );
 
     for (FileStatus status : FSSpideringIterator.spiderIterable(fs, betaInput)) {

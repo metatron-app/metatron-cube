@@ -21,7 +21,6 @@ package io.druid.query.aggregation.datasketches.theta;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Doubles;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.Util;
@@ -57,7 +56,7 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
     @Override
     public int compare(Sketch o, Sketch o1)
     {
-      return Doubles.compare(o.getEstimate(), o1.getEstimate());
+      return Double.compare(o.getEstimate(), o1.getEstimate());
     }
   };
 

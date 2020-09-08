@@ -74,7 +74,7 @@ public class DoubleMaxAggregationTest
   {
     DoubleMaxBufferAggregator agg = (DoubleMaxBufferAggregator) doubleMaxAggFactory.factorizeBuffered(colSelectorFactory);
 
-    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Doubles.BYTES]);
+    ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Double.BYTES]);
     agg.init(buffer, 0);
 
     aggregate(selector, agg, buffer, 0);

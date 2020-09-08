@@ -22,12 +22,11 @@ package io.druid.segment.data;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
-import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -44,7 +43,7 @@ import java.util.Map;
  */
 public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>, ColumnPartSerde.Serializer
 {
-  public static final int MAX_FLOATS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Floats.BYTES;
+  public static final int MAX_FLOATS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Float.BYTES;
 
   private final int totalSize;
   private final int sizePer;

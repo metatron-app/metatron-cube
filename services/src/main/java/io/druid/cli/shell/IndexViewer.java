@@ -32,7 +32,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
-import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
@@ -108,9 +107,9 @@ public class IndexViewer extends CommonShell.WithUtils
     @Override
     public int compare(int[] o1, int[] o2)
     {
-      int compare = Ints.compare(o1[0], o2[0]);
+      int compare = Integer.compare(o1[0], o2[0]);
       if (compare == 0) {
-        compare = Ints.compare(o1[1], o2[1]);
+        compare = Integer.compare(o1[1], o2[1]);
       }
       return compare;
     }

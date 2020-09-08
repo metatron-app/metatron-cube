@@ -19,8 +19,6 @@
 
 package io.druid.query.ordering;
 
-import com.google.common.primitives.Longs;
-
 import java.util.Comparator;
 
 public interface Accessor<T>
@@ -36,7 +34,7 @@ public interface Accessor<T>
     @Override
     public int compare(T left, T right)
     {
-      return Longs.compare(((Number) accessor.get(left)).longValue(), ((Number) accessor.get(right)).longValue());
+      return Long.compare(((Number) accessor.get(left)).longValue(), ((Number) accessor.get(right)).longValue());
     }
   }
 

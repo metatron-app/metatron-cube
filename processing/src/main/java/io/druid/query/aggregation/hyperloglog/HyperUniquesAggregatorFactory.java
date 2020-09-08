@@ -21,8 +21,8 @@ package io.druid.query.aggregation.hyperloglog;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Ordering;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
@@ -123,7 +123,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public Comparator getComparator()
   {
-    return Ordering.<HyperLogLogCollector>natural().nullsFirst();
+    return GuavaUtils.nullFirstNatural();
   }
 
   @Override

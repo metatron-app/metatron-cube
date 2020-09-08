@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -135,7 +134,7 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
       @Override
       public int compare(BloomKFilter lhs, BloomKFilter rhs)
       {
-        return Longs.compare(lhs.getNumSetBits(), rhs.getNumSetBits());
+        return Long.compare(lhs.getNumSetBits(), rhs.getNumSetBits());
       }
     };
   }

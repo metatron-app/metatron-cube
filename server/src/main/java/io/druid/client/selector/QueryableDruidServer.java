@@ -22,7 +22,6 @@ package io.druid.client.selector;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import io.druid.client.DirectDruidClient;
 import io.druid.client.DruidServer;
 import io.druid.client.QueryableServer;
@@ -118,7 +117,7 @@ public class QueryableDruidServer implements QueryableServer
     VersionedIntervalTimeline<String, ReferenceCountingSegment> segmentMap = localTimelineView.get(dataSource);
     if (segmentMap == null) {
       localTimelineView.put(
-          dataSource, new VersionedIntervalTimeline<String, ReferenceCountingSegment>(Ordering.natural())
+          dataSource, new VersionedIntervalTimeline<String, ReferenceCountingSegment>()
       );
       return true;
     }
@@ -132,7 +131,7 @@ public class QueryableDruidServer implements QueryableServer
     if (segmentMap == null) {
       localTimelineView.put(
           dataSource,
-          segmentMap = new VersionedIntervalTimeline<String, ReferenceCountingSegment>(Ordering.natural())
+          segmentMap = new VersionedIntervalTimeline<String, ReferenceCountingSegment>()
       );
     }
     ReferenceCountingSegment countingSegment = new ReferenceCountingSegment(

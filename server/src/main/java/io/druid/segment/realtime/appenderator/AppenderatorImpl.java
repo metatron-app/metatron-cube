@@ -1195,7 +1195,7 @@ public class AppenderatorImpl implements Appenderator
               @Override
               public int compare(File o1, File o2)
               {
-                return Ints.compare(Integer.parseInt(o1.getName()), Integer.parseInt(o2.getName()));
+                return Integer.compare(Integer.parseInt(o1.getName()), Integer.parseInt(o2.getName()));
               }
             }
         );

@@ -28,21 +28,20 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import com.google.common.io.BaseEncoding;
 import com.google.inject.Inject;
+import io.druid.common.utils.StringUtils;
+import io.druid.indexing.overlord.DataSourceMetadata;
+import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
+import io.druid.indexing.overlord.SegmentPublishResult;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.core.Emitter;
 import io.druid.java.util.emitter.core.NoopEmitter;
-import io.druid.common.utils.StringUtils;
-import io.druid.indexing.overlord.DataSourceMetadata;
-import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
-import io.druid.indexing.overlord.SegmentPublishResult;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.server.log.Events;
 import io.druid.timeline.DataSegment;
@@ -254,9 +253,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
         .map(ByteArrayMapper.FIRST)
         .iterator();
 
-    final VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>(
-        Ordering.natural()
-    );
+    final VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
 
     while (dbSegments.hasNext()) {
       final byte[] payload = dbSegments.next();

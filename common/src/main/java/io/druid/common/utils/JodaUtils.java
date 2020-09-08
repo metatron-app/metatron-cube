@@ -25,7 +25,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Longs;
 import io.druid.data.TypeUtils;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.IAE;
@@ -67,9 +66,9 @@ public class JodaUtils
     public int compare(Interval lhs, Interval rhs)
     {
       if (lhs.getChronology().equals(rhs.getChronology())) {
-        int compare = Longs.compare(lhs.getStartMillis(), rhs.getStartMillis());
+        int compare = Long.compare(lhs.getStartMillis(), rhs.getStartMillis());
         if (compare == 0) {
-          return Longs.compare(lhs.getEndMillis(), rhs.getEndMillis());
+          return Long.compare(lhs.getEndMillis(), rhs.getEndMillis());
         }
         return compare;
       }
@@ -85,9 +84,9 @@ public class JodaUtils
     public int compare(Interval lhs, Interval rhs)
     {
       if (lhs.getChronology().equals(rhs.getChronology())) {
-        int compare = Longs.compare(lhs.getEndMillis(), rhs.getEndMillis());
+        int compare = Long.compare(lhs.getEndMillis(), rhs.getEndMillis());
         if (compare == 0) {
-          return Longs.compare(lhs.getStartMillis(), rhs.getStartMillis());
+          return Long.compare(lhs.getStartMillis(), rhs.getStartMillis());
         }
         return compare;
       }

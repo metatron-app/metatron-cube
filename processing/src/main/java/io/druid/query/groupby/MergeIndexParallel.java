@@ -32,7 +32,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
-import io.druid.query.ordering.Comparators;
+import io.druid.common.guava.Comparators;
 
 import java.util.Arrays;
 import java.util.Collections;

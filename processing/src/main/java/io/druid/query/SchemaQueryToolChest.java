@@ -20,10 +20,11 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.common.guava.GuavaUtils;
+
+import java.util.Comparator;
 
 /**
  */
@@ -47,7 +48,7 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
     return new ResultMergeQueryRunner<Schema>(runner)
     {
       @Override
-      protected Ordering<Schema> makeOrdering(Query<Schema> query)
+      protected Comparator<Schema> makeOrdering(Query<Schema> query)
       {
         return GuavaUtils.allEquals();
       }

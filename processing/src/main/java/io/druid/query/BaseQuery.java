@@ -30,10 +30,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.StringUtils;
@@ -53,6 +53,7 @@ import org.joda.time.Duration;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -559,10 +560,10 @@ public abstract class BaseQuery<T> implements Query<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Ordering<T> getMergeOrdering()
+  public Comparator<T> getMergeOrdering()
   {
-    Ordering<T> retVal = GuavaUtils.<T>noNullableNatural();
-    return descending ? retVal.reverse() : retVal;
+    final Comparator<T> retVal = GuavaUtils.<T>noNullableNatural();
+    return descending ? Comparators.REVERT(retVal) : retVal;
   }
 
   @Override

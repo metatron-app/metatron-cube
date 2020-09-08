@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
@@ -55,6 +54,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -113,7 +113,7 @@ public class SegmentMetadataQueryQueryToolChest
       }
 
       @Override
-      protected Ordering<SegmentAnalysis> makeOrdering(Query<SegmentAnalysis> query)
+      protected Comparator<SegmentAnalysis> makeOrdering(Query<SegmentAnalysis> query)
       {
         if (((SegmentMetadataQuery) query).isMerge()) {
           // Merge everything always

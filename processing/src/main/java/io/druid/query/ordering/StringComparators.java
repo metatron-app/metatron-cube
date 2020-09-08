@@ -23,17 +23,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.StringUtils;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.StringUtils;
 import io.netty.util.internal.StringUtil;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.format.DateTimeFormatter;
@@ -354,7 +353,7 @@ public class StringComparators
     @Override
     protected final int _compare(String s, String s2)
     {
-      return Ints.compare(Integer.valueOf(s), Integer.valueOf(s2));
+      return Integer.compare(Integer.valueOf(s), Integer.valueOf(s2));
     }
 
     @Override
@@ -369,7 +368,7 @@ public class StringComparators
     @Override
     protected final int _compare(String s, String s2)
     {
-      return Longs.compare(Long.valueOf(s), Long.valueOf(s2));
+      return Long.compare(Long.valueOf(s), Long.valueOf(s2));
     }
 
     @Override
@@ -390,7 +389,7 @@ public class StringComparators
 
       if (l1 != null) {
         if (l2 != null) {
-          return Longs.compare(l1, l2);
+          return Long.compare(l1, l2);
         } else {
           return Double.compare(l1, Double.valueOf(s2));
         }
@@ -502,7 +501,7 @@ public class StringComparators
     @Override
     public int _compare(String s1, String s2)
     {
-      return Ints.compare(toCode(s1), toCode(s2));
+      return Integer.compare(toCode(s1), toCode(s2));
     }
 
     private int toCode(String s)
@@ -572,7 +571,7 @@ public class StringComparators
     @Override
     public int _compare(String s1, String s2)
     {
-      return Ints.compare(toCode(s1), toCode(s2));
+      return Integer.compare(toCode(s1), toCode(s2));
     }
 
     private int toCode(String s)
@@ -602,7 +601,7 @@ public class StringComparators
     @Override
     protected int _compare(String s, String s2)
     {
-      return Longs.compare(formatter.parseMillis(s), formatter.parseMillis(s2));
+      return Long.compare(formatter.parseMillis(s), formatter.parseMillis(s2));
     }
 
     @Override
@@ -652,7 +651,7 @@ public class StringComparators
         String ordering = orderingSpec.getDimensionOrder();
         comparators[i] = elementType == ValueType.STRING ? makeComparator(ordering) : elementType.comparator();
         if (orderingSpec.getDirection() == Direction.DESCENDING) {
-          comparators[i] = Ordering.from(comparators[i]).reverse();
+          comparators[i] = Comparators.REVERT(comparators[i]);
         }
       } else {
         comparators[i] = elementType.comparator();
@@ -746,5 +745,38 @@ public class StringComparators
         }
         return null;
     }
+  }
+
+  public static Comparator createGeneric(String name, Comparator defaultValue)
+  {
+    if (io.druid.common.utils.StringUtils.isNullOrEmpty(name)) {
+      return defaultValue;
+    }
+    boolean descending = false;
+    String lowerCased = name.toLowerCase();
+    if (lowerCased.endsWith(":asc")) {
+      name = name.substring(0, name.length() - 4);
+    } else if (lowerCased.endsWith(":desc")) {
+      name = name.substring(0, name.length() - 5);
+      descending = true;
+    }
+    Comparator comparator = createString(name, defaultValue);
+    return descending ? Comparators.REVERT(comparator) : comparator;
+  }
+
+  private static Comparator createString(String name, Comparator defaultValue)
+  {
+    if (io.druid.common.utils.StringUtils.isNullOrEmpty(name)) {
+      return defaultValue;
+    }
+    ValueDesc type = ValueDesc.of(name);
+    if (type.isPrimitive()) {
+      return type.comparator();
+    }
+    Comparator comparator = StringComparators.tryMakeComparator(name, null);
+    if (comparator == null) {
+      return defaultValue;
+    }
+    return comparator;
   }
 }

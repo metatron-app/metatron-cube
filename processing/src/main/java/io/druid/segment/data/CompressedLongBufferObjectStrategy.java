@@ -19,8 +19,6 @@
 
 package io.druid.segment.data;
 
-import com.google.common.primitives.Longs;
-
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.LongBuffer;
@@ -49,7 +47,7 @@ public class CompressedLongBufferObjectStrategy extends FixedSizeCompressedObjec
           @Override
           public int sizeOf(int count)
           {
-            return count * Longs.BYTES;
+            return count * Long.BYTES;
           }
 
           @Override

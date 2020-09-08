@@ -82,7 +82,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
         public long getSerializedSize() throws IOException
         {
           bitmapPayload = HistogramBitmaps.getStrategy(serdeFactory, valueType).toBytes(bitmaps);
-          return Ints.BYTES + bitmapPayload.length;
+          return Integer.BYTES + bitmapPayload.length;
         }
 
         @Override

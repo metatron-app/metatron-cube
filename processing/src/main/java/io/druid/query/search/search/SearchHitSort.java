@@ -20,9 +20,8 @@
 package io.druid.query.search.search;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Ints;
-import io.druid.java.util.common.guava.Comparators;
+import com.google.common.collect.Lists;
+import io.druid.common.guava.Comparators;
 import io.druid.query.ordering.StringComparators;
 
 import java.util.Comparator;
@@ -63,13 +62,12 @@ public class SearchHitSort
       this.referencesCount = false;
     } else {
       boolean referencesCount = false;
-      Ordering<SearchHit> complex = null;
+      List<Comparator<SearchHit>> comparators = Lists.newArrayList();
       for (String spec : ordering) {
         referencesCount |= spec.startsWith(SearchHit.COUNT);
-        Comparator<SearchHit> comparator = toSearchHitComparator(spec.split(":"));
-        complex = complex == null ? Ordering.from(comparator) : complex.compound(comparator);
+        comparators.add(toSearchHitComparator(spec.split(":")));
       }
-      this.comparator = Preconditions.checkNotNull(complex, "'ordering' is empty or invalid");
+      this.comparator = Preconditions.checkNotNull(Comparators.compound(comparators), "'ordering' is empty or invalid");
       this.referencesCount = referencesCount;
     }
   }
@@ -121,7 +119,7 @@ public class SearchHitSort
             if (count2 == null) {
               return 1;
             }
-            return Ints.compare(count1, count2);
+            return Integer.compare(count1, count2);
           }
         };
         break;
@@ -131,7 +129,7 @@ public class SearchHitSort
     for (int i = 1; i < specs.length; i++) {
       invert |= specs[i].equalsIgnoreCase("desc");
     }
-    return invert ? Comparators.inverse(comparator) : comparator;
+    return invert ? Comparators.REVERT(comparator) : comparator;
   }
 
   private Comparator makeBaseComparator(String[] specs)

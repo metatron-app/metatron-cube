@@ -21,7 +21,6 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.granularity.AllGranularity;
@@ -38,6 +37,7 @@ import io.druid.query.ResultMergeQueryRunner;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -66,7 +66,7 @@ public class SelectMetaQueryToolChest
     return new ResultMergeQueryRunner<Result<SelectMetaResultValue>>(runner)
     {
       @Override
-      protected Ordering<Result<SelectMetaResultValue>> makeOrdering(Query<Result<SelectMetaResultValue>> query)
+      protected Comparator<Result<SelectMetaResultValue>> makeOrdering(Query<Result<SelectMetaResultValue>> query)
       {
         return ResultGranularTimestampComparator.create(query);
       }

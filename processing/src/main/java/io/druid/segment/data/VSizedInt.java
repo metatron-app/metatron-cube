@@ -156,7 +156,7 @@ public class VSizedInt extends IndexedInts.Abstract implements Comparable<VSized
   @Override
   public int compareTo(VSizedInt o)
   {
-    int retVal = Ints.compare(numBytes, o.numBytes);
+    int retVal = Integer.compare(numBytes, o.numBytes);
 
     if (retVal == 0) {
       retVal = buffer.compareTo(o.buffer);

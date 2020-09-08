@@ -28,7 +28,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.primitives.Longs;
 import io.druid.common.IntTagged;
@@ -66,7 +65,7 @@ public class GuavaUtils
 
   // null check in Ordering.natural() prevents unrolling in some cases
   @SuppressWarnings("unchecked")
-  public static final Ordering NO_NULLABLE_NATURAL = Ordering.from(
+  public static final Comparator NO_NULLABLE_NATURAL =
       new Comparator()
       {
         @Override
@@ -74,35 +73,26 @@ public class GuavaUtils
         {
           return o1 == o2 ? 0 : ((Comparable) o1).compareTo(o2);
         }
-      });
-
-  public static final Ordering NULL_FIRST_NATURAL = NO_NULLABLE_NATURAL.nullsFirst();
+      };
 
   @SuppressWarnings("unchecked")
-  public static <T> Ordering<T> noNullableNatural()
+  public static final Comparator NULL_FIRST_NATURAL = Comparators.NULL_FIRST(NO_NULLABLE_NATURAL);
+
+  @SuppressWarnings("unchecked")
+  public static <T> Comparator<T> noNullableNatural()
   {
     return NO_NULLABLE_NATURAL;
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Ordering<T> nullFirstNatural()
+  public static <T> Comparator<T> nullFirstNatural()
   {
     return NULL_FIRST_NATURAL;
   }
 
-  public static <T> Ordering<T> allEquals()
+  public static <T> Comparator<T> allEquals()
   {
-    return new Ordering<T>()
-    {
-      @Override
-      public int compare(T left, T right) { return 0;}
-    };
-  }
-
-  @SuppressWarnings("unchecked")
-  public static Comparator nullFirst(Comparator comparator)
-  {
-    return Ordering.from(comparator).nullsFirst();
+    return (left, right) -> 0;
   }
 
   public static Function<Object, String> NULLABLE_TO_STRING_FUNC = new Function<Object, String>()

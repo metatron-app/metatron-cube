@@ -20,7 +20,6 @@
 package io.druid.segment.data;
 
 import com.google.common.collect.Ordering;
-import com.google.common.primitives.Ints;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -50,7 +49,7 @@ public class CompressedIntBufferObjectStrategy extends FixedSizeCompressedObject
           @Override
           public int sizeOf(int count)
           {
-            return count * Ints.BYTES;
+            return count * Integer.BYTES;
           }
 
           @Override

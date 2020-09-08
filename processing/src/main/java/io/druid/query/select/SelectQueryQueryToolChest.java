@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -116,7 +115,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
 
       @Override
-      protected Ordering<Result<SelectResultValue>> makeOrdering(Query<Result<SelectResultValue>> query)
+      protected Comparator<Result<SelectResultValue>> makeOrdering(Query<Result<SelectResultValue>> query)
       {
         return ResultGranularTimestampComparator.create(query);
       }

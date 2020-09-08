@@ -24,7 +24,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Longs;
 import io.druid.common.Cacheable;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
@@ -110,7 +109,7 @@ public abstract class Granularity implements Cacheable
           {
             long duration1 = g2.bucket(DateTimes.EPOCH).toDurationMillis();
             long duration2 = g1.bucket(DateTimes.EPOCH).toDurationMillis();
-            return Longs.compare(duration1, duration2);
+            return Long.compare(duration1, duration2);
           }
         }
     );

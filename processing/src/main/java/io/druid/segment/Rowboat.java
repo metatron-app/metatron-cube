@@ -19,23 +19,15 @@
 
 package io.druid.segment;
 
-import com.google.common.collect.Ordering;
-import com.google.common.primitives.Ints;
-import com.google.common.primitives.Longs;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
+import java.util.Comparator;
 
 public class Rowboat implements Comparable<Rowboat>
 {
-  public static final Ordering<Rowboat> TIME_ONLY_COMPARATOR = new Ordering<Rowboat>()
-  {
-    @Override
-    public int compare(Rowboat left, Rowboat right)
-    {
-      return Longs.compare(left.getTimestamp(), right.getTimestamp());
-    }
-  };
+  public static final Comparator<Rowboat> TIME_ONLY_COMPARATOR =
+      (left, right) -> Long.compare(left.getTimestamp(), right.getTimestamp());
 
   private final long timestamp;
   private final int[][] dims;
@@ -74,10 +66,10 @@ public class Rowboat implements Comparable<Rowboat>
   public int compareTo(Rowboat rhs)
   {
     // should be called after dim-conversion is completed
-    int retVal = Longs.compare(timestamp, rhs.timestamp);
+    int retVal = Long.compare(timestamp, rhs.timestamp);
 
     if (retVal == 0) {
-      retVal = Ints.compare(dims.length, rhs.dims.length);
+      retVal = Integer.compare(dims.length, rhs.dims.length);
     }
 
     int index = 0;
@@ -97,11 +89,11 @@ public class Rowboat implements Comparable<Rowboat>
         return 1;
       }
 
-      retVal = Ints.compare(lhsVals.length, rhsVals.length);
+      retVal = Integer.compare(lhsVals.length, rhsVals.length);
 
       int valsIndex = 0;
       while (retVal == 0 && valsIndex < lhsVals.length) {
-        retVal = Ints.compare(lhsVals[valsIndex], rhsVals[valsIndex]);
+        retVal = Integer.compare(lhsVals[valsIndex], rhsVals[valsIndex]);
         ++valsIndex;
       }
       ++index;

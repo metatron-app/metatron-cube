@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Ordering;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -42,6 +41,7 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -370,7 +370,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
   }
 
   @Override
-  public Ordering<Row> getMergeOrdering()
+  public Comparator<Row> getMergeOrdering()
   {
     return Granularities.ALL.equals(granularity) ? null : super.getMergeOrdering();
   }

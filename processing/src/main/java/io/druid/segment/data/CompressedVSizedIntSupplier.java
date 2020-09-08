@@ -22,11 +22,10 @@ package io.druid.segment.data;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
-import com.google.common.primitives.Shorts;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
 
 import java.io.IOException;
@@ -85,11 +84,11 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     // beyond the end of the last value, since we use buffer.getInt() to read values.
     // for numBytes 1, 2 we remove the need for padding by reading bytes or shorts directly.
     switch (numBytes) {
-      case Shorts.BYTES:
+      case Short.BYTES:
       case 1:
         return 0;
       default:
-        return Ints.BYTES - numBytes;
+        return Integer.BYTES - numBytes;
     }
   }
 
@@ -107,9 +106,9 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   public IndexedInts get()
   {
     // optimized versions for int, short, and byte columns
-    if (numBytes == Ints.BYTES) {
+    if (numBytes == Integer.BYTES) {
       return new CompressedFullSizeIndexedInts();
-    } else if (numBytes == Shorts.BYTES) {
+    } else if (numBytes == Short.BYTES) {
       return new CompressedShortSizeIndexedInts();
     } else if (numBytes == 1) {
       return new CompressedByteSizeIndexedInts();
@@ -125,8 +124,8 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
   {
     return 1 +             // version
            1 +             // numBytes
-           Ints.BYTES + // totalSize
-           Ints.BYTES + // sizePer
+           Integer.BYTES + // totalSize
+           Integer.BYTES + // sizePer
            1 +             // compression id
            baseBuffers.getSerializedSize(); // data
   }
@@ -228,13 +227,13 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
 
                     final List<Integer> ints = list.subList(position, position + retVal.remaining() / numBytes);
                     final ByteBuffer buf = ByteBuffer
-                        .allocate(Ints.BYTES)
+                        .allocate(Integer.BYTES)
                         .order(byteOrder);
                     final boolean bigEndian = byteOrder.equals(ByteOrder.BIG_ENDIAN);
                     for (int value : ints) {
                       buf.putInt(0, value);
                       if (bigEndian) {
-                        retVal.put(buf.array(), Ints.BYTES - numBytes, numBytes);
+                        retVal.put(buf.array(), Integer.BYTES - numBytes, numBytes);
                       } else {
                         retVal.put(buf.array(), 0, numBytes);
                       }

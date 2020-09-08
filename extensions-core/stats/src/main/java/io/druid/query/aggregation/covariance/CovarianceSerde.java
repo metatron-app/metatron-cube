@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.covariance;
 
-import com.google.common.collect.Ordering;
+import io.druid.common.guava.Comparators;
 import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
@@ -29,13 +29,14 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.Comparator;
 
 /**
  */
 public class CovarianceSerde extends ComplexMetricSerde
 {
-  private static final Ordering<CovarianceAggregatorCollector> comparator =
-      Ordering.from(CovarianceAggregatorCollector.COMPARATOR).nullsFirst();
+  private static final Comparator<CovarianceAggregatorCollector> comparator =
+      Comparators.NULL_FIRST(CovarianceAggregatorCollector.COMPARATOR);
 
   @Override
   public String getTypeName()

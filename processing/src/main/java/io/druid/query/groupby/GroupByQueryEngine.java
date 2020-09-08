@@ -23,12 +23,12 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -544,9 +544,9 @@ public class GroupByQueryEngine
       }
       Comparator<?> comparator = ordering.getComparator();
       if (index >= dimension) {
-        comparator = Ordering.from(comparatorMap.get(ordering.getDimension()));
+        comparator = comparatorMap.get(ordering.getDimension());
         if (ordering.getDirection() == Direction.DESCENDING) {
-          comparator = Ordering.from(comparator).reverse();
+          comparator = Comparators.REVERT(comparator);
         }
       }
       comparators.add(Pair.of(index, comparator));
@@ -561,7 +561,7 @@ public class GroupByQueryEngine
         }
       };
     }
-    final Ordering<Object[]> ordering = Ordering.from(new Comparator<Object[]>()
+    final Comparator<Object[]> ordering = new Comparator<Object[]>()
     {
       @Override
       @SuppressWarnings("unchecked")
@@ -575,7 +575,7 @@ public class GroupByQueryEngine
         }
         return 0;
       }
-    });
+    };
 
     return new Function<Sequence<Object[]>, Sequence<Object[]>>()
     {

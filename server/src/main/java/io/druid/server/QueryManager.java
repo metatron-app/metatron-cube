@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.inject.Inject;
@@ -442,7 +441,7 @@ public class QueryManager implements QueryWatcher, Runnable
     @Override
     public int compareTo(Timer o)
     {
-      return -Longs.compare(elapsed, o.elapsed);  // descending
+      return -Long.compare(elapsed, o.elapsed);  // descending
     }
 
     @Override

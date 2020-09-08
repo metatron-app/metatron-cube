@@ -78,7 +78,7 @@ public class BitSlicedBitmaps
         public long getSerializedSize() throws IOException
         {
           bitmapPayload = BitSlicedBitmaps.getStrategy(serdeFactory, valueType).toBytes(bitmaps);
-          return Ints.BYTES + bitmapPayload.length;
+          return Integer.BYTES + bitmapPayload.length;
         }
 
         @Override

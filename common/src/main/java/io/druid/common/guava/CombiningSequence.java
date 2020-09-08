@@ -20,16 +20,16 @@
 package io.druid.common.guava;
 
 import com.google.common.base.Supplier;
-import com.google.common.collect.Ordering;
+import io.druid.common.Yielders;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.common.Yielders;
-import io.druid.common.utils.Sequences;
 
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -38,7 +38,7 @@ public class CombiningSequence<T> implements Sequence<T>
 {
   public static <T> Sequence<T> create(
       final Sequence<T> sequence,
-      final Ordering<T> ordering,
+      final Comparator<T> ordering,
       final BinaryFn<T, T, T> mergeFn
   )
   {
@@ -57,12 +57,12 @@ public class CombiningSequence<T> implements Sequence<T>
   }
 
   private final Sequence<T> baseSequence;
-  private final Ordering<T> ordering;
+  private final Comparator<T> ordering;
   private final BinaryFn<T, T, T> mergeFn;
 
   public CombiningSequence(
       Sequence<T> baseSequence,
-      Ordering<T> ordering,
+      Comparator<T> ordering,
       BinaryFn<T, T, T> mergeFn
   )
   {
@@ -160,7 +160,7 @@ public class CombiningSequence<T> implements Sequence<T>
 
   private static class CombiningYieldingAccumulator<OutType, T> extends YieldingAccumulator<T, T>
   {
-    private final Ordering<T> ordering;
+    private final Comparator<T> ordering;
     private final BinaryFn<T, T, T> mergeFn;
     private final YieldingAccumulator<OutType, T> accumulator;
 
@@ -169,7 +169,7 @@ public class CombiningSequence<T> implements Sequence<T>
     private volatile boolean accumulatedSomething = false;
 
     public CombiningYieldingAccumulator(
-        Ordering<T> ordering,
+        Comparator<T> ordering,
         BinaryFn<T, T, T> mergeFn,
         YieldingAccumulator<OutType, T> accumulator
     )

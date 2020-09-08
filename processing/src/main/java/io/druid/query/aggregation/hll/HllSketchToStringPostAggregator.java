@@ -21,8 +21,8 @@ package io.druid.query.aggregation.hll;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Ordering;
 import com.yahoo.sketches.hll.HllSketch;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.PostAggregator;
@@ -64,7 +64,7 @@ public class HllSketchToStringPostAggregator extends PostAggregator.Abstract
   @Override
   public Comparator<String> getComparator()
   {
-    return Ordering.natural().nullsFirst();
+    return GuavaUtils.nullFirstNatural();
   }
 
   @Override
