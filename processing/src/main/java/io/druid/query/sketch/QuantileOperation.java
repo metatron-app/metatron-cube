@@ -36,8 +36,9 @@ public enum QuantileOperation
     @Override
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
-      final Class<?> clazz = sketch.getMinValue().getClass();
-      if (parameter == null) {
+      if (sketch.getN() == 0) {
+        return null;
+      } else if (parameter == null) {
         return sketch.getQuantiles(DEFAULT_FRACTIONS);
       } else if (parameter instanceof Number) {
         double number = ((Number) parameter).doubleValue();
@@ -96,7 +97,7 @@ public enum QuantileOperation
           throw new IllegalArgumentException("Invalid quantile param " + quantileParam);
         }
         if (quantileParam.dedup) {
-          quantiles = removeDuplicates(quantiles, clazz);
+          quantiles = removeDuplicates(quantiles, sketch.getMinValue().getClass());
         }
         return quantiles;
       }
@@ -108,7 +109,9 @@ public enum QuantileOperation
     @SuppressWarnings("unchecked")
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
-      if (parameter instanceof RatioParam) {
+      if (sketch.getN() == 0) {
+        return null;
+      } else if (parameter instanceof RatioParam) {
         RatioParam ratioParam = (RatioParam) parameter;
         double[] ratio = sketch.getCDF(ratioParam.splits);
         if (ratioParam.ratioAsCount) {
@@ -126,7 +129,9 @@ public enum QuantileOperation
     @SuppressWarnings("unchecked")
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
-      if (parameter instanceof RatioParam) {
+      if (sketch.getN() == 0) {
+        return null;
+      } else if (parameter instanceof RatioParam) {
         RatioParam ratioParam = (RatioParam) parameter;
         double[] ratio = sketch.getPMF(ratioParam.splits);
         if (ratioParam.ratioAsCount) {
@@ -143,6 +148,9 @@ public enum QuantileOperation
     @Override
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
+      if (sketch.getN() == 0) {
+        return null;
+      }
       Class<?> clazz = sketch.getMinValue().getClass();
       QuantileRatioParam param = (QuantileRatioParam) parameter;
       Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam), clazz);
@@ -153,6 +161,9 @@ public enum QuantileOperation
     @Override
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
+      if (sketch.getN() == 0) {
+        return null;
+      }
       Class<?> clazz = sketch.getMinValue().getClass();
       QuantileRatioParam param = (QuantileRatioParam) parameter;
       Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam), clazz);

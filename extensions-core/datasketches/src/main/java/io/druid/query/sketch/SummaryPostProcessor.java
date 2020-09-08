@@ -196,7 +196,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
             );
             for (int i = 1; i < values.length; i++) {
               if (values[i] == null) {
-                continue;   // empty or not-existing
+                continue;   // not-existing
               }
               final String column = columns.get(i);
               final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) values[i];
@@ -204,13 +204,19 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
               if (result == null) {
                 results.put(column, result = Maps.newLinkedHashMap());
               }
-              final ItemsSketch itemsSketch = sketch.value();
               final ValueDesc type = sketch.type();
+              final ItemsSketch itemsSketch = sketch.value();
+              result.put("type", type);
+              result.put("count", itemsSketch.getN());
+
+              if (itemsSketch.getN() == 0) {
+                continue;   // empty
+              }
+
               Object[] quantiles = (Object[]) QuantileOperation.QUANTILES.calculate(
                   itemsSketch,
                   QuantileOperation.DEFAULT_QUANTILE_PARAM
               );
-              result.put("type", type);
               if (typeDetail != null && typeDetail.containsKey(column)) {
                 result.put("typeDetail", typeDetail.get(column));
               }
@@ -229,7 +235,6 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport im
               Object lower = itemsSketch.getQuantile(0.25f);
               Object upper = itemsSketch.getQuantile(0.75f);
               result.put("iqr", new Object[]{lower, upper});
-              result.put("count", itemsSketch.getN());
 
               if (type.isPrimitiveNumeric()) {
                 double q1 = ((Number) lower).doubleValue();
