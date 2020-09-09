@@ -291,7 +291,7 @@ public class QueryLifecycle
               new QueryStats(statsMap)
           )
       );
-      if ("druid/broker".equals(emitter.getService())) {
+      if (emitter.getService() != null && emitter.getService().contains("broker")) {
         emitter.emit(
             new QueryEvent(
                 DateTimes.utc(startMs),
