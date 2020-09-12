@@ -163,6 +163,9 @@ public class HivePathSpec implements PathSpec.Resolving
       }
 
       Class inputFormat = table.getInputFormatClass();
+      if (inputFormat.getName().contains("parquet")) {
+        inputFormat = io.druid.data.input.DruidParquetInputFormat.class;
+      }
       Set<String> pathSpecs = Sets.newTreeSet();
       if (table.isPartitioned()) {
         if (partialPartitionList == null || partialPartitionList.isEmpty()) {
