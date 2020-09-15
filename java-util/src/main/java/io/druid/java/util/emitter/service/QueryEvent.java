@@ -14,13 +14,23 @@ public class QueryEvent implements Event
   private final String remoteAddress;
   private final String query;
   private final String success;
+  private final Long timeNs;
+  private final Long bytes;
+  private final Integer rows;
+  private String exception;
+  private String interrupted;
 
   public QueryEvent(
       DateTime createdTime,
-      String id,
       String remoteAddress,
+      String id,
       String query,
-      String success
+      String success,
+      Long timeNs,
+      Long bytes,
+      Integer rows,
+      String exception,
+      String interrupted
   )
   {
     this.createdTime = createdTime != null ? createdTime : new DateTime();
@@ -28,6 +38,11 @@ public class QueryEvent implements Event
     this.remoteAddress = remoteAddress;
     this.query = query;
     this.success = success;
+    this.timeNs = timeNs;
+    this.bytes = bytes;
+    this.rows = rows;
+    this.exception = exception;
+    this.interrupted = interrupted;
   }
 
   public String getId()
@@ -46,19 +61,6 @@ public class QueryEvent implements Event
   }
 
   @Override
-  public Map<String, Object> toMap()
-  {
-    return ImmutableMap.<String, Object>builder()
-        .put("feed", getFeed())
-        .put("timestamp", createdTime.toString())
-        .put("id", id)
-        .put("remoteAddress", Strings.nullToEmpty(remoteAddress))
-        .put("query", query)
-        .put("success", success)
-        .build();
-  }
-
-  @Override
   public String getFeed()
   {
     return "queries";
@@ -68,6 +70,48 @@ public class QueryEvent implements Event
   public DateTime getCreatedTime()
   {
     return createdTime;
+  }
+
+  public String getSuccess() {
+    return success;
+  }
+
+  public Long getTimeNs() {
+    return timeNs;
+  }
+
+  public Long getBytes() {
+    return bytes;
+  }
+
+  public Integer getRows() {
+    return rows;
+  }
+
+  public String getException() {
+    return exception;
+  }
+
+  public String getInterrupted() {
+    return interrupted;
+  }
+
+  @Override
+  public Map<String, Object> toMap()
+  {
+    return ImmutableMap.<String, Object>builder()
+            .put("feed", getFeed())
+            .put("timestamp", createdTime.toString())
+            .put("id", id)
+            .put("remoteAddress", Strings.nullToEmpty(remoteAddress))
+            .put("query", query)
+            .put("success", success)
+            .put("querytime", timeNs)
+            .put("bytes", bytes)
+            .put("rows", rows)
+            .put("exception", exception)
+            .put("interrupted", interrupted)
+            .build();
   }
 
 }

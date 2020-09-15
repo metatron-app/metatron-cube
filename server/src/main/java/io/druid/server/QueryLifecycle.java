@@ -53,6 +53,7 @@ import java.io.InterruptedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -70,7 +71,7 @@ import java.util.concurrent.TimeoutException;
  *
  * This object is not thread-safe.
  */
-public class QueryLifecycle
+public class  QueryLifecycle
 {
   public static enum State
   {
@@ -296,10 +297,15 @@ public class QueryLifecycle
         emitter.emit(
             new QueryEvent(
                 DateTimes.utc(startMs),
-                forLog.getId(),
                 Strings.nullToEmpty(remoteAddress),
+                forLog.getId(),
                 jsonMapper.writeValueAsString(forLog),
-                String.valueOf(success)
+                String.valueOf(success),
+                Long.valueOf(TimeUnit.NANOSECONDS.toMillis(queryTimeNs)),
+                Long.valueOf(bytesWritten),
+                Integer.valueOf(rows),
+                Optional.ofNullable(e).map(Throwable::toString).orElse(""),
+                Optional.ofNullable(e).map(throwable -> String.valueOf(interrupted)).orElse("false")
             ));
       }
     }

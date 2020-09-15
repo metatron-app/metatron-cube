@@ -51,6 +51,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -247,11 +248,15 @@ public class SqlLifecycle
         if (Objects.equals(ServiceTypes.BROKER, emitter.getType())) {
           emitter.emit(
               new QueryEvent(
-                  DateTimes.utc(startMs),
+                  DateTimes.utc(startMs), Strings.nullToEmpty(remoteAddress),
                   getQueryId(),
-                  Strings.nullToEmpty(remoteAddress),
                   sql,
-                  String.valueOf(success)
+                  String.valueOf(success),
+                  Long.valueOf(TimeUnit.NANOSECONDS.toMillis(queryTimeNs)),
+                  Long.valueOf(bytesWritten),
+                  Integer.valueOf(rows),
+                  Optional.ofNullable(e).map(Throwable::toString).orElse(""),
+                  Optional.ofNullable(e).map(throwable -> String.valueOf(interrupted)).orElse("false")
               ));
         }
       }
