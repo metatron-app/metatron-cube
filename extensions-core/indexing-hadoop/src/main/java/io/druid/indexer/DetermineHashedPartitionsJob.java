@@ -214,7 +214,6 @@ public class DetermineHashedPartitionsJob implements Jobby
     private static HashFunction hashFunction = Hashing.murmur3_128();
     private Granularity rollupGranularity = null;
     private Map<Interval, HyperLogLogCollector> hyperLogLogs;
-    private HadoopDruidIndexerConfig config;
     private boolean determineIntervals;
 
     @Override
@@ -223,7 +222,6 @@ public class DetermineHashedPartitionsJob implements Jobby
     {
       super.setup(context);
       rollupGranularity = getConfig().getGranularitySpec().getQueryGranularity();
-      config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
       Optional<Set<Interval>> intervals = config.getSegmentGranularIntervals();
       if (intervals.isPresent()) {
         determineIntervals = false;
@@ -403,7 +401,7 @@ public class DetermineHashedPartitionsJob implements Jobby
     public void setConf(Configuration config)
     {
       this.config = config;
-      HadoopDruidIndexerConfig hadoopConfig = HadoopDruidIndexerConfig.fromConfiguration(config);
+      HadoopDruidIndexerConfig hadoopConfig = HadoopDruidIndexerConfig.fromConfiguration(config, false);
       if (hadoopConfig.getSegmentGranularIntervals().isPresent()) {
         determineIntervals = false;
         int reducerNumber = 0;

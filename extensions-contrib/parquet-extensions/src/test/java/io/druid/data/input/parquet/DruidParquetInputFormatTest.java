@@ -20,7 +20,6 @@ package io.druid.data.input.parquet;
 
 import io.druid.data.input.DruidParquetInputFormat;
 import io.druid.indexer.HadoopDruidIndexerConfig;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -35,6 +34,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -64,7 +64,7 @@ public class DruidParquetInputFormatTest
 
     reader.nextKeyValue();
 
-    GenericRecord data = (GenericRecord) reader.getCurrentValue();
+    Map<String, Object> data = (Map<String, Object>) reader.getCurrentValue();
 
     // field not read, should return null
     assertEquals(data.get("added"), null);

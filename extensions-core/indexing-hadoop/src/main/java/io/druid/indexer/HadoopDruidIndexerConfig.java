@@ -34,16 +34,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
-import io.druid.jackson.FunctionModule;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.Validation;
+import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.guice.GuiceInjectors;
@@ -55,6 +56,11 @@ import io.druid.indexer.path.PartitionPathSpec;
 import io.druid.indexer.path.PathSpec;
 import io.druid.initialization.Initialization;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.FunctionModule;
+import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.math.expr.Parser;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
@@ -214,8 +220,15 @@ public class HadoopDruidIndexerConfig
 
   public static HadoopDruidIndexerConfig fromConfiguration(Configuration conf)
   {
+    return fromConfiguration(conf, true);
+  }
+
+  public static HadoopDruidIndexerConfig fromConfiguration(Configuration conf, boolean verify)
+  {
     final HadoopDruidIndexerConfig retVal = fromString(conf.get(CONFIG_PROPERTY));
-    retVal.verify();
+    if (verify) {
+      retVal.verify();
+    }
     return retVal;
   }
 
@@ -673,5 +686,39 @@ public class HadoopDruidIndexerConfig
       }
     }
     return dimensions;
+  }
+
+  // for projection pushdown
+  public Set<String> getRequiredColumnNames()
+  {
+    Set<String> required = Sets.newHashSet();
+
+    InputRowParser parser = getParser();
+    List<DimensionSchema> dimensionSchema = parser.getDimensionsSpec().getDimensions();
+    if (dimensionSchema.isEmpty()) {
+      return null;
+    }
+    String timestampColumn = parser.getTimestampSpec().getTimestampColumn();
+    if (timestampColumn == null) {
+      return null;  // todo
+    }
+    required.add(timestampColumn);
+    for (DimensionSchema dimension : dimensionSchema) {
+      required.add(dimension.getName());
+    }
+    for (AggregatorFactory agg : schema.getDataSchema().getAggregators()) {
+      required.addAll(agg.requiredFields());
+    }
+    for (Evaluation evaluation : schema.getDataSchema().getEvaluations()) {
+      for (String expression : evaluation.getExpressions()) {
+        required.addAll(Parser.findRequiredBindings(expression));
+      }
+    }
+    for (Validation validation : schema.getDataSchema().getValidations()) {
+      for (String expression : validation.getExclusions()) {
+        required.addAll(Parser.findRequiredBindings(expression));
+      }
+    }
+    return required;
   }
 }

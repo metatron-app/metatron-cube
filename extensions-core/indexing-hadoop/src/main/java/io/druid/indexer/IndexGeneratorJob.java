@@ -353,7 +353,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
     protected void setup(Context context)
         throws IOException, InterruptedException
     {
-      config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
+      config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration(), false);
 
       dimensions = config.extractForwardingColumns();
       aggregators = config.getSchema().getDataSchema().getAggregators();

@@ -18,11 +18,12 @@
  */
 package io.druid.data.input;
 
-import org.apache.avro.generic.GenericRecord;
 import org.apache.parquet.avro.DruidParquetReadSupport;
 import org.apache.parquet.hadoop.ParquetInputFormat;
 
-public class DruidParquetInputFormat extends ParquetInputFormat<GenericRecord>
+import java.util.Map;
+
+public class DruidParquetInputFormat extends ParquetInputFormat<Map<String, Object>>
 {
   public DruidParquetInputFormat()
   {

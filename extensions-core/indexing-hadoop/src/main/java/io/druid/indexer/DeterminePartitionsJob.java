@@ -33,14 +33,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.io.Closeables;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.nary.BinaryFn;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.collections.CombiningIterable;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.partitions.SingleDimensionPartitionsSpec;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.timeline.partition.ShardSpec;
 import io.druid.timeline.partition.SingleDimensionShardSpec;
 import org.apache.hadoop.conf.Configurable;
@@ -339,7 +339,6 @@ public class DeterminePartitionsJob implements Jobby
         throws IOException, InterruptedException
     {
       super.setup(context);
-      final HadoopDruidIndexerConfig config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
       final SingleDimensionPartitionsSpec spec = (SingleDimensionPartitionsSpec) config.getPartitionsSpec();
       helper = new DeterminePartitionsDimSelectionMapperHelper(config, spec.getPartitionDimension());
     }

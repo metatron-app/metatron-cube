@@ -53,7 +53,7 @@ public class StreamInputFormat extends FileInputFormat
       throws IOException, InterruptedException
   {
     if (streaming == null) {
-      InputRowParser parser = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration()).getParser();
+      InputRowParser parser = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration(), false).getParser();
       Preconditions.checkArgument(parser instanceof InputRowParser.Streaming, "not streaming parser %s", parser);
       streaming = (InputRowParser.Streaming) parser;
     }

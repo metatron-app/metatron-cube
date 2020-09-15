@@ -27,15 +27,17 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.logger.Logger;
+import io.druid.data.input.parquet.HiveParquetInputFormat;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.path.HadoopPathSpec;
 import io.druid.indexer.path.PathSpec;
 import io.druid.indexer.path.PathSpecElement;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.mapreduce.Job;
@@ -163,8 +165,8 @@ public class HivePathSpec implements PathSpec.Resolving
       }
 
       Class inputFormat = table.getInputFormatClass();
-      if (inputFormat.getName().contains("parquet")) {
-        inputFormat = io.druid.data.input.DruidParquetInputFormat.class;
+      if (MapredParquetInputFormat.class.isAssignableFrom(inputFormat)) {
+        inputFormat = HiveParquetInputFormat.class;
       }
       Set<String> pathSpecs = Sets.newTreeSet();
       if (table.isPartitioned()) {

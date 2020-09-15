@@ -18,10 +18,10 @@
  */
 package io.druid.data.input.parquet;
 
-import io.druid.data.input.DruidParquetInputFormat;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -33,11 +33,12 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-public class DruidParquetInputTest
+public class HiveParquetInputFormatTest
 {
   @Test
   public void test() throws IOException, InterruptedException
@@ -54,10 +55,7 @@ public class DruidParquetInputTest
     Path path = new Path(testFile.getAbsoluteFile().toURI());
     FileSplit split = new FileSplit(path, 0, testFile.length(), null);
 
-    DruidParquetInputFormat inputFormat = ReflectionUtils.newInstance(
-        DruidParquetInputFormat.class,
-        job.getConfiguration()
-    );
+    InputFormat inputFormat = ReflectionUtils.newInstance(HiveParquetInputFormat.class, job.getConfiguration());
 
     TaskAttemptContext context = new TaskAttemptContextImpl(job.getConfiguration(), new TaskAttemptID());
     RecordReader reader = inputFormat.createRecordReader(split, context);
@@ -70,8 +68,10 @@ public class DruidParquetInputTest
 
     // field not read, should return null
     assertEquals(data.get("added"), null);
+
     assertEquals(data.get("page"), "Gypsy Danger");
-    assertEquals(config.getParser().parse(data).getDimension("page").get(0), "Gypsy Danger");
+
+    assertEquals(data.get("language"), Arrays.asList("en", "zh"));
 
     reader.close();
   }

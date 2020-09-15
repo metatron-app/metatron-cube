@@ -21,14 +21,17 @@ package org.apache.parquet.avro;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.parquet.hadoop.api.InitContext;
+import org.apache.parquet.io.api.GroupConverter;
 import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.Type;
@@ -37,7 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class DruidParquetReadSupport extends AvroReadSupport<GenericRecord>
+public class DruidParquetReadSupport extends AvroReadSupport<Map<String, Object>>
 {
   private MessageType getPartialReadSchema(InitContext context)
   {
@@ -45,7 +48,7 @@ public class DruidParquetReadSupport extends AvroReadSupport<GenericRecord>
 
     String name = fullSchema.getName();
 
-    HadoopDruidIndexerConfig config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
+    HadoopDruidIndexerConfig config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration(), false);
     String tsField = config.getParser().getTimestampSpec().getTimestampColumn();
 
     List<DimensionSchema> dimensionSchema = config.getParser().getDimensionsSpec().getDimensions();
@@ -80,7 +83,7 @@ public class DruidParquetReadSupport extends AvroReadSupport<GenericRecord>
   }
 
   @Override
-  public RecordMaterializer<GenericRecord> prepareForRead(
+  public RecordMaterializer<Map<String, Object>> prepareForRead(
       Configuration configuration, Map<String, String> keyValueMetaData,
       MessageType fileSchema, ReadContext readContext
   )
@@ -100,8 +103,25 @@ public class DruidParquetReadSupport extends AvroReadSupport<GenericRecord>
         SpecificDataSupplier.class,
         AvroDataSupplier.class
     );
-    AvroDataSupplier supplier = ReflectionUtils.newInstance(suppClass, configuration);
-    return new AvroRecordMaterializer<GenericRecord>(parquetSchema, avroSchema, supplier.get());
-  }
+    final GenericData baseModel = ReflectionUtils.newInstance(suppClass, configuration).get();
+    final RecordMaterializer<GenericRecord> delegate = new AvroRecordMaterializer<GenericRecord>(
+        parquetSchema,
+        avroSchema,
+        baseModel
+    );
+    return new RecordMaterializer<Map<String, Object>>()
+    {
+      @Override
+      public Map<String, Object> getCurrentRecord()
+      {
+        return new GenericRecordAsMap(delegate.getCurrentRecord(), false);
+      }
 
+      @Override
+      public GroupConverter getRootConverter()
+      {
+        return delegate.getRootConverter();
+      }
+    };
+  }
 }

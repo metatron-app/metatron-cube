@@ -52,12 +52,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>app.metatron.extensions.contrib</groupId>
-            <artifactId>druid-parquet-extensions</artifactId>
-            <version>${project.parent.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-exec</artifactId>
             <exclusions>
@@ -124,6 +118,12 @@
         <dependency>
           <groupId>app.metatron</groupId>
           <artifactId>druid-server</artifactId>
+          <version>${project.parent.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>app.metatron</groupId>
+          <artifactId>druid-services</artifactId>
           <version>${project.parent.version}</version>
           <scope>test</scope>
         </dependency>

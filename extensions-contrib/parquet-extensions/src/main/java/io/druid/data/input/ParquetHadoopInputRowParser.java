@@ -22,18 +22,17 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import io.druid.data.ParsingFail;
-import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import org.apache.avro.generic.GenericRecord;
 import org.joda.time.DateTime;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-public class ParquetHadoopInputRowParser implements InputRowParser<GenericRecord>
+public class ParquetHadoopInputRowParser implements InputRowParser<Map<String, Object>>
 {
   private final ParseSpec parseSpec;
   private final List<String> dimensions;
@@ -56,13 +55,12 @@ public class ParquetHadoopInputRowParser implements InputRowParser<GenericRecord
    * imitate avro extension {@link AvroStreamInputRowParser#parseGenericRecord(GenericRecord, ParseSpec, List, boolean)}
    */
   @Override
-  public InputRow parse(GenericRecord record)
+  public InputRow parse(Map<String, Object> record)
   {
+    TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
     try {
-      GenericRecordAsMap genericRecordAsMap = new GenericRecordAsMap(record, false);
-      TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
-      DateTime dateTime = timestampSpec.extractTimestamp(genericRecordAsMap);
-      return new MapBasedInputRow(dateTime, dimensions, genericRecordAsMap);
+      DateTime dateTime = timestampSpec.extractTimestamp(record);
+      return new MapBasedInputRow(dateTime, dimensions, record);
     }
     catch (Exception e) {
       throw ParsingFail.propagate(record, e);
