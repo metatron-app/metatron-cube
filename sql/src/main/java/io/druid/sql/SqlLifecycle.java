@@ -33,6 +33,7 @@ import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.server.QueryLifecycle;
 import io.druid.server.QueryStats;
 import io.druid.server.RequestLogLine;
+import io.druid.server.ServiceTypes;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.AuthenticationResult;
@@ -49,6 +50,7 @@ import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -242,7 +244,7 @@ public class SqlLifecycle
                 new QueryStats(statsMap)
             )
         );
-        if (emitter.getService() != null && emitter.getService().contains("broker")) {
+        if (Objects.equals(ServiceTypes.BROKER, emitter.getType())) {
           emitter.emit(
               new QueryEvent(
                   DateTimes.utc(startMs),

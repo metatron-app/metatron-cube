@@ -14,6 +14,7 @@
 
 package io.druid.java.util.emitter.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
@@ -28,24 +29,28 @@ public class ServiceEmitter implements Emitter
   private final ImmutableMap<String, String> serviceDimensions;
   private final Emitter emitter;
 
+  @VisibleForTesting
   public ServiceEmitter(String service, String host, Emitter emitter)
   {
-    this(service, host, emitter, ImmutableMap.<String, String>of());
+    this(service, host, null, emitter, ImmutableMap.<String, String>of());
   }
 
   public ServiceEmitter(
       String service,
       String host,
+      String type,
       Emitter emitter,
       ImmutableMap<String, String> otherServiceDimensions
   )
   {
-    this.serviceDimensions = ImmutableMap
-        .<String, String>builder()
-        .put("service", Preconditions.checkNotNull(service))
-        .put("host", Preconditions.checkNotNull(host))
-        .putAll(otherServiceDimensions)
-        .build();
+    ImmutableMap.Builder<String, String> builder = ImmutableMap.<String, String>builder();
+    builder.put("service", Preconditions.checkNotNull(service))
+           .put("host", Preconditions.checkNotNull(host));
+    if (type != null) {
+      builder.put("servicetype", type);   // 'type' conflicts with query type
+    }
+    builder.putAll(otherServiceDimensions);
+    this.serviceDimensions = builder.build();
     this.emitter = emitter;
   }
 
@@ -57,6 +62,11 @@ public class ServiceEmitter implements Emitter
   public String getHost()
   {
     return serviceDimensions.get("host");
+  }
+
+  public String getType()
+  {
+    return serviceDimensions.get("servicetype");
   }
 
   @LifecycleStart

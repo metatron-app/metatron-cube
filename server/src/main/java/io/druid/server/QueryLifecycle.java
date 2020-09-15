@@ -52,6 +52,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.InterruptedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -291,7 +292,7 @@ public class QueryLifecycle
               new QueryStats(statsMap)
           )
       );
-      if (emitter.getService() != null && emitter.getService().contains("broker")) {
+      if (Objects.equals(ServiceTypes.BROKER, emitter.getType())) {
         emitter.emit(
             new QueryEvent(
                 DateTimes.utc(startMs),
