@@ -131,13 +131,21 @@ public class GenericRecordAsMap implements Map<String, Object>
   @Override
   public Object put(String key, Object value)
   {
-    throw new UnsupportedOperationException();
+    final Object prev = record.get(key);
+    record.put(key, value);
+    return prev;
   }
 
   @Override
   public Object remove(Object key)
   {
-    throw new UnsupportedOperationException();
+    if (key instanceof String) {
+      final String k = (String) key;
+      final Object prev = record.get(k);
+      record.put(k, null);
+      return prev;
+    }
+    return null;
   }
 
   @Override

@@ -374,14 +374,9 @@ public class DefaultTimestampSpec implements TimestampSpec
   @Override
   public DateTime extractTimestamp(Map<String, Object> input)
   {
-    return extractTimestamp(input, removeTimestampColumn);
-  }
-
-  public DateTime extractTimestamp(final Map<String, Object> input, final boolean remove)
-  {
-    final Object o = remove ? input.remove(timestampColumn) : input.get(timestampColumn);
+    final Object o = removeTimestampColumn ? input.remove(timestampColumn) : input.get(timestampColumn);
     final DateTime extracted = parseDateTime(o);
-    if (replaceWrongColumn && !remove) {
+    if (replaceWrongColumn && !removeTimestampColumn) {
       if (extracted == invalidValue) {
         input.put(timestampColumn, invalidValueString);
       } else {
