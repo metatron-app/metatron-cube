@@ -60,7 +60,7 @@ public class NestedParseSpecTest
         jsonMapper.writeValueAsString(nestedSpec),
         NestedParseSpec.class
     );
-    Assert.assertEquals("timestamp", serde.getTimestampSpec().getTimestampColumn());
+    Assert.assertEquals("timestamp", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampColumn());
     Assert.assertEquals("iso", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampFormat());
 
     Assert.assertEquals(Arrays.asList("bar", "foo"), serde.getDimensionsSpec().getDimensionNames());

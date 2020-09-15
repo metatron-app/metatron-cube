@@ -21,8 +21,10 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -58,9 +60,9 @@ public class IncrementTimestampSpec implements TimestampSpec
   }
 
   @Override
-  public String getTimestampColumn()
+  public List<String> getRequiredColumns()
   {
-    return null;
+    return ImmutableList.of();
   }
 
   @Override

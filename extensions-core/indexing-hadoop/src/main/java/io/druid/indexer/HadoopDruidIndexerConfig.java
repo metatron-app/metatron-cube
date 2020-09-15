@@ -698,11 +698,8 @@ public class HadoopDruidIndexerConfig
     if (dimensionSchema.isEmpty()) {
       return null;
     }
-    String timestampColumn = parser.getTimestampSpec().getTimestampColumn();
-    if (timestampColumn == null) {
-      return null;  // todo
-    }
-    required.add(timestampColumn);
+    required.addAll(parser.getTimestampSpec().getRequiredColumns());
+
     for (DimensionSchema dimension : dimensionSchema) {
       required.add(dimension.getName());
     }

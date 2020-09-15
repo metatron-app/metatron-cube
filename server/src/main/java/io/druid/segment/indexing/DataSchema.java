@@ -28,14 +28,14 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.Validation;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -151,27 +151,28 @@ public class DataSchema
     TimestampSpec timestampSpec = inputRowParser.getTimestampSpec();
 
     // exclude timestamp from dimensions by default, unless explicitly included in the list of dimensions
-    if (timestampSpec != null && timestampSpec.getTimestampColumn() != null) {
-      String timestampColumn = timestampSpec.getTimestampColumn();
-      if (!(dimensionsSpec.hasCustomDimensions() && dimensionsSpec.getDimensionNames().contains(timestampColumn))) {
-        exclusions.add(timestampColumn);
+    List<String> dimensionNames = dimensionsSpec.getDimensionNames();
+    if (timestampSpec != null) {
+      for (String timestampColumn : timestampSpec.getRequiredColumns()) {
+        if (!(dimensionsSpec.hasCustomDimensions() && dimensionNames.contains(timestampColumn))) {
+          exclusions.add(timestampColumn);
+        }
       }
     }
-    if (dimensionsSpec != null) {
-      Set<String> metSet = Sets.newHashSet();
-      for (AggregatorFactory aggregator : aggregators) {
-        metSet.add(aggregator.getName());
-      }
-      Set<String> dimSet = Sets.newHashSet(dimensionsSpec.getDimensionNames());
-      Set<String> overlap = Sets.intersection(metSet, dimSet);
-      if (!overlap.isEmpty()) {
-        throw new IAE(
-            "Cannot have overlapping dimensions and metrics of the same name. Please change the name of the metric. Overlap: %s",
-            overlap
-        );
-      }
-      exclusions = Sets.difference(exclusions, dimSet);
+    Set<String> metSet = Sets.newHashSet();
+    for (AggregatorFactory aggregator : aggregators) {
+      metSet.add(aggregator.getName());
     }
+    Set<String> dimSet = Sets.newHashSet(dimensionNames);
+    Set<String> overlap = Sets.intersection(metSet, dimSet);
+    if (!overlap.isEmpty()) {
+      throw new IAE(
+          "Cannot have overlapping dimensions and metrics of the same name. Please change the name of the metric. Overlap: %s",
+          overlap
+      );
+    }
+    exclusions = Sets.difference(exclusions, dimSet);
+
     if (!exclusions.isEmpty()) {
       inputRowParser = inputRowParser.withDimensionExclusions(exclusions);
     }

@@ -19,11 +19,13 @@
 
 package io.druid.data.input;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import org.joda.time.DateTime;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -36,7 +38,8 @@ import java.util.Map;
 })
 public interface TimestampSpec
 {
-  String getTimestampColumn();
+  @JsonIgnore
+  List<String> getRequiredColumns();
 
   DateTime extractTimestamp(Map<String, Object> input);
 }

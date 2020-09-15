@@ -20,6 +20,7 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.InputRowParser;
 import org.junit.Assert;
 import org.junit.Test;
@@ -46,6 +47,6 @@ public class HadoopyStringInputRowParserTest
     );
 
     Assert.assertTrue(parser instanceof HadoopyStringInputRowParser);
-    Assert.assertEquals("xXx", parser.getTimestampSpec().getTimestampColumn());
+    Assert.assertEquals("xXx", ((DefaultTimestampSpec)parser.getTimestampSpec()).getTimestampColumn());
   }
 }

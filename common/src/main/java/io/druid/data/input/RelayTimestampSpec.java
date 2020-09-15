@@ -23,10 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import io.druid.java.util.common.parsers.TimestampParser;
 import org.joda.time.DateTime;
 
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,11 +47,16 @@ public class RelayTimestampSpec implements TimestampSpec
     this.timestampColumn = Preconditions.checkNotNull(timestampColumn);
   }
 
-  @Override
   @JsonProperty("column")
   public String getTimestampColumn()
   {
     return timestampColumn;
+  }
+
+  @Override
+  public List<String> getRequiredColumns()
+  {
+    return ImmutableList.of(timestampColumn);
   }
 
   @Override

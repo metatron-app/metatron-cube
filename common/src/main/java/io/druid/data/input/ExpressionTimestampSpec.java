@@ -24,13 +24,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.parsers.TimestampParser;
 import io.druid.common.DateTimes;
+import io.druid.java.util.common.parsers.TimestampParser;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import org.joda.time.DateTime;
 
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -59,9 +60,9 @@ public class ExpressionTimestampSpec implements TimestampSpec
   }
 
   @Override
-  public String getTimestampColumn()
+  public List<String> getRequiredColumns()
   {
-    return null;
+    return Parser.findRequiredBindings(parsed);
   }
 
   @Override

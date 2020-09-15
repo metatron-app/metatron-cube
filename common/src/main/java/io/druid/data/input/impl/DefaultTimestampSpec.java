@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
@@ -36,6 +37,7 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -329,6 +331,11 @@ public class DefaultTimestampSpec implements TimestampSpec
   }
 
   @Override
+  public List<String> getRequiredColumns()
+  {
+    return ImmutableList.of(timestampColumn);
+  }
+
   @JsonProperty("column")
   public String getTimestampColumn()
   {

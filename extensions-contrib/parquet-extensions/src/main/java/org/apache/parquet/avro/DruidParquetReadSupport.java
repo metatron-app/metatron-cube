@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import org.apache.avro.Schema;
@@ -44,14 +45,12 @@ public class DruidParquetReadSupport extends AvroReadSupport<Map<String, Object>
 {
   private MessageType getPartialReadSchema(InitContext context)
   {
-    MessageType fullSchema = context.getFileSchema();
-
-    String name = fullSchema.getName();
-
     HadoopDruidIndexerConfig config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration(), false);
-    String tsField = config.getParser().getTimestampSpec().getTimestampColumn();
 
-    List<DimensionSchema> dimensionSchema = config.getParser().getDimensionsSpec().getDimensions();
+    InputRowParser parser = config.getParser();
+    List<String> tsFields = parser.getTimestampSpec().getRequiredColumns();
+
+    List<DimensionSchema> dimensionSchema = parser.getDimensionsSpec().getDimensions();
     Set<String> dimensions = Sets.newHashSet();
     for (DimensionSchema dim : dimensionSchema) {
       dimensions.add(dim.getName());
@@ -64,8 +63,9 @@ public class DruidParquetReadSupport extends AvroReadSupport<Map<String, Object>
 
     List<Type> partialFields = Lists.newArrayList();
 
+    MessageType fullSchema = context.getFileSchema();
     for (Type type : fullSchema.getFields()) {
-      if (type.getName().equals(tsField)
+      if (tsFields.contains(type.getName())
           || metricsFields.contains(type.getName())
           || dimensions.size() > 0 && dimensions.contains(type.getName())
           || dimensions.size() == 0) {
@@ -73,7 +73,7 @@ public class DruidParquetReadSupport extends AvroReadSupport<Map<String, Object>
       }
     }
 
-    return new MessageType(name, partialFields);
+    return new MessageType(fullSchema.getName(), partialFields);
   }
 
   public ReadContext init(InitContext context)
