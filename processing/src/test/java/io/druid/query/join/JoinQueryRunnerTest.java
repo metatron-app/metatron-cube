@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
-import io.druid.java.util.common.ISE;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -34,6 +33,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularities;
+import io.druid.java.util.common.ISE;
 import io.druid.math.expr.Parser;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
@@ -62,7 +62,6 @@ import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -451,7 +450,6 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test(expected = ISE.class)
-  @Ignore("From #1679, stream is not sorted and cannot determine partition")
   public void testJoinMaxGroup()
   {
     JoinQuery query = Druids
@@ -464,7 +462,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         )
         .intervals(firstToThird)
         .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
-        .maxRowsInGroup(10)
+        .maxOutputRow(10)
         .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
         .build();
 

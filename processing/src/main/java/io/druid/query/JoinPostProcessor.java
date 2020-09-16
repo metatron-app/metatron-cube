@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 import io.druid.common.IntTagged;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -48,7 +49,6 @@ import io.druid.query.JoinQuery.JoinDelegate;
 import io.druid.query.PostProcessingOperator.Local;
 import io.druid.query.PostProcessingOperator.ReturnRowAs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.common.guava.Comparators;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -76,7 +76,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   private final JoinElement[] elements;
   private final boolean prefixAlias;
   private final boolean asArray;
-  private final int maxRowsInGroup;
+  private final int maxOutputRow;
 
   @JsonCreator
   @SuppressWarnings("unchecked")
@@ -85,13 +85,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
-      @JsonProperty("maxRowsInGroup") int maxRowsInGroup
+      @JsonProperty("maxOutputRow") int maxOutputRow
   )
   {
     this.config = config;
     this.elements = elements.toArray(new JoinElement[0]);
     this.asArray = asArray;
-    this.maxRowsInGroup = Math.min(config.getMaxRowsInGroup(), maxRowsInGroup);
+    this.maxOutputRow = config.getMaxOutputRow(maxOutputRow);
     this.prefixAlias = prefixAlias;
   }
 
@@ -102,7 +102,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
 
   public JoinPostProcessor withAsArray(boolean asArray)
   {
-    return new JoinPostProcessor(config, Arrays.asList(elements), prefixAlias, asArray, maxRowsInGroup);
+    return new JoinPostProcessor(config, Arrays.asList(elements), prefixAlias, asArray, maxOutputRow);
   }
 
   @Override
@@ -375,7 +375,8 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   private JoinPostProcessor.JoinResult joinSorted(JoinAlias left, JoinAlias right, JoinType type)
   {
     log.info("... start %s join %s to %s (SortedMerge)", type, left, right);
-    return JoinResult.of(OrderByColumnSpec.ascending(left.joinColumns), new JoinIterator(type, left, right)
+    final List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(left.joinColumns);
+    return JoinResult.of(collation, new JoinIterator(type, left, right, maxOutputRow)
     {
       @Override
       protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -395,7 +396,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     log.info("... start %s join %s %s %s", type, left, leftDriving ? "-->" : "<--", right);
     if (leftDriving) {
       if (left.isHashed()) {
-        return JoinResult.of(new JoinIterator(type, left.prepareHashIterator(), right)
+        return JoinResult.of(new JoinIterator(type, left.prepareHashIterator(), right, maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -406,7 +407,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       }
       if (left.isSorted()) {
         List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(left.joinColumns);
-        return JoinResult.of(collation, new JoinIterator(type, left, right)
+        return JoinResult.of(collation, new JoinIterator(type, left, right, maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -415,7 +416,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
           }
         });
       }
-      return JoinResult.of(new JoinIterator(type, left, right)
+      return JoinResult.of(new JoinIterator(type, left, right, maxOutputRow)
       {
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -425,7 +426,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       });
     } else {
       if (right.isHashed()) {
-        return JoinResult.of(new JoinIterator(type, left, right.prepareHashIterator())
+        return JoinResult.of(new JoinIterator(type, left, right.prepareHashIterator(), maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -436,7 +437,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       }
       if (right.isSorted()) {
         List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(right.joinColumns);
-        return JoinResult.of(collation, new JoinIterator(type, left, right)
+        return JoinResult.of(collation, new JoinIterator(type, left, right, maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -445,7 +446,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
           }
         });
       }
-      return JoinResult.of(new JoinIterator(type, left, right)
+      return JoinResult.of(new JoinIterator(type, left, right, maxOutputRow)
       {
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -467,12 +468,14 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     final JoinType type;
     final JoinAlias leftAlias;
     final JoinAlias rightAlias;
+    final int limit;
 
-    protected JoinIterator(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
+    protected JoinIterator(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias, int limit)
     {
       this.type = type;
       this.leftAlias = leftAlias;
       this.rightAlias = rightAlias;
+      this.limit = limit;
     }
 
     @Override
@@ -482,6 +485,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       rightAlias.close();
     }
 
+    private int count;
     private Iterator<Object[]> iterator = Collections.emptyIterator();
 
     @Override
@@ -498,6 +502,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     @Override
     public Object[] next()
     {
+      if (limit > 0 && ++count > limit) {
+        throw new ISE("Exceeding maxOutputRow of %d in %s + %s", limit, leftAlias.alias, rightAlias.alias);
+      }
       return iterator.next();
     }
   }
@@ -916,10 +923,6 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     if (left.size() == 1) {
       return product(left.get(0), right, revert);
     }
-    if (maxRowsInGroup > 0 && left.size() * right.size() > maxRowsInGroup) {
-      throw new ISE("Exceeding max number of single group %d, %d", maxRowsInGroup, left.size() * right.size());
-    }
-
     return new Iterator<Object[]>()
     {
       private int l;

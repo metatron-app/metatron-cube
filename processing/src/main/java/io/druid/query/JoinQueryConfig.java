@@ -28,10 +28,7 @@ import javax.validation.constraints.Min;
 public class JoinQueryConfig
 {
   @JsonProperty
-  private int maxRows = 1_000000;
-
-  @JsonProperty
-  private int maxRowsInGroup = 1_000000;
+  private int maxOutputRow = 1_000000;
 
   @JsonProperty
   private int hashJoinThreshold = 300_000;
@@ -40,24 +37,19 @@ public class JoinQueryConfig
   @JsonProperty
   private int bloomFilterThreshold = 500_000;
 
-  public int getMaxRows()
+  public int getMaxOutputRow()
   {
-    return maxRows;
+    return maxOutputRow;
   }
 
-  public void setMaxRows(int maxRows)
+  public int getMaxOutputRow(int userConf)
   {
-    this.maxRows = maxRows;
+    return maxOutputRow <= 0 ? userConf : userConf <= 0 ? maxOutputRow : Math.min(maxOutputRow, userConf);
   }
 
-  public int getMaxRowsInGroup()
+  public void setMaxOutputRow(int maxOutputRow)
   {
-    return maxRowsInGroup;
-  }
-
-  public void setMaxRowsInGroup(int maxRowsInGroup)
-  {
-    this.maxRowsInGroup = maxRowsInGroup;
+    this.maxOutputRow = maxOutputRow;
   }
 
   public int getHashJoinThreshold()

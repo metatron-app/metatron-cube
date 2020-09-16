@@ -72,7 +72,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final boolean prefixAlias;
   private final boolean asArray;
   private final int limit;
-  private final int maxRowsInGroup;
+  private final int maxOutputRow;
 
   private transient Supplier<RowSignature> schema;
 
@@ -85,7 +85,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("asArray") boolean asArray,
       @JsonProperty("timeColumnName") String timeColumnName,
       @JsonProperty("limit") int limit,
-      @JsonProperty("maxRowsInGroup") int maxRowsInGroup,
+      @JsonProperty("maxOutputRow") int maxOutputRow,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -96,7 +96,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     this.timeColumnName = timeColumnName;
     this.elements = elements;
     this.limit = limit;
-    this.maxRowsInGroup = maxRowsInGroup;
+    this.maxOutputRow = maxOutputRow;
   }
 
   static Map<String, DataSource> normalize(Map<String, DataSource> dataSources)
@@ -230,7 +230,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         asArray,
         timeColumnName,
         limit,
-        maxRowsInGroup,
+        maxOutputRow,
         computeOverriddenContext(contextOverride)
     ).withSchema(schema);
   }
@@ -339,7 +339,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return PostProcessingOperators.append(
         query.withSchema(schema),
         segmentWalker.getObjectMapper(),
-        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, maxRowsInGroup)
+        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, maxOutputRow)
     );
   }
 
@@ -407,7 +407,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         asArray,
         getTimeColumnName(),
         limit,
-        maxRowsInGroup,
+        maxOutputRow,
         getContext()
     ).withSchema(schema);
   }
@@ -422,7 +422,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         asArray,
         timeColumnName,
         limit,
-        maxRowsInGroup,
+        maxOutputRow,
         getContext()
     ).withSchema(schema);
   }
@@ -435,7 +435,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            ", elements=" + elements +
            ", prefixAlias=" + prefixAlias +
            ", asArray=" + asArray +
-           ", maxRowsInGroup=" + maxRowsInGroup +
+           ", maxOutputRow=" + maxOutputRow +
            ", limit=" + limit +
            '}';
   }
