@@ -870,7 +870,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           @Override
           public Interval inTransaction(Handle handle, TransactionStatus status) throws Exception
           {
-            return JodaUtils.umbrellaInterval(Iterators.filter(
+            Iterator<Interval> intervals = Iterators.filter(
                 handle
                     .createQuery(
                         String.format(
@@ -896,7 +896,8 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
                     )
                     .iterator(),
                 Predicates.notNull()
-            ));
+            );
+            return !intervals.hasNext() ? null : JodaUtils.umbrellaInterval(intervals);
           }
         }
     );
