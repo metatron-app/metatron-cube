@@ -437,14 +437,17 @@ public class HdfsStorageHandler implements StorageHandler
           LOG.info("Interval of data [%s]", timeMinMax);
           Granularity granularity = segmentGranularity;
           if (granularity == null) {
-            granularity = coveringGranularity(
-                timeMinMax.toDurationMillis() == 0 && queryInterval != null ? queryInterval : timeMinMax
+            granularity = coveringGranularity(timeMinMax);
+          }
+          Interval interval;
+          if (granularity == Granularities.ALL && queryInterval != null) {
+            interval = queryInterval;
+          } else {
+            interval = Intervals.of(
+                granularity.bucketStart(timeMinMax.getStart()),
+                granularity.bucketEnd(timeMinMax.getEnd())
             );
           }
-          Interval interval = Intervals.of(
-              granularity.bucketStart(timeMinMax.getStart()),
-              granularity.bucketEnd(timeMinMax.getEnd())
-          );
           LOG.info("Using segment interval [%s]", interval);
           return interval;
         }
@@ -454,7 +457,6 @@ public class HdfsStorageHandler implements StorageHandler
           for (Granularity granularity : Arrays.asList(
               Granularities.HOUR,
               Granularities.DAY,
-              Granularities.WEEK,
               Granularities.MONTH,
               Granularities.QUARTER,
               Granularities.YEAR

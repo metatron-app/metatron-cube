@@ -450,6 +450,9 @@ public class BrokerServerView implements TimelineServerView
               }
           );
         }
+        if (timeline.isEmpty()) {
+          timelines.remove(segment.getDataSource());
+        }
       }
     }
   }
