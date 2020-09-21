@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import io.druid.cache.Cache;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -101,7 +102,7 @@ public class SelectMetaQueryEngine
               row++;
             }
             return new Result<>(
-                cursor.getTime(),
+                DateTimes.utc(cursor.getStartTime()),
                 new SelectMetaResultValue(ImmutableMap.of(segmentId, row), (long) (row * averageSize))
             );
           }

@@ -22,6 +22,7 @@ package io.druid.query.filter;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.NotFilter;
 
@@ -33,7 +34,7 @@ import java.util.List;
 public interface Filter extends Expression
 {
   // bitmap based filter will be applied whenever it's possible
-  @Nullable ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap);
+  @Nullable ImmutableBitmap getBitmapIndex(FilterContext context);
 
   // used when bitmap filter cannot be applied
   ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory);
@@ -45,7 +46,7 @@ public interface Filter extends Expression
   abstract class ValueOnly extends Abstract
   {
     @Override
-    public final ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+    public final ImmutableBitmap getBitmapIndex(FilterContext context)
     {
       return null;
     }

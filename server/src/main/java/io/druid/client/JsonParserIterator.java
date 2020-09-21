@@ -31,7 +31,6 @@ import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.query.QueryInterruptedException;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Iterator;

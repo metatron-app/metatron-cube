@@ -205,7 +205,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public VCSupport<Object[]> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public GeoBoundaryFilterQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new GeoBoundaryFilterQuery(
         (ArrayOutputSupport) ((FilterSupport<?>) query).withVirtualColumns(virtualColumns),

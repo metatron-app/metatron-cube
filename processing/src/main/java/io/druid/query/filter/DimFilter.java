@@ -344,4 +344,9 @@ public interface DimFilter extends Expression, Cacheable
   {
     DimFilter rewrite(QuerySegmentWalker walker, Query parent);
   }
+
+  interface VCInflator extends Rewriting
+  {
+    VirtualColumn inflate();
+  }
 }

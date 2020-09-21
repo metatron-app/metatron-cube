@@ -44,11 +44,10 @@ public class SpatialFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+  public ImmutableBitmap getBitmapIndex(FilterContext context)
   {
-    return DimFilters.union(
-        selector.getBitmapFactory(), selector.getSpatialIndex(dimension).search(bound)
-    );
+    final BitmapIndexSelector selector = context.indexSelector();
+    return DimFilters.union(context.bitmapFactory(), selector.getSpatialIndex(dimension).search(bound));
   }
 
   @Override

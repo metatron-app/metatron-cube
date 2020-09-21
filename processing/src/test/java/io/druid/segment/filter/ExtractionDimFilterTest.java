@@ -88,91 +88,95 @@ public class ExtractionDimFilterTest
     this.foo1BitMap = bitmapFactory.makeImmutableBitmap(mutableBitmap);
     this.factory = bitmapFactory;
     this.serdeFactory = bitmapSerdeFactory;
+    this.selector = new BitmapIndexSelector()
+    {
+      @Override
+      public Indexed<String> getDimensionValues(String dimension)
+      {
+        final String[] vals = DIM_VALS.get(dimension);
+        return vals == null ? null : new ArrayIndexed<String>(vals, String.class);
+      }
+
+      @Override
+      public int getNumRows()
+      {
+        return 100;
+      }
+
+      @Override
+      public BitmapFactory getBitmapFactory()
+      {
+        return factory;
+      }
+
+      @Override
+      public ImmutableBitmap getBitmapIndex(String dimension, String value)
+      {
+        return "foo1".equals(value) ? foo1BitMap : null;
+      }
+
+      @Override
+      public ImmutableBitmap getBitmapIndex(String dimension, Boolean value)
+      {
+        return null;
+      }
+
+      @Override
+      public BitmapIndex getBitmapIndex(String dimension)
+      {
+        return new BitmapIndexColumnPartSupplier(
+            factory,
+            GenericIndexed.fromIterable(Arrays.asList(foo1BitMap), serdeFactory.getObjectStrategy()),
+            GenericIndexed.fromIterable(Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY).asColumnPartProvider()
+        ).get();
+      }
+
+      @Override
+      public ImmutableRTree getSpatialIndex(String dimension)
+      {
+        return null;
+      }
+
+      @Override
+      public LuceneIndex getLuceneIndex(String dimension)
+      {
+        return null;
+      }
+
+      @Override
+      public HistogramBitmap getMetricBitmap(String dimension)
+      {
+        return null;
+      }
+
+      @Override
+      public BitSlicedBitmap getBitSlicedBitmap(String dimension)
+      {
+        return null;
+      }
+
+      @Override
+      public ColumnCapabilities getCapabilities(String dimension)
+      {
+        return null;
+      }
+
+      @Override
+      public Column getColumn(String dimension)
+      {
+        return null;
+      }
+    };
+    this.context = new FilterContext(selector);
   }
 
   private final BitmapFactory factory;
   private final BitmapSerdeFactory serdeFactory;
   private final ImmutableBitmap foo1BitMap;
 
-  private final BitmapIndexSelector BITMAP_INDEX_SELECTOR = new BitmapIndexSelector()
-  {
-    @Override
-    public Indexed<String> getDimensionValues(String dimension)
-    {
-      final String[] vals = DIM_VALS.get(dimension);
-      return vals == null ? null : new ArrayIndexed<String>(vals, String.class);
-    }
+  private final BitmapIndexSelector selector;
+  private final FilterContext context;
 
-    @Override
-    public int getNumRows()
-    {
-      return 100;
-    }
-
-    @Override
-    public BitmapFactory getBitmapFactory()
-    {
-      return factory;
-    }
-
-    @Override
-    public ImmutableBitmap getBitmapIndex(String dimension, String value)
-    {
-      return "foo1".equals(value) ? foo1BitMap : null;
-    }
-
-    @Override
-    public ImmutableBitmap getBitmapIndex(String dimension, Boolean value)
-    {
-      return null;
-    }
-
-    @Override
-    public BitmapIndex getBitmapIndex(String dimension)
-    {
-      return new BitmapIndexColumnPartSupplier(
-          factory,
-          GenericIndexed.fromIterable(Arrays.asList(foo1BitMap), serdeFactory.getObjectStrategy()),
-          GenericIndexed.fromIterable(Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY).asColumnPartProvider()
-      ).get();
-    }
-
-    @Override
-    public ImmutableRTree getSpatialIndex(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public LuceneIndex getLuceneIndex(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public HistogramBitmap getMetricBitmap(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public BitSlicedBitmap getBitSlicedBitmap(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public ColumnCapabilities getCapabilities(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public Column getColumn(String dimension)
-    {
-      return null;
-    }
-  };
   private static final ExtractionFn DIM_EXTRACTION_FN = new ExtractionFn()
   {
     @Override
@@ -195,9 +199,7 @@ public class ExtractionDimFilterTest
     Filter extractionFilter = new SelectorDimFilter(
         "foo", "NFDJUKFNDSJFNS", DIM_EXTRACTION_FN
     ).toFilter(null);
-    ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
-        BITMAP_INDEX_SELECTOR, null
-    );
+    ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(context);
     Assert.assertEquals(0, immutableBitmap.size());
   }
 
@@ -207,9 +209,7 @@ public class ExtractionDimFilterTest
     Filter extractionFilter = new SelectorDimFilter(
         "FDHJSFFHDS", "extractDimVal", DIM_EXTRACTION_FN
     ).toFilter(null);
-    ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
-        BITMAP_INDEX_SELECTOR, null
-    );
+    ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(context);
     Assert.assertEquals(0, immutableBitmap.size());
   }
 
@@ -219,9 +219,7 @@ public class ExtractionDimFilterTest
     Filter extractionFilter = new SelectorDimFilter(
         "foo", "extractDimVal", DIM_EXTRACTION_FN
     ).toFilter(null);
-    ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(
-        BITMAP_INDEX_SELECTOR, null
-    );
+    ImmutableBitmap immutableBitmap = extractionFilter.getBitmapIndex(context);
     Assert.assertEquals(1, immutableBitmap.size());
   }
 
@@ -239,7 +237,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
+        ).getBitmapIndex(context).size()
     );
 
     Assert.assertEquals(
@@ -260,7 +258,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
+        ).getBitmapIndex(context).size()
     );
   }
 
@@ -278,7 +276,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
+        ).getBitmapIndex(context).size()
     );
 
     Assert.assertEquals(
@@ -299,7 +297,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
+        ).getBitmapIndex(context).size()
     );
   }
 
@@ -318,7 +316,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
+        ).getBitmapIndex(context).size()
     );
 
     Assert.assertEquals(
@@ -333,7 +331,7 @@ public class ExtractionDimFilterTest
                 )
             ),
             null
-        ).getBitmapIndex(BITMAP_INDEX_SELECTOR, null).size()
+        ).getBitmapIndex(context).size()
     );
   }
 }

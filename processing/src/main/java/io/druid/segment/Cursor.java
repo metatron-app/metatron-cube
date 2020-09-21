@@ -19,20 +19,25 @@
 
 package io.druid.segment;
 
-import org.joda.time.DateTime;
+import io.druid.data.Pair;
+import io.druid.data.ValueDesc;
+
+import java.util.function.IntFunction;
 
 /**
  */
 
 public interface Cursor extends ColumnSelectorFactory
 {
-  public DateTime getTime();
-  public long getRowTimestamp();
-  public void advance();
-  public void advanceTo(int offset);
-  public boolean isDone();
-  public void reset();
+  long getStartTime();
+  long getRowTimestamp();
+  int offset();
+  void advance();
+  void advanceTo(int skip);    // it's not offset
+  boolean isDone();
+  void reset();
 
-  abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor {
-  }
+  default IntFunction getAttachment(String name) { return null;}
+
+  abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor { }
 }

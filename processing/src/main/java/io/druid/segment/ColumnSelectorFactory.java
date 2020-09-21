@@ -38,15 +38,15 @@ import java.util.Map;
  */
 public interface ColumnSelectorFactory extends TypeResolver
 {
-  public Iterable<String> getColumnNames();
-  public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec);
-  public FloatColumnSelector makeFloatColumnSelector(String columnName);
-  public DoubleColumnSelector makeDoubleColumnSelector(String columnName);
-  public LongColumnSelector makeLongColumnSelector(String columnName);
-  public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
-  public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
-  public ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);
-  public ValueMatcher makePredicateMatcher(DimFilter filter);
+  Iterable<String> getColumnNames();
+  DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec);
+  FloatColumnSelector makeFloatColumnSelector(String columnName);
+  DoubleColumnSelector makeDoubleColumnSelector(String columnName);
+  LongColumnSelector makeLongColumnSelector(String columnName);
+  <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
+  ExprEvalColumnSelector makeMathExpressionSelector(String expression);
+  ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);
+  ValueMatcher makePredicateMatcher(DimFilter filter);
 
   abstract class Predicate implements ColumnSelectorFactory
   {

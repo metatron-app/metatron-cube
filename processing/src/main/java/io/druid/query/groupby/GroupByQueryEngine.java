@@ -190,7 +190,7 @@ public class GroupByQueryEngine
     private final RowUpdater rowUpdater;
 
     private final boolean useRawUTF8;
-    private final DateTime fixedTimestamp;
+    private final Long fixedTimestamp;
 
     private final DimensionSelector[] dimensions;
     private final BufferAggregator[] aggregators;
@@ -220,7 +220,7 @@ public class GroupByQueryEngine
       this.metricValues = new ByteBuffer[maxPage];
       this.useRawUTF8 = !BaseQuery.isLocalFinalizingQuery(query) &&
                         query.getContextBoolean(Query.GBY_USE_RAW_UTF8, config.getGroupBy().isUseRawUTF8());
-      this.fixedTimestamp = BaseQuery.getUniversalTimestamp(query);
+      this.fixedTimestamp = BaseQuery.getUniversalTimestamp(query, null);
 
       List<DimensionSpec> dimensionSpecs = query.getDimensions();
       dimensions = new DimensionSelector[dimensionSpecs.size()];
@@ -276,7 +276,7 @@ public class GroupByQueryEngine
       return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Object[]>()
       {
         private final int numColumns = dimensions.length + aggregators.length + 1;
-        private final DateTime timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getTime();
+        private final Long timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getStartTime();
 
         @Override
         public Object[] apply(final KeyValue input)
@@ -286,7 +286,7 @@ public class GroupByQueryEngine
           int i = 0;
           final Object[] row = new Object[numColumns];
 
-          row[i++] = new MutableLong(timestamp.getMillis());
+          row[i++] = new MutableLong(timestamp.longValue());
           for (int x = 0; x < dimensions.length; x++) {
             if (useRawUTF8 && dimensions[x] instanceof WithRawAccess) {
               row[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).lookupRaw(array[x + BUFFER_POS]));
@@ -310,7 +310,7 @@ public class GroupByQueryEngine
     {
       return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Rowboat>()
       {
-        private final DateTime timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getTime();
+        private final Long timestamp = fixedTimestamp != null ? fixedTimestamp : cursor.getStartTime();
 
         @Override
         public Rowboat apply(final KeyValue input)
@@ -324,7 +324,7 @@ public class GroupByQueryEngine
           for (int i = 0; i < aggregators.length; i++) {
             metrics[i] = aggregators[i].get(metricValues[position0], position1 + increments[i]);
           }
-          return new Rowboat(timestamp.getMillis(), dims, metrics, -1);
+          return new Rowboat(timestamp.longValue(), dims, metrics, -1);
         }
       }));
     }

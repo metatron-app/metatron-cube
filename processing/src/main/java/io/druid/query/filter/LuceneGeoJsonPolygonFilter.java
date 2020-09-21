@@ -31,6 +31,7 @@ import io.druid.data.TypeResolver;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.filter.FilterContext;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.search.Query;
@@ -100,11 +101,12 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
     {
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
         // column-name.field-name or field-name (regarded same with column-name)
         String columnName = field;
         String fieldName = field;
+        BitmapIndexSelector selector = context.indexSelector();
         LuceneIndex lucene = selector.getLuceneIndex(columnName);
         for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
           columnName = field.substring(0, index);
@@ -115,7 +117,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
 
         try {
           Query query = LatLonPoint.newPolygonQuery(fieldName, Polygon.fromGeoJSON(geoJson));
-          return lucene.filterFor(query, baseBitmap);
+          return lucene.filterFor(query, context);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

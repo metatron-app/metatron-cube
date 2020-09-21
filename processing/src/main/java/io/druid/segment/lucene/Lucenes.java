@@ -34,6 +34,8 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.Column;
+import io.druid.segment.filter.FilterContext;
+import it.unimi.dsi.fastutil.ints.Int2FloatRBTreeMap;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
 import org.apache.lucene.analysis.bg.BulgarianAnalyzer;
@@ -380,14 +382,27 @@ public class Lucenes
     return DirectoryReader.open(directory);
   }
 
-  public static ImmutableBitmap toBitmap(BitmapFactory factory, TopDocs searched)
+  public static ImmutableBitmap toBitmap(TopDocs searched, FilterContext context)
   {
+    return toBitmap(searched, context, null);
+  }
+
+  public static ImmutableBitmap toBitmap(TopDocs searched, FilterContext context, String scoreField)
+  {
+    final BitmapFactory factory = context.bitmapFactory();
     if (searched.totalHits == 0) {
       return factory.makeEmptyImmutableBitmap();
     }
     MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
     for (ScoreDoc scoreDoc : searched.scoreDocs) {
       bitmap.add(scoreDoc.doc);   // can be slow
+    }
+    if (scoreField != null) {
+      Int2FloatRBTreeMap mapping = new Int2FloatRBTreeMap();
+      for (ScoreDoc scoreDoc : searched.scoreDocs) {
+        mapping.put(scoreDoc.doc, scoreDoc.score);
+      }
+      context.attach(scoreField, index -> mapping.getOrDefault(index, Float.NaN));
     }
     return factory.makeImmutableBitmap(bitmap);
   }

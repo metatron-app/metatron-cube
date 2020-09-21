@@ -30,6 +30,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.search.IndexSearcher;
@@ -121,10 +122,10 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
   {
     return new Filter()
     {
-
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
+        BitmapIndexSelector selector = context.indexSelector();
         Column column = Preconditions.checkNotNull(
             Lucenes.findLuceneColumn(field, selector), "no lucene index for [%s]", field
         );
@@ -136,7 +137,7 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
         IndexSearcher searcher = column.getLuceneIndex().searcher();
         try {
           TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField, latitude, longitude, count);
-          return Lucenes.toBitmap(factory, searched);
+          return Lucenes.toBitmap(searched, context);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

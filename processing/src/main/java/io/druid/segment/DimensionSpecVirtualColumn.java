@@ -40,7 +40,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
     return new DimensionSpecVirtualColumn(dimensionSpec, outputName);
   }
 
-  private static final byte VC_TYPE_ID = 0x04;
+  private static final byte VC_TYPE_ID = 0x07;
 
   private final String outputName;
   private final DimensionSpec dimensionSpec;

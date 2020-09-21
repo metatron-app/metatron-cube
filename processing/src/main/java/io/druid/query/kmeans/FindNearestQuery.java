@@ -168,7 +168,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc> implements Query.F
   }
 
   @Override
-  public VCSupport<CentroidDesc> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public FindNearestQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new FindNearestQuery(
         getDataSource(),

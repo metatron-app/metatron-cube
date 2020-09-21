@@ -63,8 +63,9 @@ public class InFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, final ImmutableBitmap baseBitmap)
+  public ImmutableBitmap getBitmapIndex(final FilterContext context)
   {
+    final BitmapIndexSelector selector = context.indexSelector();
     if (extractionFn != null && Filters.isColumnWithoutBitmap(selector, dimension)) {
       return null;  // extractionFn requires bitmap index
     }
@@ -85,7 +86,6 @@ public class InFilter implements Filter
     } else {
       return Filters.matchPredicate(
           dimension,
-          selector,
           new Predicate<String>()
           {
             @Override
@@ -95,7 +95,7 @@ public class InFilter implements Filter
               return values.contains(Strings.nullToEmpty(extractionFn.apply(input)));
             }
           },
-          baseBitmap
+          context
       );
     }
   }

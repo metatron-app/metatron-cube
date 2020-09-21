@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import io.druid.cache.Cache;
 import io.druid.common.Intervals;
@@ -60,10 +59,8 @@ import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
-import io.druid.segment.filter.BooleanValueMatcher;
 import io.druid.segment.incremental.IncrementalIndex.TimeAndDims;
 import io.druid.timeline.DataSegment;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -243,19 +240,19 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
             return new Cursor.ExprSupport()
             {
               private Iterator<Map.Entry<TimeAndDims, Object[]>> baseIter;
-              private int numAdvanced = -1;
+              private int offset;
               private boolean done;
 
               private final ValueMatcher filterMatcher;
               {
-                filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(this);
+                filterMatcher = filter == null ? ValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(this);
                 reset();
               }
 
               @Override
-              public DateTime getTime()
+              public long getStartTime()
               {
-                return interval.getStart();
+                return interval.getStartMillis();
               }
 
               @Override
@@ -265,17 +262,18 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public int offset()
+              {
+                return offset;
+              }
+
+              @Override
               public void advance()
               {
-                if (!baseIter.hasNext()) {
-                  done = true;
-                  return;
-                }
-
                 int advanced = 0;
                 while (baseIter.hasNext()) {
+                  offset++;
                   currEntry.set(baseIter.next());
-
                   if (filterMatcher.matches()) {
                     return;
                   }
@@ -284,16 +282,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   }
                 }
 
-                if (!filterMatcher.matches()) {
-                  done = true;
-                }
+                done = true;
               }
 
               @Override
-              public void advanceTo(int offset)
+              public void advanceTo(int skip)
               {
                 int count = 0;
-                while (count < offset && !isDone()) {
+                while (count < skip && !isDone()) {
                   advance();
                   count++;
                 }
@@ -308,30 +304,10 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public void reset()
               {
+                done = false;
+                offset = -1;
                 baseIter = cursorMap.iterator();
-
-                if (numAdvanced == -1) {
-                  numAdvanced = 0;
-                } else {
-                  Iterators.advance(baseIter, numAdvanced);
-                }
-
-                if (Thread.interrupted()) {
-                  throw new QueryInterruptedException(new InterruptedException());
-                }
-
-                boolean foundMatched = false;
-                while (baseIter.hasNext()) {
-                  currEntry.set(baseIter.next());
-                  if (filterMatcher.matches()) {
-                    foundMatched = true;
-                    break;
-                  }
-
-                  numAdvanced++;
-                }
-
-                done = !foundMatched && !baseIter.hasNext();
+                advance();
               }
 
               @Override

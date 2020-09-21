@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -59,9 +58,9 @@ public class DimensionPredicateFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+  public ImmutableBitmap getBitmapIndex(FilterContext context)
   {
-    return Filters.matchPredicate(dimension, selector, predicate, baseBitmap);
+    return Filters.matchPredicate(dimension, predicate, context);
   }
 
   @Override
@@ -69,5 +68,4 @@ public class DimensionPredicateFilter implements Filter
   {
     return Filters.toValueMatcher(factory, dimension, predicate);
   }
-
 }

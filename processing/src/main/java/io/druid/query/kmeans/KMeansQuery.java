@@ -303,7 +303,7 @@ public class KMeansQuery
   }
 
   @Override
-  public VCSupport<Centroid> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public KMeansQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new KMeansQuery(
         getDataSource(),

@@ -20,6 +20,7 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -27,14 +28,21 @@ import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
+import io.druid.query.QuerySegmentWalker;
+import io.druid.segment.AttachmentVirtualColumn;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,22 +50,33 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("lucene.query")
-public class LuceneQueryFilter extends DimFilter.LuceneFilter
+public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilter.VCInflator
 {
+  public static LuceneQueryFilter of(String field, String expression, String scoreField)
+  {
+    return new LuceneQueryFilter(field, null, expression, scoreField, false);
+  }
+
   private final String field;
+  private final String scoreField;
   private final String analyzer;
   private final String expression;
+  private final boolean inflated;   // marker not to add virtual column again. todo: find better way
 
   @JsonCreator
   public LuceneQueryFilter(
       @JsonProperty("field") String field,
       @JsonProperty("analyzer") String analyzer,
-      @JsonProperty("expression") String expression
+      @JsonProperty("expression") String expression,
+      @JsonProperty("scoreField") String scoreField,
+      @JsonProperty("inflated") boolean inflated
   )
   {
     this.field = Preconditions.checkNotNull(field, "field can not be null");
     this.analyzer = Objects.toString(analyzer, "standard");
     this.expression = Preconditions.checkNotNull(expression, "expression can not be null");
+    this.scoreField = scoreField;
+    this.inflated = inflated;
   }
 
   @Override
@@ -79,13 +98,27 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
     return expression;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public String getScoreField()
+  {
+    return scoreField;
+  }
+
+  @JsonProperty
+  public boolean isInflated()
+  {
+    return inflated;
+  }
+
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(DimFilterCacheHelper.LUCENE_QUERY_CACHE_ID)
                   .append(field).sp()
                   .append(analyzer).sp()
-                  .append(expression);
+                  .append(expression).sp()
+                  .append(scoreField);
   }
 
   @Override
@@ -95,7 +128,7 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneQueryFilter(replaced, analyzer, expression);
+    return new LuceneQueryFilter(replaced, analyzer, expression, scoreField, inflated);
   }
 
   @Override
@@ -105,16 +138,33 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
   }
 
   @Override
+  public VirtualColumn inflate()
+  {
+    return !inflated && scoreField != null ? new AttachmentVirtualColumn(scoreField, ValueDesc.FLOAT) : null;
+  }
+
+  @Override
+  public DimFilter rewrite(QuerySegmentWalker walker, io.druid.query.Query parent)
+  {
+    return inflated || scoreField == null ? this : new LuceneQueryFilter(field, analyzer, expression, scoreField, true);
+  }
+
+  @Override
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  {
+    return this;    // has nothing to do
+  }
+
+  @Override
   public Filter toFilter(TypeResolver resolver)
   {
     return new Filter()
     {
-
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
         Column column = Preconditions.checkNotNull(
-            Lucenes.findLuceneColumn(field, selector), "no lucene index for [%s]", field
+            Lucenes.findLuceneColumn(field, context.indexSelector()), "no lucene index on [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
             Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.TEXT_DESC),
@@ -124,7 +174,7 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
         try {
           QueryParser parser = new QueryParser(luceneField, Lucenes.createAnalyzer(analyzer));
           Query query = parser.parse(expression);
-          return lucene.filterFor(query, null);
+          return lucene.filterFor(query, context, scoreField);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -152,13 +202,14 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
            "field='" + field + '\'' +
            ", analyzer='" + analyzer + '\'' +
            ", expression='" + expression + '\'' +
+           ", scoreField='" + scoreField + '\'' +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, analyzer, expression);
+    return Objects.hash(field, analyzer, expression, scoreField);
   }
 
   @Override
@@ -180,6 +231,9 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter
       return false;
     }
     if (!expression.equals(that.expression)) {
+      return false;
+    }
+    if (!Objects.equals(scoreField, that.scoreField)) {
       return false;
     }
 

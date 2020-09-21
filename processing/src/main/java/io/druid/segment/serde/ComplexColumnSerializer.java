@@ -41,6 +41,7 @@ import io.druid.segment.data.CompressedComplexColumnSerializer;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
@@ -276,7 +277,6 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
                 {
                   final DirectoryReader reader = Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
                   final IndexSearcher searcher = new IndexSearcher(reader);
-
                   return new LuceneIndex()
                   {
                     @Override
@@ -292,9 +292,9 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
                     }
 
                     @Override
-                    public ImmutableBitmap filterFor(Query query, ImmutableBitmap baseBitmap)
+                    public ImmutableBitmap filterFor(Query query, FilterContext context, String attachment)
                     {
-                      return Lucenes.toBitmap(factory, query(query));
+                      return Lucenes.toBitmap(query(query), context, attachment);
                     }
 
                     @Override

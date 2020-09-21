@@ -35,6 +35,7 @@ import io.druid.data.ValueType;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.serde.ColumnPartSerde;
 import org.roaringbitmap.IntIterator;
 
@@ -176,13 +177,14 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final ImmutableBitmap filterFor(Range<Float> query, ImmutableBitmap baseBitmap)
+    public final ImmutableBitmap filterFor(Range<Float> query, FilterContext context, String attachment)
     {
       if (query.isEmpty() ||
           query.hasLowerBound() && query.lowerEndpoint().isNaN() ||
           query.hasLowerBound() && query.lowerEndpoint().isNaN()) {
         return factory.makeEmptyImmutableBitmap();
       }
+      final ImmutableBitmap baseBitmap = context == null ? null : context.getBaseBitmap();
       if (Ranges.isPoint(query)) {
         return _eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap);
       }
@@ -207,13 +209,14 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final ImmutableBitmap filterFor(Range<Double> query, ImmutableBitmap baseBitmap)
+    public final ImmutableBitmap filterFor(Range<Double> query, FilterContext context, String attachment)
     {
       if (query.isEmpty() ||
           query.hasLowerBound() && query.lowerEndpoint().isNaN() ||
           query.hasLowerBound() && query.lowerEndpoint().isNaN()) {
         return factory.makeEmptyImmutableBitmap();
       }
+      final ImmutableBitmap baseBitmap = context == null ? null : context.getBaseBitmap();
       if (Ranges.isPoint(query)) {
         return _eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap);
       }
@@ -238,11 +241,12 @@ public class BitSlicedBitmaps
     }
 
     @Override
-    public final ImmutableBitmap filterFor(Range<Long> query, ImmutableBitmap baseBitmap)
+    public final ImmutableBitmap filterFor(Range<Long> query, FilterContext context, String attachment)
     {
       if (query.isEmpty()) {
         return factory.makeEmptyImmutableBitmap();
       }
+      final ImmutableBitmap baseBitmap = context == null ? null : context.getBaseBitmap();
       if (Ranges.isPoint(query)) {
         return _eq(BitSlicer.normalize(query.lowerEndpoint()), baseBitmap);
       }

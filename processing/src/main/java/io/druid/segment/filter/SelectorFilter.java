@@ -53,17 +53,18 @@ public class SelectorFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+  public ImmutableBitmap getBitmapIndex(FilterContext context)
   {
+    final BitmapIndexSelector selector = context.indexSelector();
     final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
     if (capabilities == null || capabilities.hasBitmapIndexes()) {
       return selector.getBitmapIndex(dimension, value);
     } else if (capabilities.hasLuceneIndex()) {
-      return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value), baseBitmap);
+      return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value), context);
     } else if (capabilities.hasMetricBitmap()) {
-      return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value), baseBitmap);
+      return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value), context);
     } else if (capabilities.hasBitSlicedBitmap()) {
-      return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value), baseBitmap);
+      return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value), context);
     }
     return null;
   }

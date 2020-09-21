@@ -31,7 +31,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
-import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
@@ -48,7 +47,6 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
@@ -62,7 +60,6 @@ import java.util.Objects;
  */
 public abstract class BaseQuery<T> implements Query<T>
 {
-  @SuppressWarnings("unchecked")
   public static Query getRepresentative(Query query)
   {
     Query represent = query instanceof UnionAllQuery ? ((UnionAllQuery) query).getRepresentative() : query;
@@ -72,12 +69,12 @@ public abstract class BaseQuery<T> implements Query<T>
     return represent;
   }
 
-  public static <T> boolean isLocalFinalizingQuery(Query<T> query)
+  public static boolean isLocalFinalizingQuery(Query<?> query)
   {
-    return query.getContextBoolean(Query.FINAL_MERGE, true) || query.getContextBoolean(Query.FINALIZE, true);
+    return query.getContextBoolean(FINAL_MERGE, true) || query.getContextBoolean(FINALIZE, true);
   }
 
-  public static <T> int getContextPriority(Query<T> query, int defaultValue)
+  public static int getContextPriority(Query<?> query, int defaultValue)
   {
     return PropUtils.parseInt(query.getContext(), PRIORITY, defaultValue);
   }
@@ -91,7 +88,7 @@ public abstract class BaseQuery<T> implements Query<T>
     return query;
   }
 
-  public static long getTimeout(Query query, long maxTimeout)
+  public static long getTimeout(Query<?> query, long maxTimeout)
   {
     final Long timeout = getTimeout(query);
     if (timeout == null || timeout > maxTimeout) {
@@ -100,7 +97,7 @@ public abstract class BaseQuery<T> implements Query<T>
     return timeout;
   }
 
-  private static Long getTimeout(Query query)
+  private static Long getTimeout(Query<?> query)
   {
     final Object value = query.getContextValue(TIMEOUT);
     if (value instanceof Number) {
@@ -111,63 +108,63 @@ public abstract class BaseQuery<T> implements Query<T>
     return null;
   }
 
-  public static <T> boolean isBySegment(Query<T> query)
+  public static boolean isBySegment(Query<?> query)
   {
     return query.getContextBoolean(BY_SEGMENT, false);
   }
 
-  public static <T> boolean isPopulateCache(Query<T> query, boolean defaultValue)
+  public static boolean isPopulateCache(Query<?> query, boolean defaultValue)
   {
     return query.getContextBoolean(POPULATE_CACHE, defaultValue);
   }
 
-  public static <T> boolean isUseCache(Query<T> query, boolean defaultValue)
+  public static boolean isUseCache(Query<?> query, boolean defaultValue)
   {
     return query.getContextBoolean(USE_CACHE, defaultValue);
   }
 
-  public static <T> boolean isFinalize(Query<T> query, boolean defaultValue)
+  public static boolean isFinalize(Query<?> query, boolean defaultValue)
   {
     return PropUtils.parseBoolean(query.getContext(), FINALIZE, defaultValue);
   }
 
-  public static <T> boolean isOptimizeQuery(Query<T> query, boolean defaultValue)
+  public static boolean isOptimizeQuery(Query<?> query, boolean defaultValue)
   {
     return PropUtils.parseBoolean(query.getContext(), OPTIMIZE_QUERY, defaultValue);
   }
 
-  public static <T> boolean allDimensionsForEmpty(Query<T> query, boolean defaultValue)
+  public static boolean allDimensionsForEmpty(Query<?> query, boolean defaultValue)
   {
     return PropUtils.parseBoolean(query.getContext(), ALL_DIMENSIONS_FOR_EMPTY, defaultValue);
   }
 
-  public static <T> boolean allMetricsForEmpty(Query<T> query, boolean defaultValue)
+  public static boolean allMetricsForEmpty(Query<?> query, boolean defaultValue)
   {
     return PropUtils.parseBoolean(query.getContext(), ALL_METRICS_FOR_EMPTY, defaultValue);
   }
 
-  public static <T> int getContextUncoveredIntervalsLimit(Query<T> query, int defaultValue)
+  public static int getContextUncoveredIntervalsLimit(Query<?> query, int defaultValue)
   {
     return PropUtils.parseInt(query.getContext(), "uncoveredIntervalsLimit", defaultValue);
   }
 
-  public static <T> String getResultForwardURL(Query<T> query)
+  public static String getResultForwardURL(Query<?> query)
   {
     return query.getContextValue(FORWARD_URL);
   }
 
-  public static <T> Map<String, Object> getResultForwardContext(Query<T> query)
+  public static Map<String, Object> getResultForwardContext(Query<?> query)
   {
     return query.getContextValue(FORWARD_CONTEXT, Maps.<String, Object>newHashMap());
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Map<String, Object> removeDecoratorContext(Query<T> query)
+  public static Map<String, Object> removeDecoratorContext(Query<?> query)
   {
     return (Map<String, Object>) query.getContext().remove(DECORATOR_CONTEXT);
   }
 
-  public static <T> boolean isParallelForwarding(Query<T> query)
+  public static boolean isParallelForwarding(Query<?> query)
   {
     return !Strings.isNullOrEmpty(getResultForwardURL(query)) &&
            PropUtils.parseBoolean(getResultForwardContext(query), FORWARD_PARALLEL, false);
@@ -259,7 +256,6 @@ public abstract class BaseQuery<T> implements Query<T>
     return query instanceof Query.FilterSupport ? ((FilterSupport) query).getFilter() : null;
   }
 
-  @SuppressWarnings("unchecked")
   public static List<DimensionSpec> getDimensions(Query query)
   {
     return query instanceof DimensionSupport ? ((DimensionSupport) query).getDimensions() : Arrays.asList();
@@ -267,16 +263,14 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static List<String> getMetrics(Query query)
   {
-    return query instanceof MetricSupport ? ((MetricSupport<?>) query).getMetrics() : Arrays.<String>asList();
+    return query instanceof MetricSupport ? ((MetricSupport) query).getMetrics() : Arrays.asList();
   }
 
-  @SuppressWarnings("unchecked")
   public static List<AggregatorFactory> getAggregators(Query query)
   {
     return query instanceof AggregationsSupport ? ((AggregationsSupport) query).getAggregatorSpecs() : Arrays.asList();
   }
 
-  @SuppressWarnings("unchecked")
   public static List<PostAggregator> getPostAggregators(Query query)
   {
     return query instanceof AggregationsSupport
@@ -338,7 +332,7 @@ public abstract class BaseQuery<T> implements Query<T>
       Query.FilterSupport<T> filterSupport = (Query.FilterSupport<T>) query;
       DimFilter filter = filterSupport.getFilter();
       if (filter != null) {
-        DimFilter optimized = filter.optimize(segment, BaseQuery.getVirtualColumns(query));
+        DimFilter optimized = filter.optimize(segment, filterSupport.getVirtualColumns());
         if (filter != optimized) {
           query = filterSupport.withFilter(optimized);
         }
@@ -549,13 +543,13 @@ public abstract class BaseQuery<T> implements Query<T>
     return query;
   }
 
-  public static <T> DateTime getUniversalTimestamp(Query<T> query)
+  public static <T> Long getUniversalTimestamp(Query<T> query, Long defaultValue)
   {
     final Number fudgeTimestamp = query.getContextValue(FUDGE_TIMESTAMP);
     if (fudgeTimestamp != null) {
-      return DateTimes.utc(fudgeTimestamp.longValue());
+      return fudgeTimestamp.longValue();
     }
-    return null;
+    return defaultValue;
   }
 
   @Override

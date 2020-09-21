@@ -39,6 +39,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
@@ -239,7 +240,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
   public abstract ValueDesc type();
 
   @Override
-  public ImmutableBitmap filterFor(Range<T> range, ImmutableBitmap baseBitmap)
+  public ImmutableBitmap filterFor(Range<T> range, FilterContext context, String attachment)
   {
     if (range.isEmpty()) {
       return factory.makeEmptyImmutableBitmap();

@@ -193,13 +193,13 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public void advanceTo(int offset)
+    public void advanceTo(int skip)
     {
       throw new UnsupportedOperationException("advanceTo");
     }
 
     @Override
-    public DateTime getTime()
+    public long getStartTime()
     {
       throw new UnsupportedOperationException("getTime");
     }
@@ -208,6 +208,12 @@ public class ColumnSelectorFactories
     public long getRowTimestamp()
     {
       throw new UnsupportedOperationException("getRowTime");
+    }
+
+    @Override
+    public int offset()
+    {
+      return delegate instanceof Cursor ? ((Cursor) delegate).offset() : -1;
     }
 
     @Override
@@ -930,9 +936,9 @@ public class ColumnSelectorFactories
               private boolean done;
 
               @Override
-              public DateTime getTime()
+              public long getStartTime()
               {
-                final DateTime timestamp = input.getStart();
+                final long timestamp = input.getStartMillis();
                 return granularity == null ? timestamp : granularity.bucketStart(timestamp);
               }
 

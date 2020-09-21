@@ -57,15 +57,15 @@ import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
 import io.druid.segment.filter.BooleanValueMatcher;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.Filters.BitmapHolder;
-import io.druid.segment.filter.Filters.FilterContext;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
+import java.util.function.IntFunction;
 
 /**
  */
@@ -189,7 +189,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index, resolver);
-    final FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
+    final FilterContext context = Filters.createFilterContext(selector, cache, segmentId);
 
     final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);
     final ImmutableBitmap baseBitmap = extracted.getKey();
@@ -197,10 +197,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final Offset offset;
     if (baseBitmap == null) {
-      offset = descending ? new DescNoFilter(0, context.getNumRows()) : new AscNoFilter(0, context.getNumRows());
+      offset = descending ? new DescNoFilter(0, context.numRows()) : new AscNoFilter(0, context.numRows());
     } else {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("%,d / %,d", baseBitmap.size(), context.getNumRows());
+        LOG.debug("%,d / %,d", baseBitmap.size(), context.numRows());
       }
       offset = new BitmapOffset(selector.getBitmapFactory(), baseBitmap, descending);
     }
@@ -336,15 +336,27 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public DateTime getTime()
+                    public IntFunction getAttachment(String name)
                     {
-                      return interval.getStart();
+                      return context.getAttachment(name);
+                    }
+
+                    @Override
+                    public long getStartTime()
+                    {
+                      return interval.getStartMillis();
                     }
 
                     @Override
                     public long getRowTimestamp()
                     {
                       return timestamps.getLong(cursorOffset.getOffset());
+                    }
+
+                    @Override
+                    public int offset()
+                    {
+                      return cursorOffset.getOffset();
                     }
 
                     @Override
@@ -359,10 +371,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public void advanceTo(int offset)
+                    public void advanceTo(int skip)
                     {
                       int count = 0;
-                      while (count < offset && !isDone()) {
+                      while (count < skip && !isDone()) {
                         advance();
                         count++;
                       }

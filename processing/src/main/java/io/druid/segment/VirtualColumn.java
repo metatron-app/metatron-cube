@@ -37,7 +37,8 @@ import io.druid.query.extraction.ExtractionFn;
     @JsonSubTypes.Type(name = "array", value = ArrayVirtualColumn.class),
     @JsonSubTypes.Type(name = "struct", value = StructVirtualColumn.class),
     @JsonSubTypes.Type(name = "dateTime", value = DateTimeVirtualColumn.class),
-    @JsonSubTypes.Type(name = "dimensionSpec", value = DimensionSpecVirtualColumn.class)
+    @JsonSubTypes.Type(name = "dimensionSpec", value = DimensionSpecVirtualColumn.class),
+    @JsonSubTypes.Type(name = "$attachment", value = AttachmentVirtualColumn.class)
 })
 public interface VirtualColumn extends Cacheable
 {
@@ -47,13 +48,25 @@ public interface VirtualColumn extends Cacheable
 
   ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory);
 
-  FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory);
+  default FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    return ColumnSelectors.asFloat(asMetric(dimension, factory));
+  }
 
-  DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory);
+  default DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    return ColumnSelectors.asDouble(asMetric(dimension, factory));
+  }
 
-  LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory);
+  default LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    return ColumnSelectors.asLong(asMetric(dimension, factory));
+  }
 
-  DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory);
+  default DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
+  {
+    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory), extractionFn);
+  }
 
   VirtualColumn duplicate();
 }

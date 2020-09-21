@@ -42,12 +42,13 @@ public class LuceneQueryFilterConversion implements DimFilterConversion
   {
     final RexCall call = (RexCall) rexNode;
     final List<RexNode> operands = call.getOperands();
-    if (operands.size() != 2) {
+    if (operands.size() != 2 && operands.size() != 3) {
       return null;
     }
     String field = DruidOperatorTable.getFieldName(operands.get(0), plannerContext, rowSignature);
     String expression = RexLiteral.stringValue(operands.get(1));
-    return new LuceneQueryFilter(field, null, expression);
+    String scoreField = operands.size() == 3 ? RexLiteral.stringValue(operands.get(2)) : null;
+    return LuceneQueryFilter.of(field, expression, scoreField);
   }
 
   @Override

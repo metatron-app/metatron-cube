@@ -22,7 +22,6 @@ package io.druid.segment.filter;
 import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
-import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -52,22 +51,22 @@ public class OrFilter implements Filter, Expression.OrExpression
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+  public ImmutableBitmap getBitmapIndex(FilterContext context)
   {
     if (filters.size() == 1) {
-      return filters.get(0).getBitmapIndex(selector, baseBitmap);
+      return filters.get(0).getBitmapIndex(context);
     }
 
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (Filter filter : filters) {
-      ImmutableBitmap bitmap = filter.getBitmapIndex(selector, baseBitmap);
+      ImmutableBitmap bitmap = filter.getBitmapIndex(context);
       if (bitmap == null) {
         return null;
       }
       bitmaps.add(bitmap);
     }
 
-    return DimFilters.union(selector.getBitmapFactory(), bitmaps);
+    return DimFilters.union(context.bitmapFactory(), bitmaps);
   }
 
   @Override

@@ -19,6 +19,7 @@
 
 package io.druid.query.topn;
 
+import io.druid.common.DateTimes;
 import io.druid.java.util.common.Pair;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
@@ -257,7 +258,7 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
     final Comparator comparator = query.getTopNMetricSpec()
                                        .getComparator(query.getAggregatorSpecs(), query.getPostAggregatorSpecs());
     return query.getTopNMetricSpec().getResultBuilder(
-        params.getCursor().getTime(),
+        DateTimes.utc(params.getCursor().getStartTime()),
         query.getDimensionSpec(),
         query.getThreshold(),
         comparator,

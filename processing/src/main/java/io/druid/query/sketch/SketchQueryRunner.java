@@ -51,6 +51,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import org.apache.commons.io.IOUtils;
 
@@ -202,7 +203,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
     if (filter == null) {
       return Pair.<ImmutableBitmap, DimFilter>of(null, null);
     }
-    try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId)) {
+    try (FilterContext context = Filters.createFilterContext(selector, cache, segmentId)) {
       return DimFilters.extractBitmaps(filter, context);
     }
   }

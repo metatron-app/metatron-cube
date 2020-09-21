@@ -32,6 +32,7 @@ import io.druid.query.GeomUtils;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.PointQueryType;
 import io.druid.segment.lucene.ShapeFormat;
 import io.druid.segment.lucene.SpatialOperations;
@@ -163,11 +164,12 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
     {
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
         // column-name.field-name or field-name (regarded same with column-name)
         String columnName = field;
         String fieldName = field;
+        BitmapIndexSelector selector = context.indexSelector();
         LuceneIndex lucene = selector.getLuceneIndex(columnName);
         for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
           columnName = field.substring(0, index);
@@ -180,7 +182,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
         try {
           SpatialPrefixTree grid = new GeohashPrefixTree(ctx, GeohashUtils.MAX_PRECISION);
           SpatialStrategy strategy = new RecursivePrefixTreeStrategy(grid, fieldName);
-          return lucene.filterFor(strategy.makeQuery(makeSpatialArgs(ctx)), baseBitmap);
+          return lucene.filterFor(strategy.makeQuery(makeSpatialArgs(ctx)), context);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

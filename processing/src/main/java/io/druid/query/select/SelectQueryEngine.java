@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.DateTimes;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.query.QueryRunnerHelper;
@@ -82,7 +83,7 @@ public class SelectQueryEngine
           public Result<SelectResultValue> apply(Cursor cursor)
           {
             final SelectResultValueBuilder builder = new SelectResultValueBuilder(
-                cursor.getTime(),
+                DateTimes.utc(cursor.getStartTime()),
                 query.getPagingSpec(),
                 query.isDescending()
             );

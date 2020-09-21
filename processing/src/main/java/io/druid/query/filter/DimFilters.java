@@ -31,6 +31,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.WrappedConciseBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
@@ -44,6 +45,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.bitmap.WrappedBitSetBitmap;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 
 import javax.annotation.Nullable;
@@ -147,7 +149,7 @@ public class DimFilters
     return current == null ? null : Expressions.convertToCNF(current, FACTORY);
   }
 
-  public static Pair<ImmutableBitmap, DimFilter> extractBitmaps(DimFilter current, Filters.FilterContext context)
+  public static Pair<ImmutableBitmap, DimFilter> extractBitmaps(DimFilter current, FilterContext context)
   {
     if (current == null) {
       return Pair.<ImmutableBitmap, DimFilter>of(null, null);
@@ -203,6 +205,27 @@ public class DimFilters
     DimFilter filter = DimFilters.or(dimFilters).optimize(null, null);
     LOG.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, filter);
     return filter;
+  }
+
+  public static Query.FilterSupport<?> inflate(Query.FilterSupport<?> query)
+  {
+    final DimFilter filter = query.getFilter();
+    if (filter != null) {
+      List<VirtualColumn> inflated = Lists.newArrayList();
+      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, expression -> {
+        if (expression instanceof DimFilter.VCInflator) {
+          VirtualColumn vc = ((DimFilter.VCInflator) expression).inflate();
+          if (vc != null) {
+            inflated.add(vc);
+          }
+        }
+        return expression;
+      });
+      if (!inflated.isEmpty()) {
+        query = query.withVirtualColumns(GuavaUtils.concat(query.getVirtualColumns(), inflated));
+      }
+    }
+    return query;
   }
 
   // called for non-historical nodes (see QueryResource.prepareQuery)
@@ -331,9 +354,9 @@ public class DimFilters
       {
 
         @Override
-        public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+        public ImmutableBitmap getBitmapIndex(FilterContext context)
         {
-          return baseBitmap != null ? baseBitmap : makeTrue(selector.getBitmapFactory(), selector.getNumRows());
+          return context != null ? context.getBaseBitmap() : makeTrue(context.bitmapFactory(), context.numRows());
         }
 
         @Override

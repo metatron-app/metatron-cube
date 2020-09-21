@@ -29,6 +29,7 @@ import io.druid.data.TypeResolver;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.PointQueryType;
 import org.apache.lucene.search.Query;
 
@@ -166,11 +167,12 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
     {
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
         // column-name.field-name or field-name (regarded same with column-name)
         String columnName = field;
         String fieldName = field;
+        BitmapIndexSelector selector = context.indexSelector();
         LuceneIndex lucene = selector.getLuceneIndex(columnName);
         for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
           columnName = field.substring(0, index);
@@ -180,7 +182,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
         Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
 
         Query query = LucenePointFilter.this.query.toQuery(fieldName, latitudes, longitudes, radiusMeters);
-        return lucene.filterFor(query, baseBitmap);
+        return lucene.filterFor(query, context);
       }
 
       @Override

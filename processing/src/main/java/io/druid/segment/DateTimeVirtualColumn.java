@@ -26,7 +26,6 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.extraction.ExtractionFn;
 import org.joda.time.DateTime;
 
 /**
@@ -59,6 +58,7 @@ public class DateTimeVirtualColumn implements VirtualColumn
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
@@ -180,46 +180,6 @@ public class DateTimeVirtualColumn implements VirtualColumn
       default:
         throw new IllegalArgumentException("invalid function " + function);
     }
-  }
-
-  @Override
-  public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
-  {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type())) {
-      throw new UnsupportedOperationException("asFloatMetric");
-    }
-    return ColumnSelectors.asFloat(selector);
-  }
-
-  @Override
-  public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
-  {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type())) {
-      throw new UnsupportedOperationException("asDoubleMetric");
-    }
-    return ColumnSelectors.asDouble(selector);
-  }
-
-  @Override
-  public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
-  {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type())) {
-      throw new UnsupportedOperationException("asLongMetric");
-    }
-    return ColumnSelectors.asLong(selector);
-  }
-
-  @Override
-  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
-  {
-    ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector == null || !ValueDesc.isString(selector.type())) {
-      throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
-    }
-    return VirtualColumns.toDimensionSelector(selector, extractionFn);
   }
 
   @Override

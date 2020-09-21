@@ -54,20 +54,20 @@ public class BoundFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+  public ImmutableBitmap getBitmapIndex(FilterContext context)
   {
     // asserted to existing dimension
+    final BitmapIndexSelector selector = context.indexSelector();
     if (boundDimFilter.isLexicographic() && boundDimFilter.getExtractionFn() == null) {
       return toRangeBitmap(selector, boundDimFilter.getDimension());
     }
     return Filters.matchPredicate(
         boundDimFilter.getDimension(),
-        selector,
         toPredicate(
             boundDimFilter.typeOfBound(selector),
             boundDimFilter.getExtractionFn()
         ),
-        baseBitmap
+        context
     );
   }
 

@@ -20,9 +20,9 @@
 package io.druid.query.timeseries;
 
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import io.druid.cache.Cache;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
@@ -116,9 +116,8 @@ public class TimeseriesQueryEngine
                     Aggregators.aggregate(values, aggregators);
                     cursor.advance();
                   }
-                  final DateTime timestamp = Optional.fromNullable(BaseQuery.getUniversalTimestamp(query))
-                                                     .or(cursor.getTime());
-                  return flushRow(timestamp, values, aggregators);
+                  final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
+                  return flushRow(DateTimes.utc(timestamp), values, aggregators);
                 }
               };
             }

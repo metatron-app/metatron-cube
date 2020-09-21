@@ -20,6 +20,7 @@
 package io.druid.segment.serde;
 
 import com.google.common.collect.ImmutableMap;
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -32,6 +33,7 @@ import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.data.TmpFileIOPeon;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.lucene.ShapeFormat;
@@ -89,14 +91,22 @@ public class ComplexColumnSerializerTest
 
     Assert.assertEquals(length, payload.remaining());
 
-    Column column = descriptor.read("test", payload, new RoaringBitmapSerdeFactory());
+    final RoaringBitmapSerdeFactory factory = new RoaringBitmapSerdeFactory();
+    Column column = descriptor.read("test", payload, factory);
+    FilterContext context = new FilterContext(new BitmapIndexSelector.Abstract()
+    {
+      public BitmapFactory getBitmapFactory()
+      {
+        return factory.getBitmapFactory();
+      }
+    });
     LuceneIndex luceneIndex = column.getLuceneIndex();
 
     Assert.assertNotNull(luceneIndex);
 
     QueryParser parser = new QueryParser("test-lucene", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"navis\"");
-    ImmutableBitmap bitmap = luceneIndex.filterFor(query, null);
+    ImmutableBitmap bitmap = luceneIndex.filterFor(query, context);
 
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
@@ -184,7 +194,9 @@ public class ComplexColumnSerializerTest
 
     Assert.assertEquals(length, payload.remaining());
 
-    Column column = descriptor.read("test", payload, new RoaringBitmapSerdeFactory());
+    final RoaringBitmapSerdeFactory factory = new RoaringBitmapSerdeFactory();
+    Column column = descriptor.read("test", payload, factory);
+
     final LuceneIndex luceneIndex = column.getLuceneIndex();
 
     Assert.assertNotNull(luceneIndex);
@@ -196,10 +208,16 @@ public class ComplexColumnSerializerTest
       {
         return luceneIndex;
       }
+
+      @Override
+      public BitmapFactory getBitmapFactory()
+      {
+        return factory.getBitmapFactory();
+      }
     };
     LuceneSpatialFilter filter = new LuceneSpatialFilter("geom", SpatialOperations.COVEREDBY, ShapeFormat.WKT, 서초1동);
     TypeResolver resolver = Parser.withTypeMap(ImmutableMap.of("geom", ValueDesc.STRING));
-    ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(selector, null);
+    ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(new FilterContext(selector));
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
     Assert.assertEquals(true, bitmap.get(2));

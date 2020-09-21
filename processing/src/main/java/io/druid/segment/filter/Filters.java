@@ -89,7 +89,6 @@ import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.lucene.Lucenes;
 import org.roaringbitmap.IntIterator;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
@@ -355,11 +354,11 @@ public class Filters
    */
   public static ImmutableBitmap matchPredicate(
       final String dimension,
-      final BitmapIndexSelector selector,
       final Predicate<String> predicate,
-      final ImmutableBitmap baseBitmap
+      final FilterContext context
   )
   {
+    final BitmapIndexSelector selector = context.indexSelector();
     Preconditions.checkNotNull(dimension, "dimension");
     Preconditions.checkNotNull(selector, "selector");
     Preconditions.checkNotNull(predicate, "predicate");
@@ -465,7 +464,7 @@ public class Filters
       new BitSetBitmapFactory(), new ConciseBitmapFactory(), new RoaringBitmapFactory()
   };
 
-  public static FilterContext getFilterContext(
+  public static FilterContext createFilterContext(
       final BitmapIndexSelector selector,
       final Cache cache,
       final String segmentId
@@ -519,65 +518,13 @@ public class Filters
     return 0x7f;
   }
 
-  public static class FilterContext implements Closeable
-  {
-    protected final BitmapIndexSelector selector;
-    protected final BitmapFactory factory;
-    protected ImmutableBitmap baseBitmap;
-
-    public FilterContext(BitmapIndexSelector selector)
-    {
-      this.selector = selector;
-      this.factory = selector.getBitmapFactory();
-    }
-
-    public BitmapHolder createBitmap(DimFilter filter)
-    {
-      long start = System.currentTimeMillis();
-      BitmapHolder holder = leafToBitmap(filter, this);
-      if (holder != null && logger.isDebugEnabled()) {
-        long elapsed = System.currentTimeMillis() - start;
-        logger.debug("%s : %,d / %,d (%,d msec)", filter, holder.bitmap().size(), getNumRows(), elapsed);
-      }
-      return holder;
-    }
-
-    public BitmapFactory bitmapFactory()
-    {
-      return factory;
-    }
-
-    public void setBaseBitmap(ImmutableBitmap baseBitmap)
-    {
-      this.baseBitmap = baseBitmap;
-    }
-
-    public void andBaseBitmap(ImmutableBitmap newBaseBitmap)
-    {
-      baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(
-          factory, Arrays.asList(baseBitmap, newBaseBitmap)
-      );
-    }
-
-    public int getNumRows()
-    {
-      return selector.getNumRows();
-    }
-
-    @Override
-    public void close()
-    {
-      selector.close();
-    }
-  }
-
   public static BitmapHolder toBitmapHolder(DimFilter filter, FilterContext context)
   {
     long start = System.currentTimeMillis();
     BitmapHolder baseBitmap = toBitmapHolderRecurse(filter, context);
     if (baseBitmap != null && logger.isDebugEnabled()) {
       long elapsed = System.currentTimeMillis() - start;
-      logger.debug("%s : %,d / %,d (%,d msec)", filter, baseBitmap.rhs.size(), context.getNumRows(), elapsed);
+      logger.debug("%s : %,d / %,d (%,d msec)", filter, baseBitmap.rhs.size(), context.numRows(), elapsed);
     }
     return baseBitmap;
   }
@@ -616,7 +563,7 @@ public class Filters
           return new BitmapHolder(exact, DimFilters.union(context.factory, bitmaps));
         } else {
           final ImmutableBitmap bitmap = Iterables.getOnlyElement(bitmaps);
-          return new BitmapHolder(exact, DimFilters.complement(context.factory, bitmap, context.getNumRows()));
+          return new BitmapHolder(exact, DimFilters.complement(context.factory, bitmap, context.numRows()));
         }
       }
     } else {
@@ -626,7 +573,7 @@ public class Filters
   }
 
   @SuppressWarnings("unchecked")
-  private static BitmapHolder leafToBitmap(DimFilter filter, FilterContext context)
+  static BitmapHolder leafToBitmap(DimFilter filter, FilterContext context)
   {
     Preconditions.checkArgument(!(filter instanceof RelationExpression));
     if (filter instanceof ValueOnly) {
@@ -640,7 +587,7 @@ public class Filters
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
     } else if (filter instanceof LuceneFilter) {
       // throws exception instead of null.. not supports value matcher
-      return BitmapHolder.exact(filter.toFilter(selector).getBitmapIndex(selector, context.baseBitmap));
+      return BitmapHolder.exact(filter.toFilter(selector).getBitmapIndex(context));
     }
     Set<String> dependents = Filters.getDependents(filter);
     if (dependents.size() != 1) {
@@ -652,7 +599,7 @@ public class Filters
       return null;
     }
     if (capabilities.hasBitmapIndexes()) {
-      ImmutableBitmap bitmap = filter.toFilter(selector).getBitmapIndex(selector, context.baseBitmap);
+      ImmutableBitmap bitmap = filter.toFilter(selector).getBitmapIndex(context);
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
     }
     if (capabilities.getType() == ValueType.BOOLEAN && filter instanceof BooleanColumnSupport) {
@@ -668,7 +615,7 @@ public class Filters
       }
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Range range : ((RangeFilter) filter).toRanges(selector)) {
-        bitmaps.add(index.filterFor(range, context.baseBitmap));
+        bitmaps.add(index.filterFor(range, context));
       }
       ImmutableBitmap bitmap = DimFilters.intersection(context.factory, bitmaps);
       return index.isExact() ? BitmapHolder.exact(bitmap) : BitmapHolder.notExact(bitmap);
@@ -744,9 +691,9 @@ public class Filters
       }
       if (capabilities.hasBitmapIndexes() || capabilities.getType() == ValueType.BOOLEAN) {
         // traverse all possible values
-        ImmutableBitmap bitmap = ofExpr((Expr) expr).getBitmapIndex(selector, context.baseBitmap);
+        ImmutableBitmap bitmap = ofExpr((Expr) expr).getBitmapIndex(context);
         if (bitmap != null && withNot) {
-          bitmap = DimFilters.complement(context.factory, bitmap, context.getNumRows());
+          bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
         }
         return bitmap;
       }
@@ -759,7 +706,7 @@ public class Filters
     return new Filter()
     {
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
         final String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
 
@@ -767,6 +714,7 @@ public class Filters
         final Expr.NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
 
         final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+        final BitmapIndexSelector selector = context.indexSelector();
         final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
         if (bitmapIndex != null) {
           final int cardinality = bitmapIndex.getCardinality();
@@ -829,7 +777,6 @@ public class Filters
     final ValueType type = ValueDesc.assertPrimitive(metric.type()).type();
 
     final BitmapFactory factory = context.factory;
-    final ImmutableBitmap baseBitmap = context.baseBitmap;
     if (Expressions.isCompare(expression.op())) {
       final Comparable constant = getOnlyConstant(expression.getChildren(), type);
       if (constant == null) {
@@ -838,30 +785,30 @@ public class Filters
       switch (expression.op()) {
         case "<":
           return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.atLeast(constant) : Range.lessThan(constant), baseBitmap) :
+              withNot ? Range.atLeast(constant) : Range.lessThan(constant), context) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.atLeast(column, constant) : Lucenes.lessThan(column, constant), baseBitmap
+                     withNot ? Lucenes.atLeast(column, constant) : Lucenes.lessThan(column, constant), context
                  ) :
                  null;
         case ">":
           return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.atMost(constant) : Range.greaterThan(constant), baseBitmap) :
+              withNot ? Range.atMost(constant) : Range.greaterThan(constant), context) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.atMost(column, constant) : Lucenes.greaterThan(column, constant), baseBitmap
+                     withNot ? Lucenes.atMost(column, constant) : Lucenes.greaterThan(column, constant), context
                  ) :
                  null;
         case "<=":
           return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.greaterThan(constant) : Range.atMost(constant), baseBitmap) :
+              withNot ? Range.greaterThan(constant) : Range.atMost(constant), context) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.greaterThan(column, constant) : Lucenes.atMost(column, constant), baseBitmap
+                     withNot ? Lucenes.greaterThan(column, constant) : Lucenes.atMost(column, constant), context
                  ) :
                  null;
         case ">=":
           return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.lessThan(constant) : Range.atLeast(constant), baseBitmap) :
+              withNot ? Range.lessThan(constant) : Range.atLeast(constant), context) :
                  metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.lessThan(column, constant) : Lucenes.atLeast(column, constant), baseBitmap
+                     withNot ? Lucenes.lessThan(column, constant) : Lucenes.atLeast(column, constant), context
                  ) :
                  null;
         case "==":
@@ -870,22 +817,22 @@ public class Filters
                 factory,
                 Arrays.asList(
                     metric instanceof SecondaryIndex.WithRange ?
-                    metric.filterFor(Range.lessThan(constant), baseBitmap) :
+                    metric.filterFor(Range.lessThan(constant), context) :
                     metric instanceof LuceneIndex ?
-                    metric.filterFor(Lucenes.lessThan(column, constant), baseBitmap) :
+                    metric.filterFor(Lucenes.lessThan(column, constant), context) :
                     null,
                     metric instanceof SecondaryIndex.WithRange ?
-                    metric.filterFor(Range.greaterThan(constant), baseBitmap) :
+                    metric.filterFor(Range.greaterThan(constant), context) :
                     metric instanceof LuceneIndex ?
-                    metric.filterFor(Lucenes.greaterThan(column, constant), baseBitmap) :
+                    metric.filterFor(Lucenes.greaterThan(column, constant), context) :
                     null
                 )
             );
           }
           return metric instanceof SecondaryIndex.WithRange ?
-                 metric.filterFor(Range.closed(constant, constant), baseBitmap) :
+                 metric.filterFor(Range.closed(constant, constant), context) :
                  metric instanceof LuceneIndex ?
-                 metric.filterFor(Lucenes.point(column, constant), baseBitmap) :
+                 metric.filterFor(Lucenes.point(column, constant), context) :
                  null;
       }
     }
@@ -911,21 +858,21 @@ public class Filters
               factory,
               Arrays.asList(
                   metric instanceof SecondaryIndex.WithRange ?
-                  metric.filterFor(Range.lessThan(value1), baseBitmap) :
+                  metric.filterFor(Range.lessThan(value1), context) :
                   metric instanceof LuceneIndex ?
-                  metric.filterFor(Lucenes.lessThan(column, value1), baseBitmap) :
+                  metric.filterFor(Lucenes.lessThan(column, value1), context) :
                   null,
                   metric instanceof SecondaryIndex.WithRange ?
-                  metric.filterFor(Range.greaterThan(value2), baseBitmap) :
-                  metric instanceof LuceneIndex ? metric.filterFor(Lucenes.greaterThan(column, value2), baseBitmap) :
+                  metric.filterFor(Range.greaterThan(value2), context) :
+                  metric instanceof LuceneIndex ? metric.filterFor(Lucenes.greaterThan(column, value2), context) :
                   null
               )
           );
         }
         return metric instanceof SecondaryIndex.WithRange ?
-               metric.filterFor(Range.closed(value1, value2), baseBitmap) :
+               metric.filterFor(Range.closed(value1, value2), context) :
                metric instanceof LuceneIndex ?
-               metric.filterFor(Lucenes.closed(column, value1, value2), baseBitmap) :
+               metric.filterFor(Lucenes.closed(column, value1, value2), context) :
                null;
       case "in":
         if (withNot) {
@@ -935,27 +882,27 @@ public class Filters
         for (Comparable value : getConstants(expression.getChildren(), type)) {
           bitmaps.add(
               metric instanceof SecondaryIndex.WithRange ?
-              metric.filterFor(Range.closed(value, value), baseBitmap) :
+              metric.filterFor(Range.closed(value, value), context) :
               metric instanceof LuceneIndex ?
-              metric.filterFor(Lucenes.point(column, value), baseBitmap) :
+              metric.filterFor(Lucenes.point(column, value), context) :
               null
           );
         }
         return DimFilters.union(factory, bitmaps);
       case "isnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
-          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(baseBitmap);
+          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap);
           if (withNot) {
-            bitmap = DimFilters.complement(context.factory, bitmap, context.getNumRows());
+            bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
           }
           return bitmap;
         }
         return null;
       case "isnotnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
-          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(baseBitmap);
+          ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap);
           if (!withNot) {
-            bitmap = DimFilters.complement(context.factory, bitmap, context.getNumRows());
+            bitmap = DimFilters.complement(context.factory, bitmap, context.numRows());
           }
           return bitmap;
         }
@@ -1080,9 +1027,9 @@ public class Filters
   {
 
     @Override
-    public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+    public ImmutableBitmap getBitmapIndex(FilterContext context)
     {
-      return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+      return context.bitmapFactory().makeEmptyImmutableBitmap();
     }
 
     @Override
@@ -1096,9 +1043,9 @@ public class Filters
   {
 
     @Override
-    public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+    public ImmutableBitmap getBitmapIndex(FilterContext context)
     {
-      return baseBitmap != null ? baseBitmap : DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
+      return context != null ? context.baseBitmap : DimFilters.makeTrue(context.bitmapFactory(), context.numRows());
     }
 
     @Override
@@ -1126,9 +1073,9 @@ public class Filters
       }
 
       @Override
-      public ImmutableBitmap filterFor(Range query, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap filterFor(Range query, FilterContext context, String attachment)
       {
-        return toDimFilter(dimension, query).toFilter(TypeResolver.STRING).getBitmapIndex(selector, baseBitmap);
+        return toDimFilter(dimension, query).toFilter(TypeResolver.STRING).getBitmapIndex(context);
       }
 
       @Override
@@ -1167,7 +1114,7 @@ public class Filters
       }
 
       @Override
-      public ImmutableBitmap filterFor(Object query, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap filterFor(Object query, FilterContext context, String attachment)
       {
         return null;
       }

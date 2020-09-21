@@ -22,6 +22,7 @@ package io.druid.segment.column;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
+import io.druid.segment.filter.FilterContext;
 
 import java.io.Closeable;
 
@@ -31,7 +32,12 @@ public interface SecondaryIndex<T> extends Closeable
 {
   ValueDesc type();
 
-  ImmutableBitmap filterFor(T query, ImmutableBitmap baseBitmap);
+  default ImmutableBitmap filterFor(T query, FilterContext context)
+  {
+    return filterFor(query, context, null);
+  }
+
+  ImmutableBitmap filterFor(T query, FilterContext context, String attachment);
 
   boolean isExact();
 

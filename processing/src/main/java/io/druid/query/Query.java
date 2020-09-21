@@ -157,6 +157,8 @@ public interface Query<T> extends QueryContextKeys
     DimFilter getFilter();
 
     FilterSupport<T> withFilter(DimFilter filter);
+
+    FilterSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
   }
 
   interface ColumnsSupport<T> extends FilterSupport<T>
@@ -164,6 +166,10 @@ public interface Query<T> extends QueryContextKeys
     List<String> getColumns();
 
     ColumnsSupport<T> withColumns(List<String> columns);
+
+    ColumnsSupport<T> withFilter(DimFilter filter);
+
+    ColumnsSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
   }
 
   interface DimensionSupport<T> extends FilterSupport<T>
@@ -171,6 +177,10 @@ public interface Query<T> extends QueryContextKeys
     List<DimensionSpec> getDimensions();
 
     DimensionSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
+
+    DimensionSupport<T> withFilter(DimFilter filter);
+
+    DimensionSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
 
     boolean allDimensionsForEmpty();
   }
@@ -180,6 +190,10 @@ public interface Query<T> extends QueryContextKeys
     List<String> getMetrics();
 
     MetricSupport<T> withMetrics(List<String> metrics);
+
+    MetricSupport<T> withFilter(DimFilter filter);
+
+    MetricSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
 
     boolean allMetricsForEmpty();
   }
@@ -193,6 +207,8 @@ public interface Query<T> extends QueryContextKeys
     List<PostAggregator> getPostAggregatorSpecs();
 
     AggregationsSupport<T> withPostAggregatorSpecs(List<PostAggregator> metrics);
+
+    AggregationsSupport<T> withFilter(DimFilter filter);
 
     AggregationsSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
 

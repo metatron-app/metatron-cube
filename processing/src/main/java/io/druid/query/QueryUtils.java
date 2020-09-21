@@ -317,6 +317,7 @@ public class QueryUtils
       input = ((Query.RewritingQuery) input).rewriteQuery(segmentWalker, queryConfig);
     }
     if (input instanceof Query.FilterSupport) {
+      input = DimFilters.inflate((Query.FilterSupport) input);
       input = DimFilters.rewrite(input, DimFilters.rewriter(segmentWalker, input));
     }
     return (T) input;
@@ -378,6 +379,7 @@ public class QueryUtils
     if (!viewColumns.isEmpty()) {
       query = retainViewColumns(query, viewColumns);
     }
+    BaseQuery.getDimFilter(query);
     return query.resolveQuery(resolver, false);   // already expanded
   }
 

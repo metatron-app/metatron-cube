@@ -32,6 +32,7 @@ import io.druid.query.GeomUtils;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.ShapeFormat;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.geo.Polygon;
@@ -119,11 +120,12 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
     {
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
         // column-name.field-name or field-name (regarded same with column-name)
         String columnName = field;
         String fieldName = field;
+        BitmapIndexSelector selector = context.indexSelector();
         LuceneIndex lucene = selector.getLuceneIndex(columnName);
         for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
           columnName = field.substring(0, index);
@@ -133,7 +135,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
         Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
 
         Query query = LatLonPoint.newPolygonQuery(fieldName, polygons);
-        return lucene.filterFor(query, baseBitmap);
+        return lucene.filterFor(query, context);
       }
 
       @Override

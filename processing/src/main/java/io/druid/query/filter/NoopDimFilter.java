@@ -24,6 +24,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.BooleanValueMatcher;
+import io.druid.segment.filter.FilterContext;
 
 import java.util.Set;
 
@@ -49,7 +50,7 @@ public class NoopDimFilter implements DimFilter
     {
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, ImmutableBitmap baseBitmap)
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
         throw new UnsupportedOperationException("getBitmapIndex");
       }
