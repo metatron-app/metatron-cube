@@ -91,7 +91,13 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   {
     final byte[] bytes = strategy.toBytes(value);
     final boolean deficit = endBuffer.remaining() - CompressedPools.RESERVE < bytes.length;
-    if (deficit && offsetInBlock > 0) {
+    if (deficit && offsetInBlock == 0) {
+      flattener.add(StupidResourceHolder.create(ByteBuffer.wrap(bytes)));
+      offsets.add(CompressedPools.BUFFER_EXCEEDED);   // marker
+      mappings.add(++rowNum);
+      return;
+    }
+    if (deficit) {
       endBuffer.flip();
       flattener.add(StupidResourceHolder.create(endBuffer));
       mappings.add(rowNum);
@@ -99,16 +105,9 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
       offsetInBlock = 0;
     }
     rowNum++;
-
-    if (deficit) {
-      flattener.add(StupidResourceHolder.create(ByteBuffer.wrap(bytes)));
-      offsets.add(CompressedPools.BUFFER_EXCEEDED);   // marker
-      mappings.add(rowNum);
-    } else {
-      endBuffer.put(bytes);
-      offsetInBlock += bytes.length;
-      offsets.add(offsetInBlock);
-    }
+    endBuffer.put(bytes);
+    offsetInBlock += bytes.length;
+    offsets.add(offsetInBlock);
   }
 
   @Override
