@@ -140,6 +140,20 @@ public class Calcites
   public static ValueDesc getValueDescForRelDataType(RelDataType dataType)
   {
     final SqlTypeName sqlTypeName = dataType.getSqlTypeName();
+    final ValueDesc desc = getValueDescFromTypeName(sqlTypeName);
+    if (desc != null) {
+      return desc;
+    }
+    // hack
+    Type type = TYPE_FACTORY.getJavaClass(dataType);
+    if (type != null && type.getTypeName().startsWith("org.locationtech.jts.geom.")) {
+      return ValueDesc.GEOMETRY;
+    }
+    return ValueDesc.of(sqlTypeName.getName());
+  }
+
+  public static ValueDesc getValueDescFromTypeName(SqlTypeName sqlTypeName)
+  {
     if (SqlTypeName.BOOLEAN == sqlTypeName) {
       return ValueDesc.BOOLEAN;
     } else if (SqlTypeName.FLOAT == sqlTypeName) {
@@ -157,12 +171,7 @@ public class Calcites
     } else if (SqlTypeName.GEOMETRY == sqlTypeName) {
       return ValueDesc.GEOMETRY;    // it's not working (todo)
     }
-    // hack
-    Type type = TYPE_FACTORY.getJavaClass(dataType);
-    if (type != null && type.getTypeName().startsWith("org.locationtech.jts.geom.")) {
-      return ValueDesc.GEOMETRY;
-    }
-    return ValueDesc.of(sqlTypeName.getName());
+    return null;
   }
 
   public static String getStringComparatorForDataType(RelDataType dataType)

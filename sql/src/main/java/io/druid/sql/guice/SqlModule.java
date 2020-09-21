@@ -37,6 +37,7 @@ import io.druid.sql.avatica.AvaticaServerConfig;
 import io.druid.sql.avatica.DruidAvaticaHandler;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DimFilterConversion;
+import io.druid.sql.calcite.expression.builtin.EvalOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LookupOperatorConversion;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
@@ -47,6 +48,7 @@ import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.sql.http.SqlResource;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -94,6 +96,11 @@ public class SqlModule implements Module
 
       // LookupOperatorConversion isn't in DruidOperatorTable since it needs a LookupReferencesManager injected.
       SqlBindings.addOperatorConversion(binder, LookupOperatorConversion.class);
+      SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_float", SqlTypeName.FLOAT));
+      SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_double", SqlTypeName.DOUBLE));
+      SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_int", SqlTypeName.INTEGER));
+      SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_long", SqlTypeName.BIGINT));
+      SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_string", SqlTypeName.VARCHAR));
 
       SqlBindings.addDimFilterConversion(binder, LuceneQueryFilterConversion.class);
       SqlBindings.addDimFilterConversion(binder, LuceneNearestFilterConversion.class);

@@ -69,6 +69,10 @@ public class DruidRexExecutor implements RexExecutor
       } else {
         final SqlTypeName sqlTypeName = constExp.getType().getSqlTypeName();
         final Expr expr = Parser.parse(druidExpression.getExpression(), Utils.EMPTY_ROW_SIGNATURE);
+        if (!Evals.isConstant(expr)) {
+          reducedValues.add(constExp);
+          continue;
+        }
 
         final ExprEval exprResult = Evals.getConstantEval(expr);
 

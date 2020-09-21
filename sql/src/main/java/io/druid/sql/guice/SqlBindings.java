@@ -60,6 +60,14 @@ public class SqlBindings
     Multibinder.newSetBinder(binder, SqlOperatorConversion.class).addBinding().to(clazz);
   }
 
+  public static void addOperatorConversion(
+      final Binder binder,
+      final SqlOperatorConversion instance
+  )
+  {
+    Multibinder.newSetBinder(binder, SqlOperatorConversion.class).addBinding().toInstance(instance);
+  }
+
   public static void addDimFilterConversion(
       final Binder binder,
       final Class<? extends DimFilterConversion> clazz
