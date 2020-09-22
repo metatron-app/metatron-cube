@@ -25,6 +25,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -58,8 +59,10 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.segment.IndexBuilder;
 import io.druid.segment.QueryableIndex;
@@ -373,7 +376,9 @@ public class CalciteTests
                                                       .rows(FORBIDDEN_ROWS)
                                                       .buildMMappedIndex();
 
-    return TestIndex.segmentWalker.duplicate().add(
+    TestQuerySegmentWalker duplicate = TestIndex.segmentWalker.duplicate();
+    duplicate.populate("sales");
+    return duplicate.add(
         DataSegment.builder()
                    .dataSource(DATASOURCE1)
                    .interval(index1.getInterval())
@@ -410,10 +415,16 @@ public class CalciteTests
 
   public static DruidOperatorTable createOperatorTable()
   {
+    Set<AggregatorFactory.SQLBundle> bundles = Sets.newHashSet(
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.TimeFirst("<name>", "<columnName>", null)),
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.TimeLast("<name>", "<columnName>", null)),
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.Min("<name>", "<columnName>", null)),
+        AggregatorFactory.bundleSQL(new RelayAggregatorFactory.Max("<name>", "<columnName>", null))
+    );
+    Set<SqlOperatorConversion> extractionOperators = new HashSet<>();
+
     try {
-      final Set<SqlOperatorConversion> extractionOperators = new HashSet<>();
-//      extractionOperators.add(INJECTOR.getInstance(LookupOperatorConversion.class));
-      return new DruidOperatorTable(ImmutableSet.of(), ImmutableSet.of(), extractionOperators, ImmutableSet.of());
+      return new DruidOperatorTable(ImmutableSet.of(), bundles, extractionOperators, ImmutableSet.of());
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

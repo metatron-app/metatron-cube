@@ -46,20 +46,38 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   private static final byte CACHE_TYPE_ID = 0x11;
 
   @JsonTypeName("firstOf")
-  public static class First extends RelayAggregatorFactory
+  public static class TimeFirst extends RelayAggregatorFactory
   {
-    public First(String name, String columnName, String typeName)
+    public TimeFirst(String name, String columnName, String typeName)
     {
-      super(name, columnName, typeName, "FIRST");
+      super(name, columnName, typeName, "TIME_MIN");
     }
   }
 
   @JsonTypeName("lastOf")
-  public static class Last extends RelayAggregatorFactory
+  public static class TimeLast extends RelayAggregatorFactory
   {
-    public Last(String name, String columnName, String typeName)
+    public TimeLast(String name, String columnName, String typeName)
     {
-      super(name, columnName, typeName, "LAST");
+      super(name, columnName, typeName, "TIME_MAX");
+    }
+  }
+
+  @JsonTypeName("minOf")
+  public static class Min extends RelayAggregatorFactory
+  {
+    public Min(String name, String columnName, String typeName)
+    {
+      super(name, columnName, typeName, "MIN");
+    }
+  }
+
+  @JsonTypeName("maxOf")
+  public static class Max extends RelayAggregatorFactory
+  {
+    public Max(String name, String columnName, String typeName)
+    {
+      super(name, columnName, typeName, "MAX");
     }
   }
 

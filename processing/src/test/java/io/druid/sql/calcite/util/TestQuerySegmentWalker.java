@@ -130,26 +130,26 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     {
       Supplier<List<Pair<DataSegment, Segment>>> populator = populators.remove(key);
       if (populator == null) {
-        return (node == 0 ? node1 : node2).computeIfAbsent(
-            key,
-            new java.util.function.Function<String, VersionedIntervalTimeline<String, Segment>>()
-            {
-              @Override
-              public VersionedIntervalTimeline<String, Segment> apply(String s)
-              {
-                return new VersionedIntervalTimeline<>();
-              }
-            }
-        );
+        return (node == 0 ? node1 : node2).computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
       }
-      VersionedIntervalTimeline<String, Segment> timeline1 = node1.get(key);
-      if (timeline1 == null) {
-        node1.put(key, timeline1 = new VersionedIntervalTimeline<>());
+      populate(key, populator);
+      return (node == 0 ? node1 : node2).get(key);
+    }
+
+    public boolean populate(String key)
+    {
+      Supplier<List<Pair<DataSegment, Segment>>> populator = populators.remove(key);
+      if (populator != null) {
+        populate(key, populator);
+        return true;
       }
-      VersionedIntervalTimeline<String, Segment> timeline2 = node2.get(key);
-      if (timeline2 == null) {
-        node2.put(key, timeline2 = new VersionedIntervalTimeline<>());
-      }
+      return false;
+    }
+
+    private void populate(String key, Supplier<List<Pair<DataSegment, Segment>>> populator)
+    {
+      VersionedIntervalTimeline<String, Segment> timeline1 = node1.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
+      VersionedIntervalTimeline<String, Segment> timeline2 = node2.computeIfAbsent(key, k -> new VersionedIntervalTimeline<>());
       for (Pair<DataSegment, Segment> pair : populator.get()) {
         DataSegment descriptor = pair.lhs;
         if (descriptor.getInterval().hashCode() % 2 == 0) {
@@ -167,7 +167,6 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         }
         segments.add(descriptor);
       }
-      return node == 0 ? timeline1 : timeline2;
     }
 
     public void addPopulator(String key, Supplier<List<Pair<DataSegment, Segment>>> populator)
@@ -269,6 +268,11 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   {
     timeLines.addSegment(descriptor, new QueryableIndexSegment(descriptor.getIdentifier(), index));
     return this;
+  }
+
+  public boolean populate(String dataSource)
+  {
+    return timeLines.populate(dataSource);
   }
 
   public void addPopulator(String dataSource, Supplier<List<Pair<DataSegment, Segment>>> populator)

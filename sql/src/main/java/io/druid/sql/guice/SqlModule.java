@@ -88,8 +88,10 @@ public class SqlModule implements Module
       Multibinder<AggregatorFactory.SQLBundle> set = Multibinder.newSetBinder(binder, AggregatorFactory.SQLBundle.class);
 
       // for simplicity
-      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.First("<name>", "<columnName>", null));
-      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.Last("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.TimeFirst("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.TimeLast("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.Min("<name>", "<columnName>", null));
+      SqlBindings.addAggregator(binder, new RelayAggregatorFactory.Max("<name>", "<columnName>", null));
 
       // Add empty DimFilterConversion binder.
       Multibinder.newSetBinder(binder, DimFilterConversion.class);
