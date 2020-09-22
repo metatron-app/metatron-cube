@@ -160,6 +160,16 @@ public enum ShapeFormat
     return name == null ? WKT : valueOf(name.toUpperCase());
   }
 
+  public static ShapeFormat check(String name)
+  {
+    try {
+      return name == null ? null : valueOf(name.toUpperCase());
+    }
+    catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
   public static Polygon[] toLucenePolygons(SpatialContext context, ShapeFormat format, String shapeString)
       throws IOException, ParseException
   {

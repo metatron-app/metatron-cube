@@ -63,13 +63,29 @@ public abstract class LuceneShapeFilterConversion implements DimFilterConversion
   {
     final RexCall call = (RexCall) rexNode;
     final List<RexNode> operands = call.getOperands();
-    if (operands.size() != 2 && operands.size() != 3) {
+    if (operands.size() != 2 && operands.size() != 3 && operands.size() != 4) {
       return null;
     }
     String field = DruidOperatorTable.getFieldName(operands.get(0), plannerContext, rowSignature);
-    ShapeFormat format = operands.size() == 3 ? ShapeFormat.valueOf(RexLiteral.stringValue(operands.get(1))) : null;
+    ShapeFormat format = null;
+    String scoreField = null;
+    if (operands.size() >= 4) {
+      String param1 = RexLiteral.stringValue(operands.get(1));
+      ShapeFormat check = ShapeFormat.check(param1);
+      if (check != null) {
+        format = check;
+        if (operands.size() == 4) {
+          scoreField = RexLiteral.stringValue(operands.get(2));
+        }
+      } else {
+        scoreField = param1;
+        if (operands.size() == 4) {
+          format = ShapeFormat.fromString(RexLiteral.stringValue(operands.get(2)));
+        }
+      }
+    }
     String shape = RexLiteral.stringValue(GuavaUtils.lastOf(operands));
-    return new LuceneShapeFilter(field, getOperation(), format, shape);
+    return new LuceneShapeFilter(field, getOperation(), format, shape, scoreField);
   }
 
   protected abstract SpatialOperations getOperation();

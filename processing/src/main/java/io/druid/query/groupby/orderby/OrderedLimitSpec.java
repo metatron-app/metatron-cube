@@ -20,6 +20,7 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.Cacheable;
@@ -51,6 +52,7 @@ public class OrderedLimitSpec implements Cacheable
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<OrderByColumnSpec> getColumns()
   {
     return columns;

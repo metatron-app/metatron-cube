@@ -19,8 +19,11 @@
 
 package io.druid.query.filter;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -36,6 +39,7 @@ import io.druid.math.expr.Parser;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowResolver;
+import io.druid.segment.AttachmentVirtualColumn;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
@@ -179,9 +183,41 @@ public interface DimFilter extends Expression, Cacheable
   }
 
   // uses lucene index
-  abstract class LuceneFilter implements DimFilter
+  abstract class LuceneFilter implements VCInflator
   {
-    public abstract String getField();
+    protected final String field;
+    protected final String scoreField;
+
+    protected LuceneFilter(String field, String scoreField)
+    {
+      this.field = Preconditions.checkNotNull(field, "field can not be null");
+      this.scoreField = scoreField;
+    }
+
+    @JsonProperty
+    public String getField()
+    {
+      return field;
+    }
+
+    @JsonProperty
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public String getScoreField()
+    {
+      return scoreField;
+    }
+
+    @Override
+    public void addDependent(Set<String> handler)
+    {
+      handler.add(field);
+    }
+
+    @Override
+    public VirtualColumn inflate()
+    {
+      return scoreField != null ? new AttachmentVirtualColumn(scoreField, ValueDesc.FLOAT) : null;
+    }
 
     @Override
     public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
@@ -242,21 +278,19 @@ public interface DimFilter extends Expression, Cacheable
       return toExprFilter(resolver, columnName == null ? field : columnName, null, null);
     }
 
-    public Map.Entry<String, String> getAnyFirst(Map<String, String> descriptors)
+    private Map.Entry<String, String> getAnyFirst(Map<String, String> descriptors)
     {
       if (!GuavaUtils.isNullOrEmpty(descriptors)) {
-        return Iterables.getFirst(
-            Maps.filterValues(descriptors, new Predicate<String>()
-            {
-              @Override
-              public boolean apply(String desc)
-              {
-                return desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) ||
-                       desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC);
-              }
-            }).entrySet(), null);
+        return Iterables.getFirst(Maps.filterValues(descriptors, predicate()).entrySet(), null);
       }
       return null;
+    }
+
+    protected Predicate<String> predicate()
+    {
+      return desc -> desc.startsWith(LuceneIndexingStrategy.TEXT_DESC) ||
+                     desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) ||
+                     desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC);
     }
 
     // just best-effort conversion.. instead of 'no lucene index' exception
@@ -345,7 +379,7 @@ public interface DimFilter extends Expression, Cacheable
     DimFilter rewrite(QuerySegmentWalker walker, Query parent);
   }
 
-  interface VCInflator extends Rewriting
+  interface VCInflator extends DimFilter
   {
     VirtualColumn inflate();
   }

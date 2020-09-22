@@ -382,11 +382,6 @@ public class Lucenes
     return DirectoryReader.open(directory);
   }
 
-  public static ImmutableBitmap toBitmap(TopDocs searched, FilterContext context)
-  {
-    return toBitmap(searched, context, null);
-  }
-
   public static ImmutableBitmap toBitmap(TopDocs searched, FilterContext context, String scoreField)
   {
     final BitmapFactory factory = context.bitmapFactory();

@@ -38,31 +38,23 @@ import org.apache.lucene.search.Query;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
 @JsonTypeName("lucene.geojson")
 public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
 {
-  private final String field;
   private final String geoJson;
 
   @JsonCreator
   public LuceneGeoJsonPolygonFilter(
       @JsonProperty("field") String field,
-      @JsonProperty("polygon") String geoJson
+      @JsonProperty("polygon") String geoJson,
+      @JsonProperty("scoreField") String scoreField
   )
   {
-    this.field = Preconditions.checkNotNull(field, "field can not be null");
+    super(field, scoreField);
     this.geoJson = Preconditions.checkNotNull(geoJson, "geoJson can not be null");
-  }
-
-  @Override
-  @JsonProperty
-  public String getField()
-  {
-    return field;
   }
 
   @JsonProperty
@@ -75,7 +67,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
-                  .append(field, geoJson);
+                  .append(field, geoJson, scoreField);
   }
 
   @Override
@@ -85,13 +77,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneGeoJsonPolygonFilter(replaced, geoJson);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(field);
+    return new LuceneGeoJsonPolygonFilter(replaced, geoJson, scoreField);
   }
 
   @Override
@@ -99,7 +85,6 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   {
     return new Filter()
     {
-
       @Override
       public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
@@ -117,7 +102,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
 
         try {
           Query query = LatLonPoint.newPolygonQuery(fieldName, Polygon.fromGeoJSON(geoJson));
-          return lucene.filterFor(query, context);
+          return lucene.filterFor(query, context, scoreField);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -148,7 +133,7 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   @Override
   public DimFilter forLog()
   {
-    return new LuceneGeoJsonPolygonFilter(field, StringUtils.forLog(geoJson));
+    return new LuceneGeoJsonPolygonFilter(field, StringUtils.forLog(geoJson), scoreField);
   }
 
   @Override
@@ -157,13 +142,14 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
     return "LuceneGeoJsonPolygonFilter{" +
            "field='" + field + '\'' +
            ", geoJson=" + StringUtils.forLog(geoJson) +
+           (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, geoJson);
+    return Objects.hash(field, geoJson, scoreField);
   }
 
   @Override
@@ -182,6 +168,9 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
       return false;
     }
     if (!geoJson.equals(that.geoJson)) {
+      return false;
+    }
+    if (!Objects.equals(scoreField, that.scoreField)) {
       return false;
     }
     return true;

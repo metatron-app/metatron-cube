@@ -35,14 +35,12 @@ import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
 @JsonTypeName("lucene.shape")
-public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
+public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider, DimFilter.VCInflator
 {
-  private final String field;
   private final SpatialOperations operation;
   private final ShapeFormat shapeFormat;
   private final String shapeString;
@@ -52,20 +50,14 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
       @JsonProperty("field") String field,
       @JsonProperty("operation") SpatialOperations operation,
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat,
-      @JsonProperty("shapeString") String shapeString
+      @JsonProperty("shapeString") String shapeString,
+      @JsonProperty("scoreField") String scoreField
   )
   {
-    this.field = Preconditions.checkNotNull(field, "field can not be null");
+    super(field, scoreField);
     this.operation = operation == null ? SpatialOperations.COVEREDBY : operation;
     this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
-  }
-
-  @Override
-  @JsonProperty
-  public String getField()
-  {
-    return field;
   }
 
   @JsonProperty
@@ -93,9 +85,9 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   {
     String field = fieldName == null ? columnName : String.format("%s.%s", columnName, fieldName);
     if (descriptor.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) && operation == SpatialOperations.COVEREDBY) {
-      return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString);
+      return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString, scoreField);
     } else if (descriptor.startsWith(LuceneIndexingStrategy.SHAPE_DESC)) {
-      return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString);
+      return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString, scoreField);
     }
     return null;
   }
@@ -104,7 +96,7 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   protected DimFilter toExprFilter(RowResolver resolver, String columnName, String fieldName, String descriptor)
   {
     // cannot know the type. just try regarding it as point
-    return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString).toExprFilter(
+    return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString, scoreField).toExprFilter(
         resolver, columnName, fieldName, descriptor
     );
   }
@@ -116,7 +108,8 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
                   .append(field)
                   .append(operation)
                   .append(shapeFormat)
-                  .append(shapeString);
+                  .append(shapeString)
+                  .append(scoreField);
   }
 
   @Override
@@ -126,13 +119,7 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneShapeFilter(replaced, operation, shapeFormat, shapeString);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(field);
+    return new LuceneShapeFilter(replaced, operation, shapeFormat, shapeString, scoreField);
   }
 
   @Override
@@ -144,7 +131,7 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   @Override
   public DimFilter forLog()
   {
-    return new LuceneShapeFilter(field, operation, shapeFormat, StringUtils.forLog(shapeString));
+    return new LuceneShapeFilter(field, operation, shapeFormat, StringUtils.forLog(shapeString), scoreField);
   }
 
   @Override
@@ -155,13 +142,14 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
            ", operation=" + operation +
            ", shapeFormat=" + shapeFormat +
            ", shapeString=" + StringUtils.forLog(shapeString) +
+           (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, operation, shapeFormat, shapeString);
+    return Objects.hash(field, operation, shapeFormat, shapeString, scoreField);
   }
 
   @Override
@@ -186,6 +174,9 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
       return false;
     }
     if (!shapeString.equals(that.shapeString)) {
+      return false;
+    }
+    if (!(Objects.equals(scoreField, that.scoreField))) {
       return false;
     }
 

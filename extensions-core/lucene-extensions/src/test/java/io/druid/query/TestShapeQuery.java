@@ -53,12 +53,12 @@ public class TestShapeQuery extends QueryRunnerTestHelper
   @Test
   public void testSchema()
   {
-    Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("seoul_roads")));
+    Schema schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("seoul_roads")));
     Assert.assertEquals("[__time, id, name, geom]", schema.getColumnNames().toString());
     Assert.assertEquals("[long, dimension.string, dimension.string, string]", schema.getColumnTypes().toString());
     Assert.assertEquals("{geom={geom=shape(format=WKT)}}", schema.getDescriptors().toString());
 
-    schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("world_border")));
+    schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("world_border")));
     Assert.assertEquals(
         "[__time, CODE, CNTRY_NAME, CURR_TYPE, CURR_CODE, FIPS, POP_CNTRY, WKT]", schema.getColumnNames().toString()
     );
@@ -72,13 +72,13 @@ public class TestShapeQuery extends QueryRunnerTestHelper
   @Test
   public void testSpatialFilter() throws Exception
   {
-    testSpatialFilter("seoul_roads");
-    testSpatialFilter("seoul_roads_incremental");
+    testSpatialFilter("seoul_roads", false);
+    testSpatialFilter("seoul_roads_incremental", true);
   }
 
-  private void testSpatialFilter(String dataSource) throws Exception
+  private void testSpatialFilter(String dataSource, boolean incremental) throws Exception
   {
-    String[] columns = new String[]{"name", "geom"};
+    String[] columns = new String[]{"name", "geom", "score"};
     Druids.SelectQueryBuilder builder = new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .columns(columns)
@@ -86,31 +86,42 @@ public class TestShapeQuery extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expected = createExpectedMaps(
         columns,
-        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)"},
-        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"},
-        new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)"},
-        new Object[]{"방배로", "LINESTRING (126.987022 37.498256, 127.001858 37.475122)"}
+        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", null},
+        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)", null},
+        new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)", null},
+        new Object[]{"방배로", "LINESTRING (126.987022 37.498256, 127.001858 37.475122)", null}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
+
+    Float score = incremental ? null : 1.0f;
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
         SpatialOperations.BBOX_WITHIN,
         ShapeFormat.WKT,
-        "MULTIPOINT ((180.0 -90.0), (-180.0 90.0))"
+        "MULTIPOINT ((180.0 -90.0), (-180.0 90.0))",
+        "score"
     ));
+    expected = createExpectedMaps(
+        columns,
+        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", score},
+        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)", score},
+        new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)", score},
+        new Object[]{"방배로", "LINESTRING (126.987022 37.498256, 127.001858 37.475122)", score}
+    );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
         SpatialOperations.INTERSECTS,
         ShapeFormat.WKT,
-        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
+        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))",
+        "score"
     ));
     expected = createExpectedMaps(
         columns,
-        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)"},
-        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"}
+        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", score},
+        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)", score}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
@@ -118,11 +129,12 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "geom",
         SpatialOperations.BBOX_WITHIN,
         ShapeFormat.WKT,
-        "MULTIPOINT ((127.017827 37.484505), (127.034182 37.521752))"
+        "MULTIPOINT ((127.017827 37.484505), (127.034182 37.521752))",
+        "score"
     ));
     expected = createExpectedMaps(
         columns,
-        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)"}
+        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", score}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
@@ -130,7 +142,8 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "geom",
         SpatialOperations.COVEREDBY,
         ShapeFormat.WKT,
-        "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))"
+        "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))",
+        "score"
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
@@ -138,7 +151,8 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "geom",
         SpatialOperations.COVEREDBY,
         ShapeFormat.WKT,
-        "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))"
+        "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))",
+        "score"
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
@@ -146,12 +160,13 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "geom",
         SpatialOperations.BBOX_INTERSECTS,
         ShapeFormat.WKT,
-        "MULTIPOINT ((127.007656 37.491764), (127.034182 37.497838))"
+        "MULTIPOINT ((127.007656 37.491764), (127.034182 37.497838))",
+        "score"
     ));
     expected = createExpectedMaps(
         columns,
-        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)"},
-        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)"}
+        new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", score},
+        new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)", score}
     );
     Assert.assertEquals(expected, runQuery(builder.streaming()));
   }
@@ -184,7 +199,8 @@ public class TestShapeQuery extends QueryRunnerTestHelper
     builder.filters(new LuceneLatLonPolygonFilter(
         "gis.coord",
         ShapeFormat.WKT,
-        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
+        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))",
+        null
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
@@ -192,7 +208,8 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "gis.coord",
         SpatialOperations.COVEREDBY,
         ShapeFormat.WKT,
-        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))"
+        "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))",
+        null
     ));
     Assert.assertEquals(expected, runQuery(builder.streaming()));
 
@@ -225,7 +242,8 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "WKT.shape",
         SpatialOperations.BBOX_WITHIN,
         ShapeFormat.WKT,
-        "MULTIPOINT ((-180.0 -90.0), (180.0 90.0))"
+        "MULTIPOINT ((-180.0 -90.0), (180.0 90.0))",
+        null
     ));
     Assert.assertEquals(all, runQuery(builder.streaming()).size());
 
@@ -233,7 +251,8 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "WKT.shape",
         SpatialOperations.BBOX_WITHIN,
         ShapeFormat.WKT,
-        "MULTIPOINT ((180.0 -90.0), (-180.0 90.0))"
+        "MULTIPOINT ((180.0 -90.0), (-180.0 90.0))",
+        null
     ));
     Assert.assertEquals(all, runQuery(builder.streaming()).size());
   }

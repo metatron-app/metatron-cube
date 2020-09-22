@@ -20,7 +20,6 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -28,9 +27,6 @@ import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.data.ValueDesc;
-import io.druid.query.QuerySegmentWalker;
-import io.druid.segment.AttachmentVirtualColumn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
@@ -45,7 +41,6 @@ import org.apache.lucene.search.Query;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
@@ -54,36 +49,23 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
 {
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
-    return new LuceneQueryFilter(field, null, expression, scoreField, false);
+    return new LuceneQueryFilter(field, null, expression, scoreField);
   }
 
-  private final String field;
-  private final String scoreField;
   private final String analyzer;
   private final String expression;
-  private final boolean inflated;   // marker not to add virtual column again. todo: find better way
 
   @JsonCreator
   public LuceneQueryFilter(
       @JsonProperty("field") String field,
       @JsonProperty("analyzer") String analyzer,
       @JsonProperty("expression") String expression,
-      @JsonProperty("scoreField") String scoreField,
-      @JsonProperty("inflated") boolean inflated
+      @JsonProperty("scoreField") String scoreField
   )
   {
-    this.field = Preconditions.checkNotNull(field, "field can not be null");
+    super(field, scoreField);
     this.analyzer = Objects.toString(analyzer, "standard");
     this.expression = Preconditions.checkNotNull(expression, "expression can not be null");
-    this.scoreField = scoreField;
-    this.inflated = inflated;
-  }
-
-  @Override
-  @JsonProperty
-  public String getField()
-  {
-    return field;
   }
 
   @JsonProperty
@@ -96,19 +78,6 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
   public String getExpression()
   {
     return expression;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getScoreField()
-  {
-    return scoreField;
-  }
-
-  @JsonProperty
-  public boolean isInflated()
-  {
-    return inflated;
   }
 
   @Override
@@ -128,25 +97,7 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneQueryFilter(replaced, analyzer, expression, scoreField, inflated);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(field);
-  }
-
-  @Override
-  public VirtualColumn inflate()
-  {
-    return !inflated && scoreField != null ? new AttachmentVirtualColumn(scoreField, ValueDesc.FLOAT) : null;
-  }
-
-  @Override
-  public DimFilter rewrite(QuerySegmentWalker walker, io.druid.query.Query parent)
-  {
-    return inflated || scoreField == null ? this : new LuceneQueryFilter(field, analyzer, expression, scoreField, true);
+    return new LuceneQueryFilter(replaced, analyzer, expression, scoreField);
   }
 
   @Override
@@ -202,7 +153,7 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
            "field='" + field + '\'' +
            ", analyzer='" + analyzer + '\'' +
            ", expression='" + expression + '\'' +
-           ", scoreField='" + scoreField + '\'' +
+           (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
 

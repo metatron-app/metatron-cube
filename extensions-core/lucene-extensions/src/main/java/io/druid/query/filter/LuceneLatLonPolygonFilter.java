@@ -41,14 +41,12 @@ import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
 @JsonTypeName("lucene.latlon.polygon")
 public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
 {
-  private final String field;
   private final ShapeFormat shapeFormat;
   private final String shapeString;
 
@@ -56,19 +54,13 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   public LuceneLatLonPolygonFilter(
       @JsonProperty("field") String field,
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat,
-      @JsonProperty("shapeString") String shapeString
+      @JsonProperty("shapeString") String shapeString,
+      @JsonProperty("scoreField") String scoreField
   )
   {
-    this.field = Preconditions.checkNotNull(field, "field can not be null");
+    super(field, scoreField);
     this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
-  }
-
-  @Override
-  @JsonProperty
-  public String getField()
-  {
-    return field;
   }
 
   @JsonProperty
@@ -87,7 +79,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
-                  .append(field, shapeString);
+                  .append(field, shapeString, scoreField);
   }
 
   @Override
@@ -97,13 +89,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneLatLonPolygonFilter(replaced, shapeFormat, shapeString);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(field);
+    return new LuceneLatLonPolygonFilter(replaced, shapeFormat, shapeString, scoreField);
   }
 
   @Override
@@ -118,7 +104,6 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
     }
     return new Filter()
     {
-
       @Override
       public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
@@ -135,7 +120,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
         Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
 
         Query query = LatLonPoint.newPolygonQuery(fieldName, polygons);
-        return lucene.filterFor(query, context);
+        return lucene.filterFor(query, context, scoreField);
       }
 
       @Override
@@ -154,7 +139,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
 
   public LuceneLatLonPolygonFilter withWKT(String shapeString)
   {
-    return new LuceneLatLonPolygonFilter(field, ShapeFormat.WKT, shapeString);
+    return new LuceneLatLonPolygonFilter(field, ShapeFormat.WKT, shapeString, scoreField);
   }
 
   @Override
@@ -168,7 +153,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   @Override
   public DimFilter forLog()
   {
-    return new LuceneLatLonPolygonFilter(field, shapeFormat, StringUtils.forLog(shapeString));
+    return new LuceneLatLonPolygonFilter(field, shapeFormat, StringUtils.forLog(shapeString), scoreField);
   }
 
   @Override
@@ -178,13 +163,14 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
            "field='" + field + '\'' +
            ", shapeFormat=" + shapeFormat +
            ", shapeString=" + StringUtils.forLog(shapeString) +
+           (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, shapeFormat, shapeString);
+    return Objects.hash(field, shapeFormat, shapeString, scoreField);
   }
 
   @Override
@@ -206,6 +192,9 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
       return false;
     }
     if (!shapeString.equals(that.shapeString)) {
+      return false;
+    }
+    if (!Objects.equals(scoreField, that.scoreField)) {
       return false;
     }
     return true;

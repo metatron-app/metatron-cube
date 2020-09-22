@@ -215,7 +215,7 @@ public class ComplexColumnSerializerTest
         return factory.getBitmapFactory();
       }
     };
-    LuceneSpatialFilter filter = new LuceneSpatialFilter("geom", SpatialOperations.COVEREDBY, ShapeFormat.WKT, 서초1동);
+    LuceneSpatialFilter filter = new LuceneSpatialFilter("geom", SpatialOperations.COVEREDBY, ShapeFormat.WKT, 서초1동, null);
     TypeResolver resolver = Parser.withTypeMap(ImmutableMap.of("geom", ValueDesc.STRING));
     ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(new FilterContext(selector));
     Assert.assertEquals(2, bitmap.size());

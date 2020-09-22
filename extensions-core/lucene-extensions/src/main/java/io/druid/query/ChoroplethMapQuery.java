@@ -166,7 +166,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]>
       }
     }
     Map<String, Object> context = BaseQuery.copyContextForMeta(getContext());
-    LuceneLatLonPolygonFilter polygonFilter = new LuceneLatLonPolygonFilter(pointColumn, ShapeFormat.WKT, "");
+    LuceneLatLonPolygonFilter polygonFilter = new LuceneLatLonPolygonFilter(pointColumn, ShapeFormat.WKT, "", null);
     DimFilter filter = query.getFilter();
     List<Query> queries = Lists.newArrayList();
     for (final Object[] row : Sequences.toList(boundary.run(segmentWalker, context))) {

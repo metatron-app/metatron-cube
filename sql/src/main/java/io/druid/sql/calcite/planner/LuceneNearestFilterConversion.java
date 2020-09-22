@@ -42,14 +42,15 @@ public class LuceneNearestFilterConversion implements DimFilterConversion
   {
     final RexCall call = (RexCall) rexNode;
     final List<RexNode> operands = call.getOperands();
-    if (operands.size() != 4) {
+    if (operands.size() != 4 && operands.size() != 5) {
       return null;
     }
     String field = DruidOperatorTable.getFieldName(operands.get(0), plannerContext, rowSignature);
     double latitude = ((Number) RexLiteral.value(operands.get(1))).doubleValue();
     double longitude = ((Number) RexLiteral.value(operands.get(2))).doubleValue();
     int count = RexLiteral.intValue(operands.get(3));
-    return new LuceneNearestFilter(field, latitude, longitude, count);
+    String scoreField = operands.size() == 5 ? RexLiteral.stringValue(operands.get(4)) : null;
+    return new LuceneNearestFilter(field, latitude, longitude, count, scoreField);
   }
 
   @Override

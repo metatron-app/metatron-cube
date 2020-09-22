@@ -39,14 +39,12 @@ import org.apache.lucene.search.TopDocs;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
 @JsonTypeName("lucene.nearest")
 public class LuceneNearestFilter extends DimFilter.LuceneFilter
 {
-  private final String field;
   private final double latitude;
   private final double longitude;
   private final int count;
@@ -56,21 +54,15 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
       @JsonProperty("field") String field,
       @JsonProperty("latitude") double latitude,
       @JsonProperty("longitude") double longitude,
-      @JsonProperty("count") int count
+      @JsonProperty("count") int count,
+      @JsonProperty("scoreField") String scoreField
   )
   {
-    this.field = Preconditions.checkNotNull(field, "field can not be null");
+    super(field, scoreField);
     this.latitude = latitude;
     this.longitude = longitude;
     this.count = count;
     Preconditions.checkArgument(count > 0, "count should be > 0");
-  }
-
-  @Override
-  @JsonProperty
-  public String getField()
-  {
-    return field;
   }
 
   @JsonProperty
@@ -98,7 +90,8 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
                   .append(field)
                   .append(latitude)
                   .append(longitude)
-                  .append(count);
+                  .append(count)
+                  .append(scoreField);
   }
 
   @Override
@@ -108,13 +101,7 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneNearestFilter(replaced, latitude, longitude, count);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(field);
+    return new LuceneNearestFilter(replaced, latitude, longitude, count, scoreField);
   }
 
   @Override
@@ -137,7 +124,7 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
         IndexSearcher searcher = column.getLuceneIndex().searcher();
         try {
           TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField, latitude, longitude, count);
-          return Lucenes.toBitmap(searched, context);
+          return Lucenes.toBitmap(searched, context, scoreField);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -166,13 +153,14 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
            ", latitude=" + latitude +
            ", longitude=" + longitude +
            ", count=" + count +
+           (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, latitude, longitude, count);
+    return Objects.hash(field, latitude, longitude, count, scoreField);
   }
 
   @Override
@@ -197,6 +185,9 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
       return false;
     }
     if (count != that.count) {
+      return false;
+    }
+    if (!Objects.equals(scoreField, that.scoreField)) {
       return false;
     }
     return true;

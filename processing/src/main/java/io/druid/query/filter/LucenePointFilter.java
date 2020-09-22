@@ -36,7 +36,6 @@ import org.apache.lucene.search.Query;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
@@ -45,25 +44,24 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
 {
   public static LucenePointFilter bbox(String field, double[] latitudes, double[] longitudes)
   {
-    return new LucenePointFilter(field, PointQueryType.BBOX, null, null, latitudes, longitudes, -1d);
+    return new LucenePointFilter(field, PointQueryType.BBOX, null, null, latitudes, longitudes, -1d, null);
   }
 
   public static LucenePointFilter distance(String field, double latitude, double longitude, double radiusMeters)
   {
-    return new LucenePointFilter(field, PointQueryType.DISTANCE, latitude, longitude, null, null, radiusMeters);
+    return new LucenePointFilter(field, PointQueryType.DISTANCE, latitude, longitude, null, null, radiusMeters, null);
   }
 
   public static LucenePointFilter polygon(String field, double[] latitudes, double[] longitudes)
   {
-    return new LucenePointFilter(field, PointQueryType.POLYGON, null, null, latitudes, longitudes, -1d);
+    return new LucenePointFilter(field, PointQueryType.POLYGON, null, null, latitudes, longitudes, -1d, null);
   }
 
   public static LuceneNearestFilter nearest(String field, double latitude, double longitude, int count)
   {
-    return new LuceneNearestFilter(field, latitude, longitude, count);
+    return new LuceneNearestFilter(field, latitude, longitude, count, null);
   }
 
-  private final String field;
   private final PointQueryType query;
   private final double[] latitudes;
   private final double[] longitudes;
@@ -77,16 +75,17 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
       @JsonProperty("longitude") Double longitude,
       @JsonProperty("latitudes") double[] latitudes,
       @JsonProperty("longitudes") double[] longitudes,
-      @JsonProperty("radiusMeters") double radiusMeters
+      @JsonProperty("radiusMeters") double radiusMeters,
+      @JsonProperty("scoreField") String scoreField
   )
   {
+    super(field, scoreField);
     Preconditions.checkArgument(
         latitude == null ^ latitudes == null, "Must have a valid, non-null latitude or latitudes"
     );
     Preconditions.checkArgument(
         longitude == null ^ longitudes == null, "Must have a valid, non-null longitude or longitudes"
     );
-    this.field = Preconditions.checkNotNull(field, "field can not be null");
     this.latitudes = latitude != null ? new double[]{latitude} : latitudes;
     this.longitudes = longitude != null ? new double[]{longitude} : longitudes;
     Preconditions.checkArgument(getLatitudes().length == getLongitudes().length, "invalid coordinates");
@@ -100,13 +99,6 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
       this.query = PointQueryType.POLYGON;
     }
     this.radiusMeters = this.query == PointQueryType.DISTANCE ? radiusMeters : 0;
-  }
-
-  @Override
-  @JsonProperty
-  public String getField()
-  {
-    return field;
   }
 
   @JsonProperty
@@ -141,7 +133,8 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
                   .append(query)
                   .append(longitudes)
                   .append(latitudes)
-                  .append(radiusMeters);
+                  .append(radiusMeters)
+                  .append(scoreField);
   }
 
   @Override
@@ -151,13 +144,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LucenePointFilter(replaced, query, null, null, latitudes, longitudes, radiusMeters);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(field);
+    return new LucenePointFilter(replaced, query, null, null, latitudes, longitudes, radiusMeters, scoreField);
   }
 
   @Override
@@ -165,7 +152,6 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
   {
     return new Filter()
     {
-
       @Override
       public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
@@ -182,7 +168,7 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
         Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
 
         Query query = LucenePointFilter.this.query.toQuery(fieldName, latitudes, longitudes, radiusMeters);
-        return lucene.filterFor(query, context);
+        return lucene.filterFor(query, context, scoreField);
       }
 
       @Override
@@ -239,13 +225,14 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
            ", latitudes=" + Arrays.toString(latitudes) +
            ", longitudes=" + Arrays.toString(longitudes) +
            (query == PointQueryType.DISTANCE ? ", radiusMeters=" + radiusMeters : "") +
+           (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, query, latitudes, longitudes, radiusMeters);
+    return Objects.hash(field, query, latitudes, longitudes, radiusMeters, scoreField);
   }
 
   @Override
@@ -270,6 +257,9 @@ public class LucenePointFilter extends DimFilter.LuceneFilter
       return false;
     }
     if (!Arrays.equals(longitudes, that.longitudes)) {
+      return false;
+    }
+    if (!Objects.equals(scoreField, that.scoreField)) {
       return false;
     }
 

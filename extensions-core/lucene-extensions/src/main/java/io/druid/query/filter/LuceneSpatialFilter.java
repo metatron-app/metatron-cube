@@ -51,7 +51,6 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  */
@@ -72,7 +71,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
       builder.append(longitudes[1]).append(' ').append(latitudes[0]).append(',');
       builder.append(longitudes[0]).append(' ').append(latitudes[0]);
       builder.append("))");
-      return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, ShapeFormat.WKT, builder.toString());
+      return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, ShapeFormat.WKT, builder.toString(), null);
     } else if (filter.getQuery() != PointQueryType.POLYGON) {
       StringBuilder builder = new StringBuilder();
       builder.append("POLYGON((");
@@ -83,12 +82,11 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
         builder.append(longitudes[i]).append(' ').append(latitudes[i]);
       }
       builder.append("))");
-      return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, ShapeFormat.WKT, builder.toString());
+      return new LuceneSpatialFilter(field, SpatialOperations.COVEREDBY, ShapeFormat.WKT, builder.toString(), null);
     }
     return null;
   }
 
-  private final String field;
   private final SpatialOperations operation;
   private final ShapeFormat shapeFormat;
   private final String shapeString;
@@ -98,19 +96,14 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
       @JsonProperty("field") String field,
       @JsonProperty("operation") SpatialOperations operation,
       @JsonProperty("shapeFormat") ShapeFormat shapeFormat,
-      @JsonProperty("shapeString") String shapeString
+      @JsonProperty("shapeString") String shapeString,
+      @JsonProperty("scoreField") String scoreField
   )
   {
-    this.field = Preconditions.checkNotNull(field, "field can not be null");
+    super(field, scoreField);
     this.operation = operation == null ? SpatialOperations.COVEREDBY : operation;
     this.shapeFormat = shapeFormat == null ? ShapeFormat.WKT : shapeFormat;
     this.shapeString = Preconditions.checkNotNull(shapeString, "shapeString can not be null");
-  }
-
-  @JsonProperty
-  public String getField()
-  {
-    return field;
   }
 
   @JsonProperty
@@ -138,7 +131,8 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
                   .append(field)
                   .append(operation)
                   .append(shapeFormat)
-                  .append(shapeString);
+                  .append(shapeString)
+                  .append(scoreField);
   }
 
   @Override
@@ -148,13 +142,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneSpatialFilter(replaced, operation, shapeFormat, shapeString);
-  }
-
-  @Override
-  public void addDependent(Set<String> handler)
-  {
-    handler.add(field);
+    return new LuceneSpatialFilter(replaced, operation, shapeFormat, shapeString, scoreField);
   }
 
   @Override
@@ -162,7 +150,6 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   {
     return new Filter()
     {
-
       @Override
       public ImmutableBitmap getBitmapIndex(FilterContext context)
       {
@@ -182,7 +169,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
         try {
           SpatialPrefixTree grid = new GeohashPrefixTree(ctx, GeohashUtils.MAX_PRECISION);
           SpatialStrategy strategy = new RecursivePrefixTreeStrategy(grid, fieldName);
-          return lucene.filterFor(strategy.makeQuery(makeSpatialArgs(ctx)), context);
+          return lucene.filterFor(strategy.makeQuery(makeSpatialArgs(ctx)), context, scoreField);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -267,7 +254,7 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   @Override
   public DimFilter forLog()
   {
-    return new LuceneSpatialFilter(field, operation, shapeFormat, StringUtils.forLog(shapeString));
+    return new LuceneSpatialFilter(field, operation, shapeFormat, StringUtils.forLog(shapeString), scoreField);
   }
 
   @Override
@@ -278,13 +265,14 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
            ", operation=" + operation +
            ", shapeFormat=" + shapeFormat +
            ", shapeString=" + StringUtils.forLog(shapeString) +
+           (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, operation, shapeFormat, shapeString);
+    return Objects.hash(field, operation, shapeFormat, shapeString, scoreField);
   }
 
   @Override
@@ -309,6 +297,9 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
       return false;
     }
     if (!shapeString.equals(that.shapeString)) {
+      return false;
+    }
+    if (!Objects.equals(scoreField, that.scoreField)) {
       return false;
     }
 
