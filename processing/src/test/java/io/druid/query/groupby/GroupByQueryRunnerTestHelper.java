@@ -251,73 +251,101 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
           b.append('"').append(timestamp).append('"');
           continue;
         }
-        Object o = x.getRaw(d);
-        if (o == null) {
-          b.append("null");
-        } else if (o instanceof String) {
-          b.append('"').append(o).append('"');
-        } else if (o instanceof DateTime) {
-          b.append("new DateTime(").append('"').append(o).append('"').append(')');
-        } else if (o instanceof Long) {
-          b.append(o).append('L');
-        } else if (o instanceof List) {
-          b.append("list(");
-          List l = (List)o;
-          for (int i = 0; i < l.size(); i++) {
-            if (i > 0) {
-              b.append(", ");
-            }
-            Object e = l.get(i);
-            if (e instanceof String) {
-              b.append('"').append(e).append('"');
-            } else if (e instanceof Long) {
-              b.append(e).append('L');
-            } else if (e instanceof Double) {
-              b.append(e).append('D');
-            } else if (e instanceof Float) {
-              b.append(e).append('F');
-            } else {
-              b.append(e);
-            }
-          }
-          b.append(')');
-        } else if (o.getClass().isArray()) {
-          Class compType = o.getClass().getComponentType();
-          if (compType == Long.class || compType == Long.TYPE) {
-            b.append("new long[] {");
-          } else if (compType == Double.class || compType == Double.TYPE) {
-            b.append("new double[] {");
-          } else if (compType == Float.class || compType == Float.TYPE) {
-            b.append("new float[] {");
-          } else if (compType == String.class) {
-            b.append("new String[] {");
-          } else {
-            b.append("new Object[] {");
-          }
-          int length = Array.getLength(o);
-          for (int i = 0; i < length; i++) {
-            if (i > 0) {
-              b.append(", ");
-            }
-            Object e = Array.get(o, i);
-            if (e instanceof String) {
-              b.append('"').append(e).append('"');
-            } else if (e instanceof Long) {
-              b.append(e).append('L');
-            } else if (e instanceof Double) {
-              b.append(e).append('D');
-            } else if (e instanceof Float) {
-              b.append(e).append('F');
-            } else {
-              b.append(e);
-            }
-          }
-          b.append('}');
-        } else {
-          b.append(o);
-        }
+        printTo(x.getRaw(d), b);
       }
       System.out.println("array(" + b + "),");
+    }
+  }
+
+  public static void printToExpected(List<Object[]> results)
+  {
+    StringBuilder b = new StringBuilder();
+    for (int i = 0; i < results.size(); i++) {
+      b.setLength(0);
+      Object[] x = results.get(i);
+      for (int j = 0; j < x.length; j++) {
+        if (j > 0) {
+          b.append(", ");
+        }
+        printTo(x[j], b);
+      }
+      if (i > 0) {
+        System.out.println(",");
+      }
+      System.out.print("new Object[]{" + b + "}");
+    }
+    System.out.println();
+  }
+
+  private static void printTo(Object o, StringBuilder b)
+  {
+    if (o == null) {
+      b.append("null");
+    } else if (o instanceof String) {
+      b.append('"').append(o).append('"');
+    } else if (o instanceof DateTime) {
+      b.append("new DateTime(").append('"').append(o).append('"').append(')');
+    } else if (o instanceof Long) {
+      b.append(o).append('L');
+    } else if (o instanceof Double) {
+      b.append(o).append('D');
+    } else if (o instanceof Float) {
+      b.append(o).append('F');
+    } else if (o instanceof List) {
+      b.append("list(");
+      List l = (List)o;
+      for (int i = 0; i < l.size(); i++) {
+        if (i > 0) {
+          b.append(", ");
+        }
+        Object e = l.get(i);
+        if (e instanceof String) {
+          b.append('"').append(e).append('"');
+        } else if (e instanceof Long) {
+          b.append(e).append('L');
+        } else if (e instanceof Double) {
+          b.append(e).append('D');
+        } else if (e instanceof Float) {
+          b.append(e).append('F');
+        } else {
+          b.append(e);
+        }
+      }
+      b.append(')');
+    } else if (o.getClass().isArray()) {
+      Class compType = o.getClass().getComponentType();
+      if (compType == Long.class || compType == Long.TYPE) {
+        b.append("new long[] {");
+      } else if (compType == Double.class || compType == Double.TYPE) {
+        b.append("new double[] {");
+      } else if (compType == Float.class || compType == Float.TYPE) {
+        b.append("new float[] {");
+      } else if (compType == String.class) {
+        b.append("new String[] {");
+      } else {
+        b.append("new Object[] {");
+      }
+      int length = Array.getLength(o);
+      for (int i = 0; i < length; i++) {
+        if (i > 0) {
+          b.append(", ");
+        }
+        Object e = Array.get(o, i);
+        if (e instanceof String) {
+          b.append('"').append(e).append('"');
+        } else if (e instanceof Long) {
+          b.append(e).append('L');
+        } else if (e instanceof Double) {
+          b.append(e).append('D');
+        } else if (e instanceof Float) {
+          b.append(e).append('F');
+        } else {
+          b.append(e);
+        }
+      }
+      b.append('}');
+    } else {
+      b.append(o);
     }
   }
 }

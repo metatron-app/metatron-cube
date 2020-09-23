@@ -238,12 +238,17 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   public TestQuerySegmentWalker duplicate()
   {
+    PopulatingMap duplicate = new PopulatingMap();
+    duplicate.segments.addAll(timeLines.segments);
+    duplicate.node1.putAll(timeLines.node1);
+    duplicate.node2.putAll(timeLines.node2);
+    duplicate.populators.putAll(timeLines.populators);
     return new TestQuerySegmentWalker(
         objectMapper,
         conglomerate,
         executor,
         queryConfig,
-        timeLines
+        duplicate
     );
   }
 

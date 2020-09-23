@@ -1,0 +1,38 @@
+{
+  "parser" : {
+    "format" : "tsv", "delimiter":"|"
+  },
+  "columns":[
+    "O_ORDERKEY", "O_CUSTKEY", "O_ORDERSTATUS", "O_TOTALPRICE", "O_ORDERDATE", "O_ORDERPRIORITY",
+    "O_CLERK", "O_SHIPPRIORITY", "O_COMMENT"
+  ],
+  "timestampSpec": {
+    "column":"O_ORDERDATE", "format":"yyyy-MM-dd"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "O_ORDERKEY", "O_CUSTKEY", "O_ORDERSTATUS", "O_ORDERDATE", "O_ORDERPRIORITY", "O_CLERK"
+    ]
+  },
+  "metricsSpec":[
+    {"name": "O_TOTALPRICE", "typeName": "double"},
+    {"name": "O_SHIPPRIORITY", "typeName": "long"},
+    {"name": "O_COMMENT", "typeName": "string"}
+  ],
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "allowNullForNumbers": true,
+    "bitmap": { "type": "roaring" },
+    "secondaryIndexing": {
+      "O_COMMENT": {
+        "type": "lucene", "strategies": [ {"type": "text", "fieldName": "comment"} ]
+      }
+    },
+    "columnCompression": {
+      "O_COMMENT": "lz4"
+    }
+  }
+}

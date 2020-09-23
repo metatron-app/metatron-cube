@@ -34,12 +34,10 @@ import com.google.common.io.CharSource;
 import com.google.common.io.CharStreams;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.Row;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
@@ -49,6 +47,7 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
@@ -174,6 +173,7 @@ public class TestIndex
     addSalesIndex();
     addCategoryAliasIndex();
     addEstateIndex();
+    addTpch();
   }
 
   public static synchronized IncrementalIndex getIncrementalTestIndex()
@@ -228,6 +228,18 @@ public class TestIndex
   {
     addIndex("estate", "estate_schema.json", "estate.csv", true);
     addIndex("estate_incremental", "estate_schema.json", "estate.csv", false);
+  }
+
+  private static void addTpch()
+  {
+    addIndex("lineitem", "lineitem_schema.json", "lineitem.tbl", true);
+    addIndex("orders", "orders_schema.json", "orders.tbl", true);
+    addIndex("customer", "customer_schema.json", "customer.tbl", true);
+    addIndex("nation", "nation_schema.json", "nation.tbl", true);
+    addIndex("part", "part_schema.json", "part.tbl", true);
+    addIndex("partsupp", "partsupp_schema.json", "partsupp.tbl", true);
+    addIndex("region", "region_schema.json", "region.tbl", true);
+    addIndex("supplier", "supplier_schema.json", "supplier.tbl", true);
   }
 
   private static synchronized void addIndex(
@@ -342,11 +354,11 @@ public class TestIndex
                       @Override
                       public IncrementalIndex apply(Long aLong)
                       {
-                        return new OnheapIncrementalIndex(schema, true, 10000);
+                        return new OnheapIncrementalIndex(schema, true, 100000);
                       }
                     }
                 );
-                index.add((Row) inputRow);
+                index.add(inputRow);
               }
               for (Map.Entry<Long, IncrementalIndex> entry : indices.entrySet()) {
                 Interval interval = new Interval(entry.getKey(), granularity.bucketEnd(entry.getKey()));

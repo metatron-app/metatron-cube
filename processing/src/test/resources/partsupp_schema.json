@@ -1,0 +1,37 @@
+{
+  "parser" : {
+    "format" : "tsv", "delimiter":"|"
+  },
+  "columns":[
+    "PS_PARTKEY", "PS_SUPPKEY", "PS_AVAILQTY", "PS_SUPPLYCOST", "PS_COMMENT"
+  ],
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "PS_PARTKEY", "PS_SUPPKEY"
+    ]
+  },
+  "metricsSpec":[
+    {"name": "PS_AVAILQTY", "typeName": "long"},
+    {"name": "PS_SUPPLYCOST", "typeName": "double"},
+    {"name": "PS_COMMENT", "typeName": "string"}
+  ],
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "allowNullForNumbers": true,
+    "bitmap": { "type": "roaring" },
+    "secondaryIndexing": {
+      "PS_COMMENT": {
+        "type": "lucene", "strategies": [ {"type": "text", "fieldName": "comment"} ]
+      }
+    },
+    "columnCompression": {
+      "PS_COMMENT": "lz4"
+    }
+  }
+}

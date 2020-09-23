@@ -1,0 +1,35 @@
+{
+  "parser" : {
+    "format" : "tsv", "delimiter":"|"
+  },
+  "columns":[
+    "R_REGIONKEY", "R_NAME", "R_COMMENT"
+  ],
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "R_REGIONKEY", "R_NAME"
+    ]
+  },
+  "metricsSpec":[
+    {"name": "R_COMMENT", "typeName": "string"}
+  ],
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "allowNullForNumbers": true,
+    "bitmap": { "type": "roaring" },
+    "secondaryIndexing": {
+      "R_COMMENT": {
+        "type": "lucene", "strategies": [ {"type": "text", "fieldName": "comment"} ]
+      }
+    },
+    "columnCompression": {
+      "R_COMMENT": "lz4"
+    }
+  }
+}

@@ -376,9 +376,7 @@ public class CalciteTests
                                                       .rows(FORBIDDEN_ROWS)
                                                       .buildMMappedIndex();
 
-    TestQuerySegmentWalker duplicate = TestIndex.segmentWalker.duplicate();
-    duplicate.populate("sales");
-    return duplicate.add(
+    return TestIndex.segmentWalker.duplicate().add(
         DataSegment.builder()
                    .dataSource(DATASOURCE1)
                    .interval(index1.getInterval())

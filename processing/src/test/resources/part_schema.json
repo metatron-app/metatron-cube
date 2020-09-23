@@ -1,0 +1,37 @@
+{
+  "parser" : {
+    "format" : "tsv", "delimiter":"|"
+  },
+  "columns":[
+    "P_PARTKEY", "P_NAME", "P_MFGR", "P_BRAND", "P_TYPE", "P_SIZE", "P_CONTAINER", "P_RETAILPRICE", "P_COMMENT"
+  ],
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "P_PARTKEY", "P_NAME", "P_MFGR", "P_BRAND", "P_TYPE", "P_CONTAINER"
+    ]
+  },
+  "metricsSpec":[
+    {"name": "P_SIZE", "typeName": "long"},
+    {"name": "P_RETAILPRICE", "typeName": "double"},
+    {"name": "P_COMMENT", "typeName": "string"}
+  ],
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "allowNullForNumbers": true,
+    "bitmap": { "type": "roaring" },
+    "secondaryIndexing": {
+      "P_COMMENT": {
+        "type": "lucene", "strategies": [ {"type": "text", "fieldName": "comment"} ]
+      }
+    },
+    "columnCompression": {
+      "P_COMMENT": "lz4"
+    }
+  }
+}
