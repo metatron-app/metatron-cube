@@ -82,7 +82,7 @@ public class BoundFilter implements Filter
 
     if (range == ALL) {
       return DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
-    } else if (range == NONE) {
+    } else if (range == NONE || range[0] >= range[1]) {
       return DimFilters.makeFalse(selector.getBitmapFactory());
     }
 
@@ -157,6 +157,9 @@ public class BoundFilter implements Filter
         startIndex = boundDimFilter.isLowerStrict() ? found + 1 : found;
       } else {
         startIndex = -(found + 1);
+        if (startIndex == bitmapIndex.getCardinality()) {
+          return NONE;
+        }
       }
     }
 
@@ -168,6 +171,9 @@ public class BoundFilter implements Filter
         endIndex = boundDimFilter.isUpperStrict() ? found : found + 1;
       } else {
         endIndex = -(found + 1);
+        if (endIndex == 0) {
+          return NONE;
+        }
       }
     }
     return new int[]{startIndex, endIndex};

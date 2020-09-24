@@ -153,7 +153,7 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
     final long ch2 = bytes[pos + 1] & 0xff;
     final long ch3 = bytes[pos + 2] & 0xff;
     final long ch4 = bytes[pos + 3] & 0xff;
-    final int ch5 = bytes[pos + 4] & 0xff;
+    final long ch5 = bytes[pos + 4] & 0xff;
     final int ch6 = bytes[pos + 5] & 0xff;
     final int ch7 = bytes[pos + 6] & 0xff;
     final int ch8 = bytes[pos + 7] & 0xff;

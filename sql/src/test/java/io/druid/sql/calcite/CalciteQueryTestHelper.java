@@ -29,7 +29,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Druids;
 import io.druid.query.Query;
-import io.druid.query.QueryConfig;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.CascadeExtractionFn;
@@ -271,7 +270,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         operatorTable,
         CalciteTests.TEST_AUTHORIZER_MAPPER,
         plannerConfig,
-        new QueryConfig(),
+        walker.getQueryConfig(),
         CalciteTests.getJsonMapper()
     );
     final SqlLifecycleFactory sqlLifecycleFactory = CalciteTests.createSqlLifecycleFactory(plannerFactory);

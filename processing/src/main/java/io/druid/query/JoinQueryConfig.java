@@ -57,13 +57,18 @@ public class JoinQueryConfig
     return hashJoinThreshold;
   }
 
+  public void setHashJoinThreshold(int hashJoinThreshold)
+  {
+    this.hashJoinThreshold = hashJoinThreshold;
+  }
+
   public int getBloomFilterThreshold()
   {
     return bloomFilterThreshold;
   }
 
-  public void setHashJoinThreshold(int hashJoinThreshold)
+  public void setBloomFilterThreshold(int bloomFilterThreshold)
   {
-    this.hashJoinThreshold = hashJoinThreshold;
+    this.bloomFilterThreshold = bloomFilterThreshold;
   }
 }

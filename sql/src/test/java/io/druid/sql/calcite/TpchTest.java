@@ -20,7 +20,6 @@
 package io.druid.sql.calcite;
 
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
@@ -33,15 +32,17 @@ import io.druid.segment.TestIndex;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.Arrays;
 
 // the problem is.. some queries containing join return empty cause dataset is too small (s=0.005)
+@RunWith(Parameterized.class)
 public class TpchTest extends CalciteQueryTestHelper
 {
-  private static final Logger log = new Logger(TpchTest.class);
-
-  private static TestQuerySegmentWalker walker = null;
+  private static TestQuerySegmentWalker walker;
 
   @BeforeClass
   public static void setUp() throws Exception
@@ -55,6 +56,17 @@ public class TpchTest extends CalciteQueryTestHelper
     walker.populate("partsupp");
     walker.populate("region");
     walker.populate("supplier");
+  }
+
+  @Parameterized.Parameters(name = "useBloomfilter:{0}")
+  public static Iterable<Object[]> constructorFeeder() throws IOException
+  {
+    return Arrays.asList(new Object[]{false}, new Object[]{true});
+  }
+
+  public TpchTest(boolean bloomFilter)
+  {
+    walker.getQueryConfig().getJoin().setBloomFilterThreshold(bloomFilter ? 100 : 1000000);
   }
 
   @Override

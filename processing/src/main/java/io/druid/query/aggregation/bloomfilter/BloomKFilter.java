@@ -553,4 +553,25 @@ public class BloomKFilter implements HashCollector
       Arrays.fill(data, 0);
     }
   }
+
+  @Override
+  public boolean equals(Object obj)
+  {
+    if (!(obj instanceof BloomKFilter)) {
+      return false;
+    }
+    BloomKFilter other = (BloomKFilter) obj;
+    if (k != other.k) {
+      return false;
+    }
+    if (bitSet.data.length != other.bitSet.data.length) {
+      return false;
+    }
+    for (int i = 0; i < bitSet.data.length; i++) {
+      if (bitSet.data[i] != other.bitSet.data[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

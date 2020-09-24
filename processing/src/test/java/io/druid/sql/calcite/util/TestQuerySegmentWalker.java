@@ -236,6 +236,17 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     );
   }
 
+  public TestQuerySegmentWalker withQueryConfig(QueryConfig queryConfig)
+  {
+    return new TestQuerySegmentWalker(
+        objectMapper,
+        conglomerate,
+        executor,
+        queryConfig,
+        timeLines
+    );
+  }
+
   public TestQuerySegmentWalker duplicate()
   {
     PopulatingMap duplicate = new PopulatingMap();
