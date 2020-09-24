@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
@@ -50,7 +51,6 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
-import io.druid.common.guava.Comparators;
 import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -252,7 +252,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   @JsonIgnore
   boolean isSimpleProjection(QuerySegmentSpec subQuerySpec)
   {
-    if (!GuavaUtils.isNullOrEmpty(virtualColumns) || !limitSpec.isSimpleLimiter() || filter != null) {
+    if (!virtualColumns.isEmpty() || !limitSpec.isSimpleLimiter() || filter != null || !orderingSpecs.isEmpty()) {
       return false;
     }
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();

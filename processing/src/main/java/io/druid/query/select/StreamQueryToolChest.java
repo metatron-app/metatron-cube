@@ -178,6 +178,12 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       {
         return StreamQueryEngine.processor((StreamQuery) query, config, new MutableInt());
       }
+
+      @Override
+      protected final Sequence<Object[]> streamMerge(Query<Object[]> query, Sequence<Sequence<Object[]>> sequences)
+      {
+        return ((StreamQuery) query).applyLimit(Sequences.concat(sequences));
+      }
     };
   }
 }
