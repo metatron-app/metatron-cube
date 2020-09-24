@@ -6527,7 +6527,14 @@ public class TpchTest extends CalciteQueryTestHelper
         + "    \"druid.sql.planner.maxSemiJoinRowsInMemory\" : \"-1;\"\n"
         + "  },\n"
         + "  \"descending\" : false\n"
-        + "}"
+        + "}",
+        new Object[]{"13", 5L, 37676.7D},
+        new Object[]{"17", 5L, 41431.74D},
+        new Object[]{"18", 7L, 51351.03D},
+        new Object[]{"23", 2L, 18148.870000000003D},
+        new Object[]{"29", 6L, 47247.25D},
+        new Object[]{"30", 9L, 65584.23D},
+        new Object[]{"31", 7L, 53270.52999999999D}
     );
   }
 }

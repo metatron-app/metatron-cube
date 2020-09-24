@@ -264,7 +264,7 @@ public class Parser
               }
             }
             final TypedSupplier supplier1 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
-            final TypedSupplier supplier2 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
+            final TypedSupplier supplier2 = values.getOrDefault(id2, TypedSupplier.UNKNOWN);
             if (supplier1.type().isPrimitive() && Objects.equals(supplier1.type(), supplier2.type())) {
               final BooleanBinaryOp rewritten = rewrite(op.op, supplier1, supplier2, supplier1.type().comparator());
               if (rewritten != null) {
