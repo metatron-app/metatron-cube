@@ -573,7 +573,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   public String toString()
   {
     StringBuilder builder = new StringBuilder(64)
-        .append(getType()).append('{')
+        .append("StreamQuery{")
         .append("dataSource='").append(getDataSource()).append('\'');
 
     if (getQuerySegmentSpec() != null) {

@@ -523,13 +523,19 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
+    public String getType()
+    {
+      return Query.JOIN;
+    }
+
+    @Override
     public String toString()
     {
       return "JoinDelegate{" +
              "queries=" + getQueries() +
-             ", prefixAliases=" + getPrefixAliases() +
-             ", timeColumnName=" + getTimeColumnName() +
-             ", limit=" + getLimit() +
+             (prefixAliases == null ? "" : ", prefixAliases=" + getPrefixAliases()) +
+             (timeColumnName == null ? "" : ", timeColumnName=" + getTimeColumnName()) +
+             (getLimit() > 0 ? ", limit=" + getLimit() : "") +
              '}';
     }
 

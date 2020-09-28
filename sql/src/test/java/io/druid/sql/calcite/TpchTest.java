@@ -19,7 +19,12 @@
 
 package io.druid.sql.calcite;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.query.Queries;
+import io.druid.query.Query;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
@@ -30,6 +35,8 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.segment.TestIndex;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,17 +44,35 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 // the problem is.. some queries containing join return empty cause dataset is too small (s=0.005)
 @RunWith(Parameterized.class)
 public class TpchTest extends CalciteQueryTestHelper
 {
+  private static final List<Query> hooked = Lists.newArrayList();
   private static TestQuerySegmentWalker walker;
+
+  private static final Set<String> SKIP = Sets.newHashSet(
+      Arrays.asList(Query.JOIN, Query.SEGMENT_METADATA, Query.SELECT_META, Query.SCHEMA)
+  );
+
+  private static final Map<String, Object> REMOVER = GuavaUtils.mutableMap(
+      "queryId", null, "groupby.sort.on.time", null, "sqlCurrentTimestamp", null, "#fudgeTimestamp", null
+  );
 
   @BeforeClass
   public static void setUp() throws Exception
   {
-    walker = TestIndex.segmentWalker.duplicate();
+    walker = TestIndex.segmentWalker.duplicate().withQueryHook(
+        query -> {
+          if (!SKIP.contains(query.getType())) {
+            hooked.add(Queries.iterate(query, q -> q.withOverriddenContext(REMOVER)));
+          }
+        }
+    );
     walker.populate("lineitem");
     walker.populate("orders");
     walker.populate("customer");
@@ -64,15 +89,45 @@ public class TpchTest extends CalciteQueryTestHelper
     return Arrays.asList(new Object[]{false}, new Object[]{true});
   }
 
+  private boolean bloomFilter;
+
   public TpchTest(boolean bloomFilter)
   {
     walker.getQueryConfig().getJoin().setBloomFilterThreshold(bloomFilter ? 100 : 1000000);
+    this.bloomFilter = bloomFilter;
   }
 
   @Override
   protected TestQuerySegmentWalker walker()
   {
     return walker;
+  }
+
+  @Before
+  public void before()
+  {
+    hooked.clear();
+  }
+
+  private void verifyHooked(List<String> expected)
+  {
+    final int compareTo = Math.min(expected.size(), hooked.size());
+    for (int i = 0; i < compareTo; i++) {
+      Assert.assertEquals(i +" th", expected.get(i), hooked.get(i).toString());
+    }
+    for (int i = compareTo; i < expected.size(); i++) {
+      if (i == compareTo) {
+        System.out.println("Missing.. ");
+      }
+      System.out.println(expected.get(i));
+    }
+    for (int i = compareTo; i < hooked.size(); i++) {
+      if (i == compareTo) {
+        System.out.println("Not expected.. ");
+      }
+      System.out.println(hooked.get(i));
+    }
+    Assert.assertEquals(expected.size(), hooked.size());
   }
 
   @Test
@@ -621,6 +676,38 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{3556.47, "Supplier#000000032", "UNITED KINGDOM", "381", "Manufacturer#5", "yvoD3TtZSx1skQNCK8agk5bZlZLug", "33-484-637-7873", "usly even depths. quickly ironic theodolites s"},
         new Object[]{2972.26, "Supplier#000000016", "RUSSIA", "396", "Manufacturer#3", "YjP5C55zHDXL7LalK27zfQnwejdpin4AMpvh", "32-822-502-4215", "ously express ideas haggle quickly dugouts? fu"}
     );
+
+    List<String> prefix;
+    if (bloomFilter) {
+      prefix = Arrays.asList(
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE]}, StreamQuery{dataSource='partsupp', filter=BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY]((P_SIZE = 37 && P_TYPE LIKE '%COPPER')), fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop, maxNumEntries=-2}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE, S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = EUROPE, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY]}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = EUROPE, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
+          "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=4}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE]}, StreamQuery{dataSource='partsupp', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE, S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
+          "StreamQuery{dataSource='part', filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE]}",
+          "StreamQuery{dataSource='partsupp', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}"
+      );
+    } else {
+      prefix = Arrays.asList(
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE]}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE, S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = EUROPE, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY]}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = EUROPE, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE]}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE, S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
+          "StreamQuery{dataSource='part', filter=(P_SIZE = 37 && P_TYPE LIKE '%COPPER'), columns=[P_MFGR, P_PARTKEY, P_SIZE, P_TYPE]}",
+          "StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}"
+      );
+    }
+    List<String> postfix = Arrays.asList(
+        "StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}",
+        "StreamQuery{dataSource='region', filter=R_NAME = EUROPE, columns=[R_NAME, R_REGIONKEY], $hash=true}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY]}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = EUROPE, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0]}",
+        "StreamQuery{dataSource='part', columns=[P_PARTKEY]}",
+        "StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}",
+        "StreamQuery{dataSource='region', filter=R_NAME = EUROPE, columns=[R_NAME, R_REGIONKEY], $hash=true}"
+    );
+
+    verifyHooked(GuavaUtils.concat(prefix, postfix));
   }
 
   @Test
@@ -830,6 +917,25 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"19365", 126378.68876224649D, "1995-01-17", 0L},
         new Object[]{"6560", 123264.19097787395D, "1995-01-05", 0L}
     );
+    List<String> expected;
+    if (bloomFilter) {
+      expected = Arrays.asList(
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='customer', filter=C_MKTSEGMENT = BUILDING, columns=[C_CUSTKEY, C_MKTSEGMENT]}, StreamQuery{dataSource='orders', filter=(BoundDimFilter{O_ORDERDATE < 1995-03-22(lexicographic)} && BloomDimFilter.Factory{bloomSource=$view:customer[C_CUSTKEY](C_MKTSEGMENT = BUILDING), fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='O_CUSTKEY'}], groupingSets=Noop, maxNumEntries=-2}), columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_SHIPPRIORITY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-03-22 < L_SHIPDATE(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SHIPDATE], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}, DefaultDimensionSpec{dimension='O_ORDERDATE', outputName='d1'}, DefaultDimensionSpec{dimension='O_SHIPPRIORITY', outputName='d2'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='a0', direction=descending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=10}, outputColumns=[d0, a0, d1, d2]}",
+          "TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=C_MKTSEGMENT = BUILDING, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[C_CUSTKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=C_MKTSEGMENT = BUILDING, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[C_CUSTKEY], groupingSets=Noop, byRow=true, maxNumEntries=151}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='customer', filter=C_MKTSEGMENT = BUILDING, columns=[C_CUSTKEY, C_MKTSEGMENT]}",
+          "StreamQuery{dataSource='orders', filter=(BoundDimFilter{O_ORDERDATE < 1995-03-22(lexicographic)} && BloomFilter{fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='O_CUSTKEY'}], groupingSets=Noop}), columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_SHIPPRIORITY], $hash=true}",
+          "StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-03-22 < L_SHIPDATE(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SHIPDATE], $hash=true}"
+      );
+    } else {
+      expected = Arrays.asList(
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='customer', filter=C_MKTSEGMENT = BUILDING, columns=[C_CUSTKEY, C_MKTSEGMENT]}, StreamQuery{dataSource='orders', filter=BoundDimFilter{O_ORDERDATE < 1995-03-22(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_SHIPPRIORITY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-03-22 < L_SHIPDATE(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SHIPDATE], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}, DefaultDimensionSpec{dimension='O_ORDERDATE', outputName='d1'}, DefaultDimensionSpec{dimension='O_SHIPPRIORITY', outputName='d2'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='a0', direction=descending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=10}, outputColumns=[d0, a0, d1, d2]}",
+          "StreamQuery{dataSource='customer', filter=C_MKTSEGMENT = BUILDING, columns=[C_CUSTKEY, C_MKTSEGMENT]}",
+          "StreamQuery{dataSource='orders', filter=BoundDimFilter{O_ORDERDATE < 1995-03-22(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_SHIPPRIORITY], $hash=true}",
+          "StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-03-22 < L_SHIPDATE(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SHIPDATE], $hash=true}"
+      );
+    }
+    verifyHooked(expected);
   }
 
   @Test
@@ -969,6 +1075,25 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"4-NOT SPECIFIED", 59L},
         new Object[]{"5-LOW", 53L}
     );
+    List<String> expected;
+    if (bloomFilter) {
+      expected = Arrays.asList(
+          "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && !(L_ORDERKEY = null)), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+          "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='orders', filter=BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01(lexicographic)}, columns=[O_ORDERDATE, O_ORDERKEY, O_ORDERPRIORITY]}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && !(L_ORDERKEY = null) && BloomDimFilter.Factory{bloomSource=$view:orders[O_ORDERKEY](BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01(lexicographic)}), fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, maxNumEntries=-2}), limitSpec=Noop, outputColumns=[d0], context={$cardinality=6987, $hash=true}}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='_d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_d0', direction=ascending}], limit=-1}, outputColumns=[_d0, a0]}",
+          "TimeseriesQuery{dataSource='orders', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01(lexicographic)}, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[O_ORDERKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='orders', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01(lexicographic)}, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[O_ORDERKEY], groupingSets=Noop, byRow=true, maxNumEntries=287}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='orders', filter=BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01(lexicographic)}, columns=[O_ORDERDATE, O_ORDERKEY, O_ORDERPRIORITY]}",
+          "GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && !(L_ORDERKEY = null) && BloomFilter{fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop}), limitSpec=Noop, outputColumns=[d0], context={$cardinality=6987, $hash=true}}"
+      );
+    } else {
+      expected = Arrays.asList(
+          "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && !(L_ORDERKEY = null)), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+          "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='orders', filter=BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01(lexicographic)}, columns=[O_ORDERDATE, O_ORDERKEY, O_ORDERPRIORITY]}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && !(L_ORDERKEY = null)), limitSpec=Noop, outputColumns=[d0], context={$cardinality=6987, $hash=true}}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_ORDERPRIORITY', outputName='_d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_d0', direction=ascending}], limit=-1}, outputColumns=[_d0, a0]}",
+          "StreamQuery{dataSource='orders', filter=BoundDimFilter{1996-05-01 <= O_ORDERDATE < 1996-08-01(lexicographic)}, columns=[O_ORDERDATE, O_ORDERKEY, O_ORDERPRIORITY]}",
+          "GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && !(L_ORDERKEY = null)), limitSpec=Noop, outputColumns=[d0], context={$cardinality=6987, $hash=true}}"
+      );
+    }
+    verifyHooked(expected);
   }
 
   @Test
@@ -1288,6 +1413,16 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"ALGERIA", 157068.92618799844D},
         new Object[]{"MOZAMBIQUE", 151814.8570359957D}
     );
+    List<String> expected = Arrays.asList(
+        "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NATIONKEY]}, StreamQuery{dataSource='orders', filter=BoundDimFilter{1993-01-01 <= O_ORDERDATE < 1994-01-01(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = AFRICA, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='N_NAME', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='a0', direction=descending}], limit=-1}, outputColumns=[d0, a0]}",
+        "StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NATIONKEY]}",
+        "StreamQuery{dataSource='orders', filter=BoundDimFilter{1993-01-01 <= O_ORDERDATE < 1994-01-01(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY], $hash=true}",
+        "StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}",
+        "StreamQuery{dataSource='region', filter=R_NAME = AFRICA, columns=[R_NAME, R_REGIONKEY], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -1357,6 +1492,9 @@ public class TpchTest extends CalciteQueryTestHelper
         + "}",
         new Object[]{635343.2898368868}
     );
+    verifyHooked(Arrays.asList(
+        "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(BoundDimFilter{L_QUANTITY < 25(numeric)} && BoundDimFilter{0.05 <= L_DISCOUNT <= 0.07(numeric)} && BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01(lexicographic)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * \"L_DISCOUNT\")', inputType='double'}], outputColumns=[a0]}"
+    ));
   }
 
   @Test
@@ -1730,6 +1868,16 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"PERU", "KENYA", 1995L, 243818.19482950834D},
         new Object[]{"PERU", "KENYA", 1996L, 105976.76512348771D}
     );
+    List<String> expected = Arrays.asList(
+        "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY]}, JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-01-01 <= L_SHIPDATE <= 1996-12-31(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SHIPDATE, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NATIONKEY], $hash=true}], timeColumnName=__time}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='N_NAME0', outputName='d0'}, DefaultDimensionSpec{dimension='N_NAME', outputName='d1'}, DefaultDimensionSpec{dimension='d2:v', outputName='d2'}], filter=((N_NAME0 = KENYA && N_NAME = PERU) || (N_NAME0 = PERU && N_NAME = KENYA)), virtualColumns=[ExprVirtualColumn{expression='YEAR(\"L_SHIPDATE\")', outputName='d2:v'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=-1}, outputColumns=[d0, d1, d2, a0]}",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}",
+        "StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-01-01 <= L_SHIPDATE <= 1996-12-31(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_SHIPDATE, L_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERKEY], $hash=true}",
+        "StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NATIONKEY], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY]}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -2182,6 +2330,34 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{1995L, 0.0D},
         new Object[]{1996L, 0.0D}
     );
+
+    List<String> prefix;
+    if (bloomFilter) {
+      prefix = Arrays.asList(
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_TYPE = ECONOMY BURNISHED NICKEL, columns=[P_PARTKEY, P_TYPE]}, StreamQuery{dataSource='lineitem', filter=BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY](P_TYPE = ECONOMY BURNISHED NICKEL), fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop, maxNumEntries=-2}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_PARTKEY, P_TYPE, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY]}, StreamQuery{dataSource='orders', filter=BoundDimFilter{1995-01-01 <= O_ORDERDATE <= 1996-12-31(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NATIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = AMERICA, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='YEAR(\"O_ORDERDATE\")', outputName='d0:v'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='case((\"N_NAME\" == 'PERU'),(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\")),0)', inputType='double'}, GenericSumAggregatorFactory{name='a1', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='s0', expression='(\"a0\" / \"a1\")', finalize=true}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, s0]}",
+          "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=P_TYPE = ECONOMY BURNISHED NICKEL, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=P_TYPE = ECONOMY BURNISHED NICKEL, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=7}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_TYPE = ECONOMY BURNISHED NICKEL, columns=[P_PARTKEY, P_TYPE]}, StreamQuery{dataSource='lineitem', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_PARTKEY, P_TYPE, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY]}",
+          "StreamQuery{dataSource='part', filter=P_TYPE = ECONOMY BURNISHED NICKEL, columns=[P_PARTKEY, P_TYPE]}",
+          "StreamQuery{dataSource='lineitem', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY], $hash=true}"
+      );
+    } else {
+      prefix = Arrays.asList(
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_TYPE = ECONOMY BURNISHED NICKEL, columns=[P_PARTKEY, P_TYPE]}, StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_PARTKEY, P_TYPE, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY]}, StreamQuery{dataSource='orders', filter=BoundDimFilter{1995-01-01 <= O_ORDERDATE <= 1996-12-31(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NATIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME = AMERICA, columns=[R_NAME, R_REGIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='YEAR(\"O_ORDERDATE\")', outputName='d0:v'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='case((\"N_NAME\" == 'PERU'),(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\")),0)', inputType='double'}, GenericSumAggregatorFactory{name='a1', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='s0', expression='(\"a0\" / \"a1\")', finalize=true}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, s0]}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_TYPE = ECONOMY BURNISHED NICKEL, columns=[P_PARTKEY, P_TYPE]}, StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_PARTKEY, P_TYPE, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY]}",
+          "StreamQuery{dataSource='part', filter=P_TYPE = ECONOMY BURNISHED NICKEL, columns=[P_PARTKEY, P_TYPE]}",
+          "StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_SUPPKEY], $hash=true}"
+      );
+    }
+    List<String> postfix = Arrays.asList(
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='orders', filter=BoundDimFilter{1995-01-01 <= O_ORDERDATE <= 1996-12-31(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY], $hash=true}",
+        "StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NATIONKEY], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}",
+        "StreamQuery{dataSource='region', filter=R_NAME = AMERICA, columns=[R_NAME, R_REGIONKEY], $hash=true}"
+    );
+    verifyHooked(GuavaUtils.concat(prefix, postfix));
   }
 
   @Test
@@ -2680,6 +2856,32 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"VIETNAM", 1993L, 343970.28961719247D},
         new Object[]{"VIETNAM", 1992L, 352275.066762814D}
     );
+
+    List<String> prefix;
+    if (bloomFilter) {
+      prefix = Arrays.asList(
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_NAME, P_PARTKEY]}, StreamQuery{dataSource='lineitem', filter=BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY](P_NAME LIKE '%plum%'), fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop, maxNumEntries=-2}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_NAME, P_PARTKEY, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='orders', columns=[O_ORDERDATE, O_ORDERKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='N_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], virtualColumns=[ExprVirtualColumn{expression='YEAR(\"O_ORDERDATE\")', outputName='d1:v'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='((\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\")) - (\"PS_SUPPLYCOST\" * \"L_QUANTITY\"))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=descending}], limit=-1}, outputColumns=[d0, d1, a0]}",
+          "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=P_NAME LIKE '%plum%', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=P_NAME LIKE '%plum%', aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=50}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_NAME, P_PARTKEY]}, StreamQuery{dataSource='lineitem', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_NAME, P_PARTKEY, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY]}",
+          "StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_NAME, P_PARTKEY]}",
+          "StreamQuery{dataSource='lineitem', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='L_PARTKEY'}], groupingSets=Noop}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], $hash=true}"
+      );
+    } else {
+      prefix = Arrays.asList(
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_NAME, P_PARTKEY]}, StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_NAME, P_PARTKEY, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY]}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='orders', columns=[O_ORDERDATE, O_ORDERKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='N_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], virtualColumns=[ExprVirtualColumn{expression='YEAR(\"O_ORDERDATE\")', outputName='d1:v'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='((\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\")) - (\"PS_SUPPLYCOST\" * \"L_QUANTITY\"))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=descending}], limit=-1}, outputColumns=[d0, d1, a0]}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_NAME, P_PARTKEY]}, StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}', columns=[P_NAME, P_PARTKEY, S_NATIONKEY, S_SUPPKEY, L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY]}",
+          "StreamQuery{dataSource='part', filter=P_NAME LIKE '%plum%', columns=[P_NAME, P_PARTKEY]}",
+          "StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_PARTKEY, L_QUANTITY, L_SUPPKEY], $hash=true}"
+      );
+    }
+    List<String> postfix = Arrays.asList(
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}",
+        "StreamQuery{dataSource='orders', columns=[O_ORDERDATE, O_ORDERKEY], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}"
+    );
+    verifyHooked(GuavaUtils.concat(prefix, postfix));
   }
 
   @Test
@@ -2958,6 +3160,14 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"484", "Customer#000000484", 213702.96280260698D, 4245.0D, "SAUDI ARABIA", "ismzlUzrqRMRGWmCEUUjkBsi", "30-777-953-8902", "y against the express, even packages. blithely pending pearls haggle furiously above the fur"},
         new Object[]{"292", "Customer#000000292", 203414.1759173521D, 2975.43D, "IRAQ", "hCXh3vxC4uje9", "21-457-910-2923", "usly regular, ironic accounts. blithely regular platelets are carefully. blithely unusual ideas affi"}
     );
+    List<String> expected = Arrays.asList(
+        "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='customer', columns=[C_ACCTBAL, C_ADDRESS, C_COMMENT, C_CUSTKEY, C_NAME, C_NATIONKEY, C_PHONE]}, StreamQuery{dataSource='orders', filter=BoundDimFilter{1993-07-01 <= O_ORDERDATE < 1993-10-01(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', filter=L_RETURNFLAG = R, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_RETURNFLAG], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='C_NAME', outputName='d1'}, DefaultDimensionSpec{dimension='C_ACCTBAL', outputName='d2'}, DefaultDimensionSpec{dimension='C_PHONE', outputName='d3'}, DefaultDimensionSpec{dimension='N_NAME', outputName='d4'}, DefaultDimensionSpec{dimension='C_ADDRESS', outputName='d5'}, DefaultDimensionSpec{dimension='C_COMMENT', outputName='d6'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='a0', direction=descending}], limit=20}, outputColumns=[d0, d1, a0, d2, d4, d5, d3, d6]}",
+        "StreamQuery{dataSource='customer', columns=[C_ACCTBAL, C_ADDRESS, C_COMMENT, C_CUSTKEY, C_NAME, C_NATIONKEY, C_PHONE]}",
+        "StreamQuery{dataSource='orders', filter=BoundDimFilter{1993-07-01 <= O_ORDERDATE < 1993-10-01(lexicographic)}, columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY], $hash=true}",
+        "StreamQuery{dataSource='lineitem', filter=L_RETURNFLAG = R, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_ORDERKEY, L_RETURNFLAG], $hash=true}",
+        "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -3471,6 +3681,18 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"343", 56511.840000000004D},
         new Object[]{"461", 54348.78D}
     );
+    List<String> expected = Arrays.asList(
+        "StreamQuery{dataSource='JoinDelegate{queries=[GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='nation', filter=N_NAME = GERMANY, columns=[N_NAME, N_NATIONKEY]}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"PS_SUPPLYCOST\" * \"PS_AVAILQTY\")', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0]}, TimeseriesQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='nation', filter=N_NAME = GERMANY, columns=[N_NAME, N_NATIONKEY]}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"PS_SUPPLYCOST\" * \"PS_AVAILQTY\")', inputType='double'}], outputColumns=[a0]}], timeColumnName=__time}', filter=MathExprFilter{expression='(\"a0\" > (\"a00\" * 0.0001B))'}, columns=[d0, a0, a00], orderingSpecs=[OrderByColumnSpec{dimension='a0', direction=descending}], outputColumns=[d0, a0]}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='nation', filter=N_NAME = GERMANY, columns=[N_NAME, N_NATIONKEY]}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"PS_SUPPLYCOST\" * \"PS_AVAILQTY\")', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0]}",
+        "StreamQuery{dataSource='nation', filter=N_NAME = GERMANY, columns=[N_NAME, N_NATIONKEY]}",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}",
+        "TimeseriesQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='nation', filter=N_NAME = GERMANY, columns=[N_NAME, N_NATIONKEY]}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}], timeColumnName=__time}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"PS_SUPPLYCOST\" * \"PS_AVAILQTY\")', inputType='double'}], outputColumns=[a0]}",
+        "StreamQuery{dataSource='nation', filter=N_NAME = GERMANY, columns=[N_NAME, N_NATIONKEY]}",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -3655,6 +3877,12 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"MAIL", 34L, 44L},
         new Object[]{"REG AIR", 37L, 43L}
     );
+    List<String> expected = Arrays.asList(
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='orders', columns=[O_ORDERKEY, O_ORDERPRIORITY]}, StreamQuery{dataSource='lineitem', filter=(InDimFilter{values=[MAIL, REG AIR], dimension='L_SHIPMODE'} && MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && MathExprFilter{expression='(\"L_SHIPDATE\" < \"L_COMMITDATE\")'} && BoundDimFilter{1995-01-01 <= L_RECEIPTDATE < 1996-01-01(lexicographic)}), columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SHIPDATE, L_SHIPMODE], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_SHIPMODE', outputName='d0'}], aggregatorSpecs=[FilteredAggregatorFactory{, delegate=CountAggregatorFactory{name='a0'}, filter=InDimFilter{values=[1-URGENT, 2-HIGH], dimension='O_ORDERPRIORITY'}}, FilteredAggregatorFactory{, delegate=CountAggregatorFactory{name='a1'}, filter=(!(O_ORDERPRIORITY = 1-URGENT) && !(O_ORDERPRIORITY = 2-HIGH))}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0, a1]}",
+        "StreamQuery{dataSource='orders', columns=[O_ORDERKEY, O_ORDERPRIORITY]}",
+        "StreamQuery{dataSource='lineitem', filter=(InDimFilter{values=[MAIL, REG AIR], dimension='L_SHIPMODE'} && MathExprFilter{expression='(\"L_COMMITDATE\" < \"L_RECEIPTDATE\")'} && MathExprFilter{expression='(\"L_SHIPDATE\" < \"L_COMMITDATE\")'} && BoundDimFilter{1995-01-01 <= L_RECEIPTDATE < 1996-01-01(lexicographic)}), columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SHIPDATE, L_SHIPMODE], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -3834,8 +4062,14 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{3L, 2L},
         new Object[]{2L, 1L}
     );
+    List<String> expected = Arrays.asList(
+        "GroupByQuery{dataSource='GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}, StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_COMMENT, O_CUSTKEY, O_ORDERKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0', fieldName='O_ORDERKEY'}], limitSpec=Noop, outputColumns=[a0]}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='a0', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='d0', direction=descending}], limit=-1}, outputColumns=[d0, _a0]}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}, StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_COMMENT, O_CUSTKEY, O_ORDERKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0', fieldName='O_ORDERKEY'}], limitSpec=Noop, outputColumns=[a0], context={finalize=false}}",
+        "StreamQuery{dataSource='customer', columns=[C_CUSTKEY], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}",
+        "StreamQuery{dataSource='orders', filter=!(O_COMMENT LIKE '%unusual%accounts%'), columns=[O_COMMENT, O_CUSTKEY, O_ORDERKEY], $hash=true}"
+    );
+    verifyHooked(expected);
   }
-
 
   @Test
   public void tpch14() throws Exception
@@ -3959,6 +4193,23 @@ public class TpchTest extends CalciteQueryTestHelper
         + "}",
         new Object[]{21.62198225363824}
     );
+    List<String> expected;
+    if (bloomFilter) {
+      expected = Arrays.asList(
+          "TimeseriesQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-08-01 <= L_SHIPDATE < 1995-09-01(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_SHIPDATE]}, StreamQuery{dataSource='part', filter=BloomDimFilter.Factory{bloomSource=$view:lineitem[L_PARTKEY](BoundDimFilter{1995-08-01 <= L_SHIPDATE < 1995-09-01(lexicographic)}), fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop, maxNumEntries=-2}, columns=[P_PARTKEY, P_TYPE], $hash=true}], timeColumnName=__time}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='case(like(\"P_TYPE\",'PROMO%'),(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\")),0)', inputType='double'}, GenericSumAggregatorFactory{name='a1', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='((100.00B * \"a0\") / \"a1\")', finalize=true}], outputColumns=[p0]}",
+          "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=BoundDimFilter{1995-08-01 <= L_SHIPDATE < 1995-09-01(lexicographic)}, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[L_PARTKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=BoundDimFilter{1995-08-01 <= L_SHIPDATE < 1995-09-01(lexicographic)}, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[L_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=347}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-08-01 <= L_SHIPDATE < 1995-09-01(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_SHIPDATE]}",
+          "StreamQuery{dataSource='part', filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='P_PARTKEY'}], groupingSets=Noop}, columns=[P_PARTKEY, P_TYPE], $hash=true}"
+      );
+    } else {
+      expected = Arrays.asList(
+          "TimeseriesQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-08-01 <= L_SHIPDATE < 1995-09-01(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_SHIPDATE]}, StreamQuery{dataSource='part', columns=[P_PARTKEY, P_TYPE], $hash=true}], timeColumnName=__time}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='case(like(\"P_TYPE\",'PROMO%'),(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\")),0)', inputType='double'}, GenericSumAggregatorFactory{name='a1', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='((100.00B * \"a0\") / \"a1\")', finalize=true}], outputColumns=[p0]}",
+          "StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1995-08-01 <= L_SHIPDATE < 1995-09-01(lexicographic)}, columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_SHIPDATE]}",
+          "StreamQuery{dataSource='part', columns=[P_PARTKEY, P_TYPE], $hash=true}"
+      );
+    }
+    verifyHooked(expected);
   }
 
   @Test
@@ -4191,8 +4442,16 @@ public class TpchTest extends CalciteQueryTestHelper
         + "}",
         new Object[]{"6", "Supplier#000000006", "tQxuVm7s7CnK", "24-696-997-4969", 1080265.1420867585D}
     );
+    List<String> expected = Arrays.asList(
+        "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=BoundDimFilter{1996-01-01 <= L_SHIPDATE < 1996-04-01(lexicographic)}, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+        "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_ADDRESS, S_NAME, S_PHONE, S_SUPPKEY]}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d0'}], filter=BoundDimFilter{1996-01-01 <= L_SHIPDATE < 1996-04-01(lexicographic)}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=50, $hash=true}}], timeColumnName=__time}, TimeseriesQuery{dataSource='GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d0'}], filter=BoundDimFilter{1996-01-01 <= L_SHIPDATE < 1996-04-01(lexicographic)}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[GenericMaxAggregatorFactory{name='_a0', fieldName='a0', inputType='double'}], outputColumns=[_a0]}], timeColumnName=__time}', columns=[_a0, d0, a0, S_ADDRESS, S_NAME, S_PHONE, S_SUPPKEY], orderingSpecs=[OrderByColumnSpec{dimension='S_SUPPKEY', direction=ascending}], outputColumns=[S_SUPPKEY, S_NAME, S_ADDRESS, S_PHONE, a0]}",
+        "StreamQuery{dataSource='supplier', columns=[S_ADDRESS, S_NAME, S_PHONE, S_SUPPKEY]}",
+        "GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d0'}], filter=BoundDimFilter{1996-01-01 <= L_SHIPDATE < 1996-04-01(lexicographic)}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=50, $hash=true}}",
+        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d0'}], filter=BoundDimFilter{1996-01-01 <= L_SHIPDATE < 1996-04-01(lexicographic)}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[GenericMaxAggregatorFactory{name='_a0', fieldName='a0', inputType='double'}], outputColumns=[_a0]}",
+        "GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d0'}], filter=BoundDimFilter{1996-01-01 <= L_SHIPDATE < 1996-04-01(lexicographic)}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], limitSpec=Noop, outputColumns=[d0, a0], context={finalize=false}}"
+    );
+    verifyHooked(expected);
   }
-
 
   @Test
   public void tpch16() throws Exception
@@ -4517,8 +4776,16 @@ public class TpchTest extends CalciteQueryTestHelper
         + "  \"descending\" : false\n"
         + "}"
     );
+    List<String> expected = Arrays.asList(
+        "TimeseriesQuery{dataSource='supplier', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}, StreamQuery{dataSource='part', filter=(!(P_BRAND = Brand#34) && InDimFilter{values=[14, 21, 22, 27, 28, 33, 35, 49], dimension='P_SIZE'} && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}], timeColumnName=__time}, TimeseriesQuery{dataSource='supplier', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], context={$cardinality=1, $hash=true}}], timeColumnName=__time}, GroupByQuery{dataSource='supplier', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], limitSpec=Noop, outputColumns=[d0, d1]}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_BRAND', outputName='_d0'}, DefaultDimensionSpec{dimension='P_SIZE', outputName='_d1'}, DefaultDimensionSpec{dimension='P_TYPE', outputName='_d2'}], filter=(a0 = 0 || (d1 = null && MathExprFilter{expression='(\"a1\" >= \"a0\")'} && !(PS_SUPPKEY = null))), aggregatorSpecs=[CardinalityAggregatorFactory{name='_a0', fields=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='PS_SUPPKEY'}], byRow=false, round=true}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}, OrderByColumnSpec{dimension='_d2', direction=ascending}, OrderByColumnSpec{dimension='_d1', direction=ascending}], limit=-1}, outputColumns=[_d0, _d2, _d1, _a0]}",
+        "StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY]}",
+        "StreamQuery{dataSource='part', filter=(!(P_BRAND = Brand#34) && InDimFilter{values=[14, 21, 22, 27, 28, 33, 35, 49], dimension='P_SIZE'} && !(P_TYPE LIKE 'ECONOMY BRUSHED%')), columns=[P_BRAND, P_PARTKEY, P_SIZE, P_TYPE], $hash=true}",
+        "TimeseriesQuery{dataSource='supplier', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=S_COMMENT LIKE '%Customer%Complaints%', aggregatorSpecs=[CountAggregatorFactory{name='a0'}, CountAggregatorFactory{name='a1', fieldName='S_SUPPKEY'}], outputColumns=[a0, a1], context={$cardinality=1, $hash=true}}",
+        "GroupByQuery{dataSource='supplier', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='S_SUPPKEY', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=S_COMMENT LIKE '%Customer%Complaints%', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], limitSpec=Noop, outputColumns=[d0, d1]}"
+    );
+    verifyHooked(expected);
   }
-
 
   @Test
   public void tpch17() throws Exception
@@ -4843,6 +5110,18 @@ public class TpchTest extends CalciteQueryTestHelper
         + "  }\n"
         + "}"
     );
+    List<String> expected = Arrays.asList(
+        "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+        "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+        "TimeseriesQuery{dataSource='JoinDelegate{queries=[GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', columns=[L_PARTKEY, L_QUANTITY], $hash=true}, GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), limitSpec=Noop, outputColumns=[d0]}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='_d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * \"a0\")', finalize=true}], limitSpec=Noop, outputColumns=[_d0, p0]}, StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), limitSpec=Noop, outputColumns=[d0]}], timeColumnName=__time}', columns=[L_QUANTITY, L_PARTKEY, L_EXTENDEDPRICE], $hash=true}], timeColumnName=__time}', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=MathExprFilter{expression='(\"L_QUANTITY\" < \"p0\")'}, aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_EXTENDEDPRICE', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='CAST((\"a0\" / 7.0B), 'decimal')', finalize=true}], outputColumns=[p0]}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', columns=[L_PARTKEY, L_QUANTITY], $hash=true}, GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), limitSpec=Noop, outputColumns=[d0]}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='_d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='L_QUANTITY', inputType='long'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}, MathPostAggregator{name='p0', expression='(0.2B * \"a0\")', finalize=true}], limitSpec=Noop, outputColumns=[_d0, p0]}",
+        "StreamQuery{dataSource='lineitem', columns=[L_PARTKEY, L_QUANTITY], $hash=true}",
+        "GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), limitSpec=Noop, outputColumns=[d0]}",
+        "StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}, GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), limitSpec=Noop, outputColumns=[d0]}], timeColumnName=__time}', columns=[L_QUANTITY, L_PARTKEY, L_EXTENDEDPRICE], $hash=true}",
+        "StreamQuery{dataSource='lineitem', columns=[L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY], $hash=true}",
+        "GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=(P_BRAND = Brand#23 && P_CONTAINER = MED BOX), limitSpec=Noop, outputColumns=[d0]}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -5126,8 +5405,16 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"Customer#000000334", "334", "29158", "1995-10-21", 441562.47D, 305L},
         new Object[]{"Customer#000000089", "89", "6882", "1997-04-09", 389430.93D, 303L}
     );
+    List<String> expected = Arrays.asList(
+        "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(L_ORDERKEY = null), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME]}, StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=!(L_ORDERKEY = null), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" > 300)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3770, $hash=true}}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='_d0'}, DefaultDimensionSpec{dimension='C_NAME', outputName='_d1'}, DefaultDimensionSpec{dimension='O_ORDERDATE', outputName='_d2'}, DefaultDimensionSpec{dimension='O_ORDERKEY', outputName='_d3'}, DefaultDimensionSpec{dimension='O_TOTALPRICE', outputName='_d4'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='_a0', fieldName='L_QUANTITY', inputType='long'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_d4', direction=descending}, OrderByColumnSpec{dimension='_d2', direction=ascending}], limit=100}, outputColumns=[_d1, _d0, _d3, _d2, _d4, _a0]}",
+        "StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME]}",
+        "StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE], $hash=true}",
+        "GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=!(L_ORDERKEY = null), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" > 300)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3770, $hash=true}}",
+        "StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY], $hash=true}"
+    );
+    verifyHooked(expected);
   }
-
 
   @Test
   public void tpch19() throws Exception
@@ -5356,6 +5643,12 @@ public class TpchTest extends CalciteQueryTestHelper
         + "  }\n"
         + "}"
     );
+    List<String> expected = Arrays.asList(
+        "TimeseriesQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY, L_SHIPINSTRUCT, L_SHIPMODE]}, StreamQuery{dataSource='part', columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE], $hash=true}], timeColumnName=__time}', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(BoundDimFilter{1 <= P_SIZE(numeric)} && InDimFilter{values=[AIR, AIR REG], dimension='L_SHIPMODE'} && L_SHIPINSTRUCT = DELIVER IN PERSON && ((P_BRAND = Brand#32 && InDimFilter{values=[SM BOX, SM CASE, SM PACK, SM PKG], dimension='P_CONTAINER'} && BoundDimFilter{P_SIZE <= 5(numeric)} && BoundDimFilter{7 <= L_QUANTITY <= 17(numeric)}) || (P_BRAND = Brand#35 && InDimFilter{values=[MED BAG, MED BOX, MED PACK, MED PKG], dimension='P_CONTAINER'} && BoundDimFilter{P_SIZE <= 10(numeric)} && BoundDimFilter{15 <= L_QUANTITY <= 25(numeric)}) || (P_BRAND = Brand#24 && InDimFilter{values=[LG BOX, LG CASE, LG PACK, LG PKG], dimension='P_CONTAINER'} && BoundDimFilter{P_SIZE <= 15(numeric)} && BoundDimFilter{26 <= L_QUANTITY <= 36(numeric)}))), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(\"L_EXTENDEDPRICE\" * (1 - \"L_DISCOUNT\"))', inputType='double'}], outputColumns=[a0]}",
+        "StreamQuery{dataSource='lineitem', columns=[L_DISCOUNT, L_EXTENDEDPRICE, L_PARTKEY, L_QUANTITY, L_SHIPINSTRUCT, L_SHIPMODE]}",
+        "StreamQuery{dataSource='part', columns=[P_BRAND, P_CONTAINER, P_PARTKEY, P_SIZE], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -5792,6 +6085,21 @@ public class TpchTest extends CalciteQueryTestHelper
         + "  }\n"
         + "}"
     );
+    List<String> expected = Arrays.asList(
+        "TimeseriesQuery{dataSource='part', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=P_NAME LIKE 'forest%', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+        "StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_ADDRESS, S_NAME, S_SUPPKEY], $hash=true}, GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', limitSpec=Noop, outputColumns=[d0], context={$cardinality=8, $hash=true}}], timeColumnName=__time}', columns=[PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY], $hash=true}, GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01(lexicographic)}, columns=[L_PARTKEY, L_QUANTITY, L_SHIPDATE, L_SUPPKEY]}, StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME = CANADA, columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', columns=[S_SUPPKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * \"a0\")', finalize=true}], limitSpec=Noop, outputColumns=[d0, p0, d1]}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='_d0'}], filter=MathExprFilter{expression='(\"PS_AVAILQTY\" > \"p0\")'}, limitSpec=Noop, outputColumns=[_d0]}], timeColumnName=__time}', columns=[S_NAME, S_ADDRESS], orderingSpecs=[OrderByColumnSpec{dimension='S_NAME', direction=ascending}]}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', limitSpec=Noop, outputColumns=[d0], context={$cardinality=8, $hash=true}}], timeColumnName=__time}', columns=[PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY], $hash=true}, GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01(lexicographic)}, columns=[L_PARTKEY, L_QUANTITY, L_SHIPDATE, L_SUPPKEY]}, StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME = CANADA, columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', columns=[S_SUPPKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * \"a0\")', finalize=true}], limitSpec=Noop, outputColumns=[d0, p0, d1]}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='PS_SUPPKEY', outputName='_d0'}], filter=MathExprFilter{expression='(\"PS_AVAILQTY\" > \"p0\")'}, limitSpec=Noop, outputColumns=[_d0]}",
+        "StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}, GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', limitSpec=Noop, outputColumns=[d0], context={$cardinality=8, $hash=true}}], timeColumnName=__time}', columns=[PS_PARTKEY, PS_SUPPKEY, PS_AVAILQTY], $hash=true}",
+        "StreamQuery{dataSource='partsupp', columns=[PS_AVAILQTY, PS_PARTKEY, PS_SUPPKEY]}",
+        "GroupByQuery{dataSource='part', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], filter=P_NAME LIKE 'forest%', limitSpec=Noop, outputColumns=[d0], context={$cardinality=8, $hash=true}}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01(lexicographic)}, columns=[L_PARTKEY, L_QUANTITY, L_SHIPDATE, L_SUPPKEY]}, StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME = CANADA, columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', columns=[S_SUPPKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_PARTKEY', outputName='d0'}, DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(0.5B * \"a0\")', finalize=true}], limitSpec=Noop, outputColumns=[d0, p0, d1]}",
+        "StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME = CANADA, columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', columns=[S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY]}",
+        "StreamQuery{dataSource='nation', filter=N_NAME = CANADA, columns=[N_NAME, N_NATIONKEY], $hash=true}",
+        "StreamQuery{dataSource='lineitem', filter=BoundDimFilter{1994-01-01 <= L_SHIPDATE <= 1995-01-01(lexicographic)}, columns=[L_PARTKEY, L_QUANTITY, L_SHIPDATE, L_SUPPKEY]}",
+        "StreamQuery{dataSource='supplier', columns=[S_ADDRESS, S_NAME, S_SUPPKEY], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -6225,6 +6533,38 @@ public class TpchTest extends CalciteQueryTestHelper
         + "  \"descending\" : false\n"
         + "}"
     );
+    List<String> expected = Arrays.asList(
+        "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+        "TimeseriesQuery{dataSource='lineitem', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'} && !(L_ORDERKEY = null)), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}"
+    );
+    if (bloomFilter) {
+      expected = GuavaUtils.concat(
+          expected,
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='orders', filter=O_ORDERSTATUS = F, columns=[O_ORDERKEY, O_ORDERSTATUS]}, StreamQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'} && BloomDimFilter.Factory{bloomSource=$view:orders[O_ORDERKEY](O_ORDERSTATUS = F), fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='L_ORDERKEY'}], groupingSets=Noop, maxNumEntries=-2}), columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SUPPKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" > 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3770, $hash=true}}], timeColumnName=__time}', columns=[L_SUPPKEY, L_ORDERKEY]}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'} && !(L_ORDERKEY = null)), aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" == 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3493, $hash=true}}], timeColumnName=__time}, StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NAME, S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME = SAUDI ARABIA, columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', columns=[S_NAME, S_SUPPKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='S_NAME', outputName='_d0'}], aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}], limit=100}, outputColumns=[_d0, _a0]}",
+          "TimeseriesQuery{dataSource='orders', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=O_ORDERSTATUS = F, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[O_ORDERKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='orders', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=O_ORDERSTATUS = F, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[O_ORDERKEY], groupingSets=Noop, byRow=true, maxNumEntries=3636}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='orders', filter=O_ORDERSTATUS = F, columns=[O_ORDERKEY, O_ORDERSTATUS]}, StreamQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'} && BloomFilter{fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='L_ORDERKEY'}], groupingSets=Noop}), columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SUPPKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" > 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3770, $hash=true}}], timeColumnName=__time}', columns=[L_SUPPKEY, L_ORDERKEY]}",
+          "StreamQuery{dataSource='orders', filter=O_ORDERSTATUS = F, columns=[O_ORDERKEY, O_ORDERSTATUS]}",
+          "StreamQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'} && BloomFilter{fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='L_ORDERKEY'}], groupingSets=Noop}), columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SUPPKEY], $hash=true}"
+      );
+    } else {
+      expected = GuavaUtils.concat(
+          expected,
+          "GroupByQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='orders', filter=O_ORDERSTATUS = F, columns=[O_ORDERKEY, O_ORDERSTATUS]}, StreamQuery{dataSource='lineitem', filter=MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'}, columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SUPPKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" > 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3770, $hash=true}}], timeColumnName=__time}', columns=[L_SUPPKEY, L_ORDERKEY]}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'} && !(L_ORDERKEY = null)), aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" == 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3493, $hash=true}}], timeColumnName=__time}, StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NAME, S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME = SAUDI ARABIA, columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', columns=[S_NAME, S_SUPPKEY], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='S_NAME', outputName='_d0'}], aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_a0', direction=descending}, OrderByColumnSpec{dimension='_d0', direction=ascending}], limit=100}, outputColumns=[_d0, _a0]}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[JoinDelegate{queries=[StreamQuery{dataSource='orders', filter=O_ORDERSTATUS = F, columns=[O_ORDERKEY, O_ORDERSTATUS]}, StreamQuery{dataSource='lineitem', filter=MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'}, columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SUPPKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" > 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3770, $hash=true}}], timeColumnName=__time}', columns=[L_SUPPKEY, L_ORDERKEY]}",
+          "StreamQuery{dataSource='orders', filter=O_ORDERSTATUS = F, columns=[O_ORDERKEY, O_ORDERSTATUS]}",
+          "StreamQuery{dataSource='lineitem', filter=MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'}, columns=[L_COMMITDATE, L_ORDERKEY, L_RECEIPTDATE, L_SUPPKEY], $hash=true}"
+      );
+    }
+    expected = GuavaUtils.concat(
+        expected,
+        "GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" > 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3770, $hash=true}}",
+        "GroupByQuery{dataSource='lineitem', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], filter=(MathExprFilter{expression='(\"L_RECEIPTDATE\" > \"L_COMMITDATE\")'} && !(L_ORDERKEY = null)), aggregatorSpecs=[CardinalityAggregatorFactory{name='a0:a', fields=[DefaultDimensionSpec{dimension='L_SUPPKEY', outputName='L_SUPPKEY'}], byRow=false, round=true}], postAggregatorSpecs=[HyperUniqueFinalizingPostAggregator{name='a0', fieldName='a0:a', round='true'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" == 1)'}, limitSpec=Noop, outputColumns=[d0, a0], context={$cardinality=3493, $hash=true}}",
+        "StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='supplier', columns=[S_NAME, S_NATIONKEY, S_SUPPKEY]}, StreamQuery{dataSource='nation', filter=N_NAME = SAUDI ARABIA, columns=[N_NAME, N_NATIONKEY], $hash=true}], timeColumnName=__time}', columns=[S_NAME, S_SUPPKEY], $hash=true}",
+        "StreamQuery{dataSource='supplier', columns=[S_NAME, S_NATIONKEY, S_SUPPKEY]}",
+        "StreamQuery{dataSource='nation', filter=N_NAME = SAUDI ARABIA, columns=[N_NAME, N_NATIONKEY], $hash=true}"
+    );
+    verifyHooked(expected);
   }
 
   @Test
@@ -6536,5 +6876,28 @@ public class TpchTest extends CalciteQueryTestHelper
         new Object[]{"30", 9L, 65584.23D},
         new Object[]{"31", 7L, 53270.52999999999D}
     );
+    List<String> expected;
+    if (bloomFilter) {
+      expected = Arrays.asList(
+          "TimeseriesQuery{dataSource='orders', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+          "GroupByQuery{dataSource='JoinDelegate{queries=[TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0]}, StreamQuery{dataSource='JoinDelegate{queries=[GroupByQuery{dataSource='orders', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=BloomDimFilter.Factory{bloomSource=$view:customer[C_CUSTKEY]([ExprVirtualColumn{expression='substring(\"C_PHONE\", 0, 2)', outputName='v0'}])(InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}), fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop, maxNumEntries=-2}, limitSpec=Noop, outputColumns=[d0], context={$cardinality=502, $hash=true}}, StreamQuery{dataSource='customer', filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"C_PHONE\", 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0 = null, columns=[v0, C_ACCTBAL], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='v0', outputName='d0'}], filter=MathExprFilter{expression='(\"C_ACCTBAL\" > \"a0\")'}, aggregatorSpecs=[CountAggregatorFactory{name='_a0'}, GenericSumAggregatorFactory{name='_a1', fieldName='C_ACCTBAL', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, _a0, _a1]}",
+          "TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fieldNames=[C_CUSTKEY], groupingSets=Noop, byRow=true, round=true}], context={populateCache=false, useCache=false}}",
+          "TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[C_CUSTKEY], groupingSets=Noop, byRow=true, maxNumEntries=220}], context={populateCache=false, useCache=false}}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[GroupByQuery{dataSource='orders', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop}, limitSpec=Noop, outputColumns=[d0], context={$cardinality=502, $hash=true}}, StreamQuery{dataSource='customer', filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"C_PHONE\", 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0 = null, columns=[v0, C_ACCTBAL], $hash=true}",
+          "GroupByQuery{dataSource='orders', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], filter=BloomFilter{fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop}, limitSpec=Noop, outputColumns=[d0], context={$cardinality=502, $hash=true}}",
+          "StreamQuery{dataSource='customer', filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"C_PHONE\", 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}",
+          "TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0]}"
+      );
+    } else {
+      expected = Arrays.asList(
+          "TimeseriesQuery{dataSource='orders', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], context={allDimensionsForEmpty=false, finalMerge=true, finalize=true, groupByConvertTimeseries=true, postProcessing=}}",
+          "GroupByQuery{dataSource='JoinDelegate{queries=[TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0]}, StreamQuery{dataSource='JoinDelegate{queries=[GroupByQuery{dataSource='orders', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], limitSpec=Noop, outputColumns=[d0], context={$cardinality=502, $hash=true}}, StreamQuery{dataSource='customer', filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"C_PHONE\", 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0 = null, columns=[v0, C_ACCTBAL], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='v0', outputName='d0'}], filter=MathExprFilter{expression='(\"C_ACCTBAL\" > \"a0\")'}, aggregatorSpecs=[CountAggregatorFactory{name='_a0'}, GenericSumAggregatorFactory{name='_a1', fieldName='C_ACCTBAL', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, _a0, _a1]}",
+          "StreamQuery{dataSource='JoinDelegate{queries=[GroupByQuery{dataSource='orders', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], limitSpec=Noop, outputColumns=[d0], context={$cardinality=502, $hash=true}}, StreamQuery{dataSource='customer', filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"C_PHONE\", 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}], timeColumnName=__time}', filter=d0 = null, columns=[v0, C_ACCTBAL], $hash=true}",
+          "GroupByQuery{dataSource='orders', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='O_CUSTKEY', outputName='d0'}], limitSpec=Noop, outputColumns=[d0], context={$cardinality=502, $hash=true}}",
+          "StreamQuery{dataSource='customer', filter=InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}}, columns=[C_ACCTBAL, C_CUSTKEY, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"C_PHONE\", 0, 2)', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='C_CUSTKEY', direction=ascending}]}",
+          "TimeseriesQuery{dataSource='customer', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=(InDimFilter{values=[13, 17, 18, 23, 29, 30, 31], dimension='C_PHONE', extractionFn=SubstringDimExtractionFn{index=0, end=2}} && BoundDimFilter{0.00 < C_ACCTBAL(numeric)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0:sum', fieldName='C_ACCTBAL', inputType='double'}, CountAggregatorFactory{name='a0:count'}], postAggregatorSpecs=[ArithmeticPostAggregator{name='a0', fnName='quotient', fields=[FieldAccessPostAggregator{name='null', fieldName='a0:sum'}, FieldAccessPostAggregator{name='null', fieldName='a0:count'}], op=QUOTIENT}], outputColumns=[a0]}"
+      );
+    }
+    verifyHooked(expected);
   }
 }

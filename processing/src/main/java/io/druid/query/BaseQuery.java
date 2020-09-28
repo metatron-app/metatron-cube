@@ -26,7 +26,6 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -569,8 +568,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> withId(String id)
   {
-    Preconditions.checkNotNull(id, "'id' should not be null");
-    return withOverriddenContext(ImmutableMap.<String, Object>of(QUERYID, id));
+    return withOverriddenContext(GuavaUtils.<String, Object>mutableMap(QUERYID, id));
   }
 
   @Override

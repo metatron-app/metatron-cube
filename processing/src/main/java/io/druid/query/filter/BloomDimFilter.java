@@ -187,11 +187,11 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
   @Override
   public String toString()
   {
-    return "BloomFilter{" +
-           ", fieldNames=" + fieldNames +
-           ", fields=" + fields +
-           ", groupingSets=" + groupingSets +
-           '}';
+    if (fieldNames != null) {
+      return "BloomFilter{fieldNames=" + fieldNames + ", groupingSets=" + groupingSets + '}';
+    } else {
+      return "BloomFilter{fields=" + fields + ", groupingSets=" + groupingSets + '}';
+    }
   }
 
   @JsonTypeName("bloom.factory")
@@ -293,10 +293,10 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
     public String toString()
     {
       return "BloomDimFilter.Factory{" +
-             "fieldNames=" + fieldNames +
-             ", fields=" + fields +
-             ", groupingSets=" + groupingSets +
-             ", bloomSource=" + bloomSource +
+             "bloomSource=" + bloomSource +
+             (fieldNames == null ? "" : ", fieldNames=" + fieldNames) +
+             (fields == null ? "" : ", fields=" + fields) +
+             (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
              ", maxNumEntries=" + maxNumEntries +
              '}';
     }

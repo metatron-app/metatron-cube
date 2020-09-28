@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.VirtualColumn;
 
@@ -168,6 +169,8 @@ public class ViewDataSource implements DataSource
   @Override
   public String toString()
   {
-    return "$view:" + name + columns + (virtualColumns == null ? "" : "(" + virtualColumns + ")");
+    return "$view:" + name + columns +
+           (GuavaUtils.isNullOrEmpty(virtualColumns) ? "" : "(" + virtualColumns + ")") +
+           (filter == null ? "" : "(" + filter + ")");
   }
 }

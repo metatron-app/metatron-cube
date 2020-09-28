@@ -51,7 +51,16 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
 {
   public static BloomFilterAggregatorFactory of(String name, List<String> fieldNames, int maxNumEntries)
   {
-    return new BloomFilterAggregatorFactory(name, fieldNames, null, null, null, true, maxNumEntries, false);
+    return new BloomFilterAggregatorFactory(
+        name,
+        fieldNames,
+        null,
+        GroupingSetSpec.EMPTY,
+        null,
+        true,
+        maxNumEntries,
+        false
+    );
   }
 
   private static final byte CACHE_TYPE_ID = 0x25;
@@ -312,8 +321,8 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
   public int hashCode()
   {
     int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + (fieldNames != null ? fieldNames.hashCode() : 0);
-    result = 31 * result + (fields != null ? fields.hashCode() : 0);
+    result = 31 * result + Objects.hashCode(fieldNames);
+    result = 31 * result + Objects.hashCode(fields);
     result = 31 * result + Objects.hashCode(groupingSets);
     result = 31 * result + Objects.hashCode(predicate);
     result = 31 * result + (byRow ? 1 : 0);
@@ -326,10 +335,10 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
   {
     return "BloomFilterAggregatorFactory{" +
            "name='" + name + '\'' +
-           ", fieldNames='" + fieldNames + '\'' +
-           ", fields=" + fields +
-           ", groupingSets=" + groupingSets +
-           ", predicate='" + predicate + '\'' +
+           (fieldNames == null ? "" : ", fieldNames=" + fieldNames) +
+           (fields == null ? "" : ", fields=" + fields) +
+           (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", byRow=" + byRow +
            ", maxNumEntries=" + maxNumEntries +
            '}';

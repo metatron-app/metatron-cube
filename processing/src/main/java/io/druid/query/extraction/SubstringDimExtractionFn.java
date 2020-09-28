@@ -121,4 +121,13 @@ public class SubstringDimExtractionFn implements ExtractionFn
     result = 31 * result + end;
     return result;
   }
+
+  @Override
+  public String toString()
+  {
+    return "SubstringDimExtractionFn{" +
+           "index=" + index +
+           ", end=" + end +
+           '}';
+  }
 }

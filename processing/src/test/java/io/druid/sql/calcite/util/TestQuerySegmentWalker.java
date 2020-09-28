@@ -86,6 +86,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 /**
  */
@@ -98,6 +99,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   private final PopulatingMap timeLines;
   private final ForwardHandler handler;
+
+  private final Consumer<Query<?>> hook;
 
   @Override
   public StorageHandler getHandler(String scheme)
@@ -178,7 +181,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   public TestQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate, QueryConfig config)
   {
-    this(TestHelper.JSON_MAPPER, conglomerate, Execs.newDirectExecutorService(), config, new PopulatingMap());
+    this(TestHelper.JSON_MAPPER, conglomerate, Execs.newDirectExecutorService(), config, new PopulatingMap(), q -> {});
   }
 
   private TestQuerySegmentWalker(
@@ -186,7 +189,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService executor,
       QueryConfig queryConfig,
-      PopulatingMap timeLines
+      PopulatingMap timeLines,
+      Consumer<Query<?>> hook
   )
   {
     this.objectMapper = objectMapper;
@@ -201,6 +205,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         ImmutableMap.<String, StorageHandler>of("file", new LocalStorageHandler(objectMapper)),
         this
     );
+    this.hook = hook;
   }
 
   public TestQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
@@ -210,7 +215,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         conglomerate,
         executor,
         queryConfig,
-        timeLines
+        timeLines,
+        hook
     );
   }
 
@@ -221,7 +227,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         conglomerate,
         executor,
         queryConfig,
-        timeLines
+        timeLines,
+        hook
     );
   }
 
@@ -232,7 +239,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         conglomerate,
         executor,
         queryConfig,
-        timeLines
+        timeLines,
+        hook
     );
   }
 
@@ -243,7 +251,20 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         conglomerate,
         executor,
         queryConfig,
-        timeLines
+        timeLines,
+        hook
+    );
+  }
+
+  public TestQuerySegmentWalker withQueryHook(Consumer<Query<?>> hook)
+  {
+    return new TestQuerySegmentWalker(
+        objectMapper,
+        conglomerate,
+        executor,
+        queryConfig,
+        timeLines,
+        hook
     );
   }
 
@@ -259,7 +280,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         conglomerate,
         executor,
         queryConfig,
-        duplicate
+        duplicate,
+        hook
     );
   }
 
@@ -330,6 +352,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   private <T> QueryRunner<T> makeQueryRunner(Query<T> query)
   {
+    hook.accept(query);
     final Query<T> prepared = prepareQuery(query);
     final QueryRunner<T> runner = toQueryRunner(prepared);
     return new QueryRunner<T>()

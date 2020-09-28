@@ -45,7 +45,11 @@ import java.util.List;
 })
 public interface GroupingSetSpec extends Cacheable
 {
-  GroupingSetSpec EMPTY = new GroupingSetSpec.Indices(null);
+  GroupingSetSpec EMPTY = new GroupingSetSpec.Indices(null)
+  {
+    @Override
+    public String toString() { return "Noop";}
+  };
 
   void validate(List<String> dimensions);
 

@@ -248,6 +248,8 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
     return builder.append(CACHE_TYPE_ID)
                   .append(fieldNames)
                   .append(fields)
+                  .append(groupingSets)
+                  .append(predicate)
                   .append(byRow, round);
   }
 
@@ -304,8 +306,8 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   public int hashCode()
   {
     int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + (fieldNames != null ? fieldNames.hashCode() : 0);
-    result = 31 * result + (fields != null ? fields.hashCode() : 0);
+    result = 31 * result + Objects.hashCode(fieldNames);
+    result = 31 * result + Objects.hashCode(fields);
     result = 31 * result + Objects.hashCode(predicate);
     result = 31 * result + (byRow ? 1 : 0);
     result = 31 * result + (round ? 1 : 0);
@@ -317,10 +319,10 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   {
     return "CardinalityAggregatorFactory{" +
            "name='" + name + '\'' +
-           ", fieldNames='" + fieldNames + '\'' +
-           ", fields=" + fields +
-           ", groupingSets=" + groupingSets +
-           ", predicate='" + predicate + '\'' +
+           (fieldNames == null ? "" : ", fieldNames=" + fieldNames) +
+           (fields == null ? "" : ", fields=" + fields) +
+           (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
+           (predicate == null ? "" : ", predicate=" + predicate) +
            ", byRow=" + byRow +
            ", round=" + round +
            '}';
