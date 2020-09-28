@@ -83,7 +83,7 @@ public class DruidSchema extends AbstractSchema
     this.viewManager = Preconditions.checkNotNull(viewManager, "viewManager");
     this.cached = Maps.newConcurrentMap();
     serverView.registerTimelineCallback(
-        Execs.newDirectExecutorService(),
+        Execs.singleThreaded("schema-callback"),
         new TimelineServerView.TimelineCallback()
         {
           @Override
