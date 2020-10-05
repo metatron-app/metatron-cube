@@ -34,17 +34,16 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
-import io.druid.java.util.common.Pair;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
+import io.druid.java.util.common.Pair;
 import io.druid.query.QueryConfig;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
 import io.druid.server.log.NoopRequestLogger;
 import io.druid.server.metrics.NoopServiceEmitter;
-import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthTestUtils;
 import io.druid.sql.SqlLifecycleFactory;
 import io.druid.sql.calcite.planner.Calcites;
@@ -61,6 +60,7 @@ import org.apache.calcite.avatica.AvaticaClientRuntimeException;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.MissingResultsException;
 import org.apache.calcite.avatica.NoSuchStatementException;
+import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -176,7 +176,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
         AVATICA_CONFIG,
         injector
     );
-    final DruidAvaticaHandler handler = new DruidAvaticaHandler(
+    final Handler handler = new DruidAvaticaHandler.Json(
         druidMeta,
         new DruidNode("dummy", "dummy", 1),
         new AvaticaMonitor()
@@ -762,7 +762,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
       }
     };
 
-    final DruidAvaticaHandler handler = new DruidAvaticaHandler(
+    final Handler handler = new DruidAvaticaHandler.Json(
         smallFrameDruidMeta,
         new DruidNode("dummy", "dummy", 1),
         new AvaticaMonitor()

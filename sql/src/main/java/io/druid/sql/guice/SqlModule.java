@@ -22,12 +22,14 @@ package io.druid.sql.guice;
 import com.google.common.base.Preconditions;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.multibindings.Multibinder;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
+import io.druid.guice.PolyBind;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.server.initialization.jetty.JettyBindings;
@@ -48,6 +50,7 @@ import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.sql.http.SqlResource;
+import org.apache.calcite.avatica.server.AbstractAvaticaHandler;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.sql.Connection;
@@ -62,6 +65,7 @@ public class SqlModule implements Module
   private static final String PROPERTY_SQL_ENABLE = "druid.sql.enable";
   private static final String PROPERTY_SQL_ENABLE_JSON_OVER_HTTP = "druid.sql.http.enable";
   private static final String PROPERTY_SQL_ENABLE_AVATICA = "druid.sql.avatica.enable";
+  private static final String PROPERTY_AVATICA_TYPE = "druid.sql.avatica.type";
 
   @Inject
   private Properties props;
@@ -113,9 +117,25 @@ public class SqlModule implements Module
         Jerseys.addResource(binder, SqlResource.class);
       }
 
+      PolyBind.createChoice(
+          binder,
+          PROPERTY_AVATICA_TYPE,
+          Key.get(AbstractAvaticaHandler.class),
+          Key.get(DruidAvaticaHandler.Json.class)
+      );
+      PolyBind.optionBinder(binder, Key.get(AbstractAvaticaHandler.class))
+              .addBinding("json")
+              .to(DruidAvaticaHandler.Json.class)
+              .in(LazySingleton.class);
+
+      PolyBind.optionBinder(binder, Key.get(AbstractAvaticaHandler.class))
+              .addBinding("protobuf")
+              .to(DruidAvaticaHandler.Protobuf.class)
+              .in(LazySingleton.class);
+
       if (isAvaticaEnabled()) {
         binder.bind(AvaticaMonitor.class).in(LazySingleton.class);
-        JettyBindings.addHandler(binder, DruidAvaticaHandler.class);
+        JettyBindings.addHandler(binder, AbstractAvaticaHandler.class);
         MetricsModule.register(binder, AvaticaMonitor.class);
       }
     }
@@ -141,16 +161,17 @@ public class SqlModule implements Module
 
   public static void main(String[] args) throws Exception
   {
-    String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/";
+    String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/;serialization=PROTOBUF";
 
     // Set any connection context parameters you need here (see "Connection context" below).
     // Or leave empty for default behavior.
     Properties connectionProperties = new Properties();
+    connectionProperties.setProperty("aaa", "bbb");   // avoid bug in protocol buf handler(empty property -> NPE)
 
     try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
       try (
           final Statement statement = connection.createStatement();
-          final ResultSet resultSet = statement.executeQuery("select * from lineitem")
+          final ResultSet resultSet = statement.executeQuery("select L_EXTENDEDPRICE/ 0 from lineitem limit 1")
       ) {
         ResultSetMetaData metaData = resultSet.getMetaData();
         int count = metaData.getColumnCount();
@@ -167,8 +188,6 @@ public class SqlModule implements Module
           System.out.println(b.toString());
           // Do something
         }
-        resultSet.close();
-        statement.close();
       }
     }
   }

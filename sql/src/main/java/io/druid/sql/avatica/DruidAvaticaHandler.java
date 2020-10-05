@@ -25,6 +25,7 @@ import io.druid.server.DruidNode;
 import org.apache.calcite.avatica.remote.LocalService;
 import org.apache.calcite.avatica.remote.Service;
 import org.apache.calcite.avatica.server.AvaticaJsonHandler;
+import org.apache.calcite.avatica.server.AvaticaProtobufHandler;
 import org.eclipse.jetty.server.Request;
 
 import javax.servlet.ServletException;
@@ -33,31 +34,61 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 
-public class DruidAvaticaHandler extends AvaticaJsonHandler
+public class DruidAvaticaHandler
 {
   public static final String AVATICA_PATH = "/druid/v2/sql/avatica/";
 
-  @Inject
-  public DruidAvaticaHandler(
-      final DruidMeta druidMeta,
-      @Self final DruidNode druidNode,
-      final AvaticaMonitor avaticaMonitor
-  ) throws InstantiationException, IllegalAccessException, InvocationTargetException
+  public static class Json extends AvaticaJsonHandler
   {
-    super(new LocalService(druidMeta), avaticaMonitor);
-    setServerRpcMetadata(new Service.RpcMetadataResponse(druidNode.getHostAndPort()));
+    @Inject
+    public Json(
+        final DruidMeta druidMeta,
+        @Self final DruidNode druidNode,
+        final AvaticaMonitor avaticaMonitor
+    ) throws InstantiationException, IllegalAccessException, InvocationTargetException
+    {
+      super(new LocalService(druidMeta), avaticaMonitor);
+      setServerRpcMetadata(new Service.RpcMetadataResponse(druidNode.getHostAndPort()));
+    }
+
+    @Override
+    public void handle(
+        final String target,
+        final Request baseRequest,
+        final HttpServletRequest request,
+        final HttpServletResponse response
+    ) throws IOException, ServletException
+    {
+      if (request.getRequestURI().equals(AVATICA_PATH)) {
+        super.handle(target, baseRequest, request, response);
+      }
+    }
   }
 
-  @Override
-  public void handle(
-      final String target,
-      final Request baseRequest,
-      final HttpServletRequest request,
-      final HttpServletResponse response
-  ) throws IOException, ServletException
+  public static class Protobuf extends AvaticaProtobufHandler
   {
-    if (request.getRequestURI().equals(AVATICA_PATH)) {
-      super.handle(target, baseRequest, request, response);
+    @Inject
+    public Protobuf(
+        final DruidMeta druidMeta,
+        @Self final DruidNode druidNode,
+        final AvaticaMonitor avaticaMonitor
+    ) throws InstantiationException, IllegalAccessException, InvocationTargetException
+    {
+      super(new LocalService(druidMeta), avaticaMonitor);
+      setServerRpcMetadata(new Service.RpcMetadataResponse(druidNode.getHostAndPort()));
+    }
+
+    @Override
+    public void handle(
+        final String target,
+        final Request baseRequest,
+        final HttpServletRequest request,
+        final HttpServletResponse response
+    ) throws IOException, ServletException
+    {
+      if (request.getRequestURI().equals(AVATICA_PATH)) {
+        super.handle(target, baseRequest, request, response);
+      }
     }
   }
 }
