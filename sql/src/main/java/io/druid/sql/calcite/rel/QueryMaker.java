@@ -304,48 +304,56 @@ public class QueryMaker
       }
     } else if (value == null) {
       return null;
-    } else if (sqlType == SqlTypeName.DATE) {
-      return Calcites.jodaToCalciteDate(coerceDateTime(value, sqlType), plannerContext.getTimeZone());
-    } else if (sqlType == SqlTypeName.TIMESTAMP) {
-      return Calcites.jodaToCalciteTimestamp(coerceDateTime(value, sqlType), plannerContext.getTimeZone());
-    } else if (sqlType == SqlTypeName.BOOLEAN) {
-      if (value instanceof String) {
-        return Evals.asBoolean(((String) value));
-      } else if (value instanceof Boolean) {
-        return value != null && (Boolean) value;
-      } else if (value instanceof Number) {
-        return Evals.asBoolean((Number) value);
-      } else {
-        throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
-      }
-    } else if (sqlType == SqlTypeName.INTEGER) {
-      final Long longValue = Rows.parseLong(value, null);
-      if (longValue == null) {
-        throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
-      }
-      return longValue.intValue();
-    } else if (sqlType == SqlTypeName.BIGINT) {
-      Long coercedValue = Rows.parseLong(value, null);
-      if (coercedValue == null) {
-        throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
-      }
-      return coercedValue;
-    } else if (sqlType == SqlTypeName.FLOAT) {
-      Float coercedValue = Rows.parseFloat(value, null);
-      if (coercedValue == null) {
-        throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
-      }
-      return coercedValue;
-    } else if (sqlType == SqlTypeName.DECIMAL) {
-      return coerceDecimal(value, sqlType);
-    } else if (SqlTypeName.APPROX_TYPES.contains(sqlType)) {
-      try {
-        return Rows.parseDouble(value);
-      }
-      catch (Exception e) {
-        throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
-      }
-    } else if (value instanceof HyperLogLogCollector) {
+    }
+    return coerce(value, sqlType);
+  }
+
+  private Object coerce(final Object value, final SqlTypeName sqlType)
+  {
+    switch (sqlType) {
+      case TIMESTAMP:
+        return Calcites.jodaToCalciteTimestamp(coerceDateTime(value, sqlType), plannerContext.getTimeZone());
+      case DATE:
+        return Calcites.jodaToCalciteDate(coerceDateTime(value, sqlType), plannerContext.getTimeZone());
+      case INTEGER:
+        final Long intValue = Rows.parseLong(value, null);
+        if (intValue == null) {
+          throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
+        }
+        return intValue.intValue();
+      case BIGINT:
+        Long longValue = Rows.parseLong(value, null);
+        if (longValue == null) {
+          throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
+        }
+        return longValue;
+      case FLOAT:
+        Float floatValue = Rows.parseFloat(value, null);
+        if (floatValue == null) {
+          throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
+        }
+        return floatValue;
+      case REAL:
+      case DOUBLE:
+        Double doubleValue = Rows.parseDouble(value, null);
+        if (doubleValue == null) {
+          throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
+        }
+        return doubleValue;
+      case DECIMAL:
+        return coerceDecimal(value, sqlType);
+      case BOOLEAN:
+        if (value instanceof String) {
+          return Evals.asBoolean(((String) value));
+        } else if (value instanceof Boolean) {
+          return value != null && (Boolean) value;
+        } else if (value instanceof Number) {
+          return Evals.asBoolean((Number) value);
+        } else {
+          throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
+        }
+    }
+    if (value instanceof HyperLogLogCollector) {
       return value.getClass().getName();  // for test.. I'm lazy
     } else {
       return value;   // return as-is... it seemed better than exception
