@@ -75,6 +75,13 @@ public class DruidRules
     return RelOptRule.operandJ(relClass, null, predicate, RelOptRule.any());
   }
 
+  static <T extends DruidRel> RelOptRuleOperand ofDruidRel(
+      Class<T> relClass, Predicate<DruidRel> predicate, RelOptRuleOperand first, RelOptRuleOperand... rest
+  )
+  {
+    return RelOptRule.operandJ(relClass, null, predicate, first, rest);
+  }
+
   private DruidRules()
   {
     // No instantiation.

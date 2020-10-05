@@ -20,11 +20,13 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -73,8 +75,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final boolean asArray;
   private final int limit;
   private final int maxOutputRow;
+  private final List<String> outputColumns;
 
-  private transient Supplier<RowSignature> schema;
+  private transient RowSignature schema;
 
   @JsonCreator
   JoinQuery(
@@ -86,6 +89,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("timeColumnName") String timeColumnName,
       @JsonProperty("limit") int limit,
       @JsonProperty("maxOutputRow") int maxOutputRow,
+      @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -97,6 +101,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     this.elements = elements;
     this.limit = limit;
     this.maxOutputRow = maxOutputRow;
+    this.outputColumns = outputColumns;
   }
 
   static Map<String, DataSource> normalize(Map<String, DataSource> dataSources)
@@ -160,6 +165,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return null;
   }
 
+  @Override
+  public String getType()
+  {
+    return Query.JOIN;
+  }
+
   @JsonProperty
   public Map<String, DataSource> getDataSources()
   {
@@ -195,6 +206,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return limit;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getOutputColumns()
+  {
+    return outputColumns;
+  }
+
   @Override
   public boolean hasFilters()
   {
@@ -206,13 +224,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return false;
   }
 
-  @Override
-  public String getType()
-  {
-    return Query.JOIN;
-  }
-
-  public JoinQuery withSchema(Supplier<RowSignature> schema)
+  public JoinQuery withSchema(RowSignature schema)
   {
     this.schema = schema;
     return this;
@@ -231,6 +243,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         timeColumnName,
         limit,
         maxOutputRow,
+        outputColumns,
         computeOverriddenContext(contextOverride)
     ).withSchema(schema);
   }
@@ -247,13 +260,27 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     throw new IllegalStateException();
   }
 
-  static final long ROWNUM_NOT_EVALUATED = -2;
-  static final long ROWNUM_UNKNOWN = -1;
+  public static final long ROWNUM_NOT_EVALUATED = -2;
+  public static final long ROWNUM_UNKNOWN = -1;
+
+  private static long estimatedNumRows(DataSource dataSource)
+  {
+    if (dataSource instanceof QueryDataSource) {
+      Query query = ((QueryDataSource) dataSource).getQuery();
+      return query.getContextLong(CARDINALITY, ROWNUM_NOT_EVALUATED);
+    }
+    return ROWNUM_NOT_EVALUATED;
+  }
 
   @Override
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
+    if (schema != null && outputColumns != null) {
+      Preconditions.checkArgument(
+          outputColumns.equals(schema.getColumnNames()),
+          "Invalid schema %s, expected column names %s", schema, outputColumns);
+    }
     final int hashThreshold = config.getHashJoinThreshold(this);
     final int bloomFilterThreshold = config.getJoin().getBloomFilterThreshold();
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
@@ -267,16 +294,20 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       JoinType joinType = element.getJoinType();
       DataSource left = dataSources.get(element.getLeftAlias());
       DataSource right = dataSources.get(element.getRightAlias());
-      long rightEstimated = ROWNUM_NOT_EVALUATED;
+      long rightEstimated = estimatedNumRows(right);
       boolean rightHashing = false;
       if (hashThreshold > 0 && joinType.isLeftDrivable()) {
-        rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, config);
+        if (rightEstimated == ROWNUM_NOT_EVALUATED) {
+          rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, config);
+        }
         rightHashing = rightEstimated > 0 && rightEstimated < hashThreshold;
       }
-      long leftEstimated = ROWNUM_NOT_EVALUATED;
+      long leftEstimated = estimatedNumRows(left);
       boolean leftHashing = false;
       if (hashThreshold > 0 && joinType.isRightDrivable() && i == 0 && !rightHashing) {
-        leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, config);
+        if (leftEstimated == ROWNUM_NOT_EVALUATED) {
+          leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, config);
+        }
         leftHashing = leftEstimated > 0 && leftEstimated < hashThreshold;
       }
       if (i == 0) {
@@ -335,11 +366,16 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     // no parallelism.. executed parallel in join post processor
     Map<String, Object> context = BaseQuery.copyContextForMeta(this);
-    JoinDelegate query = new JoinDelegate(queries, prefixAliases, timeColumn, currentEstimation, limit, context);
+    JoinDelegate query = new JoinDelegate(
+        queries, prefixAliases, timeColumn, outputColumns, currentEstimation, limit, context
+    );
+    if (schema != null) {
+      query = query.withSchema(Suppliers.ofInstance(schema));
+    }
     return PostProcessingOperators.append(
-        query.withSchema(schema),
+        query,
         segmentWalker.getObjectMapper(),
-        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, maxOutputRow)
+        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, outputColumns, maxOutputRow)
     );
   }
 
@@ -408,6 +444,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getTimeColumnName(),
         limit,
         maxOutputRow,
+        outputColumns,
         getContext()
     ).withSchema(schema);
   }
@@ -423,6 +460,23 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         timeColumnName,
         limit,
         maxOutputRow,
+        outputColumns,
+        getContext()
+    ).withSchema(schema);
+  }
+
+  public JoinQuery withOutputColumns(List<String> outputColumns)
+  {
+    return new JoinQuery(
+        dataSources,
+        getQuerySegmentSpec(),
+        elements,
+        prefixAlias,
+        asArray,
+        timeColumnName,
+        limit,
+        maxOutputRow,
+        outputColumns,
         getContext()
     ).withSchema(schema);
   }
@@ -436,6 +490,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            ", prefixAlias=" + prefixAlias +
            ", asArray=" + asArray +
            ", maxOutputRow=" + maxOutputRow +
+           (outputColumns == null ? "" : ", outputColumns= " + outputColumns) +
            ", limit=" + limit +
            '}';
   }
@@ -445,6 +500,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       implements ArrayOutputSupport<Map<String, Object>>
   {
     private final List<String> prefixAliases;  // for schema resolving
+    private final List<String> outputColumns;
+
     private final String timeColumnName;
     private final long estimatedCardinality;
 
@@ -454,6 +511,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
         String timeColumnName,
+        List<String> outputColumns,
         long estimatedCardinality,
         int limit,
         Map<String, Object> context
@@ -461,6 +519,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       super(null, list, false, limit, -1, context);     // not needed to be parallel (handled in post processor)
       this.prefixAliases = prefixAliases;
+      this.outputColumns = outputColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
       this.estimatedCardinality = estimatedCardinality;
     }
@@ -509,6 +568,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           queries,
           prefixAliases,
           timeColumnName,
+          outputColumns,
           estimatedCardinality,
           getLimit(),
           context
@@ -584,27 +644,30 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     @Override
     public List<String> estimatedOutputColumns()
     {
+      if (outputColumns != null) {
+        return outputColumns;
+      }
       RowSignature schema = getSchema();
       if (schema != null) {
         return schema.getColumnNames();   // resolved already
       }
       Set<String> uniqueNames = Sets.newHashSet();
-      List<String> outputColumns = Lists.newArrayList();
+      List<String> columnNames = Lists.newArrayList();
 
       List<Query<Map<String, Object>>> queries = getQueries();
       for (int i = 0; i < queries.size(); i++) {
         List<String> columns = ((ArrayOutputSupport<?>) queries.get(i)).estimatedOutputColumns();
         Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(columns));
         if (prefixAliases == null) {
-          Queries.uniqueNames(columns, uniqueNames, outputColumns);
+          Queries.uniqueNames(columns, uniqueNames, columnNames);
         } else {
           String alias = prefixAliases.get(i) + ".";
           for (String column : columns) {
-            outputColumns.add(Queries.uniqueName(alias + column, uniqueNames));
+            columnNames.add(Queries.uniqueName(alias + column, uniqueNames));
           }
         }
       }
-      return outputColumns;
+      return columnNames;
     }
 
     @Override

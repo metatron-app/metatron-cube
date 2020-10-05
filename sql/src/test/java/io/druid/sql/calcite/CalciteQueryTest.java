@@ -6263,29 +6263,26 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   {
     testQuery(
         PLANNER_CONFIG_JOIN_ENABLED,
-        "SELECT foo.m1 X, foo2.dim2 Y FROM foo join foo2 on foo.__time = foo2.__time limit 3",
-        Druids.newSelectQueryBuilder()
+        "SELECT foo.m1 X, foo2.dim2 Y FROM foo join foo2 on foo.__time = foo2.__time",
+        Druids.newJoinQueryBuilder()
               .dataSource(
-                  Druids.newJoinQueryBuilder()
-                        .dataSource("foo",
-                                    Druids.newSelectQueryBuilder()
-                                          .dataSource("foo")
-                                          .columns("__time", "m1")
-                                          .streaming()
-                        )
-                        .dataSource("foo2",
-                                    Druids.newSelectQueryBuilder()
-                                          .dataSource("foo2")
-                                          .columns("__time", "dim2")
-                                          .streaming()
-                        )
-                        .element(JoinElement.of(JoinType.INNER, "foo.__time = foo2.__time"))
-                        .asArray(true)
-                        .build()
+                  "foo",
+                  Druids.newSelectQueryBuilder()
+                        .dataSource("foo")
+                        .columns("__time", "m1")
+                        .streaming()
               )
-              .columns("m1", "dim2")
-              .limit(3)
-              .streaming(),
+              .dataSource(
+                  "foo2",
+                  Druids.newSelectQueryBuilder()
+                        .dataSource("foo2")
+                        .columns("__time", "dim2")
+                        .streaming()
+              )
+              .element(JoinElement.of(JoinType.INNER, "foo.__time = foo2.__time"))
+              .outputColumns("m1", "dim2")
+              .asArray(true)
+              .build(),
         new Object[]{1.0, "en"},
         new Object[]{1.0, "ru"},
         new Object[]{1.0, "he"}

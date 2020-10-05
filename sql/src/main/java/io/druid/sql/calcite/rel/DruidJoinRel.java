@@ -44,6 +44,8 @@ import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.commons.lang.StringUtils;
@@ -65,6 +67,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         right,
         joinInfo.leftKeys,
         joinInfo.rightKeys,
+        null,
         left.getQueryMaker()
     );
   }
@@ -72,6 +75,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   private final JoinRelType joinType;
   private final ImmutableIntList leftExpressions;
   private final ImmutableIntList rightExpressions;
+  private final ImmutableIntList outputColumns;
 
   private RelNode left;
   private RelNode right;
@@ -84,6 +88,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
       final RelNode right,
       final ImmutableIntList leftExpressions,
       final ImmutableIntList rightExpressions,
+      final ImmutableIntList outputColumns,
       final QueryMaker queryMaker
   )
   {
@@ -93,6 +98,22 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
     this.joinType = joinType;
     this.leftExpressions = leftExpressions;
     this.rightExpressions = rightExpressions;
+    this.outputColumns = outputColumns;
+  }
+
+  public DruidJoinRel withOutputColumns(ImmutableIntList outputColumns)
+  {
+    return new DruidJoinRel(
+        getCluster(),
+        getTraitSet(),
+        joinType,
+        left,
+        right,
+        leftExpressions,
+        rightExpressions,
+        outputColumns,
+        getQueryMaker()
+    );
   }
 
   @Override
@@ -118,7 +139,15 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
     final List<String> leftOrder = leftQuery.getOutputRowSignature().getColumnNames();
     final List<String> rightOrder = rightQuery.getOutputRowSignature().getColumnNames();
 
-    final RowSignature outRowSignature = RowSignature.from(Utils.uniqueNames(leftOrder, rightOrder), rowType);
+    List<String> outputNames = Utils.uniqueNames(leftOrder, rightOrder);
+    if (outputColumns != null) {
+      List<String> extracted = Lists.newArrayList();
+      for (int i = 0; i < outputColumns.size(); i++) {
+        extracted.add(outputNames.get(outputColumns.get(i)));
+      }
+      outputNames = extracted;
+    }
+    final RowSignature outRowSignature = RowSignature.from(outputNames, rowType);
 
     final List<String> leftKeys = Lists.newArrayList();
     for (int leftKey : leftExpressions) {
@@ -144,8 +173,9 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
         .context(getPlannerContext().copyQueryContext())
         .asArray(true)
+        .outputColumns(outputColumns == null ? null : outRowSignature.getColumnNames())
         .build()
-        .withSchema(Suppliers.ofInstance(outRowSignature));
+        .withSchema(outRowSignature);
 
     return new DruidQuery()
     {
@@ -185,6 +215,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         RelOptRule.convert(right, DruidConvention.instance()),
         leftExpressions,
         rightExpressions,
+        outputColumns,
         getQueryMaker()
     );
   }
@@ -211,14 +242,27 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   @Override
   protected RelDataType deriveRowType()
   {
-    return SqlValidatorUtil.deriveJoinRowType(
+    RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
+    RelDataType rowType = SqlValidatorUtil.deriveJoinRowType(
         left.getRowType(),
         right.getRowType(),
         joinType,
-        getCluster().getTypeFactory(),
+        typeFactory,
         null,
         ImmutableList.of()
     );
+    if (outputColumns != null) {
+      List<String> fieldNames = Lists.newArrayList();
+      List<RelDataType> fieldTypes = Lists.newArrayList();
+      List<RelDataTypeField> fields = rowType.getFieldList();
+      for (int i = 0; i < outputColumns.size(); i++) {
+        RelDataTypeField field = fields.get(outputColumns.get(i));
+        fieldNames.add(field.getName());
+        fieldTypes.add(field.getType());
+      }
+      rowType = typeFactory.createStructType(fieldTypes, fieldNames);
+    }
+    return rowType;
   }
 
   @Override
@@ -254,6 +298,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         inputs.get(1),
         leftExpressions,
         rightExpressions,
+        outputColumns,
         getQueryMaker()
     );
   }
@@ -266,7 +311,8 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
                 .input("right", right)
                 .item("joinType", joinType)
                 .item("leftExpressions", leftExpressions)
-                .item("rightExpressions", rightExpressions);
+                .item("rightExpressions", rightExpressions)
+                .item("outputColumns", outputColumns);
   }
 
   @Override

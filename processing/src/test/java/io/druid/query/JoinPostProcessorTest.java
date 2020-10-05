@@ -241,6 +241,7 @@ public class JoinPostProcessorTest
         Arrays.asList(element1, element2),
         false,
         false,
+        null,
         0
     );
   }

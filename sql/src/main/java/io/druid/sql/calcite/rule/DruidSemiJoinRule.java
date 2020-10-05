@@ -70,7 +70,7 @@ public class DruidSemiJoinRule extends RelOptRule
       };
 
   private static final Predicate<DruidRel> HAS_AGGREGATION = druidRel ->
-      druidRel.getPartialDruidQuery() != null && druidRel.getPartialDruidQuery().getAggregate() != null;
+      druidRel.getPartialDruidQuery().getAggregate() != null;
 
   private static final DruidSemiJoinRule INSTANCE = new DruidSemiJoinRule();
 

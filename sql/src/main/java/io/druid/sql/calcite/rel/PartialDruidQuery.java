@@ -185,6 +185,11 @@ public class PartialDruidQuery
     return sortProject;
   }
 
+  public boolean isProjectOnly()
+  {
+    return scanFilter == null && stage() == Stage.SELECT;
+  }
+
   private RexBuilder rexBuilder()
   {
     return scan.getCluster().getRexBuilder();
@@ -324,6 +329,21 @@ public class PartialDruidQuery
         newProject.getRowType().getFieldNames()
     );
     return (Project) relBuilder.build();
+  }
+
+  public PartialDruidQuery withoutScanProject(RelNode source)
+  {
+    return new PartialDruidQuery(
+        source,
+        null,
+        null,
+        aggregate,
+        aggregateFilter,
+        aggregateProject,
+        window,
+        sort,
+        sortProject
+    );
   }
 
   public PartialDruidQuery withAggregate(final Aggregate newAggregate)

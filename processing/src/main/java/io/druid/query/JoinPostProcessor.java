@@ -48,6 +48,7 @@ import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.JoinQuery.JoinDelegate;
 import io.druid.query.PostProcessingOperator.Local;
 import io.druid.query.PostProcessingOperator.ReturnRowAs;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.apache.commons.io.IOUtils;
 
@@ -76,6 +77,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
   private final JoinElement[] elements;
   private final boolean prefixAlias;
   private final boolean asArray;
+  private final List<String> outputColumns;
   private final int maxOutputRow;
 
   @JsonCreator
@@ -85,14 +87,16 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
+      @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("maxOutputRow") int maxOutputRow
   )
   {
     this.config = config;
     this.elements = elements.toArray(new JoinElement[0]);
-    this.asArray = asArray;
-    this.maxOutputRow = config.getMaxOutputRow(maxOutputRow);
     this.prefixAlias = prefixAlias;
+    this.asArray = asArray;
+    this.outputColumns = outputColumns;
+    this.maxOutputRow = config.getMaxOutputRow(maxOutputRow);
   }
 
   public boolean asArray()
@@ -102,7 +106,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
 
   public JoinPostProcessor withAsArray(boolean asArray)
   {
-    return new JoinPostProcessor(config, Arrays.asList(elements), prefixAlias, asArray, maxOutputRow);
+    return new JoinPostProcessor(config, Arrays.asList(elements), prefixAlias, asArray, outputColumns, maxOutputRow);
   }
 
   @Override
@@ -157,11 +161,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         try {
           JoinResult join = join(joining, estimatedNumRows);
           joinQuery.setCollation(join.collation);
-          Iterator outputRows = join.iterator;
-          if (!asArray) {
-            outputRows = GuavaUtils.map(outputRows, toMap(columnsNames, prefixAlias ? aliases : null));
+          Iterator<Object[]> outputRows = join.iterator;
+
+          List<String> concat = concatColumnNames(columnsNames, prefixAlias ? aliases : null);
+          if (asArray) {
+            return Sequences.once(GuavaUtils.map(outputRows, LimitSpec.remap(concat, outputColumns)));
           }
-          return Sequences.once(outputRows);
+          return Sequences.once(GuavaUtils.map(outputRows, toMap(concat, outputColumns)));
         }
         catch (Throwable t) {
           if (t instanceof ExecutionException && t.getCause() != null) {
@@ -1015,7 +1021,40 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     return Arrays.asList(array);
   }
 
-  private Function<Object[], Map<String, Object>> toMap(List<List<String>> columnsList, List<String> aliases)
+  private Function<Object[], Map<String, Object>> toMap(List<String> inputColumns, List<String> outputColumns)
+  {
+    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+      final int[] indices = GuavaUtils.indexOf(inputColumns, outputColumns);
+      return new Function<Object[], Map<String, Object>>()
+      {
+        @Override
+        public Map<String, Object> apply(final Object[] input)
+        {
+          final Map<String, Object> event = Maps.newLinkedHashMap();
+          for (int i = 0; i < indices.length; i++) {
+            if (indices[i] >= 0) {
+              event.put(outputColumns.get(i), input[indices[i]]);
+            }
+          }
+          return event;
+        }
+      };
+    }
+    return new Function<Object[], Map<String, Object>>()
+    {
+      @Override
+      public Map<String, Object> apply(Object[] input)
+      {
+        final Map<String, Object> event = Maps.newLinkedHashMap();
+        for (int i = 0; i < input.length; i++) {
+          event.put(inputColumns.get(i), input[i]);
+        }
+        return event;
+      }
+    };
+  }
+
+  private List<String> concatColumnNames(List<List<String>> columnsList, List<String> aliases)
   {
     final List<String> outputColumns = Lists.newArrayList();
     for (int i = 0; i < columnsList.size(); i++) {
@@ -1029,18 +1068,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
         }
       }
     }
-    return new Function<Object[], Map<String, Object>>()
-    {
-      @Override
-      public Map<String, Object> apply(Object[] input)
-      {
-        final Map<String, Object> event = Maps.newLinkedHashMap();
-        for (int i = 0; i < input.length; i++) {
-          event.put(outputColumns.get(i), input[i]);
-        }
-        return event;
-      }
-    };
+    return outputColumns;
   }
 
   static class JoinResult

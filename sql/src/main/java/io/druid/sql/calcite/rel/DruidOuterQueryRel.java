@@ -77,6 +77,11 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
     );
   }
 
+  public RelNode getSourceRel()
+  {
+    return sourceRel;
+  }
+
   @Override
   public PartialDruidQuery getPartialDruidQuery()
   {

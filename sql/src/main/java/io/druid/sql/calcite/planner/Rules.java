@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.AggregateMergeRule;
+import io.druid.sql.calcite.rule.DruidJoinProjectRule;
 import io.druid.sql.calcite.rule.DruidJoinRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
@@ -242,6 +243,15 @@ public class Rules
     }
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
 
+    if (config.isJoinEnabled()) {
+      // way better to be hep program in compile speed rather than be a rule in volcano
+      HepProgram hep = new HepProgramBuilder()
+          .addMatchOrder(HepMatchOrder.TOP_DOWN)
+          .addRuleInstance(DruidJoinProjectRule.INSTANCE)
+          .build();
+      programs.add(Programs.of(hep, DAG, DefaultRelMetadataProvider.INSTANCE));
+    }
+
     Program program = Programs.sequence(programs.toArray(new Program[0]));
     return config.isDumpPlan() ? Dump.wrap(program) : program;
   }
@@ -329,6 +339,7 @@ public class Rules
     }
     if (plannerConfig.isJoinEnabled()) {
       rules.add(DruidJoinRule.instance());
+//      rules.add(DruidJoinProjectRule.instance());
     }
     if (plannerConfig.isJoinCommuteEnabled()) {
       rules.add(JoinCommuteRule.INSTANCE);

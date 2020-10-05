@@ -369,7 +369,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return estimated;
   }
 
-  private static Function<Object[], Object[]> remap(List<String> source, List<String> target)
+  public static Function<Object[], Object[]> remap(List<String> source, List<String> target)
   {
     if (GuavaUtils.isNullOrEmpty(target) || source.equals(target)) {
       return GuavaUtils.identity("remap");

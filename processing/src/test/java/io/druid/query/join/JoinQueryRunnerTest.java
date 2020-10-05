@@ -174,6 +174,42 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
     Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 
+    // with outoutColumns
+    expectedRows = createExpectedRows(
+        new String[]{"market", "index", "value"},
+        array("spot", 135.88510131835938, 41111L),
+        array("spot", 118.57034301757812, 41111L),
+        array("spot", 158.74722290039062, 41111L),
+        array("spot", 120.13470458984375, 41111L),
+        array("spot", 109.70581817626953, 41111L),
+        array("spot", 121.58358001708984, 41111L),
+        array("spot", 144.5073699951172, 41111L),
+        array("spot", 78.62254333496094, 41111L),
+        array("spot", 119.92274475097656, 41111L),
+        array("total_market", 1314.8397216796875, 41112L),
+        array("total_market", 1522.043701171875, 41112L),
+        array("upfront", 1447.3411865234375, 41113L),
+        array("upfront", 1234.24755859375, 41113L),
+        array("spot", 147.42593383789062, 41111L),
+        array("spot", 112.98703002929688, 41111L),
+        array("spot", 166.01605224609375, 41111L),
+        array("spot", 113.44600677490234, 41111L),
+        array("spot", 110.93193054199219, 41111L),
+        array("spot", 114.2901382446289, 41111L),
+        array("spot", 135.30149841308594, 41111L),
+        array("spot", 97.38743591308594, 41111L),
+        array("spot", 126.41136169433594, 41111L),
+        array("total_market", 1193.5562744140625, 41112L),
+        array("total_market", 1321.375, 41112L),
+        array("upfront", 1144.3424072265625, 41113L),
+        array("upfront", 1049.738525390625, 41113L)
+    );
+    rows = Iterables.transform(
+        runTabularQuery(joinQuery.withOutputColumns(Arrays.asList("market", "index", "value"))),
+        Rows.mapToRow(Column.TIME_COLUMN_NAME)
+    );
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+
     // prefixed
     rows = Iterables.transform(runTabularQuery(joinQuery.withPrefixAlias(true)), Rows.mapToRow(dataSource + ".__time"));
     columns = new String[]{

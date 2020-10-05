@@ -37,6 +37,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.ImmutableIntList;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -99,6 +100,18 @@ public class RowSignature extends io.druid.query.RowSignature.Simple
     }
 
     return rowSignatureBuilder.build();
+  }
+
+  public RowSignature subset(ImmutableIntList indices)
+  {
+    List<String> newColumnNames = Lists.newArrayList();
+    List<ValueDesc> newColumnTypes = Lists.newArrayList();
+    for (int i = 0; i < indices.size(); i++) {
+      int index = indices.get(i);
+      newColumnNames.add(columnNames.get(index));
+      newColumnTypes.add(columnTypes.get(index));
+    }
+    return new RowSignature(newColumnNames, newColumnTypes);
   }
 
   public static Builder builder()

@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.logger.Logger;
@@ -131,6 +132,11 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   );
 
   protected static final String MASKED = "<<<<<<MASK>>>>>>";
+
+  public static final Map<String, Object> REMOVER = GuavaUtils.mutableMap(
+      "queryId", null, "groupby.sort.on.time", null, "sqlCurrentTimestamp", null, "#fudgeTimestamp", null,
+      "#localSplitStrategy", null
+  );
 
   @Rule
   public QueryLogHook queryLogHook = QueryLogHook.create();

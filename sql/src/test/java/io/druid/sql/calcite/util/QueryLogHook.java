@@ -22,9 +22,11 @@ package io.druid.sql.calcite.util;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.sql.calcite.CalciteQueryTestHelper;
 import org.apache.calcite.runtime.Hook;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -79,6 +81,7 @@ public class QueryLogHook implements TestRule
         clearRecordedQueries();
 
         final Consumer<Object> function = query -> {
+          query = Queries.iterate((Query) query, q -> q.withOverriddenContext(CalciteQueryTestHelper.REMOVER));
           try {
             recordedQueries.add((Query) query);
             log.info(

@@ -190,7 +190,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
           theVals.put(columnNames[i], value[i]);
         }
       }
-      DateTime timestamp = timeIndex < 0 ? new DateTime(0) : new DateTime(value[timeIndex]);
+      DateTime timestamp = timeIndex < 0 ? null : new DateTime(value[timeIndex]);
       expected.add(new MapBasedRow(timestamp, theVals));
     }
     return expected;
