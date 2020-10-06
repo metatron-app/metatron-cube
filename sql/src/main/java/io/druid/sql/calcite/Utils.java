@@ -24,18 +24,24 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.table.RowSignature;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -118,6 +124,46 @@ public class Utils
     return true;
   }
 
+  public static int[] collectInputRefs(List<RexNode> nodes)
+  {
+    final IntList indices = new IntList();
+    for (RexNode node : nodes) {
+      node.accept(new RexShuttle()
+      {
+        @Override
+        public RexNode visitInputRef(RexInputRef ref)
+        {
+          final int index = ref.getIndex();
+          if (indices.indexOf(index) < 0) {
+            indices.add(index);
+          }
+          return ref;
+        }
+      });
+    }
+    return indices.array();
+  }
+
+  public static List<RexNode> rewrite(RexBuilder builder, List<RexNode> nodes, int[] indices)
+  {
+    final Int2IntMap mapping = new Int2IntOpenHashMap();
+    for (int i = 0; i < indices.length; i++) {
+      mapping.put(indices[i], i);
+    }
+    final List<RexNode> rewrite = Lists.newArrayList();
+    for (RexNode node : nodes) {
+      rewrite.add(node.accept(new RexShuttle()
+      {
+        @Override
+        public RexNode visitInputRef(RexInputRef ref)
+        {
+          return builder.makeInputRef(ref.getType(), mapping.get(ref.getIndex()));
+        }
+      }));
+    }
+    return rewrite;
+  }
+
   public static RexNode and(RexBuilder builder, List<RexNode> operands)
   {
     Preconditions.checkArgument(!operands.isEmpty());
@@ -148,6 +194,8 @@ public class Utils
           }
         }
       }
+    } else if (sourceRel instanceof HepRelVertex) {
+      rel = ((HepRelVertex) sourceRel).getCurrentRel();
     }
     return clazz.isInstance(rel) ? (T) rel : null;
   }

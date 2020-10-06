@@ -63,6 +63,7 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilter.BooleanColumnSupport;
 import io.druid.query.filter.DimFilter.LuceneFilter;
+import io.druid.query.filter.DimFilter.NotExact;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.ValueOnly;
 import io.druid.query.filter.DimFilters;
@@ -580,6 +581,10 @@ public class Filters
       return null;
     }
     final BitmapIndexSelector selector = context.selector;
+    if (filter instanceof NotExact) {
+      ImmutableBitmap bitmap = filter.toFilter(selector).getBitmapIndex(context);
+      return bitmap == null ? null : BitmapHolder.notExact(bitmap);
+    }
     if (filter instanceof MathExprFilter) {
       Expr expr = Parser.parse(((MathExprFilter) filter).getExpression(), selector);
       Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);

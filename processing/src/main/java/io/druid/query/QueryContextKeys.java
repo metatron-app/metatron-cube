@@ -65,7 +65,9 @@ public interface QueryContextKeys
   String FREQUENCY_SKETCH_DEPTH = "frequencySketchDepth";
 
   // join
-  String HASHJOIN_THRESHOLD = "hashjoinThreshold";
+  String HASHJOIN_THRESHOLD = "hashJoinThreshold";
+  String SEMIJOIN_THRESHOLD = "semiJoinThreshold";
+  String BLOOMFILTER_THRESHOLD = "bloomFilterThreshold";
 
   // CacheConfig
   String USE_CACHE = "useCache";
@@ -113,6 +115,8 @@ public interface QueryContextKeys
       STREAM_RAW_LOCAL_SPLIT_ROWS,
       FREQUENCY_SKETCH_DEPTH,
       HASHJOIN_THRESHOLD,
+      SEMIJOIN_THRESHOLD,
+      BLOOMFILTER_THRESHOLD,
       USE_CACHE,
       POPULATE_CACHE,
       OPTIMIZE_QUERY,

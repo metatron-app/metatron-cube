@@ -106,7 +106,21 @@ public class QueryConfig
   {
     final int systemMax = getJoin().getHashJoinThreshold();
     final int userMax = query.getContextInt(Query.HASHJOIN_THRESHOLD, -1);
-    return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
+    return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
+  }
+
+  public int getSemiJoinThreshold(Query<?> query)
+  {
+    final int systemMax = getJoin().getSemiJoinThreshold();
+    final int userMax = query.getContextInt(Query.SEMIJOIN_THRESHOLD, -1);
+    return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
+  }
+
+  public int getBloomFilterThreshold(Query<?> query)
+  {
+    final int systemMax = getJoin().getBloomFilterThreshold();
+    final int userMax = query.getContextInt(Query.BLOOMFILTER_THRESHOLD, -1);
+    return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
   }
 
   public boolean useParallelSort(Query<?> query)

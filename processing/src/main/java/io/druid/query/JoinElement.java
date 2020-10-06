@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.ISE;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -207,6 +209,43 @@ public class JoinElement
     return expression;
   }
 
+  public boolean isLeftSemiJoinable(DataSource rightSource, List<String> outputColumns)
+  {
+    if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
+      List<String> rightOutputColumns = DataSources.getOutputColumns(rightSource);
+      if (rightOutputColumns == null) {
+        return false;
+      }
+      Set<String> copy = Sets.newHashSet(rightOutputColumns);
+      copy.removeAll(rightJoinColumns);
+      if (!GuavaUtils.containsAny(outputColumns, copy)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean isRightSemiJoinable(DataSource leftSource, List<String> outputColumns)
+  {
+    if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
+      List<String> leftOutputColumns = DataSources.getOutputColumns(leftSource);
+      if (leftOutputColumns == null) {
+        return false;
+      }
+      Set<String> copy = Sets.newHashSet(leftOutputColumns);
+      copy.removeAll(leftJoinColumns);
+      if (!GuavaUtils.containsAny(outputColumns, copy)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static Query toQuery(DataSource dataSource, QuerySegmentSpec segmentSpec, Map<String, Object> context)
+  {
+    return toQuery(dataSource, null, segmentSpec, context);
+  }
+
   public static Query toQuery(
       DataSource dataSource,
       List<String> sortColumns,
@@ -232,12 +271,18 @@ public class JoinElement
       }
       return query;
     }
-    // even for hash join, sorting will help building hash efficiently, I guess
-    return new Druids.SelectQueryBuilder()
-        .dataSource(dataSource)
-        .intervals(segmentSpec)
-        .context(BaseQuery.copyContextForMeta(context))
-        .streaming(sortColumns);
+    if (dataSource instanceof ViewDataSource) {
+      ViewDataSource view = (ViewDataSource) dataSource;
+      return new Druids.SelectQueryBuilder()
+          .dataSource(view.getName())
+          .intervals(segmentSpec)
+          .filters(view.getFilter())
+          .columns(view.getColumns())
+          .virtualColumns(view.getVirtualColumns())
+          .context(BaseQuery.copyContextForMeta(context))
+          .streaming(sortColumns);
+    }
+    throw new ISE("todo: cannot join on %s", dataSource);
   }
 
   public static long estimatedNumRows(
@@ -272,8 +317,8 @@ public class JoinElement
       if (query instanceof BaseAggregationQuery) {
         BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
         long estimated = Queries.estimateCardinality(aggregation.withHavingSpec(null), segmentWalker, config);
-        if (estimated > 0 && aggregation.getHavingSpec() != null) {
-          estimated >>= 1;
+        if (estimated > 1 && aggregation.getHavingSpec() != null) {
+          estimated >>= 1;    // half
         }
         return estimated;
       }

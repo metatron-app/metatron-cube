@@ -907,7 +907,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport imple
     {
       return alias + "." + joinColumns +
              (isHashed() ? "(hashed:" : isSorted() ? "(sorted-stream:" : "(stream:") +
-             (estimatedNumRows > 0 ? estimatedNumRows + ")" : ")");
+             (estimatedNumRows > 0 ? estimatedNumRows : "?") + ")";
     }
   }
 

@@ -45,6 +45,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.ValuesFilter;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -53,8 +54,10 @@ import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+import static io.druid.query.JoinType.INNER;
 import static io.druid.query.JoinType.LO;
 import static io.druid.query.JoinType.RO;
 
@@ -263,6 +266,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   public static final long ROWNUM_NOT_EVALUATED = -2;
   public static final long ROWNUM_UNKNOWN = -1;
 
+  // use it if already set
   private static long estimatedNumRows(DataSource dataSource)
   {
     if (dataSource instanceof QueryDataSource) {
@@ -282,38 +286,102 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           "Invalid schema %s, expected column names %s", schema, outputColumns);
     }
     final int hashThreshold = config.getHashJoinThreshold(this);
-    final int bloomFilterThreshold = config.getJoin().getBloomFilterThreshold();
-    final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
+    final int semiJoinThrehold = config.getSemiJoinThreshold(this);
+    final int bloomFilterThreshold = config.getBloomFilterThreshold(this);
 
-    long estimation0 = ROWNUM_UNKNOWN;
-    long estimation1 = ROWNUM_UNKNOWN;
-    long currentEstimation = ROWNUM_UNKNOWN;
+    long currentEstimation = ROWNUM_NOT_EVALUATED;
+
+    final Map<String, Object> context = getContext();
+    final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     final List<Query<Map<String, Object>>> queries = Lists.newArrayList();
+
     for (int i = 0; i < elements.size(); i++) {
-      JoinElement element = elements.get(i);
-      JoinType joinType = element.getJoinType();
-      DataSource left = dataSources.get(element.getLeftAlias());
-      DataSource right = dataSources.get(element.getRightAlias());
+      final JoinElement element = elements.get(i);
+      final JoinType joinType = element.getJoinType();
+      final List<String> leftJoinColumns = element.getLeftJoinColumns();
+      final List<String> rightJoinColumns = element.getRightJoinColumns();
+
+      final DataSource left = i == 0 ? dataSources.get(element.getLeftAlias()) : null;
+      final DataSource right = dataSources.get(element.getRightAlias());
+
+      long leftEstimated = i == 0 ? estimatedNumRows(left) : currentEstimation;
       long rightEstimated = estimatedNumRows(right);
-      boolean rightHashing = false;
-      if (hashThreshold > 0 && joinType.isLeftDrivable()) {
-        if (rightEstimated == ROWNUM_NOT_EVALUATED) {
-          rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, getContext(), segmentWalker, config);
+
+      // try convert semi-join to filter
+      if (semiJoinThrehold > 0 && joinType == INNER && outputColumns != null) {
+        if (i == 0 && DataSources.isFilterSupport(left) && element.isLeftSemiJoinable(right, outputColumns)) {
+          if (rightEstimated == ROWNUM_NOT_EVALUATED) {
+            rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
+          }
+          if (rightEstimated > 0 && rightEstimated < semiJoinThrehold) {
+            ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(right, segmentSpec, context);
+            List<String> rightColumns = array.estimatedOutputColumns();
+            if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
+              int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
+              Supplier<List<Object[]>> fieldValues =
+                  () -> Sequences.toList(Sequences.map(
+                      array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
+              DataSource filtered = DataSources.applyFilterAndProjection(
+                  left, ValuesFilter.fieldNames(leftJoinColumns, fieldValues), outputColumns
+              );
+              LOG.info(
+                  "%s (R) is merged into %s (L) as a filter with expected number of values = %d",
+                  element.getRightAlias(), element.getLeftAlias(), rightEstimated
+              );
+              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
+              currentEstimation = leftEstimated;
+              continue;
+            }
+          }
         }
-        rightHashing = rightEstimated > 0 && rightEstimated < hashThreshold;
+        if (DataSources.isFilterSupport(right) && element.isRightSemiJoinable(left, outputColumns)) {
+          if (leftEstimated == ROWNUM_NOT_EVALUATED) {
+            leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, context, segmentWalker, config);
+          }
+          if (leftEstimated > 0 && leftEstimated < semiJoinThrehold) {
+            ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(left, segmentSpec, context);
+            List<String> leftColumns = array.estimatedOutputColumns();
+            if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
+              int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
+              Supplier<List<Object[]>> fieldValues =
+                  () -> Sequences.toList(Sequences.map(
+                      array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
+              DataSource filtered = DataSources.applyFilterAndProjection(
+                  right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
+              );
+              LOG.info(
+                  "%s (L) is merged into %s (R) as a filter with expected number of values = %d",
+                  element.getLeftAlias(), element.getRightAlias(), leftEstimated
+              );
+              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
+              currentEstimation = rightEstimated;
+              continue;
+            }
+          }
+        }
       }
-      long leftEstimated = estimatedNumRows(left);
+
+      // try hash-join
       boolean leftHashing = false;
-      if (hashThreshold > 0 && joinType.isRightDrivable() && i == 0 && !rightHashing) {
-        if (leftEstimated == ROWNUM_NOT_EVALUATED) {
-          leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, config);
+      boolean rightHashing = false;
+      if (hashThreshold > 0) {
+        if (joinType.isLeftDrivable()) {
+          if (rightEstimated == ROWNUM_NOT_EVALUATED) {
+            rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
+          }
+          rightHashing = rightEstimated > 0 && rightEstimated < hashThreshold;
         }
-        leftHashing = leftEstimated > 0 && leftEstimated < hashThreshold;
+        if (i == 0 && !rightHashing && joinType.isRightDrivable()) {
+          if (leftEstimated == ROWNUM_NOT_EVALUATED) {
+            leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, config);
+          }
+          leftHashing = leftEstimated > 0 && leftEstimated < hashThreshold;
+        }
       }
       if (i == 0) {
         LOG.info("%s (L) -----> %d rows, hashing? %s", element.getLeftAlias(), leftEstimated, leftHashing);
-        List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : element.getLeftJoinColumns();
-        Query query = JoinElement.toQuery(left, sortOn, segmentSpec, getContext());
+        List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : leftJoinColumns;
+        Query query = JoinElement.toQuery(left, sortOn, segmentSpec, context);
         if (leftHashing) {
           query = query.withOverriddenContext(HASHING, true);
         }
@@ -321,13 +389,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           query = query.withOverriddenContext(CARDINALITY, leftEstimated);
         }
         currentEstimation = leftEstimated;
-        estimation0 = leftEstimated;
-        estimation1 = rightEstimated;
         queries.add(query);
       }
       LOG.info("%s (R) -----> %d rows, hashing? %s", element.getRightAlias(), rightEstimated, rightHashing);
-      List<String> sortOn = (joinType != RO && leftHashing) || rightHashing ? null : element.getRightJoinColumns();
-      Query query = JoinElement.toQuery(right, sortOn, segmentSpec, getContext());
+      List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
+      Query query = JoinElement.toQuery(right, sortOn, segmentSpec, context);
       if (rightHashing) {
         query = query.withOverriddenContext(HASHING, true);
       }
@@ -337,21 +403,26 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       queries.add(query);
 
       if (rightEstimated > 0) {
-        currentEstimation = resultEstimation(element.getJoinType(), currentEstimation, rightEstimated);
+        currentEstimation = resultEstimation(joinType, currentEstimation, rightEstimated);
+      }
+
+      // try bloom filter
+      if (i == 0) {
+        final Query query0 = queries.get(0);
+        final Query query1 = queries.get(1);
+        if (joinType.isLeftDrivable() && query0.hasFilters() && rightEstimated > bloomFilterThreshold) {
+          // left to right
+          queries.set(1, bloom(query0, leftJoinColumns, leftEstimated, query1, rightJoinColumns));
+        }
+        if (joinType.isRightDrivable() && query1.hasFilters() && leftEstimated > bloomFilterThreshold) {
+          // right to left
+          queries.set(0, bloom(query1, rightJoinColumns, rightEstimated, query0, leftJoinColumns));
+        }
       }
     }
-
-    final Query query0 = queries.get(0);
-    final Query query1 = queries.get(1);
-    final JoinElement element = elements.get(0);
-    final JoinType type = element.getJoinType();
-    if (type.isLeftDrivable() && query0.hasFilters() && estimation1 > bloomFilterThreshold) {
-      // left to right
-      queries.set(1, bloom(query0, element.getLeftJoinColumns(), estimation0, query1, element.getRightJoinColumns()));
-    }
-    if (type.isRightDrivable() && query1.hasFilters() && estimation0 > bloomFilterThreshold) {
-      // right to left
-      queries.set(0, bloom(query1, element.getRightJoinColumns(), estimation1, query0, element.getLeftJoinColumns()));
+    // todo: properly handle filter converted semijoin
+    if (queries.size() == 1) {
+      return queries.get(0);
     }
 
     List<String> prefixAliases;
@@ -365,9 +436,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     // no parallelism.. executed parallel in join post processor
-    Map<String, Object> context = BaseQuery.copyContextForMeta(this);
     JoinDelegate query = new JoinDelegate(
-        queries, prefixAliases, timeColumn, outputColumns, currentEstimation, limit, context
+        queries, prefixAliases, timeColumn, outputColumns, currentEstimation, limit, BaseQuery.copyContextForMeta(this)
     );
     if (schema != null) {
       query = query.withSchema(Suppliers.ofInstance(schema));
@@ -479,6 +549,48 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         outputColumns,
         getContext()
     ).withSchema(schema);
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    JoinQuery that = (JoinQuery) o;
+
+    if (!Objects.equals(dataSources, that.dataSources)) {
+      return false;
+    }
+    if (!Objects.equals(elements, that.elements)) {
+      return false;
+    }
+    if (prefixAlias != that.prefixAlias) {
+      return false;
+    }
+    if (asArray != that.asArray) {
+      return false;
+    }
+    if (maxOutputRow != that.maxOutputRow) {
+      return false;
+    }
+    if (limit != that.limit) {
+      return false;
+    }
+    if (!Objects.equals(timeColumnName, that.timeColumnName)) {
+      return false;
+    }
+    if (!Objects.equals(outputColumns, that.outputColumns)) {
+      return false;
+    }
+    return true;
   }
 
   @Override

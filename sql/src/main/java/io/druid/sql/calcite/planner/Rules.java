@@ -28,7 +28,6 @@ import io.druid.sql.calcite.rule.DruidJoinProjectRule;
 import io.druid.sql.calcite.rule.DruidJoinRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
-import io.druid.sql.calcite.rule.DruidSemiJoinRule;
 import io.druid.sql.calcite.rule.DruidTableScanRule;
 import io.druid.sql.calcite.rule.DruidValuesRule;
 import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
@@ -334,9 +333,6 @@ public class Rules
     rules.add(DruidRelToDruidRule.instance());
 
     final PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
-    if (plannerConfig.getMaxSemiJoinRowsInMemory() > 0) {
-      rules.add(DruidSemiJoinRule.instance());
-    }
     if (plannerConfig.isJoinEnabled()) {
       rules.add(DruidJoinRule.instance());
 //      rules.add(DruidJoinProjectRule.instance());

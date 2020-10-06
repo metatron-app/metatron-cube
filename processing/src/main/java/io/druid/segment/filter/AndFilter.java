@@ -65,17 +65,20 @@ public class AndFilter implements Filter, Expression.AndExpression
     if (filters.size() == 0) {
       return BooleanValueMatcher.FALSE;
     }
-    ValueMatcher[] matchers = new ValueMatcher[filters.size()];
-    for (int i = 0; i < filters.size(); i++) {
-      matchers[i] = filters.get(i).makeMatcher(columnSelectorFactory);
+    final List<ValueMatcher> matchers = Lists.newArrayList();
+    for (Filter filter : filters) {
+      matchers.add(filter.makeMatcher(columnSelectorFactory));
     }
     return makeMatcher(matchers);
   }
 
-  private ValueMatcher makeMatcher(final ValueMatcher[] baseMatchers)
+  public static ValueMatcher makeMatcher(final List<ValueMatcher> baseMatchers)
   {
-    if (baseMatchers.length == 1) {
-      return baseMatchers[0];
+    if (baseMatchers.size() == 0) {
+      return ValueMatcher.TRUE;
+    }
+    if (baseMatchers.size() == 1) {
+      return baseMatchers.get(0);
     }
 
     return new ValueMatcher()

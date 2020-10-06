@@ -36,6 +36,8 @@ import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRule;
+import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelNode;
@@ -43,10 +45,23 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.function.Predicate;
 
 public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode implements BindableRel
 {
   static final Logger LOG = new Logger(DruidRel.class);
+
+  public static <T extends DruidRel> RelOptRuleOperand of(Class<T> relClass, Predicate<DruidRel> predicate)
+  {
+    return RelOptRule.operandJ(relClass, null, predicate, RelOptRule.any());
+  }
+
+  public static <T extends DruidRel> RelOptRuleOperand of(
+      Class<T> relClass, Predicate<DruidRel> predicate, RelOptRuleOperand first, RelOptRuleOperand... rest
+  )
+  {
+    return RelOptRule.operandJ(relClass, null, predicate, first, rest);
+  }
 
   static final double COST_BASE = 1.0;
 

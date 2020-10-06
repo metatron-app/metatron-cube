@@ -71,6 +71,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     Query.OrderingSupport<Object[]>,
     Query.RewritingQuery<Object[]>,
     Query.RowOutputSupport<Object[]>,
+    Query.LastProjectionSupport<Object[]>,
     Query.ArrayOutput
 {
   private final DimFilter filter;
@@ -161,6 +162,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     return limitSpec;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<String> getOutputColumns()
@@ -247,6 +249,12 @@ public class StreamQuery extends BaseQuery<Object[]>
       resolved = resolved.withLimitSpec(limitSpec.withResolver(resolver));
     }
     return resolved;
+  }
+
+  @JsonIgnore
+  public boolean isView()
+  {
+    return outputColumns == null && limitSpec.isNoop() && orderingSpecs.isEmpty();
   }
 
   @JsonIgnore
@@ -443,6 +451,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     );
   }
 
+  @Override
   public StreamQuery withOutputColumns(List<String> outputColumns)
   {
     return new StreamQuery(
@@ -602,7 +611,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     }
 
     builder.append(
-        toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING)
+        toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING)
     );
 
     return builder.append('}').toString();

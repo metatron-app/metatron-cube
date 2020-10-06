@@ -67,19 +67,7 @@ public class DruidRules
 
   static RelOptRuleOperand ofDruidRel(Predicate<DruidRel> predicate)
   {
-    return ofDruidRel(DruidRel.class, predicate);
-  }
-
-  static <T extends DruidRel> RelOptRuleOperand ofDruidRel(Class<T> relClass, Predicate<DruidRel> predicate)
-  {
-    return RelOptRule.operandJ(relClass, null, predicate, RelOptRule.any());
-  }
-
-  static <T extends DruidRel> RelOptRuleOperand ofDruidRel(
-      Class<T> relClass, Predicate<DruidRel> predicate, RelOptRuleOperand first, RelOptRuleOperand... rest
-  )
-  {
-    return RelOptRule.operandJ(relClass, null, predicate, first, rest);
+    return DruidRel.of(DruidRel.class, predicate);
   }
 
   private DruidRules()

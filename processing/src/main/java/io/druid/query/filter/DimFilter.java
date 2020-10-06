@@ -369,6 +369,11 @@ public interface DimFilter extends Expression, Cacheable
     Filter.ValueOnly toFilter(TypeResolver resolver);
   }
 
+  // marker.. returns not-exact bitmap
+  interface NotExact extends DimFilter
+  {
+  }
+
   interface LogProvider extends DimFilter
   {
     DimFilter forLog();

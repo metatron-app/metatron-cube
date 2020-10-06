@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.query.Druids;
@@ -116,6 +115,11 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
     );
   }
 
+  public ImmutableIntList getOutputColumns()
+  {
+    return outputColumns;
+  }
+
   @Override
   public DruidJoinRel withPartialQuery(PartialDruidQuery newQueryBuilder)
   {
@@ -143,7 +147,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
     if (outputColumns != null) {
       List<String> extracted = Lists.newArrayList();
       for (int i = 0; i < outputColumns.size(); i++) {
-        extracted.add(outputNames.get(outputColumns.get(i)));
+        extracted.add(Preconditions.checkNotNull(outputNames.get(outputColumns.get(i))));
       }
       outputNames = extracted;
     }

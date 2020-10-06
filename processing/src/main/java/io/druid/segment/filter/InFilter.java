@@ -45,17 +45,17 @@ import io.druid.segment.data.IndexedID;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
-import java.util.Set;
+import java.util.Collection;
 
 /**
  */
 public class InFilter implements Filter
 {
   private final String dimension;
-  private final Set<String> values;
+  private final Collection<String> values;
   private final ExtractionFn extractionFn;
 
-  public InFilter(String dimension, Set<String> values, ExtractionFn extractionFn)
+  public InFilter(String dimension, Collection<String> values, ExtractionFn extractionFn)
   {
     this.dimension = dimension;
     this.values = values;
@@ -162,7 +162,7 @@ public class InFilter implements Filter
   @SuppressWarnings("unchecked")
   private Predicate toPredicate(final boolean containsNull, final ValueDesc valueType)
   {
-    final Set container;
+    final Collection container;
     if (extractionFn == null && valueType != null && valueType.isPrimitiveNumeric()) {
       Preconditions.checkArgument(!containsNull, "cannot use null value for numeric type");
       container = Sets.newHashSet();

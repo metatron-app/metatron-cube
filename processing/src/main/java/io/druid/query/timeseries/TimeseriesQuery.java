@@ -30,6 +30,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
+import io.druid.query.JoinQuery;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -421,7 +422,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
            (havingSpec == null ? "" : ", havingSpec=" + havingSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
            (lateralView == null ? "" : "lateralView=" + lateralView) +
-           (GuavaUtils.isNullOrEmpty(getContext()) ? "" : ", context=" + getContext()) +
+           toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING) +
            '}';
   }
 }

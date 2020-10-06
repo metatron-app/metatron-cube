@@ -71,6 +71,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     Query.ArrayOutputSupport<Row>,
     Query.OrderingSupport<Row>,
     Query.LateralViewSupport<Row>,
+    Query.LastProjectionSupport<Row>,
     Query.RowOutput
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
@@ -166,6 +167,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     return limitSpec;
   }
 
+  @Override
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
   public List<String> getOutputColumns()
@@ -191,8 +193,10 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
   public abstract BaseAggregationQuery withHavingSpec(HavingSpec havingSpec);
 
+  @Override
   public abstract BaseAggregationQuery withOutputColumns(List<String> outputColumns);
 
+  @Override
   public abstract BaseAggregationQuery withLateralView(LateralViewSpec lateralView);
 
   @Override

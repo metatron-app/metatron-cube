@@ -222,6 +222,13 @@ public interface Query<T> extends QueryContextKeys
     Sequence<Object[]> array(Sequence<T> sequence);
   }
 
+  interface LastProjectionSupport<T> extends Query<T>
+  {
+    List<String> getOutputColumns();
+
+    LastProjectionSupport<T> withOutputColumns(List<String> outputColumns);
+  }
+
   interface ArrayOutput extends ArrayOutputSupport<Object[]>
   {
     default Sequence<Object[]> array(Sequence<Object[]> sequence)

@@ -56,6 +56,11 @@ public class ViewDataSource implements DataSource
     return new ViewDataSource(dataSource, columns, null, filer, false);
   }
 
+  public static ViewDataSource of(String dataSource, List<VirtualColumn> vcs, DimFilter filer, List<String> columns)
+  {
+    return new ViewDataSource(dataSource, columns, vcs, filer, false);
+  }
+
   @JsonProperty
   private final String name;
 
@@ -132,6 +137,11 @@ public class ViewDataSource implements DataSource
   }
 
   public ViewDataSource withFilter(DimFilter filter)
+  {
+    return new ViewDataSource(name, columns, virtualColumns, filter, lowerCasedOutput);
+  }
+
+  public ViewDataSource withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new ViewDataSource(name, columns, virtualColumns, filter, lowerCasedOutput);
   }

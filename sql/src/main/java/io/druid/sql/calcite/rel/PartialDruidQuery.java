@@ -185,6 +185,11 @@ public class PartialDruidQuery
     return sortProject;
   }
 
+  public boolean isEmpty()
+  {
+    return scanFilter == null && scanProject == null && stage() == Stage.SELECT;
+  }
+
   public boolean isProjectOnly()
   {
     return scanFilter == null && stage() == Stage.SELECT;
@@ -331,12 +336,12 @@ public class PartialDruidQuery
     return (Project) relBuilder.build();
   }
 
-  public PartialDruidQuery withoutScanProject(RelNode source)
+  public PartialDruidQuery withScanProject(RelNode source, Project scanProject)
   {
     return new PartialDruidQuery(
         source,
         null,
-        null,
+        scanProject,
         aggregate,
         aggregateFilter,
         aggregateProject,

@@ -27,7 +27,7 @@ import io.druid.sql.calcite.rel.PartialDruidQuery;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.core.Project;
-import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.ImmutableIntList;
 
@@ -39,11 +39,15 @@ public class DruidJoinProjectRule extends RelOptRule
   private static final Predicate<DruidRel> HAS_PROJECTION = druidRel ->
       druidRel.getPartialDruidQuery().getScanProject() != null;
 
+  // todo: can merge projects
+  private static final Predicate<DruidRel> HAS_NO_PROJECTION = druidRel ->
+      ((DruidJoinRel) druidRel).getOutputColumns() == null;
+
   public static final DruidJoinProjectRule INSTANCE = new DruidJoinProjectRule();
 
   private DruidJoinProjectRule()
   {
-    super(DruidRules.ofDruidRel(DruidOuterQueryRel.class, HAS_PROJECTION, operand(DruidJoinRel.class, any())));
+    super(DruidRel.of(DruidOuterQueryRel.class, HAS_PROJECTION, DruidRel.of(DruidJoinRel.class, HAS_NO_PROJECTION)));
   }
 
   @Override
@@ -57,17 +61,17 @@ public class DruidJoinProjectRule extends RelOptRule
     }
     final Project project = druidQuery.getScanProject();
     final List<RexNode> childExps = project.getChildExps();
+    final int[] indices = Utils.collectInputRefs(childExps);
+
+    DruidRel newJoin = join.withOutputColumns(ImmutableIntList.of(indices));
+
     if (!Utils.isAllInputRef(childExps)) {
-      return;
+      List<RexNode> rewritten = Utils.rewrite(join.getCluster().getRexBuilder(), childExps, indices);
+      Project newProject = LogicalProject.create(newJoin, rewritten, project.getRowType());
+      newJoin = DruidOuterQueryRel.create(newJoin, druidQuery.withScanProject(newJoin, newProject));
+    } else if (!druidQuery.isProjectOnly()) {
+      newJoin = DruidOuterQueryRel.create(newJoin, druidQuery.withScanProject(newJoin, null));
     }
-    final int[] outputColumns = new int[childExps.size()];
-    for (int i = 0; i < outputColumns.length; i++) {
-      outputColumns[i] = ((RexInputRef) childExps.get(i)).getIndex();
-    }
-    DruidRel converted = join.withOutputColumns(ImmutableIntList.of(outputColumns));
-    if (!druidQuery.isProjectOnly()) {
-      converted = DruidOuterQueryRel.create(converted, druidQuery.withoutScanProject(converted));
-    }
-    call.transformTo(converted);
+    call.transformTo(newJoin);
   }
 }

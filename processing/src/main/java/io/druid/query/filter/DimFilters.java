@@ -41,6 +41,7 @@ import io.druid.math.expr.Expressions;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.ViewDataSource;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
@@ -228,6 +229,27 @@ public class DimFilters
     return query;
   }
 
+  public static ViewDataSource inflate(ViewDataSource view)
+  {
+    final DimFilter filter = view.getFilter();
+    if (filter != null) {
+      List<VirtualColumn> inflated = Lists.newArrayList();
+      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, expression -> {
+        if (expression instanceof DimFilter.VCInflator) {
+          VirtualColumn vc = ((DimFilter.VCInflator) expression).inflate();
+          if (vc != null) {
+            inflated.add(vc);
+          }
+        }
+        return expression;
+      });
+      if (!inflated.isEmpty()) {
+        view = view.withVirtualColumns(GuavaUtils.concat(view.getVirtualColumns(), inflated));
+      }
+    }
+    return view;
+  }
+
   // called for non-historical nodes (see QueryResource.prepareQuery)
   public static Query rewrite(Query query, Expressions.Rewriter<DimFilter> visitor)
   {
@@ -239,6 +261,18 @@ public class DimFilters
       }
     }
     return query;
+  }
+
+  public static ViewDataSource rewrite(ViewDataSource view, Expressions.Rewriter<DimFilter> visitor)
+  {
+    final DimFilter filter = view.getFilter();
+    if (filter != null) {
+      DimFilter rewritten = Expressions.rewrite(filter, FACTORY, visitor);
+      if (filter != rewritten) {
+        view = view.withFilter(rewritten);
+      }
+    }
+    return view;
   }
 
   public static final Expressions.Rewriter<DimFilter> LOG_PROVIDER = new Expressions.Rewriter<DimFilter>()

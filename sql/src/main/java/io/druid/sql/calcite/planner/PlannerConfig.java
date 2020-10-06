@@ -39,9 +39,6 @@ public class PlannerConfig
   public static final String CTX_KEY_DUMP_PLAN = "dumpPlan";
 
   @JsonProperty
-  private int maxSemiJoinRowsInMemory = 100000;
-
-  @JsonProperty
   private int maxTopNLimit = 100000;
 
   @JsonProperty
@@ -82,11 +79,6 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean dumpPlan = false;
-
-  public int getMaxSemiJoinRowsInMemory()
-  {
-    return maxSemiJoinRowsInMemory;
-  }
 
   public int getMaxTopNLimit()
   {
@@ -165,7 +157,6 @@ public class PlannerConfig
     }
 
     final PlannerConfig newConfig = new PlannerConfig();
-    newConfig.maxSemiJoinRowsInMemory = getMaxSemiJoinRowsInMemory();
     newConfig.maxTopNLimit = getMaxTopNLimit();
     newConfig.maxQueryCount = getMaxQueryCount();
     newConfig.selectThreshold = getSelectThreshold();
@@ -243,8 +234,7 @@ public class PlannerConfig
       return false;
     }
     final PlannerConfig that = (PlannerConfig) o;
-    return maxSemiJoinRowsInMemory == that.maxSemiJoinRowsInMemory &&
-           maxTopNLimit == that.maxTopNLimit &&
+    return maxTopNLimit == that.maxTopNLimit &&
            maxQueryCount == that.maxQueryCount &&
            selectThreshold == that.selectThreshold &&
            useApproximateCountDistinct == that.useApproximateCountDistinct &&
@@ -265,7 +255,6 @@ public class PlannerConfig
   {
 
     return Objects.hash(
-        maxSemiJoinRowsInMemory,
         maxTopNLimit,
         maxQueryCount,
         selectThreshold,
@@ -287,8 +276,7 @@ public class PlannerConfig
   public String toString()
   {
     return "PlannerConfig{" +
-           "maxSemiJoinRowsInMemory=" + maxSemiJoinRowsInMemory +
-           ", maxTopNLimit=" + maxTopNLimit +
+           "maxTopNLimit=" + maxTopNLimit +
            ", maxQueryCount=" + maxQueryCount +
            ", selectThreshold=" + selectThreshold +
            ", useApproximateCountDistinct=" + useApproximateCountDistinct +

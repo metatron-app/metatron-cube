@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
@@ -37,6 +38,7 @@ import java.util.Set;
 
 /**
  */
+@JsonTypeName("math")
 public class MathExprFilter implements DimFilter
 {
   private final String expression;

@@ -33,6 +33,9 @@ public class JoinQueryConfig
   @JsonProperty
   private int hashJoinThreshold = 300_000;
 
+  @JsonProperty
+  private int semiJoinThreshold = 1_000;
+
   @Min(0)
   @JsonProperty
   private int bloomFilterThreshold = 500_000;
@@ -60,6 +63,16 @@ public class JoinQueryConfig
   public void setHashJoinThreshold(int hashJoinThreshold)
   {
     this.hashJoinThreshold = hashJoinThreshold;
+  }
+
+  public int getSemiJoinThreshold()
+  {
+    return semiJoinThreshold;
+  }
+
+  public void setSemiJoinThreshold(int semiJoinThreshold)
+  {
+    this.semiJoinThreshold = semiJoinThreshold;
   }
 
   public int getBloomFilterThreshold()

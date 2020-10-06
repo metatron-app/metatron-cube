@@ -116,6 +116,12 @@ public class IntList implements Iterable<Integer>, IntConsumer
     return baseArray[index];
   }
 
+  public int indexOf(int value)
+  {
+    final int index = Ints.indexOf(baseArray, value);
+    return index >= size ? -1 : index;
+  }
+
   public int compact(int current)
   {
     final int remanining = size - current;

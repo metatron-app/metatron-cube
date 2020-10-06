@@ -24,8 +24,8 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Accumulator;
@@ -39,7 +39,6 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.TopNSorter;
 import io.druid.query.ordering.Accessor;
-import io.druid.common.guava.Comparators;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -62,7 +61,7 @@ public class FrequencyQueryToolChest extends QueryToolChest<Object[], FrequencyQ
   }
 
   private static final Comparator<Object[]> COUNT_DESC_ORDERING = (o1, o2) -> {
-    return -Ints.compare(((Number) o1[0]).intValue(), ((Number) o2[0]).intValue());
+    return -Integer.compare(((Number) o1[0]).intValue(), ((Number) o2[0]).intValue());
   };
 
   private static final Comparator<Object[]> DEFAULT_ORDERING = (o1, o2) -> {

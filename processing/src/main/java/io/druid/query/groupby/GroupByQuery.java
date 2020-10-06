@@ -46,6 +46,7 @@ import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
+import io.druid.query.JoinQuery;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
@@ -838,7 +839,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
            (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
            (lateralView == null ? "" : "lateralView=" + lateralView) +
-           (GuavaUtils.isNullOrEmpty(getContext()) ? "" : ", context=" + getContext()) +
+           toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING) +
            '}';
   }
 
@@ -1020,13 +1021,13 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
                     new MapBasedRow(0, ImmutableMap.<String, Object>of("cardinality", sum.intValue()))
                 );
               }
-
-              @Override
-              public String toString()
-              {
-                return "cardinality";
-              }
             };
+          }
+
+          @Override
+          public String toString()
+          {
+            return "cardinality_estimator";
           }
         })
         .build();

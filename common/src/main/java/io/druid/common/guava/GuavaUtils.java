@@ -20,6 +20,7 @@
 package io.druid.common.guava;
 
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
@@ -479,6 +480,16 @@ public class GuavaUtils
     return false;
   }
 
+  public static boolean containsAll(Collection collection, Collection finding)
+  {
+    for (Object x : finding) {
+      if (!collection.contains(x)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   public static List<String> retain(List<String> list, List<String> retain)
   {
     if (isNullOrEmpty(retain)) {
@@ -518,6 +529,25 @@ public class GuavaUtils
   public static <F, T> List<T> transform(List<F> fromList, Function<? super F, ? extends T> function)
   {
     return Lists.newArrayList(Iterables.transform(fromList, function));
+  }
+
+  public static Function<Object[], Object[]> mapper(final int[] indices)
+  {
+    if (Arrays.equals(indices, intsFromTo(indices.length))) {
+      return Functions.identity();
+    }
+    return new Function<Object[], Object[]>()
+    {
+      @Override
+      public Object[] apply(final Object[] input)
+      {
+        final Object[] output = new Object[indices.length];
+        for (int i = 0; i < indices.length; i++) {
+          output[i] = input[indices[i]];
+        }
+        return output;
+      }
+    };
   }
 
   public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {
