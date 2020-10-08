@@ -88,7 +88,7 @@ public class  QueryLifecycle
   private final Query<?> query;
   private final QueryManager queryManager;
   private final QueryToolChest toolChest;
-  private final QuerySegmentWalker texasRanger;
+  private final QuerySegmentWalker segmentWalker;
   private final GenericQueryMetricsFactory metricsFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
@@ -103,7 +103,7 @@ public class  QueryLifecycle
       final Query<?> query,
       final QueryManager queryManager,
       final QueryToolChestWarehouse warehouse,
-      final QuerySegmentWalker texasRanger,
+      final QuerySegmentWalker segmentWalker,
       final GenericQueryMetricsFactory metricsFactory,
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
@@ -116,7 +116,7 @@ public class  QueryLifecycle
     this.query = query;
     this.queryManager = queryManager;
     this.toolChest = warehouse.getToolChest(query);
-    this.texasRanger = texasRanger;
+    this.segmentWalker = segmentWalker;
     this.metricsFactory = metricsFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
@@ -213,7 +213,7 @@ public class  QueryLifecycle
   public Sequence execute(Query<?> prepared, Map<String, Object> responseContext)
   {
     transition(State.AUTHORIZED, State.EXECUTING);
-    return prepared.run(texasRanger, responseContext);
+    return prepared.run(segmentWalker, responseContext);
   }
 
   /**

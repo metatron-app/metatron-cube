@@ -140,7 +140,7 @@ public class EmbeddedBroker extends ServerRunnable
   {
     private final ServerConfig config;
     private final QueryToolChestWarehouse warehouse;
-    private final QuerySegmentWalker texasRanger;
+    private final QuerySegmentWalker segmentWalker;
     private final QueryManager queryManager;
 
     private final Lifecycle lifecycle;
@@ -149,14 +149,14 @@ public class EmbeddedBroker extends ServerRunnable
     public EmbeddedResource(
         ServerConfig config,
         QueryToolChestWarehouse warehouse,
-        QuerySegmentWalker texasRanger,
+        QuerySegmentWalker segmentWalker,
         QueryManager queryManager,
         Lifecycle lifecycle
     )
     {
       this.config = config;
       this.warehouse = warehouse;
-      this.texasRanger = texasRanger;
+      this.segmentWalker = segmentWalker;
       this.queryManager = queryManager;
       this.lifecycle = lifecycle;
       queryManager.start(CHECK_INTERVAL);
@@ -168,7 +168,7 @@ public class EmbeddedBroker extends ServerRunnable
         query = query.withId(UUID.randomUUID().toString());
       }
       query = BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout());
-      return query.run(texasRanger, context);
+      return query.run(segmentWalker, context);
     }
 
     public boolean cancelQuery(String queryId)

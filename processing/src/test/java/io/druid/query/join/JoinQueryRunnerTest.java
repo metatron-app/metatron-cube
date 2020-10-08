@@ -21,9 +21,7 @@ package io.druid.query.join;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
-import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -42,6 +40,7 @@ import io.druid.query.JoinQuery;
 import io.druid.query.ModuleBuiltinFunctions;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
+import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.SelectToRow;
 import io.druid.query.TableDataSource;
 import io.druid.query.TopNToRow;
@@ -60,6 +59,7 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -73,9 +73,10 @@ import java.util.List;
 /**
  */
 @RunWith(Parameterized.class)
-public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
+public class JoinQueryRunnerTest extends QueryRunnerTestHelper
 {
   static final String JOIN_DS = "join_test";
+  static final TestQuerySegmentWalker SEGMENT_WALKER = TestIndex.segmentWalker.duplicate();
 
   static {
     Parser.register(ModuleBuiltinFunctions.class);
@@ -112,7 +113,8 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         , "utf8"
     );
     CharSource source = TestIndex.asCharSource("druid.sample.join.tsv");
-    TestIndex.segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
+    SEGMENT_WALKER.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
+    SEGMENT_WALKER.getQueryConfig().getJoin().setHashJoinThreshold(-1);
   }
 
   @Parameterized.Parameters(name = "{0}")
@@ -128,6 +130,12 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
     this.dataSource = dataSource;
   }
 
+  @Override
+  protected TestQuerySegmentWalker getSegmentWalker()
+  {
+    return SEGMENT_WALKER;
+  }
+
   @Test
   public void testJoin()
   {
@@ -141,7 +149,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .build();
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};
-    List<Row> expectedRows = createExpectedRows(
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 135.88510131835938, "april_spot", 41111L),
         array("2011-04-01", "spot", 118.57034301757812, "april_spot", 41111L),
@@ -152,10 +160,6 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-01", "spot", 144.5073699951172, "april_spot", 41111L),
         array("2011-04-01", "spot", 78.62254333496094, "april_spot", 41111L),
         array("2011-04-01", "spot", 119.92274475097656, "april_spot", 41111L),
-        array("2011-04-01", "total_market", 1314.8397216796875, "april_total_market", 41112L),
-        array("2011-04-01", "total_market", 1522.043701171875, "april_total_market", 41112L),
-        array("2011-04-01", "upfront", 1447.3411865234375, "april_upfront", 41113L),
-        array("2011-04-01", "upfront", 1234.24755859375, "april_upfront", 41113L),
         array("2011-04-01", "spot", 147.42593383789062, "april_spot", 41111L),
         array("2011-04-01", "spot", 112.98703002929688, "april_spot", 41111L),
         array("2011-04-01", "spot", 166.01605224609375, "april_spot", 41111L),
@@ -165,8 +169,12 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-01", "spot", 135.30149841308594, "april_spot", 41111L),
         array("2011-04-01", "spot", 97.38743591308594, "april_spot", 41111L),
         array("2011-04-01", "spot", 126.41136169433594, "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1314.8397216796875, "april_total_market", 41112L),
+        array("2011-04-01", "total_market", 1522.043701171875, "april_total_market", 41112L),
         array("2011-04-01", "total_market", 1193.5562744140625, "april_total_market", 41112L),
         array("2011-04-01", "total_market", 1321.375, "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 1447.3411865234375, "april_upfront", 41113L),
+        array("2011-04-01", "upfront", 1234.24755859375, "april_upfront", 41113L),
         array("2011-04-01", "upfront", 1144.3424072265625, "april_upfront", 41113L),
         array("2011-04-01", "upfront", 1049.738525390625, "april_upfront", 41113L)
     );
@@ -175,7 +183,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 
     // with outoutColumns
-    expectedRows = createExpectedRows(
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"market", "index", "value"},
         array("spot", 135.88510131835938, 41111L),
         array("spot", 118.57034301757812, 41111L),
@@ -186,10 +194,6 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("spot", 144.5073699951172, 41111L),
         array("spot", 78.62254333496094, 41111L),
         array("spot", 119.92274475097656, 41111L),
-        array("total_market", 1314.8397216796875, 41112L),
-        array("total_market", 1522.043701171875, 41112L),
-        array("upfront", 1447.3411865234375, 41113L),
-        array("upfront", 1234.24755859375, 41113L),
         array("spot", 147.42593383789062, 41111L),
         array("spot", 112.98703002929688, 41111L),
         array("spot", 166.01605224609375, 41111L),
@@ -199,8 +203,12 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("spot", 135.30149841308594, 41111L),
         array("spot", 97.38743591308594, 41111L),
         array("spot", 126.41136169433594, 41111L),
+        array("total_market", 1314.8397216796875, 41112L),
+        array("total_market", 1522.043701171875, 41112L),
         array("total_market", 1193.5562744140625, 41112L),
         array("total_market", 1321.375, 41112L),
+        array("upfront", 1447.3411865234375, 41113L),
+        array("upfront", 1234.24755859375, 41113L),
         array("upfront", 1144.3424072265625, 41113L),
         array("upfront", 1049.738525390625, 41113L)
     );
@@ -217,7 +225,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         dataSource + ".market", dataSource + ".__time", dataSource + ".index",
         JOIN_DS + ".market", JOIN_DS + ".market_month", JOIN_DS + ".value"
     };
-    expectedRows = createExpectedRows(
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 1301616000000L, 135.88510131835938, "spot", "april_spot", 41111L),
         array("2011-04-01", "spot", 1301616000000L, 118.57034301757812, "spot", "april_spot", 41111L),
@@ -228,10 +236,6 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-01", "spot", 1301616000000L, 144.5073699951172, "spot", "april_spot", 41111L),
         array("2011-04-01", "spot", 1301616000000L, 78.62254333496094, "spot", "april_spot", 41111L),
         array("2011-04-01", "spot", 1301616000000L, 119.92274475097656, "spot", "april_spot", 41111L),
-        array("2011-04-01", "total_market", 1301616000000L, 1314.8397216796875, "total_market", "april_total_market", 41112L),
-        array("2011-04-01", "total_market", 1301616000000L, 1522.043701171875, "total_market", "april_total_market", 41112L),
-        array("2011-04-01", "upfront", 1301616000000L, 1447.3411865234375, "upfront", "april_upfront", 41113L),
-        array("2011-04-01", "upfront", 1301616000000L, 1234.24755859375, "upfront", "april_upfront", 41113L),
         array("2011-04-02", "spot", 1301702400000L, 147.42593383789062, "spot", "april_spot", 41111L),
         array("2011-04-02", "spot", 1301702400000L, 112.98703002929688, "spot", "april_spot", 41111L),
         array("2011-04-02", "spot", 1301702400000L, 166.01605224609375, "spot", "april_spot", 41111L),
@@ -241,8 +245,12 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         array("2011-04-02", "spot", 1301702400000L, 135.30149841308594, "spot", "april_spot", 41111L),
         array("2011-04-02", "spot", 1301702400000L, 97.38743591308594, "spot", "april_spot", 41111L),
         array("2011-04-02", "spot", 1301702400000L, 126.41136169433594, "spot", "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1301616000000L, 1314.8397216796875, "total_market", "april_total_market", 41112L),
+        array("2011-04-01", "total_market", 1301616000000L, 1522.043701171875, "total_market", "april_total_market", 41112L),
         array("2011-04-02", "total_market", 1301702400000L, 1193.5562744140625, "total_market", "april_total_market", 41112L),
         array("2011-04-02", "total_market", 1301702400000L, 1321.375, "total_market", "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 1301616000000L, 1447.3411865234375, "upfront", "april_upfront", 41113L),
+        array("2011-04-01", "upfront", 1301616000000L, 1234.24755859375, "upfront", "april_upfront", 41113L),
         array("2011-04-02", "upfront", 1301702400000L, 1144.3424072265625, "upfront", "april_upfront", 41113L),
         array("2011-04-02", "upfront", 1301702400000L, 1049.738525390625, "upfront", "april_upfront", 41113L)
     );
@@ -272,7 +280,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .build();
 
     String[] columns = new String[]{"__time", "market", "COUNT", "SUM", "market_month", "value"};
-    List<Row> expectedRows = createExpectedRows(
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 9L, 1256.012825012207, "april_spot", 41111L),
         array("2011-04-01", "total_market", 1L, 1193.5562744140625, "april_total_market", 41112L),
@@ -301,7 +309,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .build();
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
-    List<Row> expectedRows = createExpectedRows(
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 158.74722290039062, 158.74722, 168.74722290039062),
         array("2011-04-01", "spot", 158.74722290039062, 158.74722, 176.01605224609375),
@@ -356,7 +364,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .build();
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
-    List<Row> expectedRows = createExpectedRows(
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 158.74722290039062, 158.74722, 168.74722290039062),
         array("2011-04-01", "spot", 158.74722290039062, 158.74722, 176.01605224609375),
@@ -400,7 +408,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     // select on join
     SelectQuery selectQuery = new SelectQuery(
-        new QueryDataSource(joinQuery), firstToThird, false, BoundDimFilter.between(dataSource + ".index", 120, 1200),
+        QueryDataSource.of(joinQuery), firstToThird, false, BoundDimFilter.between(dataSource + ".index", 120, 1200),
         Granularities.ALL, null, null, null, null, null, null, null,
         ImmutableMap.<String, Object>of(Query.POST_PROCESSING, new SelectToRow())
     );
@@ -411,7 +419,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         dataSource + ".market", dataSource + ".__time", dataSource + ".index",
         JOIN_DS + ".market", JOIN_DS + ".market_month", JOIN_DS + ".value"
     };
-    List<Row> expectedRows = createExpectedRows(
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 1301616000000L, 135.88510131835938, "spot", "april_spot", 41111L),
         array("2011-04-01", "spot", 1301616000000L, 158.74722290039062, "spot", "april_spot", 41111L),
@@ -431,7 +439,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
     selectQuery = selectQuery.withDimensionSpecs(DefaultDimensionSpec.toSpec(dataSource + ".market", "not-existing"));
     rows = runQuery(selectQuery);
     columns = new String[]{"__time", dataSource + ".market", "not-existing"};
-    expectedRows = createExpectedRows(
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", null),
         array("2011-04-01", "spot", null),
@@ -450,7 +458,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
 
     // group-by on join
     GroupByQuery groupByQuery = new GroupByQuery(
-        new QueryDataSource(joinQuery), firstToThird, BoundDimFilter.between(dataSource + ".index", 120, 1200),
+        QueryDataSource.of(joinQuery), firstToThird, BoundDimFilter.between(dataSource + ".index", 120, 1200),
         Granularities.ALL, DefaultDimensionSpec.toSpec(dataSource + ".market"), null, null,
         Arrays.<AggregatorFactory>asList(
             new CountAggregatorFactory("COUNT"),
@@ -461,7 +469,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
     rows = runQuery(groupByQuery);
 
     columns = new String[]{"__time", dataSource + ".market", "COUNT", "SUM"};
-    expectedRows = createExpectedRows(
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "spot", 9L, 1256.012825012207),
         array("2011-04-01", "total_market", 1L, 1193.5562744140625),
@@ -476,7 +484,7 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
         .withOverriddenContext(ImmutableMap.<String, Object>of(Query.POST_PROCESSING, new TopNToRow()));
     rows = runQuery(topNQuery);
 
-    expectedRows = createExpectedRows(
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
         array("2011-04-01", "upfront", 2L, 2194.0809326171875),
         array("2011-04-01", "spot", 9L, 1256.012825012207),
@@ -490,18 +498,13 @@ public class JoinQueryRunnerTest extends GroupByQueryRunnerTestHelper
   {
     JoinQuery query = Druids
         .newJoinQueryBuilder()
-        .dataSources(
-            ImmutableMap.<String, DataSource>of(
-                dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
-                JOIN_DS, ViewDataSource.of(JOIN_DS)
-            )
-        )
+        .dataSource(dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"))
+        .dataSource(JOIN_DS, ViewDataSource.of(JOIN_DS))
         .intervals(firstToThird)
         .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
         .maxOutputRow(10)
-        .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
         .build();
 
-    Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+    runQuery(query);
   }
 }

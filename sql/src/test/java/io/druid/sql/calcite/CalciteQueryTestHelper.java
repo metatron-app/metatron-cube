@@ -82,6 +82,7 @@ import org.joda.time.Interval;
 import org.joda.time.chrono.ISOChronology;
 import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.internal.ComparisonCriteria;
 
 import java.util.Arrays;
 import java.util.List;
@@ -377,7 +378,20 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       if (masked >= 0) {
         expected[masked] = actual[masked] = null;
       }
-      Assert.assertArrayEquals(
+      new ComparisonCriteria()
+      {
+        @Override
+        protected void assertElementsEqual(Object expected, Object actual)
+        {
+          if (expected instanceof Float && actual instanceof Float) {
+            Assert.assertEquals((Float) expected, (Float) actual, 0.000001d);
+          } else if (expected instanceof Double && actual instanceof Double) {
+            Assert.assertEquals((Double) expected, (Double) actual, 0.000001d);
+          } else {
+            Assert.assertEquals(expected, actual);
+          }
+        }
+      }.arrayEquals(
           StringUtils.format("result #%d: %s", i + 1, sql),
           expected,
           actual

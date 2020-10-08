@@ -58,7 +58,7 @@ public class PeonResource extends QueryResource
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
       QueryManager queryManager,
-      QuerySegmentWalker texasRanger,
+      QuerySegmentWalker segmentWalker,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
       AuthorizerMapper authorizerMapper,
@@ -74,7 +74,7 @@ public class PeonResource extends QueryResource
         jsonMapper,
         smileMapper,
         queryManager,
-        texasRanger,
+        segmentWalker,
         warehouse,
         authorizerMapper
     );

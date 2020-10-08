@@ -35,7 +35,7 @@ public class QueryLifecycleFactory
 {
   private final QueryManager queryManager;
   private final QueryToolChestWarehouse warehouse;
-  private final QuerySegmentWalker texasRanger;
+  private final QuerySegmentWalker segmentWalker;
   private final GenericQueryMetricsFactory metricsFactory;
   private final ServiceEmitter emitter;
   private final RequestLogger requestLogger;
@@ -46,7 +46,7 @@ public class QueryLifecycleFactory
   public QueryLifecycleFactory(
       final QueryManager queryManager,
       final QueryToolChestWarehouse warehouse,
-      final QuerySegmentWalker texasRanger,
+      final QuerySegmentWalker segmentWalker,
       final GenericQueryMetricsFactory metricsFactory,
       final ServiceEmitter emitter,
       final RequestLogger requestLogger,
@@ -56,7 +56,7 @@ public class QueryLifecycleFactory
   {
     this.queryManager = queryManager;
     this.warehouse = warehouse;
-    this.texasRanger = texasRanger;
+    this.segmentWalker = segmentWalker;
     this.metricsFactory = metricsFactory;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
@@ -70,7 +70,7 @@ public class QueryLifecycleFactory
         query,
         queryManager,
         warehouse,
-        texasRanger,
+        segmentWalker,
         metricsFactory,
         emitter,
         requestLogger,

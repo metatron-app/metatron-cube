@@ -57,7 +57,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import static io.druid.query.JoinType.INNER;
 import static io.druid.query.JoinType.LO;
 import static io.druid.query.JoinType.RO;
 
@@ -263,8 +262,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     throw new IllegalStateException();
   }
 
-  public static final long ROWNUM_NOT_EVALUATED = -2;
   public static final long ROWNUM_UNKNOWN = -1;
+  public static final long ROWNUM_NOT_EVALUATED = -2;
 
   // use it if already set
   private static long estimatedNumRows(DataSource dataSource)
@@ -289,7 +288,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     final int semiJoinThrehold = config.getSemiJoinThreshold(this);
     final int bloomFilterThreshold = config.getBloomFilterThreshold(this);
 
-    long currentEstimation = ROWNUM_NOT_EVALUATED;
+    long currentEstimation = ROWNUM_UNKNOWN;
 
     final Map<String, Object> context = getContext();
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
@@ -305,14 +304,17 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       final DataSource right = dataSources.get(element.getRightAlias());
 
       long leftEstimated = i == 0 ? estimatedNumRows(left) : currentEstimation;
+      if (leftEstimated == ROWNUM_NOT_EVALUATED) {
+        leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, context, segmentWalker, config);
+      }
       long rightEstimated = estimatedNumRows(right);
+      if (rightEstimated == ROWNUM_NOT_EVALUATED) {
+        rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
+      }
 
       // try convert semi-join to filter
-      if (semiJoinThrehold > 0 && joinType == INNER && outputColumns != null) {
+      if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {
         if (i == 0 && DataSources.isFilterSupport(left) && element.isLeftSemiJoinable(right, outputColumns)) {
-          if (rightEstimated == ROWNUM_NOT_EVALUATED) {
-            rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
-          }
           if (rightEstimated > 0 && rightEstimated < semiJoinThrehold) {
             ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(right, segmentSpec, context);
             List<String> rightColumns = array.estimatedOutputColumns();
@@ -328,16 +330,14 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
                   "%s (R) is merged into %s (L) as a filter with expected number of values = %d",
                   element.getRightAlias(), element.getLeftAlias(), rightEstimated
               );
-              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
+              Query query = JoinElement.toQuery(filtered, null, segmentSpec, context);
+              queries.add(query.withOverriddenContext(CARDINALITY, leftEstimated));
               currentEstimation = leftEstimated;
               continue;
             }
           }
         }
         if (DataSources.isFilterSupport(right) && element.isRightSemiJoinable(left, outputColumns)) {
-          if (leftEstimated == ROWNUM_NOT_EVALUATED) {
-            leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, context, segmentWalker, config);
-          }
           if (leftEstimated > 0 && leftEstimated < semiJoinThrehold) {
             ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(left, segmentSpec, context);
             List<String> leftColumns = array.estimatedOutputColumns();
@@ -353,7 +353,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
                   "%s (L) is merged into %s (R) as a filter with expected number of values = %d",
                   element.getLeftAlias(), element.getRightAlias(), leftEstimated
               );
-              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
+              Query query = JoinElement.toQuery(filtered, null, segmentSpec, context);
+              queries.add(query.withOverriddenContext(CARDINALITY, rightEstimated));
               currentEstimation = rightEstimated;
               continue;
             }
@@ -366,16 +367,17 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       boolean rightHashing = false;
       if (hashThreshold > 0) {
         if (joinType.isLeftDrivable()) {
-          if (rightEstimated == ROWNUM_NOT_EVALUATED) {
-            rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
-          }
           rightHashing = rightEstimated > 0 && rightEstimated < hashThreshold;
         }
-        if (i == 0 && !rightHashing && joinType.isRightDrivable()) {
-          if (leftEstimated == ROWNUM_NOT_EVALUATED) {
-            leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, getContext(), segmentWalker, config);
-          }
+        if (i == 0 && joinType.isRightDrivable()) {
           leftHashing = leftEstimated > 0 && leftEstimated < hashThreshold;
+        }
+      }
+      if (leftHashing && rightHashing) {
+        if (leftEstimated > rightEstimated) {
+          leftHashing = false;
+        } else {
+          rightHashing = false;
         }
       }
       if (i == 0) {
@@ -402,7 +404,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
       queries.add(query);
 
-      if (rightEstimated > 0) {
+      if (currentEstimation > 0 && rightEstimated > 0) {
         currentEstimation = resultEstimation(joinType, currentEstimation, rightEstimated);
       }
 
@@ -449,36 +451,27 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     );
   }
 
-  private long resultEstimation(JoinType type, long currentEstimation, long rightEstimated)
+  private long resultEstimation(JoinType type, long leftEstimation, long rightEstimated)
   {
     switch (type) {
       case INNER:
-        if (currentEstimation > 0) {
-          currentEstimation = Math.min(currentEstimation, rightEstimated) +
-                              Math.abs(currentEstimation - rightEstimated) / 2;
-        } else {
-          currentEstimation = Math.max(rightEstimated, Short.MAX_VALUE);
-        }
+        leftEstimation = Math.min(leftEstimation, rightEstimated) + Math.abs(leftEstimation - rightEstimated) / 2;
         break;
       case LO:
-        if (currentEstimation > 0 && rightEstimated > currentEstimation) {
-          currentEstimation *= ((double) rightEstimated) / currentEstimation;
+        if (rightEstimated > leftEstimation) {
+          leftEstimation *= ((double) rightEstimated) / leftEstimation;
         }
         break;
       case RO:
-        if (currentEstimation > 0 && currentEstimation > rightEstimated) {
-          currentEstimation = (long) (rightEstimated * ((double) currentEstimation / rightEstimated));
-        } else {
-          currentEstimation = (long) (rightEstimated * 1.2);
+        if (leftEstimation > rightEstimated) {
+          leftEstimation *= (double) leftEstimation / rightEstimated;
         }
         break;
       case FULL:
-        if (currentEstimation > 0) {
-          currentEstimation += rightEstimated;
-        }
+        leftEstimation += rightEstimated;
         break;
     }
-    return currentEstimation;
+    return leftEstimation;
   }
 
   private Query bloom(
