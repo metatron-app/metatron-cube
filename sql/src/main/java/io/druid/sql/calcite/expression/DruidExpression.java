@@ -140,7 +140,7 @@ public class DruidExpression
 
   public static String identifier(final String s)
   {
-    return StringUtils.format("\"%s\"", escape(s));
+    return StringUtils.isSimpleIdentifier(s) ? s : StringUtils.format("\"%s\"", escape(s));
   }
 
   private static String escape(final String s)

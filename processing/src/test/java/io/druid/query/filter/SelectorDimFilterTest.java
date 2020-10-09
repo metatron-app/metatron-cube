@@ -42,12 +42,14 @@ public class SelectorDimFilterTest
   @Test
   public void testToString()
   {
-    SelectorDimFilter selectorDimFilter = new SelectorDimFilter("abc", "d", null);
+    SelectorDimFilter selectorDimFilter1 = new SelectorDimFilter("abc", "d", null);
+    SelectorDimFilter selectorDimFilter2 = new SelectorDimFilter("abc", null, null);
     RegexDimExtractionFn regexFn = new RegexDimExtractionFn(".*", false, null);
-    SelectorDimFilter selectorDimFilter2 = new SelectorDimFilter("abc", "d", regexFn);
+    SelectorDimFilter selectorDimFilter3 = new SelectorDimFilter("abc", "d", regexFn);
 
-    Assert.assertEquals("abc = d", selectorDimFilter.toString());
-    Assert.assertEquals("regex(/.*/, 1)(abc) = d", selectorDimFilter2.toString());
+    Assert.assertEquals("abc=='d'", selectorDimFilter1.toString());
+    Assert.assertEquals("abc==NULL", selectorDimFilter2.toString());
+    Assert.assertEquals("regex(/.*/, 1)(abc)=='d'", selectorDimFilter3.toString());
   }
 
   @Test

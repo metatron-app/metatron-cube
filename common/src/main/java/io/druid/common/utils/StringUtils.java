@@ -347,4 +347,15 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
   {
     return quote + string + quote;
   }
+
+  public static boolean isSimpleIdentifier(String s)
+  {
+    for (int i = 0; i < s.length(); i++) {
+      final char ch = s.charAt(i);
+      if (ch != '_' && (ch >>> 8 != 0 || !Character.isLetterOrDigit(ch))) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

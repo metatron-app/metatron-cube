@@ -32,7 +32,6 @@ import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rex.RexLiteral;
 
 import java.util.List;
-import java.util.TimeZone;
 import java.util.function.Predicate;
 
 public class DruidValuesRule extends ConverterRule
@@ -43,7 +42,7 @@ public class DruidValuesRule extends ConverterRule
   {
     super(LogicalValues.class, (Predicate<RelNode>) r -> true,
           Convention.NONE, BindableConvention.INSTANCE, RelFactories.LOGICAL_BUILDER,
-          "BindableValuesRule"
+          "DruidValuesRule"
     );
     this.maker = maker;
   }
@@ -56,8 +55,6 @@ public class DruidValuesRule extends ConverterRule
         ((LogicalValues) rel).tuples,
         new Function<List<RexLiteral>, Object[]>()
         {
-          private final TimeZone timeZone = TimeZone.getTimeZone(maker.getPlannerContext().getTimeZone().getID());
-
           @Override
           public Object[] apply(List<RexLiteral> input)
           {

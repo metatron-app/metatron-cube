@@ -40,7 +40,6 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.plan.hep.HepMatchOrder;
-import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.volcano.AbstractConverter;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
@@ -225,17 +224,12 @@ public class Rules
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
     if (config.isTransitiveFilterOnjoinEnabled()) {
-      List<RelOptRule> rules = Arrays.asList(
+      programs.add(createHepProgram(
           FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
-      );
-      programs.add(Programs.hep(rules, NO_DAG, DefaultRelMetadataProvider.INSTANCE));
+      ));
     }
     if (config.isProjectJoinTransposeEnabled()) {
-      HepProgram hep = new HepProgramBuilder()
-          .addMatchOrder(HepMatchOrder.TOP_DOWN)
-          .addRuleInstance(ProjectJoinTransposeRule.INSTANCE)
-          .build();
-      programs.add(Programs.of(hep, DAG, DefaultRelMetadataProvider.INSTANCE));
+      programs.add(createHepProgram(ProjectJoinTransposeRule.INSTANCE));
     }
     if (config.isJoinReorderingEnabled()) {
       programs.add(Programs.heuristicJoinOrder(Arrays.asList(), config.isJoinReorderingBush(), MIN_JOIN_REORDER));
@@ -244,15 +238,27 @@ public class Rules
 
     if (config.isJoinEnabled()) {
       // way better to be hep program in compile speed rather than be a rule in volcano
-      HepProgram hep = new HepProgramBuilder()
-          .addMatchOrder(HepMatchOrder.TOP_DOWN)
-          .addRuleInstance(DruidJoinProjectRule.INSTANCE)
-          .build();
-      programs.add(Programs.of(hep, DAG, DefaultRelMetadataProvider.INSTANCE));
+      programs.add(createHepProgram(DruidJoinProjectRule.INSTANCE));
     }
 
     Program program = Programs.sequence(programs.toArray(new Program[0]));
     return config.isDumpPlan() ? Dump.wrap(program) : program;
+  }
+
+  private static Program createHepProgram(RelOptRule... rules)
+  {
+    return createHepProgram(HepMatchOrder.TOP_DOWN, rules);
+  }
+
+  private static Program createHepProgram(HepMatchOrder order, RelOptRule... rules)
+  {
+    return Programs.of(
+        new HepProgramBuilder()
+            .addMatchOrder(order)
+            .addRuleCollection(Arrays.asList(rules))
+            .build(),
+        DAG, DefaultRelMetadataProvider.INSTANCE
+    );
   }
 
   private static Program bindablePrograms(PlannerContext plannerContext)
@@ -330,16 +336,16 @@ public class Rules
     rules.add(new DruidTableScanRule(queryMaker));
     rules.add(new DruidValuesRule(queryMaker));
     rules.addAll(DruidRules.RULES);
-    rules.add(DruidRelToDruidRule.instance());
 
-    final PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
+    PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
     if (plannerConfig.isJoinEnabled()) {
       rules.add(DruidJoinRule.instance());
-//      rules.add(DruidJoinProjectRule.instance());
     }
     if (plannerConfig.isJoinCommuteEnabled()) {
       rules.add(JoinCommuteRule.INSTANCE);
     }
+    rules.add(DruidRelToDruidRule.instance());
+
     return ImmutableList.copyOf(rules);
   }
 

@@ -173,10 +173,11 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
   @Override
   public String toString()
   {
+    final String explain = StringUtil.isNullOrEmpty(value) ? "NULL" : String.format("'%s'", value);
     if (extractionFn != null) {
-      return String.format("%s(%s) = %s", extractionFn, dimension, Strings.emptyToNull(value));
+      return String.format("%s(%s)==%s", extractionFn, dimension, explain);
     } else {
-      return String.format("%s = %s", dimension, Strings.emptyToNull(value));
+      return String.format("%s==%s", dimension, explain);
     }
   }
 

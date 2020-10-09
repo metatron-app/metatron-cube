@@ -534,7 +534,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT SUBSTRING(dim2, 1, 1) FROM druid.foo LIMIT 2",
         newScan().dataSource(CalciteTests.DATASOURCE1)
                  .columns(Arrays.asList("v0"))
-                 .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
+                 .virtualColumns(EXPR_VC("v0", "substring(dim2, 0, 1)"))
                  .limit(2)
                  .streaming(),
         new Object[]{"a"},
@@ -613,7 +613,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT dim1 FROM druid.foo ORDER BY cast(dim1 as bigint) DESC LIMIT 3",
         newScan().dataSource(CalciteTests.DATASOURCE1)
                  .columns("dim1", "v0")
-                 .virtualColumns(EXPR_VC("v0", "CAST(\"dim1\", 'LONG')"))
+                 .virtualColumns(EXPR_VC("v0", "CAST(dim1, 'LONG')"))
                  .orderBy(OrderByColumnSpec.desc("v0"))
                  .limit(3)
                  .streaming(),
@@ -732,7 +732,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(Granularities.MONTH)
               .aggregators(CountAggregatorFactory.of("a0"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .outputColumns("d0", "a0")
               .build(),
         new Object[]{T("2000-01-01"), 3L},
@@ -834,7 +834,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-              .havingSpec(EXPR_HAVING("(\"a0\" == 21)"))
+              .havingSpec(EXPR_HAVING("(a0 == 21)"))
               .outputColumns("a0")
               .build(),
         new Object[]{21d}
@@ -850,7 +850,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-            .havingSpec(EXPR_HAVING("(\"a0\" > 1)"))
+            .havingSpec(EXPR_HAVING("(a0 > 1)"))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{"1", 4.0d},
@@ -870,7 +870,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
             .aggregators(CARDINALITY("a0", DefaultDimensionSpec.of("m1")))
-            .havingSpec(EXPR_HAVING("(\"a0\" > 1)"))
+            .havingSpec(EXPR_HAVING("(a0 > 1)"))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{"", 3L},
@@ -897,7 +897,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .dimensions(DefaultDimensionSpec.of("d0", "_d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
-            .havingSpec(EXPR_HAVING("(\"a0\" > 1)"))
+            .havingSpec(EXPR_HAVING("(a0 > 1)"))
             .outputColumns("_d0", "a0")
             .build(),
         new Object[]{"", 3L},
@@ -914,8 +914,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-            .postAggregators(EXPR_POST_AGG("p0", "CAST(\"a0\", 'FLOAT')"))
-            .havingSpec(EXPR_HAVING("(CAST(\"a0\", 'FLOAT') > 1)"))
+            .postAggregators(EXPR_POST_AGG("p0", "CAST(a0, 'FLOAT')"))
+            .havingSpec(EXPR_HAVING("(CAST(a0, 'FLOAT') > 1)"))
             .outputColumns("d0", "p0")
             .build(),
         new Object[]{"1", 4.0f},
@@ -931,7 +931,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-            .havingSpec(EXPR_HAVING("(CAST(\"a0\", 'FLOAT') > 1)"))
+            .havingSpec(EXPR_HAVING("(CAST(a0, 'FLOAT') > 1)"))
             .outputColumns("d0", "a0")
             .build(),
         new Object[]{"1", 4.0d},
@@ -949,7 +949,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT dim1, m1, COUNT(*) FROM druid.foo WHERE m1 - 1 = dim1 GROUP BY dim1, m1",
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
-            .filters(EXPR_FILTER("((\"m1\" - 1) == CAST(\"dim1\", 'DOUBLE'))"))
+            .filters(EXPR_FILTER("((m1 - 1) == CAST(dim1, 'DOUBLE'))"))
             .dimensions(
                 DefaultDimensionSpec.of("dim1", "d0"),
                 DefaultDimensionSpec.of("m1", "d1")
@@ -983,8 +983,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 ),
                 CountAggregatorFactory.of("a1")
             )
-            .postAggregators(EXPR_POST_AGG("p0", "(\"a0\" / \"a1\")"))
-            .havingSpec(EXPR_HAVING("((\"a0\" / \"a1\") == 1)"))
+            .postAggregators(EXPR_POST_AGG("p0", "(a0 / a1)"))
+            .havingSpec(EXPR_HAVING("((a0 / a1) == 1)"))
             .outputColumns("d0", "p0")
             .build(),
         new Object[]{"10.1", 1L},
@@ -1006,7 +1006,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
-            .postAggregators(EXPR_POST_AGG("p0", "substring(\"d0\", 1, -1)"))
+            .postAggregators(EXPR_POST_AGG("p0", "substring(d0, 1, -1)"))
             .outputColumns("d0", "p0")
             .build(),
         new Object[]{"", ""},
@@ -1032,8 +1032,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .postAggregators(
-                EXPR_POST_AGG("p0", "substring(\"d0\", 1, -1)"),
-                EXPR_POST_AGG("p1", "strlen(\"d0\")")
+                EXPR_POST_AGG("p0", "substring(d0, 1, -1)"),
+                EXPR_POST_AGG("p1", "strlen(d0)")
             )
             .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("p1"), OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "p0", "p1")
@@ -1060,7 +1060,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new TopNQueryBuilder()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim1", "d0"))
-            .postAggregators(EXPR_POST_AGG("s0", "substring(\"d0\", 1, -1)"))
+            .postAggregators(EXPR_POST_AGG("s0", "substring(d0, 1, -1)"))
             .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
             .outputColumns("d0", "s0")
             .threshold(10)
@@ -1089,8 +1089,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .dimension(DefaultDimensionSpec.of("dim1", "d0"))
             .postAggregators(
-                EXPR_POST_AGG("p0", "substring(\"d0\", 1, -1)"),
-                EXPR_POST_AGG("p1", "strlen(\"d0\")")
+                EXPR_POST_AGG("p0", "substring(d0, 1, -1)"),
+                EXPR_POST_AGG("p1", "strlen(d0)")
             )
             .metric(new NumericTopNMetricSpec("p1"))
             .outputColumns("d0", "p0", "p1")
@@ -1206,7 +1206,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-              .postAggregators(EXPR_POST_AGG("p0", "(\"a0\" / 10)"))
+              .postAggregators(EXPR_POST_AGG("p0", "(a0 / 10)"))
               .outputColumns("p0")
               .build(),
         new Object[]{2.1}
@@ -1230,7 +1230,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
-              .havingSpec(EXPR_HAVING("(\"a0\" == 21)"))
+              .havingSpec(EXPR_HAVING("(a0 == 21)"))
               .outputColumns("a0")
               .build(),
         new Object[]{21.0}
@@ -1261,11 +1261,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 EXPR_VC(
                     "d0:v",
                     "case("
-                    + "(CAST(timestamp_extract('DAY',\"__time\",'UTC'), 'DOUBLE') == \"m1\"),"
+                    + "(CAST(timestamp_extract('DAY',__time,'UTC'), 'DOUBLE') == m1),"
                     + "'match-m1',"
-                    + "(timestamp_extract('DAY',\"__time\",'UTC') == \"cnt\"),"
+                    + "(timestamp_extract('DAY',__time,'UTC') == cnt),"
                     + "'match-cnt',"
-                    + "(timestamp_extract('DAY',\"__time\",'UTC') == 0),"
+                    + "(timestamp_extract('DAY',__time,'UTC') == 0),"
                     + "'zero',"
                     + "'')"
                 )
@@ -1294,7 +1294,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .virtualColumns(
                 EXPR_VC(
                     "d0:v",
-                    "case(((\"m1\" > 1) && (\"m1\" < 5) && (\"cnt\" == 1)),'x','')"
+                    "case(((m1 > 1) && (m1 < 5) && (cnt == 1)),'x','')"
                 )
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
@@ -1345,7 +1345,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .virtualColumns(
                 EXPR_VC(
                     "d0:v",
-                    "COALESCE(\"dim2\",\"dim1\")"
+                    "COALESCE(dim2,dim1)"
                 )
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
@@ -1737,7 +1737,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT COUNT(*) FROM druid.foo WHERE cnt = 1.0",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .filters(EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 1.0B)"))
+              .filters(EXPR_FILTER("(CAST(cnt, 'decimal') == 1.0B)"))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build(),
@@ -1748,7 +1748,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT COUNT(*) FROM druid.foo WHERE cnt = 100000001.0",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .filters(EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 100000001.0B)"))
+              .filters(EXPR_FILTER("(CAST(cnt, 'decimal') == 100000001.0B)"))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build()
@@ -1759,8 +1759,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .filters(OR(
-                  EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 1.0B)"),
-                  EXPR_FILTER("(CAST(\"cnt\", 'decimal') == 100000001.0B)")
+                  EXPR_FILTER("(CAST(cnt, 'decimal') == 1.0B)"),
+                  EXPR_FILTER("(CAST(cnt, 'decimal') == 100000001.0B)")
               ))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
@@ -1796,11 +1796,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .filters(
                 OR(
-                    EXPR_FILTER("(CAST(\"dim1\", 'LONG') == 10)"),
+                    EXPR_FILTER("(CAST(dim1, 'LONG') == 10)"),
                     AND(
-                        EXPR_FILTER("(CAST(floor(CAST(\"dim1\", 'FLOAT')), 'DOUBLE') == 10.00)"),
-                        EXPR_FILTER("(CAST(\"dim1\", 'FLOAT') > 9)"),
-                        EXPR_FILTER("(CAST(\"dim1\", 'FLOAT') <= 10.5B)")
+                        EXPR_FILTER("(CAST(floor(CAST(dim1, 'FLOAT')), 'DOUBLE') == 10.00)"),
+                        EXPR_FILTER("(CAST(dim1, 'FLOAT') > 9)"),
+                        EXPR_FILTER("(CAST(dim1, 'FLOAT') <= 10.5B)")
                     )
                 )
             )
@@ -1835,7 +1835,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           new FieldAccessPostAggregator(null, "a2:count")
                       )
                   ),
-                  EXPR_POST_AGG("p0", "((\"a3\" + \"a4\") + \"a5\")")
+                  EXPR_POST_AGG("p0", "((a3 + a4) + a5)")
               )
               .outputColumns("a0", "a0", "a1", "a2", "a3", "p0")
               .build(),
@@ -1858,7 +1858,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 GenericMinAggregatorFactory.ofDouble("a0", "m1"),
                 GenericMaxAggregatorFactory.ofDouble("a1", "m1")
             )
-            .postAggregators(EXPR_POST_AGG("p0", "(\"a0\" + \"a1\")"))
+            .postAggregators(EXPR_POST_AGG("p0", "(a0 + a1)"))
             .threshold(3)
             .outputColumns("d0", "p0")
             .build(),
@@ -1883,7 +1883,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 GenericMinAggregatorFactory.ofDouble("a0", "m1"),
                 GenericMaxAggregatorFactory.ofDouble("a1", "m1")
             )
-            .postAggregators(EXPR_POST_AGG("p0", "(\"a0\" + \"a1\")"))
+            .postAggregators(EXPR_POST_AGG("p0", "(a0 + a1)"))
             .limitSpec(LimitSpec.of(3, OrderByColumnSpec.asc("p0")))
             .outputColumns("d0", "p0")
             .build(),
@@ -1909,7 +1909,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 GenericMinAggregatorFactory.ofDouble("a0", "m1"),
                 GenericMaxAggregatorFactory.ofDouble("a1", "m1")
             )
-            .postAggregators(EXPR_POST_AGG("p0", "(\"a0\" + \"a1\")"))
+            .postAggregators(EXPR_POST_AGG("p0", "(a0 + a1)"))
             .limitSpec(LimitSpec.of(3, OrderByColumnSpec.asc("p0")))
             .outputColumns("d0", "p0")
             .build(),
@@ -2007,7 +2007,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 ),
                 GenericSumAggregatorFactory.ofLong("a1", "cnt")
             )
-            .postAggregators(EXPR_POST_AGG("p0", "(\"a0\" + \"a1\")"))
+            .postAggregators(EXPR_POST_AGG("p0", "(a0 + a1)"))
             .outputColumns("d0", "p0")
             .build(),
         new Object[]{1L, 11L}
@@ -2045,15 +2045,15 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(
-                  GenericSumAggregatorFactory.expr("a0", "(\"cnt\" * 3)", ValueDesc.LONG),
+                  GenericSumAggregatorFactory.expr("a0", "(cnt * 3)", ValueDesc.LONG),
                   GenericSumAggregatorFactory.ofLong("a1", "cnt"),
                   GenericSumAggregatorFactory.ofDouble("a2", "m1"),
-                  GenericSumAggregatorFactory.expr("a3", "strlen(CAST((\"cnt\" * 10), 'STRING'))", ValueDesc.LONG),
-                  GenericMaxAggregatorFactory.expr("a4", "(strlen(\"dim2\") + log(\"m1\"))", ValueDesc.DOUBLE)
+                  GenericSumAggregatorFactory.expr("a3", "strlen(CAST((cnt * 10), 'STRING'))", ValueDesc.LONG),
+                  GenericMaxAggregatorFactory.expr("a4", "(strlen(dim2) + log(m1))", ValueDesc.DOUBLE)
               )
               .postAggregators(
-                  EXPR_POST_AGG("p0", "log((\"a1\" + \"a2\"))"),
-                  EXPR_POST_AGG("p1", "(\"a1\" % 4)")
+                  EXPR_POST_AGG("p0", "log((a1 + a2))"),
+                  EXPR_POST_AGG("p1", "(a1 % 4)")
               )
               .outputColumns("a0", "p0", "p1", "a3", "a4")
               .build(),
@@ -2075,9 +2075,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .virtualColumns(
-                EXPR_VC("d0:v", "(floor((\"m1\" / 2)) * 2)")
+                EXPR_VC("d0:v", "(floor((m1 / 2)) * 2)")
             )
-            .filters(EXPR_FILTER("((floor((\"m1\" / 2)) * 2) > -1)"))
+            .filters(EXPR_FILTER("((floor((m1 / 2)) * 2) > -1)"))
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
@@ -2103,8 +2103,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "ORDER BY 1 DESC",
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("d0:v", "((CAST(\"m1\", 'LONG') / 2) * 2)"))
-            .filters(EXPR_FILTER("(((CAST(\"m1\", 'LONG') / 2) * 2) > -1)"))
+            .virtualColumns(EXPR_VC("d0:v", "((CAST(m1, 'LONG') / 2) * 2)"))
+            .filters(EXPR_FILTER("(((CAST(m1, 'LONG') / 2) * 2) > -1)"))
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
@@ -2130,8 +2130,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "ORDER BY 1 DESC",
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("d0:v", "(floor((CAST(\"dim1\", 'FLOAT') / 2)) * 2)"))
-            .filters(EXPR_FILTER("((floor((CAST(\"dim1\", 'FLOAT') / 2)) * 2) > -1)"))
+            .virtualColumns(EXPR_VC("d0:v", "(floor((CAST(dim1, 'FLOAT') / 2)) * 2)"))
+            .filters(EXPR_FILTER("((floor((CAST(dim1, 'FLOAT') / 2)) * 2) > -1)"))
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
@@ -2266,7 +2266,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT COUNT(*) FROM druid.foo WHERE CAST(dim1 AS bigint) = 2",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .filters(EXPR_FILTER("(CAST(\"dim1\", 'LONG') == 2)"))
+              .filters(EXPR_FILTER("(CAST(dim1, 'LONG') == 2)"))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build(),
@@ -2623,7 +2623,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT SUM(CAST(dim1 AS INTEGER)) FROM druid.foo",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .aggregators(GenericSumAggregatorFactory.expr("a0", "CAST(\"dim1\", 'LONG')", ValueDesc.LONG))
+              .aggregators(GenericSumAggregatorFactory.expr("a0", "CAST(dim1, 'LONG')", ValueDesc.LONG))
               .outputColumns("a0")
               .build(),
         new Object[]{13L}
@@ -2640,7 +2640,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(
-                  GenericSumAggregatorFactory.expr("a0", "CAST(substring(\"dim1\", 0, 10), 'LONG')", ValueDesc.LONG)
+                  GenericSumAggregatorFactory.expr("a0", "CAST(substring(dim1, 0, 10), 'LONG')", ValueDesc.LONG)
               )
               .outputColumns("a0")
               .build(),
@@ -2676,7 +2676,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 )
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
-            .virtualColumns(EXPR_VC("d0:v", "timestamp_floor(\"cnt\",'P1Y','','UTC')"))
+            .virtualColumns(EXPR_VC("d0:v", "timestamp_floor(cnt,'P1Y','','UTC')"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .outputColumns("d0", "a0")
             .build(),
@@ -2724,8 +2724,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .filters(
                 OR(
-                    EXPR_FILTER("(strlen(\"dim1\") == 3)"),
-                    EXPR_FILTER("(CAST(CAST(strlen(\"dim1\"), 'STRING'), 'LONG') == 3)")
+                    EXPR_FILTER("(strlen(dim1) == 3)"),
+                    EXPR_FILTER("(CAST(CAST(strlen(dim1), 'STRING'), 'LONG') == 3)")
                 )
             )
             .outputColumns("d0")
@@ -2960,7 +2960,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .virtualColumns(
-                  EXPR_VC("a4:v", "concat(substring(\"dim2\", 0, 1),'x')")
+                  EXPR_VC("a4:v", "concat(substring(dim2, 0, 1),'x')")
               )
               .aggregators(
                   GenericSumAggregatorFactory.ofLong("a0", "cnt"),
@@ -3008,7 +3008,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     )
                     .filters(SELECTOR("m1", "5.0"))
                     .aggregators(GenericMaxAggregatorFactory.ofLong("a0", "__time"))
-                    .postAggregators(EXPR_POST_AGG("p0", "timestamp_floor(\"a0\",'PT1H','','UTC')"))
+                    .postAggregators(EXPR_POST_AGG("p0", "timestamp_floor(a0,'PT1H','','UTC')"))
                     .outputColumns("p0", "d1")
                     .build()
             )
@@ -3115,7 +3115,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT * FROM ("
         + "  SELECT max(cnt), min(cnt), avg(cnt), TIME_EXTRACT(max(t), 'EPOCH') last_time, count(1) num_days FROM (\n"
         + "      SELECT TIME_FLOOR(__time, 'P1D') AS t, count(1) cnt\n"
-        + "      FROM \"foo\"\n"
+        + "      FROM foo\n"
         + "      GROUP BY 1\n"
         + "  )"
         + ") LIMIT 1\n",
@@ -3125,7 +3125,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .dataSource(CalciteTests.DATASOURCE1)
                         .granularity(Granularities.DAY)
                         .aggregators(CountAggregatorFactory.of("a0"))
-                        .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1D','','UTC')"))
+                        .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')"))
                         .outputColumns("d0", "a0")
                         .build()
               )
@@ -3146,7 +3146,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           new FieldAccessPostAggregator(null, "_a2:count")
                       )
                   ),
-                  EXPR_POST_AGG("s0", "timestamp_extract('EPOCH',\"_a3\",'UTC')")
+                  EXPR_POST_AGG("s0", "timestamp_extract('EPOCH',_a3,'UTC')")
               )
               .outputColumns("_a0", "_a1", "_a2", "s0", "_a4")
               .limit(1)
@@ -3170,7 +3170,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .aggregators(CARDINALITY("a0:a", DefaultDimensionSpec.of("cnt")))
                         .postAggregators(
                             new HyperUniqueFinalizingPostAggregator("a0", "a0:a", true),
-                            EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1D','','UTC')")
+                            EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')")
                         )
                         .outputColumns("d0", "a0")
                         .build()
@@ -3363,7 +3363,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           newJoin()
                               .dataSource("foo", newScan()
                                   .dataSource("foo")
-                                  .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
+                                  .virtualColumns(EXPR_VC("v0", "substring(dim2, 0, 1)"))
                                   .columns("dim2", "v0")
                                   .streaming()
                               )
@@ -3388,11 +3388,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{2L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim1 = null), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
-        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}",
-        "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}"
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim1==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}",
+        "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}"
     );
   }
 
@@ -3416,7 +3416,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           newJoin()
                               .dataSource("foo", newScan()
                                   .dataSource("foo")
-                                  .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
+                                  .virtualColumns(EXPR_VC("v0", "substring(dim2, 0, 1)"))
                                   .columns("dim2", "v0")
                                   .streaming()
                               )
@@ -3440,11 +3440,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{2L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim1 = null), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
-        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}",
-        "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}"
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim1==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}",
+        "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}"
     );
   }
 
@@ -3489,11 +3489,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{2L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim2 = null), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
-        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}",
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim2==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}",
         "StreamQuery{dataSource='foo', columns=[dim2]}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}"
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}"
     );
   }
 
@@ -3504,7 +3504,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "DruidOuterQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"a0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n"
         + "  DruidOuterQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d0\"}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"d0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string}])\n"
         + "    DruidJoinRel(joinType=[INNER], leftExpressions=[[1]], rightExpressions=[[0]], outputColumns=[null])\n"
-        + "      DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim2\",\"v0\"],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"substring(\\\"dim2\\\", 0, 1)\",\"outputName\":\"v0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim2:string, v0:string}])\n"
+        + "      DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim2\",\"v0\"],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"substring(dim2, 0, 1)\",\"outputName\":\"v0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim2:string, v0:string}])\n"
         + "      DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"extraction\",\"dimension\":\"dim1\",\"outputName\":\"d0\",\"extractionFn\":{\"type\":\"substring\",\"index\":0,\"length\":1}}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"d0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string}])\n";
 
     testQuery(
@@ -3630,7 +3630,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   CountAggregatorFactory.of("a0"),
                   CARDINALITY("a1", DefaultDimensionSpec.of("d0", null))
               )
-              .postAggregators(EXPR_POST_AGG("p0", "((1F - (\"a1\" / \"a0\")) * 100)"))
+              .postAggregators(EXPR_POST_AGG("p0", "((1F - (a1 / a0)) * 100)"))
               .outputColumns("a0", "a1", "p0")
               .build(),
         new Object[]{5L, 5L, 0.0f}
@@ -3652,7 +3652,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     .dataSource(CalciteTests.DATASOURCE1)
                     .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                     .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                    .postAggregators(EXPR_POST_AGG("p0", "CAST(\"a0\", 'STRING')"))
+                    .postAggregators(EXPR_POST_AGG("p0", "CAST(a0, 'STRING')"))
                     .outputColumns("p0")
                     .build()
             )
@@ -3681,7 +3681,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     .dataSource(CalciteTests.DATASOURCE1)
                     .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                     .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                    .postAggregators(EXPR_POST_AGG("p0", "CAST(\"a0\", 'STRING')"))
+                    .postAggregators(EXPR_POST_AGG("p0", "CAST(a0, 'STRING')"))
                     .outputColumns("p0")
                     .build()
             )
@@ -3714,10 +3714,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   CARDINALITY("a1", DefaultDimensionSpec.of("dim2", null))
               )
               .postAggregators(
-                  EXPR_POST_AGG("p0", "CAST(\"a1\", 'FLOAT')"),
-                  EXPR_POST_AGG("p1", "(\"a0\" / \"a1\")"),
-                  EXPR_POST_AGG("p2", "((\"a0\" / \"a1\") + 3)"),
-                  EXPR_POST_AGG("p3", "((CAST(\"a0\", 'FLOAT') / CAST(\"a1\", 'FLOAT')) + 3)")
+                  EXPR_POST_AGG("p0", "CAST(a1, 'FLOAT')"),
+                  EXPR_POST_AGG("p1", "(a0 / a1)"),
+                  EXPR_POST_AGG("p2", "((a0 / a1) + 3)"),
+                  EXPR_POST_AGG("p3", "((CAST(a0, 'FLOAT') / CAST(a1, 'FLOAT')) + 3)")
               )
               .outputColumns("a0", "a1", "p0", "p1", "p2", "p3")
               .build(),
@@ -3750,8 +3750,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .filters(NOT(SELECTOR("dim1", "")))
-              .virtualColumns(EXPR_VC("a0:v", "btrim(\"dim1\",' ')"))
-              .filters(EXPR_FILTER("(btrim(\"dim1\",' ') != '')"))
+              .virtualColumns(EXPR_VC("a0:v", "btrim(dim1,' ')"))
+              .filters(EXPR_FILTER("(btrim(dim1,' ') != '')"))
               .aggregators(CARDINALITY("a0", DefaultDimensionSpec.of("a0:v")))
               .outputColumns("a0")
               .build(),
@@ -3770,7 +3770,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "GROUP BY CAST((EXTRACT(MONTH FROM __time) - 1 ) / 3 + 1 AS INTEGER)",
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("d0:v", "(((timestamp_extract('MONTH',\"__time\",'UTC') - 1) / 3) + 1)"))
+            .virtualColumns(EXPR_VC("d0:v", "(((timestamp_extract('MONTH',__time,'UTC') - 1) / 3) + 1)"))
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .outputColumns("d0", "a0")
@@ -3847,7 +3847,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
             .limitSpec(LimitSpec.of(4, OrderByColumnSpec.asc("d1")))
-            .havingSpec(EXPR_HAVING("(\"a0\" == 1)"))
+            .havingSpec(EXPR_HAVING("(a0 == 1)"))
             .outputColumns("d0", "d1", "a0")
             .build(),
         new Object[]{"10.1", "", 1L},
@@ -4067,7 +4067,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT floor(CAST(dim1 AS float)), COUNT(*) FROM druid.foo GROUP BY floor(CAST(dim1 AS float))",
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("d0:v", "floor(CAST(\"dim1\", 'FLOAT'))"))
+            .virtualColumns(EXPR_VC("d0:v", "floor(CAST(dim1, 'FLOAT'))"))
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .outputColumns("d0", "a0")
@@ -4086,7 +4086,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT floor(CAST(dim1 AS float)) AS fl, COUNT(*) FROM druid.foo GROUP BY floor(CAST(dim1 AS float)) ORDER BY fl DESC",
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("d0:v", "floor(CAST(\"dim1\", 'FLOAT'))"))
+            .virtualColumns(EXPR_VC("d0:v", "floor(CAST(dim1, 'FLOAT'))"))
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
@@ -4111,10 +4111,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource(CalciteTests.DATASOURCE1)
             .granularity(Granularities.YEAR)
             .dimensions(DefaultDimensionSpec.of("dim2", "d1"))
-            .virtualColumns(EXPR_VC("d0:v", "timestamp_floor(\"__time\",'P1Y','','UTC')"))
+            .virtualColumns(EXPR_VC("d0:v", "timestamp_floor(__time,'P1Y','','UTC')"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .postAggregators(
-                EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1Y','','UTC')")
+                EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1Y','','UTC')")
             )
             .limitSpec(
                 LimitSpec.of(
@@ -4140,7 +4140,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT CHARACTER_LENGTH(dim1), COUNT(*) FROM druid.foo GROUP BY CHARACTER_LENGTH(dim1)",
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("d0:v", "strlen(\"dim1\")"))
+            .virtualColumns(EXPR_VC("d0:v", "strlen(dim1)"))
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
             .outputColumns("d0", "a0")
@@ -4258,7 +4258,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(Granularities.MONTH)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
@@ -4332,7 +4332,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(new PeriodGranularity(Period.months(1), null, DateTimeZone.forID(LOS_ANGELES)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(
-                  EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','America/Los_Angeles')")
+                  EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
               )
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
@@ -4358,7 +4358,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(Granularities.MONTH)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
@@ -4380,7 +4380,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .virtualColumns(
-                EXPR_VC("d0:v", "timestamp_floor(timestamp_shift(\"__time\",'P1D',-1),'P1M','','UTC')")
+                EXPR_VC("d0:v", "timestamp_floor(timestamp_shift(__time,'P1D',-1),'P1M','','UTC')")
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
@@ -4407,7 +4407,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .virtualColumns(
-                EXPR_VC("d0:v", "timestamp_floor((\"__time\" + -86400000),'P1M','','UTC')")
+                EXPR_VC("d0:v", "timestamp_floor((__time + -86400000),'P1M','','UTC')")
             )
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
@@ -4441,7 +4441,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   )
               )
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M',3723000,'UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M',3723000,'UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
@@ -4467,7 +4467,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(new PeriodGranularity(Period.months(1), null, DateTimeZone.forID(LOS_ANGELES)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(
-                  EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','America/Los_Angeles')")
+                  EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
               )
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
@@ -4496,7 +4496,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(new PeriodGranularity(Period.months(1), null, DateTimeZone.forID(LOS_ANGELES)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(
-                  EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','America/Los_Angeles')")
+                  EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
               )
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
@@ -4528,7 +4528,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .intervals(QSS(Intervals.of("2000/2000-01-02")))
               .granularity(new PeriodGranularity(Period.hours(1), null, DateTimeZone.UTC))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'PT1H','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'PT1H','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .context(QUERY_CONTEXT_DONT_SKIP_EMPTY_BUCKETS)
               .build(),
@@ -4575,7 +4575,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(new PeriodGranularity(Period.days(1), null, DateTimeZone.UTC))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1D','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
@@ -4602,7 +4602,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(new PeriodGranularity(Period.months(3), null, DateTimeZone.UTC))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P3M','','UTC')"))
+              .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P3M','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
@@ -4626,7 +4626,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(Granularities.MONTH)
               .descending(true)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
               .outputColumns("d0", "a0")
               .build(),
@@ -4672,7 +4672,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
-            .virtualColumns(EXPR_VC("d0:v", "timestamp_extract('YEAR',\"__time\",'UTC')"))
+            .virtualColumns(EXPR_VC("d0:v", "timestamp_extract('YEAR',__time,'UTC')"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "a0")
@@ -4695,7 +4695,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newGroupBy()
             .dataSource(CalciteTests.DATASOURCE1)
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
-            .virtualColumns(EXPR_VC("d0:v", "timestamp_format(\"__time\",'yyyy MM','UTC')"))
+            .virtualColumns(EXPR_VC("d0:v", "timestamp_format(__time,'yyyy MM','UTC')"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0", StringComparators.LEXICOGRAPHIC_NAME)))
             .outputColumns("d0", "a0")
@@ -4718,7 +4718,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .granularity(new PeriodGranularity(Period.parse("P1Y"), null, DateTimeZone.UTC))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .postAggregators(
-                  EXPR_POST_AGG("d0", "timestamp_extract('YEAR',timestamp_floor(\"__time\",'P1Y','','UTC'),'UTC')")
+                  EXPR_POST_AGG("d0", "timestamp_extract('YEAR',timestamp_floor(__time,'P1Y','','UTC'),'UTC')")
               )
               .outputColumns("d0", "a0")
               .build(),
@@ -4746,7 +4746,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .postAggregators(
                   EXPR_POST_AGG(
                       "d0",
-                      "timestamp_extract('YEAR',timestamp_floor(\"__time\",'P1Y','','America/Los_Angeles'),'America/Los_Angeles')"
+                      "timestamp_extract('YEAR',timestamp_floor(__time,'P1Y','','America/Los_Angeles'),'America/Los_Angeles')"
                   )
               )
               .outputColumns("d0", "a0")
@@ -4774,7 +4774,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(new PeriodGranularity(Period.parse("P1M"), null, DateTimeZone.UTC))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(1, OrderByColumnSpec.asc("d0")))
               .outputColumns("d0", "a0")
               .build(),
@@ -4797,7 +4797,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(new PeriodGranularity(Period.parse("P1M"), null, DateTimeZone.UTC))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(1))
               .outputColumns("d0", "a0")
               .build(),
@@ -4821,7 +4821,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .granularity(new PeriodGranularity(Period.parse("P1M"), null, DateTimeZone.UTC))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(1, OrderByColumnSpec.asc("d0")))
               .outputColumns("d0", "a0")
               .build(),
@@ -4843,7 +4843,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 DefaultDimensionSpec.of("dim2", "d0"),
                 DefaultDimensionSpec.of("d1:v", "d1")
             )
-            .virtualColumns(EXPR_VC("d1:v", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+            .virtualColumns(EXPR_VC("d1:v", "timestamp_floor(__time,'P1M','','UTC')"))
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0"), OrderByColumnSpec.asc("d1")))
             .outputColumns("d0", "d1", "a0")
@@ -4941,7 +4941,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .filters(SELECTOR("dim2", "abc"))
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"), DefaultDimensionSpec.of("dim2", "d1"))
             .aggregators(CountAggregatorFactory.of("a0"))
-            .havingSpec(new ExpressionHavingSpec("(\"a0\" == 1)"))
+            .havingSpec(new ExpressionHavingSpec("(a0 == 1)"))
             .outputColumns("d0", "d1")
             .build()
         )
@@ -4962,9 +4962,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{T("2001-01-02"), 1L, "def", "abc"}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim2 = abc, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim2=='abc', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
         "StreamQuery{dataSource='foo', columns=[__time, cnt, dim1, dim2]}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], filter=dim2 = abc, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" == 1)'}, limitSpec=Noop, outputColumns=[d0, d1], $hash=true}"
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], filter=dim2=='abc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], havingSpec=ExpressionHavingSpec{expression='(a0 == 1)'}, limitSpec=Noop, outputColumns=[d0, d1], $hash=true}"
     );
 
     testQuery(
@@ -4975,8 +4975,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{T("2001-01-02"), 1L, "def", "abc"}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim2 = abc, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], filter=dim2 = abc, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], havingSpec=ExpressionHavingSpec{expression='(\"a0\" == 1)'}, limitSpec=Noop, outputColumns=[d0, d1]}",
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim2=='abc', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], filter=dim2=='abc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], havingSpec=ExpressionHavingSpec{expression='(a0 == 1)'}, limitSpec=Noop, outputColumns=[d0, d1]}",
         "StreamQuery{dataSource='foo', filter=InDimsFilter{dimensions=[dim1, dim2], values=[[def], [abc]]}, columns=[__time, cnt, dim1, dim2]}"
     );
   }
@@ -5087,7 +5087,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 .build()
         )
         .virtualColumns(
-            EXPR_VC("v0", "timestamp_extract('MONTH',\"__time\",'UTC')")
+            EXPR_VC("v0", "timestamp_extract('MONTH',__time,'UTC')")
         )
         .columns("dim1", "v0")
         .streaming();
@@ -5099,10 +5099,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"def", 1L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1 = def, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', filter=!(dim1 = null), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1 = def, limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', columns=[dim1, v0], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',\"__time\",'UTC')', outputName='v0'}]}",
-        "StreamQuery{dataSource='foo', filter=!(dim1 = null), columns=[__time, dim1, dim2]}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1 = def, limitSpec=Noop, outputColumns=[d0], $hash=true}"
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "StreamQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', columns=[dim1, v0], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',__time,'UTC')', outputName='v0'}]}",
+        "StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', limitSpec=Noop, outputColumns=[d0], $hash=true}"
     );
 
     testQuery(
@@ -5113,10 +5113,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"def", 1L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1 = def, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1 = def, limitSpec=Noop, outputColumns=[d0]}",
-        "StreamQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1 = null) && dim2 = abc), columns=[dim1, __time]}', columns=[dim1, v0], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',\"__time\",'UTC')', outputName='v0'}]}",
-        "StreamQuery{dataSource='foo', filter=(!(dim1 = null) && dim2 = abc), columns=[dim1, __time]}"
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', limitSpec=Noop, outputColumns=[d0]}",
+        "StreamQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[dim1, __time]}', columns=[dim1, v0], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',__time,'UTC')', outputName='v0'}]}",
+        "StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[dim1, __time]}"
     );
   }
 
@@ -5152,7 +5152,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 .asArray(true)
                 .build()
         )
-        .virtualColumns(EXPR_VC("d0:v", "timestamp_extract('MONTH',\"__time\",'UTC')"))
+        .virtualColumns(EXPR_VC("d0:v", "timestamp_extract('MONTH',__time,'UTC')"))
         .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
         .aggregators(CARDINALITY("a0", DefaultDimensionSpec.of("dim1")))
         .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
@@ -5166,10 +5166,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{1L, 1L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1 = def, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', filter=!(dim1 = null), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1 = def, limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',\"__time\",'UTC')', outputName='d0:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], byRow=false, round=true}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[a0, d0]}",
-        "StreamQuery{dataSource='foo', filter=!(dim1 = null), columns=[__time, dim1, dim2]}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1 = def, limitSpec=Noop, outputColumns=[d0], $hash=true}"
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',__time,'UTC')', outputName='d0:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], byRow=false, round=true}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[a0, d0]}",
+        "StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', limitSpec=Noop, outputColumns=[d0], $hash=true}"
     );
 
     testQuery(
@@ -5180,10 +5180,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{1L, 1L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1 = def, aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1 = def, limitSpec=Noop, outputColumns=[d0]}",
-        "GroupByQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1 = null) && dim2 = abc), columns=[__time, dim1]}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',\"__time\",'UTC')', outputName='d0:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], byRow=false, round=true}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[a0, d0]}",
-        "StreamQuery{dataSource='foo', filter=(!(dim1 = null) && dim2 = abc), columns=[__time, dim1]}"
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', limitSpec=Noop, outputColumns=[d0]}",
+        "GroupByQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',__time,'UTC')', outputName='d0:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], byRow=false, round=true}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[a0, d0]}",
+        "StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}"
     );
   }
 
@@ -5207,7 +5207,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     )
                     .dataSource("foo", newScan()
                         .dataSource("foo")
-                        .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
+                        .virtualColumns(EXPR_VC("v0", "substring(dim2, 0, 1)"))
                         .columns("dim2", "v0")
                         .streaming()
                     )
@@ -5223,10 +5223,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"abc", 1L}
     );
     hook.verifyHooked(
-        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim1 = null), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
-        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=Noop, outputColumns=[_d0, a0]}",
-        "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(\"dim2\", 0, 1)', outputName='v0'}]}",
-        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1 = null), limitSpec=Noop, outputColumns=[d0], $hash=true}"
+        "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim1==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true}], postProcessing=cardinality_estimator}",
+        "GroupByQuery{dataSource='JoinDelegate{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=Noop, outputColumns=[_d0, a0]}",
+        "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}",
+        "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}"
     );
   }
 
@@ -5300,7 +5300,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 CountAggregatorFactory.of("a0"),
                 GenericSumAggregatorFactory.ofDouble("a1", "m2")
             )
-            .postAggregators(EXPR_POST_AGG("s0", "(\"a1\" / \"a0\")"))
+            .postAggregators(EXPR_POST_AGG("s0", "(a1 / a0)"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("a0")))
             .outputColumns("s0", "d0", "d1", "a1", "a0")
             .build(),
@@ -5413,8 +5413,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   GenericSumAggregatorFactory.ofDouble("a1", "m2")
               )
               .postAggregators(
-                  EXPR_POST_AGG("s0", "(\"a0\" + \"a1\")"),
-                  EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1Y','','UTC')")
+                  EXPR_POST_AGG("s0", "(a0 + a1)"),
+                  EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1Y','','UTC')")
               )
               .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
               .outputColumns("d0", "a0", "s0")
@@ -5468,7 +5468,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT CONCAT(dim1, '-', dim1, '_', dim1) as dimX FROM foo",
         newScan()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",'-',\"dim1\",'_',\"dim1\")"))
+            .virtualColumns(EXPR_VC("v0", "concat(dim1,'-',dim1,'_',dim1)"))
             .columns("v0")
             .streaming(),
         new Object[]{"-_"},
@@ -5483,7 +5483,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT CONCAT(dim1, CONCAT(dim2,'x'), m2, 9999, dim1) as dimX FROM foo",
         newScan()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",concat(\"dim2\",'x'),\"m2\",9999,\"dim1\")"))
+            .virtualColumns(EXPR_VC("v0", "concat(dim1,concat(dim2,'x'),m2,9999,dim1)"))
             .columns("v0")
             .streaming(),
         new Object[]{"ax1.09999"},
@@ -5502,7 +5502,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT textcat(dim1, dim1) as dimX FROM foo",
         newScan()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",\"dim1\")"))
+            .virtualColumns(EXPR_VC("v0", "concat(dim1,dim1)"))
             .columns("v0")
             .streaming(),
         new Object[]{""},
@@ -5517,7 +5517,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT textcat(dim1, CAST(m2 as VARCHAR)) as dimX FROM foo",
         newScan()
             .dataSource(CalciteTests.DATASOURCE1)
-            .virtualColumns(EXPR_VC("v0", "concat(\"dim1\",CAST(\"m2\", 'STRING'))"))
+            .virtualColumns(EXPR_VC("v0", "concat(dim1,CAST(m2, 'STRING'))"))
             .columns("v0")
             .streaming(),
         new Object[]{"1.0"},
@@ -5547,7 +5547,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .intervals(QSS(Intervals.of("2000-01-01/2002-01-01")))
               .granularity(Granularities.MONTH)
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-              .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(\"__time\",'P1M','','UTC')"))
+              .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
               .outputColumns("a0", "d0")
               .build(),
@@ -5605,7 +5605,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .dataSource("foo", newScan()
                           .dataSource("foo")
                           .intervals(interval)
-                          .virtualColumns(EXPR_VC("v0", "substring(\"dim2\", 0, 1)"))
+                          .virtualColumns(EXPR_VC("v0", "substring(dim2, 0, 1)"))
                           .columns("__time", "dim2", "v0")
                           .streaming()
                       )
@@ -5736,7 +5736,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dataSource("foo")
             .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
             .virtualColumns(
-                EXPR_VC("d0:v", "timestamp_format(BUCKETSTART(\"__time\",'MONTH'),'yyyy-MM-dd HH:mm:SS','UTC')")
+                EXPR_VC("d0:v", "timestamp_format(BUCKETSTART(__time,'MONTH'),'yyyy-MM-dd HH:mm:SS','UTC')")
             )
             .outputColumns("d0")
             .build(),
@@ -5757,7 +5757,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .columns("index", "market", "quality")
               .limitSpec(
                   LimitSpec.of(new WindowingSpec(
-                      Arrays.asList("market"), OrderByColumnSpec.descending("quality"), "\"w0$o0\" = $SUM(\"index\")"
+                      Arrays.asList("market"), OrderByColumnSpec.descending("quality"), "\"w0$o0\" = $SUM(index)"
                   ))
               )
               .outputColumns("market", "quality", "index", "w0$o0")
@@ -5815,9 +5815,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .virtualColumns(
-                  EXPR_VC("a3:v", "(\"cnt\" + 1)"),
-                  EXPR_VC("a4:v", "(\"m1\" + 1)"),
-                  EXPR_VC("a5:v", "concat(\"dim1\",CAST(\"cnt\", 'STRING'))")
+                  EXPR_VC("a3:v", "(cnt + 1)"),
+                  EXPR_VC("a4:v", "(m1 + 1)"),
+                  EXPR_VC("a5:v", "concat(dim1,CAST(cnt, 'STRING'))")
               )
               .aggregators(
                   new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MIN"),
@@ -5844,9 +5844,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .virtualColumns(
-                  EXPR_VC("a3:v", "(\"cnt\" + 1)"),
-                  EXPR_VC("a4:v", "(\"m1\" + 1)"),
-                  EXPR_VC("a5:v", "concat(\"dim1\",CAST(\"cnt\", 'STRING'))")
+                  EXPR_VC("a3:v", "(cnt + 1)"),
+                  EXPR_VC("a4:v", "(m1 + 1)"),
+                  EXPR_VC("a5:v", "concat(dim1,CAST(cnt, 'STRING'))")
               )
               .aggregators(
                   new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MAX"),
