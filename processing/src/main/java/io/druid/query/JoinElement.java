@@ -293,15 +293,19 @@ public class JoinElement
       QueryConfig config
   )
   {
+    long estimated = JoinQuery.estimatedNumRows(dataSource);
+    if (estimated > 0) {
+      return estimated;
+    }
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       if (query.getDataSource() instanceof QueryDataSource) {
         if (query instanceof StreamQuery) {
           StreamQuery stream = (StreamQuery) query;
           // ignore simple projections
-          long estimated = estimatedNumRows(query.getDataSource(), segmentSpec, context, segmentWalker, config);
+          estimated = estimatedNumRows(query.getDataSource(), segmentSpec, context, segmentWalker, config);
           if (estimated > 0 && stream.getFilter() != null) {
-            estimated >>= 1;
+            estimated = Math.max(1, estimated >>> 1);
           }
           LimitSpec limitSpec = stream.getLimitSpec();
           if (estimated > 0 && limitSpec.hasLimit()) {
@@ -311,14 +315,11 @@ public class JoinElement
         }
         return -1;  // see later
       }
-      if (query instanceof JoinQuery.JoinDelegate) {
-        return ((JoinQuery.JoinDelegate) query).getEstimatedCardinality();
-      }
       if (query instanceof BaseAggregationQuery) {
         BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
-        long estimated = Queries.estimateCardinality(aggregation.withHavingSpec(null), segmentWalker, config);
-        if (estimated > 1 && aggregation.getHavingSpec() != null) {
-          estimated >>= 1;    // half
+        estimated = Queries.estimateCardinality(aggregation.withHavingSpec(null), segmentWalker, config);
+        if (estimated > 0 && aggregation.getHavingSpec() != null) {
+          estimated = Math.max(1, estimated >>> 1);    // half
         }
         return estimated;
       }

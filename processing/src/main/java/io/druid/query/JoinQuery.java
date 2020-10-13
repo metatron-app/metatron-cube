@@ -266,7 +266,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   public static final long ROWNUM_NOT_EVALUATED = -2;
 
   // use it if already set
-  private static long estimatedNumRows(DataSource dataSource)
+  public static long estimatedNumRows(DataSource dataSource)
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
@@ -300,8 +300,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       final List<String> leftJoinColumns = element.getLeftJoinColumns();
       final List<String> rightJoinColumns = element.getRightJoinColumns();
 
-      final DataSource left = i == 0 ? dataSources.get(element.getLeftAlias()) : null;
-      final DataSource right = dataSources.get(element.getRightAlias());
+      final String leftAlias = element.getLeftAlias();
+      final String rightAlias = element.getRightAlias();
+
+      final DataSource left = i == 0 ? dataSources.get(leftAlias) : null;
+      final DataSource right = dataSources.get(rightAlias);
 
       long leftEstimated = i == 0 ? estimatedNumRows(left) : currentEstimation;
       if (leftEstimated == ROWNUM_NOT_EVALUATED) {
@@ -328,7 +331,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
               );
               LOG.info(
                   "%s (R) is merged into %s (L) as a filter with expected number of values = %d",
-                  element.getRightAlias(), element.getLeftAlias(), rightEstimated
+                  rightAlias, leftAlias, rightEstimated
               );
               Query query = JoinElement.toQuery(filtered, null, segmentSpec, context);
               queries.add(query.withOverriddenContext(CARDINALITY, leftEstimated));
@@ -351,7 +354,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
               );
               LOG.info(
                   "%s (L) is merged into %s (R) as a filter with expected number of values = %d",
-                  element.getLeftAlias(), element.getRightAlias(), leftEstimated
+                  leftAlias, rightAlias, leftEstimated
               );
               Query query = JoinElement.toQuery(filtered, null, segmentSpec, context);
               queries.add(query.withOverriddenContext(CARDINALITY, rightEstimated));
@@ -381,7 +384,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         }
       }
       if (i == 0) {
-        LOG.info("%s (L) -----> %d rows, hashing? %s", element.getLeftAlias(), leftEstimated, leftHashing);
+        LOG.info("%s (L) -----> %d rows, type? %s, hashing? %s", leftAlias, leftEstimated, joinType, leftHashing);
         List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : leftJoinColumns;
         Query query = JoinElement.toQuery(left, sortOn, segmentSpec, context);
         if (leftHashing) {
@@ -390,10 +393,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         if (leftEstimated > 0) {
           query = query.withOverriddenContext(CARDINALITY, leftEstimated);
         }
-        currentEstimation = leftEstimated;
         queries.add(query);
       }
-      LOG.info("%s (R) -----> %d rows, hashing? %s", element.getRightAlias(), rightEstimated, rightHashing);
+      LOG.info("%s (R) -----> %d rows, type? %s, hashing? %s", rightAlias, rightEstimated, joinType, rightHashing);
       List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
       Query query = JoinElement.toQuery(right, sortOn, segmentSpec, context);
       if (rightHashing) {
@@ -404,22 +406,29 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
       queries.add(query);
 
-      if (currentEstimation > 0 && rightEstimated > 0) {
-        currentEstimation = resultEstimation(joinType, currentEstimation, rightEstimated);
-      }
-
       // try bloom filter
       if (i == 0) {
         final Query query0 = queries.get(0);
         final Query query1 = queries.get(1);
         if (joinType.isLeftDrivable() && query0.hasFilters() && rightEstimated > bloomFilterThreshold) {
           // left to right
-          queries.set(1, bloom(query0, leftJoinColumns, leftEstimated, query1, rightJoinColumns));
+          Query applied = bloom(query0, leftJoinColumns, leftEstimated, rightEstimated, query1, rightJoinColumns);
+          if (applied != null) {
+            rightEstimated = Math.max(1, rightEstimated >>> 2);
+            queries.set(1, applied);
+          }
         }
         if (joinType.isRightDrivable() && query1.hasFilters() && leftEstimated > bloomFilterThreshold) {
           // right to left
-          queries.set(0, bloom(query1, rightJoinColumns, rightEstimated, query0, leftJoinColumns));
+          Query applied = bloom(query1, rightJoinColumns, rightEstimated, leftEstimated, query0, leftJoinColumns);
+          if (applied != null) {
+            leftEstimated = Math.max(1, leftEstimated >>> 2);
+            queries.set(0, applied);
+          }
         }
+      }
+      if (leftEstimated > 0 && rightEstimated > 0) {
+        currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
       }
     }
     // todo: properly handle filter converted semijoin
@@ -437,10 +446,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
-    // no parallelism.. executed parallel in join post processor
-    JoinDelegate query = new JoinDelegate(
-        queries, prefixAliases, timeColumn, outputColumns, currentEstimation, limit, BaseQuery.copyContextForMeta(this)
-    );
+    Map<String, Object> joinContext = BaseQuery.copyContextForMeta(this);
+    if (currentEstimation > 0) {
+      joinContext.put(CARDINALITY, currentEstimation);
+    }
+    JoinDelegate query = new JoinDelegate(queries, prefixAliases, timeColumn, outputColumns, limit, joinContext);
     if (schema != null) {
       query = query.withSchema(Suppliers.ofInstance(schema));
     }
@@ -478,6 +488,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       Query source,
       List<String> sourceJoinOn,
       long sourceCardinality,
+      long targetCardinality,
       Query target,
       List<String> targetJoinOn
   )
@@ -489,11 +500,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (extracted != null) {
         ViewDataSource sourceView = BaseQuery.asView(source, sourceJoinOn);
         DimFilter factory = BloomDimFilter.Factory.fields(extracted, sourceView, Ints.checkedCast(sourceCardinality));
-        LOG.info("Applying bloom filter from [%s] to [%s]", DataSources.getName(source), DataSources.getName(target));
+        LOG.info("Applying bloom filter from [%s] to [%s]", sourceView, DataSources.getName(target));
         return DimFilters.and((FilterSupport<?>) target, factory);
       }
     }
-    return target;
+    return null;
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)
@@ -608,7 +619,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     private final List<String> outputColumns;
 
     private final String timeColumnName;
-    private final long estimatedCardinality;
 
     private final Execs.SettableFuture<List<OrderByColumnSpec>> future = new Execs.SettableFuture();
 
@@ -617,7 +627,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         List<String> prefixAliases,
         String timeColumnName,
         List<String> outputColumns,
-        long estimatedCardinality,
         int limit,
         Map<String, Object> context
     )
@@ -626,7 +635,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       this.prefixAliases = prefixAliases;
       this.outputColumns = outputColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
-      this.estimatedCardinality = estimatedCardinality;
     }
 
     public List<String> getPrefixAliases()
@@ -654,11 +662,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       future.setException(ex);
     }
 
-    public long getEstimatedCardinality()
-    {
-      return estimatedCardinality;
-    }
-
     @Override
     @SuppressWarnings("unchecked")
     protected JoinDelegate newInstance(
@@ -674,7 +677,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           prefixAliases,
           timeColumnName,
           outputColumns,
-          estimatedCardinality,
           getLimit(),
           context
       ).withSchema(schema);
