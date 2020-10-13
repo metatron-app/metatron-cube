@@ -318,7 +318,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       // try convert semi-join to filter
       if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {
         if (i == 0 && DataSources.isFilterSupport(left) && element.isLeftSemiJoinable(right, outputColumns)) {
-          if (rightEstimated > 0 && rightEstimated < semiJoinThrehold) {
+          if (rightEstimated >= 0 && rightEstimated < semiJoinThrehold) {
             ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(right, segmentSpec, context);
             List<String> rightColumns = array.estimatedOutputColumns();
             if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
@@ -333,15 +333,16 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
                   "%s (R) is merged into %s (L) as a filter with expected number of values = %d",
                   rightAlias, leftAlias, rightEstimated
               );
-              Query query = JoinElement.toQuery(filtered, null, segmentSpec, context);
-              queries.add(query.withOverriddenContext(CARDINALITY, leftEstimated));
-              currentEstimation = leftEstimated;
+              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
+              if (leftEstimated >= 0) {
+                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+              }
               continue;
             }
           }
         }
         if (DataSources.isFilterSupport(right) && element.isRightSemiJoinable(left, outputColumns)) {
-          if (leftEstimated > 0 && leftEstimated < semiJoinThrehold) {
+          if (leftEstimated >= 0 && leftEstimated < semiJoinThrehold) {
             ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(left, segmentSpec, context);
             List<String> leftColumns = array.estimatedOutputColumns();
             if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
@@ -356,9 +357,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
                   "%s (L) is merged into %s (R) as a filter with expected number of values = %d",
                   leftAlias, rightAlias, leftEstimated
               );
-              Query query = JoinElement.toQuery(filtered, null, segmentSpec, context);
-              queries.add(query.withOverriddenContext(CARDINALITY, rightEstimated));
-              currentEstimation = rightEstimated;
+              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
+              if (rightEstimated >= 0) {
+                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+              }
               continue;
             }
           }
@@ -370,10 +372,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       boolean rightHashing = false;
       if (hashThreshold > 0) {
         if (joinType.isLeftDrivable()) {
-          rightHashing = rightEstimated > 0 && rightEstimated < hashThreshold;
+          rightHashing = rightEstimated >= 0 && rightEstimated < hashThreshold;
         }
         if (i == 0 && joinType.isRightDrivable()) {
-          leftHashing = leftEstimated > 0 && leftEstimated < hashThreshold;
+          leftHashing = leftEstimated >= 0 && leftEstimated < hashThreshold;
         }
       }
       if (leftHashing && rightHashing) {
@@ -390,7 +392,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         if (leftHashing) {
           query = query.withOverriddenContext(HASHING, true);
         }
-        if (leftEstimated > 0) {
+        if (leftEstimated >= 0) {
           query = query.withOverriddenContext(CARDINALITY, leftEstimated);
         }
         queries.add(query);
@@ -401,7 +403,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (rightHashing) {
         query = query.withOverriddenContext(HASHING, true);
       }
-      if (rightEstimated > 0) {
+      if (rightEstimated >= 0) {
         query = query.withOverriddenContext(CARDINALITY, rightEstimated);
       }
       queries.add(query);
@@ -427,7 +429,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           }
         }
       }
-      if (leftEstimated > 0 && rightEstimated > 0) {
+      if (leftEstimated >= 0 && rightEstimated >= 0) {
         currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
       }
     }
@@ -465,15 +467,23 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   {
     switch (type) {
       case INNER:
-        leftEstimation = Math.min(leftEstimation, rightEstimated) + Math.abs(leftEstimation - rightEstimated) / 2;
+        if (leftEstimation == 0 || rightEstimated == 0) {
+          leftEstimation = 0;
+        } else {
+          leftEstimation = Math.min(leftEstimation, rightEstimated) + Math.abs(leftEstimation - rightEstimated) / 2;
+        }
         break;
       case LO:
-        if (rightEstimated > leftEstimation) {
+        if (leftEstimation == 0) {
+          leftEstimation = 0;
+        } else if (rightEstimated > leftEstimation) {
           leftEstimation *= ((double) rightEstimated) / leftEstimation;
         }
         break;
       case RO:
-        if (leftEstimation > rightEstimated) {
+        if (rightEstimated == 0) {
+          leftEstimation = 0;
+        } else if (leftEstimation > rightEstimated) {
           leftEstimation *= (double) leftEstimation / rightEstimated;
         }
         break;

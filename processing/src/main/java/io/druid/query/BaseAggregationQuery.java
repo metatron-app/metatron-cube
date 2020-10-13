@@ -208,7 +208,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       return ImmutableList.of();
     }
-    return DimensionSpecs.asOrderByColumnSpec(getDimensions());
+    return getDataSource() instanceof TableDataSource ? DimensionSpecs.asOrderByColumnSpec(getDimensions()) : null;
   }
 
   @Override

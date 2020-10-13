@@ -609,6 +609,19 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       hooked.clear();
     }
 
+    protected void printHooked()
+    {
+      StringBuilder builder = new StringBuilder();
+      for (int i = 0; i < hooked.size(); i++) {
+        builder.append('"').append(hooked.get(i).toString()).append('\"');
+        if (i < hooked.size() - 1) {
+          builder.append(',');
+        }
+        builder.append('\n');
+      }
+      System.out.println(builder.toString());
+    }
+
     public void clear()
     {
       hooked.clear();
