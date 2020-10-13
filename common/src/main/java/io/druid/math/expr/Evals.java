@@ -610,7 +610,7 @@ public class Evals
     try {
       return binary.getClass()
                    .getDeclaredConstructor(String.class, Expr.class, Expr.class)
-                   .newInstance(binary.op, left, right);
+                   .newInstance(binary.op(), left, right);
     }
     catch (Exception e) {
       LOG.warn(e, "failed to rewrite expression " + binary);

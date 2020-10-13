@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -220,14 +221,12 @@ public class Parser
   {
     if (expr instanceof IdentifierExpr) {
       found.add(((IdentifierExpr) expr).identifier());
+    } else if (expr instanceof UnaryOp) {
+      findBindingsRecursive(((UnaryOp) expr).expr(), found);
     } else if (expr instanceof BinaryOp) {
       BinaryOp binary = (BinaryOp) expr;
-      findBindingsRecursive(binary.left, found);
-      findBindingsRecursive(binary.right, found);
-    } else if (expr instanceof UnaryMinusExpr) {
-      findBindingsRecursive(((UnaryMinusExpr) expr).expr, found);
-    } else if (expr instanceof UnaryNotExpr) {
-      findBindingsRecursive(((UnaryNotExpr) expr).expr, found);
+      findBindingsRecursive(binary.left(), found);
+      findBindingsRecursive(binary.right(), found);
     } else if (expr instanceof FunctionExpr) {
       for (Expr child : ((FunctionExpr) expr).args) {
         findBindingsRecursive(child, found);
@@ -251,48 +250,44 @@ public class Parser
       @Override
       public Expr visit(BinaryOp op, Expr left, Expr right)
       {
-        if (op instanceof BooleanBinaryOp) {
+        if (op instanceof BooleanOp) {
           if (Evals.isIdentifier(left) && Evals.isIdentifier(right)) {
-            final String id1 = Evals.getIdentifier(left);
-            final String id2 = Evals.getIdentifier(right);
-            final WithRawAccess leftAccess = rawAccessible.get(id1);
-            final WithRawAccess rightAccess = rawAccessible.get(id2);
+            String id1 = Evals.getIdentifier(left);
+            String id2 = Evals.getIdentifier(right);
+            WithRawAccess leftAccess = rawAccessible.get(id1);
+            WithRawAccess rightAccess = rawAccessible.get(id2);
             if (leftAccess != null && rightAccess != null) {
-              final BooleanBinaryOp rewritten = rewriteRaw(op.op, leftAccess, rightAccess);
+              BooleanOp rewritten = rewriteCompare(op.op(), leftAccess, rightAccess);
               if (rewritten != null) {
                 return rewritten;
               }
             }
-            final TypedSupplier supplier1 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
-            final TypedSupplier supplier2 = values.getOrDefault(id2, TypedSupplier.UNKNOWN);
+            TypedSupplier supplier1 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
+            TypedSupplier supplier2 = values.getOrDefault(id2, TypedSupplier.UNKNOWN);
             if (supplier1.type().isPrimitive() && Objects.equals(supplier1.type(), supplier2.type())) {
-              final BooleanBinaryOp rewritten = rewrite(op.op, supplier1, supplier2, supplier1.type().comparator());
+              BooleanOp rewritten = rewriteCompare(op.op(), supplier1, supplier2, supplier1.type().comparator());
               if (rewritten != null) {
                 return rewritten;
               }
             }
           } else if (Evals.isIdentifier(left) && Evals.isConstant(right)) {
-            final String id1 = Evals.getIdentifier(left);
-            final TypedSupplier supplier1 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
-            final ValueDesc type1 = supplier1.type();
+            String id1 = Evals.getIdentifier(left);
+            TypedSupplier supplier1 = values.getOrDefault(id1, TypedSupplier.UNKNOWN);
+            ValueDesc type1 = supplier1.type();
             if (type1.isPrimitive()) {
-              final TypedSupplier supplier2 = new TypedSupplier.Simple<>(
-                  Evals.castTo(Evals.getConstantEval(right), type1).value(), type1
-              );
-              final BooleanBinaryOp rewritten = rewrite(op.op, supplier1, supplier2, type1.comparator());
+              Supplier supplier2 = Suppliers.ofInstance(Evals.castTo(Evals.getConstantEval(right), type1).value());
+              BooleanOp rewritten = rewriteCompare(op.op(), supplier1, supplier2, type1.comparator());
               if (rewritten != null) {
                 return rewritten;
               }
             }
           } else if (Evals.isConstant(left) && Evals.isIdentifier(right)) {
-            final String id2 = Evals.getIdentifier(right);
-            final TypedSupplier supplier2 = values.getOrDefault(id2, TypedSupplier.UNKNOWN);
-            final ValueDesc type2 = supplier2.type();
+            String id2 = Evals.getIdentifier(right);
+            TypedSupplier supplier2 = values.getOrDefault(id2, TypedSupplier.UNKNOWN);
+            ValueDesc type2 = supplier2.type();
             if (type2.isPrimitive()) {
-              final TypedSupplier supplier1 = new TypedSupplier.Simple<>(
-                  Evals.castTo(Evals.getConstantEval(right), type2).value(), type2
-              );
-              final BooleanBinaryOp rewritten = rewrite(op.op, supplier1, supplier2, type2.comparator());
+              Supplier supplier1 = Suppliers.ofInstance(Evals.castTo(Evals.getConstantEval(left), type2).value());
+              BooleanOp rewritten = rewriteCompare(op.op(), supplier1, supplier2, type2.comparator());
               if (rewritten != null) {
                 return rewritten;
               }
@@ -304,7 +299,7 @@ public class Parser
     });
   }
 
-  private static BooleanBinaryOp rewriteRaw(String op, WithRawAccess left, WithRawAccess right)
+  private static BooleanOp rewriteCompare(String op, WithRawAccess left, WithRawAccess right)
   {
     switch (op) {
       case "<":
@@ -324,7 +319,7 @@ public class Parser
   }
 
   @SuppressWarnings("unchecked")
-  private static BooleanBinaryOp rewrite(String op, Supplier left, Supplier right, Comparator cp)
+  private static BooleanOp rewriteCompare(String op, Supplier left, Supplier right, Comparator cp)
   {
     switch (op) {
       case "<":
@@ -384,13 +379,13 @@ public class Parser
     @Override
     public Expr visit(UnaryOp expr, Expr child)
     {
-      return expr.getChild() == child ? expr : expr.with(child);
+      return expr.expr() == child ? expr : expr.with(child);
     }
 
     @Override
     public Expr visit(BinaryOp expr, Expr left, Expr right)
     {
-      return expr.left == left && expr.right == right ? expr : expr.with(left, right);
+      return expr.left() == left && expr.right() == right ? expr : expr.with(left, right);
     }
 
     @Override
@@ -413,23 +408,26 @@ public class Parser
     } else if (expr instanceof IdentifierExpr) {
       return visitor.visit((IdentifierExpr) expr);
     } else if (expr instanceof AssignExpr) {
-      T assignee = traverse(((AssignExpr) expr).assignee, visitor);
-      T assigned = traverse(((AssignExpr) expr).assigned, visitor);
-      return visitor.visit((AssignExpr) expr, assignee, assigned);
+      AssignExpr assign = (AssignExpr) expr;
+      T assignee = traverse(assign.assignee, visitor);
+      T assigned = traverse(assign.assigned, visitor);
+      return visitor.visit(assign, assignee, assigned);
     } else if (expr instanceof UnaryOp) {
-      T child = traverse(((UnaryOp) expr).getChild(), visitor);
-      return visitor.visit((UnaryOp) expr, child);
+      UnaryOp unary = (UnaryOp) expr;
+      T child = traverse(unary.expr(), visitor);
+      return visitor.visit(unary, child);
     } else if (expr instanceof BinaryOp) {
       BinaryOp binary = (BinaryOp) expr;
-      T left = traverse(binary.left, visitor);
-      T right = traverse(binary.right, visitor);
-      return visitor.visit((BinaryOp) expr, left, right);
+      T left = traverse(binary.left(), visitor);
+      T right = traverse(binary.right(), visitor);
+      return visitor.visit(binary, left, right);
     } else if (expr instanceof FunctionExpr) {
+      FunctionExpr function = (FunctionExpr) expr;
       List<T> params = Lists.newArrayList();
-      for (Expr child : ((FunctionExpr) expr).args) {
+      for (Expr child : function.args) {
         params.add(traverse(child, visitor));
       }
-      return visitor.visit((FunctionExpr) expr, params);
+      return visitor.visit(function, params);
     }
     return visitor.visit(expr);
   }
@@ -628,14 +626,12 @@ public class Parser
 
   public static void init(Expr expr)
   {
-    if (expr instanceof BinaryOp) {
+    if (expr instanceof UnaryOp) {
+      init(((UnaryOp) expr).expr());
+    } else if (expr instanceof BinaryOp) {
       BinaryOp binary = (BinaryOp) expr;
-      init(binary.left);
-      init(binary.right);
-    } else if (expr instanceof UnaryMinusExpr) {
-      init(((UnaryMinusExpr) expr).expr);
-    } else if (expr instanceof UnaryNotExpr) {
-      init(((UnaryNotExpr) expr).expr);
+      init(binary.left());
+      init(binary.right());
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
       if (functionExpr.function instanceof WindowFunctionFactory.WindowFunction) {

@@ -87,13 +87,6 @@ interface Constant extends Expr, Expression.ConstExpression
 {
 }
 
-interface UnaryOp extends Expr
-{
-  Expr getChild();
-
-  UnaryOp with(Expr child);
-}
-
 final class BooleanConst implements Constant
 {
   public static BooleanConst of(boolean bool)
@@ -508,13 +501,28 @@ final class FunctionExpr implements Expr, Expression.FuncExpression
   }
 }
 
+interface UnaryOp extends Expr
+{
+  String op();
+
+  Expr expr();
+
+  UnaryOp with(Expr child);
+}
+
 final class UnaryMinusExpr implements UnaryOp
 {
-  final Expr expr;
+  private final Expr expr;
 
   UnaryMinusExpr(Expr expr)
   {
     this.expr = expr;
+  }
+
+  @Override
+  public String op()
+  {
+    return "-";
   }
 
   @Override
@@ -524,7 +532,7 @@ final class UnaryMinusExpr implements UnaryOp
   }
 
   @Override
-  public Expr getChild()
+  public Expr expr()
   {
     return expr;
   }
@@ -548,9 +556,9 @@ final class UnaryMinusExpr implements UnaryOp
   }
 }
 
-final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
+final class UnaryNotExpr implements UnaryOp, BooleanOp, Expression.NotExpression
 {
-  final Expr expr;
+  private final Expr expr;
 
   UnaryNotExpr(Expr expr)
   {
@@ -558,15 +566,15 @@ final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   }
 
   @Override
-  public UnaryNotExpr with(Expr child)
+  public String op()
   {
-    return new UnaryNotExpr(child);
+    return "!";
   }
 
   @Override
-  public ValueDesc returns()
+  public UnaryNotExpr with(Expr child)
   {
-    return ValueDesc.BOOLEAN;
+    return new UnaryNotExpr(child);
   }
 
   @Override
@@ -579,6 +587,12 @@ final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   public String toString()
   {
     return "!" + expr.toString();
+  }
+
+  @Override
+  public Expr expr()
+  {
+    return expr;
   }
 
   @Override
@@ -596,25 +610,47 @@ final class UnaryNotExpr implements UnaryOp, Expression.NotExpression
   }
 }
 
-abstract class BinaryOp implements Expr
+abstract interface BinaryOp extends Expr
+{
+  String op();
+
+  Expr left();
+
+  Expr right();
+
+  Expr with(Expr left, Expr right);
+}
+
+abstract class AbstractBinaryOp implements BinaryOp
 {
   protected final String op;
   protected final Expr left;
   protected final Expr right;
 
-  public BinaryOp(String op, Expr left, Expr right)
+  public AbstractBinaryOp(String op, Expr left, Expr right)
   {
     this.op = op;
     this.left = left;
     this.right = right;
   }
 
+  @Override
   public String op()
   {
     return op;
   }
 
-  abstract BinaryOp with(Expr left, Expr right);
+  @Override
+  public Expr left()
+  {
+    return left;
+  }
+
+  @Override
+  public Expr right()
+  {
+    return right;
+  }
 
   @Override
   public String toString()
@@ -623,7 +659,11 @@ abstract class BinaryOp implements Expr
   }
 }
 
-abstract interface BooleanBinaryOp extends Expr
+abstract interface BinaryArithmeticOp extends BinaryOp
+{
+}
+
+abstract interface BooleanOp extends Expr
 {
   public default ValueDesc returns()
   {
@@ -631,7 +671,7 @@ abstract interface BooleanBinaryOp extends Expr
   }
 }
 
-abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpression
+abstract class BinaryOpExprBase extends AbstractBinaryOp implements Expression.FuncExpression
 {
   public BinaryOpExprBase(String op, Expr left, Expr right)
   {
@@ -648,7 +688,7 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
   @Override
   public ValueDesc returns()
   {
-    if (this instanceof BooleanBinaryOp) {
+    if (this instanceof BooleanOp) {
       return ValueDesc.BOOLEAN;
     }
     final ValueDesc lt = left.returns();
@@ -697,7 +737,7 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
     }
     final boolean ln = leftVal.isNull();
     final boolean rn = rightVal.isNull();
-    if (this instanceof BooleanBinaryOp && (ln || rn)) {
+    if (this instanceof BooleanOp && (ln || rn)) {
       return ExprEval.NULL_BOOL;
     }
     // null - 100 = null
@@ -758,7 +798,7 @@ abstract class BinaryOpExprBase extends BinaryOp implements Expression.FuncExpre
   }
 }
 
-final class BinMinusExpr extends BinaryOpExprBase
+final class BinMinusExpr extends BinaryOpExprBase implements BinaryArithmeticOp
 {
   BinMinusExpr(String op, Expr left, Expr right)
   {
@@ -766,7 +806,7 @@ final class BinMinusExpr extends BinaryOpExprBase
   }
 
   @Override
-  public BinaryOp with(Expr left, Expr right)
+  public BinMinusExpr with(Expr left, Expr right)
   {
     return new BinMinusExpr(op, left, right);
   }
@@ -810,7 +850,7 @@ final class BinPowExpr extends BinaryOpExprBase
   }
 
   @Override
-  BinPowExpr with(Expr left, Expr right)
+  public BinPowExpr with(Expr left, Expr right)
   {
     return new BinPowExpr(op, left, right);
   }
@@ -846,7 +886,7 @@ final class BinPowExpr extends BinaryOpExprBase
   }
 }
 
-final class BinMulExpr extends BinaryOpExprBase
+final class BinMulExpr extends BinaryOpExprBase implements BinaryArithmeticOp
 {
   BinMulExpr(String op, Expr left, Expr right)
   {
@@ -854,7 +894,7 @@ final class BinMulExpr extends BinaryOpExprBase
   }
 
   @Override
-  BinMulExpr with(Expr left, Expr right)
+  public BinMulExpr with(Expr left, Expr right)
   {
     return new BinMulExpr(op, left, right);
   }
@@ -890,7 +930,7 @@ final class BinMulExpr extends BinaryOpExprBase
   }
 }
 
-final class BinDivExpr extends BinaryOpExprBase
+final class BinDivExpr extends BinaryOpExprBase implements BinaryArithmeticOp
 {
   BinDivExpr(String op, Expr left, Expr right)
   {
@@ -898,7 +938,7 @@ final class BinDivExpr extends BinaryOpExprBase
   }
 
   @Override
-  BinDivExpr with(Expr left, Expr right)
+  public BinDivExpr with(Expr left, Expr right)
   {
     return new BinDivExpr(op, left, right);
   }
@@ -942,7 +982,7 @@ final class BinModuloExpr extends BinaryOpExprBase
   }
 
   @Override
-  BinModuloExpr with(Expr left, Expr right)
+  public BinModuloExpr with(Expr left, Expr right)
   {
     return new BinModuloExpr(op, left, right);
   }
@@ -977,7 +1017,7 @@ final class BinModuloExpr extends BinaryOpExprBase
   }
 }
 
-final class BinPlusExpr extends BinaryOpExprBase
+final class BinPlusExpr extends BinaryOpExprBase implements BinaryArithmeticOp
 {
   BinPlusExpr(String op, Expr left, Expr right)
   {
@@ -985,7 +1025,7 @@ final class BinPlusExpr extends BinaryOpExprBase
   }
 
   @Override
-  BinPlusExpr with(Expr left, Expr right)
+  public BinPlusExpr with(Expr left, Expr right)
   {
     return new BinPlusExpr(op, left, right);
   }
@@ -1021,7 +1061,7 @@ final class BinPlusExpr extends BinaryOpExprBase
   }
 }
 
-final class BinLtExpr extends BinaryOpExprBase implements BooleanBinaryOp
+final class BinLtExpr extends BinaryOpExprBase implements BooleanOp
 {
   BinLtExpr(String op, Expr left, Expr right)
   {
@@ -1029,7 +1069,7 @@ final class BinLtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
-  BinLtExpr with(Expr left, Expr right)
+  public BinLtExpr with(Expr left, Expr right)
   {
     return new BinLtExpr(op, left, right);
   }
@@ -1065,7 +1105,7 @@ final class BinLtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 }
 
-final class BinLeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
+final class BinLeqExpr extends BinaryOpExprBase implements BooleanOp
 {
   BinLeqExpr(String op, Expr left, Expr right)
   {
@@ -1073,7 +1113,7 @@ final class BinLeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
-  BinLeqExpr with(Expr left, Expr right)
+  public BinLeqExpr with(Expr left, Expr right)
   {
     return new BinLeqExpr(op, left, right);
   }
@@ -1109,7 +1149,7 @@ final class BinLeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 }
 
-final class BinGtExpr extends BinaryOpExprBase implements BooleanBinaryOp
+final class BinGtExpr extends BinaryOpExprBase implements BooleanOp
 {
   BinGtExpr(String op, Expr left, Expr right)
   {
@@ -1117,7 +1157,7 @@ final class BinGtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
-  BinGtExpr with(Expr left, Expr right)
+  public BinGtExpr with(Expr left, Expr right)
   {
     return new BinGtExpr(op, left, right);
   }
@@ -1153,7 +1193,7 @@ final class BinGtExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 }
 
-final class BinGeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
+final class BinGeqExpr extends BinaryOpExprBase implements BooleanOp
 {
   BinGeqExpr(String op, Expr left, Expr right)
   {
@@ -1161,7 +1201,7 @@ final class BinGeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
-  BinGeqExpr with(Expr left, Expr right)
+  public BinGeqExpr with(Expr left, Expr right)
   {
     return new BinGeqExpr(op, left, right);
   }
@@ -1197,7 +1237,7 @@ final class BinGeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 }
 
-final class BinEqExpr extends BinaryOpExprBase implements BooleanBinaryOp
+final class BinEqExpr extends BinaryOpExprBase implements BooleanOp
 {
   BinEqExpr(String op, Expr left, Expr right)
   {
@@ -1205,7 +1245,7 @@ final class BinEqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
-  BinEqExpr with(Expr left, Expr right)
+  public BinEqExpr with(Expr left, Expr right)
   {
     return new BinEqExpr(op, left, right);
   }
@@ -1241,7 +1281,7 @@ final class BinEqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 }
 
-final class BinNeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
+final class BinNeqExpr extends BinaryOpExprBase implements BooleanOp
 {
   BinNeqExpr(String op, Expr left, Expr right)
   {
@@ -1249,7 +1289,7 @@ final class BinNeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 
   @Override
-  BinNeqExpr with(Expr left, Expr right)
+  public BinNeqExpr with(Expr left, Expr right)
   {
     return new BinNeqExpr(op, left, right);
   }
@@ -1285,7 +1325,7 @@ final class BinNeqExpr extends BinaryOpExprBase implements BooleanBinaryOp
   }
 }
 
-final class BinAndExpr extends BinaryOp implements Expression.AndExpression
+final class BinAndExpr extends AbstractBinaryOp implements Expression.AndExpression
 {
   BinAndExpr(String op, Expr left, Expr right)
   {
@@ -1293,7 +1333,7 @@ final class BinAndExpr extends BinaryOp implements Expression.AndExpression
   }
 
   @Override
-  BinAndExpr with(Expr left, Expr right)
+  public BinAndExpr with(Expr left, Expr right)
   {
     return new BinAndExpr(op, left, right);
   }
@@ -1329,7 +1369,7 @@ final class BinAndExpr extends BinaryOp implements Expression.AndExpression
   }
 }
 
-final class BinOrExpr extends BinaryOp implements Expression.OrExpression
+final class BinOrExpr extends AbstractBinaryOp implements Expression.OrExpression
 {
   BinOrExpr(String op, Expr left, Expr right)
   {
@@ -1337,7 +1377,7 @@ final class BinOrExpr extends BinaryOp implements Expression.OrExpression
   }
 
   @Override
-  BinOrExpr with(Expr left, Expr right)
+  public BinOrExpr with(Expr left, Expr right)
   {
     return new BinOrExpr(op, left, right);
   }
