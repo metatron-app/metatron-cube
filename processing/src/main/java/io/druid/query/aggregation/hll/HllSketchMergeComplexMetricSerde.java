@@ -24,14 +24,9 @@ import com.yahoo.sketches.hll.HllSketch;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
-
-import java.nio.ByteBuffer;
 
 public class HllSketchMergeComplexMetricSerde extends ComplexMetricSerde
 {
@@ -65,17 +60,6 @@ public class HllSketchMergeComplexMetricSerde extends ComplexMetricSerde
         return object == null ? null : deserializeSketch(object);
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(final ByteBuffer buf, final ColumnBuilder columnBuilder)
-  {
-    columnBuilder.setComplexColumn(
-        new ComplexColumnPartSupplier(
-            getTypeName(),
-            GenericIndexed.read(buf, HllSketchObjectStrategy.STRATEGY)
-        )
-    );
   }
 
   static HllSketch deserializeSketch(final Object object)

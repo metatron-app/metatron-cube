@@ -29,8 +29,6 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
 import org.apache.commons.lang.StringUtils;
 
@@ -191,16 +189,6 @@ public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pa
         return struct;
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
-  {
-    builder.setComplexColumn(
-        new ComplexColumnPartSupplier(
-            getTypeName(), GenericIndexed.read(buffer, getObjectStrategy())
-        )
-    );
   }
 
   @Override

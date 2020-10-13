@@ -96,11 +96,16 @@ public class ComplexMetrics
 
   public static void registerSerde(String type, ComplexMetricSerde serde)
   {
+    registerSerde(type, serde, true);
+  }
+
+  public static void registerSerde(String type, ComplexMetricSerde serde, boolean addArray)
+  {
     if (complexSerializers.containsKey(type)) {
       throw new ISE("Serde for type [%s] already exists.", type);
     }
     addToMap(type, serde);
-    if (!ValueDesc.isArray(type)) {
+    if (addArray && !ValueDesc.isArray(type)) {
       ValueDesc arrayType = ValueDesc.ofArray(type);
       if (!complexSerializers.containsKey(arrayType.typeName())) {
         registerSerde(arrayType.typeName(), new ArrayMetricSerde(serde));

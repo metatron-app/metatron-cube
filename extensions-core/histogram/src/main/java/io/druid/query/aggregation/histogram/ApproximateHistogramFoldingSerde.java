@@ -22,10 +22,7 @@ package io.druid.query.aggregation.histogram;
 import com.google.common.base.Throwables;
 import io.druid.common.guava.Comparators;
 import io.druid.data.input.Row;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -86,15 +83,6 @@ public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
         }
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(
-      ByteBuffer byteBuffer, ColumnBuilder columnBuilder
-  )
-  {
-    final GenericIndexed column = GenericIndexed.read(byteBuffer, getObjectStrategy());
-    columnBuilder.setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), column));
   }
 
   public ObjectStrategy getObjectStrategy()

@@ -162,10 +162,19 @@ public class Rows
     throw new ParseException("Unable to parse long from value[%s]", value);
   }
 
+  public static Integer parseInt(Object value, Integer defaultValue)
+  {
+    final Comparable parsed = parseLongIfPossible(value);
+    if (parsed instanceof Long) {
+      return ((Long) parsed).intValue();
+    }
+    return defaultValue;
+  }
+
   public static Long parseLong(Object value, Long defaultValue)
   {
     final Comparable parsed = parseLongIfPossible(value);
-    if (parsed == null || parsed instanceof Long) {
+    if (parsed instanceof Long) {
       return (Long) parsed;
     }
     return defaultValue;

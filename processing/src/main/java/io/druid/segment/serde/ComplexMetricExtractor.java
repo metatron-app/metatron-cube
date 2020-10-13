@@ -25,6 +25,22 @@ import io.druid.data.input.Row;
  */
 public interface ComplexMetricExtractor
 {
-  public Class<?> extractedClass();
-  public Object extractValue(Row inputRow, String metricName);
+  ComplexMetricExtractor DUMMY = new ComplexMetricExtractor()
+  {
+    @Override
+    public Class<?> extractedClass()
+    {
+      return Object.class;
+    }
+
+    @Override
+    public Object extractValue(Row inputRow, String metricName)
+    {
+      return inputRow.getRaw(metricName);
+    }
+  };
+
+  Class<?> extractedClass();
+
+  Object extractValue(Row inputRow, String metricName);
 }

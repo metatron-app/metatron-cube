@@ -22,15 +22,10 @@ package io.druid.query.aggregation.datasketches.theta;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.input.Row;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
+import io.druid.query.sketch.ThetaOperations;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
-import io.druid.query.sketch.ThetaOperations;
-
-import java.nio.ByteBuffer;
 
 public class SketchMergeComplexMetricSerde extends ComplexMetricSerde
 {
@@ -63,13 +58,6 @@ public class SketchMergeComplexMetricSerde extends ComplexMetricSerde
         return ThetaOperations.deserialize(object);
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
-  {
-    GenericIndexed<Sketch> ge = GenericIndexed.read(buffer, strategy);
-    builder.setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), ge));
   }
 
   @Override

@@ -22,7 +22,6 @@ package io.druid.jackson;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.common.hash.Hashing;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.BulkRow;
@@ -63,6 +62,7 @@ import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.countmin.CountMinAggregatorFactory;
 import io.druid.query.aggregation.countmin.CountMinPostAggregator;
+import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
@@ -73,6 +73,8 @@ import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.aggregation.post.JavaScriptPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.frequency.FrequencyQuery;
+import io.druid.query.sketch.TypedSketch;
+import io.druid.query.sketch.TypedSketchMetricSerDes;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StringMetricSerde;
@@ -88,9 +90,6 @@ public class AggregatorsModule extends SimpleModule
 
     if (ComplexMetrics.getSerdeForType("object") == null) {
       ComplexMetrics.registerSerde("object", new ComplexMetricSerde.Dummy());
-    }
-    if (ComplexMetrics.getSerdeForType("hyperUnique") == null) {
-      ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde(Hashing.murmur3_128()));
     }
     if (ComplexMetrics.getSerdeForType("array") == null) {
       ComplexMetrics.registerSerde("array", new ArrayMetricSerde(ValueType.FLOAT));
@@ -118,6 +117,21 @@ public class AggregatorsModule extends SimpleModule
     }
     if (ComplexMetrics.getSerdeFactory(ValueDesc.STRUCT_TYPE) == null) {
       ComplexMetrics.registerSerdeFactory(ValueDesc.STRUCT_TYPE, new StructMetricSerde.Factory());
+    }
+    if (ComplexMetrics.getSerdeForType(HyperLogLogCollector.HLL_TYPE_NAME) == null) {
+      ComplexMetrics.registerSerde(HyperLogLogCollector.HLL_TYPE_NAME, new HyperUniquesSerde());
+    }
+    if (ComplexMetrics.getSerdeForType(TypedSketch.THETA) == null) {
+      ComplexMetrics.registerSerde(TypedSketch.THETA, new TypedSketchMetricSerDes.Theta(), false);
+    }
+    if (ComplexMetrics.getSerdeForType(TypedSketch.QUANTILE) == null) {
+      ComplexMetrics.registerSerde(TypedSketch.QUANTILE, new TypedSketchMetricSerDes.Quantile(), false);
+    }
+    if (ComplexMetrics.getSerdeForType(TypedSketch.FREQUENCY) == null) {
+      ComplexMetrics.registerSerde(TypedSketch.FREQUENCY, new TypedSketchMetricSerDes.Frequency(), false);
+    }
+    if (ComplexMetrics.getSerdeForType(TypedSketch.SAMPLING) == null) {
+      ComplexMetrics.registerSerde(TypedSketch.SAMPLING, new TypedSketchMetricSerDes.Sampling(), false);
     }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);

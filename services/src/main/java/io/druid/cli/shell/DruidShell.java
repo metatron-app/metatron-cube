@@ -569,15 +569,16 @@ public class DruidShell extends CommonShell.WithUtils
         inSQL.set(false);
         continue;
       }
-      if (line.equals("index")) {
-        viewer.run(ImmutableList.<String>of("-p", INDEX_PROMPT));
-        continue;
-      }
       if (line.equalsIgnoreCase("quit") || line.equalsIgnoreCase("exit")) {
         break;
       }
       List<String> params = reader.getParser().parse(line, 0).words();
       if (params.isEmpty()) {
+        continue;
+      }
+      if (params.get(0).equals("index")) {
+        String historical = params.size() > 1 ? params.get(1) : "historical";
+        viewer.run(ImmutableList.<String>of("-p", INDEX_PROMPT, "-h", historical));
         continue;
       }
       if (params.get(0).equals("run")) {

@@ -20,12 +20,10 @@
 package io.druid.query.aggregation.hyperloglog;
 
 import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.StringUtils;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -37,6 +35,11 @@ import java.util.List;
 public class HyperUniquesSerde extends ComplexMetricSerde
 {
   private final HashFunction hashFn;
+
+  public HyperUniquesSerde()
+  {
+    this(Hashing.murmur3_128());
+  }
 
   public HyperUniquesSerde(HashFunction hashFn)
   {
@@ -84,13 +87,6 @@ public class HyperUniquesSerde extends ComplexMetricSerde
         }
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(ByteBuffer byteBuffer, ColumnBuilder columnBuilder)
-  {
-    final GenericIndexed column = GenericIndexed.read(byteBuffer, getObjectStrategy());
-    columnBuilder.setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), column));
   }
 
   @Override

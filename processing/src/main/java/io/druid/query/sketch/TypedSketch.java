@@ -23,8 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.StringUtils;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.ArrayOfDoublesSerDe;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
@@ -38,6 +36,8 @@ import com.yahoo.sketches.theta.Union;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.StringUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -48,6 +48,22 @@ import java.util.List;
  */
 public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
+  public static final String THETA = "typedSketch.theta";
+  public static final String QUANTILE = "typedSketch.quantile";
+  public static final String FREQUENCY = "typedSketch.frequency";
+  public static final String SAMPLING = "typedSketch.sampling";
+
+  public static ValueDesc of(SketchOp op)
+  {
+    switch (op) {
+      case THETA: return ValueDesc.of(THETA);
+      case QUANTILE: return ValueDesc.of(QUANTILE);
+      case FREQUENCY: return ValueDesc.of(FREQUENCY);
+      case SAMPLING: return ValueDesc.of(SAMPLING);
+    }
+    throw new UnsupportedOperationException("not supports: " + op);
+  }
+
   public static Object readPart(ByteBuffer buffer, SketchOp sketchOp, ValueDesc type)
   {
     return deserialize(sketchOp, Memory.wrap(buffer.slice(), ByteOrder.LITTLE_ENDIAN), type, type.comparator());
@@ -58,7 +74,9 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
     if (value == null || value instanceof TypedSketch) {
       return (TypedSketch) value;
     }
-    ByteBuffer buffer = ByteBuffer.wrap(ThetaOperations.asBytes(value));
+    ByteBuffer buffer = value instanceof ByteBuffer
+                        ? (ByteBuffer) value
+                        : ByteBuffer.wrap(ThetaOperations.asBytes(value));
     ValueDesc type = TypedSketch.typeFromBytes(buffer);
     Memory memory = Memory.wrap(buffer.slice(), ByteOrder.LITTLE_ENDIAN);
     return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));

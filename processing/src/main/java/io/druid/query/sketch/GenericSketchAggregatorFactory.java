@@ -482,7 +482,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public String getCubeName()
   {
-    return "sketch";
+    return String.format("sketch(op=%s|param=%d)", sketchOp.name().toLowerCase(), sketchParam);
   }
 
   @Override
@@ -501,7 +501,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
-    return new GenericSketchAggregatorFactory(inputField, name, inputType, sketchOp, sketchParam, orderingSpecs, true);
+    return new GenericSketchAggregatorFactory(name, inputField, inputType, sketchOp, sketchParam, orderingSpecs, true);
   }
 
   @JsonProperty
@@ -555,7 +555,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public ValueDesc getOutputType()
   {
-    return ValueDesc.of("sketch." + sketchOp);
+    return TypedSketch.of(sketchOp);
   }
 
   @Override

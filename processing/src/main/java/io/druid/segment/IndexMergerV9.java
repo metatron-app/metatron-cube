@@ -301,7 +301,7 @@ public class IndexMergerV9 extends IndexMerger
               if (!metrics.isEmpty() && !metrics.containsKey(cubeMet)) {
                 continue;
               }
-              String aggregator = Cuboids.name(factory);
+              String aggregator = Cuboids.cubeName(factory);
               if (aggregator == null) {
                 continue;
               }
@@ -315,10 +315,16 @@ public class IndexMergerV9 extends IndexMerger
           } else {
             for (Map.Entry<String, Set<String>> metrics : cuboidSpec.getMetrics().entrySet()) {
               String cubeMet = metrics.getKey();
-              if (!mergedMetrics.contains(cubeMet)) {
+              ValueDesc cubeMetType = metricTypeNames.get(cubeMet);
+              if (cubeMetType == null &&
+                  mergedDimensions.indexOf(cubeMet) >= 0 &&
+                  !dimCapabilities.get(mergedDimensions.indexOf(cubeMet)).hasMultipleValues()) {
+                cubeMetType = ValueDesc.STRING;
+              }
+              if (cubeMetType == null) {
+                log.warn("Skipping cube metric.. [%s]", cubeMet);
                 continue;
               }
-              ValueDesc cubeMetType = metricTypeNames.get(cubeMet);
               Set<String> aggregators = metrics.getValue();
               if (aggregators.isEmpty()) {
                 aggregators = Cuboids.BASIC_AGGREGATORS;

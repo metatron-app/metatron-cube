@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.hash.Hashing;
 import com.google.common.io.CharSource;
 import com.google.common.io.CharStreams;
 import com.google.common.io.LineProcessor;
@@ -133,7 +132,7 @@ public class TestIndex
 
   static {
     if (ComplexMetrics.getSerdeForType("hyperUnique") == null) {
-      ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde(Hashing.murmur3_128()));
+      ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde());
     }
   }
 

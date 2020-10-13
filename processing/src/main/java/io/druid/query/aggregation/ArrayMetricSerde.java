@@ -28,10 +28,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.Row;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -129,16 +126,6 @@ public class ArrayMetricSerde extends ComplexMetricSerde
         return list;
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
-  {
-    builder.setComplexColumn(
-        new ComplexColumnPartSupplier(
-            getTypeName(), GenericIndexed.read(buffer, getObjectStrategy())
-        )
-    );
   }
 
   @Override

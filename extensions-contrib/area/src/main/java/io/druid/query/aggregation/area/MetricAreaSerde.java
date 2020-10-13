@@ -22,10 +22,7 @@ package io.druid.query.aggregation.area;
 import io.druid.common.guava.Comparators;
 import io.druid.data.Rows;
 import io.druid.data.input.Row;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -97,13 +94,6 @@ public class MetricAreaSerde extends ComplexMetricSerde
         }
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
-  {
-    final GenericIndexed column = GenericIndexed.read(buffer, getObjectStrategy());
-    builder.setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), column));
   }
 
   @Override

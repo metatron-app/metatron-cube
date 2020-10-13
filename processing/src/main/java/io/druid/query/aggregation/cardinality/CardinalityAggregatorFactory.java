@@ -22,6 +22,7 @@ package io.druid.query.aggregation.cardinality;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -46,6 +47,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+@JsonTypeName("cardinality")
 public class CardinalityAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   public static CardinalityAggregatorFactory of(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
@@ -95,30 +97,29 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   @Override
   public Aggregator factorize(final ColumnSelectorFactory columnFactory)
   {
-    List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
+    List<DimensionSpec> dimensionSpecs = fields != null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
     List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = null;
     if (groupingSets != null) {
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
-    ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
-    return new CardinalityAggregator(predicate, selectors, grouping, byRow);
+    ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, columnFactory);
+    return new CardinalityAggregator(matcher, selectors, grouping, byRow);
   }
-
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory columnFactory)
   {
-    List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
+    List<DimensionSpec> dimensionSpecs = fields != null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
     List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
     int[][] grouping = null;
     if (groupingSets != null) {
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
-    ValueMatcher predicate = ColumnSelectors.toMatcher(this.predicate, columnFactory);
-    return new CardinalityBufferAggregator(predicate, selectors, grouping, byRow);
+    ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, columnFactory);
+    return new CardinalityBufferAggregator(matcher, selectors, grouping, byRow);
   }
 
   @Override

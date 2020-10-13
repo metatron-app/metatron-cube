@@ -19,8 +19,8 @@
 
 package io.druid.segment.serde;
 
-import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
@@ -31,7 +31,10 @@ public abstract class ComplexMetricSerde
 {
   public abstract String getTypeName();
 
-  public abstract ComplexMetricExtractor getExtractor();
+  public ComplexMetricExtractor getExtractor()
+  {
+    return ComplexMetricExtractor.DUMMY;
+  }
 
   /**
    * Deserializes a ByteBuffer and adds it to the ColumnBuilder.  This method allows for the ComplexMetricSerde
@@ -40,7 +43,16 @@ public abstract class ComplexMetricSerde
    * @param buffer the buffer to deserialize
    * @param builder ColumnBuilder to add the column to
    */
-  public abstract void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder);
+  @SuppressWarnings("unchecked")
+  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+  {
+    builder.setComplexColumn(
+        new ComplexColumnPartSupplier(
+            getTypeName(),
+            GenericIndexed.read(buffer, getObjectStrategy())
+        )
+    );
+  }
 
   /**
    * This is deprecated because its usage is going to be removed from the code.
@@ -54,37 +66,12 @@ public abstract class ComplexMetricSerde
    */
   public abstract ObjectStrategy getObjectStrategy();
 
-  public static class Dummy extends ComplexMetricSerde {
-
+  public static class Dummy extends ComplexMetricSerde
+  {
     @Override
     public String getTypeName()
     {
       return "object";
-    }
-
-    @Override
-    public ComplexMetricExtractor getExtractor()
-    {
-      return new ComplexMetricExtractor()
-      {
-        @Override
-        public Class<?> extractedClass()
-        {
-          return Object.class;
-        }
-
-        @Override
-        public Object extractValue(Row inputRow, String metricName)
-        {
-          return inputRow.getRaw(metricName);
-        }
-      };
-    }
-
-    @Override
-    public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
-    {
-      throw new UnsupportedOperationException("deserializeColumn");
     }
 
     @Override

@@ -21,6 +21,7 @@ package io.druid.query.aggregation.hyperloglog;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
@@ -39,6 +40,7 @@ import java.util.Objects;
 
 /**
  */
+@JsonTypeName("hyperUnique")
 public class HyperUniquesAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
   public static Object estimateCardinality(Object object, boolean round)
@@ -173,15 +175,22 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   }
 
   @Override
-  public String getCubeName()
+  @JsonProperty
+  public String getFieldName()
   {
-    return "hyperUnique";
+    return fieldName;
   }
 
   @JsonProperty
   public String getPredicate()
   {
     return predicate;
+  }
+
+  @JsonProperty
+  public boolean isRound()
+  {
+    return round;
   }
 
   @Override
@@ -191,10 +200,9 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   }
 
   @Override
-  @JsonProperty
-  public String getFieldName()
+  public String getCubeName()
   {
-    return fieldName;
+    return HyperLogLogCollector.HLL_TYPE_NAME;
   }
 
   @Override
@@ -211,12 +219,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
                   .append(round);
   }
 
-  @JsonProperty
-  public boolean isRound()
-  {
-    return round;
-  }
-
   @Override
   public ValueDesc getOutputType()
   {
@@ -227,11 +229,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   public int getMaxIntermediateSize()
   {
     return HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE;
-  }
-
-  public Object getAggregatorStartValue()
-  {
-    return HyperLogLogCollector.makeLatestCollector();
   }
 
   @Override

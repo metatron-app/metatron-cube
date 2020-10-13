@@ -22,10 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -122,16 +119,6 @@ public class DecimalMetricSerde extends ComplexMetricSerde
         return decimal.plus(context).setScale(scale, context.getRoundingMode());
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
-  {
-    builder.setComplexColumn(
-        new ComplexColumnPartSupplier(
-            getTypeName(), GenericIndexed.read(buffer, getObjectStrategy())
-        )
-    );
   }
 
   @Override

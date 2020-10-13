@@ -14,12 +14,16 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Pair;
+import io.druid.data.Rows;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.GranularityType;
@@ -32,8 +36,13 @@ import io.druid.query.aggregation.GenericMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
+import io.druid.query.sketch.GenericSketchAggregatorFactory;
+import io.druid.query.sketch.SketchOp;
 
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -124,9 +133,36 @@ public class Cuboids
   }
 
   // hate this
+  static Pair<String, Map<String, String>> parameterize(String string)
+  {
+    string = string.trim();
+    int index1 = string.indexOf('(');
+    if (index1 < 0 || !string.endsWith(")")) {
+      return Pair.of(string, ImmutableMap.of());
+    }
+    final String type = string.substring(0, index1);
+    final String description = string.substring(index1 + 1, string.length() - 1);
+    final List<String> split = TypeUtils.splitWithEscape(description, '|');   // should not contain ','
+    if (split.isEmpty()) {
+      return Pair.of(type, ImmutableMap.of());
+    }
+    final Map<String, String> parameters = Maps.newHashMap();
+    for (String param : split) {
+      int index = param.indexOf('=');
+      if (index < 0) {
+        parameters.put(param, null);
+      } else {
+        parameters.put(param.substring(0, index).trim(), param.substring(index + 1).trim());
+      }
+    }
+    return Pair.of(type, parameters);
+  }
+
+  // hate this
   static AggregatorFactory convert(String aggregator, String name, String fieldName, ValueDesc inputType)
   {
-    switch (aggregator) {
+    final Pair<String, Map<String, String>> parameter = parameterize(aggregator);
+    switch (parameter.getKey()) {
       case "count":
         return CountAggregatorFactory.of(name, fieldName);
       case "min":
@@ -135,12 +171,20 @@ public class Cuboids
         return new GenericMaxAggregatorFactory(name, fieldName, inputType);
       case "sum":
         return new GenericSumAggregatorFactory(name, fieldName, inputType);
+      case "cardinality":
+        return new CardinalityAggregatorFactory(name, Arrays.asList(fieldName), true);
+      case "hyperUnique":
+        return new HyperUniquesAggregatorFactory(name, fieldName);
+      case "sketch":
+        SketchOp op = SketchOp.fromString(parameter.rhs.get("op"));
+        int param = Rows.parseInt(parameter.rhs.get("param"), op.defaultParam());
+        return new GenericSketchAggregatorFactory(name, fieldName, inputType, op, param, null, false);
     }
     LOG.warn("Not supported cube aggregator [%s]", aggregator);
     return null;
   }
 
-  static String name(AggregatorFactory aggregator)
+  static String cubeName(AggregatorFactory aggregator)
   {
     if (!(aggregator instanceof CubeSupport)) {
       return null;
@@ -149,10 +193,7 @@ public class Cuboids
     if (cubeSupport.getPredicate() != null) {
       return null;   // cannot
     }
-    return aggregator instanceof CountAggregatorFactory ? "count" :
-           aggregator instanceof GenericMinAggregatorFactory ? "min" :
-           aggregator instanceof GenericMaxAggregatorFactory ? "max" :
-           aggregator instanceof GenericSumAggregatorFactory ? "sum" : null;
+    return cubeSupport.getCubeName();
   }
 
   public static boolean supports(Map<String, Set<String>> metrics, List<AggregatorFactory> aggregators)
@@ -167,19 +208,17 @@ public class Cuboids
 
   private static boolean supports(Map<String, Set<String>> metrics, AggregatorFactory aggregator)
   {
-    if (!(aggregator instanceof CubeSupport)) {
+    String cubeName = Cuboids.cubeName(aggregator);
+    if (cubeName == null) {
       return false;
     }
     final CubeSupport cubeSupport = (CubeSupport) aggregator;
-    if (cubeSupport.getPredicate() != null) {
-      return false;   // cannot
-    }
     if (AggregatorFactory.isCountAll(aggregator)) {
       Set<String> supports = metrics.get(COUNT_ALL_METRIC);
-      return supports != null && supports.contains(cubeSupport.getCubeName());
+      return supports != null && supports.contains(cubeName);
     }
     final Set<String> supports = metrics.get(cubeSupport.getFieldName());
-    return !GuavaUtils.isNullOrEmpty(supports) && supports.contains(cubeSupport.getCubeName());
+    return !GuavaUtils.isNullOrEmpty(supports) && supports.contains(cubeName);
   }
 
   @SuppressWarnings("unchecked")

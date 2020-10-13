@@ -125,15 +125,23 @@ public class IndexViewer extends CommonShell.WithUtils
   @Override
   public void run(List<String> arguments) throws Exception
   {
+    String historical = "historical";
     String prompt = DEFAULT_PROMPT;
     DateTimeZone timeZone = DEFAULT_TIMEZONE;
     if (!GuavaUtils.isNullOrEmpty(arguments)) {
       for (int i = 0; i < arguments.size() - 1; i++) {
         final String argument = arguments.get(i);
-        if (argument.equals("-z") || argument.equals("--zone")) {
-          timeZone = JodaUtils.toTimeZone(arguments.get(++i));
-        } else if (argument.equals("-p")) {
-          prompt = arguments.get(++i);
+        switch (argument) {
+          case "-z":
+          case "--zone":
+            timeZone = JodaUtils.toTimeZone(arguments.get(++i));
+            break;
+          case "-p":
+            prompt = arguments.get(++i);
+            break;
+          case "-h":
+            historical = arguments.get(++i);
+            break;
         }
       }
     }
@@ -142,7 +150,7 @@ public class IndexViewer extends CommonShell.WithUtils
     // ds to indices
     Map<String, List<IndexMeta>> mapping2 = Maps.newHashMap();
 
-    String props = loadNodeProperties("historical").getProperty("druid.segmentCache.locations");
+    String props = loadNodeProperties(historical).getProperty("druid.segmentCache.locations");
     List<StorageLocationConfig> locationConfs = jsonMapper.readValue(
         props, new TypeReference<List<StorageLocationConfig>>() {}
     );

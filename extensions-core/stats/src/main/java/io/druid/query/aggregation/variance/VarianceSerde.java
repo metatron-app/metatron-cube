@@ -21,10 +21,7 @@ package io.druid.query.aggregation.variance;
 
 import io.druid.common.guava.Comparators;
 import io.druid.data.input.Row;
-import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
@@ -76,15 +73,6 @@ public class VarianceSerde extends ComplexMetricSerde
         return collector;
       }
     };
-  }
-
-  @Override
-  public void deserializeColumn(
-      ByteBuffer byteBuffer, ColumnBuilder columnBuilder
-  )
-  {
-    final GenericIndexed column = GenericIndexed.read(byteBuffer, getObjectStrategy());
-    columnBuilder.setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), column));
   }
 
   @Override
