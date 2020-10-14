@@ -30,7 +30,7 @@ import java.util.Comparator;
 
 /**
  */
-public class CovarianceSerde extends ComplexMetricSerde
+public class CovarianceSerde implements ComplexMetricSerde
 {
   private static final Comparator<CovarianceAggregatorCollector> comparator =
       Comparators.NULL_FIRST(CovarianceAggregatorCollector.COMPARATOR);

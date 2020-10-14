@@ -34,7 +34,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class DecimalMetricSerde extends ComplexMetricSerde
+public class DecimalMetricSerde implements ComplexMetricSerde
 {
   public static final int DEFAULT_PRECISION = 18;
   public static final int DEFAULT_SCALE = 0;

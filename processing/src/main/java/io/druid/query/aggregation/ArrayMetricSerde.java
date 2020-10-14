@@ -40,7 +40,7 @@ import java.util.Objects;
 
 /**
  */
-public class ArrayMetricSerde extends ComplexMetricSerde
+public class ArrayMetricSerde implements ComplexMetricSerde
 {
   private final ValueType elementType;
   private final ValueDesc arrayType;

@@ -26,7 +26,7 @@ import java.nio.ByteBuffer;
 
 public class TypedSketchMetricSerDes
 {
-  public static class Theta extends ComplexMetricSerde
+  public static class Theta extends ComplexMetricSerde.CompressionSupport
   {
     @Override
     public String getTypeName()
@@ -60,7 +60,7 @@ public class TypedSketchMetricSerDes
     }
   }
 
-  public static class Quantile extends ComplexMetricSerde
+  public static class Quantile extends ComplexMetricSerde.CompressionSupport
   {
     @Override
     public String getTypeName()
@@ -94,7 +94,7 @@ public class TypedSketchMetricSerDes
     }
   }
 
-  public static class Frequency extends ComplexMetricSerde
+  public static class Frequency extends ComplexMetricSerde.CompressionSupport
   {
     @Override
     public String getTypeName()
@@ -128,7 +128,7 @@ public class TypedSketchMetricSerDes
     }
   }
 
-  public static class Sampling extends ComplexMetricSerde
+  public static class Sampling extends ComplexMetricSerde.CompressionSupport
   {
     @Override
     public String getTypeName()

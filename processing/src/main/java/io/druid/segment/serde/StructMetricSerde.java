@@ -41,9 +41,9 @@ import java.util.Objects;
 
 /**
  */
-public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pair<String, ValueType>>
+public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<String, ValueType>>
 {
-  private final String typeName;
+  private final String elementType;
 
   private final String[] fieldNames;
   private final ValueType[] fieldTypes;
@@ -62,13 +62,13 @@ public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pa
       fieldTypes[i] = ValueType.fromString(element.substring(index + 1).trim());
       Preconditions.checkArgument(fieldTypes[i].isPrimitive());
     }
-    this.typeName = StringUtils.join(elements, ',');
+    this.elementType = StringUtils.join(elements, ',');
   }
 
   @Override
   public String getTypeName()
   {
-    return ValueDesc.STRUCT_TYPE + "(" + typeName + ")";
+    return ValueDesc.STRUCT_TYPE + "(" + elementType + ")";
   }
 
   public ValueType getTypeOf(String fieldName)
@@ -281,7 +281,7 @@ public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pa
   @Override
   public String toString()
   {
-    return "StructMetricSerde{typeName='" + typeName + '\'' + "}";
+    return "StructMetricSerde{elementType='" + elementType + '\'' + "}";
   }
 
   public static class Factory implements ComplexMetricSerde.Factory

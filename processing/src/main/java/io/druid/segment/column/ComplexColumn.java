@@ -19,11 +19,59 @@
 
 package io.druid.segment.column;
 
+import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
+import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.serde.ComplexMetricSerde;
+
+import java.nio.ByteBuffer;
+import java.nio.ShortBuffer;
 
 /**
  */
 public interface ComplexColumn extends ColumnAccess
 {
   ValueDesc getType();
+
+  CompressionStrategy compressionType();
+
+  int getNumRows();
+
+  class Compressed extends ColumnAccess.Compressed implements ComplexColumn
+  {
+    private final ValueDesc type;
+    private final CompressionStrategy compression;
+
+    public Compressed(
+        ComplexMetricSerde serde,
+        int[] mapping,
+        ShortBuffer offsets,
+        GenericIndexed<ResourceHolder<ByteBuffer>> indexed,
+        CompressionStrategy compression
+    )
+    {
+      super(serde.getObjectStrategy(), mapping, offsets, indexed);
+      this.type = ValueDesc.of(serde.getTypeName());
+      this.compression = compression;
+    }
+
+    @Override
+    public ValueDesc getType()
+    {
+      return type;
+    }
+
+    @Override
+    public CompressionStrategy compressionType()
+    {
+      return compression;
+    }
+
+    @Override
+    public int getNumRows()
+    {
+      return numRows();
+    }
+  }
 }

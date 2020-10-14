@@ -22,36 +22,37 @@ package io.druid.segment.serde;
 import io.druid.collections.ResourceHolder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnPartProvider;
-import io.druid.segment.column.ComplexColumn;
+import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
+import java.util.Objects;
 
-public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<ComplexColumn>
+public class CompressedGenericColumnPartSupplier implements ColumnPartProvider<GenericColumn>
 {
-  private static final Logger LOG = new Logger(CompressedComplexColumnPartSupplier.class);
+  private static final Logger LOG = new Logger(CompressedGenericColumnPartSupplier.class);
 
   private final CompressionStrategy compressionType;
   private final GenericIndexed<ResourceHolder<ByteBuffer>> indexed;
   private final int[] mapping;
   private final ShortBuffer offsets;
-  private final ComplexMetricSerde.CompressionSupport serde;
+  private final ComplexMetricSerde serde;
 
-  public CompressedComplexColumnPartSupplier(
+  public CompressedGenericColumnPartSupplier(
       CompressionStrategy compressionType,
       ByteBuffer offsets,
       int[] mapping,
       GenericIndexed<ResourceHolder<ByteBuffer>> indexed,
-      ComplexMetricSerde.CompressionSupport serde
+      ComplexMetricSerde serde
   )
   {
     this.compressionType = compressionType;
     this.indexed = indexed;
     this.mapping = mapping;
-    this.offsets = offsets.slice().asShortBuffer();
     this.serde = serde;
+    this.offsets = offsets.slice().asShortBuffer();
   }
 
   @Override
@@ -67,8 +68,15 @@ public class CompressedComplexColumnPartSupplier implements ColumnPartProvider<C
   }
 
   @Override
-  public ComplexColumn get()
+  public GenericColumn get()
   {
-    return new ComplexColumn.Compressed(serde, mapping, offsets, indexed, compressionType);
+    return new GenericColumn.Compressed(serde, mapping, offsets, indexed, compressionType)
+    {
+      @Override
+      public String getString(int rowNum)
+      {
+        return Objects.toString(getValue(rowNum), null);
+      }
+    };
   }
 }

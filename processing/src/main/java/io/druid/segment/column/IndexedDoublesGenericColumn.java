@@ -27,7 +27,7 @@ import java.io.IOException;
 
 /**
 */
-public class IndexedDoublesGenericColumn extends AbstractGenericColumn.DoubleType
+public class IndexedDoublesGenericColumn extends GenericColumn.DoubleType
 {
   private final IndexedDoubles column;
   private final CompressionStrategy compressionType;

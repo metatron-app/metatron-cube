@@ -25,7 +25,7 @@ import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 /**
  */
-public class BooleanGenericColumn extends AbstractGenericColumn
+public class BooleanGenericColumn implements GenericColumn
 {
   private final int numRows;
   private final ImmutableBitmap values;

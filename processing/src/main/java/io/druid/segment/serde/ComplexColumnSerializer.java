@@ -39,7 +39,6 @@ import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedComplexColumnSerializer;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingSpec;
@@ -112,16 +111,11 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     descriptors = LuceneIndexingSpec.getFieldDescriptors(strategies);
   }
 
-  @SuppressWarnings(value = "unchecked")
   @Override
   public void open() throws IOException
   {
-    final String filenameBase = String.format("%s.complex_column", columnName);
-    if (compression == null || compression == CompressionStrategy.UNCOMPRESSED) {
-      writer = new GenericIndexedWriter(ioPeon, filenameBase, serde.getObjectStrategy());
-    } else {
-      writer = CompressedComplexColumnSerializer.create(ioPeon, filenameBase, compression, serde.getObjectStrategy());
-    }
+    String filenameBase = String.format("%s.complex_column", columnName);
+    writer = CompressedComplexColumnSerializer.create(ioPeon, filenameBase, compression, serde);
     writer.open();
   }
 
@@ -255,7 +249,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
           final int numRows = builder.getNumRows();
           final BitmapFactory factory = serdeFactory.getBitmapFactory();
 
-          final ValueDesc type  = builder.getType();
+          final ValueDesc type = builder.getType();
 
           builder.setLuceneIndex(
               new ColumnPartProvider<LuceneIndex>()

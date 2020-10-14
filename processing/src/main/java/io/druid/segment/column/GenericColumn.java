@@ -20,21 +20,184 @@
 package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
+import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.serde.ComplexMetricSerde;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ShortBuffer;
+import java.util.Objects;
 
 /**
  */
-public interface GenericColumn extends ColumnAccess
+public interface GenericColumn extends ComplexColumn
 {
-  ValueDesc getType();
-  CompressionStrategy compressionType();
-  int getNumRows();
+  int DEFAULT_PREFETCH = 32;
 
-  String getString(int rowNum);
-  Float getFloat(int rowNum);
-  Long getLong(int rowNum);
-  Double getDouble(int rowNum);
-  Boolean getBoolean(int rowNum);
-  ImmutableBitmap getNulls();
+  default String getString(int rowNum) { throw new UnsupportedOperationException();}
+
+  default Float getFloat(int rowNum) { throw new UnsupportedOperationException();}
+
+  default Long getLong(int rowNum) { throw new UnsupportedOperationException();}
+
+  default Double getDouble(int rowNum) { throw new UnsupportedOperationException();}
+
+  default Boolean getBoolean(int rowNum) { throw new UnsupportedOperationException();}
+
+  default ImmutableBitmap getNulls() { return null;}
+
+  @Override
+  default void close() throws IOException {}
+
+  abstract class LongType implements GenericColumn
+  {
+    @Override
+    public final ValueDesc getType()
+    {
+      return ValueDesc.LONG;
+    }
+
+    @Override
+    public final Boolean getBoolean(int rowNum)
+    {
+      final Long value = getValue(rowNum);
+      return value == null ? null : value != 0;
+    }
+
+    @Override
+    public final String getString(int rowNum)
+    {
+      return Objects.toString(getValue(rowNum), null);
+    }
+
+    @Override
+    public final Double getDouble(int rowNum)
+    {
+      final Long value = getValue(rowNum);
+      return value == null ? null : value.doubleValue();
+    }
+
+    @Override
+    public final Float getFloat(int rowNum)
+    {
+      final Long value = getValue(rowNum);
+      return value == null ? null : value.floatValue();
+    }
+
+    @Override
+    public final Long getLong(int rowNum)
+    {
+      return getValue(rowNum);
+    }
+
+    @Override
+    public abstract Long getValue(int rowNum);
+  }
+
+  abstract class FloatType implements GenericColumn
+  {
+    @Override
+    public final ValueDesc getType()
+    {
+      return ValueDesc.FLOAT;
+    }
+
+    @Override
+    public final Boolean getBoolean(int rowNum)
+    {
+      final Float value = getValue(rowNum);
+      return value == null ? null : value != 0;
+    }
+
+    @Override
+    public final String getString(int rowNum)
+    {
+      return Objects.toString(getValue(rowNum), null);
+    }
+
+    @Override
+    public final Double getDouble(int rowNum)
+    {
+      final Float value = getValue(rowNum);
+      return value == null ? null : value.doubleValue();
+    }
+
+    @Override
+    public final Float getFloat(int rowNum)
+    {
+      return getValue(rowNum);
+    }
+
+    @Override
+    public final Long getLong(int rowNum)
+    {
+      final Float value = getValue(rowNum);
+      return value == null ? null : value.longValue();
+    }
+
+    @Override
+    public abstract Float getValue(int rowNum);
+  }
+
+  abstract class DoubleType implements GenericColumn
+  {
+    @Override
+    public final ValueDesc getType()
+    {
+      return ValueDesc.DOUBLE;
+    }
+
+    @Override
+    public final Boolean getBoolean(int rowNum)
+    {
+      final Double value = getValue(rowNum);
+      return value == null ? null : value != 0;
+    }
+
+    @Override
+    public final String getString(int rowNum)
+    {
+      return Objects.toString(getValue(rowNum), null);
+    }
+
+    @Override
+    public final Float getFloat(int rowNum)
+    {
+      final Double value = getValue(rowNum);
+      return value == null ? null : value.floatValue();
+    }
+
+    @Override
+    public final Double getDouble(int rowNum)
+    {
+      return getValue(rowNum);
+    }
+
+    @Override
+    public final Long getLong(int rowNum)
+    {
+      final Double value = getValue(rowNum);
+      return value == null ? null : value.longValue();
+    }
+
+    @Override
+    public abstract Double getValue(int rowNum);
+  }
+
+  abstract class Compressed extends ComplexColumn.Compressed implements GenericColumn
+  {
+    protected Compressed(
+        ComplexMetricSerde serde,
+        int[] mapping,
+        ShortBuffer offsets,
+        GenericIndexed<ResourceHolder<ByteBuffer>> indexed,
+        CompressionStrategy compression
+    )
+    {
+      super(serde, mapping, offsets, indexed, compression);
+    }
+  }
 }

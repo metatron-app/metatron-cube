@@ -38,7 +38,7 @@ import java.util.Objects;
 
 /**
  */
-public class StringMetricSerde extends ComplexMetricSerde
+public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
 {
   public static final StringMetricSerde INSTANCE = new StringMetricSerde();
 
@@ -87,7 +87,7 @@ public class StringMetricSerde extends ComplexMetricSerde
       GenericIndexed<ResourceHolder<ByteBuffer>> compressed = GenericIndexed.read(buffer, strategy);
       builder.setType(ValueDesc.STRING)
              .setHasMultipleValues(false)
-             .setGenericColumn(new CompressedComplexColumnPartSupplier(
+             .setGenericColumn(new CompressedGenericColumnPartSupplier(
                  compression, compressMeta, mapping, compressed, this)
              );
     } else {

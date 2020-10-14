@@ -27,7 +27,7 @@ import java.io.IOException;
 
 /**
 */
-public class IndexedFloatsGenericColumn extends AbstractGenericColumn.FloatType
+public class IndexedFloatsGenericColumn extends GenericColumn.FloatType
 {
   private final IndexedFloats column;
   private final CompressionStrategy compressionType;

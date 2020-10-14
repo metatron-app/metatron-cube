@@ -37,7 +37,6 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
@@ -329,7 +328,8 @@ public class IndexViewer extends CommonShell.WithUtils
     try (QueryableIndex index = indexMeta.index()) {
       dumpIndex(index, indexMeta.offsets.get(), writer, null, null);
     }
-    catch (IOException e) {
+    catch (Exception e) {
+      LOG.warn(e, "failed");
       // ignore
     }
   }
@@ -446,13 +446,19 @@ public class IndexViewer extends CommonShell.WithUtils
           )
       );
       ValueDesc desc;
-      ValueType type = capabilities.getType();
-      if (!type.isPrimitive()) {
-        ComplexColumn complexColumn = column.getComplexColumn();
+      CompressionStrategy compressionType = null;
+      ComplexColumn complexColumn = column.getComplexColumn();
+      if (complexColumn != null) {
         desc = complexColumn.getType();   // more specific for complex type
+        compressionType = complexColumn.compressionType();
         CloseQuietly.close(complexColumn);
       } else {
-        desc = ValueDesc.of(type);
+        desc = ValueDesc.of(capabilities.getType());
+        GenericColumn genericColumn = column.getGenericColumn();
+        if (genericColumn != null) {
+          compressionType = genericColumn.compressionType();
+          CloseQuietly.close(genericColumn);
+        }
       }
       StringBuilder builder = new StringBuilder();
       if (dimensionsType) {
@@ -465,12 +471,7 @@ public class IndexViewer extends CommonShell.WithUtils
           builder.append(format("  type : %s (%,d bytes)", desc, columnSize));
         }
       } else {
-        CompressionStrategy compressionType = CompressionStrategy.UNCOMPRESSED;
-        GenericColumn genericColumn = column.getGenericColumn();
-        if (genericColumn != null) {
-          compressionType = genericColumn.compressionType();
-          CloseQuietly.close(genericColumn);
-        }
+        compressionType = compressionType != null ? compressionType : CompressionStrategy.UNCOMPRESSED;
         builder.append(format("  type : %s (compression = %s, size = %,d bytes)", desc, compressionType, columnSize));
       }
       Map<String, Object> columnStats = column.getColumnStats();

@@ -19,9 +19,97 @@
 
 package io.druid.segment.column;
 
+import io.druid.collections.ResourceHolder;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.segment.CompressedPools;
+import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.ObjectStrategy;
+
 import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ShortBuffer;
+import java.util.Arrays;
 
 public interface ColumnAccess extends Closeable
 {
   Object getValue(int rowNum);
+
+  abstract class Compressed implements ColumnAccess
+  {
+    protected static final Logger LOG = new Logger(Compressed.class);
+
+    private final ObjectStrategy strategy;
+    private final int[] mapping;
+    private final ShortBuffer offsets;
+    private final GenericIndexed<ResourceHolder<ByteBuffer>> compressed;
+
+    private int cacheId = -1;
+    private ResourceHolder<ByteBuffer> cached;
+
+    protected Compressed(
+        ObjectStrategy strategy,
+        int[] mapping,
+        ShortBuffer offsets,
+        GenericIndexed<ResourceHolder<ByteBuffer>> indexed
+    )
+    {
+      this.strategy = strategy;
+      this.mapping = mapping;
+      this.offsets = offsets;
+      this.compressed = indexed.asSingleThreaded();
+    }
+
+    public int numRows()
+    {
+      return mapping.length == 0 ? 0 : mapping[mapping.length - 1];
+    }
+
+    @Override
+    public Object getValue(int rowNum)
+    {
+      int index = Arrays.binarySearch(mapping, rowNum);
+      final int startOffset = rowNum == 0 || index >= 0 ? 0 : offsets.get(rowNum - 1) & 0xFFFF;
+      final int endOffset = offsets.get(rowNum) & 0xFFFF;
+      if (startOffset == endOffset) {
+        return null;
+      }
+      if (index < 0) {
+        index = -index - 1;
+      } else {
+        index = index + 1;
+      }
+      if (index != cacheId) {
+        if (cached != null) {
+          cached.close();
+        }
+        cached = compressed.get(index);
+        cacheId = index;
+      }
+      final ByteBuffer buffer = cached.get();
+      if (endOffset == CompressedPools.BUFFER_EXCEEDED) {
+        buffer.limit(buffer.capacity());
+        buffer.position(0);
+      } else {
+        try {
+          buffer.limit(endOffset);
+          buffer.position(startOffset);
+        }
+        catch (IllegalArgumentException e) {
+          LOG.warn("-----> %d = %d ( %d ~ %d )", rowNum, index, startOffset, endOffset);
+          throw e;
+        }
+      }
+      // this moves position of buffer
+      return strategy.fromByteBuffer(buffer, buffer.remaining());
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      if (cached != null) {
+        cached.close();
+      }
+    }
+  }
 }

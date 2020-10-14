@@ -20,6 +20,7 @@
 package io.druid.segment.column;
 
 import io.druid.data.ValueDesc;
+import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.Indexed;
 
 import java.io.IOException;
@@ -41,6 +42,18 @@ public class IndexedComplexColumn implements ComplexColumn
   public ValueDesc getType()
   {
     return type;
+  }
+
+  @Override
+  public CompressionStrategy compressionType()
+  {
+    return CompressionStrategy.UNCOMPRESSED;
+  }
+
+  @Override
+  public int getNumRows()
+  {
+    return column.size();
   }
 
   @Override

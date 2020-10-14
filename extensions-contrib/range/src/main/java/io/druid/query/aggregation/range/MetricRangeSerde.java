@@ -29,7 +29,7 @@ import io.druid.segment.serde.ComplexMetricSerde;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 
-public class MetricRangeSerde extends ComplexMetricSerde
+public class MetricRangeSerde implements ComplexMetricSerde
 {
   private static Comparator<MetricRange> comparator = Comparators.NULL_FIRST(
       (mr1, mr2) -> MetricRangeAggregator.COMPARATOR.compare(mr1, mr2)

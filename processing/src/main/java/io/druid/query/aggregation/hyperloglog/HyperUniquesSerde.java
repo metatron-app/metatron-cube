@@ -32,7 +32,7 @@ import java.util.List;
 
 /**
  */
-public class HyperUniquesSerde extends ComplexMetricSerde
+public class HyperUniquesSerde extends ComplexMetricSerde.CompressionSupport
 {
   private final HashFunction hashFn;
 

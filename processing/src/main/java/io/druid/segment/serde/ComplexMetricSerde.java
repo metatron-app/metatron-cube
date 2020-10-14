@@ -19,19 +19,25 @@
 
 package io.druid.segment.serde;
 
+import io.druid.collections.ResourceHolder;
+import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
+import io.druid.segment.data.SizePrefixedCompressedObjectStrategy;
 
 import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class ComplexMetricSerde
+public interface ComplexMetricSerde
 {
-  public abstract String getTypeName();
+  String getTypeName();
 
-  public ComplexMetricExtractor getExtractor()
+  default ComplexMetricExtractor getExtractor()
   {
     return ComplexMetricExtractor.DUMMY;
   }
@@ -40,11 +46,11 @@ public abstract class ComplexMetricSerde
    * Deserializes a ByteBuffer and adds it to the ColumnBuilder.  This method allows for the ComplexMetricSerde
    * to implement it's own versioning scheme to allow for changes of binary format in a forward-compatible manner.
    *
-   * @param buffer the buffer to deserialize
+   * @param buffer  the buffer to deserialize
    * @param builder ColumnBuilder to add the column to
    */
   @SuppressWarnings("unchecked")
-  public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+  default void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
   {
     builder.setComplexColumn(
         new ComplexColumnPartSupplier(
@@ -56,7 +62,7 @@ public abstract class ComplexMetricSerde
 
   /**
    * This is deprecated because its usage is going to be removed from the code.
-   *
+   * <p>
    * It was introduced before deserializeColumn() existed.  This method creates the assumption that Druid knows
    * how to interpret the actual column representation of the data, but I would much prefer that the ComplexMetricSerde
    * objects be in charge of creating and interpreting the whole column, which is what deserializeColumn lets
@@ -64,9 +70,9 @@ public abstract class ComplexMetricSerde
    *
    * @return an ObjectStrategy as used by GenericIndexed
    */
-  public abstract ObjectStrategy getObjectStrategy();
+  ObjectStrategy getObjectStrategy();
 
-  public static class Dummy extends ComplexMetricSerde
+  public static class Dummy implements ComplexMetricSerde
   {
     @Override
     public String getTypeName()
@@ -77,31 +83,44 @@ public abstract class ComplexMetricSerde
     @Override
     public ObjectStrategy getObjectStrategy()
     {
-      return new ObjectStrategy<Object>()
-      {
-        @Override
-        public Class getClazz()
-        {
-          return Object.class;
-        }
-
-        @Override
-        public Object fromByteBuffer(ByteBuffer buffer, int numBytes)
-        {
-          throw new UnsupportedOperationException("fromByteBuffer");
-        }
-
-        @Override
-        public byte[] toBytes(Object val)
-        {
-          throw new UnsupportedOperationException("toBytes");
-        }
-      };
+      return ObjectStrategy.DUMMY;
     }
   }
 
   public static interface Factory
   {
     ComplexMetricSerde create(String[] elements);
+  }
+
+  abstract class CompressionSupport implements ComplexMetricSerde
+  {
+    @Override
+    @SuppressWarnings("unchecked")
+    public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+    {
+      final byte versionFromBuffer = buffer.get();
+      if (versionFromBuffer == GenericIndexed.version) {
+        GenericIndexed<?> indexed = GenericIndexed.readIndex(buffer, getObjectStrategy());
+        builder.setType(ValueDesc.STRING)
+               .setHasMultipleValues(false)
+               .setComplexColumn(new ComplexColumnPartSupplier(getTypeName(), indexed));
+      } else if (versionFromBuffer == ColumnPartSerde.WITH_COMPRESSION_ID) {
+        CompressedObjectStrategy.CompressionStrategy compression = CompressedObjectStrategy.forId(buffer.get());
+        ByteBuffer compressMeta = ByteBufferSerializer.prepareForRead(buffer);
+        int[] mapping = new int[compressMeta.getInt()];
+        for (int i = 0; i < mapping.length; i++) {
+          mapping[i] = compressMeta.getInt();
+        }
+        SizePrefixedCompressedObjectStrategy strategy = new SizePrefixedCompressedObjectStrategy(compression);
+        GenericIndexed<ResourceHolder<ByteBuffer>> compressed = GenericIndexed.read(buffer, strategy);
+        builder.setType(ValueDesc.STRING)
+               .setHasMultipleValues(false)
+               .setComplexColumn(
+                   new CompressedComplexColumnPartSupplier(compression, compressMeta, mapping, compressed, this)
+               );
+      } else {
+        throw new IAE("Unknown version[%s]", versionFromBuffer);
+      }
+    }
   }
 }

@@ -75,4 +75,25 @@ public interface ObjectStrategy<T>
       return GuavaUtils.nullFirstNatural().compare(o1, o2);
     }
   };
+
+  ObjectStrategy<Object> DUMMY = new ObjectStrategy<Object>()
+  {
+    @Override
+    public Class getClazz()
+    {
+      return Object.class;
+    }
+
+    @Override
+    public Object fromByteBuffer(ByteBuffer buffer, int numBytes)
+    {
+      throw new UnsupportedOperationException("fromByteBuffer");
+    }
+
+    @Override
+    public byte[] toBytes(Object val)
+    {
+      throw new UnsupportedOperationException("toBytes");
+    }
+  };
 }

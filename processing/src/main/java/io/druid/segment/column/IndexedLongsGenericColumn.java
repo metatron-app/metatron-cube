@@ -27,7 +27,7 @@ import java.io.IOException;
 
 /**
  */
-public class IndexedLongsGenericColumn extends AbstractGenericColumn.LongType
+public class IndexedLongsGenericColumn extends GenericColumn.LongType
 {
   private final IndexedLongs column;
   private final CompressionStrategy compressionType;

@@ -30,7 +30,7 @@ import java.util.Comparator;
 
 /**
  */
-public class PearsonSerde extends ComplexMetricSerde
+public class PearsonSerde implements ComplexMetricSerde
 {
   private static final Comparator<PearsonAggregatorCollector> comparator =
       Comparators.NULL_FIRST(PearsonAggregatorCollector.COMPARATOR);

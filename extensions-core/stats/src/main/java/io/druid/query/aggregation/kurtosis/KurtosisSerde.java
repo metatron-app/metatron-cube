@@ -30,7 +30,7 @@ import java.util.Comparator;
 
 /**
  */
-public class KurtosisSerde extends ComplexMetricSerde
+public class KurtosisSerde implements ComplexMetricSerde
 {
   private static final Comparator<KurtosisAggregatorCollector> comparator =
       Comparators.NULL_FIRST(KurtosisAggregatorCollector.COMPARATOR);

@@ -28,7 +28,7 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
-public class HllSketchMergeComplexMetricSerde extends ComplexMetricSerde
+public class HllSketchMergeComplexMetricSerde implements ComplexMetricSerde
 {
   @Override
   public String getTypeName()

@@ -20,13 +20,12 @@
 package io.druid.segment.column;
 
 import io.druid.data.ValueDesc;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 
 /**
  */
-public class IndexedStringsGenericColumn extends AbstractGenericColumn
+public class IndexedStringsGenericColumn implements GenericColumn
 {
   private final GenericIndexed<String> indexed;
   private final CompressionStrategy compressionType;

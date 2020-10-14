@@ -30,7 +30,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-public class DruidTDigestSerde extends ComplexMetricSerde
+public class DruidTDigestSerde implements ComplexMetricSerde
 {
   private static Comparator<DruidTDigest> comparator = Comparators.NULL_FIRST(DruidTDigestAggregator.COMPARATOR);
 

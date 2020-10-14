@@ -31,7 +31,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
+public class ApproximateHistogramFoldingSerde implements ComplexMetricSerde
 {
   static final Comparator<ApproximateHistogramHolder> comparator = Comparators.NULL_FIRST(
       ApproximateHistogramAggregator.COMPARATOR);

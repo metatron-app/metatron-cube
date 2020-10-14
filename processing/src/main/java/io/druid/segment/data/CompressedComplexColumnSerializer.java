@@ -27,6 +27,8 @@ import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
+import io.druid.segment.serde.ComplexMetricSerde;
+import io.druid.segment.serde.ComplexMetricSerde.CompressionSupport;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,22 +38,27 @@ import java.nio.channels.WritableByteChannel;
  */
 public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
 {
-  public static CompressedComplexColumnSerializer create(
+  @SuppressWarnings(value = "unchecked")
+  public static ColumnPartWriter create(
       IOPeon ioPeon,
       String filenameBase,
       CompressionStrategy compression,
-      ObjectStrategy strategy
+      ComplexMetricSerde serde
   ) throws IOException
   {
-    return new CompressedComplexColumnSerializer(
-        new GenericIndexedWriter<ResourceHolder<ByteBuffer>>(
-            ioPeon,
-            filenameBase,
-            new SizePrefixedCompressedObjectStrategy(compression)
-        ),
-        compression,
-        strategy
-    );
+    if (compression != null && compression != CompressionStrategy.UNCOMPRESSED && serde instanceof CompressionSupport) {
+      return new CompressedComplexColumnSerializer(
+          new GenericIndexedWriter<ResourceHolder<ByteBuffer>>(
+              ioPeon,
+              filenameBase,
+              new SizePrefixedCompressedObjectStrategy(compression)
+          ),
+          compression,
+          (CompressionSupport) serde
+      );
+    } else {
+      return new GenericIndexedWriter(ioPeon, filenameBase, serde.getObjectStrategy());
+    }
   }
 
   private final ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener;
@@ -68,12 +75,12 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   private CompressedComplexColumnSerializer(
       ColumnPartWriter<ResourceHolder<ByteBuffer>> flattener,
       CompressionStrategy compression,
-      ObjectStrategy strategy
+      CompressionSupport serde
   )
   {
     this.flattener = flattener;
     this.compression = compression;
-    this.strategy = strategy;
+    this.strategy = serde.getObjectStrategy();
     this.endBuffer = ByteBuffer.allocate(CompressedPools.BUFFER_SIZE);  // offset : unsigned short
     this.mappings = new IntList();
     this.offsets = new IntList();

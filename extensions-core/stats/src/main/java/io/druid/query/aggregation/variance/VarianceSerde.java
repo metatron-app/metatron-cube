@@ -31,7 +31,7 @@ import java.util.List;
 
 /**
  */
-public class VarianceSerde extends ComplexMetricSerde
+public class VarianceSerde implements ComplexMetricSerde
 {
   private static final Comparator<VarianceAggregatorCollector> comparator =
       Comparators.NULL_FIRST(VarianceAggregatorCollector.COMPARATOR);

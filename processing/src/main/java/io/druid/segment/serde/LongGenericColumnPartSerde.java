@@ -26,7 +26,6 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.ColumnPartProvider;
-import io.druid.segment.column.AbstractGenericColumn;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -127,7 +126,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
             @Override
             public GenericColumn get()
             {
-              return new AbstractGenericColumn.LongType()
+              return new GenericColumn.LongType()
               {
                 private final ImmutableBitmap bitmap = nulls.get();
 

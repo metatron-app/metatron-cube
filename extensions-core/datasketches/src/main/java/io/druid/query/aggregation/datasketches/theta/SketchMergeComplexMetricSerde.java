@@ -27,7 +27,7 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
-public class SketchMergeComplexMetricSerde extends ComplexMetricSerde
+public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
 {
   private SketchObjectStrategy strategy = new SketchObjectStrategy();
 
