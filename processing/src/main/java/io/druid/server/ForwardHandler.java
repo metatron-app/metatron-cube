@@ -28,9 +28,6 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
-import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
@@ -39,6 +36,9 @@ import io.druid.data.output.Formatters;
 import io.druid.data.output.ForwardConstants;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
@@ -134,7 +134,8 @@ public class ForwardHandler implements ForwardConstants
       {
         URI rewritten = uri;
         try {
-          if (PropUtils.parseBoolean(forwardContext, Query.LOCAL_POST_PROCESSING)) {
+          final Map<String, Object> context = prepareContext(query, forwardContext);
+          if (PropUtils.parseBoolean(context, Query.LOCAL_POST_PROCESSING)) {
             rewritten = rewriteURI(rewritten, scheme, null, rewritten.getPath() + "/" + node.toPathName());
           }
           if (StorageHandler.FILE_SCHEME.equals(scheme) || StorageHandler.LOCAL_SCHEME.equals(scheme)) {
@@ -144,9 +145,9 @@ public class ForwardHandler implements ForwardConstants
             File output = GuavaUtils.createTemporaryDirectory("__druid_broker-", "-file_loader");
             rewritten = rewriteURI(rewritten, scheme, null, output.getAbsolutePath());
           }
-          final String[] inputColumns = Formatters.parseStrings(forwardContext.get(COLUMNS));
-          final String schema = Objects.toString(forwardContext.get(TYPE_STRING), null);
-          final Sequence<Map<String, Object>> sequence = asMap(removeForwardContext(query), responseContext);
+          final String[] inputColumns = Formatters.parseStrings(context.get(COLUMNS));
+          final String schema = Objects.toString(context.get(TYPE_STRING), null);
+          final Sequence<Map<String, Object>> sequence = asMap(removeForwardContext(query), context, responseContext);
           final Supplier<String> typeString = Suppliers.memoize(new Supplier<String>()
           {
             @Override
@@ -158,8 +159,8 @@ public class ForwardHandler implements ForwardConstants
           });
           return wrapForwardResult(
               query,
-              forwardContext,
-              handler.write(rewritten, new QueryResult(sequence, inputColumns, typeString), forwardContext)
+              context,
+              handler.write(rewritten, new QueryResult(sequence, inputColumns, typeString), context)
           );
         }
         catch (Exception e) {
@@ -167,7 +168,7 @@ public class ForwardHandler implements ForwardConstants
         }
       }
 
-      private Sequence<Map<String, Object>> asMap(final Query<T> query, final Map responseContext)
+      private Sequence<Map<String, Object>> asMap(Query<T> query, Map<String, Object> context, Map responseContext)
       {
         // union-all does not have toolchest. delegate it to inner query
         Sequence sequence = baseRunner.run(query, responseContext);
@@ -176,7 +177,7 @@ public class ForwardHandler implements ForwardConstants
           return sequence;
         }
         Query<T> representative = BaseQuery.getRepresentative(query);
-        String timestampColumn = PropUtils.parseString(forwardContext, Query.FORWARD_TIMESTAMP_COLUMN);
+        String timestampColumn = PropUtils.parseString(context, Query.FORWARD_TIMESTAMP_COLUMN);
         return warehouse.getToolChest(representative).asMap(query, timestampColumn).apply(sequence);
       }
     };
@@ -225,6 +226,11 @@ public class ForwardHandler implements ForwardConstants
         uri.getQuery(),
         uri.getFragment()
     );
+  }
+
+  protected Map<String, Object> prepareContext(Query query, Map<String, Object> context)
+  {
+    return context;
   }
 
   protected Sequence wrapForwardResult(Query query, Map<String, Object> forwardContext, Map<String, Object> result)

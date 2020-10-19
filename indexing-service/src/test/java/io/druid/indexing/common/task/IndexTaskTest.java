@@ -74,7 +74,7 @@ public class IndexTaskTest
 
   public IndexTaskTest()
   {
-    indexSpec = new IndexSpec();
+    indexSpec = IndexSpec.DEFAULT;
     TestUtils testUtils = new TestUtils();
     jsonMapper = testUtils.getTestObjectMapper();
     indexMerger = testUtils.getTestIndexMerger();
@@ -136,14 +136,7 @@ public class IndexTaskTest
                     "druid*"
                 )
             ),
-            new IndexTask.IndexTuningConfig(
-                2,
-                0,
-                null,
-                indexSpec,
-                null,
-                false
-            )
+            new IndexTask.IndexTuningConfig(indexSpec, 0, null, false, 2, null)
         ),
         jsonMapper,
         null,
@@ -338,14 +331,7 @@ public class IndexTaskTest
   public void testConvertProps()
   {
     ShardSpec spec = new NumberedShardSpec(1, 2);
-    IndexTask.IndexTuningConfig config = new IndexTask.IndexTuningConfig(
-        100,
-        1000,
-        null,
-        new IndexSpec(),
-        null,
-        false
-    );
+    IndexTask.IndexTuningConfig config = new IndexTask.IndexTuningConfig(IndexSpec.DEFAULT, 1000, null, false, 100, null);
     RealtimeTuningConfig realtimeTuningConfig = IndexTask.convertTuningConfig(
         spec,
         config.getMaxRowsInMemory(),

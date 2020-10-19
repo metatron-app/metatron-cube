@@ -160,7 +160,7 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
   {
     super(id, dataSource, interval, context);
     this.segment = segment;
-    this.indexSpec = indexSpec == null ? new IndexSpec() : indexSpec;
+    this.indexSpec = indexSpec == null ? IndexSpec.DEFAULT : indexSpec;
     this.force = force;
     this.validate = validate;
   }
@@ -326,7 +326,7 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
           context
       );
       this.segment = segment;
-      this.indexSpec = indexSpec == null ? new IndexSpec() : indexSpec;
+      this.indexSpec = indexSpec == null ? IndexSpec.DEFAULT : indexSpec;
       this.force = force == null ? false : force;
       this.validate = validate == null ? true : validate;
     }

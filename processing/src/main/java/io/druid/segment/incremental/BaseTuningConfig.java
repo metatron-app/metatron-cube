@@ -28,7 +28,6 @@ import io.druid.segment.indexing.TuningConfig;
  */
 public class BaseTuningConfig implements TuningConfig
 {
-  private static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
   private static final int DEFAULT_MAX_ROWS_IN_MEMORY = 75000;
   private static final long DEFAULT_MAX_OCCUPATION_IN_MEMORY = -1;
   private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
@@ -36,6 +35,7 @@ public class BaseTuningConfig implements TuningConfig
   private final IndexSpec indexSpec;
   private final int maxRowsInMemory;
   private final long maxOccupationInMemory;
+  private final long maxShardLength;
   private final boolean ignoreInvalidRows;
   private final boolean buildV9Directly;
 
@@ -44,15 +44,17 @@ public class BaseTuningConfig implements TuningConfig
       final @JsonProperty("indexSpec") IndexSpec indexSpec,
       final @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
       final @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory,
+      final @JsonProperty("maxShardLength") Long maxShardLength,
       final @JsonProperty("buildV9Directly") Boolean buildV9Directly,
       final @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows
   )
   {
-    this.indexSpec = indexSpec == null ? DEFAULT_INDEX_SPEC : indexSpec;
+    this.indexSpec = indexSpec == null ? IndexSpec.DEFAULT : indexSpec;
     this.maxRowsInMemory = maxRowsInMemory == null || maxRowsInMemory == 0 ?
                            DEFAULT_MAX_ROWS_IN_MEMORY : maxRowsInMemory;
     this.maxOccupationInMemory = maxOccupationInMemory == null || maxOccupationInMemory == 0 ?
                                  DEFAULT_MAX_OCCUPATION_IN_MEMORY : maxOccupationInMemory;
+    this.maxShardLength = maxShardLength == null ? this.maxOccupationInMemory : maxShardLength;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
     this.ignoreInvalidRows = ignoreInvalidRows;
   }
@@ -76,6 +78,12 @@ public class BaseTuningConfig implements TuningConfig
   public long getMaxOccupationInMemory()
   {
     return maxOccupationInMemory;
+  }
+
+  @JsonProperty
+  public long getMaxShardLength()
+  {
+    return maxShardLength;
   }
 
   @Override

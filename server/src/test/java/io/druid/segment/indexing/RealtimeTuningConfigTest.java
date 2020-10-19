@@ -67,7 +67,7 @@ public class RealtimeTuningConfigTest
     Assert.assertNotNull(config.getBasePersistDirectory());
     Assert.assertEquals(true, config.getBuildV9Directly());
     Assert.assertEquals(0, config.getHandoffConditionTimeout());
-    Assert.assertEquals(new IndexSpec(), config.getIndexSpec());
+    Assert.assertEquals(IndexSpec.DEFAULT, config.getIndexSpec());
     Assert.assertEquals(new Period("PT10M"), config.getIntermediatePersistPeriod());
     Assert.assertEquals(NoneShardSpec.instance(), config.getShardSpec());
     Assert.assertEquals(0, config.getMaxPendingPersists());
@@ -109,7 +109,7 @@ public class RealtimeTuningConfigTest
     Assert.assertEquals("/tmp/xxx", config.getBasePersistDirectory().toString());
     Assert.assertEquals(false, config.getBuildV9Directly());
     Assert.assertEquals(100, config.getHandoffConditionTimeout());
-    Assert.assertEquals(new IndexSpec(), config.getIndexSpec());
+    Assert.assertEquals(IndexSpec.DEFAULT, config.getIndexSpec());
     Assert.assertEquals(new Period("PT1H"), config.getIntermediatePersistPeriod());
     Assert.assertEquals(NoneShardSpec.instance(), config.getShardSpec());
     Assert.assertEquals(100, config.getMaxPendingPersists());

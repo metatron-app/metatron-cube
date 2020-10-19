@@ -24,16 +24,17 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
-import io.druid.java.util.emitter.core.Emitter;
 import io.druid.client.BrokerServerView;
 import io.druid.client.coordinator.CoordinatorClient;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.data.output.Formatters;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
+import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.guava.Sequences;
+import io.druid.java.util.emitter.core.Emitter;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
@@ -43,11 +44,13 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.log.Events.SimpleEvent;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -86,51 +89,73 @@ public class BrokerForwardHandler extends ForwardHandler
   }
 
   @Override
+  protected Map<String, Object> prepareContext(Query query, Map<String, Object> context)
+  {
+    if (Formatters.isIndexFormat(context) && PropUtils.parseBoolean(context, REGISTER_TABLE, false)) {
+      context = Maps.newLinkedHashMap(context);
+      context.put("broker", node.getHostAndPort());
+      context.put("queryId", query.getId());
+      context.putIfAbsent(DATASOURCE, "___temporary_" + new DateTime());
+      if (PropUtils.parseBoolean(context, TEMPORARY, true)) {
+        brokerServerView.addLocalDataSource(PropUtils.parseString(context, DATASOURCE));
+      }
+    }
+    return context;
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
-  protected Sequence wrapForwardResult(Query query, Map<String, Object> forwardContext, Map<String, Object> result)
+  protected Sequence wrapForwardResult(Query query, Map<String, Object> context, Map<String, Object> result)
       throws IOException
   {
-    if (Formatters.isIndexFormat(forwardContext) && PropUtils.parseBoolean(forwardContext, REGISTER_TABLE, false)) {
-      result = Maps.newLinkedHashMap(result);
-      result.put("broker", node.getHostAndPort());
-      result.put("queryId", query.getId());
-      Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
-      if (dataMeta == null) {
+    if (Formatters.isIndexFormat(context) && PropUtils.parseBoolean(context, REGISTER_TABLE, false)) {
+      String dataSource = PropUtils.parseString(context, DATASOURCE);
+      boolean temporary = PropUtils.parseBoolean(context, TEMPORARY, true);
+      Map<String, Object> metaData = ImmutableMap.of("queryId", query.getId());
+
+      List<Map<String, Object>> segmentsData = (List<Map<String, Object>>) result.get("data");
+      if (GuavaUtils.isNullOrEmpty(segmentsData)) {
         LOG.info("Nothing to publish..");
         return Sequences.simple(Arrays.asList(result));
       }
-      boolean temporary = PropUtils.parseBoolean(forwardContext, TEMPORARY, true);
 
-      URI location = (URI) dataMeta.get("location");
-      DataSegment segment = (DataSegment) dataMeta.get("segment");
-      ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
-      builder.put("feed", "BrokerForwardHandler");
-      builder.put("type", "loadTable");
-      builder.put("broker", node.getHostAndPort());
-      builder.put("payload", segment);
-      builder.put("temporary", temporary);
+      LOG.info("Publishing [%d] segments for %s...", segmentsData.size(), dataSource);
 
-      LOG.info("Publishing segments...");
+      final Set<DataSegment> segments = Sets.newHashSet();
+      for (Map<String, Object> segmentData : segmentsData) {
+        URI location = (URI) segmentData.get("location");
+        DataSegment segment = (DataSegment) segmentData.get("segment");
+
+        if (temporary) {
+          QueryableIndex index = merger.getIndexIO().loadIndex(new File(location.getPath()));
+          brokerServerView.addLocalSegment(segment, index, metaData);
+        } else {
+          segment = pusher.push(new File(location.getPath()), segment);   // rewrite load spec
+          segments.add(segment);
+        }
+        ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
+        builder.put("feed", "BrokerForwardHandler");
+        builder.put("type", "loadTable");
+        builder.put("broker", node.getHostAndPort());
+        builder.put("payload", segment);
+        builder.put("temporary", temporary);
+        builder.put("createdTime", System.currentTimeMillis());
+        eventEmitter.emit(new SimpleEvent(builder.build()));
+      }
       if (temporary) {
-        QueryableIndex index = merger.getIndexIO().loadIndex(new File(location.getPath()));
-        brokerServerView.addedLocalSegment(segment, index, result);
-        LOG.info("Segments are registered to temporary table %s", segment.getDataSource());
+        LOG.info("Segments are registered to %s table %s", temporary ? "temporary " : "", dataSource);
       } else {
-        segment = pusher.push(new File(location.getPath()), segment);   // rewrite load spec
-        Set<DataSegment> segments = Sets.newHashSet(segment);
         indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
         try {
-          long assertTimeout = PropUtils.parseLong(forwardContext, WAIT_TIMEOUT, 0L);
-          boolean assertLoaded = PropUtils.parseBoolean(forwardContext, ASSERT_LOADED);
+          long assertTimeout = PropUtils.parseLong(context, WAIT_TIMEOUT, 0L);
+          boolean assertLoaded = PropUtils.parseBoolean(context, ASSERT_LOADED);
           coordinator.scheduleNow(segments, assertTimeout, assertLoaded);
         }
         catch (Exception e) {
           // ignore
           LOG.info("failed to notify coordinator directly by %s.. just wait next round of coordination", e);
         }
-        LOG.info("Segments are registered to table %s", segment.getDataSource());
       }
-      eventEmitter.emit(new SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));
     }
     return Sequences.simple(Arrays.asList(result));
   }

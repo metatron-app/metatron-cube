@@ -346,11 +346,10 @@ public class BrokerServerView implements TimelineServerView
     }
   }
 
-  public void addedLocalSegment(DataSegment segment, QueryableIndex index, Map<String, Object> metaData)
+  public void addLocalSegment(DataSegment segment, QueryableIndex index, Map<String, Object> metaData)
   {
     log.debug("Adding local segment[%s]", segment);
     synchronized (lock) {
-      addLocalDataSource(segment.getDataSource());
       addSegment(node, segment).addIndex(segment, index, metaData);
     }
   }

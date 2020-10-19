@@ -115,7 +115,7 @@ public class RealtimeTuningConfig extends BaseTuningConfig implements Appenderat
       @JsonProperty("ignorePreviousSegments") boolean ignorePreviousSegments
   )
   {
-    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, buildV9Directly, false);
+    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, null, buildV9Directly, false);
     this.intermediatePersistPeriod = intermediatePersistPeriod == null
                                      ? defaultIntermediatePersistPeriod
                                      : intermediatePersistPeriod;

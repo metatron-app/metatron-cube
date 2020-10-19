@@ -409,40 +409,7 @@ public class JobHelper
     final Path finalIndexZipFilePath = new Path(segmentBasePath, "index.zip");
     final URI indexOutURI = finalIndexZipFilePath.toUri();
 
-    // TODO: Make this a part of Pushers or Pullers
-    final ImmutableMap<String, Object> loadSpec;
-    final String scheme = outputFS.getScheme();
-    switch (scheme) {
-      case "hdfs":
-      case "viewfs":
-      case "wasb":
-      case "wasbs":
-      case "abfs":
-      case "abfss":
-      case "gs":
-        // use hdfs puller, whatever the scheme is
-        loadSpec = ImmutableMap.<String, Object>of(
-            "type", "hdfs",
-            "path", indexOutURI.toString()
-        );
-        break;
-      case "s3":
-      case "s3n":
-        loadSpec = ImmutableMap.<String, Object>of(
-            "type", "s3_zip",
-            "bucket", indexOutURI.getHost(),
-            "key", indexOutURI.getPath().substring(1) // remove the leading "/"
-        );
-        break;
-      case "file":
-        loadSpec = ImmutableMap.<String, Object>of(
-            "type", "local",
-            "path", indexOutURI.getPath()
-        );
-        break;
-      default:
-        throw new IAE("Unknown file system scheme [%s]", scheme);
-    }
+    final Map<String, Object> loadSpec = makeLoadSpec(indexOutURI);
     final DataSegment finalSegment = segmentTemplate
         .withLoadSpec(loadSpec)
         .withSize(size.get())
@@ -464,6 +431,39 @@ public class JobHelper
         progressable
     );
     return finalSegment;
+  }
+
+  // TODO: Make this a part of Pushers or Pullers
+  public static Map<String, Object> makeLoadSpec(URI indexOutURI)
+  {
+    switch (indexOutURI.getScheme()) {
+      case "hdfs":
+      case "viewfs":
+      case "wasb":
+      case "wasbs":
+      case "abfs":
+      case "abfss":
+      case "gs":
+        // use hdfs puller, whatever the scheme is
+        return ImmutableMap.<String, Object>of(
+            "type", "hdfs",
+            "path", indexOutURI.toString()
+        );
+      case "s3":
+      case "s3n":
+        return ImmutableMap.<String, Object>of(
+            "type", "s3_zip",
+            "bucket", indexOutURI.getHost(),
+            "key", indexOutURI.getPath().substring(1) // remove the leading "/"
+        );
+      case "file":
+        return ImmutableMap.<String, Object>of(
+            "type", "local",
+            "path", indexOutURI.getPath()
+        );
+      default:
+        throw new IAE("Unknown file system scheme [%s]", indexOutURI.getScheme());
+    }
   }
 
   public static void writeSegmentDescriptor(

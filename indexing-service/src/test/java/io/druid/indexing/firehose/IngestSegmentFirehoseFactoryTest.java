@@ -124,7 +124,7 @@ public class IngestSegmentFirehoseFactoryTest
   @Parameterized.Parameters(name = "{1}")
   public static Collection<Object[]> constructorFeeder() throws IOException
   {
-    final IndexSpec indexSpec = new IndexSpec();
+    final IndexSpec indexSpec = IndexSpec.DEFAULT;
 
     final HeapMemoryTaskStorage ts = new HeapMemoryTaskStorage(
         new TaskStorageConfig(null)

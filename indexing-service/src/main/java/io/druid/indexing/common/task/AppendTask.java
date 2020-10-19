@@ -63,7 +63,7 @@ public class AppendTask extends MergeTaskBase
   )
   {
     super(id, dataSource, segments, context);
-    this.indexSpec = indexSpec == null ? new IndexSpec() : indexSpec;
+    this.indexSpec = indexSpec == null ? IndexSpec.DEFAULT : indexSpec;
     this.aggregators = aggregators;
   }
 

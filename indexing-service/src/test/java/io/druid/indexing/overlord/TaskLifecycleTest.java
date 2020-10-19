@@ -340,7 +340,7 @@ public class TaskLifecycleTest
     // initialize variables
     announcedSinks = 0;
     pushedSegments = 0;
-    indexSpec = new IndexSpec();
+    indexSpec = IndexSpec.DEFAULT;
     emitter = newMockEmitter();
     EmittingLogger.registerEmitter(emitter);
     mapper = TEST_UTILS.getTestObjectMapper();
@@ -648,7 +648,7 @@ public class TaskLifecycleTest
                 mapper
             ),
             new IndexTask.IndexIOConfig(new MockFirehoseFactory(false)),
-            new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
+            new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
         ),
         mapper,
         null,
@@ -707,7 +707,7 @@ public class TaskLifecycleTest
                 mapper
             ),
             new IndexTask.IndexIOConfig(new MockExceptionalFirehoseFactory()),
-            new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
+            new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
         ),
         mapper,
         null,
@@ -1067,7 +1067,7 @@ public class TaskLifecycleTest
                 mapper
             ),
             new IndexTask.IndexIOConfig(new MockFirehoseFactory(false)),
-            new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
+            new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
         ),
         mapper,
         null,

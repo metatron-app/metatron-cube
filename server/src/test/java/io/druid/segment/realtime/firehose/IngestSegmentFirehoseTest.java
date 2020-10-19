@@ -23,9 +23,9 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.data.input.impl.CSVParseSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -124,7 +124,7 @@ public class IngestSegmentFirehoseTest
       for (String line : rows) {
         index.add(parser.parse(line));
       }
-      indexMerger.persist(index, segmentDir, new IndexSpec());
+      indexMerger.persist(index, segmentDir, IndexSpec.DEFAULT);
     }
     finally {
       if (index != null) {

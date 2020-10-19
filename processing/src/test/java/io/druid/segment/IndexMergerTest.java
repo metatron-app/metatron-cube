@@ -131,7 +131,7 @@ public class IndexMergerTest
           dimCompressionStrategy.name().toLowerCase()
       );
     } else {
-      return new IndexSpec();
+      return IndexSpec.DEFAULT;
     }
   }
 

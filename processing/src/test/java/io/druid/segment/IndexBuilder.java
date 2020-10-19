@@ -53,7 +53,7 @@ public class IndexBuilder
       .build();
   private IndexMerger indexMerger = TestHelper.getTestIndexMergerV9();
   private File tmpDir;
-  private IndexSpec indexSpec = new IndexSpec();
+  private IndexSpec indexSpec = IndexSpec.DEFAULT;
   private int maxRows = DEFAULT_MAX_ROWS;
 
   private final List<InputRow> rows = Lists.newArrayList();

@@ -57,7 +57,7 @@ import java.util.List;
 public class TaskSerdeTest
 {
   private final ObjectMapper jsonMapper;
-  private final IndexSpec indexSpec = new IndexSpec();
+  private final IndexSpec indexSpec = IndexSpec.DEFAULT;
 
   public TaskSerdeTest()
   {
@@ -88,7 +88,7 @@ public class TaskSerdeTest
                 jsonMapper
             ),
             new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl")),
-            new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
+            new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
         ),
         jsonMapper,
         null,
@@ -130,7 +130,7 @@ public class TaskSerdeTest
                 jsonMapper
             ),
             new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl")),
-            new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null, false)
+            new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
         ),
         jsonMapper,
         null,

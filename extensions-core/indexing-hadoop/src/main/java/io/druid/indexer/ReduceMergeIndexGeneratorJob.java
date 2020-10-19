@@ -512,7 +512,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private HadoopTuningConfig tuningConfig;
 
     private IndexMerger merger;
-    private List<String> metricNames = Lists.newArrayList();
 
     private AggregatorFactory[] aggregators;
 
@@ -525,7 +524,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private File baseFlushFile;
 
     private ProgressIndicator progressIndicator;
-    private int indexCount;
 
     private long startTime;
 
@@ -537,9 +535,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       tuningConfig = config.getSchema().getTuningConfig();
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
-      for (AggregatorFactory aggregator : aggregators) {
-        metricNames.add(aggregator.getName());
-      }
 
       maxShardLength = tuningConfig.getMaxShardLength();
       scatterParam = Math.min(tuningConfig.getScatterParam(), context.getNumReduceTasks());
@@ -663,7 +658,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     {
       List<List<File>> groups = Lists.newArrayList();
 
-      long current = 0;
+      int indexCount = 0;
+      long groupSize = 0;
       List<File> group = Lists.newArrayList();
       for (String shuffle : shuffles) {
         File local = new File(baseFlushFile, String.format("index-%,05d", indexCount++));
@@ -671,14 +667,14 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         log.info("Uncompressing files from [%s] to [%s]", shuffle, local);
         long length = CompressionUtils.unzip(shufflingFS.open(new Path(shuffle)), local, DEFAULT_FS_BUFFER_SIZE);
         log.info("Uncompressed into [%,d] bytes", length);
-        if (!group.isEmpty() && current + length > limit) {
+        if (!group.isEmpty() && groupSize + length > limit) {
           log.info("group-%d : %s", groups.size(), group);
           groups.add(group);
           group = Lists.newArrayList();
-          current = 0;
+          groupSize = 0;
         }
         group.add(local);
-        current += length;
+        groupSize += length;
       }
       if (!group.isEmpty()) {
         log.info("group-%d : %s", groups.size(), group);

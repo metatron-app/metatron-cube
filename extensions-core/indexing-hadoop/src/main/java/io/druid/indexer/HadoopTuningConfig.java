@@ -80,7 +80,6 @@ public class HadoopTuningConfig extends BaseTuningConfig
   private final String workingPath;
   private final String version;
   private final PartitionsSpec partitionsSpec;
-  private final long maxShardLength;
   private final Map<Long, List<HadoopyShardSpec>> shardSpecs;
   private final boolean leaveIntermediate;
   private final Boolean cleanupOnFailure;
@@ -121,11 +120,10 @@ public class HadoopTuningConfig extends BaseTuningConfig
       final @JsonProperty("numBackgroundPersistThreads") Integer numBackgroundPersistThreads
   )
   {
-    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, buildV9Directly, ignoreInvalidRows);
+    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, maxShardLength, buildV9Directly, ignoreInvalidRows);
     this.workingPath = workingPath;
     this.version = version == null ? new DateTime().toString() : version;
     this.partitionsSpec = partitionsSpec == null ? DEFAULT_PARTITIONS_SPEC : partitionsSpec;
-    this.maxShardLength = maxShardLength == null ? 1L << 31 : maxShardLength;
     this.shardSpecs = shardSpecs == null ? DEFAULT_SHARD_SPECS : shardSpecs;
     this.leaveIntermediate = leaveIntermediate;
     this.cleanupOnFailure = cleanupOnFailure == null || cleanupOnFailure;
@@ -208,12 +206,6 @@ public class HadoopTuningConfig extends BaseTuningConfig
   public PartitionsSpec getPartitionsSpec()
   {
     return partitionsSpec;
-  }
-
-  @JsonProperty
-  public long getMaxShardLength()
-  {
-    return maxShardLength;
   }
 
   @JsonProperty

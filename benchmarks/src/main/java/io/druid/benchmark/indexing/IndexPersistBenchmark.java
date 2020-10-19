@@ -171,7 +171,7 @@ public class IndexPersistBenchmark
     File indexFile = INDEX_MERGER.persist(
         incIndex,
         tmpFile,
-        new IndexSpec()
+        IndexSpec.DEFAULT
     );
 
     blackhole.consume(indexFile);
@@ -191,7 +191,7 @@ public class IndexPersistBenchmark
     File indexFile = INDEX_MERGER_V9.persist(
         incIndex,
         tmpFile,
-        new IndexSpec()
+        IndexSpec.DEFAULT
     );
 
     blackhole.consume(indexFile);

@@ -61,7 +61,7 @@ public class MergeTask extends MergeTaskBase
     super(id, dataSource, segments, context);
     this.aggregators = Preconditions.checkNotNull(aggregators, "null aggregations");
     this.rollup = rollup == null ? Boolean.TRUE : rollup;
-    this.indexSpec = indexSpec == null ? new IndexSpec() : indexSpec;
+    this.indexSpec = indexSpec == null ? IndexSpec.DEFAULT : indexSpec;
   }
 
   @Override
@@ -86,7 +86,7 @@ public class MergeTask extends MergeTaskBase
             }
         ),
         rollup,
-        aggregators.toArray(new AggregatorFactory[aggregators.size()]),
+        aggregators.toArray(new AggregatorFactory[0]),
         outDir,
         indexSpec
     );

@@ -61,7 +61,7 @@ public class KafkaTuningConfig extends BaseTuningConfig implements AppenderatorC
       @JsonProperty("resetOffsetAutomatically") Boolean resetOffsetAutomatically
   )
   {
-    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, buildV9Directly, false);
+    super(indexSpec, maxRowsInMemory, maxOccupationInMemory, null, buildV9Directly, false);
     // Cannot be a static because default basePersistDirectory is unique per-instance
     final RealtimeTuningConfig defaults = RealtimeTuningConfig.makeDefaultTuningConfig(basePersistDirectory);
 

@@ -219,7 +219,7 @@ public class GroupByBenchmark
       File indexFile = INDEX_MERGER_V9.persist(
           incIndex,
           tmpFile,
-          new IndexSpec()
+          IndexSpec.DEFAULT
       );
       QueryableIndex qIndex = INDEX_IO.loadIndex(indexFile);
       qIndexes.add(qIndex);

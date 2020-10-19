@@ -89,7 +89,7 @@ public class SpatialFilterTest
   @Parameterized.Parameters
   public static Collection<?> constructorFeeder() throws IOException
   {
-    final IndexSpec indexSpec = new IndexSpec();
+    final IndexSpec indexSpec = IndexSpec.DEFAULT;
     final IncrementalIndex rtIndex = makeIncrementalIndex();
     final QueryableIndex mMappedTestIndex = makeQueryableIndex(indexSpec);
     final QueryableIndex mergedRealtimeIndex = makeMergedQueryableIndex(indexSpec);

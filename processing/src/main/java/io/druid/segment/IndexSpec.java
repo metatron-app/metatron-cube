@@ -50,6 +50,8 @@ import java.util.Set;
  */
 public class IndexSpec
 {
+  public static final IndexSpec DEFAULT = new IndexSpec();
+
   public static final String UNCOMPRESSED = "uncompressed";
   public static final CompressionStrategy DEFAULT_METRIC_COMPRESSION = CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY;
   public static final String DEFAULT_DIMENSION_COMPRESSION = CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY.name().toLowerCase();
@@ -121,7 +123,7 @@ public class IndexSpec
 
     this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new RoaringBitmapSerdeFactory();
     this.dimensionCompression = dimensionCompression;
-    this.dimensionSketches = dimensionSketches == null ? ColumnIncluderator.NONE : dimensionSketches;
+    this.dimensionSketches = dimensionSketches;
     this.metricCompression = metricCompression;
     this.secondaryIndexing = secondaryIndexing;
     this.columnCompression = columnCompression;
@@ -159,6 +161,7 @@ public class IndexSpec
   }
 
   @JsonProperty("dimensionSketches")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public ColumnIncluderator getDimensionSketches()
   {
     return dimensionSketches;

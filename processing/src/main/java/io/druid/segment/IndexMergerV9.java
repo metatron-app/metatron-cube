@@ -999,7 +999,7 @@ public class IndexMergerV9 extends IndexMerger
       throws IOException
   {
     ColumnIncluderator sketches = indexSpec.getDimensionSketches();
-    if (ColumnIncluderator.NONE.equals(sketches) || indexSpec.getDimensionCompressionStrategy() == null) {
+    if (sketches == null || ColumnIncluderator.NONE.equals(sketches)) {
       ColumnPartWriter<Pair<String, Integer>>[] elements = new ColumnPartWriter[mergedDimensions.size()];
       return Lists.newArrayList(elements);
     }

@@ -125,7 +125,7 @@ public class TestIndex
       new HyperUniquesAggregatorFactory("quality_uniques", "quality"),
       new GenericSumAggregatorFactory("indexDecimal", "index", ValueDesc.DECIMAL)
   };
-  private static final IndexSpec indexSpec = new IndexSpec();
+  private static final IndexSpec indexSpec = IndexSpec.DEFAULT;
 
   private static final IndexMerger INDEX_MERGER = TestHelper.getTestIndexMergerV9();
   private static final IndexIO INDEX_IO = TestHelper.getTestIndexIO();

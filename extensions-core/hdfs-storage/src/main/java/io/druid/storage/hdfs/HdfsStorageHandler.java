@@ -46,6 +46,7 @@ import io.druid.data.output.Formatter;
 import io.druid.data.output.Formatters;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.indexer.JobHelper;
 import io.druid.indexer.hadoop.HadoopInputUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
@@ -64,6 +65,9 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.partition.LinearShardSpec;
+import io.druid.timeline.partition.NoneShardSpec;
+import io.druid.timeline.partition.ShardSpec;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -132,7 +136,7 @@ public class HdfsStorageHandler implements StorageHandler
     }
     if (inputFormatClass != null &&
         (InputFormat.class.isAssignableFrom(inputFormatClass) ||
-        org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass))) {
+         org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass))) {
       final InputFormat format;
       if (org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass)) {
         format = new InputFormatWrapper(
@@ -280,7 +284,7 @@ public class HdfsStorageHandler implements StorageHandler
     if (INDEX_FORMAT.equals(format)) {
       final long start = System.currentTimeMillis();
       final String timestampColumn = PropUtils.parseString(context, TIMESTAMP_COLUMN, Row.TIME_COLUMN_NAME);
-      final String dataSource = PropUtils.parseString(context, DATASOURCE, "___temporary_" + new DateTime());
+      final String dataSource = Preconditions.checkNotNull(PropUtils.parseString(context, DATASOURCE));
       final IncrementalIndexSchema schema = Preconditions.checkNotNull(
           jsonMapper.convertValue(context.get(SCHEMA), IncrementalIndexSchema.class),
           "cannot find/create index schema"
@@ -291,16 +295,15 @@ public class HdfsStorageHandler implements StorageHandler
       final List<String> dimensions = schema.getDimensionsSpec().getDimensionNames();
       final List<String> metrics = schema.getMetricNames();
 
-      final Path finalPath = new Path(physicalPath, dataSource);
-      fs.mkdirs(finalPath);
+      final Path targetPath = new Path(physicalPath, dataSource);
+      fs.mkdirs(targetPath);
 
-      final File temp = File.createTempFile("forward", "index");
-      temp.delete();
-      temp.mkdirs();
+      final int maxRowCount = tuning == null ? 200000 : tuning.getMaxRowsInMemory();
+      final long maxOccupation = tuning == null ? 128 << 20 : tuning.getMaxOccupationInMemory();
+      final long maxShardLength = tuning == null ? maxOccupation : tuning.getMaxShardLength();
+      final IndexSpec indexSpec = tuning == null ? IndexSpec.DEFAULT : tuning.getIndexSpec();
 
-      final int maxRowCount = tuning == null ? 500000 : tuning.getMaxRowsInMemory();
-      final long maxOccupation = tuning == null ? 256 << 20 : tuning.getMaxOccupationInMemory();
-      final IndexSpec indexSpec = tuning == null ? new IndexSpec() : tuning.getIndexSpec();
+      final File temp = GuavaUtils.createTemporaryDirectory("forward-", "-index");
 
       return new CountingAccumulator()
       {
@@ -310,6 +313,7 @@ public class HdfsStorageHandler implements StorageHandler
         private int rowCount;
         private IncrementalIndex index;
         private final List<File> files = Lists.newArrayList();
+        private final String version = new DateTime().toString();
 
         @Override
         public CountingAccumulator init() throws IOException
@@ -359,68 +363,49 @@ public class HdfsStorageHandler implements StorageHandler
           if (files.isEmpty()) {
             return ImmutableMap.<String, Object>of("rowCount", rowCount);
           }
-          File mergedBase;
+          List<DataSegment> segments = Lists.newArrayList();
           if (files.size() == 1 && GuavaUtils.isNullOrEmpty(indexSpec.getSecondaryIndexing())) {
-            mergedBase = files.get(0);
+            segments.add(finalizeIndex(files.get(0), targetPath, NoneShardSpec.instance()));
           } else {
-            final List<QueryableIndex> indexes = Lists.newArrayListWithCapacity(files.size());
+            int shardNum = 0;
+            long queueSize = 0;
+            final List<File> queue = Lists.newArrayList();
             for (File file : files) {
-              indexes.add(merger.getIndexIO().loadIndex(file));
+              long size = FileUtils.sizeOfDirectory(file);
+              if (!queue.isEmpty() && queueSize + size > maxShardLength) {
+                segments.add(mergeSegments(queue, shardNum++));
+                queueSize = 0;
+                queue.clear();
+              }
+              queueSize += size;
+              queue.add(file);
             }
-            LOG.info("Merging %d indices into one", indexes.size());
-            File merge = new File(temp, "merged");
-            mergedBase = merger.mergeQueryableIndexAndClose(
-                indexes,
-                schema.isRollup(),
-                schema.getMetrics(),
-                merge,
-                indexSpec,
-                new BaseProgressIndicator()
+            if (!queue.isEmpty()) {
+              segments.add(mergeSegments(queue, shardNum));
+              queue.clear();
+            }
+          }
+          int totalRowCount = 0;
+          long totalLength = 0;
+          List<Map<String, Object>> segmentMetas = Lists.newArrayList();
+          for (DataSegment segment : segments) {
+            Path segmentPath = new Path(targetPath, String.valueOf(segment.getShardSpec().getPartitionNum()));
+            Map<String, Object> segmentMeta = ImmutableMap.of(
+                "location", segmentPath.toUri(),
+                "length", segment.getSize(),
+                "segment", segment
             );
+            segmentMetas.add(segmentMeta);
+            totalRowCount += segment.getNumRows();
+            totalLength += segment.getSize();
           }
-          int rowCount;
-          Interval interval;
-          try (QueryableIndex merged = merger.getIndexIO().loadIndex(mergedBase, true)) {
-            rowCount = merged.getNumRows();
-            interval = merged.getInterval();
-          }
-
-          String version = new DateTime().toString();
-          int binaryVersion = SegmentUtils.getVersionFromDir(mergedBase);
-          long length = FileUtils.sizeOfDirectory(mergedBase);
-
-          for (File file : Preconditions.checkNotNull(mergedBase.listFiles())) {
-            if (file.isFile() && !file.isHidden()) {
-              fs.copyFromLocalFile(true, new Path("file://" + file.getAbsolutePath()), finalPath);
-            }
-          }
-          FileUtils.deleteDirectory(mergedBase);
-
-          // todo support multi-shard
-          Map<String, Object> loadSpec = toLoadSpec(finalPath.toUri());
-          DataSegment segment = new DataSegment(
-              dataSource,
-              interval,
-              version,
-              loadSpec,
-              dimensions,
-              metrics,
-              null,
-              binaryVersion,
-              length
-          );
-
           Map<String, Object> metaData = Maps.newLinkedHashMap();
-
+          metaData.put("dataSource", dataSource);
           metaData.put("rowCount", rowCount);
-          metaData.put(
-              "data", ImmutableMap.of(
-                  "location", new Path(nominalPath, dataSource).toUri(),
-                  "length", length,
-                  "dataSource", dataSource,
-                  "segment", segment
-              )
-          );
+          metaData.put("indexedRowCount", totalRowCount);
+          metaData.put("indexedLength", totalLength);
+          metaData.put("numSegments", segmentMetas.size());
+          metaData.put("data", segmentMetas);
 
           LOG.info("Took %,d msec to load %s", (System.currentTimeMillis() - start), dataSource);
           return metaData;
@@ -479,7 +464,76 @@ public class HdfsStorageHandler implements StorageHandler
 
         private File nextFile()
         {
-          return new File(temp, String.format("index-%,05d", indexCount++));
+          return new File(temp, String.format("temp-%,05d", indexCount++));
+        }
+
+        private DataSegment mergeSegments(List<File> queue, int shardNum) throws IOException
+        {
+          Path finalPath = new Path(targetPath, String.valueOf(shardNum));
+          fs.mkdirs(finalPath);
+
+          File tempPath;
+          if (queue.size() == 1 && GuavaUtils.isNullOrEmpty(indexSpec.getSecondaryIndexing())) {
+            tempPath = queue.get(0);
+          } else {
+            if (queue.size() == 1) {
+              LOG.info("Building seconday index & write to [%s]", finalPath);
+            } else {
+              LOG.info("Merging %d indices into [%s]", queue.size(), finalPath);
+            }
+            List<QueryableIndex> indices = Lists.newArrayList();
+            for (File path : queue) {
+              indices.add(merger.getIndexIO().loadIndex(path));
+            }
+            tempPath = merger.mergeQueryableIndexAndClose(
+                indices,
+                schema.isRollup(),
+                schema.getMetrics(),
+                new File(temp, String.valueOf(shardNum)),
+                indexSpec,
+                new BaseProgressIndicator()
+            );
+          }
+          return finalizeIndex(tempPath, finalPath, LinearShardSpec.of(shardNum));
+        }
+
+        private DataSegment finalizeIndex(File tempPath, Path finalPath, ShardSpec shardSpec) throws IOException
+        {
+          int rowCount;
+          Interval interval;
+          try (QueryableIndex merged = merger.getIndexIO().loadIndex(tempPath, true)) {
+            rowCount = merged.getNumRows();
+            interval = merged.getInterval();
+          }
+
+          int binaryVersion = SegmentUtils.getVersionFromDir(tempPath);
+          long length = FileUtils.sizeOfDirectory(tempPath);
+
+          moveTo(tempPath, finalPath);
+
+          final Map<String, Object> loadSpec = JobHelper.makeLoadSpec(finalPath.toUri());
+          return new DataSegment(
+              dataSource,
+              interval,
+              version,
+              loadSpec,
+              dimensions,
+              metrics,
+              shardSpec,
+              binaryVersion,
+              length,
+              rowCount
+          );
+        }
+
+        private void moveTo(File tempPath, Path finalPath) throws IOException
+        {
+          for (File file : Preconditions.checkNotNull(tempPath.listFiles())) {
+            if (file.isFile() && !file.isHidden()) {
+              fs.copyFromLocalFile(true, new Path("file://" + file.getAbsolutePath()), finalPath);
+            }
+          }
+          FileUtils.deleteDirectory(tempPath);
         }
       };
     }
@@ -514,38 +568,5 @@ public class HdfsStorageHandler implements StorageHandler
       return Formatters.wrapToExporter(formatter);
     }
     throw new IAE("Cannot find writer of format '%s'", format);
-  }
-
-  // copied from JobHelper.serializeOutIndex (in indexing-hadoop)
-  private Map<String, Object> toLoadSpec(URI indexOutURI)
-  {
-    switch (indexOutURI.getScheme()) {
-      case "hdfs":
-      case "viewfs":
-      case "wasb":
-      case "wasbs":
-      case "abfs":
-      case "abfss":
-      case "gs":
-        // use hdfs puller, whatever the scheme is
-        return ImmutableMap.<String, Object>of(
-            "type", "hdfs",
-            "path", indexOutURI.toString()
-        );
-      case "s3":
-      case "s3n":
-        return ImmutableMap.<String, Object>of(
-            "type", "s3_zip",
-            "bucket", indexOutURI.getHost(),
-            "key", indexOutURI.getPath().substring(1) // remove the leading "/"
-        );
-      case "file":
-        return ImmutableMap.<String, Object>of(
-            "type", "local",
-            "path", indexOutURI.getPath()
-        );
-      default:
-        throw new IAE("Unknown file system scheme [%s]", indexOutURI.getScheme());
-    }
   }
 }

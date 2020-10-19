@@ -45,7 +45,7 @@ public class HadoopDruidConverterConfigTest
     final HadoopDruidConverterConfig config = new HadoopDruidConverterConfig(
         "datasource",
         Interval.parse("2000/2010"),
-        new IndexSpec(),
+        IndexSpec.DEFAULT,
         ImmutableList.<DataSegment>of(),
         true,
         URI.create("file:/dev/null"),

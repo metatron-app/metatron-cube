@@ -409,7 +409,7 @@ public class IndexTask extends AbstractFixedIntervalTask
     final GranularitySpec granularity = schema.getGranularitySpec();
     final FirehoseFactory firehoseFactory = ingestionSpec.getIOConfig().getFirehoseFactory();
     final IndexTuningConfig tuningConfig = ingestionSpec.getTuningConfig();
-    final int rowFlushBoundary = tuningConfig.getMaxRowsInMemory();
+    final int maxRowsInMemory = tuningConfig.getMaxRowsInMemory();
 
     // We need to track published segments.
     final List<DataSegment> pushedSegments = new CopyOnWriteArrayList<DataSegment>();
@@ -450,8 +450,8 @@ public class IndexTask extends AbstractFixedIntervalTask
     };
 
     // rowFlushBoundary for this job
-    final int myRowFlushBoundary = rowFlushBoundary > 0
-                                   ? rowFlushBoundary
+    final int myRowFlushBoundary = maxRowsInMemory > 0
+                                   ? maxRowsInMemory
                                    : toolbox.getConfig().getDefaultRowFlushBoundary();
 
     // Create firehose + plumber
@@ -640,7 +640,7 @@ public class IndexTask extends AbstractFixedIntervalTask
   @JsonTypeName("index")
   public static class IndexTuningConfig extends BaseTuningConfig
   {
-    public static final IndexTuningConfig DEFAULT = new IndexTuningConfig(null, null, null, null, null, false, null, null);
+    public static final IndexTuningConfig DEFAULT = new IndexTuningConfig(null, null, null, null, false, null, null);
 
     private static final int DEFAULT_TARGET_PARTITION_SIZE = 5000000;
 
@@ -648,20 +648,20 @@ public class IndexTask extends AbstractFixedIntervalTask
     private final Integer numShards;
 
     public IndexTuningConfig(
-        @JsonProperty("targetPartitionSize") Integer targetPartitionSize,
-        @JsonProperty("rowFlushBoundary") @Deprecated Integer rowFlushBoundary,
-        @JsonProperty("numShards") Integer numShards,
         @JsonProperty("indexSpec") IndexSpec indexSpec,
+        @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
+        @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory,
         @JsonProperty("buildV9Directly") Boolean buildV9Directly,
         @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
-        @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
-        @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory
+        @JsonProperty("targetPartitionSize") Integer targetPartitionSize,
+        @JsonProperty("numShards") Integer numShards
     )
     {
       super(
           indexSpec,
-          maxRowsInMemory == null ? rowFlushBoundary : maxRowsInMemory,
+          maxRowsInMemory,
           maxOccupationInMemory,
+          null,
           buildV9Directly,
           ignoreInvalidRows
       );
@@ -677,15 +677,15 @@ public class IndexTask extends AbstractFixedIntervalTask
     }
 
     public IndexTuningConfig(
-        int targetPartitionSize,
-        int rowFlushBoundary,
-        Integer numShards,
         IndexSpec indexSpec,
+        int maxRowsInMemory,
         Boolean buildV9Directly,
-        boolean ignoreInvalidRows
+        boolean ignoreInvalidRows,
+        int targetPartitionSize,
+        Integer numShards
     )
     {
-      this(targetPartitionSize, rowFlushBoundary, numShards, indexSpec, buildV9Directly, ignoreInvalidRows, null, null);
+      this(indexSpec, maxRowsInMemory, null, buildV9Directly, ignoreInvalidRows, targetPartitionSize, numShards);
     }
 
     @JsonProperty

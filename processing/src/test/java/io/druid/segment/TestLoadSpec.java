@@ -112,6 +112,6 @@ public class TestLoadSpec extends IncrementalIndexSchema
 
   public IndexSpec getIndexingSpec()
   {
-    return indexSpec == null ? new IndexSpec() : indexSpec;
+    return indexSpec == null ? IndexSpec.DEFAULT : indexSpec;
   }
 }

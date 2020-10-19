@@ -76,7 +76,7 @@ public class SchemalessIndex
       new CountAggregatorFactory("count")
   };
 
-  private static final IndexSpec indexSpec = new IndexSpec();
+  private static final IndexSpec indexSpec = IndexSpec.DEFAULT;
 
   private static final List<Map<String, Object>> events = Lists.newArrayList();
 
