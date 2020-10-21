@@ -41,11 +41,9 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.JoinQuery.JoinDelegate;
 import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.ColumnsSupport;
 import io.druid.query.Query.DimensionSupport;
@@ -148,27 +146,6 @@ public class Queries
     }
     if (schema == null && query instanceof UnionAllQuery) {
       schema = ((UnionAllQuery) query).getSchema();
-    }
-    if (schema == null && query instanceof JoinDelegate) {
-      JoinDelegate joinQuery = (JoinDelegate) query;
-      schema = joinQuery.getSchema();
-      if (schema == null) {
-        List<String> columnNames = Lists.newArrayList();
-        List<ValueDesc> columnTypes = Lists.newArrayList();
-
-        List queries = joinQuery.getQueries();
-        List<String> aliases = joinQuery.getPrefixAliases();
-        Set<String> uniqueNames = Sets.newHashSet();
-        for (int i = 0; i < queries.size(); i++) {
-          final RowSignature element = relaySchema((Query) queries.get(i), segmentWalker);
-          final String prefix = aliases == null ? "" : aliases.get(i) + ".";
-          for (Pair<String, ValueDesc> pair : element.columnAndTypes()) {
-            columnNames.add(uniqueName(prefix + pair.lhs, uniqueNames));
-            columnTypes.add(pair.rhs);
-          }
-        }
-        schema = new RowSignature.Simple(columnNames, columnTypes);
-      }
     }
     if (schema == null) {
       schema = QueryUtils.retrieveSchema(query, segmentWalker).relay(query, false);
@@ -365,22 +342,19 @@ public class Queries
 
   public static Query iterate(Query query, Function<Query, Query> function)
   {
-    if (query.getDataSource() instanceof QueryDataSource) {
-      Query source = ((QueryDataSource) query.getDataSource()).getQuery();
-      Query converted = iterate(source, function);
-      if (source != converted) {
-        query = query.withDataSource(QueryDataSource.of(converted));
+    if (!(query.getDataSource() instanceof TableDataSource)) {
+      DataSource converted = iterate(query.getDataSource(), function);
+      if (query.getDataSource() != converted) {
+        query = query.withDataSource(converted);
       }
-    } else if (query instanceof JoinQuery) {
+    }
+    if (query instanceof JoinQuery) {
       JoinQuery joinQuery = (JoinQuery) query;
       Map<String, DataSource> rewritten = Maps.newHashMap();
       for (Map.Entry<String, DataSource> entry : joinQuery.getDataSources().entrySet()) {
-        if (entry.getValue() instanceof QueryDataSource) {
-          Query source = ((QueryDataSource) entry.getValue()).getQuery();
-          Query converted = iterate(source, function);
-          if (source != converted) {
-            rewritten.put(entry.getKey(), QueryDataSource.of(converted));
-          }
+        DataSource converted = iterate(entry.getValue(), function);
+        if (converted != entry.getValue()) {
+          rewritten.put(entry.getKey(), converted);
         }
       }
       if (!rewritten.isEmpty()) {
@@ -422,6 +396,21 @@ public class Queries
       }
     }
     return function.apply(query);
+  }
+
+  private static DataSource iterate(DataSource dataSource, Function<Query, Query> function)
+  {
+    if (dataSource instanceof QueryDataSource) {
+      Query source = ((QueryDataSource) dataSource).getQuery();
+      Query converted = iterate(source, function);
+      return source == converted ? dataSource : QueryDataSource.of(converted);
+    } else if (dataSource instanceof ViewDataSource) {
+      // later..
+//      StreamQuery source = ((ViewDataSource) dataSource).asStreamQuery(null);
+//      StreamQuery converted = (StreamQuery) function.apply(source);
+//      return source == converted ? dataSource : ViewDataSource.from(converted);
+    }
+    return dataSource;
   }
 
   public static List<DimensionSpec> extractInputFields(Query query, List<String> outputNames)

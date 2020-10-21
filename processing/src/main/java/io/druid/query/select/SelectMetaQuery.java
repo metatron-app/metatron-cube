@@ -374,7 +374,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   {
     return "SelectMetaQuery{" +
            "dataSource='" + getDataSource() + '\'' +
-           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
            ", filter=" + filter +
            ", granularity=" + granularity +
            ", dimensions=" + dimensions +

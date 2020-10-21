@@ -251,7 +251,7 @@ public class QueryRunnerTestHelper
                       new TestQueryRunnerFactory()
                   )
                   .put(
-                      JoinQuery.JoinDelegate.class,
+                      JoinQuery.CommonJoinHolder.class,
                       new TestQueryRunnerFactory()
                   )
                   .build()

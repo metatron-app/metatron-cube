@@ -19,7 +19,9 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -35,6 +37,7 @@ import java.util.Objects;
 
 /**
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RowSignature.Simple.class)
 public interface RowSignature extends TypeResolver
 {
   @JsonProperty
@@ -115,6 +118,14 @@ public interface RowSignature extends TypeResolver
     );
   }
 
+  default RowSignature concat(RowSignature other)
+  {
+    return new Simple(
+        GuavaUtils.concat(getColumnNames(), other.getColumnNames()),
+        GuavaUtils.concat(getColumnTypes(), other.getColumnTypes())
+    );
+  }
+
   default RowSignature relay(Query<?> query, boolean finalzed)
   {
     return Queries.finalize(Queries.bestEffortOf(this, query, finalzed), query, null);
@@ -149,19 +160,25 @@ public interface RowSignature extends TypeResolver
     protected final List<String> columnNames;
     protected final List<ValueDesc> columnTypes;
 
-    public Simple(List<String> columnNames, List<ValueDesc> columnTypes)
+    @JsonCreator
+    public Simple(
+        @JsonProperty("columnNames") List<String> columnNames,
+        @JsonProperty("columnTypes") List<ValueDesc> columnTypes
+    )
     {
       this.columnNames = columnNames;
       this.columnTypes = columnTypes;
     }
 
     @Override
+    @JsonProperty
     public List<String> getColumnNames()
     {
       return columnNames;
     }
 
     @Override
+    @JsonProperty
     public List<ValueDesc> getColumnTypes()
     {
       return columnTypes;

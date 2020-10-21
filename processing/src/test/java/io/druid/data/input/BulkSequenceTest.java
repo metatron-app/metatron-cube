@@ -47,7 +47,7 @@ public class BulkSequenceTest
   {
     Sequence<Object[]> rows = Sequences.simple(cr(0), cr(1), cr(2), cr(3), cr(4));
 
-    Sequence<BulkRow> bulk = new TestBulkSequence(rows, Arrays.asList(
+    Sequence<BulkRow> bulk = new BulkSequence(rows, Arrays.asList(
         ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 2
     );
 
@@ -183,7 +183,7 @@ public class BulkSequenceTest
         Sequences.simple(cr(5), cr(6), cr(7)),
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
-    Sequence<BulkRow> sequence = new TestBulkSequence(
+    Sequence<BulkRow> sequence = new BulkSequence(
         rows, Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 5
     );
 
@@ -217,7 +217,7 @@ public class BulkSequenceTest
         Sequences.simple(cr(5), cr(6), cr(7)),
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
-    Sequence<BulkRow> sequence = new TestBulkSequence(
+    Sequence<BulkRow> sequence = new BulkSequence(
         Sequences.limit(rows, 7), Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 3
     );
 
@@ -246,19 +246,5 @@ public class BulkSequenceTest
   private Object[] cr(long x)
   {
     return new Object[]{x, (float) x, (double) x, String.valueOf(x)};
-  }
-
-  private static class TestBulkSequence extends BulkSequence
-  {
-    public TestBulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, int max)
-    {
-      super(sequence, types, max);
-    }
-
-    @Override
-    protected BulkRow toBulkRow(int size, int[] category, Object[] copy)
-    {
-      return super.toBulkRow(size, category, copy).forTest();
-    }
   }
 }

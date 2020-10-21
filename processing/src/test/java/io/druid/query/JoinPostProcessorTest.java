@@ -98,8 +98,7 @@ public class JoinPostProcessorTest
           Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1}, left
       );
       JoinPostProcessor.JoinAlias rhs = new JoinPostProcessor.JoinAlias(
-          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
-          JoinPostProcessor.hash(right.iterator(), new int[]{0, 1})
+          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1}, right.iterator()
       );
       validate(expected, Lists.newArrayList(processor.join(lhs, rhs, 0).iterator));
 
@@ -107,8 +106,7 @@ public class JoinPostProcessorTest
           Arrays.asList("ds1"), Arrays.asList("a", "b", "x"), Arrays.asList("a", "b"), new int[]{0, 1}, left
       );
       JoinPostProcessor.JoinAlias rh = new JoinPostProcessor.JoinAlias(
-          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1},
-          JoinPostProcessor.hash(right.iterator(), new int[]{0, 1})
+          Arrays.asList("ds2"), Arrays.asList("c", "d", "y"), Arrays.asList("c", "d"), new int[]{0, 1}, right.iterator()
       );
       validate(expected, Lists.newArrayList(processor.join(lh, rh, 0).iterator));
     }

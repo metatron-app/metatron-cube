@@ -47,6 +47,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -86,14 +87,14 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   // dummy datasource for authorization
   static <T> DataSource unionDataSource(Query<T> query, List<Query<T>> queries)
   {
-    if (queries == null || queries.isEmpty()) {
-      return Preconditions.checkNotNull(query).getDataSource();
+    if (GuavaUtils.isNullOrEmpty(queries)) {
+      return DataSources.from(Preconditions.checkNotNull(query).getDataSource().getNames());
     }
     Set<String> names = Sets.newLinkedHashSet();
     for (Query q : queries) {
       names.addAll(q.getDataSource().getNames());
     }
-    return names.size() == 1 ? TableDataSource.of(Iterables.getOnlyElement(names)) : UnionDataSource.of(names);
+    return DataSources.from(Lists.newArrayList(names));
   }
 
   private static <T> QuerySegmentSpec unionQuerySegmentSpec(Query<T> query, List<Query<T>> queries)
@@ -224,7 +225,12 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   }
 
   @SuppressWarnings("unchecked")
-  protected UnionAllQuery newInstance(Query<T> query, List<Query<T>> queries, int parallelism, Map<String, Object> context)
+  protected UnionAllQuery newInstance(
+      Query<T> query,
+      List<Query<T>> queries,
+      int parallelism,
+      Map<String, Object> context
+  )
   {
     return new UnionAllQuery(query, queries, sortOnUnion, limit, parallelism, context).withSchema(schema);
   }
@@ -385,7 +391,10 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
       return new UnionAllQueryRunner<T>()
       {
         @Override
-        public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
+        public Sequence<Pair<Query<T>, Sequence<T>>> run(
+            final Query<T> query,
+            final Map<String, Object> responseContext
+        )
         {
           return Sequences.simple(
               Lists.transform(
@@ -419,8 +428,12 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
       return new UnionAllQueryRunner<T>()
       {
         final int priority = BaseQuery.getContextPriority(UnionAllQuery.this, 0);
+
         @Override
-        public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
+        public Sequence<Pair<Query<T>, Sequence<T>>> run(
+            final Query<T> query,
+            final Map<String, Object> responseContext
+        )
         {
           final List<Query<T>> ready = ((UnionAllQuery) query).toTargetQueries();
           final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(getParallelism(), ready.size()));
@@ -474,23 +487,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
 
   private List<Query<T>> toTargetQueries()
   {
-    final List<Query<T>> ready;
-    if (queries != null) {
-      ready = queries;
-    } else {
-      final Query<T> target = query;
-      ready = Lists.transform(
-          target.getDataSource().getNames(), new Function<String, Query<T>>()
-          {
-            @Override
-            public Query<T> apply(String dataSource)
-            {
-              return target.withDataSource(TableDataSource.of(dataSource));
-            }
-          }
-      );
-    }
-    return ready;
+    return queries != null ? queries : Arrays.asList(query);
   }
 
   @Override

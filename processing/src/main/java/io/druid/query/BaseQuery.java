@@ -468,9 +468,25 @@ public abstract class BaseQuery<T> implements Query<T>
     return query.getContext() == null ? Maps.<String, Object>newHashMap() : Maps.newHashMap(query.getContext());
   }
 
+  public static Map<String, Object> copyContext(Query<?> query, String key, Object value)
+  {
+    Map<String, Object> context = copyContext(query);
+    if (value != null) {
+      context.put(key, value);
+    } else {
+      context.remove(key);
+    }
+    return context;
+  }
+
   public static Map<String, Object> copyContextForMeta(Query<?> query)
   {
     return copyContextForMeta(query.getContext());
+  }
+
+  public static Map<String, Object> copyContextForMeta(Query<?> query, String key, Object value)
+  {
+    return copyContextForMeta(query.getContext(), key, value);
   }
 
   public static Map<String, Object> copyContextForMeta(Map<String, Object> context)
@@ -483,6 +499,17 @@ public abstract class BaseQuery<T> implements Query<T>
       if (context.containsKey(contextKey)) {
         forMeta.put(contextKey, context.get(contextKey));
       }
+    }
+    return forMeta;
+  }
+
+  public static Map<String, Object> copyContextForMeta(Map<String, Object> context, String key, Object value)
+  {
+    final Map<String, Object> forMeta = copyContextForMeta(context);
+    if (value != null) {
+      forMeta.put(key, value);
+    } else {
+      forMeta.remove(key);
     }
     return forMeta;
   }

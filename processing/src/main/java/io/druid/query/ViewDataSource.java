@@ -27,6 +27,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.select.StreamQuery;
+import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
 import java.util.Arrays;
@@ -36,6 +38,8 @@ import java.util.Objects;
 @JsonTypeName("view")
 public class ViewDataSource implements DataSource
 {
+  public static final ViewDataSource DUMMY = ViewDataSource.of("___dummy");
+
   public static ViewDataSource of(String dataSource, String... columns)
   {
     return of(dataSource, Arrays.asList(columns));
@@ -59,6 +63,11 @@ public class ViewDataSource implements DataSource
   public static ViewDataSource of(String dataSource, List<VirtualColumn> vcs, DimFilter filer, List<String> columns)
   {
     return new ViewDataSource(dataSource, columns, vcs, filer, false);
+  }
+
+  public static ViewDataSource from(StreamQuery query)
+  {
+    return of(DataSources.getName(query), query.getVirtualColumns(), query.getFilter(), query.getColumns());
   }
 
   @JsonProperty
@@ -144,6 +153,17 @@ public class ViewDataSource implements DataSource
   public ViewDataSource withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new ViewDataSource(name, columns, virtualColumns, filter, lowerCasedOutput);
+  }
+
+  public StreamQuery asStreamQuery(QuerySegmentSpec segmentSpec)
+  {
+    return new Druids.SelectQueryBuilder()
+        .dataSource(name)
+        .intervals(segmentSpec)
+        .filters(filter)
+        .columns(columns)
+        .virtualColumns(virtualColumns)
+        .streaming();
   }
 
   @Override

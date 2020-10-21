@@ -22,8 +22,10 @@ package io.druid.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.IdentityFunction;
 import io.druid.java.util.common.guava.Sequence;
 
 import java.util.Arrays;
@@ -67,7 +69,9 @@ public class PostProcessingOperators
       return (PostProcessingOperator) value;
     } else {
       Preconditions.checkNotNull(value, "Cannot convert %s without mapper", value);
-      return mapper.convertValue(value, new TypeReference<PostProcessingOperator>() {});
+      return mapper.convertValue(value, new TypeReference<PostProcessingOperator>()
+      {
+      });
     }
   }
 
@@ -77,9 +81,9 @@ public class PostProcessingOperators
   }
 
   @SuppressWarnings("unchecked")
-  public static <T> Query<T> append(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
+  public static <Q extends Query<T>, T> Q append(Q query, ObjectMapper mapper, PostProcessingOperator processor)
   {
-    return query.withOverriddenContext(append(query.getContext(), mapper, processor));
+    return (Q) query.withOverriddenContext(append(Maps.newHashMap(query.getContext()), mapper, processor));
   }
 
   public static Map<String, Object> append(Map<String, Object> context, ObjectMapper mapper, Object processor)
@@ -161,5 +165,21 @@ public class PostProcessingOperators
       }
     }
     return null;
+  }
+
+  public static PostProcessingOperator rewrite(
+      PostProcessingOperator processor,
+      IdentityFunction<PostProcessingOperator> converter
+  )
+  {
+    if (processor instanceof ListPostProcessingOperator) {
+      List<PostProcessingOperator> rewritten = Lists.newArrayList();
+      for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processor).getProcessors()) {
+        rewritten.add(converter.apply(element));
+      }
+      return PostProcessingOperators.list(rewritten);
+    } else {
+      return converter.apply(processor);
+    }
   }
 }

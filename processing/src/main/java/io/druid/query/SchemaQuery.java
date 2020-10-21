@@ -114,7 +114,7 @@ public class SchemaQuery extends BaseQuery<Schema>
   {
     return "SchemaQuery{" +
            "dataSource='" + getDataSource() + '\'' +
-           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
            '}';
   }
 

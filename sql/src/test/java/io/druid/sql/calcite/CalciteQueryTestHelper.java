@@ -589,24 +589,31 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
     protected void verifyHooked(List<String> expected)
     {
-      final int compareTo = Math.min(expected.size(), hooked.size());
-      for (int i = 0; i < compareTo; i++) {
-        Assert.assertEquals(i + " th", expected.get(i), hooked.get(i).toString());
-      }
-      for (int i = compareTo; i < expected.size(); i++) {
-        if (i == compareTo) {
-          System.out.println("Missing.. ");
+      try {
+        final int compareTo = Math.min(expected.size(), hooked.size());
+        for (int i = 0; i < compareTo; i++) {
+          Assert.assertEquals(i + " th", expected.get(i), hooked.get(i).toString());
         }
-        System.out.println(expected.get(i));
-      }
-      for (int i = compareTo; i < hooked.size(); i++) {
-        if (i == compareTo) {
-          System.out.println("Not expected.. ");
+        for (int i = compareTo; i < expected.size(); i++) {
+          if (i == compareTo) {
+            System.out.println("Missing.. ");
+          }
+          System.out.println(expected.get(i));
         }
-        System.out.println(hooked.get(i));
+        for (int i = compareTo; i < hooked.size(); i++) {
+          if (i == compareTo) {
+            System.out.println("Not expected.. ");
+          }
+          System.out.println(hooked.get(i));
+        }
+        Assert.assertEquals(expected.size(), hooked.size());
       }
-      Assert.assertEquals(expected.size(), hooked.size());
-      hooked.clear();
+      catch (AssertionError e) {
+        printHooked();
+        throw e;
+      } finally {
+        hooked.clear();
+      }
     }
 
     protected void printHooked()

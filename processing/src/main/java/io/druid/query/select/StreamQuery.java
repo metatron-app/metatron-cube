@@ -74,6 +74,11 @@ public class StreamQuery extends BaseQuery<Object[]>
     Query.LastProjectionSupport<Object[]>,
     Query.ArrayOutput
 {
+  public static Query projection(DataSource dataSource, List<String> columns)
+  {
+    return new StreamQuery(dataSource, null, false, null, columns, null, null, null, null, null, null);
+  }
+
   private final DimFilter filter;
   private final List<String> columns;
   private final List<OrderByColumnSpec> orderingSpecs;

@@ -362,7 +362,7 @@ public class QueryUtils
       return query; // todo
     }
 
-    ViewDataSource view = ViewDataSource.of("dummy");
+    ViewDataSource view = ViewDataSource.DUMMY;
     if (dataSource instanceof ViewDataSource) {
       view = (ViewDataSource) dataSource;
       query = query.withDataSource(TableDataSource.of(view.getName()));
@@ -390,7 +390,6 @@ public class QueryUtils
     if (!viewColumns.isEmpty()) {
       query = retainViewColumns(query, viewColumns);
     }
-    BaseQuery.getDimFilter(query);
     return query.resolveQuery(resolver, false);   // already expanded
   }
 

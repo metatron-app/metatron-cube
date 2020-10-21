@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
@@ -28,6 +29,7 @@ import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
+import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -36,6 +38,7 @@ import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -209,10 +212,19 @@ public class JoinElement
     return expression;
   }
 
-  public boolean isLeftSemiJoinable(DataSource rightSource, List<String> outputColumns)
+  @JsonIgnore
+  public List<String> getAliases()
   {
+    return Arrays.asList(leftAlias, rightAlias);
+  }
+
+  public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
+  {
+    if (!DataSources.isFilterSupport(left)) {
+      return false;
+    }
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
-      List<String> rightOutputColumns = DataSources.getOutputColumns(rightSource);
+      List<String> rightOutputColumns = DataSources.getOutputColumns(right);
       if (rightOutputColumns == null) {
         return false;
       }
@@ -225,10 +237,13 @@ public class JoinElement
     return false;
   }
 
-  public boolean isRightSemiJoinable(DataSource leftSource, List<String> outputColumns)
+  public boolean isRightSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
+    if (!DataSources.isFilterSupport(right)) {
+      return false;
+    }
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
-      List<String> leftOutputColumns = DataSources.getOutputColumns(leftSource);
+      List<String> leftOutputColumns = DataSources.getOutputColumns(left);
       if (leftOutputColumns == null) {
         return false;
       }
@@ -241,12 +256,28 @@ public class JoinElement
     return false;
   }
 
-  public static Query toQuery(DataSource dataSource, QuerySegmentSpec segmentSpec, Map<String, Object> context)
+  public boolean isLeftBroadcastable(DataSource right)
   {
-    return toQuery(dataSource, null, segmentSpec, context);
+    return joinType.isRightDrivable() && DataSources.isDataNodeSourced(right);
   }
 
-  public static Query toQuery(
+  public boolean isRightBroadcastable(DataSource left)
+  {
+    return joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left);
+  }
+
+  public static ArrayOutputSupport toQuery(
+      QuerySegmentWalker segmentWalker,
+      DataSource dataSource,
+      QuerySegmentSpec segmentSpec,
+      Map<String, Object> context
+  )
+  {
+    return toQuery(segmentWalker, dataSource, null, segmentSpec, context);
+  }
+
+  public static ArrayOutputSupport toQuery(
+      QuerySegmentWalker segmentWalker,
       DataSource dataSource,
       List<String> sortColumns,
       QuerySegmentSpec segmentSpec,
@@ -255,13 +286,13 @@ public class JoinElement
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
-      if (query instanceof JoinQuery.JoinDelegate) {
-        return ((JoinQuery.JoinDelegate) query).toArrayJoin();  // keep array for output
+      if (query instanceof JoinQuery.JoinHolder) {
+        return ((JoinQuery.JoinHolder) query).toArrayJoin();  // keep array for output
       }
-      if (!(query instanceof Query.ArrayOutputSupport)) {
+      if (!(query instanceof ArrayOutputSupport)) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());
       }
-      if (GuavaUtils.isNullOrEmpty(((Query.ArrayOutputSupport) query).estimatedOutputColumns())) {
+      if (GuavaUtils.isNullOrEmpty(((ArrayOutputSupport) query).estimatedOutputColumns())) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names..");
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
@@ -269,11 +300,11 @@ public class JoinElement
           query = ((Query.OrderingSupport) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns));
         }
       }
-      return query;
+      return (ArrayOutputSupport) query;
     }
     if (dataSource instanceof ViewDataSource) {
       ViewDataSource view = (ViewDataSource) dataSource;
-      return new Druids.SelectQueryBuilder()
+      StreamQuery query = new Druids.SelectQueryBuilder()
           .dataSource(view.getName())
           .intervals(segmentSpec)
           .filters(view.getFilter())
@@ -281,6 +312,10 @@ public class JoinElement
           .virtualColumns(view.getVirtualColumns())
           .context(BaseQuery.copyContextForMeta(context))
           .streaming(sortColumns);
+      if (GuavaUtils.isNullOrEmpty(query.getColumns())) {
+        query = (StreamQuery) QueryUtils.resolve(query, segmentWalker);
+      }
+      return query;
     }
     throw new ISE("todo: cannot join on %s", dataSource);
   }

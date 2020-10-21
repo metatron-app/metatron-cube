@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 @Deprecated
-public class KmeansTaggingPostProcessor<T> extends PostProcessingOperator.UnionSupport<T>
+public class KmeansTaggingPostProcessor<T> implements PostProcessingOperator.UnionSupport<T>
 {
   private static final Logger LOG = new Logger(KmeansTaggingPostProcessor.class);
 

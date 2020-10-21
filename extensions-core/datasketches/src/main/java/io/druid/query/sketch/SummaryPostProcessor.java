@@ -88,7 +88,7 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 @JsonTypeName("sketch.summary")
-public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport implements PostProcessingOperator.Local
+public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport, PostProcessingOperator.Local
 {
   private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
 

@@ -228,4 +228,12 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
   {
     return new BulkRow(size, category, copy);
   }
+
+  @Override
+  public String toString()
+  {
+    return "BulkSequence{" +
+           "category=" + Arrays.toString(category) +
+           '}';
+  }
 }

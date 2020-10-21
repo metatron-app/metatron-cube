@@ -27,7 +27,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.JoinQuery.JoinDelegate;
+import io.druid.query.JoinQuery.CommonJoinHolder;
 import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
@@ -352,8 +352,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       Query subQuery = dataSource.getQuery();
 
       String timeColumn = Row.TIME_COLUMN_NAME;
-      if (subQuery instanceof JoinDelegate) {
-        timeColumn = ((JoinDelegate) subQuery).getTimeColumnName();
+      if (subQuery instanceof CommonJoinHolder) {
+        timeColumn = ((CommonJoinHolder) subQuery).getTimeColumnName();
       }
 
       Sequence<Cursor> cursors;

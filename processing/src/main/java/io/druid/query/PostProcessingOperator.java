@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
     @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
+    @JsonSubTypes.Type(name = "broadcastJoin", value = BroadcastJoinProcessor.class),
     @JsonSubTypes.Type(name = "toMap", value = ToMapPostProcessor.class),
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),
@@ -51,27 +52,21 @@ public interface PostProcessingOperator<T>
 {
   QueryRunner postProcess(QueryRunner<T> baseQueryRunner);
 
-  boolean supportsUnionProcessing();
+  default boolean supportsUnionProcessing()
+  {
+    return false;
+  }
 
-  public abstract class UnionSupport<T> implements PostProcessingOperator<T>
+  public interface UnionSupport<T> extends PostProcessingOperator<T>
   {
     @Override
-    public boolean supportsUnionProcessing() { return true;}
+    default boolean supportsUnionProcessing() { return true;}
 
-    public abstract QueryRunner postProcess(UnionAllQueryRunner<?> baseQueryRunner, ExecutorService exec);
-
-    @Override
-    public String toString()
-    {
-      return getClass().getSimpleName();
-    }
+    QueryRunner postProcess(UnionAllQueryRunner<?> baseQueryRunner, ExecutorService exec);
   }
 
   public abstract class Abstract<T> implements PostProcessingOperator<T>
   {
-    @Override
-    public boolean supportsUnionProcessing() { return false;}
-
     @Override
     public String toString()
     {

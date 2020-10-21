@@ -39,6 +39,7 @@ import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Iterator;
@@ -311,18 +312,15 @@ public class BulkRow extends AbstractRow
     return values;
   }
 
-  protected BulkRow forTest()
-  {
-    for (int i = 0; i < category.length; i++) {
-      if (category[i] == 5 && values[i] instanceof byte[]) {
-        values[i] = new BytesInputStream((byte[]) values[i]);
-      }
-    }
-    return this;
-  }
-
   public Iterator<Object[]> decompose()
   {
+    // for test
+    final Object[] copy = Arrays.copyOf(values, values.length);
+    for (int i = 0; i < category.length; i++) {
+      if (category[i] == 5 && copy[i] instanceof byte[]) {
+        copy[i] = new BytesInputStream((byte[]) copy[i]);
+      }
+    }
     return new Iterator<Object[]>()
     {
       private int index;
@@ -337,12 +335,12 @@ public class BulkRow extends AbstractRow
       public Object[] next()
       {
         final int ix = index++;
-        final Object[] row = new Object[values.length];
+        final Object[] row = new Object[copy.length];
         for (int i = 0; i < row.length; i++) {
           if (category[i] == 5) {
-            row[i] = ((BytesInputStream) values[i]).readVarSizeUTF();
+            row[i] = ((BytesInputStream) copy[i]).readVarSizeUTF();
           } else {
-            row[i] = ((Object[]) values[i])[ix];
+            row[i] = ((Object[]) copy[i])[ix];
           }
         }
         return row;

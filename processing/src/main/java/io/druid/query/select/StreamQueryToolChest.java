@@ -121,14 +121,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   public ToIntFunction numRows(StreamQuery query)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return new ToIntFunction()
-      {
-        @Override
-        public int applyAsInt(Object value)
-        {
-          return ((BulkRow) value).count();
-        }
-      };
+      return value -> ((BulkRow) value).count();
     }
     return super.numRows(query);
   }

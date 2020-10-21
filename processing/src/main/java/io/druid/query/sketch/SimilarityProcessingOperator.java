@@ -52,7 +52,7 @@ import static io.druid.query.sketch.ThetaOperations.Func.UNION;
 /**
  */
 @JsonTypeName("similarity")
-public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSupport
+public class SimilarityProcessingOperator implements PostProcessingOperator.UnionSupport
 {
   private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
 

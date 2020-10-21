@@ -44,12 +44,17 @@ public class TypedDummyQuery extends DummyQuery<Object[]>
 
   public static TypedDummyQuery of(RowSignature signature, Iterable<Object[]> sequence)
   {
+    return of(signature, Sequences.simple(sequence));
+  }
+
+  public static TypedDummyQuery of(RowSignature signature, Sequence<Object[]> sequence)
+  {
     return new TypedDummyQuery(
         TableDataSource.of("<NOT-EXISTING>"),
         null,
         false,
         signature,
-        Sequences.simple(sequence),
+        sequence,
         Maps.<String, Object>newHashMap()
     );
   }

@@ -34,11 +34,16 @@ import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.Futures;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.data.ValueDesc;
+import io.druid.data.input.BulkRow;
+import io.druid.data.input.BulkSequence;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.dimension.DimensionSpec;
@@ -282,10 +287,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     if (schema != null && outputColumns != null) {
       Preconditions.checkArgument(
           outputColumns.equals(schema.getColumnNames()),
-          "Invalid schema %s, expected column names %s", schema, outputColumns);
+          "Invalid schema %s, expected column names %s", schema, outputColumns
+      );
     }
     final int hashThreshold = config.getHashJoinThreshold(this);
     final int semiJoinThrehold = config.getSemiJoinThreshold(this);
+    final int broadcastThreshold = config.getBroadcastJoinThreshold(this);
     final int bloomFilterThreshold = config.getBloomFilterThreshold(this);
 
     long currentEstimation = ROWNUM_UNKNOWN;
@@ -314,70 +321,120 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (rightEstimated == ROWNUM_NOT_EVALUATED) {
         rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
       }
+      LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinType(), leftAlias, leftEstimated, rightAlias, rightEstimated);
 
       // try convert semi-join to filter
       if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {
-        if (i == 0 && DataSources.isFilterSupport(left) && element.isLeftSemiJoinable(right, outputColumns)) {
-          if (rightEstimated >= 0 && rightEstimated < semiJoinThrehold) {
-            ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(right, segmentSpec, context);
-            List<String> rightColumns = array.estimatedOutputColumns();
-            if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
-              int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
-              Supplier<List<Object[]>> fieldValues =
-                  () -> Sequences.toList(Sequences.map(
-                      array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
-              DataSource filtered = DataSources.applyFilterAndProjection(
-                  left, ValuesFilter.fieldNames(leftJoinColumns, fieldValues), outputColumns
-              );
-              LOG.info(
-                  "%s (R) is merged into %s (L) as a filter with expected number of values = %d",
-                  rightAlias, leftAlias, rightEstimated
-              );
-              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
-              if (leftEstimated >= 0) {
-                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
-              }
-              continue;
+        if (i == 0 && isUnderThreshold(rightEstimated, semiJoinThrehold) && element.isLeftSemiJoinable(left, right, outputColumns)) {
+          ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
+          List<String> rightColumns = array.estimatedOutputColumns();
+          if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
+            int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
+            Supplier<List<Object[]>> fieldValues =
+                () -> Sequences.toList(Sequences.map(
+                    array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
+            DataSource filtered = DataSources.applyFilterAndProjection(
+                left, ValuesFilter.fieldNames(leftJoinColumns, fieldValues), outputColumns
+            );
+            LOG.info(
+                "%s (R) is merged into %s (L) as a filter with expected number of values = %d",
+                rightAlias, leftAlias, rightEstimated
+            );
+            queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
+            if (leftEstimated >= 0) {
+              currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
             }
+            continue;
           }
         }
-        if (DataSources.isFilterSupport(right) && element.isRightSemiJoinable(left, outputColumns)) {
-          if (leftEstimated >= 0 && leftEstimated < semiJoinThrehold) {
-            ArrayOutputSupport<Object> array = (ArrayOutputSupport) JoinElement.toQuery(left, segmentSpec, context);
-            List<String> leftColumns = array.estimatedOutputColumns();
-            if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
-              int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
-              Supplier<List<Object[]>> fieldValues =
-                  () -> Sequences.toList(Sequences.map(
-                      array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
-              DataSource filtered = DataSources.applyFilterAndProjection(
-                  right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
-              );
-              LOG.info(
-                  "%s (L) is merged into %s (R) as a filter with expected number of values = %d",
-                  leftAlias, rightAlias, leftEstimated
-              );
-              queries.add(JoinElement.toQuery(filtered, null, segmentSpec, context));
-              if (rightEstimated >= 0) {
-                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
-              }
-              continue;
+        if (isUnderThreshold(leftEstimated, semiJoinThrehold) && element.isRightSemiJoinable(left, right, outputColumns)) {
+          ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
+          List<String> leftColumns = array.estimatedOutputColumns();
+          if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
+            int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
+            Supplier<List<Object[]>> fieldValues =
+                () -> Sequences.toList(Sequences.map(
+                    array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
+            DataSource filtered = DataSources.applyFilterAndProjection(
+                right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
+            );
+            LOG.info(
+                "%s (L) is merged into %s (R) as a filter with expected number of values = %d",
+                leftAlias, rightAlias, leftEstimated
+            );
+            queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
+            if (rightEstimated >= 0) {
+              currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
             }
+            continue;
           }
+        }
+      }
+
+      if (i == 0 && broadcastThreshold > 0) {
+        boolean leftBroadcast = isUnderThreshold(leftEstimated, broadcastThreshold) && element.isLeftBroadcastable(right);
+        boolean rightBroadcast = isUnderThreshold(rightEstimated, broadcastThreshold) && element.isRightBroadcastable(left);
+        if (leftBroadcast && rightBroadcast) {
+          if (leftEstimated > rightEstimated) {
+            leftBroadcast = false;
+          } else {
+            rightBroadcast = false;
+          }
+        }
+        if (leftBroadcast) {
+          Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
+          Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
+          LOG.info(
+              "%s (L) is broadcasted for %s (R) with expected number of values = %d",
+              leftAlias, rightAlias, leftEstimated
+          );
+          RowSignature signature = Queries.relaySchema(query0, segmentWalker);
+          Sequence<BulkRow> values = BulkSequence.fromArray(
+              query0.array(QueryRunners.run(query0, segmentWalker)), signature
+          );
+          BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
+              config.getJoin(), element, true, signature, prefixAlias, asArray, outputColumns, values
+          );
+          Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, Query.POST_PROCESSING, processor);
+          if (rightEstimated > 0) {
+            joinContext.put(CARDINALITY, rightEstimated);
+          }
+          queries.add(new BroadcastJoinHolder(query1, processor, joinContext));
+          if (rightEstimated > 0) {
+            currentEstimation = rightEstimated;
+          }
+          continue;
+        }
+        if (rightBroadcast) {
+          Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
+          Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
+          LOG.info(
+              "%s (R) is broadcasted for %s (L) with expected number of values = %d",
+              rightAlias, leftAlias, rightEstimated
+          );
+          RowSignature signature = Queries.relaySchema(query1, segmentWalker);
+          Sequence<BulkRow> values = BulkSequence.fromArray(
+              query1.array(QueryRunners.run(query1, segmentWalker)), signature
+          );
+          BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
+              config.getJoin(), element, false, signature, prefixAlias, asArray, outputColumns, values
+          );
+          Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, Query.POST_PROCESSING, processor);
+          if (leftEstimated > 0) {
+            joinContext.put(CARDINALITY, leftEstimated);
+          }
+
+          queries.add(new BroadcastJoinHolder(query0, processor, joinContext));
+          if (leftEstimated > 0) {
+            currentEstimation = leftEstimated;
+          }
+          continue;
         }
       }
 
       // try hash-join
-      boolean leftHashing = false;
-      boolean rightHashing = false;
-      if (hashThreshold > 0) {
-        if (joinType.isLeftDrivable()) {
-          rightHashing = rightEstimated >= 0 && rightEstimated < hashThreshold;
-        }
-        if (i == 0 && joinType.isRightDrivable()) {
-          leftHashing = leftEstimated >= 0 && leftEstimated < hashThreshold;
-        }
-      }
+      boolean leftHashing = i == 0 && joinType.isRightDrivable() && isUnderThreshold(leftEstimated, hashThreshold);
+      boolean rightHashing = joinType.isLeftDrivable() && isUnderThreshold(rightEstimated, hashThreshold);
       if (leftHashing && rightHashing) {
         if (leftEstimated > rightEstimated) {
           leftHashing = false;
@@ -388,7 +445,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (i == 0) {
         LOG.info("%s (L) -----> %d rows, type? %s, hashing? %s", leftAlias, leftEstimated, joinType, leftHashing);
         List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : leftJoinColumns;
-        Query query = JoinElement.toQuery(left, sortOn, segmentSpec, context);
+        Query query = JoinElement.toQuery(segmentWalker, left, sortOn, segmentSpec, context);
         if (leftHashing) {
           query = query.withOverriddenContext(HASHING, true);
         }
@@ -399,7 +456,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
       LOG.info("%s (R) -----> %d rows, type? %s, hashing? %s", rightAlias, rightEstimated, joinType, rightHashing);
       List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
-      Query query = JoinElement.toQuery(right, sortOn, segmentSpec, context);
+      Query query = JoinElement.toQuery(segmentWalker, right, sortOn, segmentSpec, context);
       if (rightHashing) {
         query = query.withOverriddenContext(HASHING, true);
       }
@@ -452,7 +509,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     if (currentEstimation > 0) {
       joinContext.put(CARDINALITY, currentEstimation);
     }
-    JoinDelegate query = new JoinDelegate(queries, prefixAliases, timeColumn, outputColumns, limit, joinContext);
+    CommonJoinHolder query = new CommonJoinHolder(queries, prefixAliases, timeColumn, outputColumns, limit, joinContext);
     if (schema != null) {
       query = query.withSchema(Suppliers.ofInstance(schema));
     }
@@ -461,6 +518,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         segmentWalker.getObjectMapper(),
         new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, outputColumns, maxOutputRow)
     );
+  }
+
+  private boolean isUnderThreshold(long estimation, long threshold)
+  {
+    return estimation >= 0 && threshold >= 0 && estimation < threshold;
   }
 
   private long resultEstimation(JoinType type, long leftEstimation, long rightEstimated)
@@ -621,9 +683,170 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            '}';
   }
 
+  public static abstract class JoinHolder extends UnionAllQuery<Map<String, Object>>
+      implements ArrayOutputSupport<Map<String, Object>>, SchemaProvider
+  {
+    public JoinHolder(
+        Query<Map<String, Object>> query,
+        List<Query<Map<String, Object>>> queries,
+        boolean sortOnUnion,
+        int limit,
+        int parallelism,
+        Map<String, Object> context
+    )
+    {
+      super(query, queries, sortOnUnion, limit, parallelism, context);
+    }
+
+    @Override
+    public String getType()
+    {
+      return Query.JOIN;
+    }
+
+    @Override
+    public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
+    {
+      return this;
+    }
+
+    protected CommonJoinProcessor getLastJoinProcessor()
+    {
+      PostProcessingOperator processor = getContextValue(Query.POST_PROCESSING);
+      if (processor instanceof ListPostProcessingOperator) {
+        for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processor).getProcessorsInReverse()) {
+          if (element instanceof CommonJoinProcessor) {
+            return (CommonJoinProcessor) element;
+          }
+        }
+      }
+      return processor instanceof CommonJoinProcessor ? (CommonJoinProcessor) processor : null;
+    }
+
+    protected boolean isArrayOutput()
+    {
+      return Preconditions.checkNotNull(getLastJoinProcessor(), "no join processor").isAsArray();
+    }
+
+    private static final IdentityFunction<PostProcessingOperator> AS_ARRAY = new IdentityFunction<PostProcessingOperator>()
+    {
+      @Override
+      public PostProcessingOperator apply(PostProcessingOperator input)
+      {
+        if (input instanceof CommonJoinProcessor) {
+          input = ((CommonJoinProcessor) input).withAsArray(true);
+        }
+        return input;
+      }
+    };
+
+    public JoinHolder toArrayJoin()
+    {
+      PostProcessingOperator processor = getContextValue(Query.POST_PROCESSING);
+      if (processor != null) {
+        return (JoinHolder) withOverriddenContext(
+            Query.POST_PROCESSING, PostProcessingOperators.rewrite(processor, AS_ARRAY)
+        );
+      }
+      return this;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Sequence<Object[]> array(Sequence sequence)
+    {
+      if (isArrayOutput()) {
+        return sequence;
+      }
+      return Sequences.map(
+          sequence, new Function<Map<String, Object>, Object[]>()
+          {
+            private final String[] columns = estimatedOutputColumns().toArray(new String[0]);
+
+            @Override
+            public Object[] apply(Map<String, Object> input)
+            {
+              final Object[] array = new Object[columns.length];
+              for (int i = 0; i < columns.length; i++) {
+                array[i] = input.get(columns[i]);
+              }
+              return array;
+            }
+          }
+      );
+    }
+  }
+
   @SuppressWarnings("unchecked")
-  public static class JoinDelegate extends UnionAllQuery<Map<String, Object>>
-      implements ArrayOutputSupport<Map<String, Object>>
+  public static class BroadcastJoinHolder extends JoinHolder
+  {
+    private final BroadcastJoinProcessor processor;
+
+    public BroadcastJoinHolder(
+        Query query,
+        BroadcastJoinProcessor processor,
+        Map<String, Object> context
+    )
+    {
+      super(query, null, false, -1, -1, context);
+      this.processor = processor;
+    }
+
+    @Override
+    protected UnionAllQuery newInstance(
+        Query<Map<String, Object>> query,
+        List<Query<Map<String, Object>>> queries,
+        int parallism,
+        Map<String, Object> context
+    )
+    {
+      Preconditions.checkArgument(queries == null);
+      return new BroadcastJoinHolder(
+          query,
+          processor,
+          context
+      ).withSchema(schema);
+    }
+
+    @Override
+    public List<String> estimatedOutputColumns()
+    {
+      return processor.estimatedOutputColumns(((Query.ArrayOutputSupport) getQuery()).estimatedOutputColumns());
+    }
+
+    @Override
+    protected boolean isArrayOutput()
+    {
+      return processor.isAsArray();
+    }
+
+    @Override
+    public JoinHolder toArrayJoin()
+    {
+      if (processor.isAsArray()) {
+        return this;
+      }
+      final BroadcastJoinProcessor asArray = processor.withAsArray(true);
+      return new BroadcastJoinHolder(
+          getQuery(), asArray, BaseQuery.copyContext(this, Query.POST_PROCESSING, processor)
+      );
+    }
+
+    @Override
+    public RowSignature schema(QuerySegmentWalker segmentWalker)
+    {
+      return processor.estimatedSchema(getQuery(), segmentWalker);
+    }
+
+    @Override
+    public String toString()
+    {
+      return "BroadcastJoin{query=" + getQuery() + '}';
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  public static class CommonJoinHolder extends JoinHolder
   {
     private final List<String> prefixAliases;  // for schema resolving
     private final List<String> outputColumns;
@@ -632,7 +855,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     private final Execs.SettableFuture<List<OrderByColumnSpec>> future = new Execs.SettableFuture();
 
-    public JoinDelegate(
+    public CommonJoinHolder(
         List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
         String timeColumnName,
@@ -673,8 +896,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    protected JoinDelegate newInstance(
+    protected CommonJoinHolder newInstance(
         Query<Map<String, Object>> query,
         List<Query<Map<String, Object>>> queries,
         int parallism,
@@ -682,7 +904,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     )
     {
       Preconditions.checkArgument(query == null);
-      return new JoinDelegate(
+      return new CommonJoinHolder(
           queries,
           prefixAliases,
           timeColumnName,
@@ -693,69 +915,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
-    public JoinDelegate withSchema(Supplier<RowSignature> schema)
+    public CommonJoinHolder withSchema(Supplier<RowSignature> schema)
     {
       this.schema = schema;
       return this;
-    }
-
-    @Override
-    public String getType()
-    {
-      return Query.JOIN;
-    }
-
-    @Override
-    public String toString()
-    {
-      return "JoinDelegate{" +
-             "queries=" + getQueries() +
-             (prefixAliases == null ? "" : ", prefixAliases=" + getPrefixAliases()) +
-             (timeColumnName == null ? "" : ", timeColumnName=" + getTimeColumnName()) +
-             (getLimit() > 0 ? ", limit=" + getLimit() : "") +
-             '}';
-    }
-
-    @Override
-    public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
-    {
-      return this;
-    }
-
-    private JoinPostProcessor getLastJoinProcessor()
-    {
-      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
-      if (processor instanceof ListPostProcessingOperator) {
-        for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processor).getProcessorsInReverse()) {
-          if (element instanceof JoinPostProcessor) {
-            return (JoinPostProcessor) element;
-          }
-        }
-      }
-      return processor instanceof JoinPostProcessor ? (JoinPostProcessor) processor : null;
-    }
-
-    public Query toArrayJoin()
-    {
-      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
-      if (processor instanceof ListPostProcessingOperator) {
-        List<PostProcessingOperator> rewritten = Lists.newArrayList();
-        for (PostProcessingOperator element : ((ListPostProcessingOperator<?>) processor).getProcessors()) {
-          if (element instanceof JoinPostProcessor) {
-            element = ((JoinPostProcessor) element).withAsArray(true);
-          }
-          rewritten.add(element);
-        }
-        processor = PostProcessingOperators.list(rewritten);
-      } else if (processor instanceof JoinPostProcessor) {
-        processor = ((JoinPostProcessor) processor).withAsArray(true);
-      }
-      return withOverriddenContext(QueryContextKeys.POST_PROCESSING, processor);
-    }
-
-    private boolean isArrayOutput()
-    {
-      return Preconditions.checkNotNull(getLastJoinProcessor(), "no join processor").asArray();
     }
 
     @Override
@@ -788,30 +951,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
-    public Sequence<Object[]> array(Sequence sequence)
-    {
-      if (isArrayOutput()) {
-        return sequence;
-      }
-      return Sequences.map(
-          sequence, new Function<Map<String, Object>, Object[]>()
-          {
-            private final String[] columns = estimatedOutputColumns().toArray(new String[0]);
-
-            @Override
-            public Object[] apply(Map<String, Object> input)
-            {
-              final Object[] array = new Object[columns.length];
-              for (int i = 0; i < columns.length; i++) {
-                array[i] = input.get(columns[i]);
-              }
-              return array;
-            }
-          }
-      );
-    }
-
-    @Override
     public Sequence<Row> asRow(Sequence sequence)
     {
       if (isArrayOutput()) {
@@ -838,6 +977,40 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       } else {
         return Sequences.map(sequence, Rows.mapToRow(timeColumnName));
       }
+    }
+
+    @Override
+    public RowSignature schema(QuerySegmentWalker segmentWalker)
+    {
+      if (schema == null) {
+        List<String> columnNames = Lists.newArrayList();
+        List<ValueDesc> columnTypes = Lists.newArrayList();
+
+        List queries = getQueries();
+        List<String> aliases = getPrefixAliases();
+        Set<String> uniqueNames = Sets.newHashSet();
+        for (int i = 0; i < queries.size(); i++) {
+          final RowSignature element = Queries.relaySchema((Query) queries.get(i), segmentWalker);
+          final String prefix = aliases == null ? "" : aliases.get(i) + ".";
+          for (Pair<String, ValueDesc> pair : element.columnAndTypes()) {
+            columnNames.add(Queries.uniqueName(prefix + pair.lhs, uniqueNames));
+            columnTypes.add(pair.rhs);
+          }
+        }
+        schema = Suppliers.ofInstance(new RowSignature.Simple(columnNames, columnTypes));
+      }
+      return schema.get();
+    }
+
+    @Override
+    public String toString()
+    {
+      return "CommonJoin{" +
+             "queries=" + getQueries() +
+             (prefixAliases == null ? "" : ", prefixAliases=" + getPrefixAliases()) +
+             (timeColumnName == null ? "" : ", timeColumnName=" + getTimeColumnName()) +
+             (getLimit() > 0 ? ", limit=" + getLimit() : "") +
+             '}';
     }
   }
 }

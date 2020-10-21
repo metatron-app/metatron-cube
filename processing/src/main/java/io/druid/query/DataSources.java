@@ -22,6 +22,7 @@ package io.druid.query;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
+import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.FilterSupport;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -43,6 +44,11 @@ public class DataSources
       return true;
     }
     return false;
+  }
+
+  public static DataSource from(List<String> names)
+  {
+    return names.size() == 1 ? TableDataSource.of(names.get(0)) : UnionDataSource.of(names);
   }
 
   public static String getName(Query query)
@@ -98,7 +104,7 @@ public class DataSources
       if (query instanceof Query.LastProjectionSupport) {
         return QueryDataSource.of(((Query.LastProjectionSupport) query).withOutputColumns(projection));
       }
-      // todo: implement Query.LastProjectionSupport for JoinDelegate
+      // todo: implement Query.LastProjectionSupport for JoinHolders
     }
     // wrap
     return QueryDataSource.of(Druids.newSelectQueryBuilder()
@@ -108,12 +114,27 @@ public class DataSources
     );
   }
 
+  public static boolean isApplicable(DataSource dataSource, Class<?> clazz)
+  {
+    return (dataSource instanceof ViewDataSource && clazz.isAssignableFrom(StreamQuery.class)) ||
+           (dataSource instanceof QueryDataSource && clazz.isInstance(((QueryDataSource) dataSource).getQuery()));
+  }
+
+  public static boolean isDataNodeSourced(DataSource source)
+  {
+    if (source instanceof QueryDataSource) {
+      Query inner = ((QueryDataSource) source).getQuery();
+      return inner instanceof JoinQuery.BroadcastJoinHolder || inner.getDataSource() instanceof TableDataSource;
+    }
+    return true;
+  }
+
   public static List<String> getOutputColumns(DataSource dataSource)
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
-      if (query instanceof Query.ArrayOutputSupport) {
-        return ((Query.ArrayOutputSupport<?>) query).estimatedOutputColumns();
+      if (query instanceof ArrayOutputSupport) {
+        return ((ArrayOutputSupport<?>) query).estimatedOutputColumns();
       }
     } else if (dataSource instanceof ViewDataSource) {
       return ((ViewDataSource) dataSource).getColumns();

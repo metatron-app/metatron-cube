@@ -116,6 +116,13 @@ public class QueryConfig
     return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
   }
 
+  public int getBroadcastJoinThreshold(Query<?> query)
+  {
+    final int systemMax = getJoin().getBroadcastJoinThreshold();
+    final int userMax = query.getContextInt(Query.BROADCASTJOIN_THRESHOLD, -1);
+    return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
+  }
+
   public int getBloomFilterThreshold(Query<?> query)
   {
     final int systemMax = getJoin().getBloomFilterThreshold();

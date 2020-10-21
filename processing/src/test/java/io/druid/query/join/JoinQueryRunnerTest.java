@@ -115,6 +115,8 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
     CharSource source = TestIndex.asCharSource("druid.sample.join.tsv");
     SEGMENT_WALKER.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
     SEGMENT_WALKER.getQueryConfig().getJoin().setHashJoinThreshold(-1);
+    SEGMENT_WALKER.getQueryConfig().getJoin().setSemiJoinThreshold(-1);
+    SEGMENT_WALKER.getQueryConfig().getJoin().setBroadcastJoinThreshold(-1);
   }
 
   @Parameterized.Parameters(name = "{0}")
@@ -179,7 +181,8 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         array("2011-04-01", "upfront", 1049.738525390625, "april_upfront", 41113L)
     );
 
-    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
+    Iterable<Row> rows;
+    rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 
     // with outoutColumns

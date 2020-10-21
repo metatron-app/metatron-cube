@@ -42,6 +42,7 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -58,6 +59,8 @@ import java.util.List;
 public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTestHelper
 {
   static final String JOIN_DS_P = "join_test_p";
+
+  static final TestQuerySegmentWalker SEGMENT_WALKER = segmentWalker.duplicate();
 
   static {
     AggregatorFactory metric = new GenericSumAggregatorFactory("value", "value", ValueDesc.LONG);
@@ -92,7 +95,16 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTestHelper
         , "utf8"
     );
     CharSource source = TestIndex.asCharSource("druid.sample.join.tsv");
-    segmentWalker.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
+    SEGMENT_WALKER.add(segment, TestIndex.makeRealtimeIndex(source, schema, parser));
+//    SEGMENT_WALKER.getQueryConfig().getJoin().setHashJoinThreshold(-1);   // seemed working with hash join
+    SEGMENT_WALKER.getQueryConfig().getJoin().setSemiJoinThreshold(-1);
+    SEGMENT_WALKER.getQueryConfig().getJoin().setBroadcastJoinThreshold(-1);
+  }
+
+  @Override
+  protected TestQuerySegmentWalker getSegmentWalker()
+  {
+    return SEGMENT_WALKER;
   }
 
   @Parameterized.Parameters(name = "{0}")
@@ -145,6 +157,9 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTestHelper
     );
 
     Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
+    for (Object x : rows) {
+      System.out.println(x);
+    }
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
   }
 }

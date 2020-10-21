@@ -57,6 +57,8 @@ import io.druid.query.spec.IntervalExpressionQuerySpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
@@ -68,6 +70,20 @@ import java.util.List;
 
 public class TestSalesQuery extends GroupByQueryRunnerTestHelper
 {
+  static final TestQuerySegmentWalker SEGMENT_WALKER = TestIndex.segmentWalker.duplicate();
+
+  static {
+    SEGMENT_WALKER.getQueryConfig().getJoin().setHashJoinThreshold(-1);
+    SEGMENT_WALKER.getQueryConfig().getJoin().setSemiJoinThreshold(-1);
+    SEGMENT_WALKER.getQueryConfig().getJoin().setBroadcastJoinThreshold(-1);
+  }
+
+  @Override
+  protected TestQuerySegmentWalker getSegmentWalker()
+  {
+    return SEGMENT_WALKER;
+  }
+
   @Test
   public void testGroupBy()
   {

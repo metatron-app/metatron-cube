@@ -23,16 +23,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.common.utils.Sequences;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-public class ClassifyPostProcessor extends PostProcessingOperator.UnionSupport
+public class ClassifyPostProcessor implements PostProcessingOperator.UnionSupport
 {
   private static final Logger LOG = new Logger(ClassifyPostProcessor.class);
 

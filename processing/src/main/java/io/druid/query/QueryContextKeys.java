@@ -67,6 +67,7 @@ public interface QueryContextKeys
   // join
   String HASHJOIN_THRESHOLD = "hashJoinThreshold";
   String SEMIJOIN_THRESHOLD = "semiJoinThreshold";
+  String BROADCASTJOIN_THRESHOLD = "broadcastJoinThreshold";
   String BLOOMFILTER_THRESHOLD = "bloomFilterThreshold";
 
   // CacheConfig
