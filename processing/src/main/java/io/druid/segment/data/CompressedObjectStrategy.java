@@ -77,6 +77,20 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
         return LZ4Compressor.defaultCompressor;
       }
     },
+    // disabled cause it's super stupid (why cannot decompress read-only heap buffer ??)
+//    ZSTD((byte) 0x2) {
+//      @Override
+//      public Decompressor getDecompressor()
+//      {
+//        return new ZstdDecompressor();
+//      }
+//
+//      @Override
+//      public Compressor getCompressor()
+//      {
+//        return new ZstdCompressor();
+//      }
+//    },
     UNCOMPRESSED((byte) 0xFF) {
       @Override
       public Decompressor getDecompressor()
@@ -137,9 +151,12 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
      * @param numBytes
      * @param out
      */
-    public void decompress(ByteBuffer in, int numBytes, ByteBuffer out);
+    void decompress(ByteBuffer in, int numBytes, ByteBuffer out);
 
-    public void decompress(ByteBuffer in, int numBytes, ByteBuffer out, int decompressedSize);
+    default void decompress(ByteBuffer in, int numBytes, ByteBuffer out, int decompressedSize)
+    {
+      decompress(in, numBytes, out);
+    }
   }
 
   public static interface Compressor
@@ -151,9 +168,12 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
      *
      * @return
      */
-    public byte[] compress(byte[] bytes);
+    default byte[] compress(byte[] bytes)
+    {
+      return compress(bytes, 0, bytes.length);
+    }
 
-    public byte[] compress(byte[] bytes, int offset, int length);
+    byte[] compress(byte[] bytes, int offset, int length);
   }
 
   public static class UncompressedCompressor implements Compressor
@@ -191,12 +211,6 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
       out.put(copyBuffer).flip();
       in.position(in.position() + numBytes);
     }
-
-    @Override
-    public void decompress(ByteBuffer in, int numBytes, ByteBuffer out, int decompressedSize)
-    {
-      decompress(in, numBytes, out);
-    }
   }
 
   public static class LZFDecompressor implements Decompressor
@@ -219,23 +233,11 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
         log.error(e, "Error decompressing data");
       }
     }
-
-    @Override
-    public void decompress(ByteBuffer in, int numBytes, ByteBuffer out, int decompressedSize)
-    {
-      decompress(in, numBytes, out);
-    }
   }
 
   public static class LZFCompressor implements Compressor
   {
     private static final LZFCompressor defaultCompressor = new LZFCompressor();
-
-    @Override
-    public byte[] compress(byte[] bytes)
-    {
-      return compress(bytes, 0, bytes.length);
-    }
 
     @Override
     public byte[] compress(byte[] bytes, int offset, int length)
@@ -278,12 +280,6 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
   {
     private static final LZ4Compressor defaultCompressor = new LZ4Compressor();
     private static final net.jpountz.lz4.LZ4Compressor lz4High = LZ4Factory.fastestInstance().highCompressor();
-
-    @Override
-    public byte[] compress(byte[] bytes)
-    {
-      return lz4High.compress(bytes);
-    }
 
     @Override
     public byte[] compress(byte[] bytes, int offset, int length)
