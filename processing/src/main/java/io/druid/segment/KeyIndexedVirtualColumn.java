@@ -166,24 +166,6 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public FloatColumnSelector asFloatMetric(String column, ColumnSelectorFactory factory)
-  {
-    return ColumnSelectors.asFloat(asMetric(column, factory));
-  }
-
-  @Override
-  public DoubleColumnSelector asDoubleMetric(String column, ColumnSelectorFactory factory)
-  {
-    return ColumnSelectors.asDouble(asMetric(column, factory));
-  }
-
-  @Override
-  public LongColumnSelector asLongMetric(String column, ColumnSelectorFactory factory)
-  {
-    return ColumnSelectors.asLong(asMetric(column, factory));
-  }
-
-  @Override
   public DimensionSelector asDimension(
       final String dimension,
       final ExtractionFn extractionFn,

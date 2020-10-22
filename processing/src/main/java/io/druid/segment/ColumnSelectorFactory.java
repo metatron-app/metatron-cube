@@ -39,10 +39,31 @@ import java.util.Map;
 public interface ColumnSelectorFactory extends TypeResolver
 {
   Iterable<String> getColumnNames();
-  DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec);
-  FloatColumnSelector makeFloatColumnSelector(String columnName);
-  DoubleColumnSelector makeDoubleColumnSelector(String columnName);
-  LongColumnSelector makeLongColumnSelector(String columnName);
+
+  default DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
+  {
+    DimensionSelector selector = VirtualColumns.toDimensionSelector(
+        makeObjectColumnSelector(dimensionSpec.getDimension()),
+        dimensionSpec.getExtractionFn()
+    );
+    return dimensionSpec.decorate(selector, this);
+  }
+
+  default FloatColumnSelector makeFloatColumnSelector(String columnName)
+  {
+    return ColumnSelectors.asFloat(makeObjectColumnSelector(columnName));
+  }
+
+  default DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+  {
+    return ColumnSelectors.asDouble(makeObjectColumnSelector(columnName));
+  }
+
+  default LongColumnSelector makeLongColumnSelector(String columnName)
+  {
+    return ColumnSelectors.asLong(makeObjectColumnSelector(columnName));
+  }
+
   <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
   ExprEvalColumnSelector makeMathExpressionSelector(String expression);
   ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);

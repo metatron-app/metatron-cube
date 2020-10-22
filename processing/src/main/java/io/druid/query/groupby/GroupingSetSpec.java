@@ -51,6 +51,8 @@ public interface GroupingSetSpec extends Cacheable
     public String toString() { return "Noop";}
   };
 
+  int[][] EMPTY_INDEX = new int[][]{};
+
   void validate(List<String> dimensions);
 
   int[][] getGroupings(List<String> dimensions);

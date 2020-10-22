@@ -19,22 +19,54 @@
 
 package io.druid.query.aggregation.bloomfilter;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import io.druid.common.guava.DSuppliers;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.HashAggregator;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.groupby.GroupingSetSpec;
+import io.druid.segment.ColumnSelectorFactories;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 
+import java.util.Iterator;
 import java.util.List;
 
 public class BloomFilterAggregator extends HashAggregator<BloomKFilter>
 {
-  private final int maxNumEntries;
+  public static BloomKFilter build(
+      RowResolver resolver,
+      List<String> columns,
+      long maxNumEntries,
+      Iterator<Object[]> values
+  )
+  {
+    final DSuppliers.HandOver<Object[]> handover = new DSuppliers.HandOver<Object[]>();
+    final ColumnSelectorFactory factory = new ColumnSelectorFactories.FromArraySupplier(handover, resolver);
+    final List<DimensionSelector> selectors = Lists.newArrayList(
+        Iterables.transform(columns, column -> factory.makeDimensionSelector(DefaultDimensionSpec.of(column)))
+    );
+    final BloomKFilter bloom = new BloomKFilter(maxNumEntries);
+    final BloomFilterAggregator aggregator = new BloomFilterAggregator(
+        ValueMatcher.TRUE, selectors, GroupingSetSpec.EMPTY_INDEX, true, maxNumEntries
+    );
+    while (values.hasNext()) {
+      handover.set(values.next());
+      aggregator.aggregate(bloom);
+    }
+    return bloom;
+  }
+
+  private final long maxNumEntries;
 
   public BloomFilterAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
       boolean byRow,
-      int maxNumEntries
+      long maxNumEntries
   )
   {
     super(predicate, selectorList, groupings, byRow);

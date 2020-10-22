@@ -46,6 +46,8 @@ import io.druid.data.input.Rows;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.aggregation.bloomfilter.BloomFilterAggregator;
+import io.druid.query.aggregation.bloomfilter.BloomKFilter;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
@@ -337,7 +339,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
                 left, ValuesFilter.fieldNames(leftJoinColumns, fieldValues), outputColumns
             );
             LOG.info(
-                "%s (R) is merged into %s (L) as a filter with expected number of values = %d",
+                "-- %s (R) is merged into %s (L) as a filter with expected number of values = %d",
                 rightAlias, leftAlias, rightEstimated
             );
             queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
@@ -359,7 +361,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
                 right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
             );
             LOG.info(
-                "%s (L) is merged into %s (R) as a filter with expected number of values = %d",
+                "-- %s (L) is merged into %s (R) as a filter with expected number of values = %d",
                 leftAlias, rightAlias, leftEstimated
             );
             queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
@@ -383,15 +385,23 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         }
         if (leftBroadcast) {
           Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
-          Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info(
-              "%s (L) is broadcasted for %s (R) with expected number of values = %d",
-              leftAlias, rightAlias, leftEstimated
-          );
+          Query query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
+          LOG.info("-- %s (L) is broadcasted for %s (R) with estimated number of %,d", leftAlias, rightAlias, leftEstimated);
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
-          Sequence<BulkRow> values = BulkSequence.fromArray(
-              query0.array(QueryRunners.run(query0, segmentWalker)), signature
-          );
+          Sequence<Object[]> array = query0.array(QueryRunners.run(query0, segmentWalker));
+          Sequence<BulkRow> values;
+          if (query0.hasFilters() && query1 instanceof FilterSupport) {
+            List<Object[]> list = Sequences.toList(array);
+            RowResolver resolver = RowResolver.of(signature, BaseQuery.getVirtualColumns(query0));
+            BloomKFilter bloom = BloomFilterAggregator.build(
+                resolver, element.getLeftJoinColumns(), leftEstimated, list.iterator()
+            );
+            query1 = DimFilters.and((FilterSupport<?>) query1, BloomDimFilter.of(element.getRightJoinColumns(), bloom));
+            values = BulkSequence.fromArray(Sequences.simple(list), signature);
+            LOG.info(".. apply bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
+          } else {
+            values = BulkSequence.fromArray(array, signature);
+          }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               config.getJoin(), element, true, signature, prefixAlias, asArray, outputColumns, values
           );
@@ -406,16 +416,24 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           continue;
         }
         if (rightBroadcast) {
-          Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
+          Query query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info(
-              "%s (R) is broadcasted for %s (L) with expected number of values = %d",
-              rightAlias, leftAlias, rightEstimated
-          );
+          LOG.info("-- %s (R) is broadcasted for %s (L) with estimated number of %,d", rightAlias, leftAlias, rightEstimated);
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
-          Sequence<BulkRow> values = BulkSequence.fromArray(
-              query1.array(QueryRunners.run(query1, segmentWalker)), signature
-          );
+          Sequence<Object[]> array = query1.array(QueryRunners.run(query1, segmentWalker));
+          Sequence<BulkRow> values;
+          if (query1.hasFilters() && query0 instanceof FilterSupport) {
+            List<Object[]> list = Sequences.toList(array);
+            RowResolver resolver = RowResolver.of(signature, BaseQuery.getVirtualColumns(query1));
+            BloomKFilter bloom = BloomFilterAggregator.build(
+                resolver, element.getRightJoinColumns(), rightEstimated, list.iterator()
+            );
+            query0 = DimFilters.and((FilterSupport<?>) query0, BloomDimFilter.of(element.getLeftJoinColumns(), bloom));
+            values = BulkSequence.fromArray(Sequences.simple(list), signature);
+            LOG.info("-- .. with bloom filter %s(%s) to %s (L)", rightAlias, BaseQuery.getDimFilter(query1), leftAlias);
+          } else {
+            values = BulkSequence.fromArray(array, signature);
+          }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               config.getJoin(), element, false, signature, prefixAlias, asArray, outputColumns, values
           );
@@ -443,8 +461,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         }
       }
       if (i == 0) {
-        LOG.info("%s (L) -----> %d rows, type? %s, hashing? %s", leftAlias, leftEstimated, joinType, leftHashing);
         List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : leftJoinColumns;
+        LOG.info(
+            "-- %s (L) : %d rows (%s)", leftAlias, leftEstimated, leftHashing ? "hash" : sortOn != null ? "sort" : "-"
+        );
         Query query = JoinElement.toQuery(segmentWalker, left, sortOn, segmentSpec, context);
         if (leftHashing) {
           query = query.withOverriddenContext(HASHING, true);
@@ -454,8 +474,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         }
         queries.add(query);
       }
-      LOG.info("%s (R) -----> %d rows, type? %s, hashing? %s", rightAlias, rightEstimated, joinType, rightHashing);
       List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
+      LOG.info(
+          "-- %s (R) : %d rows (%s)", rightAlias, rightEstimated, rightHashing ? "hash" : sortOn != null ? "sort" : "-"
+      );
       Query query = JoinElement.toQuery(segmentWalker, right, sortOn, segmentSpec, context);
       if (rightHashing) {
         query = query.withOverriddenContext(HASHING, true);
@@ -572,7 +594,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (extracted != null) {
         ViewDataSource sourceView = BaseQuery.asView(source, sourceJoinOn);
         DimFilter factory = BloomDimFilter.Factory.fields(extracted, sourceView, Ints.checkedCast(sourceCardinality));
-        LOG.info("Applying bloom filter from [%s] to [%s]", sourceView, DataSources.getName(target));
+        LOG.info("-- applying bloom filter from [%s] to [%s]", sourceView, DataSources.getName(target));
         return DimFilters.and((FilterSupport<?>) target, factory);
       }
     }

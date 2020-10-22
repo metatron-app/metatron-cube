@@ -365,12 +365,14 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static abstract class FromRow extends ColumnSelectorFactory.ExprSupport
+  public static final class FromArraySupplier extends ColumnSelectorFactory.ExprSupport
   {
+    private final Supplier<Object[]> in;
     private final RowResolver resolver;
 
-    public FromRow(RowResolver resolver)
+    public FromArraySupplier(Supplier<Object[]> in, RowResolver resolver)
     {
+      this.in = in;
       this.resolver = resolver;
     }
 
@@ -381,34 +383,70 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
+    public ValueDesc resolve(String column)
     {
-      DimensionSelector selector = VirtualColumns.toDimensionSelector(
-          makeObjectColumnSelector(dimensionSpec.getDimension()),
-          dimensionSpec.getExtractionFn()
-      );
-      return dimensionSpec.decorate(selector, this);
+      return resolver.resolve(column);
     }
 
     @Override
-    public FloatColumnSelector makeFloatColumnSelector(String columnName)
+    @SuppressWarnings("unchecked")
+    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
     {
-      return ColumnSelectors.asFloat(makeObjectColumnSelector(columnName));
+      // creates VC if possible in here
+      final ValueDesc resolved = resolver.resolve(columnName);
+      if (resolved == null) {
+        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      }
+      final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
+      if (virtualColumn != null) {
+        return virtualColumn.asMetric(columnName, this);
+      }
+      final int index = resolver.getColumnNames().indexOf(columnName);
+      if (index >= 0) {
+        return new ObjectColumnSelector()
+        {
+          @Override
+          public Object get()
+          {
+            return in.get()[index];
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return resolved;
+          }
+        };
+      }
+      // todo : handle struct field access
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+    }
+  }
+
+  public static final class FromRowSupplier extends ColumnSelectorFactory.ExprSupport
+  {
+    private final Supplier<Row> in;
+    private final RowResolver resolver;
+
+    public FromRowSupplier(Supplier<Row> in, RowResolver resolver)
+    {
+      this.in = in;
+      this.resolver = resolver;
     }
 
     @Override
-    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+    public Iterable<String> getColumnNames()
     {
-      return ColumnSelectors.asDouble(makeObjectColumnSelector(columnName));
+      return resolver.getColumnNames();
     }
 
     @Override
-    public LongColumnSelector makeLongColumnSelector(String columnName)
+    public ValueDesc resolve(String column)
     {
-      return ColumnSelectors.asLong(makeObjectColumnSelector(columnName));
+      return resolver.resolve(column);
     }
 
-    @Override
+        @Override
     @SuppressWarnings("unchecked")
     public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
     {
@@ -471,81 +509,6 @@ public class ColumnSelectorFactories
       };
     }
 
-    @Override
-    public ValueDesc resolve(String columnName)
-    {
-      return resolver.resolve(columnName);
-    }
-
-    protected abstract Row current();
-  }
-
-  public static final class FromArraySupplier extends FromRow
-  {
-    private final Supplier<Object[]> in;
-    private final RowResolver resolver;
-
-    public FromArraySupplier(Supplier<Object[]> in, RowResolver resolver)
-    {
-      super(resolver);
-      this.in = in;
-      this.resolver = resolver;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
-    {
-      // creates VC if possible in here
-      final ValueDesc resolved = resolver.resolve(columnName);
-      if (resolved == null) {
-        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
-      }
-      final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
-      if (virtualColumn != null) {
-        return virtualColumn.asMetric(columnName, this);
-      }
-      final int index = resolver.getColumnNames().indexOf(columnName);
-      if (index >= 0) {
-        return new ObjectColumnSelector()
-        {
-          @Override
-          public Object get()
-          {
-            return in.get()[index];
-          }
-
-          @Override
-          public ValueDesc type()
-          {
-            return resolved;
-          }
-        };
-      }
-      // todo : handle struct field access
-      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
-    }
-
-    @Override
-    protected Row current()
-    {
-      throw new UnsupportedOperationException();
-    }
-  }
-
-  public static final class FromRowSupplier extends FromRow
-  {
-    private final Supplier<Row> in;
-    private final RowResolver resolver;
-
-    public FromRowSupplier(Supplier<Row> in, RowResolver resolver)
-    {
-      super(resolver);
-      this.in = in;
-      this.resolver = resolver;
-    }
-
-    @Override
     protected Row current()
     {
       return in.get();
