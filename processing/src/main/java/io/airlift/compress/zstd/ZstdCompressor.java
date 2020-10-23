@@ -32,7 +32,7 @@ public class ZstdCompressor
         int result = uncompressedSize + (uncompressedSize >>> 8);
 
         if (uncompressedSize < MAX_BLOCK_SIZE) {
-            result += (MAX_BLOCK_SIZE - uncompressedSize) >>> 11;
+            result += (MAX_BLOCK_SIZE - uncompressedSize) >>> 10;
         }
 
         return result;
