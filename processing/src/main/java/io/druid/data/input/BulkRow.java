@@ -49,6 +49,9 @@ public class BulkRow extends AbstractRow
   private static final LZ4Compressor LZ4_COMP = LZ4Factory.fastestInstance().fastCompressor();
   private static final LZ4FastDecompressor LZ4_DECOMP = LZ4Factory.fastestInstance().fastDecompressor();
 
+//  private static final ZstdCompressor LZ4_COMP = new ZstdCompressor();
+//  private static final ZstdDecompressor LZ4_DECOMP = new ZstdDecompressor();
+
   private static final ThreadLocal<BytesOutputStream> BUFFER = new ThreadLocal<BytesOutputStream>()
   {
     @Override
@@ -58,7 +61,7 @@ public class BulkRow extends AbstractRow
     }
   };
 
-  private static final ThreadLocal<BytesOutputStream> SKRETCH = new ThreadLocal<BytesOutputStream>()
+  private static final ThreadLocal<BytesOutputStream> SCRATCH = new ThreadLocal<BytesOutputStream>()
   {
     @Override
     protected BytesOutputStream initialValue()
@@ -71,22 +74,22 @@ public class BulkRow extends AbstractRow
   {
   };
 
-  private static void compressTo(final BytesOutputStream skretch, final BytesOutputStream output)
+  private static void compressTo(final BytesOutputStream scratch, final BytesOutputStream output)
   {
-    compressTo(skretch.unwrap(), skretch.size(), output);
+    compressTo(scratch.unwrap(), scratch.size(), output);
   }
 
-  private static void compressTo(final byte[] skretch, final BytesOutputStream output)
+  private static void compressTo(final byte[] scratch, final BytesOutputStream output)
   {
-    compressTo(skretch, skretch.length, output);
+    compressTo(scratch, scratch.length, output);
   }
 
-  private static void compressTo(final byte[] skretch, final int length, final BytesOutputStream output)
+  private static void compressTo(final byte[] scratch, final int length, final BytesOutputStream output)
   {
     final byte[] compressed = new byte[Integer.BYTES + LZ4_COMP.maxCompressedLength(length)];
     System.arraycopy(Ints.toByteArray(length), 0, compressed, 0, Integer.BYTES);
     output.writeVarSizeBytes(new BytesRef(
-        compressed, Integer.BYTES + LZ4_COMP.compress(skretch, 0, length, compressed, Integer.BYTES)
+        compressed, Integer.BYTES + LZ4_COMP.compress(scratch, 0, length, compressed, Integer.BYTES)
     ));
   }
 
@@ -117,67 +120,67 @@ public class BulkRow extends AbstractRow
         output.writeUnsignedVarInt(bulk.category[i]);
       }
 
-      final BytesOutputStream skretch = SKRETCH.get();
+      final BytesOutputStream scratch = SCRATCH.get();
       for (int i = 0; i < bulk.category.length; i++) {
         nulls.clear();
-        skretch.clear();
+        scratch.clear();
         switch (bulk.category[i]) {
           case 1:
             final Float[] floats = (Float[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (floats[x] == null) {
-                skretch.writeFloat(0);
+                scratch.writeFloat(0);
                 nulls.set(x);
               } else {
-                skretch.writeFloat(floats[x].floatValue());
+                scratch.writeFloat(floats[x].floatValue());
               }
             }
-            compressTo(writeNulls(nulls, skretch), output);
+            compressTo(writeNulls(nulls, scratch), output);
             continue;
           case 2:
             final Long[] longs = (Long[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (longs[x] == null) {
-                skretch.writeVarLong(0);
+                scratch.writeVarLong(0);
                 nulls.set(x);
               } else {
-                skretch.writeVarLong(longs[x].longValue());
+                scratch.writeVarLong(longs[x].longValue());
               }
             }
-            compressTo(writeNulls(nulls, skretch), output);
+            compressTo(writeNulls(nulls, scratch), output);
             continue;
           case 3:
             final Double[] doubles = (Double[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (doubles[x] == null) {
-                skretch.writeDouble(0);
+                scratch.writeDouble(0);
                 nulls.set(x);
               } else {
-                skretch.writeDouble(doubles[x].doubleValue());
+                scratch.writeDouble(doubles[x].doubleValue());
               }
             }
-            compressTo(writeNulls(nulls, skretch), output);
+            compressTo(writeNulls(nulls, scratch), output);
             continue;
           case 4:
             final Boolean[] booleans = (Boolean[]) bulk.values[i];
             for (int x = 0; x < bulk.count; x++) {
               if (booleans[x] == null) {
-                skretch.writeBoolean(false);
+                scratch.writeBoolean(false);
                 nulls.set(x);
               } else {
-                skretch.writeBoolean(booleans[x].booleanValue());
+                scratch.writeBoolean(booleans[x].booleanValue());
               }
             }
-            compressTo(writeNulls(nulls, skretch), output);
+            compressTo(writeNulls(nulls, scratch), output);
             continue;
           case 5:
             compressTo((byte[]) bulk.values[i], output);
             continue;
           case 6:
-            final JsonGenerator hack = factory.createGenerator(skretch);
+            final JsonGenerator hack = factory.createGenerator(scratch);
             hack.writeObject(bulk.values[i]);
             hack.flush();
-            compressTo(skretch, output);
+            compressTo(scratch, output);
             continue;
           default:
             throw new ISE("invalid type %d", bulk.category[i]);
@@ -187,15 +190,15 @@ public class BulkRow extends AbstractRow
     }
   };
 
-  private static BytesOutputStream writeNulls(final BitSet nulls, final BytesOutputStream skretch)
+  private static BytesOutputStream writeNulls(final BitSet nulls, final BytesOutputStream scratch)
   {
     if (!nulls.isEmpty()) {
-      skretch.writeBoolean(true);
-      skretch.writeVarSizeBytes(nulls.toByteArray());
+      scratch.writeBoolean(true);
+      scratch.writeVarSizeBytes(nulls.toByteArray());
     } else {
-      skretch.writeBoolean(false);
+      scratch.writeBoolean(false);
     }
-    return skretch;
+    return scratch;
   }
 
   // todo : keep primitive array and null bitset
@@ -215,13 +218,22 @@ public class BulkRow extends AbstractRow
         category[i] = input.readUnsignedVarInt();
       }
       final Object[] values = new Object[category.length];
+      final BytesOutputStream scratch = SCRATCH.get();
 
       int offset = 0;
       for (int i = 0; i < category.length; i++) {
         final byte[] array = input.readVarSizeBytes();
-        final BytesInputStream decompressed = new BytesInputStream(
-            LZ4_DECOMP.decompress(array, Integer.BYTES, Ints.fromByteArray(array))
-        );
+        final int destLen = Ints.fromByteArray(array);
+        final BytesInputStream decompressed;
+        if (category[i] == 5) {
+          // need copy
+          decompressed = new BytesInputStream(LZ4_DECOMP.decompress(array, Integer.BYTES, destLen));
+        } else {
+          scratch.ensureCapacity(destLen);
+          scratch.clear();
+          LZ4_DECOMP.decompress(array, Integer.BYTES, scratch.unwrap(), 0, destLen);
+          decompressed = new BytesInputStream(scratch.unwrap());
+        }
         switch (category[i]) {
           case 1:
             final Float[] floats = new Float[count];

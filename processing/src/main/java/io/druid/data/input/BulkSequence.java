@@ -50,7 +50,7 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
     return new BulkSequence(sequence, schema.getColumnTypes());
   }
 
-  private static final int DEFAULT_PAGE_SIZE = 1024;
+  private static final int DEFAULT_PAGE_SIZE = 1024 << 2;
 
   private final Sequence<Object[]> sequence;
   private final int[] category;

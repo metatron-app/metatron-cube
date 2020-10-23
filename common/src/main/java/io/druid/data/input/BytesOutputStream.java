@@ -48,7 +48,7 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     buf = new byte[size];
   }
 
-  private void ensureCapacity(int minCapacity)
+  public void ensureCapacity(int minCapacity)
   {
     if (minCapacity > buf.length) {
       buf = Arrays.copyOf(buf, Math.max(minCapacity, buf.length << 1));
