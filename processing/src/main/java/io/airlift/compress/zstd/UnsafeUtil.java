@@ -18,6 +18,7 @@ import sun.misc.Unsafe;
 
 import java.lang.reflect.Field;
 import java.nio.Buffer;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import static java.lang.String.format;
@@ -26,6 +27,8 @@ final class UnsafeUtil
 {
     public static final Unsafe UNSAFE;
     private static final Field ADDRESS_ACCESSOR;
+    private static final Field ARRAY_ACCESSOR;
+    private static final Field ARRAY_OFFSET_ACCESSOR;
 
     private UnsafeUtil() {}
 
@@ -52,12 +55,42 @@ final class UnsafeUtil
         catch (Exception e) {
             throw new IncompatibleJvmException("Zstandard requires access to java.nio.Buffer raw address field");
         }
+
+        try {
+            ARRAY_ACCESSOR = ByteBuffer.class.getDeclaredField("hb");
+            ARRAY_ACCESSOR.setAccessible(true);
+            ARRAY_OFFSET_ACCESSOR = ByteBuffer.class.getDeclaredField("offset");
+            ARRAY_OFFSET_ACCESSOR.setAccessible(true);
+        }
+        catch (Exception e) {
+            throw new IncompatibleJvmException("Zstandard requires access to java.nio.ByteBuffer array field");
+        }
     }
 
     public static long getAddress(Buffer buffer)
     {
         try {
             return (long) ADDRESS_ACCESSOR.get(buffer);
+        }
+        catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static byte[] getArray(ByteBuffer buffer)
+    {
+        try {
+            return (byte[]) ARRAY_ACCESSOR.get(buffer);
+        }
+        catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static int getArrayOffset(ByteBuffer buffer)
+    {
+        try {
+            return (int) ARRAY_OFFSET_ACCESSOR.get(buffer);
         }
         catch (IllegalAccessException e) {
             throw new RuntimeException(e);

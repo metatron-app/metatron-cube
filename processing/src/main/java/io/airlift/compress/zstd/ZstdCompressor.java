@@ -65,7 +65,10 @@ public class ZstdCompressor
             inputLimit = ARRAY_BYTE_BASE_OFFSET + input.arrayOffset() + input.limit();
         }
         else {
-            throw new IllegalArgumentException("Unsupported input ByteBuffer implementation " + input.getClass().getName());
+            inputBase = UnsafeUtil.getArray(input);
+            int arrayOffset = UnsafeUtil.getArrayOffset(input);
+            inputAddress = ARRAY_BYTE_BASE_OFFSET + arrayOffset + input.position();
+            inputLimit = ARRAY_BYTE_BASE_OFFSET + arrayOffset + input.limit();
         }
 
         Object outputBase;

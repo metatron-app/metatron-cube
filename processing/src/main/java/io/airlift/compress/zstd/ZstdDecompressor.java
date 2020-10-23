@@ -19,7 +19,6 @@ import io.druid.segment.data.CompressedObjectStrategy;
 
 import java.nio.ByteBuffer;
 
-import static io.airlift.compress.zstd.UnsafeUtil.getAddress;
 import static sun.misc.Unsafe.ARRAY_BYTE_BASE_OFFSET;
 
 public class ZstdDecompressor
@@ -48,7 +47,7 @@ public class ZstdDecompressor
         long inputLimit;
         if (input.isDirect()) {
             inputBase = null;
-            long address = getAddress(input);
+            long address = UnsafeUtil.getAddress(input);
             inputAddress = address + input.position();
             inputLimit = address + input.limit();
         }
@@ -58,7 +57,10 @@ public class ZstdDecompressor
             inputLimit = ARRAY_BYTE_BASE_OFFSET + input.arrayOffset() + input.limit();
         }
         else {
-            throw new IllegalArgumentException("Unsupported input ByteBuffer implementation " + input.getClass().getName());
+            inputBase = UnsafeUtil.getArray(input);
+            int arrayOffset = UnsafeUtil.getArrayOffset(input);
+            inputAddress = ARRAY_BYTE_BASE_OFFSET + arrayOffset + input.position();
+            inputLimit = ARRAY_BYTE_BASE_OFFSET + arrayOffset + input.limit();
         }
 
         Object outputBase;
@@ -66,7 +68,7 @@ public class ZstdDecompressor
         long outputLimit;
         if (output.isDirect()) {
             outputBase = null;
-            long address = getAddress(output);
+            long address = UnsafeUtil.getAddress(output);
             outputAddress = address + output.position();
             outputLimit = address + output.limit();
         }
@@ -100,6 +102,9 @@ public class ZstdDecompressor
     @Override
     public void decompress(ByteBuffer in, int numBytes, ByteBuffer out)
     {
+        if (in.remaining() != numBytes) {
+            in = (ByteBuffer) in.duplicate().limit(in.position() + numBytes);
+        }
         decompress(in, out);
         out.flip();
     }

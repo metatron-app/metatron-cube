@@ -24,6 +24,8 @@ import com.google.common.collect.Maps;
 import com.ning.compress.BufferRecycler;
 import com.ning.compress.lzf.LZFDecoder;
 import com.ning.compress.lzf.LZFEncoder;
+import io.airlift.compress.zstd.ZstdCompressor;
+import io.airlift.compress.zstd.ZstdDecompressor;
 import io.druid.collections.ResourceHolder;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.CompressedPools;
@@ -78,19 +80,19 @@ public class CompressedObjectStrategy<T extends Buffer> implements ObjectStrateg
       }
     },
     // disabled cause it's super stupid (why cannot decompress read-only heap buffer ??)
-//    ZSTD((byte) 0x2) {
-//      @Override
-//      public Decompressor getDecompressor()
-//      {
-//        return new ZstdDecompressor();
-//      }
-//
-//      @Override
-//      public Compressor getCompressor()
-//      {
-//        return new ZstdCompressor();
-//      }
-//    },
+    ZSTD((byte) 0x2) {
+      @Override
+      public Decompressor getDecompressor()
+      {
+        return new ZstdDecompressor();
+      }
+
+      @Override
+      public Compressor getCompressor()
+      {
+        return new ZstdCompressor();
+      }
+    },
     UNCOMPRESSED((byte) 0xFF) {
       @Override
       public Decompressor getDecompressor()
