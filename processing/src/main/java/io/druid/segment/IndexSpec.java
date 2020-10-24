@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
@@ -192,6 +193,12 @@ public class IndexSpec
   public boolean isAllowNullForNumbers()
   {
     return allowNullForNumbers;
+  }
+
+  @JsonIgnore
+  public boolean needFinalizing()
+  {
+    return !GuavaUtils.isNullOrEmpty(secondaryIndexing) || !GuavaUtils.isNullOrEmpty(cuboidSpecs);
   }
 
   public SecondaryIndexingSpec getSecondaryIndexingSpec(String column)

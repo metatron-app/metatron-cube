@@ -364,7 +364,7 @@ public class HdfsStorageHandler implements StorageHandler
             return ImmutableMap.<String, Object>of("rowCount", rowCount);
           }
           List<DataSegment> segments = Lists.newArrayList();
-          if (files.size() == 1 && GuavaUtils.isNullOrEmpty(indexSpec.getSecondaryIndexing())) {
+          if (files.size() == 1 && !indexSpec.needFinalizing()) {
             segments.add(finalizeIndex(files.get(0), targetPath, NoneShardSpec.instance()));
           } else {
             int shardNum = 0;
@@ -473,13 +473,13 @@ public class HdfsStorageHandler implements StorageHandler
           fs.mkdirs(finalPath);
 
           File tempPath;
-          if (queue.size() == 1 && GuavaUtils.isNullOrEmpty(indexSpec.getSecondaryIndexing())) {
+          if (queue.size() == 1 && !indexSpec.needFinalizing()) {
             tempPath = queue.get(0);
           } else {
             if (queue.size() == 1) {
-              LOG.info("Building seconday index & write to [%s]", finalPath);
+              LOG.info("Building seconday index & finlizing into [%s]", finalPath);
             } else {
-              LOG.info("Merging %d indices into [%s]", queue.size(), finalPath);
+              LOG.info("Merging %d indices & finlizing into [%s]", queue.size(), finalPath);
             }
             List<QueryableIndex> indices = Lists.newArrayList();
             for (File path : queue) {
