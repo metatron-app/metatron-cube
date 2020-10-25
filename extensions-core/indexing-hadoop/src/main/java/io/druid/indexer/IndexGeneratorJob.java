@@ -519,7 +519,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       final ByteBuffer bytes = ByteBuffer.wrap(bytesWritable.getBytes());
       bytes.position(4); // Skip length added by SortableBytes
       int shardNum = bytes.getInt();
-      if (config.get("mapred.job.tracker").equals("local")) {
+      if ("local".equals(JobHelper.getJobTrackerAddress(config))) {
         return shardNum % numPartitions;
       } else {
         if (shardNum >= numPartitions) {
