@@ -138,15 +138,13 @@ public class RealtimeManagerTest
         "test",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
-        jsonMapper
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
     );
     schema2 = new DataSchema(
         "testV2",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
-        jsonMapper
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
     );
     RealtimeIOConfig ioConfig = new RealtimeIOConfig(
         new FirehoseFactory()
@@ -213,7 +211,8 @@ public class RealtimeManagerTest
         schema,
         tuningConfig.getShardSpec(),
         new DateTime().toString(),
-        tuningConfig
+        tuningConfig,
+        jsonMapper
     ));
 
     realtimeManager = new RealtimeManager(
@@ -235,7 +234,8 @@ public class RealtimeManagerTest
         schema2,
         tuningConfig.getShardSpec(),
         new DateTime().toString(),
-        tuningConfig
+        tuningConfig,
+        jsonMapper
     ));
 
     realtimeManager2 = new RealtimeManager(
@@ -295,8 +295,7 @@ public class RealtimeManagerTest
         "testing",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("ignore")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
-        jsonMapper
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
     );
 
     FireDepartment department_0 = new FireDepartment(schema3, ioConfig, tuningConfig_0);

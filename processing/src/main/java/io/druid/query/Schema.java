@@ -43,14 +43,6 @@ import java.util.Objects;
  */
 public class Schema extends RowSignature.Simple
 {
-  // this is needed to be implemented by all post processors, but let's do it step by step
-  public static interface SchemaResolving
-  {
-    List<String> resolve(List<String> schema);
-
-    RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper);
-  }
-
   public static final Schema EMPTY = new Schema(
       Collections.<String>emptyList(),
       Collections.<ValueDesc>emptyList(),

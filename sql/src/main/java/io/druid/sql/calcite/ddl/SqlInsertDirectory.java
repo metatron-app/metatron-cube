@@ -17,6 +17,7 @@
 
 package io.druid.sql.calcite.ddl;
 
+import io.druid.sql.calcite.SqlProperties;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlLiteral;
@@ -35,7 +36,7 @@ public class SqlInsertDirectory extends SqlCall
   private final boolean isOverwrite;
   private final SqlNode directory;
   private final SqlNode format;
-  private final Map properties;
+  private final SqlProperties properties;
   private final SqlNode query;
 
   public SqlInsertDirectory(
@@ -43,7 +44,7 @@ public class SqlInsertDirectory extends SqlCall
       boolean isOverwrite,
       SqlNode directory,
       SqlNode format,
-      Map properties,
+      SqlProperties properties,
       SqlNode query
   )
   {
@@ -76,9 +77,9 @@ public class SqlInsertDirectory extends SqlCall
     return format == null ? "csv" : ((SqlLiteral) format).getValueAs(String.class);
   }
 
-  public Map getProperties()
+  public Map<String, Object> getProperties()
   {
-    return properties;
+    return properties == null ? null : properties.asMap();
   }
 
   public SqlNode getQuery()
@@ -88,7 +89,7 @@ public class SqlInsertDirectory extends SqlCall
 
   public List<SqlNode> getOperandList()
   {
-    return ImmutableNullableList.of(directory, query);
+    return ImmutableNullableList.of(directory, format, properties, query);
   }
 
   @Override
@@ -100,7 +101,15 @@ public class SqlInsertDirectory extends SqlCall
     }
     writer.keyword("INTO");
     writer.keyword("DIRECTORY");
-    directory.unparse(writer, leftPrec, rightPrec);
+    directory.unparse(writer, 0, 0);
+    if (format != null) {
+      writer.keyword("AS");
+      writer.literal(getFormat());
+    }
+    if (properties != null) {
+      writer.keyword("WITH");
+      properties.unparse(writer, 0, 0);
+    }
     writer.newlineAndIndent();
     query.unparse(writer, 0, 0);
   }

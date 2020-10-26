@@ -303,7 +303,8 @@ public class RealtimePlumber implements Plumber
           config.getShardSpec(),
           versioningPolicy.getVersion(sinkInterval),
           config,
-          ImmutableList.<FireHydrant>of()
+          ImmutableList.<FireHydrant>of(),
+          objectMapper
       );
       addSink(retVal);
 
@@ -923,7 +924,8 @@ public class RealtimePlumber implements Plumber
           shardSpec,
           versioningPolicy.getVersion(sinkInterval),
           config,
-          hydrants
+          hydrants,
+          objectMapper
       );
       addSink(currSink);
     }

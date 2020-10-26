@@ -81,8 +81,7 @@ public class JobHelperTest
                 new AggregatorFactory[]{new LongSumAggregatorFactory("visited_num", "visited_num")},
                 new UniformGranularitySpec(
                     QueryGranularities.DAY, QueryGranularities.NONE, ImmutableList.of(this.interval)
-                ),
-                HadoopDruidIndexerConfig.JSON_MAPPER
+                )
             ),
             new HadoopIOConfig(
                 ImmutableMap.<String, Object>of(

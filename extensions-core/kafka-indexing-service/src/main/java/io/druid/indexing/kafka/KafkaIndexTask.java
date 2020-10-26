@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -241,7 +242,8 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
       @JsonProperty("tuningConfig") KafkaTuningConfig tuningConfig,
       @JsonProperty("ioConfig") KafkaIOConfig ioConfig,
       @JsonProperty("context") Map<String, Object> context,
-      @JacksonInject ChatHandlerProvider chatHandlerProvider
+      @JacksonInject ChatHandlerProvider chatHandlerProvider,
+      @JacksonInject ObjectMapper jsonMapper
   )
   {
     super(
@@ -256,7 +258,7 @@ public class KafkaIndexTask extends AbstractTask implements ChatHandler
     this.tuningConfig = Preconditions.checkNotNull(tuningConfig, "tuningConfig");
     this.ioConfig = Preconditions.checkNotNull(ioConfig, "ioConfig");
     this.parser = Preconditions.checkNotNull(
-        (InputRowParser<ByteBuffer>) dataSchema.getParser(tuningConfig.isIgnoreInvalidRows()), "parser"
+        dataSchema.getParser(jsonMapper, tuningConfig.isIgnoreInvalidRows()), "parser"
     );
     this.chatHandlerProvider = Optional.fromNullable(chatHandlerProvider);
 

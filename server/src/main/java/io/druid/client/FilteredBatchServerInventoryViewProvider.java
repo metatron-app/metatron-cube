@@ -22,7 +22,7 @@ package io.druid.client;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
-import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.Pair;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ZkPathsConfig;
@@ -52,7 +52,7 @@ public class FilteredBatchServerInventoryViewProvider implements FilteredServerI
     return new BatchServerInventoryView(
         zkPaths,
         curator,
-        DefaultObjectMapper.withDeserializer(jsonMapper, DataSegment.class, DataSegment.DS_SKIP_LOADSPEC),
+        ObjectMappers.withDeserializer(jsonMapper, DataSegment.class, DataSegment.DS_SKIP_LOADSPEC),
         Predicates.<Pair<DruidServerMetadata, DataSegment>>alwaysFalse()
     );
   }

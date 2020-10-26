@@ -149,8 +149,7 @@ public class DruidJsonValidatorTest
                 "foo",
                 null,
                 new AggregatorFactory[0],
-                new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
-                jsonMapper
+                new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
             ),
             new RealtimeIOConfig(
                 new LocalFirehoseFactory(new File("lol"), "rofl"), new PlumberSchool()

@@ -123,8 +123,7 @@ public class AppenderatorTester implements AutoCloseable
             new CountAggregatorFactory("count"),
             new LongSumAggregatorFactory("met", "met")
         },
-        new UniformGranularitySpec(QueryGranularities.MINUTE, QueryGranularities.NONE, null),
-        objectMapper
+        new UniformGranularitySpec(QueryGranularities.MINUTE, QueryGranularities.NONE, null)
     );
 
     tuningConfig = new RealtimeTuningConfig(

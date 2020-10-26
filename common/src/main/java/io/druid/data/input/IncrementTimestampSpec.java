@@ -32,6 +32,11 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class IncrementTimestampSpec implements TimestampSpec
 {
+  public static TimestampSpec dummy()
+  {
+    return new IncrementTimestampSpec(System.currentTimeMillis(), 1);
+  }
+
   private final AtomicLong counter;
   private final long start;
   private final int increment;

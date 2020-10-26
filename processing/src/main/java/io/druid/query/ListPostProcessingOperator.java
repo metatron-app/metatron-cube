@@ -32,7 +32,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class ListPostProcessingOperator<T> implements Schema.SchemaResolving, UnionSupport<T>
+public class ListPostProcessingOperator<T> implements RowSignature.Evolving, UnionSupport<T>
 {
   private final List<PostProcessingOperator> processors;
   private final boolean supportsUnion;
@@ -95,22 +95,22 @@ public class ListPostProcessingOperator<T> implements Schema.SchemaResolving, Un
   }
 
   @Override
-  public List<String> resolve(List<String> schema)
+  public List<String> evolve(List<String> schema)
   {
     for (PostProcessingOperator child : processors) {
-      if (child instanceof Schema.SchemaResolving) {
-        schema = ((Schema.SchemaResolving) child).resolve(schema);
+      if (child instanceof RowSignature.Evolving) {
+        schema = ((RowSignature.Evolving) child).evolve(schema);
       }
     }
     return schema;
   }
 
   @Override
-  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     for (PostProcessingOperator child : processors) {
-      if (child instanceof Schema.SchemaResolving) {
-        schema = ((Schema.SchemaResolving) child).resolve(query, schema, mapper);
+      if (child instanceof RowSignature.Evolving) {
+        schema = ((RowSignature.Evolving) child).evolve(query, schema, mapper);
       }
     }
     return schema;

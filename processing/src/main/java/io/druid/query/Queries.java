@@ -166,12 +166,12 @@ public class Queries
     if (query instanceof Query.LateralViewSupport) {
       LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
       if (lateralView != null) {
-        columns = lateralView.resolve(columns);
+        columns = lateralView.evolve(columns);
       }
     }
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
-    if (postProcessor instanceof Schema.SchemaResolving) {
-      columns = ((Schema.SchemaResolving) postProcessor).resolve(columns);
+    if (postProcessor instanceof RowSignature.Evolving) {
+      columns = ((RowSignature.Evolving) postProcessor).evolve(columns);
     }
     return columns;
   }
@@ -238,7 +238,7 @@ public class Queries
     if (query instanceof Query.LateralViewSupport) {
       LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
       if (lateralView != null) {
-        source = lateralView.resolve(query, source, mapper);
+        source = lateralView.evolve(query, source, mapper);
       }
     }
     if (query instanceof Query.ArrayOutputSupport) {
@@ -248,8 +248,8 @@ public class Queries
       }
     }
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
-    if (postProcessor instanceof Schema.SchemaResolving) {
-      source = ((Schema.SchemaResolving) postProcessor).resolve(query, source, mapper);
+    if (postProcessor instanceof RowSignature.Evolving) {
+      source = ((RowSignature.Evolving) postProcessor).evolve(query, source, mapper);
     }
     return source;
   }

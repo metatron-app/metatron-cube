@@ -20,7 +20,10 @@
 package io.druid.sql.calcite.planner;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -33,18 +36,24 @@ import io.druid.client.BrokerServerView;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.data.input.Rows;
 import io.druid.data.output.ForwardConstants;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunners;
+import io.druid.query.load.LoadQuery;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.indexing.DataSchema;
+import io.druid.server.FileLoadSpec;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.ddl.SqlCreateTable;
 import io.druid.sql.calcite.ddl.SqlDropTable;
 import io.druid.sql.calcite.ddl.SqlInsertDirectory;
+import io.druid.sql.calcite.ddl.SqlLoadTable;
 import io.druid.sql.calcite.rel.DruidConvention;
 import io.druid.sql.calcite.rel.DruidQuery;
 import io.druid.sql.calcite.rel.DruidRel;
@@ -77,24 +86,32 @@ import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.Pair;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class DruidPlanner implements Closeable, ForwardConstants
 {
   private static final Logger LOG = new Logger(DruidPlanner.class);
 
+  private final QueryMaker queryMaker;
   private final Planner planner;
   private final PlannerContext plannerContext;
 
-  public DruidPlanner(Planner planner, PlannerContext plannerContext)
+  public DruidPlanner(
+      Planner planner,
+      PlannerContext plannerContext,
+      QueryMaker queryMaker
+  )
   {
     this.planner = planner;
     this.plannerContext = plannerContext;
+    this.queryMaker = queryMaker;
   }
 
   public PlannerResult plan(final String sql, final BrokerServerView brokerServerView)
@@ -103,6 +120,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     final SqlNode source = planner.parse(sql);
     if (source.getKind() == SqlKind.DROP_TABLE) {
       return handleDropTable((SqlDropTable) source, brokerServerView);
+    }
+    if (source.getKind() == SqlKind.CREATE_TABLE && source instanceof SqlLoadTable) {
+      return handleLoadTable((SqlLoadTable) source, brokerServerView);
     }
     SqlNode target = source;
     if (target.getKind() == SqlKind.EXPLAIN) {
@@ -166,7 +186,6 @@ public class DruidPlanner implements Closeable, ForwardConstants
       return handleInsertDirectory(Utils.getFieldNames(root), druidRel, (SqlInsertDirectory) source);
     }
 
-    final QueryMaker queryMaker = druidRel.getQueryMaker();
     final DruidQuery druidQuery = druidRel.toDruidQuery(false);
     final Query query = queryMaker.prepareQuery(druidQuery.getQuery());
     final Supplier<Sequence<Object[]>> resultsSupplier = new Supplier<Sequence<Object[]>>()
@@ -326,7 +345,6 @@ public class DruidPlanner implements Closeable, ForwardConstants
     boolean temporary = source.isTemporary();
     String dataSource = source.getName().toString();
 
-    QueryMaker queryMaker = druidRel.getQueryMaker();
     DruidQuery druidQuery = druidRel.toDruidQuery(false);
 
     RowSignature rowSignature = druidQuery.getOutputRowSignature();
@@ -378,6 +396,50 @@ public class DruidPlanner implements Closeable, ForwardConstants
     return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(row)), dataType);
   }
 
+  private PlannerResult handleLoadTable(SqlLoadTable source, BrokerServerView serverView)
+  {
+    String dataSource = source.getTable().toString();
+    Map<String, Object> properties = Maps.newHashMap(source.getProperties());
+    properties.put(DATASOURCE, dataSource);
+    properties.put(REGISTER_TABLE, true);
+
+    String format = Objects.toString(properties.get("format"), null);
+    Preconditions.checkArgument(format != null, "'format' should be specified");
+    ObjectMapper mapper = plannerContext.getObjectMapper();
+    mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+    FileLoadSpec.Resolver resolver = mapper.convertValue(
+        properties, FileLoadSpec.Resolver.class
+    );
+    if (resolver == null) {
+      throw new IAE("Not supports '%s'", format);
+    }
+
+    DataSchema schema = null;
+    FileLoadSpec loadSpec;
+    try {
+      loadSpec = resolver.resolve(queryMaker.getSegmentWalker());
+    }
+    catch (IOException e) {
+      throw new IAE(e, "Failed to resolve schema");
+    }
+    final RelDataTypeFactory factory = planner.getTypeFactory();
+    final RelDataType resultType = factory.createStructType(Arrays.asList(
+        Pair.of("dataSource", factory.createSqlType(SqlTypeName.VARCHAR)),
+        Pair.of("rowCount", factory.createSqlType(SqlTypeName.INTEGER)),
+        Pair.of("indexedRowCount", factory.createSqlType(SqlTypeName.INTEGER)),
+        Pair.of("indexedLength", factory.createSqlType(SqlTypeName.INTEGER)),
+        Pair.of("numSegments", factory.createSqlType(SqlTypeName.INTEGER)),
+        Pair.of("data", factory.createArrayType(factory.createSqlType(SqlTypeName.VARCHAR), -1))
+    ));
+    final LoadQuery query = LoadQuery.of(loadSpec);
+    final Sequence<Object[]> sequence = Sequences.map(
+        QueryRunners.run(query, queryMaker.getSegmentWalker()),
+        Rows.mapToArray(resultType.getFieldNames().toArray(new String[0]))
+    );
+
+    return new PlannerResult(query, Suppliers.ofInstance(sequence), resultType, ImmutableSet.of(dataSource));
+  }
+
   @SuppressWarnings("unchecked")
   private PlannerResult handleInsertDirectory(
       final List<String> mappedColumns,
@@ -385,7 +447,6 @@ public class DruidPlanner implements Closeable, ForwardConstants
       final SqlInsertDirectory source
   )
   {
-    QueryMaker queryMaker = druidRel.getQueryMaker();
     DruidQuery druidQuery = druidRel.toDruidQuery(false);
 
     Map<String, Object> context = Maps.newHashMap();

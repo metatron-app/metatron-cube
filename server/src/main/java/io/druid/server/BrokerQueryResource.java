@@ -319,7 +319,7 @@ public class BrokerQueryResource extends QueryResource
   @Consumes({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE, APPLICATION_SMILE})
   @SuppressWarnings("unchecked")
   public Response loadToIndex(
-      BrokerLoadSpec loadSpec,
+      FileLoadSpec loadSpec,
       @QueryParam("async") Boolean async,
       @QueryParam("pretty") String pretty,
       @Context final HttpServletRequest req
@@ -336,7 +336,6 @@ public class BrokerQueryResource extends QueryResource
       final Pair<Query, Sequence> pair = loadSpec.readFrom(forward);
       final Query query = pair.lhs;         // dummy forward query
       final Sequence sequence = pair.rhs;   // progressing sequence
-      // now it's blocking call
       final QueryRunner runner = forward.handle(query, QueryRunners.wrap(sequence));
       if (async) {
         final ListenableFuture<Sequence> future = exec.submit(

@@ -21,6 +21,7 @@ package io.druid.segment.indexing;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.data.input.impl.InputRowParser;
 
 /**
@@ -61,9 +62,9 @@ public abstract class IngestionSpec<IOConfigType extends IOConfig, TuningConfigT
     return tuningConfig;
   }
 
-  public InputRowParser getParser()
+  public InputRowParser getParser(ObjectMapper mapper)
   {
-    return dataSchema.getParser(tuningConfig.isIgnoreInvalidRows());
+    return dataSchema.getParser(mapper, tuningConfig.isIgnoreInvalidRows());
   }
 
   public boolean isDimensionFixed()

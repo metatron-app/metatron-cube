@@ -1043,8 +1043,7 @@ public class RealtimeIndexTaskTest
         "test_ds",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows"), new LongSumAggregatorFactory("met1", "met1")},
-        new UniformGranularitySpec(QueryGranularities.DAY, QueryGranularities.NONE, null),
-        objectMapper
+        new UniformGranularitySpec(QueryGranularities.DAY, QueryGranularities.NONE, null)
     );
     RealtimeIOConfig realtimeIOConfig = new RealtimeIOConfig(
         firehoseFactory,

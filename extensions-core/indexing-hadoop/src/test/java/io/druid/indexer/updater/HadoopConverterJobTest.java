@@ -177,8 +177,7 @@ public class HadoopConverterJobTest
                     QueryGranularities.MONTH,
                     QueryGranularities.DAY,
                     ImmutableList.<Interval>of(interval)
-                ),
-                HadoopDruidIndexerConfig.JSON_MAPPER
+                )
             ),
             new HadoopIOConfig(
                 ImmutableMap.<String, Object>of(

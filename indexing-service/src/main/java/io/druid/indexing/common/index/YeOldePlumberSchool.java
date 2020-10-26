@@ -105,7 +105,8 @@ public class YeOldePlumberSchool implements PlumberSchool
         schema,
         config.getShardSpec(),
         version,
-        config
+        config,
+        indexIO.getObjectMapper()
     );
 
     // Temporary directory to hold spilled segments.

@@ -22,7 +22,6 @@ package io.druid.indexer;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -55,8 +54,8 @@ import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.indexer.path.PartitionPathSpec;
 import io.druid.indexer.path.PathSpec;
 import io.druid.initialization.Initialization;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.FunctionModule;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Parser;
@@ -166,13 +165,7 @@ public class HadoopDruidIndexerConfig
   public static HadoopDruidIndexerConfig fromFile(File file)
   {
     try {
-      return fromMap(
-          (Map<String, Object>) HadoopDruidIndexerConfig.JSON_MAPPER.readValue(
-              file, new TypeReference<Map<String, Object>>()
-              {
-              }
-          )
-      );
+      return fromMap(HadoopDruidIndexerConfig.JSON_MAPPER.readValue(file, ObjectMappers.MAP_REF));
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
@@ -184,13 +177,7 @@ public class HadoopDruidIndexerConfig
   {
     // This is a map to try and prevent dependency screwbally-ness
     try {
-      return fromMap(
-          (Map<String, Object>) HadoopDruidIndexerConfig.JSON_MAPPER.readValue(
-              str, new TypeReference<Map<String, Object>>()
-              {
-              }
-          )
-      );
+      return fromMap(HadoopDruidIndexerConfig.JSON_MAPPER.readValue(str,ObjectMappers.MAP_REF));
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
@@ -205,13 +192,7 @@ public class HadoopDruidIndexerConfig
       FileSystem fs = pt.getFileSystem(new Configuration());
       Reader reader = new InputStreamReader(fs.open(pt));
 
-      return fromMap(
-          (Map<String, Object>) HadoopDruidIndexerConfig.JSON_MAPPER.readValue(
-              reader, new TypeReference<Map<String, Object>>()
-              {
-              }
-          )
-      );
+      return fromMap(HadoopDruidIndexerConfig.JSON_MAPPER.readValue(reader, ObjectMappers.MAP_REF));
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
@@ -249,7 +230,7 @@ public class HadoopDruidIndexerConfig
       pathSpec = ((PathSpec.Resolving) pathSpec).resolve();
       spec = spec.withIOConfig(
           spec.getIOConfig().withPathSpec(
-              DefaultObjectMapper.excludeNulls(JSON_MAPPER).convertValue(pathSpec, Map.class)
+              ObjectMappers.excludeNulls(JSON_MAPPER).convertValue(pathSpec, Map.class)
           )
       );
     }
@@ -419,7 +400,7 @@ public class HadoopDruidIndexerConfig
 
   public InputRowParser getParser()
   {
-    return schema.getParser();
+    return schema.getParser(JSON_MAPPER);
   }
 
   public HadoopyShardSpec getShardSpec(Bucket bucket)
@@ -639,7 +620,7 @@ public class HadoopDruidIndexerConfig
 
   public void verify()
   {
-    final ObjectMapper mapper = DefaultObjectMapper.excludeNulls(JSON_MAPPER);
+    final ObjectMapper mapper = ObjectMappers.excludeNulls(JSON_MAPPER);
 
     try {
       log.info("Running with config:%n%s", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this));
@@ -652,7 +633,7 @@ public class HadoopDruidIndexerConfig
     Preconditions.checkNotNull(dataSchema.getDataSource(), "dataSource");
     Preconditions.checkNotNull(dataSchema.getGranularitySpec(), "granularitySpec");
 
-    InputRowParser parser = schema.getParser();
+    InputRowParser parser = schema.getParser(mapper);
     Preconditions.checkNotNull(parser.getDimensionsSpec(), "dimensionsSpec");
     Preconditions.checkNotNull(parser.getTimestampSpec(), "timestampSpec");
 

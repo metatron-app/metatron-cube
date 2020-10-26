@@ -26,12 +26,12 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.hadoop.SkippingTextInputFormat;
-import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.ObjectMappers;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -183,7 +183,7 @@ public class HadoopPathSpec implements PathSpec
     }
     job.getConfiguration().set(
         PATH_ELEMENTS_JSON,
-        DefaultObjectMapper.excludeNulls(HadoopDruidIndexerConfig.JSON_MAPPER).writeValueAsString(rewritten)
+        ObjectMappers.excludeNulls(HadoopDruidIndexerConfig.JSON_MAPPER).writeValueAsString(rewritten)
     );
     if (InputFormat.class.isAssignableFrom(inputFormat)) {
       job.getConfiguration().setClass(INPUT_FORMAT_NEW, inputFormat, InputFormat.class);

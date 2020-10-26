@@ -71,13 +71,12 @@ public class DataSchemaTest
             new DoubleSumAggregatorFactory("metric1", "col1"),
             new DoubleSumAggregatorFactory("metric2", "col2"),
         },
-        new ArbitraryGranularitySpec(QueryGranularities.DAY, ImmutableList.of(Interval.parse("2014/2015"))),
-        jsonMapper
+        new ArbitraryGranularitySpec(QueryGranularities.DAY, ImmutableList.of(Interval.parse("2014/2015")))
     );
 
     Assert.assertEquals(
         ImmutableSet.of("time", "col1", "col2", "metric1", "metric2"),
-        schema.getParser(false).getDimensionsSpec().getDimensionExclusions()
+        schema.getParser(jsonMapper, false).getDimensionsSpec().getDimensionExclusions()
     );
   }
 
@@ -100,13 +99,12 @@ public class DataSchemaTest
             new DoubleSumAggregatorFactory("metric1", "col1"),
             new DoubleSumAggregatorFactory("metric2", "col2"),
         },
-        new ArbitraryGranularitySpec(QueryGranularities.DAY, ImmutableList.of(Interval.parse("2014/2015"))),
-        jsonMapper
+        new ArbitraryGranularitySpec(QueryGranularities.DAY, ImmutableList.of(Interval.parse("2014/2015")))
     );
 
     Assert.assertEquals(
         ImmutableSet.of("dimC", "col1", "metric1", "metric2"),
-        schema.getParser(false).getDimensionsSpec().getDimensionExclusions()
+        schema.getParser(jsonMapper, false).getDimensionsSpec().getDimensionExclusions()
     );
   }
 
@@ -129,10 +127,9 @@ public class DataSchemaTest
             new DoubleSumAggregatorFactory("metric1", "col1"),
             new DoubleSumAggregatorFactory("metric2", "col2"),
         },
-        new ArbitraryGranularitySpec(QueryGranularities.DAY, ImmutableList.of(Interval.parse("2014/2015"))),
-        jsonMapper
+        new ArbitraryGranularitySpec(QueryGranularities.DAY, ImmutableList.of(Interval.parse("2014/2015")))
     );
-    schema.getParser(false);
+    schema.getParser(jsonMapper, false);
   }
 
   @Test
@@ -157,7 +154,7 @@ public class DataSchemaTest
     );
 
     try {
-      schema.getParser(false);
+      schema.getParser(jsonMapper, false);
       Assert.fail("should've failed to get parser.");
     }
     catch (IllegalArgumentException ex) {
@@ -195,11 +192,11 @@ public class DataSchemaTest
 
     Assert.assertEquals(actual.getDataSource(), "test");
     Assert.assertEquals(
-        actual.getParser(false).getDimensionsSpec(),
+        actual.getParser(jsonMapper, false).getDimensionsSpec(),
         new DimensionsSpec(null, Arrays.asList("metric1", "xXx", "col1"), null)
     );
     Assert.assertEquals(
-        actual.getParser(false).getTimestampSpec(),
+        actual.getParser(jsonMapper, false).getTimestampSpec(),
         new DefaultTimestampSpec("xXx", null, null)
     );
     Assert.assertArrayEquals(

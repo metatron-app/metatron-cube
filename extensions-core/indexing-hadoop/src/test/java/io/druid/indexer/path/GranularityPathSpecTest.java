@@ -116,8 +116,7 @@ public class GranularityPathSpecTest
                 QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
-            ),
-            jsonMapper
+            )
         ),
         new HadoopIOConfig(null, null, null),
         new HadoopTuningConfig(null, null, null, null, null, null, false, false, false, false, null, false, false, null, null, null)

@@ -133,8 +133,7 @@ public class DetermineHashedPartitionsJobTest
                 QueryGranularities.DAY,
                 QueryGranularities.NONE,
                 ImmutableList.of(new Interval(interval))
-            ),
-            HadoopDruidIndexerConfig.JSON_MAPPER
+            )
         ),
         new HadoopIOConfig(
             ImmutableMap.<String, Object>of(

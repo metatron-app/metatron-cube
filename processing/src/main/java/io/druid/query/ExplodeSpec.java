@@ -161,7 +161,7 @@ public class ExplodeSpec implements LateralViewSpec
   }
 
   @Override
-  public List<String> resolve(List<String> schema)
+  public List<String> evolve(List<String> schema)
   {
     if (!schema.contains(alias)) {
       schema = GuavaUtils.concat(schema, alias);
@@ -170,7 +170,7 @@ public class ExplodeSpec implements LateralViewSpec
   }
 
   @Override
-  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     int index = schema.getColumnNames().indexOf(column);
     if (index < 0) {

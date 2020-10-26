@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -41,6 +41,7 @@ import io.druid.data.input.Validation;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;
 import io.druid.initialization.Initialization;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
@@ -48,6 +49,7 @@ import io.druid.query.DummyQuery;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.StorageHandler;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -64,32 +66,36 @@ import java.util.UUID;
 
 /**
  */
-public class BrokerLoadSpec implements ForwardConstants, ReadConstants
+public class FileLoadSpec implements ForwardConstants, ReadConstants
 {
-  private static final TypeReference<Map<String, Object>> MAP_REF = new TypeReference<Map<String, Object>>() {};
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "format")
+  public static interface Resolver
+  {
+    FileLoadSpec resolve(QuerySegmentWalker walker) throws IOException;
+  }
 
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
 
   private final List<String> paths;
   private final String inputFormat; // todo
   private final String extension;
-  private final int skipFirstN;
 
   private final DataSchema schema;
   private final BaseTuningConfig tuningConfig;
+  private final Boolean overwrite;
   private final Boolean temporary;
 
   private final Map<String, Object> properties;
 
   @JsonCreator
-  public BrokerLoadSpec(
+  public FileLoadSpec(
       @JsonProperty("basePath") String basePath,
       @JsonProperty("paths") List<String> paths,
       @JsonProperty("extension") String extension,
       @JsonProperty("inputFormat") String inputFormat,
-      @JsonProperty("skipFirstN") int skipFirstN,
       @JsonProperty("schema") DataSchema schema,
       @JsonProperty("temporary") Boolean temporary,
+      @JsonProperty("overwrite") Boolean overwrite,
       @JsonProperty("tuningConfig") BaseTuningConfig tuningConfig,
       @JsonProperty("properties") Map<String, Object> properties
   )
@@ -98,12 +104,13 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
     this.paths = Preconditions.checkNotNull(paths, "paths should not be null");
     this.extension = extension;
     this.inputFormat = inputFormat;
-    this.skipFirstN = skipFirstN;
     this.schema = Preconditions.checkNotNull(schema, "schema should not be null");
+    this.overwrite = overwrite;
     this.temporary = temporary;
     this.tuningConfig = tuningConfig;
     this.properties = properties == null ? ImmutableMap.<String, Object>of() : properties;
     Preconditions.checkArgument(!paths.isEmpty(), "paths should not be empty");
+    Preconditions.checkArgument(isTemporary() || !isOverwrite(), "cannot overwrite non-temporary table");
   }
 
   @JsonProperty
@@ -134,12 +141,6 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
   }
 
   @JsonProperty
-  public int getSkipFirstN()
-  {
-    return skipFirstN;
-  }
-
-  @JsonProperty
   public DataSchema getSchema()
   {
     return schema;
@@ -153,7 +154,12 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
   }
 
   @JsonProperty
-  @JsonInclude(Include.NON_NULL)
+  public boolean isOverwrite()
+  {
+    return overwrite == null || overwrite;
+  }
+
+  @JsonProperty
   public boolean isTemporary()
   {
     return temporary == null || temporary;
@@ -167,18 +173,18 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
   }
 
   @JsonIgnore
-  private InputRowParser getParser()
+  private InputRowParser getParser(ObjectMapper mapper)
   {
     final boolean ignoreInvalidRows = tuningConfig != null && tuningConfig.isIgnoreInvalidRows();
     final Interval interval = schema.getGranularitySpec().umbrellaInterval();
     if (interval == null) {
-      return schema.getParser(ignoreInvalidRows);
+      return schema.getParser(mapper, ignoreInvalidRows);
     }
     final Validation validation = Validation.expr(
         String.format("!between(__time, %d, %d)", interval.getStartMillis(), interval.getEndMillis() - 1)
     );
     return schema.withValidations(GuavaUtils.concat(schema.getValidations(), validation))
-                 .getParser(ignoreInvalidRows);
+                 .getParser(mapper, ignoreInvalidRows);
   }
 
   @JsonIgnore
@@ -233,7 +239,7 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
 
   public Pair<Query, Sequence> readFrom(ForwardingSegmentWalker walker) throws IOException
   {
-    final ClassLoader prev = BrokerLoadSpec.class.getClassLoader();
+    final ClassLoader prev = FileLoadSpec.class.getClassLoader();
     final ClassLoader loader = Initialization.getClassLoaderForExtension(extension, prev);
     Thread.currentThread().setContextClassLoader(loader);
     try {
@@ -247,7 +253,6 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
   @SuppressWarnings("unchecked")
   private Pair<Query, Sequence> read(ForwardingSegmentWalker walker) throws IOException
   {
-    final InputRowParser parser = getParser();
     final List<URI> locations = getURIs();
     final String scheme = locations.get(0).getScheme();
     final StorageHandler handler = walker.getHandler(scheme);
@@ -256,8 +261,8 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
     }
     final ObjectMapper jsonMapper = walker.getObjectMapper();
 
+    final InputRowParser parser = getParser(jsonMapper);
     final GranularitySpec granularitySpec = schema.getGranularitySpec();
-
     final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
         .withDimensionsSpec(parser.getDimensionsSpec())
         .withMetrics(schema.getAggregators())
@@ -270,12 +275,13 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
 
     final Map<String, Object> forwardContext = Maps.newHashMap(properties);
     forwardContext.put(FORMAT, INDEX_FORMAT);
-    forwardContext.put(SCHEMA, jsonMapper.convertValue(indexSchema, MAP_REF));
-    forwardContext.put(TUNING_CONFIG, jsonMapper.convertValue(tuningConfig, MAP_REF));
+    forwardContext.put(SCHEMA, jsonMapper.convertValue(indexSchema, ObjectMappers.MAP_REF));
+    forwardContext.put(TUNING_CONFIG, jsonMapper.convertValue(tuningConfig, ObjectMappers.MAP_REF));
     forwardContext.put(TIMESTAMP_COLUMN, Row.TIME_COLUMN_NAME);
     forwardContext.put(DATASOURCE, schema.getDataSource());
     forwardContext.put(REGISTER_TABLE, true);
     forwardContext.put(TEMPORARY, isTemporary());
+    forwardContext.put(OVERWRITE, isOverwrite());
 
     final DummyQuery<Row> query = DummyQuery.instance().withOverriddenContext(
         ImmutableMap.<String, Object>of(
@@ -288,7 +294,6 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
 
     // use properties for encoding, extractPartition, etc.
     final Map<String, Object> loadContext = Maps.newHashMap(properties);
-    loadContext.put(SKIP_FIRST_N, skipFirstN);
     loadContext.put(IGNORE_INVALID_ROWS, tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
     loadContext.put(INPUT_FORMAT, inputFormat);
 
@@ -310,7 +315,6 @@ public class BrokerLoadSpec implements ForwardConstants, ReadConstants
            ", elements=" + paths +
            ", extension=" + extension +
            ", inputFormat=" + inputFormat +
-           ", skipFirstN=" + skipFirstN +
            ", schema=" + schema +
            ", temporary=" + temporary +
            ", tuningConfig=" + tuningConfig +

@@ -524,7 +524,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     }
     List<String> columns = GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
     if (lateralView != null) {
-      columns = lateralView.resolve(outputColumns);
+      columns = lateralView.evolve(outputColumns);
     }
     return columns;
   }

@@ -127,8 +127,7 @@ public class IndexTaskTest
                     QueryGranularities.DAY,
                     QueryGranularities.MINUTE,
                     Arrays.asList(new Interval("2014/2015"))
-                ),
-                jsonMapper
+                )
             ),
             new IndexTask.IndexIOConfig(
                 new LocalFirehoseFactory(
@@ -192,8 +191,7 @@ public class IndexTaskTest
                 new ArbitraryGranularitySpec(
                     QueryGranularities.MINUTE,
                     Arrays.asList(new Interval("2014/2015"))
-                ),
-                jsonMapper
+                )
             ),
             new IndexTask.IndexIOConfig(
                 new LocalFirehoseFactory(
@@ -306,8 +304,7 @@ public class IndexTaskTest
                     QueryGranularities.HOUR,
                     QueryGranularities.HOUR,
                     Arrays.asList(new Interval("2015-03-01T08:00:00Z/2015-03-01T09:00:00Z"))
-                ),
-                jsonMapper
+                )
             ),
             new IndexTask.IndexIOConfig(
                 new LocalFirehoseFactory(

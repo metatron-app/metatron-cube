@@ -32,6 +32,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -365,7 +366,9 @@ public class HdfsStorageHandler implements StorageHandler
           }
           List<DataSegment> segments = Lists.newArrayList();
           if (files.size() == 1 && !indexSpec.needFinalizing()) {
-            segments.add(finalizeIndex(files.get(0), targetPath, NoneShardSpec.instance()));
+            Path finalPath = new Path(targetPath, "0");
+            fs.mkdirs(finalPath);
+            segments.add(finalizeIndex(files.get(0), finalPath, NoneShardSpec.instance()));
           } else {
             int shardNum = 0;
             long queueSize = 0;
@@ -385,17 +388,20 @@ public class HdfsStorageHandler implements StorageHandler
               queue.clear();
             }
           }
+          Interval umbrella = toGranularInterval(
+              JodaUtils.umbrellaInterval(Iterables.transform(segments, DataSegment::getInterval))
+          );
+
           int totalRowCount = 0;
           long totalLength = 0;
           List<Map<String, Object>> segmentMetas = Lists.newArrayList();
           for (DataSegment segment : segments) {
             Path segmentPath = new Path(targetPath, String.valueOf(segment.getShardSpec().getPartitionNum()));
-            Map<String, Object> segmentMeta = ImmutableMap.of(
+            segmentMetas.add(ImmutableMap.of(
                 "location", segmentPath.toUri(),
                 "length", segment.getSize(),
-                "segment", segment
-            );
-            segmentMetas.add(segmentMeta);
+                "segment", segment.withInterval(umbrella)
+            ));
             totalRowCount += segment.getNumRows();
             totalLength += segment.getSize();
           }
@@ -416,9 +422,13 @@ public class HdfsStorageHandler implements StorageHandler
           return new OnheapIncrementalIndex(schema, true, true, false, maxRowCount);
         }
 
-        private Interval getSegmentInterval(IncrementalIndex index)
+        private Interval toGranularInterval(IncrementalIndex index)
         {
-          Interval timeMinMax = Preconditions.checkNotNull(index.getTimeMinMax(), "empty index");
+          return toGranularInterval(Preconditions.checkNotNull(index.getTimeMinMax(), "empty index"));
+        }
+
+        private Interval toGranularInterval(Interval timeMinMax)
+        {
           LOG.info("Interval of data [%s]", timeMinMax);
           Granularity granularity = segmentGranularity;
           if (granularity == null) {
@@ -459,7 +469,7 @@ public class HdfsStorageHandler implements StorageHandler
               "Flushing %,d rows with estimated size %,d bytes.. Heap usage %s",
               index.size(), index.estimatedOccupation(), memoryMXBean.getHeapMemoryUsage()
           );
-          return merger.persist(index, getSegmentInterval(index), nextFile(), indexSpec.asIntermediarySpec());
+          return merger.persist(index, toGranularInterval(index), nextFile(), indexSpec.asIntermediarySpec());
         }
 
         private File nextFile()

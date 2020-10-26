@@ -16,33 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package io.druid.data;
 
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
+package io.druid.jackson;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.inject.Binder;
-import io.druid.data.input.OrcHadoopInputRowParser;
-import io.druid.data.input.OrcSchemaResolver;
-import io.druid.data.output.OrcFormatter;
-import io.druid.initialization.DruidModule;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.Map;
 
-public class OrcExtensionsModule implements DruidModule
+public class ObjectMappers
 {
-  @Override
-  public List<? extends Module> getJacksonModules()
+  public static final TypeReference<Map<String, Object>> MAP_REF = new TypeReference<Map<String, Object>>() {};
+
+  public static ObjectMapper excludeNulls(ObjectMapper mapper)
   {
-    return Arrays.asList(
-        new SimpleModule("OrcExtensionsModule")
-            .registerSubtypes(new NamedType(OrcHadoopInputRowParser.class, "orc"))
-            .registerSubtypes(new NamedType(OrcFormatter.class, "orc"))
-            .registerSubtypes(OrcSchemaResolver.class)
-    );
+    return mapper.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
   }
 
-  @Override
-  public void configure(Binder binder) {}
+  public static <T> ObjectMapper withDeserializer(ObjectMapper mapper, Class<T> clazz, JsonDeserializer<T> deserializer)
+  {
+    return mapper.copy().registerModule(new SimpleModule().addDeserializer(clazz, deserializer));
+  }
 }

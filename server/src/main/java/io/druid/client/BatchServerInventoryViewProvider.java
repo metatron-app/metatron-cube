@@ -25,7 +25,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
-import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.Pair;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -61,7 +61,7 @@ public class BatchServerInventoryViewProvider implements ServerInventoryViewProv
   {
     ObjectMapper mapper = jsonMapper;
     if (segmentManager != null) {
-      mapper = DefaultObjectMapper.withDeserializer(mapper, DataSegment.class, toDedupDeserializer(mapper));
+      mapper = ObjectMappers.withDeserializer(mapper, DataSegment.class, toDedupDeserializer(mapper));
     }
     return newInventoryView(mapper);
   }

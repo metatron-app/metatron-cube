@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.RE;
 import io.druid.java.util.common.logger.Logger;
@@ -196,9 +197,7 @@ public class LookupCoordinatorResource
       final ObjectMapper mapper = isSmile ? smileMapper : jsonMapper;
       final Map<String, Object> lookupSpec;
       try {
-        lookupSpec = mapper.readValue(in, new TypeReference<Map<String, Object>>()
-        {
-        });
+        lookupSpec = mapper.readValue(in, ObjectMappers.MAP_REF);
       }
       catch (IOException e) {
         return Response.status(Response.Status.BAD_REQUEST).entity(ServletResourceUtils.sanitizeException(e)).build();

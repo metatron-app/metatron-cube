@@ -261,7 +261,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       }
     }
     if (lateralView != null) {
-      outputColumns = lateralView.resolve(outputColumns);
+      outputColumns = lateralView.evolve(outputColumns);
     }
     return outputColumns;
   }

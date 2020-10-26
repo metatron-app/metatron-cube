@@ -19,7 +19,6 @@
 
 package io.druid.segment.indexing;
 
-import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -61,8 +60,6 @@ public class DataSchema
   private final List<Validation> validations;
   private final boolean dimensionFixed;
 
-  private final ObjectMapper jsonMapper;
-
   @JsonCreator
   public DataSchema(
       @JsonProperty("dataSource") String dataSource,
@@ -72,11 +69,9 @@ public class DataSchema
       @JsonProperty("granularitySpec") GranularitySpec granularitySpec,
       @JsonProperty("evaluations") List<Evaluation> evaluations,
       @JsonProperty("validations") List<Validation> validations,
-      @JsonProperty("dimensionFixed") boolean dimensionFixed,
-      @JacksonInject ObjectMapper jsonMapper
+      @JsonProperty("dimensionFixed") boolean dimensionFixed
   )
   {
-    this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "null ObjectMapper.");
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource cannot be null. Please provide a dataSource.");
     this.parser = parser;
 
@@ -102,11 +97,10 @@ public class DataSchema
       String dataSource,
       Map<String, Object> parser,
       AggregatorFactory[] aggregators,
-      GranularitySpec granularitySpec,
-      ObjectMapper jsonMapper
+      GranularitySpec granularitySpec
   )
   {
-    this(dataSource, parser, aggregators, false, granularitySpec, null, null, false, jsonMapper);
+    this(dataSource, parser, aggregators, false, granularitySpec, null, null, false);
   }
 
   @JsonProperty
@@ -121,19 +115,19 @@ public class DataSchema
     return parser;
   }
 
-  public InputRowParser getParser(boolean ignoreInvalidRows)
+  public InputRowParser getParser(ObjectMapper mapper, boolean ignoreInvalidRows)
   {
     if (parser == null) {
       log.warn("No parser has been specified");
       return null;
     }
-    final InputRowParser parser = createInputRowParser(ignoreInvalidRows);
+    final InputRowParser parser = createInputRowParser(mapper, ignoreInvalidRows);
     return InputRowParsers.wrap(parser, aggregators, evaluations, validations, enforceType, ignoreInvalidRows);
   }
 
-  private InputRowParser createInputRowParser(boolean ignoreInvalidRows)
+  private InputRowParser createInputRowParser(ObjectMapper mapper, boolean ignoreInvalidRows)
   {
-    InputRowParser inputRowParser = jsonMapper.convertValue(this.parser, InputRowParser.class);
+    InputRowParser inputRowParser = mapper.convertValue(parser, InputRowParser.class);
     if (inputRowParser instanceof InputRowParser.Streaming) {
       inputRowParser = ((InputRowParser.Streaming) inputRowParser).withIgnoreInvalidRows(ignoreInvalidRows);
     }
@@ -227,8 +221,7 @@ public class DataSchema
                           granularitySpec,
                           evaluations,
                           validations,
-                          dimensionFixed,
-                          jsonMapper);
+                          dimensionFixed);
   }
 
   public DataSchema withGranularitySpec(GranularitySpec granularitySpec)
@@ -240,8 +233,7 @@ public class DataSchema
                           granularitySpec,
                           evaluations,
                           validations,
-                          dimensionFixed,
-                          jsonMapper);
+                          dimensionFixed);
   }
 
   public DataSchema withParser(Map<String, Object> parser)
@@ -253,8 +245,7 @@ public class DataSchema
                           granularitySpec,
                           evaluations,
                           validations,
-                          dimensionFixed,
-                          jsonMapper);
+                          dimensionFixed);
   }
 
   public DataSchema withValidations(List<Validation> validations)
@@ -266,8 +257,7 @@ public class DataSchema
                           granularitySpec,
                           evaluations,
                           validations,
-                          dimensionFixed,
-                          jsonMapper);
+                          dimensionFixed);
   }
 
   @Override

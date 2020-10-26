@@ -42,7 +42,7 @@ import java.util.Map;
 /**
  */
 public class PostAggregationsPostProcessor extends PostProcessingOperator.ReturnsRow<Row>
-    implements Schema.SchemaResolving
+    implements RowSignature.Evolving
 {
   private final List<PostAggregator> postAggregations;
 
@@ -96,7 +96,7 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
   }
 
   @Override
-  public List<String> resolve(List<String> schema)
+  public List<String> evolve(List<String> schema)
   {
     if (GuavaUtils.isNullOrEmpty(postAggregations)) {
       return schema;
@@ -111,7 +111,7 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
   }
 
   @Override
-  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     if (GuavaUtils.isNullOrEmpty(postAggregations)) {
       return schema;

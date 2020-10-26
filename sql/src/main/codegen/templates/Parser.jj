@@ -1316,7 +1316,7 @@ SqlNode SqlInsert() :
     boolean isOverwrite = false;
     SqlNode directory = null;
     SqlNode format = null;
-    Map properties = null;
+    SqlProperties properties = null;
     SqlNode query = null;
 
     final List<SqlLiteral> keywords = new ArrayList<SqlLiteral>();
@@ -1380,29 +1380,52 @@ SqlNode SqlInsert() :
   )
 }
 
-Map Properties() :
+/**
+ * Parses an LOAD statement.
+ */
+SqlNode SqlLoadTable() :
 {
-    final Map map = new HashMap();
+    boolean isOverwrite = false;
+    boolean isTemporary = false;
+    SqlNode path;
+    SqlIdentifier table;
+    SqlProperties properties = null;
+
+    final Span s;
 }
 {
-    <LPAREN> Property(map) ( <COMMA> Property(map) )* <RPAREN>
+    <LOAD> { s = span(); }
+    <DATA> <PATH> { path = StringLiteral(); } [ <OVERWRITE> { isOverwrite = true; } ]
+    <INTO> [ <TEMPORARY> { isTemporary = true; } ] <TABLE> { table = CompoundIdentifier(); } [ <WITH> { properties = Properties(); } ]
+
     {
-        return map;
+      return new SqlLoadTable(s.end(this), path, isOverwrite, isTemporary, table, properties);
     }
 }
 
-void Property(Map map) :
+SqlProperties Properties() :
+{
+    final Span s = span();
+    final List<SqlNode> list = new ArrayList();
+}
+{
+    <LPAREN> Property(list) ( <COMMA> Property(list) )* <RPAREN>
+    {
+        return new SqlProperties(list, s.end(this));
+    }
+}
+
+void Property(List<SqlNode> list) :
 {
     SqlNode key = null;
     SqlNode value = null;
 }
 {
-    [ key = StringLiteral() <NAMED_ARGUMENT_ASSIGNMENT> value = StringLiteral() ]
+    [ key = StringLiteral() <NAMED_ARGUMENT_ASSIGNMENT> value = Literal() ]
     {
         if (key != null) {
-            String keyString = ((SqlLiteral) key).getValueAs(String.class);
-            String valueString = ((SqlLiteral) value).getValueAs(String.class);
-            map.put(keyString, valueString);
+            list.add(key);
+            list.add(value);
         }
     }
 }

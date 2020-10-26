@@ -44,6 +44,7 @@ import io.druid.common.guava.HostAndPort;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.guice.annotations.Smile;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StreamUtils;
@@ -91,9 +92,6 @@ public class LookupCoordinatorManager
   // Doesn't have to be the same, but it makes things easy to look at
   public static final String LOOKUP_LISTEN_ANNOUNCE_KEY = LOOKUP_CONFIG_KEY;
   private static final EmittingLogger LOG = new EmittingLogger(LookupCoordinatorManager.class);
-  private static final TypeReference<Map<String, Object>> MAP_STRING_OBJ_TYPE = new TypeReference<Map<String, Object>>()
-  {
-  };
   private final static Function<HostAndPort, URL> HOST_TO_URL = new Function<HostAndPort, URL>()
   {
     @Nullable
@@ -237,13 +235,13 @@ public class LookupCoordinatorManager
         if (LOG.isDebugEnabled()) {
           LOG.debug("Update on [%s], Status: %s reason: [%s]", url, returnCode.get(), reasonString.get());
         }
-        final Map<String, Object> resultMap = smileMapper.readValue(result, MAP_STRING_OBJ_TYPE);
+        final Map<String, Object> resultMap = smileMapper.readValue(result, ObjectMappers.MAP_REF);
         final Object missingValuesObject = resultMap.get(LookupModule.FAILED_UPDATES_KEY);
         if (null == missingValuesObject) {
           throw new IAE("Update result did not have field for [%s]", LookupModule.FAILED_UPDATES_KEY);
         }
 
-        final Map<String, Object> missingValues = smileMapper.convertValue(missingValuesObject, MAP_STRING_OBJ_TYPE);
+        final Map<String, Object> missingValues = smileMapper.convertValue(missingValuesObject, ObjectMappers.MAP_REF);
         if (!missingValues.isEmpty()) {
           throw new IAE("Lookups failed to update: %s", smileMapper.writeValueAsString(missingValues.keySet()));
         } else {

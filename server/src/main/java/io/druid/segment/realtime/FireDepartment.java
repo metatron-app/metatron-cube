@@ -21,6 +21,7 @@ package io.druid.segment.realtime;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseV2;
@@ -105,14 +106,14 @@ public class FireDepartment extends IngestionSpec<RealtimeIOConfig, RealtimeTuni
     return ioConfig.getFirehoseFactoryV2() != null;
   }
 
-  public Firehose connect() throws IOException
+  public Firehose connect(ObjectMapper mapper) throws IOException
   {
-    return ioConfig.getFirehoseFactory().connect(getParser());
+    return ioConfig.getFirehoseFactory().connect(getParser(mapper));
   }
 
-  public FirehoseV2 connect(Object metaData) throws IOException
+  public FirehoseV2 connect(ObjectMapper mapper, Object metaData) throws IOException
   {
-    return ioConfig.getFirehoseFactoryV2().connect(getParser(), metaData);
+    return ioConfig.getFirehoseFactoryV2().connect(getParser(mapper), metaData);
   }
 
   public FireDepartmentMetrics getMetrics()

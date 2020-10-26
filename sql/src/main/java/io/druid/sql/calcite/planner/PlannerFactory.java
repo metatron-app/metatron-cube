@@ -124,7 +124,7 @@ public class PlannerFactory
         .traitDefs(ConventionTraitDef.INSTANCE, RelCollationTraitDef.INSTANCE)
         .convertletTable(new DruidConvertletTable(plannerContext))
         .operatorTable(operatorTable)
-        .programs(Rules.programs(plannerContext, queryMaker))
+        .programs(Rules.programs(queryMaker))
         .executor(new DruidRexExecutor(plannerContext))
         .context(Contexts.EMPTY_CONTEXT)
         .typeSystem(DruidTypeSystem.INSTANCE)
@@ -162,8 +162,7 @@ public class PlannerFactory
         .build();
 
     return new DruidPlanner(
-        Frameworks.getPlanner(frameworkConfig),
-        plannerContext
+        Frameworks.getPlanner(frameworkConfig), plannerContext, queryMaker
     );
   }
 

@@ -32,7 +32,7 @@ import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryWatcher;
 import io.druid.segment.Segment;
-import io.druid.server.BrokerLoadSpec;
+import io.druid.server.FileLoadSpec;
 
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -64,7 +64,7 @@ public class LoadQueryRunnerFactory extends QueryRunnerFactory.Abstract<Map<Stri
       public Sequence<Map<String, Object>> run(Query<Map<String, Object>> query, Map<String, Object> responseContext)
       {
         final ForwardingSegmentWalker walker = (ForwardingSegmentWalker) segmentWalker.get();
-        final BrokerLoadSpec loadSpec = ((LoadQuery) query).getLoadSpec();
+        final FileLoadSpec loadSpec = ((LoadQuery) query).getLoadSpec();
         try {
           final Pair<Query, Sequence> pair = loadSpec.readFrom(walker);
           final QueryRunner runner = walker.handle(pair.lhs, QueryRunners.wrap(pair.rhs));

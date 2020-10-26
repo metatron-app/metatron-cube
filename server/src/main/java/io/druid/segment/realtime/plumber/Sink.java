@@ -19,6 +19,7 @@
 
 package io.druid.segment.realtime.plumber;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
@@ -69,6 +70,7 @@ public class Sink implements Iterable<FireHydrant>
   private final AtomicInteger numRowsExcludingCurrIndex = new AtomicInteger();
 
   private final Map<String, Map<String, String>> columnDescs;
+  private final ObjectMapper mapper;
 
   @GuardedBy("hydrantLock")
   private boolean writable = true;
@@ -83,10 +85,11 @@ public class Sink implements Iterable<FireHydrant>
       DataSchema schema,
       ShardSpec shardSpec,
       String version,
-      AppenderatorConfig tuningConfig
+      AppenderatorConfig tuningConfig,
+      ObjectMapper objectMapper
   )
   {
-    this(interval, schema, shardSpec, version, tuningConfig, ImmutableList.<FireHydrant>of());
+    this(interval, schema, shardSpec, version, tuningConfig, ImmutableList.<FireHydrant>of(), objectMapper);
   }
 
   public Sink(
@@ -95,7 +98,8 @@ public class Sink implements Iterable<FireHydrant>
       ShardSpec shardSpec,
       String version,
       AppenderatorConfig tuningConfig,
-      List<FireHydrant> hydrants
+      List<FireHydrant> hydrants,
+      ObjectMapper objectMapper
   )
   {
     this.schema = schema;
@@ -117,6 +121,7 @@ public class Sink implements Iterable<FireHydrant>
       numRowsExcludingCurrIndex.addAndGet(hydrant.getSegment().asQueryableIndex(false).getNumRows());
     }
     this.hydrants.addAll(hydrants);
+    this.mapper = objectMapper;
 
     makeNewCurrIndex(interval.getStartMillis());
   }
@@ -262,7 +267,7 @@ public class Sink implements Iterable<FireHydrant>
         .withMinTimestamp(minTimestamp)
         .withQueryGranularity(granularitySpec.getQueryGranularity())
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())
-        .withDimensionsSpec(schema.getParser(ignoreInvalidRows))
+        .withDimensionsSpec(schema.getParser(mapper, ignoreInvalidRows))
         .withDimensionFixed(schema.isDimensionFixed())
         .withMetrics(schema.getAggregators())
         .withRollup(granularitySpec.isRollup())

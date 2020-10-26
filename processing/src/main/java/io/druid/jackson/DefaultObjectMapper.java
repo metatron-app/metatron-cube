@@ -19,19 +19,14 @@
 
 package io.druid.jackson;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import io.druid.query.aggregation.hll.HllSketchModule;
 import io.druid.query.sketch.SketchModule;
-
-import java.io.IOException;
 
 /**
  */
@@ -74,25 +69,5 @@ public class DefaultObjectMapper extends ObjectMapper
   public ObjectMapper copy()
   {
     return new DefaultObjectMapper(this);
-  }
-
-  public static ObjectMapper excludeNulls(ObjectMapper mapper)
-  {
-    return mapper.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-  }
-
-  public static <T> T readValue(ObjectMapper mapper, String value, Class<T> clazz)
-  {
-    try {
-      return mapper.readValue(value, clazz);
-    }
-    catch (IOException e) {
-      throw new IllegalArgumentException(e);
-    }
-  }
-
-  public static <T> ObjectMapper withDeserializer(ObjectMapper mapper, Class<T> clazz, JsonDeserializer<T> deserializer)
-  {
-    return mapper.copy().registerModule(new SimpleModule().addDeserializer(clazz, deserializer));
   }
 }

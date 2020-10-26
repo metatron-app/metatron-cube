@@ -28,7 +28,7 @@ import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.server.BrokerLoadSpec;
+import io.druid.server.FileLoadSpec;
 
 import java.util.Map;
 import java.util.Set;
@@ -38,12 +38,17 @@ import static io.druid.server.ServiceTypes.BROKER;
 @JsonTypeName("load")
 public class LoadQuery extends BaseQuery<Map<String, Object>> implements Query.ManagementQuery
 {
-  private final BrokerLoadSpec loadSpec;
+  public static LoadQuery of(FileLoadSpec loadSpec)
+  {
+    return new LoadQuery(null, null, loadSpec, null);
+  }
+
+  private final FileLoadSpec loadSpec;
 
   public LoadQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("loadSpec") BrokerLoadSpec loadSpec,
+      @JsonProperty("loadSpec") FileLoadSpec loadSpec,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -57,7 +62,7 @@ public class LoadQuery extends BaseQuery<Map<String, Object>> implements Query.M
   }
 
   @JsonProperty
-  public BrokerLoadSpec getLoadSpec()
+  public FileLoadSpec getLoadSpec()
   {
     return loadSpec;
   }

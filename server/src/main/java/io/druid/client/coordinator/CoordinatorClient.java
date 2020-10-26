@@ -28,6 +28,7 @@ import io.druid.client.ServiceClient;
 import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.guice.annotations.EscalatedGlobal;
 import io.druid.guice.annotations.Self;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.server.DruidNode;
@@ -93,7 +94,7 @@ public class CoordinatorClient extends ServiceClient
   public Map<String, Object> scheduleNow(Set<DataSegment> segments, long waitTimeout, boolean assertLoaded)
   {
     String resource = String.format("/scheduleNow?assertLoaded=%s&waitTimeout=%s", assertLoaded, waitTimeout);
-    return execute(HttpMethod.POST, resource, segments, new TypeReference<Map<String, Object>>() {});
+    return execute(HttpMethod.POST, resource, segments, ObjectMappers.MAP_REF);
   }
 
   public StatusResponseHolder reportFileNotFound(DataSegment[] segments)

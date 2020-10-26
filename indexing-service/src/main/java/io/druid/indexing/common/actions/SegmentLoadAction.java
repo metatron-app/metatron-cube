@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.indexing.common.task.Task;
+import io.druid.jackson.ObjectMappers;
 import io.druid.timeline.DataSegment;
 
 import java.io.IOException;
@@ -52,9 +53,7 @@ public class SegmentLoadAction implements TaskAction<Map<String, Object>>
 
   public TypeReference<Map<String, Object>> getReturnTypeReference()
   {
-    return new TypeReference<Map<String, Object>>()
-    {
-    };
+    return ObjectMappers.MAP_REF;
   }
 
   @Override

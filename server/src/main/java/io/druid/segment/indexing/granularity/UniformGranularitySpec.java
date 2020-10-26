@@ -21,6 +21,7 @@ package io.druid.segment.indexing.granularity;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -37,6 +38,11 @@ import java.util.SortedSet;
 
 public class UniformGranularitySpec implements GranularitySpec
 {
+  public static GranularitySpec of(Granularity segmentGranularity)
+  {
+    return new UniformGranularitySpec(segmentGranularity, null, false, false, null);
+  }
+
   private static final Granularity DEFAULT_SEGMENT_GRANULARITY = Granularities.DAY;
   private static final Granularity DEFAULT_QUERY_GRANULARITY = Granularities.NONE;
 
@@ -64,6 +70,7 @@ public class UniformGranularitySpec implements GranularitySpec
     this.intervals = intervals;
   }
 
+  @VisibleForTesting
   public UniformGranularitySpec(
       Granularity segmentGranularity,
       Granularity queryGranularity,

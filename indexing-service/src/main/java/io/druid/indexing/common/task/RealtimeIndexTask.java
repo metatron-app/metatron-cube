@@ -350,7 +350,7 @@ public class RealtimeIndexTask extends AbstractTask
         // Skip connecting firehose if we've been stopped before we got started.
         synchronized (this) {
           if (!gracefullyStopped) {
-            firehoseV2 = fireDepartment.connect(metadata);
+            firehoseV2 = fireDepartment.connect(toolbox.getObjectMapper(), metadata);
             committerSupplier = Committers.supplierFromFirehoseV2(firehoseV2);
             try {
               firehoseV2.start();
@@ -388,7 +388,7 @@ public class RealtimeIndexTask extends AbstractTask
         // Skip connecting firehose if we've been stopped before we got started.
         synchronized (this) {
           if (!gracefullyStopped) {
-            firehose = fireDepartment.connect();
+            firehose = fireDepartment.connect(toolbox.getObjectMapper());
             committerSupplier = Committers.supplierFromFirehose(firehose);
           }
         }

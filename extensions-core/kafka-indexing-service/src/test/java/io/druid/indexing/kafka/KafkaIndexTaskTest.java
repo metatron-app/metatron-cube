@@ -218,8 +218,7 @@ public class KafkaIndexTaskTest
           Map.class
       ),
       new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-      new UniformGranularitySpec(Granularities.DAY, Granularities.NONE, null),
-      objectMapper
+      new UniformGranularitySpec(Granularities.DAY, Granularities.NONE, null)
   );
 
   private static List<ProducerRecord<byte[], byte[]>> generateRecords(String topic)
@@ -1651,7 +1650,8 @@ public class KafkaIndexTaskTest
         tuningConfig,
         ioConfig,
         context,
-        null
+        null,
+        objectMapper
     );
     task.setPollRetryMs(POLL_RETRY_MS);
     return task;
@@ -1689,7 +1689,8 @@ public class KafkaIndexTaskTest
         tuningConfig,
         ioConfig,
         context,
-        null
+        null,
+        objectMapper
     );
     task.setPollRetryMs(POLL_RETRY_MS);
     return task;
@@ -1701,8 +1702,7 @@ public class KafkaIndexTaskTest
         dataSchema.getDataSource(),
         dataSchema.getParserMap(),
         dataSchema.getAggregators(),
-        dataSchema.getGranularitySpec(),
-        objectMapper
+        dataSchema.getGranularitySpec()
     );
   }
 

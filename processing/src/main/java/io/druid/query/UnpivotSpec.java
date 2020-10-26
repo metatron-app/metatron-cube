@@ -222,13 +222,13 @@ public class UnpivotSpec implements LateralViewSpec, Function<Map<String, Object
   }
 
   @Override
-  public List<String> resolve(List<String> schema)
+  public List<String> evolve(List<String> schema)
   {
     throw new UnsupportedOperationException("todo");
   }
 
   @Override
-  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     throw new UnsupportedOperationException("todo");
   }

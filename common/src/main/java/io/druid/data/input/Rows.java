@@ -129,6 +129,22 @@ public class Rows extends io.druid.data.Rows
     };
   }
 
+  public static Function<Map<String, Object>, Object[]> mapToArray(final String[] columnNames)
+  {
+    return new Function<Map<String, Object>, Object[]>()
+    {
+      @Override
+      public Object[] apply(Map<String, Object> row)
+      {
+        final Object[] array = new Object[columnNames.length];
+        for (int i = 0; i < columnNames.length; i++) {
+          array[i] = row.get(columnNames[i]);
+        }
+        return array;
+      }
+    };
+  }
+
   public static Function<Map<String, Object>, Row> mapToRow(final String timestampColumn)
   {
     return new Function<Map<String, Object>, Row>()

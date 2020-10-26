@@ -52,8 +52,7 @@ public class SinkTest
         "test",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.MINUTE, null),
-        new DefaultObjectMapper()
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.MINUTE, null)
     );
 
     final Interval interval = new Interval("2013-01-01/2013-01-02");
@@ -81,7 +80,8 @@ public class SinkTest
         schema,
         tuningConfig.getShardSpec(),
         version,
-        tuningConfig
+        tuningConfig,
+        new DefaultObjectMapper()
     );
 
     sink.add(

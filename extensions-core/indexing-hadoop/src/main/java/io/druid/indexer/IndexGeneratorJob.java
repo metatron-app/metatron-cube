@@ -247,7 +247,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
     final GranularitySpec granularitySpec = schema.getDataSchema().getGranularitySpec();
     final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(theBucket.time.getMillis())
-        .withDimensionsSpec(schema.getParser())
+        .withDimensionsSpec(schema.getParser(HadoopDruidIndexerConfig.JSON_MAPPER))
         .withDimensionFixed(schema.isDimensionFixed())
         .withQueryGranularity(granularitySpec.getQueryGranularity())
         .withSegmentGranularity(granularitySpec.getSegmentGranularity())

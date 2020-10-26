@@ -31,7 +31,10 @@ public interface ForwardConstants
   String CSV_FORMAT = "csv";
   String TSV_FORMAT = "tsv";
   String EXCEL_FORMAT = "excel";
+
+  // format from extension
   String ORC_FORMAT = "orc";
+  String PARQUET_FORMAT = "parquet";
 
   // column name mapping
   String COLUMNS = "columns"; // name of columns of row (aka. fieldNames)
@@ -43,7 +46,7 @@ public interface ForwardConstants
   String DATASOURCE = "dataSource";
   String REGISTER_TABLE = "registerTable";
   String TEMPORARY = "temporary";
-  String INTERVAL = "interval";
+  String OVERWRITE = "overwrite";
   String WAIT_TIMEOUT = "waitTimeout";
   String ASSERT_LOADED = "assertLoaded";
   String TUNING_CONFIG = "tuningConfig";

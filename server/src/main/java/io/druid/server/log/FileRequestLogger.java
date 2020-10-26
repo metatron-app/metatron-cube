@@ -19,10 +19,10 @@
 
 package io.druid.server.log;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.concurrent.ScheduledExecutors;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
@@ -55,7 +55,7 @@ public class FileRequestLogger implements RequestLogger
   public FileRequestLogger(ObjectMapper objectMapper, ScheduledExecutorService exec, File baseDir)
   {
     this.exec = exec;
-    this.objectMapper = objectMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+    this.objectMapper = ObjectMappers.excludeNulls(objectMapper);
     this.baseDir = baseDir;
   }
 

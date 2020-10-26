@@ -19,7 +19,6 @@
 
 package io.druid.server;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -29,13 +28,13 @@ import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.output.Formatters;
 import io.druid.data.output.ForwardConstants;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
@@ -116,15 +115,7 @@ public class ForwardHandler implements ForwardConstants
         );
         indexSchema = schema;
       }
-      forwardContext.put(
-          SCHEMA,
-          jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { })
-      );
-      Object indexInterval = forwardContext.get(INTERVAL);
-      if (indexInterval == null) {
-        indexInterval = JodaUtils.umbrellaInterval(query.getIntervals());
-      }
-      forwardContext.put(INTERVAL, indexInterval.toString());
+      forwardContext.put(SCHEMA, jsonMapper.convertValue(indexSchema, ObjectMappers.MAP_REF));
     }
 
     return new QueryRunner()
@@ -201,7 +192,7 @@ public class ForwardHandler implements ForwardConstants
     });
   }
 
-  private static URI getForwardURI(Query query)
+  private static URI getForwardURI(Query<?> query)
   {
     String forwardURL = BaseQuery.getResultForwardURL(query);
     if (!Strings.isNullOrEmpty(forwardURL)) {

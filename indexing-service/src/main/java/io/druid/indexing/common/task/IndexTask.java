@@ -294,7 +294,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     int unparsed = 0;
     SortedSet<Interval> retVal = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
-    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser())) {
+    try (Firehose firehose = firehoseFactory.connect(ingestionSchema.getParser(jsonMapper))) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
         if (inputRow == null) {
@@ -334,7 +334,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     // Load data
     int totalRows = 0;
-    try (Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser())) {
+    try (Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser(jsonMapper))) {
       while (firehose.hasMore()) {
         final InputRow inputRow = firehose.nextRow();
         if (inputRow == null) {
@@ -456,7 +456,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
     // Create firehose + plumber
     final FireDepartmentMetrics metrics = new FireDepartmentMetrics();
-    final Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser());
+    final Firehose firehose = firehoseFactory.connect(ingestionSpec.getParser(jsonMapper));
     final Supplier<Committer> committerSupplier = Committers.supplierFromFirehose(firehose);
     final Plumber plumber = new YeOldePlumberSchool(
         interval,

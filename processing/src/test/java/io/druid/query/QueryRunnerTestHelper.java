@@ -39,6 +39,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.guava.MergeSequence;
 import io.druid.java.util.common.guava.Sequence;
@@ -943,8 +944,8 @@ public class QueryRunnerTestHelper
 
   public static void printJson(Object object)
   {
-    ObjectWriter writer = DefaultObjectMapper.excludeNulls(TestHelper.getObjectMapper())
-                                             .writer(new DefaultPrettyPrinter());
+    ObjectWriter writer = ObjectMappers.excludeNulls(TestHelper.getObjectMapper())
+                                       .writer(new DefaultPrettyPrinter());
     try {
       System.out.println(writer.writeValueAsString(object));
     }

@@ -26,7 +26,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -38,6 +37,7 @@ import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.indexer.hadoop.HadoopAwareParser;
 import io.druid.indexer.hadoop.HadoopInputContext;
+import io.druid.java.util.common.logger.Logger;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -72,7 +72,6 @@ import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -187,8 +186,6 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
       datum = ((HiveVarchar) datum).getValue();
     } else if (category == PrimitiveObjectInspector.PrimitiveCategory.DECIMAL) {
       datum = ((HiveDecimal) datum).bigDecimalValue();
-    } else if (category == PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP) {
-      datum = ((Timestamp) datum).getTime();
     }
     return datum;
   }

@@ -358,8 +358,7 @@ public class BatchDeltaIngestionTest
                 },
                 new UniformGranularitySpec(
                     QueryGranularities.DAY, QueryGranularities.NONE, ImmutableList.of(INTERVAL_FULL)
-                ),
-                MAPPER
+                )
             ),
             new HadoopIOConfig(
                 inputSpec,

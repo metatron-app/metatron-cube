@@ -142,8 +142,7 @@ public class RealtimePlumberSchoolTest
             Map.class
         ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
-        jsonMapper
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
     );
 
     schema2 = new DataSchema(
@@ -158,8 +157,7 @@ public class RealtimePlumberSchoolTest
             Map.class
         ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(QueryGranularities.YEAR, QueryGranularities.NONE, null),
-        jsonMapper
+        new UniformGranularitySpec(QueryGranularities.YEAR, QueryGranularities.NONE, null)
     );
 
     announcer = EasyMock.createMock(DataSegmentAnnouncer.class);
@@ -262,7 +260,8 @@ public class RealtimePlumberSchoolTest
                    schema,
                    tuningConfig.getShardSpec(),
                    new DateTime("2014-12-01T12:34:56.789").toString(),
-                   tuningConfig
+                   tuningConfig,
+                   new DefaultObjectMapper()
                )
            );
     Assert.assertNull(plumber.startJob());
@@ -308,7 +307,8 @@ public class RealtimePlumberSchoolTest
                    schema,
                    tuningConfig.getShardSpec(),
                    new DateTime("2014-12-01T12:34:56.789").toString(),
-                   tuningConfig
+                   tuningConfig,
+                   new DefaultObjectMapper()
                )
            );
     plumber.startJob();
@@ -364,7 +364,8 @@ public class RealtimePlumberSchoolTest
                     schema2,
                     tuningConfig.getShardSpec(),
                     new DateTime("2014-12-01T12:34:56.789").toString(),
-                    tuningConfig
+                    tuningConfig,
+                    new DefaultObjectMapper()
                 )
             );
     Assert.assertNull(plumber2.startJob());

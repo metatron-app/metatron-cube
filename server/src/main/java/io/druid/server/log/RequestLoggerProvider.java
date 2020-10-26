@@ -20,11 +20,11 @@
 package io.druid.server.log;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Provider;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.RequestLogLine;
 
@@ -50,7 +50,7 @@ public interface RequestLoggerProvider extends Provider<RequestLogger>
     @Override
     public RequestLogger get()
     {
-      final ObjectMapper mapper = jsonMapper.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+      final ObjectMapper mapper = ObjectMappers.excludeNulls(jsonMapper);
 
       return new RequestLogger()
       {

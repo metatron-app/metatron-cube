@@ -281,7 +281,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
         if (firehose == null) {
           try {
             log.info("Calling the FireDepartment and getting a Firehose.");
-            firehose = fireDepartment.connect();
+            firehose = fireDepartment.connect(mapper);
             log.info("Firehose acquired!");
           }
           catch (IOException e) {
@@ -301,7 +301,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
         if (firehoseV2 == null) {
           try {
             log.info("Calling the FireDepartment and getting a FirehoseV2.");
-            firehoseV2 = fireDepartment.connect(metaData);
+            firehoseV2 = fireDepartment.connect(mapper, metaData);
             log.info("FirehoseV2 acquired!");
           }
           catch (IOException e) {

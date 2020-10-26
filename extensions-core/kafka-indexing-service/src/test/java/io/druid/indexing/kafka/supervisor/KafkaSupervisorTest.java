@@ -1914,8 +1914,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
             QueryGranularities.HOUR,
             QueryGranularities.NONE,
             ImmutableList.<Interval>of()
-        ),
-        objectMapper
+        )
     );
   }
 
@@ -1946,7 +1945,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
             false
         ),
         ImmutableMap.<String, Object>of(),
-        null
+        null,
+        objectMapper
     );
   }
 

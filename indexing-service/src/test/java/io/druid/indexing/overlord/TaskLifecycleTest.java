@@ -34,13 +34,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Comparators;
-import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.java.util.metrics.Monitor;
-import io.druid.java.util.metrics.MonitorScheduler;
 import io.druid.client.cache.MapCache;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
@@ -72,6 +65,13 @@ import io.druid.indexing.overlord.config.TaskQueueConfig;
 import io.druid.indexing.overlord.supervisor.SupervisorManager;
 import io.druid.indexing.test.TestIndexerMetadataStorageCoordinator;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.Comparators;
+import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.metrics.Monitor;
+import io.druid.java.util.metrics.MonitorScheduler;
 import io.druid.metadata.DerbyMetadataStorageActionHandlerFactory;
 import io.druid.metadata.TestDerbyConnector;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -644,8 +644,7 @@ public class TaskLifecycleTest
                     QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
-                ),
-                mapper
+                )
             ),
             new IndexTask.IndexIOConfig(new MockFirehoseFactory(false)),
             new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
@@ -703,8 +702,7 @@ public class TaskLifecycleTest
                     QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P1D"))
-                ),
-                mapper
+                )
             ),
             new IndexTask.IndexIOConfig(new MockExceptionalFirehoseFactory()),
             new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
@@ -1063,8 +1061,7 @@ public class TaskLifecycleTest
                     QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
-                ),
-                mapper
+                )
             ),
             new IndexTask.IndexIOConfig(new MockFirehoseFactory(false)),
             new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
@@ -1166,8 +1163,7 @@ public class TaskLifecycleTest
         "test_ds",
         null,
         new AggregatorFactory[]{new LongSumAggregatorFactory("count", "rows")},
-        new UniformGranularitySpec(QueryGranularities.DAY, QueryGranularities.NONE, null),
-        mapper
+        new UniformGranularitySpec(QueryGranularities.DAY, QueryGranularities.NONE, null)
     );
     RealtimeIOConfig realtimeIOConfig = new RealtimeIOConfig(
         new MockFirehoseFactory(true),

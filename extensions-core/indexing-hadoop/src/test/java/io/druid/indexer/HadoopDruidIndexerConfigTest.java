@@ -204,8 +204,7 @@ public class HadoopDruidIndexerConfigTest
                 QueryGranularities.MINUTE,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2010-01-01/P1D"))
-            ),
-            jsonMapper
+            )
         ),
         new HadoopIOConfig(ImmutableMap.<String, Object>of("paths", "bar", "type", "static"), null, null),
         new HadoopTuningConfig(
@@ -264,8 +263,7 @@ public class HadoopDruidIndexerConfigTest
                 QueryGranularities.MINUTE,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2010-01-01/P1D"))
-            ),
-            jsonMapper
+            )
         ),
         new HadoopIOConfig(ImmutableMap.<String, Object>of("paths", "bar", "type", "static"), null, null),
         new HadoopTuningConfig(

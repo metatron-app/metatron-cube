@@ -47,8 +47,9 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.hive</groupId>
-            <artifactId>hive-exec</artifactId>
+            <groupId>app.metatron.extensions</groupId>
+            <artifactId>druid-hive-extensions</artifactId>
+            <version>${project.parent.version}</version>
             <scope>provided</scope>
         </dependency>
 

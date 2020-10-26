@@ -122,8 +122,8 @@ public class PostProcessingOperators
       return null;
     }
     PostProcessingOperator postProcessor = load(query, mapper);
-    if (postProcessor instanceof Schema.SchemaResolving) {
-      outputColumns = ((Schema.SchemaResolving) postProcessor).resolve(outputColumns);
+    if (postProcessor instanceof RowSignature.Evolving) {
+      outputColumns = ((RowSignature.Evolving) postProcessor).evolve(outputColumns);
     }
     return outputColumns;
   }

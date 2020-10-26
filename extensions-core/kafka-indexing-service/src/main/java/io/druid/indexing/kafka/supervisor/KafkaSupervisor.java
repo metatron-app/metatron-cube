@@ -1784,7 +1784,8 @@ public class KafkaSupervisor implements Supervisor
           specId == null
             ? context
             : ImmutableMap.<String, Object>builder().put("supervisorId", specId).putAll(context).build(),
-          null
+          null,
+          sortingMapper
       );
 
       Optional<TaskQueue> taskQueue = taskMaster.getTaskQueue();

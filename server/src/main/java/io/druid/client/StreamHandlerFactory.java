@@ -19,11 +19,11 @@
 
 package io.druid.client;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import io.druid.common.utils.StringUtils;
+import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.http.client.response.ClientResponse;
@@ -55,10 +55,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class StreamHandlerFactory
 {
-  private static final TypeReference<Map<String, Object>> CONTEXT_TYPE = new TypeReference<Map<String, Object>>()
-  {
-  };
-
   protected final Logger log;
   protected final ObjectMapper mapper;
 
@@ -316,7 +312,7 @@ public class StreamHandlerFactory
           // context may be null in case of error or query timeout
           String responseContext = headers.get("X-Druid-Response-Context");
           if (responseContext != null) {
-            context.putAll(mapper.<Map<String, Object>>readValue(responseContext, CONTEXT_TYPE));
+            context.putAll(mapper.<Map<String, Object>>readValue(responseContext, ObjectMappers.MAP_REF));
           }
         }
 

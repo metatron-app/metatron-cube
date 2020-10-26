@@ -19,10 +19,10 @@
 
 package io.druid.indexer;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.druid.java.util.common.ISE;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.ObjectMappers;
+import io.druid.java.util.common.ISE;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -107,12 +107,7 @@ public class Utils
   {
     FileSystem fs = statsPath.getFileSystem(job.getConfiguration());
 
-    return jsonMapper.readValue(
-        fs.open(statsPath),
-        new TypeReference<Map<String, Object>>()
-        {
-        }
-    );
+    return jsonMapper.readValue(fs.open(statsPath), ObjectMappers.MAP_REF);
   }
 
   public static void storeStats(

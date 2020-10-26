@@ -29,13 +29,12 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.query.Schema;
 
 import java.util.List;
 import java.util.Map;
 
 public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<Row>
-    implements Schema.SchemaResolving
+    implements RowSignature.Evolving
 {
   private final Map<String, String> mapping;
 
@@ -77,7 +76,7 @@ public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<R
   }
 
   @Override
-  public List<String> resolve(List<String> schema)
+  public List<String> evolve(List<String> schema)
   {
     if (GuavaUtils.isNullOrEmpty(mapping)) {
       return schema;
@@ -94,7 +93,7 @@ public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<R
   }
 
   @Override
-  public RowSignature resolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
   {
     if (GuavaUtils.isNullOrEmpty(mapping)) {
       return schema;

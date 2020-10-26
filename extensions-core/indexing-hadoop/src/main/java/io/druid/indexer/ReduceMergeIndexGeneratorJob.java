@@ -308,7 +308,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final GranularitySpec granularitySpec = schema.getDataSchema().getGranularitySpec();
       final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withMinTimestamp(interval.getStartMillis())
-          .withDimensionsSpec(schema.getParser())
+          .withDimensionsSpec(schema.getParser(HadoopDruidIndexerConfig.JSON_MAPPER))
           .withDimensionFixed(schema.isDimensionFixed())
           .withQueryGranularity(granularitySpec.getQueryGranularity())
           .withSegmentGranularity(granularitySpec.getSegmentGranularity())

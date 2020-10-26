@@ -94,9 +94,9 @@ public class BrokerForwardHandler extends ForwardHandler
     if (Formatters.isIndexFormat(context) && PropUtils.parseBoolean(context, REGISTER_TABLE, false)) {
       context = Maps.newLinkedHashMap(context);
       context.put("broker", node.getHostAndPort());
-      context.put("queryId", query.getId());
+      context.put(Query.QUERYID, query.getId());
       context.putIfAbsent(DATASOURCE, "___temporary_" + new DateTime());
-      if (PropUtils.parseBoolean(context, TEMPORARY, true)) {
+      if (PropUtils.parseBoolean(context, TEMPORARY, true) && !PropUtils.parseBoolean(context, OVERWRITE, false)) {
         brokerServerView.addLocalDataSource(PropUtils.parseString(context, DATASOURCE));
       }
     }
@@ -111,8 +111,12 @@ public class BrokerForwardHandler extends ForwardHandler
     if (Formatters.isIndexFormat(context) && PropUtils.parseBoolean(context, REGISTER_TABLE, false)) {
       String dataSource = PropUtils.parseString(context, DATASOURCE);
       boolean temporary = PropUtils.parseBoolean(context, TEMPORARY, true);
-      Map<String, Object> metaData = ImmutableMap.of("queryId", query.getId());
+      boolean overwrite = PropUtils.parseBoolean(context, OVERWRITE, false);
+      Map<String, Object> metaData = ImmutableMap.of(Query.QUERYID, query.getId());
 
+      if (temporary && overwrite) {
+        brokerServerView.dropLocalDataSource(dataSource);
+      }
       List<Map<String, Object>> segmentsData = (List<Map<String, Object>>) result.get("data");
       if (GuavaUtils.isNullOrEmpty(segmentsData)) {
         LOG.info("Nothing to publish..");

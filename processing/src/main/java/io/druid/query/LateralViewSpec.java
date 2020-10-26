@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
-import io.druid.query.Schema;
 
 import java.util.Map;
 
@@ -35,7 +34,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "explode", value = ExplodeSpec.class),
     @JsonSubTypes.Type(name = "explodeMap", value = ExplodeMapSpec.class),
 })
-public interface LateralViewSpec extends Schema.SchemaResolving
+public interface LateralViewSpec extends RowSignature.Evolving
 {
   Function<Map<String, Object>, Iterable<Map<String, Object>>> prepare();
 }

@@ -26,6 +26,8 @@ import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.parsers.ParseException;
 import org.joda.time.DateTime;
 
+import java.util.Date;
+
 /**
  */
 public class Rows
@@ -188,6 +190,8 @@ public class Rows
       return ((Number) value).longValue();
     } else if (value instanceof DateTime) {
       return ((DateTime) value).getMillis();
+    } else if (value instanceof Date) {
+      return ((Date) value).getTime();
     } else if (value instanceof String) {
       try {
         return tryParseLong((String) value);

@@ -84,8 +84,7 @@ public class TaskSerdeTest
                     QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
-                ),
-                jsonMapper
+                )
             ),
             new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl")),
             new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
@@ -126,8 +125,7 @@ public class TaskSerdeTest
                     QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
-                ),
-                jsonMapper
+                )
             ),
             new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl")),
             new IndexTask.IndexTuningConfig(indexSpec, 10, null, false, 10000, -1)
@@ -306,8 +304,7 @@ public class TaskSerdeTest
                 "foo",
                 null,
                 new AggregatorFactory[0],
-                new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
-                jsonMapper
+                new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
             ),
             new RealtimeIOConfig(
                 new LocalFirehoseFactory(new File("lol"), "rofl"), new PlumberSchool()

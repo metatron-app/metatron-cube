@@ -210,8 +210,9 @@ public class Rules
   private static final boolean NO_DAG = true;
   private static final int MIN_JOIN_REORDER = 6;
 
-  public static List<Program> programs(PlannerContext context, QueryMaker queryMaker)
+  public static List<Program> programs(QueryMaker queryMaker)
   {
+    PlannerContext context = queryMaker.getPlannerContext();
     return ImmutableList.of(druidPrograms(context, queryMaker), bindablePrograms(context));
   }
 

@@ -26,7 +26,6 @@ import io.druid.indexing.common.TestUtils;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.common.task.TaskResource;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeIOConfig;
@@ -58,7 +57,7 @@ public class TaskAnnouncementTest
         "theid",
         new TaskResource("rofl", 2),
         new FireDepartment(
-            new DataSchema("foo", null, new AggregatorFactory[0], null, new DefaultObjectMapper()),
+            new DataSchema("foo", null, new AggregatorFactory[0], null),
             new RealtimeIOConfig(
                 new LocalFirehoseFactory(new File("lol"), "rofl"), new PlumberSchool()
             {

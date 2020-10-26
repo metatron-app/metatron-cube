@@ -322,7 +322,8 @@ public class AppenderatorImpl implements Appenderator
           schema,
           identifier.getShardSpec(),
           identifier.getVersion(),
-          tuningConfig
+          tuningConfig,
+          objectMapper
       );
 
       try {
@@ -1237,7 +1238,8 @@ public class AppenderatorImpl implements Appenderator
             identifier.getShardSpec(),
             identifier.getVersion(),
             tuningConfig,
-            hydrants
+            hydrants,
+            objectMapper
         );
         sinks.put(identifier, currSink);
         sinkTimeline.add(
