@@ -211,7 +211,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testInsertIntoWithHeader() throws Exception
   {
     testQuery(
-        "INSERT INTO DIRECTORY '/__temporary' AS 'CSV' WITH ('withHeader' => 'true') SELECT 1 + 1, dim1 FROM foo LIMIT 1",
+        "INSERT INTO DIRECTORY '/__temporary' AS 'CSV' WITH ('withHeader' : true) SELECT 1 + 1, dim1 FROM foo LIMIT 1",
         new Object[]{true, 1, MASKED, 19L}
     );
   }

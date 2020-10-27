@@ -1421,7 +1421,7 @@ void Property(List<SqlNode> list) :
     SqlNode value = null;
 }
 {
-    [ key = StringLiteral() <NAMED_ARGUMENT_ASSIGNMENT> value = Literal() ]
+    [ key = StringLiteral() <COLON> value = Literal() ]
     {
         if (key != null) {
             list.add(key);

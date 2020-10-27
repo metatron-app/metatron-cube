@@ -60,7 +60,7 @@ public class SqlProperties extends SqlCall
     for (int i = 0; i < values.size(); i += 2) {
       writer.sep(",");
       writer.literal(((SqlLiteral) values.get(i)).toValue());
-      writer.keyword("=>");
+      writer.keyword(":");
       writer.literal(((SqlLiteral) values.get(i + 1)).toValue());
     }
     writer.endList(frame);
@@ -71,12 +71,27 @@ public class SqlProperties extends SqlCall
     Map<String, Object> properties = Maps.newHashMap();
     for (int i = 0; i < values.size(); i += 2) {
       String key = ((SqlLiteral) values.get(i)).toValue();
-      Comparable value = SqlLiteral.value(values.get(i + 1));
+      Object value = getValue(values.get(i + 1));
       if (value instanceof NlsString) {
         value = ((NlsString) value).getValue();
       }
       properties.put(key, value);
     }
     return properties;
+  }
+
+  private Object getValue(SqlNode valueNode)
+  {
+    if (valueNode instanceof SqlLiteral) {
+      SqlLiteral literal = (SqlLiteral) valueNode;
+      switch (literal.getTypeName().getFamily()) {
+        case INTERVAL_YEAR_MONTH:
+        case INTERVAL_DAY_TIME:
+          return SqlLiteral.value(valueNode);
+        default:
+          return literal.getValue();
+      }
+    }
+    return SqlLiteral.value(valueNode);
   }
 }
