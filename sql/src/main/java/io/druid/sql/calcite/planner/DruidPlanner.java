@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -45,9 +44,11 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunners;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.load.LoadQuery;
+import io.druid.segment.IndexSpec;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.indexing.DataSchema;
 import io.druid.server.FileLoadSpec;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.ddl.SqlCreateTable;
@@ -92,7 +93,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 public class DruidPlanner implements Closeable, ForwardConstants
@@ -398,30 +398,6 @@ public class DruidPlanner implements Closeable, ForwardConstants
 
   private PlannerResult handleLoadTable(SqlLoadTable source, BrokerServerView serverView)
   {
-    String dataSource = source.getTable().toString();
-    Map<String, Object> properties = Maps.newHashMap(source.getProperties());
-    properties.put(DATASOURCE, dataSource);
-    properties.put(REGISTER_TABLE, true);
-
-    String format = Objects.toString(properties.get("format"), null);
-    Preconditions.checkArgument(format != null, "'format' should be specified");
-    ObjectMapper mapper = plannerContext.getObjectMapper();
-    mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
-    FileLoadSpec.Resolver resolver = mapper.convertValue(
-        properties, FileLoadSpec.Resolver.class
-    );
-    if (resolver == null) {
-      throw new IAE("Not supports '%s'", format);
-    }
-
-    DataSchema schema = null;
-    FileLoadSpec loadSpec;
-    try {
-      loadSpec = resolver.resolve(queryMaker.getSegmentWalker());
-    }
-    catch (IOException e) {
-      throw new IAE(e, "Failed to resolve schema");
-    }
     final RelDataTypeFactory factory = planner.getTypeFactory();
     final RelDataType resultType = factory.createStructType(Arrays.asList(
         Pair.of("dataSource", factory.createSqlType(SqlTypeName.VARCHAR)),
@@ -431,13 +407,48 @@ public class DruidPlanner implements Closeable, ForwardConstants
         Pair.of("numSegments", factory.createSqlType(SqlTypeName.INTEGER)),
         Pair.of("data", factory.createArrayType(factory.createSqlType(SqlTypeName.VARCHAR), -1))
     ));
-    final LoadQuery query = LoadQuery.of(loadSpec);
+
+    final LoadQuery query = LoadQuery.of(resolve(source, queryMaker.getSegmentWalker()));
     final Sequence<Object[]> sequence = Sequences.map(
         QueryRunners.run(query, queryMaker.getSegmentWalker()),
         Rows.mapToArray(resultType.getFieldNames().toArray(new String[0]))
     );
 
-    return new PlannerResult(query, Suppliers.ofInstance(sequence), resultType, ImmutableSet.of(dataSource));
+    return new PlannerResult(
+        query,
+        Suppliers.ofInstance(sequence),
+        resultType,
+        ImmutableSet.of(resolve(source, queryMaker.getSegmentWalker()).getSchema().getDataSource())
+    );
+  }
+
+  private FileLoadSpec resolve(SqlLoadTable source, QuerySegmentWalker segmentWalker)
+  {
+    String path = source.getPath();
+    String dataSource = source.getTable().toString();
+    Map<String, Object> properties = Maps.newHashMap(source.getProperties());
+    properties.put("basePath", path);
+
+    ObjectMapper mapper = plannerContext.getObjectMapper().copy();
+    mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+    FileLoadSpec.Resolver resolver = mapper.convertValue(properties, FileLoadSpec.Resolver.class);
+    if (resolver == null) {
+      throw new IAE("Not supports '%s'", properties);
+    }
+    IndexSpec indexSpec = mapper.convertValue(properties, IndexSpec.class);
+    BaseTuningConfig config = mapper.convertValue(properties, BaseTuningConfig.class);
+    try {
+      return resolver.resolve(dataSource, segmentWalker)
+                     .augment(
+                         source.isTemporary(),
+                         source.isOverwrite(),
+                         config.withIndexSpec(indexSpec),
+                         properties
+                     );
+    }
+    catch (IOException e) {
+      throw new IAE(e, "Failed to resolve schema");
+    }
   }
 
   @SuppressWarnings("unchecked")

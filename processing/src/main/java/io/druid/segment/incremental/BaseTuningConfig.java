@@ -99,4 +99,16 @@ public class BaseTuningConfig implements TuningConfig
   {
     return ignoreInvalidRows;
   }
+
+  public BaseTuningConfig withIndexSpec(IndexSpec indexSpec)
+  {
+    return new BaseTuningConfig(
+        indexSpec,
+        maxRowsInMemory,
+        maxOccupationInMemory,
+        maxShardLength,
+        buildV9Directly,
+        ignoreInvalidRows
+    );
+  }
 }

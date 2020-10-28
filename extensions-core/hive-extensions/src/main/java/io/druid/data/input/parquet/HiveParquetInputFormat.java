@@ -21,8 +21,8 @@ package io.druid.data.input.parquet;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.indexer.HadoopDruidIndexerConfig;
+import com.google.common.collect.Sets;
+import io.druid.segment.indexing.DataSchema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.parquet.read.DataWritableReadSupport;
 import org.apache.hadoop.hive.serde2.io.DateWritable;
@@ -74,17 +74,18 @@ public class HiveParquetInputFormat extends ParquetInputFormat
       Configuration configuration = context.getConfiguration();
       delegated = ReflectionUtils.newInstance(DataWritableReadSupport.class, configuration);
 
-      HadoopDruidIndexerConfig config = HadoopDruidIndexerConfig.fromConfiguration(configuration, false);
-      Set<String> required = config.getRequiredColumnNames();
-      if (!GuavaUtils.isNullOrEmpty(required)) {
+      String[] required = configuration.getStrings(DataSchema.REQUIRED_COLUMNS);
+      if (required != null && required.length > 0) {
+        Set<String> filter = Sets.newHashSet(required);
         List<Type> projected = Lists.newArrayList();
         for (Type field : readSchema.getFields()) {
-          if (required.contains(field.getName())) {
+          if (filter.contains(field.getName())) {
             projected.add(field);
           }
         }
         readSchema = new MessageType(readSchema.getName(), projected);
       }
+
       Map<String, String> contextMetadata = Maps.newHashMap();
       contextMetadata.put(DataWritableReadSupport.HIVE_TABLE_AS_PARQUET_SCHEMA, readSchema.toString());
       return new ReadContext(readSchema, contextMetadata);

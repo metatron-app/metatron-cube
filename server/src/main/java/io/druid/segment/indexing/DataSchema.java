@@ -31,10 +31,12 @@ import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRowParsers;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.Validation;
+import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -48,7 +50,10 @@ import java.util.Set;
  */
 public class DataSchema
 {
-  private static final Logger log = new Logger(DataSchema.class);
+  public static final String REQUIRED_COLUMNS = "required.columns";
+  public static final String HADOOP_REQUIRED_COLUMNS = "hadoop.required.columns";
+
+  private static final Logger LOG = new Logger(DataSchema.class);
 
   private final String dataSource;
   private final Map<String, Object> parser;
@@ -76,13 +81,13 @@ public class DataSchema
     this.parser = parser;
 
     if (aggregators == null || aggregators.length == 0) {
-      log.warn("No metricsSpec has been specified. Are you sure this is what you want?");
+      LOG.warn("No metricsSpec has been specified. Are you sure this is what you want?");
     }
     this.aggregators = aggregators == null ? new AggregatorFactory[0] : aggregators;
     this.enforceType = enforceType;
 
     if (granularitySpec == null) {
-      log.warn("No granularitySpec has been specified. Using UniformGranularitySpec as default.");
+      LOG.warn("No granularitySpec has been specified. Using UniformGranularitySpec as default.");
       this.granularitySpec = new UniformGranularitySpec(null, null, null);
     } else {
       this.granularitySpec = granularitySpec;
@@ -118,7 +123,7 @@ public class DataSchema
   public InputRowParser getParser(ObjectMapper mapper, boolean ignoreInvalidRows)
   {
     if (parser == null) {
-      log.warn("No parser has been specified");
+      LOG.warn("No parser has been specified");
       return null;
     }
     final InputRowParser parser = createInputRowParser(mapper, ignoreInvalidRows);
@@ -273,5 +278,35 @@ public class DataSchema
            ", validations=" + validations +
            ", dimensionFixed=" + dimensionFixed +
            '}';
+  }
+
+  // for projection pushdown
+  public Set<String> getRequiredColumnNames(InputRowParser parser)
+  {
+    List<DimensionSchema> dimensionSchema = parser.getDimensionsSpec().getDimensions();
+    if (dimensionSchema.isEmpty()) {
+      return null;
+    }
+    Set<String> required = Sets.newHashSet();
+
+    required.addAll(parser.getTimestampSpec().getRequiredColumns());
+
+    for (DimensionSchema dimension : dimensionSchema) {
+      required.add(dimension.getName());
+    }
+    for (AggregatorFactory agg : getAggregators()) {
+      required.addAll(agg.requiredFields());
+    }
+    for (Evaluation evaluation : getEvaluations()) {
+      for (String expression : evaluation.getExpressions()) {
+        required.addAll(Parser.findRequiredBindings(expression));
+      }
+    }
+    for (Validation validation : getValidations()) {
+      for (String expression : validation.getExclusions()) {
+        required.addAll(Parser.findRequiredBindings(expression));
+      }
+    }
+    return required;
   }
 }

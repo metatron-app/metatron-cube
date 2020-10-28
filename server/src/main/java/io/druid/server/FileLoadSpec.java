@@ -33,6 +33,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.input.ReadConstants;
 import io.druid.data.input.Row;
@@ -44,6 +45,7 @@ import io.druid.initialization.Initialization;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.DummyQuery;
 import io.druid.query.ForwardingSegmentWalker;
@@ -62,22 +64,25 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  */
 public class FileLoadSpec implements ForwardConstants, ReadConstants
 {
+  private static final Logger LOG = new Logger(FileLoadSpec.class);
+
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "format")
   public static interface Resolver
   {
-    FileLoadSpec resolve(QuerySegmentWalker walker) throws IOException;
+    FileLoadSpec resolve(String dataSource, QuerySegmentWalker walker) throws IOException;
   }
 
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
 
   private final List<String> paths;
-  private final String inputFormat; // todo
+  private final String inputFormat;
   private final String extension;
 
   private final DataSchema schema;
@@ -172,6 +177,26 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
     return properties;
   }
 
+  public FileLoadSpec augment(
+      boolean overwrite,
+      boolean temporary,
+      BaseTuningConfig config,
+      Map<String, Object> properties
+  )
+  {
+    return new FileLoadSpec(
+        basePath,
+        paths,
+        extension,
+        inputFormat,
+        schema,
+        overwrite,
+        temporary,
+        config,
+        properties
+    );
+  }
+
   @JsonIgnore
   private InputRowParser getParser(ObjectMapper mapper)
   {
@@ -187,21 +212,25 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
                  .getParser(mapper, ignoreInvalidRows);
   }
 
-  @JsonIgnore
-  public List<URI> getURIs()
+  private List<URI> getURIs()
   {
     List<URI> uris = Lists.newArrayList();
     try {
       URI parent = basePath == null ? null : normalize(new URI(basePath));
       String prev = null;
       for (String path : paths) {
-        URI child = resolve(parent, new URI(path));
-        if (prev == null || prev.equals(child.getScheme())) {
-          prev = child.getScheme();
+        URI child = new URI(path);
+        if (child.isAbsolute()) {
           uris.add(child);
           continue;
         }
-        throw new IAE("conflicting schema %s and %s", prev, child.getScheme());
+        URI resolved = resolve(parent, child);
+        if (prev == null || prev.equals(resolved.getScheme())) {
+          prev = resolved.getScheme();
+          uris.add(resolved);
+          continue;
+        }
+        throw new IAE("conflicting schema %s and %s", prev, resolved.getScheme());
       }
     }
     catch (URISyntaxException e) {
@@ -259,6 +288,7 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
     if (handler == null) {
       throw new IAE("Unsupported scheme '%s'", scheme);
     }
+    LOG.info("%s : %s", scheme, locations);
     final ObjectMapper jsonMapper = walker.getObjectMapper();
 
     final InputRowParser parser = getParser(jsonMapper);
@@ -296,6 +326,12 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
     final Map<String, Object> loadContext = Maps.newHashMap(properties);
     loadContext.put(IGNORE_INVALID_ROWS, tuningConfig != null && tuningConfig.isIgnoreInvalidRows());
     loadContext.put(INPUT_FORMAT, inputFormat);
+    final Set<String> requiredColumns = schema.getRequiredColumnNames(parser);
+    if (requiredColumns != null && requiredColumns.size() > 0) {
+      String concat = StringUtils.concat(",", requiredColumns);
+      loadContext.put(DataSchema.REQUIRED_COLUMNS, concat);
+      loadContext.put(DataSchema.HADOOP_REQUIRED_COLUMNS, concat);
+    }
 
     // progressing sequence
     try {

@@ -33,17 +33,14 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
-import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.Validation;
-import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.guice.GuiceInjectors;
@@ -58,8 +55,6 @@ import io.druid.jackson.FunctionModule;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.math.expr.Parser;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
@@ -98,6 +93,7 @@ public class HadoopDruidIndexerConfig
   private static final Injector injector;
 
   public static final String CONFIG_PROPERTY = "druid.indexer.config";
+
   public static final Charset JAVA_NATIVE_CHARSET = Charset.forName("Unicode");
   public static final Splitter TAB_SPLITTER = Splitter.on("\t");
   public static final Joiner TAB_JOINER = Joiner.on("\t");
@@ -609,7 +605,10 @@ public class HadoopDruidIndexerConfig
   public void intoConfiguration(Job job)
   {
     Configuration conf = job.getConfiguration();
-
+    Set<String> required = schema.getDataSchema().getRequiredColumnNames(getParser());
+    if (!GuavaUtils.isNullOrEmpty(required)) {
+      conf.setStrings(DataSchema.REQUIRED_COLUMNS, required.toArray(new String[0]));
+    }
     try {
       conf.set(CONFIG_PROPERTY, JSON_MAPPER.writeValueAsString(this));
     }
@@ -667,36 +666,5 @@ public class HadoopDruidIndexerConfig
       }
     }
     return dimensions;
-  }
-
-  // for projection pushdown
-  public Set<String> getRequiredColumnNames()
-  {
-    Set<String> required = Sets.newHashSet();
-
-    InputRowParser parser = getParser();
-    List<DimensionSchema> dimensionSchema = parser.getDimensionsSpec().getDimensions();
-    if (dimensionSchema.isEmpty()) {
-      return null;
-    }
-    required.addAll(parser.getTimestampSpec().getRequiredColumns());
-
-    for (DimensionSchema dimension : dimensionSchema) {
-      required.add(dimension.getName());
-    }
-    for (AggregatorFactory agg : schema.getDataSchema().getAggregators()) {
-      required.addAll(agg.requiredFields());
-    }
-    for (Evaluation evaluation : schema.getDataSchema().getEvaluations()) {
-      for (String expression : evaluation.getExpressions()) {
-        required.addAll(Parser.findRequiredBindings(expression));
-      }
-    }
-    for (Validation validation : schema.getDataSchema().getValidations()) {
-      for (String expression : validation.getExclusions()) {
-        required.addAll(Parser.findRequiredBindings(expression));
-      }
-    }
-    return required;
   }
 }

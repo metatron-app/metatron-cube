@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
+import io.druid.data.input.parquet.PaquetSchemaResolver;
 import io.druid.initialization.DruidModule;
 
 import java.util.List;
@@ -37,6 +38,7 @@ public class HiveDruidModule implements DruidModule
     return ImmutableList.of(
         new SimpleModule("HiveDruidModule")
             .registerSubtypes(HivePathSpec.class)
+            .registerSubtypes(PaquetSchemaResolver.class)
     );
   }
 

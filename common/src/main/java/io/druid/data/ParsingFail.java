@@ -20,7 +20,10 @@
 package io.druid.data;
 
 import com.google.common.base.Strings;
+import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.parsers.ParseException;
+
+import java.util.Objects;
 
 /**
  */
@@ -54,7 +57,8 @@ public class ParsingFail extends ParseException
   @Override
   public String getMessage()
   {
-    return super.getMessage() + " from " + input;
+    String string = Objects.toString(input, null);
+    return super.getMessage() + " from " + StringUtils.limit(string, 128);
   }
 
   public static ParseException propagate(Object input, Throwable t)

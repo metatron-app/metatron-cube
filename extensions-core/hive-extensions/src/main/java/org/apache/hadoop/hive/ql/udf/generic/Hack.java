@@ -24,6 +24,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.Mode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUtils.ConversionHelper;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters.Converter;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorUtils;
 
@@ -51,15 +52,18 @@ public class Hack
 
     final ObjectInspector[] parameterOI = evaluator.parameterOIs;
     final ObjectInspector[] expectedOI = toExpectedOI(aggregateMethod, parameterOI, evaluator.conversionHelper);
-
+    final Converter[] converter = new Converter[parameterOI.length];
+    for (int i = 0; i < parameterOI.length; i++) {
+      converter[i] = ObjectInspectorConverters.getConverter(parameterOI[i], expectedOI[i]);
+    }
     evaluator.conversionHelper = new ConversionHelper(aggregateMethod, parameterOI)
     {
       @Override
       public Object[] convertIfNecessary(final Object... parameters)
       {
-        final Object[] converted = new Object[parameterOI.length];
-        for (int i = 0; i < parameterOI.length; i++) {
-          converted[i] = ObjectInspectorConverters.getConverter(parameterOI[i], expectedOI[i]).convert(parameters[i]);
+        final Object[] converted = new Object[parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+          converted[i] = converter[i].convert(parameters[i]);
         }
         return converted;
       }

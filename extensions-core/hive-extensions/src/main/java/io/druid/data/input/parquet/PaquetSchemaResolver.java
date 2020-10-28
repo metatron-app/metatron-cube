@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * with the License. You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.data.input;
+package io.druid.data.input.parquet;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,9 +25,13 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.ExpressionTimestampSpec;
+import io.druid.data.input.IncrementTimestampSpec;
+import io.druid.data.input.RelayTimestampSpec;
+import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.ParseSpec;
+import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.granularity.Granularity;
 import io.druid.indexer.path.PathUtil;
@@ -43,18 +47,21 @@ import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.server.FileLoadSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.io.orc.OrcFile;
-import org.apache.hadoop.hive.ql.io.orc.OrcNewInputFormat;
-import org.apache.hadoop.hive.ql.io.orc.Reader;
-import org.apache.orc.OrcProto;
+import org.apache.parquet.format.converter.ParquetMetadataConverter;
+import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.OriginalType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-@JsonTypeName("orc")
-public class OrcSchemaResolver implements FileLoadSpec.Resolver
+@JsonTypeName("parquet")
+public class PaquetSchemaResolver implements FileLoadSpec.Resolver
 {
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
   private final List<String> paths;
@@ -64,7 +71,7 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
   private final Granularity segmentGranularity;
 
   @JsonCreator
-  public OrcSchemaResolver(
+  public PaquetSchemaResolver(
       @JsonProperty("basePath") String basePath,
       @JsonProperty("paths") String paths,
       @JsonProperty("recursive") boolean recursive,
@@ -80,8 +87,6 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
     this.segmentGranularity = segmentGranularity;
   }
 
-  private static final int DIMENSION_THRESHOLD = 32;
-
   @Override
   public FileLoadSpec resolve(String dataSource, QuerySegmentWalker walker) throws IOException
   {
@@ -92,92 +97,61 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
     }
     // from first file
     Path path = base == null ? new Path(resolved.get(0)) : new Path(base, resolved.get(0));
-    Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
-
-    List<OrcProto.Type> types = reader.getTypes();
-    List<OrcProto.ColumnStatistics> statistics = reader.getOrcProtoFileStatistics();
-
-    List<String> dimensions = Lists.newArrayList();
-    List<AggregatorFactory> agggregators = Lists.newArrayList();
-    StringBuilder typeString = new StringBuilder("struct<");
+    ParquetMetadata metadata = ParquetFileReader.readFooter(
+        new Configuration(), path, ParquetMetadataConverter.NO_FILTER
+    );
 
     TimestampSpec timestampSpec = null;
     if (timeExpression != null) {
       timestampSpec = new ExpressionTimestampSpec(timeExpression);
     }
-    final OrcProto.Type root = types.get(0);
-    final int fieldCount = root.getSubtypesCount();
-    for (int i = 0; i < fieldCount; i++) {
-      if (i > 0) {
-        typeString.append(',');
-      }
-      final int index = root.getSubtypes(i);
-      final OrcProto.Type type = types.get(index);
-      final OrcProto.ColumnStatistics stat = statistics.get(index);
-      final String fieldName = root.getFieldNames(i);
-      switch (type.getKind()) {
-        case FLOAT:
-          typeString.append(fieldName).append(':').append(ValueDesc.FLOAT_TYPE);
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.FLOAT));
-          continue;
-        case DOUBLE:
-          typeString.append(fieldName).append(':').append(ValueDesc.DOUBLE_TYPE);
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.DOUBLE));
-          continue;
-        case BOOLEAN:
-          typeString.append(fieldName).append(':').append(ValueDesc.BOOLEAN_TYPE);
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.BOOLEAN));
-          continue;
-        case BYTE:
-          typeString.append(fieldName).append(':').append("tinyint");
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.LONG));
-        case SHORT:
-          typeString.append(fieldName).append(':').append("smallint");
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.LONG));
-          continue;
-        case INT:
-          typeString.append(fieldName).append(':').append("int");
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.LONG));
-          continue;
-        case LONG:
-          typeString.append(fieldName).append(':').append("bigint");
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.LONG));
-          continue;
-        case CHAR:
-        case STRING:
-        case VARCHAR:
-          typeString.append(fieldName).append(':').append(ValueDesc.STRING_TYPE);
-          if (stat.getSerializedSize() / stat.getNumberOfValues() < DIMENSION_THRESHOLD) {
-            dimensions.add(fieldName);
-          } else {
-            agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.STRING));
-          }
-          continue;
-        case DECIMAL:
-          agggregators.add(RelayAggregatorFactory.of(fieldName, ValueDesc.DECIMAL));
-          continue;
-        case DATE:
-        case TIMESTAMP:
-          if (timestampSpec == null) {
-            timestampSpec = new RelayTimestampSpec(fieldName);
-            continue;
-          }
-        case BINARY:
-        case STRUCT:
-        case UNION:
-        case MAP:
-        case LIST:
-        default:
-          throw new UnsupportedOperationException("Unknown type " + type.getKind());
-      }
-    }
-    typeString.append('>');
+    List<String> dimensions = Lists.newArrayList();
+    List<AggregatorFactory> agggregators = Lists.newArrayList();
 
+    MessageType messageType = metadata.getFileMetaData().getSchema();
+    for (Type field : messageType.getFields()) {
+      final OriginalType originalType = field.getOriginalType();
+      if (originalType != null) {
+        switch (originalType) {
+          case UTF8:
+            dimensions.add(field.getName());
+            continue;
+          case DATE:
+            if (timestampSpec == null) {
+              timestampSpec = new RelayTimestampSpec(field.getName());
+              continue;
+            }
+          case DECIMAL:
+            agggregators.add(RelayAggregatorFactory.of(field.getName(), ValueDesc.DECIMAL));
+            continue;
+        }
+      }
+      if (field.isPrimitive()) {
+        final PrimitiveType primitive = field.asPrimitiveType();
+        switch (primitive.getPrimitiveTypeName()) {
+          case INT32:
+          case INT64:
+            agggregators.add(RelayAggregatorFactory.of(field.getName(), ValueDesc.LONG));
+            continue;
+          case BOOLEAN:
+            agggregators.add(RelayAggregatorFactory.of(field.getName(), ValueDesc.BOOLEAN));
+            continue;
+          case FLOAT:
+            agggregators.add(RelayAggregatorFactory.of(field.getName(), ValueDesc.FLOAT));
+            continue;
+          case DOUBLE:
+            agggregators.add(RelayAggregatorFactory.of(field.getName(), ValueDesc.DOUBLE));
+            continue;
+        }
+      }
+      throw new UnsupportedOperationException("Unknown type " + field);
+    }
     if (timestampSpec == null) {
       timestampSpec = IncrementTimestampSpec.dummy();
     }
-    ParseSpec parseSpec = new TimeAndDimsParseSpec(timestampSpec, DimensionsSpec.ofStringDimensions(dimensions));
-    InputRowParser parser = new OrcHadoopInputRowParser(parseSpec, typeString.toString(), null);
+    InputRowParser parser = new MapInputRowParser(
+        new TimeAndDimsParseSpec(timestampSpec, DimensionsSpec.ofStringDimensions(dimensions))
+    );
     Map<String, Object> spec = walker.getObjectMapper().convertValue(parser, ObjectMappers.MAP_REF);
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     DataSchema schema = new DataSchema(
@@ -186,8 +160,8 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
     return new FileLoadSpec(
         basePath,
         resolved,
-        "druid-orc-extensions",
-        OrcNewInputFormat.class.getName(),
+        "druid-hive-extensions",
+        HiveParquetInputFormat.class.getName(),
         schema,
         null,
         null,

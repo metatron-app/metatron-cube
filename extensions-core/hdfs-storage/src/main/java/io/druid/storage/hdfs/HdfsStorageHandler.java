@@ -138,6 +138,7 @@ public class HdfsStorageHandler implements StorageHandler
     if (inputFormatClass != null &&
         (InputFormat.class.isAssignableFrom(inputFormatClass) ||
          org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass))) {
+      LOG.info("Loading data with formatter [%s]", inputFormat);
       final InputFormat format;
       if (org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormatClass)) {
         format = new InputFormatWrapper(
@@ -150,8 +151,16 @@ public class HdfsStorageHandler implements StorageHandler
       FileInputFormat.setInputPaths(
           job, StringUtils.concat(",", Iterables.transform(locations, Functions.toStringFunction()))
       );
+      for (Map.Entry<String, Object> entry : context.entrySet()) {
+        if (entry.getKey().startsWith("hadoop.") && entry.getValue() instanceof String) {
+          job.getConfiguration().set(entry.getKey().substring(7), (String) entry.getValue());
+        }
+      }
       final RecordReader<Object, InputRow> reader = HadoopInputUtils.toRecordReader(format, parser, job);
       return Sequences.once(HadoopInputUtils.<Row>toIterator(reader));
+    }
+    if (inputFormat != null) {
+      LOG.warn("Cannot resolve formatter [%s].. Possible class loader conflct?", inputFormat);
     }
 
     long total = 0;
@@ -438,9 +447,10 @@ public class HdfsStorageHandler implements StorageHandler
           if (granularity == Granularities.ALL && queryInterval != null) {
             interval = queryInterval;
           } else {
+            DateTime endBucket = granularity.bucketStart(timeMinMax.getEnd());
             interval = Intervals.of(
                 granularity.bucketStart(timeMinMax.getStart()),
-                granularity.bucketEnd(timeMinMax.getEnd())
+                endBucket.equals(timeMinMax.getEnd()) ? endBucket : granularity.increment(endBucket)
             );
           }
           LOG.info("Using segment interval [%s]", interval);

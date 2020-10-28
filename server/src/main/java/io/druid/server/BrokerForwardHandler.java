@@ -147,7 +147,7 @@ public class BrokerForwardHandler extends ForwardHandler
         eventEmitter.emit(new SimpleEvent(builder.build()));
       }
       if (temporary) {
-        LOG.info("Segments are registered to %s table %s", temporary ? "temporary " : "", dataSource);
+        LOG.info("Segments are registered to %stable %s", temporary ? "temporary " : "", dataSource);
       } else {
         indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
         try {

@@ -161,12 +161,12 @@ public class ForwardHandler implements ForwardConstants
 
       private Sequence<Map<String, Object>> asMap(Query<T> query, Map<String, Object> context, Map responseContext)
       {
-        // union-all does not have toolchest. delegate it to inner query
         Sequence sequence = baseRunner.run(query, responseContext);
         if (PostProcessingOperators.isMapOutput(query, jsonMapper)) {
           // already converted to map
           return sequence;
         }
+        // union-all does not have toolchest. delegate it to inner query
         Query<T> representative = BaseQuery.getRepresentative(query);
         String timestampColumn = PropUtils.parseString(context, Query.FORWARD_TIMESTAMP_COLUMN);
         return warehouse.getToolChest(representative).asMap(query, timestampColumn).apply(sequence);
