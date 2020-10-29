@@ -36,6 +36,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Rows;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.BaseSequence;
@@ -49,9 +50,11 @@ import io.druid.query.load.LoadQuery;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.indexing.DataSchema;
 import io.druid.server.FileLoadSpec;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.ddl.SqlCreateTable;
+import io.druid.sql.calcite.ddl.SqlDescPath;
 import io.druid.sql.calcite.ddl.SqlDropTable;
 import io.druid.sql.calcite.ddl.SqlInsertDirectory;
 import io.druid.sql.calcite.ddl.SqlLoadTable;
@@ -123,6 +126,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     }
     if (source.getKind() == SqlKind.CREATE_TABLE && source instanceof SqlLoadTable) {
       return handleLoadTable((SqlLoadTable) source, brokerServerView);
+    }
+    if (source instanceof SqlDescPath) {
+      return handleDescPath((SqlDescPath) source);
     }
     SqlNode target = source;
     if (target.getKind() == SqlKind.EXPLAIN) {
@@ -396,6 +402,31 @@ public class DruidPlanner implements Closeable, ForwardConstants
     return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(row)), dataType);
   }
 
+  private PlannerResult handleDescPath(SqlDescPath source)
+  {
+    final RelDataTypeFactory factory = planner.getTypeFactory();
+    final RelDataType resultType = factory.createStructType(Arrays.asList(
+        Pair.of("typeString", factory.createSqlType(SqlTypeName.VARCHAR)),
+        Pair.of("extension", factory.createSqlType(SqlTypeName.VARCHAR)),
+        Pair.of("inputFormat", factory.createSqlType(SqlTypeName.VARCHAR)),
+        Pair.of("basePath", factory.createSqlType(SqlTypeName.VARCHAR)),
+        Pair.of("paths", factory.createSqlType(SqlTypeName.ARRAY))
+    ));
+    FileLoadSpec loadSpec = resolve(source.asResolver(), queryMaker.getSegmentWalker());
+    DataSchema dataSchema = loadSpec.getSchema();
+    InputRowParser parser = dataSchema.getParser(plannerContext.getObjectMapper(), false);
+    Object[] result = new Object[]{
+        dataSchema.asTypeString(parser), loadSpec.getExtension(), loadSpec.getInputFormat(),
+        loadSpec.getBasePath(), loadSpec.getPaths()
+    };
+    return new PlannerResult(
+        null,
+        Suppliers.ofInstance(Sequences.<Object[]>of(result)),
+        resultType,
+        ImmutableSet.of()
+    );
+  }
+
   private PlannerResult handleLoadTable(SqlLoadTable source, BrokerServerView serverView)
   {
     final RelDataTypeFactory factory = planner.getTypeFactory();
@@ -408,7 +439,8 @@ public class DruidPlanner implements Closeable, ForwardConstants
         Pair.of("data", factory.createArrayType(factory.createSqlType(SqlTypeName.VARCHAR), -1))
     ));
 
-    final LoadQuery query = LoadQuery.of(resolve(source, queryMaker.getSegmentWalker()));
+    final FileLoadSpec resolved = resolve(source, queryMaker.getSegmentWalker());
+    final LoadQuery query = LoadQuery.of(resolved);
     final Sequence<Object[]> sequence = Sequences.map(
         QueryRunners.run(query, queryMaker.getSegmentWalker()),
         Rows.mapToArray(resultType.getFieldNames().toArray(new String[0]))
@@ -418,7 +450,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         query,
         Suppliers.ofInstance(sequence),
         resultType,
-        ImmutableSet.of(resolve(source, queryMaker.getSegmentWalker()).getSchema().getDataSource())
+        ImmutableSet.of(resolved.getSchema().getDataSource())
     );
   }
 

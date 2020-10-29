@@ -280,6 +280,28 @@ public class DataSchema
            '}';
   }
 
+  public String asTypeString(InputRowParser parser)
+  {
+    List<DimensionSchema> dimensionSchema = parser.getDimensionsSpec().getDimensions();
+    if (dimensionSchema.isEmpty() && !dimensionFixed) {
+      return null;
+    }
+    StringBuilder builder = new StringBuilder();
+    for (DimensionSchema dimension : dimensionSchema) {
+      if (builder.length() > 0) {
+        builder.append(',');
+      }
+      builder.append(dimension.getName()).append(':').append("dimension");
+    }
+    for (AggregatorFactory agg : getAggregators()) {
+      if (builder.length() > 0) {
+        builder.append(',');
+      }
+      builder.append(agg.getName()).append(':').append(agg.getInputType());
+    }
+    return builder.toString();
+  }
+
   // for projection pushdown
   public Set<String> getRequiredColumnNames(InputRowParser parser)
   {

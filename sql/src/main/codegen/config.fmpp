@@ -47,6 +47,7 @@ data: {
       "org.apache.calcite.sql.ddl.SqlDdlNodes"
       "io.druid.sql.calcite.SqlProperties"
       "io.druid.sql.calcite.ddl.SqlCreateTable"
+      "io.druid.sql.calcite.ddl.SqlDescPath"
       "io.druid.sql.calcite.ddl.SqlDescTable"
       "io.druid.sql.calcite.ddl.SqlDropTable"
       "io.druid.sql.calcite.ddl.SqlInsertDirectory"

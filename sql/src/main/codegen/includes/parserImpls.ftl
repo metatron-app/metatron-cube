@@ -399,23 +399,36 @@ SqlNode SqlShowTables() :
 SqlNode SqlDescribeTable() :
 {
     SqlParserPos pos;
+    SqlNode path;
+    SqlProperties properties;
     SqlIdentifier table;
     SqlIdentifier column = null;
     SqlNode columnPattern = null;
 }
 {
     (<DESCRIBE> | <DESC>) { pos = getPos(); }
-    table = CompoundIdentifier()
+
     (
-        column = CompoundIdentifier()
+        LOOKAHEAD(3)
+        <PATH> path = StringLiteral() <WITH> properties = Properties()
+        {
+            return new SqlDescPath(pos, path, properties);
+        }
+
         |
-        columnPattern = StringLiteral()
-        |
-        E()
+
+        table = CompoundIdentifier()
+        (
+            column = CompoundIdentifier()
+            |
+            columnPattern = StringLiteral()
+            |
+            E()
+        )
+        {
+            return SqlDescTable.rewrite(pos, table, column, columnPattern);
+        }
     )
-    {
-        return SqlDescTable.rewrite(pos, table, column, columnPattern);
-    }
 }
 
 // End parserImpls.ftl
