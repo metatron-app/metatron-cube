@@ -19,6 +19,7 @@
 
 package io.druid.storage.hdfs;
 
+import com.google.common.collect.Lists;
 import io.druid.indexer.hadoop.RecordReaderWrapper;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.Reporter;
@@ -27,7 +28,6 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
 import java.io.IOException;
 import java.util.List;
@@ -46,23 +46,38 @@ public class InputFormatWrapper extends InputFormat
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException
   {
-    throw new UnsupportedOperationException("getSplits");
+    final JobConf jobConf = new JobConf(context.getConfiguration());
+    final List<InputSplit> splits = Lists.newArrayList();
+    for (org.apache.hadoop.mapred.InputSplit split : inputFormat.getSplits(jobConf, -1)) {
+      splits.add(new Wrapper(split));
+    }
+    return splits;
   }
 
   @Override
-  public RecordReader createRecordReader(
-      InputSplit split, TaskAttemptContext context
-  ) throws IOException, InterruptedException
+  public RecordReader createRecordReader(InputSplit split, TaskAttemptContext context)
+      throws IOException, InterruptedException
   {
-    FileSplit fileSplit = (FileSplit) split;
-    org.apache.hadoop.mapred.FileSplit changed = new org.apache.hadoop.mapred.FileSplit(
-        fileSplit.getPath(),
-        fileSplit.getStart(),
-        fileSplit.getLength(),
-        fileSplit.getLocations()
-    );
-    return new RecordReaderWrapper(
-        inputFormat.getRecordReader(changed, new JobConf(context.getConfiguration()), Reporter.NULL)
-    );
+    final JobConf jobConf = new JobConf(context.getConfiguration());
+    return new RecordReaderWrapper(inputFormat.getRecordReader(((Wrapper) split).split, jobConf, Reporter.NULL));
+  }
+
+  private static class Wrapper extends InputSplit
+  {
+    private final org.apache.hadoop.mapred.InputSplit split;
+
+    private Wrapper(org.apache.hadoop.mapred.InputSplit split) {this.split = split;}
+
+    @Override
+    public long getLength() throws IOException, InterruptedException
+    {
+      return split.getLength();
+    }
+
+    @Override
+    public String[] getLocations() throws IOException, InterruptedException
+    {
+      return split.getLocations();
+    }
   }
 }

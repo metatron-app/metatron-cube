@@ -100,7 +100,7 @@ public class LatLonShapeIndexingStrategy implements LuceneIndexingStrategy
           shape = reader.read(value);
         }
         catch (Throwable t) {
-          throw ParsingFail.propagate(value, t);
+          throw ParsingFail.propagate(value, t, "failed to read shape");
         }
         Preconditions.checkArgument(shape instanceof Point, "%s is not point", StringUtils.forLog(value));
         Point point = (Point) shape;

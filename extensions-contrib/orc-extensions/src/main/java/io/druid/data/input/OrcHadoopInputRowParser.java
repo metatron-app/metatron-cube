@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -70,7 +71,6 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.joda.time.DateTime;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -81,7 +81,7 @@ import java.util.Set;
 
 public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 {
-  private static final Logger logger = new Logger(OrcHadoopInputRowParser.class);
+  private static final Logger LOG = new Logger(OrcHadoopInputRowParser.class);
 
   private final ParseSpec parseSpec;
   private final String typeString;
@@ -122,16 +122,14 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   @Override
   public InputRow parse(OrcStruct input)
   {
-    try {
-      StructObjectInspector oip = Preconditions.checkNotNull(
-          getObjectInspector(),
-          "user should specify typeString or schema"
-      );
+    final StructObjectInspector oip = Preconditions.checkNotNull(
+        getObjectInspector(), "user should specify typeString or schema"
+    );
 
-      List<? extends StructField> fields = oip.getAllStructFieldRefs();
-      Map<String, Object> map = Maps.newHashMapWithExpectedSize(fields.size());
-      for (StructField field : fields) {
-        ObjectInspector objectInspector = field.getFieldObjectInspector();
+    Map<String, Object> map = Maps.newHashMap();
+    for (StructField field : oip.getAllStructFieldRefs()) {
+      try {
+        final ObjectInspector objectInspector = field.getFieldObjectInspector();
         switch (objectInspector.getCategory()) {
           case PRIMITIVE:
             PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector) objectInspector;
@@ -151,14 +149,14 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
             break;
         }
       }
+      catch (Exception e) {
+        throw ParsingFail.propagate(input, e, "failed to get access [%s] from [%s]", field, oip);
+      }
+    }
 
-      map = Rows.mergePartitions(map);
-      DateTime timestamp = timestampSpec.extractTimestamp(map);
-      return new MapBasedInputRow(timestamp, dimensions, map);
-    }
-    catch (Exception e) {
-      throw ParsingFail.propagate(input, e);
-    }
+    map = Rows.mergePartitions(map);
+    DateTime timestamp = timestampSpec.extractTimestamp(map);
+    return new MapBasedInputRow(timestamp, dimensions, map);
   }
 
   @Override
@@ -205,7 +203,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
         try {
           Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(context.getConfiguration()));
           dynamicInspector = (StructObjectInspector) reader.getObjectInspector();
-          if (logger.isInfoEnabled()) {
+          if (LOG.isInfoEnabled()) {
             StringBuilder builder = new StringBuilder();
             for (StructField field : dynamicInspector.getAllStructFieldRefs()) {
               if (builder.length() > 0) {
@@ -213,7 +211,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
               }
               builder.append(field.getFieldName()).append(':').append(field.getFieldObjectInspector().getTypeName());
             }
-            logger.info("Using type in orc meta : struct<%s>", builder.toString());
+            LOG.info("Using type in orc meta : struct<%s>", builder.toString());
           }
         }
         catch (Exception e) {
@@ -223,13 +221,25 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
       }
       currentSplit = split;
     }
+    Set<String> fields = Sets.newLinkedHashSet(
+        Lists.transform(dynamicInspector.getAllStructFieldRefs(), f -> f.getFieldName())
+    );
+    List<String> notExisting = Lists.newArrayList();
+    for (String name : parseSpec.getDimensionsSpec().getDimensionNames()) {
+      if (!fields.contains(name)) {
+        notExisting.add(name);
+      }
+    }
+    if (!notExisting.isEmpty()) {
+      LOG.info("Missing some dimensions %s in orc fields %s", notExisting, fields);
+    }
     return dynamicInspector;
   }
 
   // optional type string
   private StructObjectInspector initStaticInspector(String typeString)
   {
-    logger.info("Using user specified spec %s", typeString);
+    LOG.info("Using user specified spec %s", typeString);
     try {
       return (StructObjectInspector) fromTypeString(typeString).getObjectInspector();
     }
@@ -243,7 +253,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     try {
       TypeInfo type = TypeInfoUtils.getTypeInfoFromTypeString(typeString);
       if (type instanceof StructTypeInfo) {
-        Properties table = getTablePropertiesFromStructTypeInfo((StructTypeInfo)type);
+        Properties table = getTablePropertiesFromStructTypeInfo((StructTypeInfo) type);
         OrcSerde serde = new OrcSerde();
         serde.initialize(new Configuration(), table);
         return serde;
@@ -257,26 +267,16 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 
   private List getListObject(ListObjectInspector listObjectInspector, Object listObject)
   {
-    List objectList = listObjectInspector.getList(listObject);
-    List list = null;
+    List<?> objectList = listObjectInspector.getList(listObject);
     ObjectInspector child = listObjectInspector.getListElementObjectInspector();
-    switch(child.getCategory())
-    {
+    switch (child.getCategory()) {
       case PRIMITIVE:
-        final PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector)child;
-        list = Lists.transform(objectList, new Function() {
-          @Nullable
-          @Override
-          public Object apply(@Nullable Object input) {
-            return getDatum(primitiveObjectInspector, input);
-          }
-        });
-        break;
+        final PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector) child;
+        return Lists.newArrayList(Lists.transform(objectList, o -> getDatum(primitiveObjectInspector, o)));
       default:
         break;
     }
-
-    return list;
+    return null;
   }
 
   @JsonProperty
@@ -328,13 +328,17 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     Properties table = new Properties();
     table.setProperty("columns", StringUtils.join(structTypeInfo.getAllStructFieldNames(), ","));
     table.setProperty("columns.types", StringUtils.join(
-        Lists.transform(structTypeInfo.getAllStructFieldTypeInfos(),
-            new Function<TypeInfo, String>() {
+        Lists.transform(
+            structTypeInfo.getAllStructFieldTypeInfos(),
+            new Function<TypeInfo, String>()
+            {
               @Override
-              public String apply(TypeInfo typeInfo) {
+              public String apply(TypeInfo typeInfo)
+              {
                 return typeInfo.getTypeName();
               }
-            }),
+            }
+        ),
         ","
     ));
 

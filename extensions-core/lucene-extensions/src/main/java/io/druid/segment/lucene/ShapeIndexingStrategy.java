@@ -220,7 +220,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
           return strategy.createIndexableFields(shape);
         }
         catch (Exception e) {
-          throw ParsingFail.propagate(input, e);
+          throw ParsingFail.propagate(input, e, "failed to read shape");
         }
       }
     };

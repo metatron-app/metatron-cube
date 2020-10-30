@@ -63,7 +63,7 @@ public class ParquetHadoopInputRowParser implements InputRowParser<Map<String, O
       return new MapBasedInputRow(dateTime, dimensions, record);
     }
     catch (Exception e) {
-      throw ParsingFail.propagate(record, e);
+      throw ParsingFail.propagate(record, e, "failed to extract timestamp");
     }
   }
 

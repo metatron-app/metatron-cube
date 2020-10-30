@@ -63,9 +63,14 @@ public class ParsingFail extends ParseException
 
   public static ParseException propagate(Object input, Throwable t)
   {
+    throw propagate(input, t, Strings.nullToEmpty(t.getMessage()));
+  }
+
+  public static ParseException propagate(Object input, Throwable t, String message, Object... params)
+  {
     if (t instanceof ParseException) {
       throw (ParseException) t;
     }
-    throw new ParsingFail(input, t);
+    throw new ParsingFail(input, message, t, params);
   }
 }
