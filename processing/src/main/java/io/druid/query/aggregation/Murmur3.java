@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.primitives.Ints;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -183,6 +184,70 @@ public class Murmur3
         k1 ^= ((long) data[offset + tailStart + 1] & 0xff) << 8;
       case 1:
         k1 ^= ((long) data[offset + tailStart] & 0xff);
+        k1 *= C1;
+        k1 = Long.rotateLeft(k1, R1);
+        k1 *= C2;
+        hash ^= k1;
+    }
+
+    // finalization
+    hash ^= length;
+    hash = fmix64(hash);
+
+    return hash;
+  }
+
+  public static long hash64(ByteBuffer data, int offset, int length) {
+    return hash64(data, offset, length, DEFAULT_SEED);
+  }
+
+  public static long hash64(ByteBuffer data, int offset, int length, int seed) {
+    long hash = seed;
+    final int nblocks = length >> 3;
+    final byte[] b = new byte[8];
+
+    // body
+    for (int i = 0; i < nblocks; i++) {
+      final int i8 = i << 3;
+      data.position(offset + i8);
+      data.get(b);
+      long k = ((long) b[0] & 0xff)
+               | (((long) b[1] & 0xff) << 8)
+               | (((long) b[2] & 0xff) << 16)
+               | (((long) b[3] & 0xff) << 24)
+               | (((long) b[4] & 0xff) << 32)
+               | (((long) b[5] & 0xff) << 40)
+               | (((long) b[6] & 0xff) << 48)
+               | (((long) b[7] & 0xff) << 56);
+
+      // mix functions
+      k *= C1;
+      k = Long.rotateLeft(k, R1);
+      k *= C2;
+      hash ^= k;
+      hash = Long.rotateLeft(hash, R2) * M + N1;
+    }
+
+    // tail
+    long k1 = 0;
+    int tailStart = nblocks << 3;
+    data.position(offset + tailStart);
+    data.get(b, 0, length - tailStart);
+    switch (length - tailStart) {
+      case 7:
+        k1 ^= ((long) b[6] & 0xff) << 48;
+      case 6:
+        k1 ^= ((long) b[5] & 0xff) << 40;
+      case 5:
+        k1 ^= ((long) b[4] & 0xff) << 32;
+      case 4:
+        k1 ^= ((long) b[3] & 0xff) << 24;
+      case 3:
+        k1 ^= ((long) b[2] & 0xff) << 16;
+      case 2:
+        k1 ^= ((long) b[1] & 0xff) << 8;
+      case 1:
+        k1 ^= ((long) b[0] & 0xff);
         k1 *= C1;
         k1 = Long.rotateLeft(k1, R1);
         k1 *= C2;

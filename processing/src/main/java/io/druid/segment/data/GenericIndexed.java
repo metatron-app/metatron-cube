@@ -154,6 +154,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
+  public void scan(Scanner scanner)
+  {
+    bufferIndexed.scan(scanner);
+  }
+
+  @Override
   public int copyTo(int index, BytesOutputStream output)
   {
     return bufferIndexed.copyTo(index, output);
@@ -281,6 +287,17 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     }
 
     protected abstract ByteBuffer bufferForRead();
+
+    private void scan(Scanner scanner)
+    {
+      final ByteBuffer buffer = bufferForRead();
+      int start = Integer.BYTES;
+      for (int i = 0; i < size; i++) {
+        final int end = buffer.getInt(indexOffset + (i * Integer.BYTES));
+        scanner.scan(i, buffer, valuesOffset + start, end - start);
+        start = Integer.BYTES + end;
+      }
+    }
 
     @Override
     public final T get(final int index)

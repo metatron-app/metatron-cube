@@ -17,31 +17,34 @@
  * under the License.
  */
 
-package io.druid.segment.data;
+package io.druid.query.aggregation;
 
-import io.druid.data.input.BytesOutputStream;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.nio.ByteBuffer;
+import java.util.Random;
 
-// common interface of non-compressed(GenericIndexed) and compressed dictionary
-public interface Dictionary<T> extends Indexed.Closeable<T>
+public class Murmur3Test
 {
-  boolean isSorted();
-
-  Boolean containsNull();     // null for unknown
-
-  byte[] getAsRaw(int index);
-
-  int copyTo(int index, BytesOutputStream output);
-
-  int sizeOfWords();
-
-  long getSerializedSize();
-
-  void scan(Scanner scanner);
-
-  interface Scanner
+  @Test
+  public void testByteBuffer()
   {
-    void scan(int number, ByteBuffer buffer, int offset, int length);
+    byte[] bytes = new byte[0x100000];
+    ByteBuffer wrap = ByteBuffer.wrap(bytes);
+    ByteBuffer direct = ByteBuffer.allocateDirect(bytes.length);
+
+    Random r = new Random();
+    for (int i = 0; i < 10; i++) {
+      r.nextBytes(bytes);
+      direct.position(0);
+      direct.put(bytes);
+      for (int offset = 0, length = 3; offset + length < bytes.length; length = r.nextInt(80) + 1) {
+        final long expected = Murmur3.hash64(bytes, offset, length);
+        Assert.assertEquals(expected, Murmur3.hash64(wrap, offset, length));
+        Assert.assertEquals(expected, Murmur3.hash64(direct, offset, length));
+        offset += length;
+      }
+    }
   }
 }

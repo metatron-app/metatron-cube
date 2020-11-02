@@ -27,6 +27,7 @@ import com.google.common.collect.Maps;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.RowResolver;
@@ -89,6 +90,9 @@ public class ExpressionDimensionSpec implements DimensionSpec
   {
     final String dimension = getDimension();
     final Expr expr = Parser.parse(expression, resolver);
+    if (Evals.isIdentifier(expr) && dimension.equals(Evals.getIdentifier(expr))) {
+      return selector;  // no need to wrap
+    }
     final ValueDesc resultType = expr.returns();
     if (!Comparable.class.isAssignableFrom(RowResolver.toClass(resultType))) {
       throw new IllegalArgumentException("cannot wrap as dimension selector for type " + resultType);

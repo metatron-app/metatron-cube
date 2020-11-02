@@ -373,7 +373,7 @@ public class BloomKFilter implements HashCollector
     return testHash(Murmur3.hash64(key.bytes, 0, key.length));
   }
 
-  private boolean testHash(long hash64)
+  public boolean testHash(long hash64)
   {
     final int hash1 = (int) hash64;
     final int hash2 = (int) (hash64 >>> 32);

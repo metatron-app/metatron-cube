@@ -25,9 +25,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
@@ -40,6 +43,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.HashAggregator;
 import io.druid.query.aggregation.HashCollector;
+import io.druid.query.aggregation.Murmur3;
 import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.bloomfilter.BloomKFilter;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
@@ -50,6 +54,10 @@ import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.Column;
+import io.druid.segment.data.Dictionary;
+import io.druid.segment.filter.FilterContext;
 
 import java.util.Arrays;
 import java.util.List;
@@ -58,8 +66,10 @@ import java.util.Set;
 /**
  */
 @JsonTypeName("bloom")
-public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvider
+public class BloomDimFilter implements DimFilter.LogProvider
 {
+  private static final float BULKSCAN_THRESHOLD_RATIO = 0.4f;
+
   public static BloomDimFilter of(List<String> fieldNames, BloomKFilter filter)
   {
     return new BloomDimFilter(fieldNames, null, GroupingSetSpec.EMPTY, filter.serialize());
@@ -107,11 +117,42 @@ public class BloomDimFilter implements DimFilter.ValueOnly, DimFilter.LogProvide
   }
 
   @Override
-  public Filter.ValueOnly toFilter(TypeResolver resolver)
+  public Filter toFilter(TypeResolver resolver)
   {
-    // todo support bitmap for single dimension case
-    return new Filter.ValueOnly()
+    return new Filter()
     {
+      @Override
+      public ImmutableBitmap getBitmapIndex(FilterContext context)
+      {
+        // todo support multi dimension by looping ?
+        final String onlyDimension;
+        if (fields != null && fields.size() == 1 && fields.get(0) instanceof DefaultDimensionSpec) {
+          onlyDimension = fields.get(0).getDimension();
+        } else if (fieldNames != null && fieldNames.size() == 1) {
+          onlyDimension = fieldNames.get(0);
+        } else {
+          return null;
+        }
+        final BitmapIndexSelector selector = context.indexSelector();
+        final Column column = selector.getColumn(onlyDimension);
+        final BitmapIndex bitmapIndex = column.getBitmapIndex();
+        if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+          final Dictionary<String> dictionary = column.getDictionary();
+          if (dictionary.size() > context.numRows() * BULKSCAN_THRESHOLD_RATIO) {
+            return null;
+          }
+          final IntList ids = new IntList();
+          final BloomKFilter filter = BloomKFilter.deserialize(bloomFilter);
+          dictionary.scan((x, b, o, l) -> {
+            if (filter.testHash(Murmur3.hash64(b, o, l))) {
+              ids.add(x);
+            }
+          });
+          return selector.getBitmapFactory().union(Iterables.transform(ids, x -> bitmapIndex.getBitmap(x)));
+        }
+        return null;
+      }
+
       @Override
       public ValueMatcher makeMatcher(ColumnSelectorFactory columnFactory)
       {
