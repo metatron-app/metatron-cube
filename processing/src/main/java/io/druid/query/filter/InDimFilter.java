@@ -34,6 +34,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
@@ -183,9 +184,13 @@ public class InDimFilter extends SingleInput implements RangeFilter
   public List<Range> toRanges(TypeResolver resolver)
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");
-    final List<Range> ranges = Lists.newArrayList();
+    ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING);
+    if (resolved.isStringOrDimension()) {
+      resolved = ValueDesc.STRING;
+    }
+    List<Range> ranges = Lists.newArrayList();
     for (String value : values) {
-      ranges.add(Ranges.of(value, "=="));
+      ranges.add(Ranges.of(resolved.type().cast(value), "=="));
     }
     return ranges;
   }

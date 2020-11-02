@@ -39,7 +39,7 @@ public interface Filter extends Expression
   // used when bitmap filter cannot be applied
   ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory);
 
-  abstract class ValueOnly implements Filter
+  abstract class MathcherOnly implements Filter
   {
     @Override
     public final ImmutableBitmap getBitmapIndex(FilterContext context)

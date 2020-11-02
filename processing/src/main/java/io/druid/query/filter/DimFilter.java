@@ -363,10 +363,10 @@ public interface DimFilter extends Expression, Cacheable
   }
 
   // marker.. skip trying with index
-  interface ValueOnly extends DimFilter
+  interface MathcherOnly extends DimFilter
   {
     @Override
-    Filter.ValueOnly toFilter(TypeResolver resolver);
+    Filter.MathcherOnly toFilter(TypeResolver resolver);
   }
 
   // marker.. returns not-exact bitmap

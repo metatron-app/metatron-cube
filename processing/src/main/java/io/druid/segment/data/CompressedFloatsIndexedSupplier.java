@@ -23,13 +23,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.column.FloatScanner;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -45,19 +48,19 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
 {
   public static final int MAX_FLOATS_IN_BUFFER = CompressedPools.BUFFER_SIZE / Float.BYTES;
 
-  private final int totalSize;
+  private final int numRows;
   private final int sizePer;
   private final GenericIndexed<ResourceHolder<FloatBuffer>> baseFloatBuffers;
   private final CompressionStrategy compression;
 
   public CompressedFloatsIndexedSupplier(
-      int totalSize,
+      int numRows,
       int sizePer,
       GenericIndexed<ResourceHolder<FloatBuffer>> baseFloatBuffers,
       CompressionStrategy compression
   )
   {
-    this.totalSize = totalSize;
+    this.numRows = numRows;
     this.sizePer = sizePer;
     this.baseFloatBuffers = baseFloatBuffers;
     this.compression = compression;
@@ -65,7 +68,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
 
   public int size()
   {
-    return totalSize;
+    return numRows;
   }
 
   public CompressionStrategy compressionType()
@@ -92,7 +95,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
           }
 
           final int bufferIndex = index & rem;
-          return buffer.get(buffer.position() + bufferIndex);
+          return buffer.get(bufferPos + bufferIndex);
         }
       };
     } else {
@@ -110,7 +113,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     channel.write(ByteBuffer.wrap(new byte[]{ColumnPartSerde.WITH_COMPRESSION_ID}));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(totalSize)));
+    channel.write(ByteBuffer.wrap(Ints.toByteArray(numRows)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseFloatBuffers.writeToChannel(channel);
@@ -125,7 +128,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
   public CompressedFloatsIndexedSupplier convertByteOrder(ByteOrder order)
   {
     return new CompressedFloatsIndexedSupplier(
-        totalSize,
+        numRows,
         sizePer,
         GenericIndexed.fromIterable(baseFloatBuffers, CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
         compression
@@ -232,11 +235,27 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     int currIndex = -1;
     ResourceHolder<FloatBuffer> holder;
     FloatBuffer buffer;
+    int bufferPos = -1;
 
     @Override
     public int size()
     {
-      return totalSize;
+      return numRows;
+    }
+
+    @Override
+    public void scan(ImmutableBitmap include, FloatScanner scanner)
+    {
+      if (include == null) {
+        for (int index = 0; index < numRows; index++) {
+          scanner.apply(index, this::get);
+        }
+      } else {
+        final IntIterator iterator = include.iterator();
+        while (iterator.hasNext()) {
+          scanner.apply(iterator.next(), this::get);
+        }
+      }
     }
 
     @Override
@@ -249,7 +268,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
       if (bufferNum != currIndex) {
         loadBuffer(bufferNum);
       }
-      return buffer.get(buffer.position() + bufferIndex);
+      return buffer.get(bufferPos + bufferIndex);
     }
 
     @Override
@@ -263,7 +282,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
       }
 
       buffer.mark();
-      buffer.position(buffer.position() + bufferIndex);
+      buffer.position(bufferPos + bufferIndex);
 
       final int numToGet = Math.min(buffer.remaining(), toFill.length);
       buffer.get(toFill, 0, numToGet);
@@ -277,6 +296,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
       CloseQuietly.close(holder);
       holder = singleThreadedFloatBuffers.get(bufferNum);
       buffer = holder.get();
+      bufferPos = buffer.position();
       currIndex = bufferNum;
     }
 
@@ -287,7 +307,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreadedFloatBuffers.size() +
-             ", totalSize=" + totalSize +
+             ", numRows=" + numRows +
              '}';
     }
 

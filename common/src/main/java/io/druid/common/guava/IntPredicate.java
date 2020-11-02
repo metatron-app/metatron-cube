@@ -23,5 +23,8 @@ package io.druid.common.guava;
  */
 public interface IntPredicate
 {
+  IntPredicate TRUE = v -> true;
+  IntPredicate FALSE = v -> false;
+
   boolean apply(int value);
 }

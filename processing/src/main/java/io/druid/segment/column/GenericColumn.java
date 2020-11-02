@@ -19,7 +19,9 @@
 
 package io.druid.segment.column;
 
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -30,6 +32,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
 import java.util.Objects;
+import java.util.function.DoublePredicate;
+import java.util.function.LongPredicate;
 
 /**
  */
@@ -95,6 +99,24 @@ public interface GenericColumn extends ComplexColumn
 
     @Override
     public abstract Long getValue(int rowNum);
+
+    public abstract void scan(ImmutableBitmap include, LongScanner scanner);
+
+    public ImmutableBitmap collect(
+        final BitmapFactory factory,
+        final ImmutableBitmap include,
+        final LongPredicate predicate
+    )
+    {
+      final ImmutableBitmap nulls = getNulls();
+      final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+      if (nulls.isEmpty()) {
+        scan(include, (x, f) -> { if (predicate.test(f.get(x))) { bitmap.add(x); } });
+      } else {
+        scan(include, (x, f) -> { if (!nulls.get(x) && predicate.test(f.get(x))) { bitmap.add(x); } });
+      }
+      return factory.makeImmutableBitmap(bitmap);
+    }
   }
 
   abstract class FloatType implements GenericColumn
@@ -140,6 +162,24 @@ public interface GenericColumn extends ComplexColumn
 
     @Override
     public abstract Float getValue(int rowNum);
+
+    public abstract void scan(ImmutableBitmap include, FloatScanner scanner);
+
+    public ImmutableBitmap collect(
+        final BitmapFactory factory,
+        final ImmutableBitmap include,
+        final FloatPredicate predicate
+    )
+    {
+      final ImmutableBitmap nulls = getNulls();
+      final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+      if (nulls.isEmpty()) {
+        scan(include, (x, f) -> { if (predicate.test(f.get(x))) { bitmap.add(x); } });
+      } else {
+        scan(include, (x, f) -> { if (!nulls.get(x) && predicate.test(f.get(x))) { bitmap.add(x); } });
+      }
+      return factory.makeImmutableBitmap(bitmap);
+    }
   }
 
   abstract class DoubleType implements GenericColumn
@@ -185,6 +225,24 @@ public interface GenericColumn extends ComplexColumn
 
     @Override
     public abstract Double getValue(int rowNum);
+
+    public abstract void scan(ImmutableBitmap include, DoubleScanner scanner);
+
+    public ImmutableBitmap collect(
+        final BitmapFactory factory,
+        final ImmutableBitmap include,
+        final DoublePredicate predicate
+    )
+    {
+      final ImmutableBitmap nulls = getNulls();
+      final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+      if (nulls.isEmpty()) {
+        scan(include, (x, f) -> { if (predicate.test(f.get(x))) { bitmap.add(x); } });
+      } else {
+        scan(include, (x, f) -> { if (!nulls.get(x) && predicate.test(f.get(x))) { bitmap.add(x); } });
+      }
+      return factory.makeImmutableBitmap(bitmap);
+    }
   }
 
   abstract class Compressed extends ComplexColumn.Compressed implements GenericColumn

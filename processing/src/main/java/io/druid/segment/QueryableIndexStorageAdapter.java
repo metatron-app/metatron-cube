@@ -991,11 +991,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     public ValueMatcher makePredicateMatcher(DimFilter filter)
                     {
                       BitmapHolder holder = Filters.toBitmapHolder(filter, context);
-                      if (holder == null || holder.bitmap().size() == index.getNumRows()) {
+                      if (holder == null) {
                         return super.makePredicateMatcher(filter);
                       }
                       final ImmutableBitmap bitmap = holder.bitmap();
-                      if (bitmap.isEmpty()) {
+                      if (holder.exact() && context.isAll(holder.bitmap())) {
+                        return ValueMatcher.TRUE;
+                      }
+                      if (holder.exact() && bitmap.isEmpty()) {
                         return ValueMatcher.FALSE;
                       }
                       final ValueMatcher valueMatcher =

@@ -102,6 +102,11 @@ public class FilterContext implements Closeable
     return selector.getNumRows();
   }
 
+  public boolean isAll(ImmutableBitmap bitmap)
+  {
+    return baseBitmap == null ? bitmap.size() == selector.getNumRows() : bitmap.size() == baseBitmap.size();
+  }
+
   @Override
   public void close()
   {

@@ -77,6 +77,12 @@ public class IndexedFloatsGenericColumn extends GenericColumn.FloatType
   }
 
   @Override
+  public void scan(ImmutableBitmap include, FloatScanner scanner)
+  {
+    column.scan(include, scanner);
+  }
+
+  @Override
   public ImmutableBitmap getNulls()
   {
     return nulls;

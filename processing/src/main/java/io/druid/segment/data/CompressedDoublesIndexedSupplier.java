@@ -23,13 +23,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.column.DoubleScanner;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -92,7 +95,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
           }
 
           final int bufferIndex = index & rem;
-          return buffer.get(buffer.position() + bufferIndex);
+          return buffer.get(bufferPos + bufferIndex);
         }
       };
     } else {
@@ -232,11 +235,27 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     int currIndex = -1;
     ResourceHolder<DoubleBuffer> holder;
     DoubleBuffer buffer;
+    int bufferPos = -1;
 
     @Override
     public int size()
     {
       return numRows;
+    }
+
+    @Override
+    public void scan(ImmutableBitmap include, DoubleScanner scanner)
+    {
+      if (include == null) {
+        for (int index = 0; index < numRows; index++) {
+          scanner.apply(index, this::get);
+        }
+      } else {
+        final IntIterator iterator = include.iterator();
+        while (iterator.hasNext()) {
+          scanner.apply(iterator.next(), this::get);
+        }
+      }
     }
 
     @Override
@@ -249,7 +268,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
       if (bufferNum != currIndex) {
         loadBuffer(bufferNum);
       }
-      return buffer.get(buffer.position() + bufferIndex);
+      return buffer.get(bufferPos + bufferIndex);
     }
 
     @Override
@@ -263,7 +282,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
       }
 
       buffer.mark();
-      buffer.position(buffer.position() + bufferIndex);
+      buffer.position(bufferPos + bufferIndex);
 
       final int numToGet = Math.min(buffer.remaining(), toFill.length);
       buffer.get(toFill, 0, numToGet);
@@ -277,6 +296,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
       CloseQuietly.close(holder);
       holder = singleThreadedDoubleBuffers.get(bufferNum);
       buffer = holder.get();
+      bufferPos = buffer.position();
       currIndex = bufferNum;
     }
 
@@ -287,7 +307,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreadedDoubleBuffers.size() +
-             ", totalSize=" + numRows +
+             ", numRows=" + numRows +
              '}';
     }
 

@@ -19,6 +19,9 @@
 
 package io.druid.segment.data;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.column.LongScanner;
+
 import java.io.Closeable;
 
 /**
@@ -27,8 +30,10 @@ import java.io.Closeable;
 public interface IndexedLongs extends Closeable
 {
   int size();
+
   long get(int index);
+
   int fill(int index, long[] toFill);
-  int binarySearch(long key);
-  int binarySearch(long key, int from, int to);
+
+  void scan(ImmutableBitmap include, LongScanner predicate);
 }

@@ -28,6 +28,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.LongScanner;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedLongBufferObjectStrategy;
@@ -35,6 +36,8 @@ import io.druid.segment.data.CompressedLongsIndexedSupplier;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
+import it.unimi.dsi.fastutil.ints.Int2LongFunction;
+import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -152,6 +155,22 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
                 public Long getValue(int rowNum)
                 {
                   return bitmap.get(rowNum) ? null : bufferToUse.get(rowNum);
+                }
+
+                @Override
+                public void scan(ImmutableBitmap include, LongScanner scanner)
+                {
+                  final Int2LongFunction supplier = x -> bufferToUse.get(x);
+                  if (include == null) {
+                    for (int i = 0; i < numRows; i++) {
+                      scanner.apply(i, supplier);
+                    }
+                  } else {
+                    final IntIterator iterator = include.iterator();
+                    while (iterator.hasNext()) {
+                      scanner.apply(iterator.next(), supplier);
+                    }
+                  }
                 }
               };
             }

@@ -231,7 +231,14 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
   public ValueType typeOfBound(TypeResolver resolver)
   {
     if (extractionFn == null) {
-      ValueDesc desc = comparatorType == null ? resolver.resolve(dimension) : ValueDesc.of(comparatorType);
+      ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING);
+      if (resolved.isStringOrDimension()) {
+        resolved = ValueDesc.STRING;
+      }
+      if (comparatorType == null || comparatorType.equals(StringComparators.NUMERIC_NAME)) {
+        return resolved.type();
+      }
+      ValueDesc desc = comparatorType == null ? resolved : ValueDesc.of(comparatorType);
       if (desc != null && desc.isPrimitive()) {
         return desc.type();
       }

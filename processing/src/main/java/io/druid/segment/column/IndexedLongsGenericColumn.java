@@ -77,6 +77,12 @@ public class IndexedLongsGenericColumn extends GenericColumn.LongType
   }
 
   @Override
+  public void scan(ImmutableBitmap include, LongScanner scanner)
+  {
+    column.scan(include, scanner);
+  }
+
+  @Override
   public ImmutableBitmap getNulls()
   {
     return nulls;

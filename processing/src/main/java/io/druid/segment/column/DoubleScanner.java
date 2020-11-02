@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,23 +17,13 @@
  * under the License.
  */
 
-package io.druid.segment.data;
+package io.druid.segment.column;
 
-import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.segment.column.FloatScanner;
-
-import java.io.Closeable;
+import it.unimi.dsi.fastutil.ints.Int2DoubleFunction;
 
 /**
- * Get a float at an index (array or list lookup abstraction without boxing).
  */
-public interface IndexedFloats extends Closeable
+public interface DoubleScanner
 {
-  int size();
-
-  float get(int index);
-
-  int fill(int index, float[] toFill);
-
-  void scan(ImmutableBitmap include, FloatScanner scanner);
+  void apply(int x, Int2DoubleFunction value);
 }

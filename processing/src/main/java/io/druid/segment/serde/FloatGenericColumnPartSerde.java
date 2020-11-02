@@ -27,6 +27,7 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.column.FloatScanner;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
@@ -35,6 +36,8 @@ import io.druid.segment.data.CompressedFloatsIndexedSupplier;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
+import it.unimi.dsi.fastutil.ints.Int2FloatFunction;
+import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -152,6 +155,22 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 public Float getValue(int rowNum)
                 {
                   return bitmap.get(rowNum) ? null : bufferToUse.get(rowNum);
+                }
+
+                @Override
+                public void scan(ImmutableBitmap include, FloatScanner scanner)
+                {
+                  final Int2FloatFunction supplier = x -> bufferToUse.get(x);
+                  if (include == null) {
+                    for (int i = 0; i < numRows; i++) {
+                      scanner.apply(i, supplier);
+                    }
+                  } else {
+                    final IntIterator iterator = include.iterator();
+                    while (iterator.hasNext()) {
+                      scanner.apply(iterator.next(), supplier);
+                    }
+                  }
                 }
               };
             }

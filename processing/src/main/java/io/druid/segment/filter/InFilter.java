@@ -27,7 +27,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
@@ -119,14 +118,7 @@ public class InFilter implements Filter
           ids.add(index);
         }
       }
-      return Filters.toValueMatcher(
-          selector, new IntPredicate()
-          {
-            @Override
-            public boolean apply(int value) { return ids.contains(value); }
-          },
-          allowsNull
-      );
+      return Filters.toValueMatcher(selector, value -> ids.contains(value), allowsNull);
     }
     ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
     if (ValueDesc.isIndexedId(type)) {

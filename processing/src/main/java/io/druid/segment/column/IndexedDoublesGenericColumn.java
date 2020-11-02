@@ -77,6 +77,12 @@ public class IndexedDoublesGenericColumn extends GenericColumn.DoubleType
   }
 
   @Override
+  public void scan(ImmutableBitmap include, DoubleScanner scanner)
+  {
+    column.scan(include, scanner);
+  }
+
+  @Override
   public ImmutableBitmap getNulls()
   {
     return nulls;

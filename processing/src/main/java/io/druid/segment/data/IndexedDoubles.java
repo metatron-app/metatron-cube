@@ -19,6 +19,9 @@
 
 package io.druid.segment.data;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.column.DoubleScanner;
+
 import java.io.Closeable;
 
 /**
@@ -26,6 +29,10 @@ import java.io.Closeable;
 public interface IndexedDoubles extends Closeable
 {
   int size();
+
   double get(int index);
+
   int fill(int index, double[] toFill);
+
+  void scan(ImmutableBitmap include, DoubleScanner scanner);
 }

@@ -36,6 +36,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.BooleanColumnSupport;
 import io.druid.query.filter.DimFilter.RangeFilter;
@@ -164,10 +165,15 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<Range> toRanges(TypeResolver resolver)
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");
-    return Arrays.<Range>asList(Ranges.of(value, "=="));
+    ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING);
+    if (resolved.isStringOrDimension()) {
+      resolved = ValueDesc.STRING;
+    }
+    return Arrays.<Range>asList(Ranges.of(resolved.type().cast(value), "=="));
   }
 
   @Override

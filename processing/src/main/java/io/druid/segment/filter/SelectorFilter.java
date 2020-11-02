@@ -23,7 +23,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
@@ -84,17 +83,7 @@ public class SelectorFilter implements Filter
       if (index < 0) {
         return BooleanValueMatcher.of(false);
       }
-      return Filters.toValueMatcher(
-          selector, new IntPredicate()
-          {
-            @Override
-            public boolean apply(int value)
-            {
-              return value == index;
-            }
-          },
-          allowsNull
-      );
+      return Filters.toValueMatcher(selector, value -> value == index, allowsNull);
     }
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
     if (ValueDesc.isIndexedId(selector.type())) {
