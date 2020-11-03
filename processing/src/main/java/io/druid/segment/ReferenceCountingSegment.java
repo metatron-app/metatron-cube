@@ -29,40 +29,26 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ReferenceCountingSegment implements Segment
+public class ReferenceCountingSegment extends Segment.Delegated
 {
   private static final EmittingLogger log = new EmittingLogger(ReferenceCountingSegment.class);
 
-  private final Segment baseSegment;
-
   private int numReferences;
 
-  public ReferenceCountingSegment(Segment baseSegment)
+  public ReferenceCountingSegment(Segment segment)
   {
-    this.baseSegment = Preconditions.checkNotNull(baseSegment);
-  }
-
-  @Override
-  public boolean isIndexed()
-  {
-    return baseSegment.isIndexed();
-  }
-
-  @Override
-  public int getNumRows()
-  {
-    return baseSegment.getNumRows();
+    super(Preconditions.checkNotNull(segment));
   }
 
   @Override
   public Segment cuboidFor(Query<?> query)
   {
-    return numReferences < 0 ? null : baseSegment.cuboidFor(query);
+    return numReferences < 0 ? null : segment.cuboidFor(query);
   }
 
   public synchronized Segment getBaseSegment()
   {
-    return numReferences < 0 ? null : baseSegment;
+    return numReferences < 0 ? null : segment;
   }
 
   public synchronized int getNumReferences()
@@ -76,58 +62,45 @@ public class ReferenceCountingSegment implements Segment
   }
 
   @Override
-  public synchronized long getLastAccessTime()
-  {
-    return baseSegment.getLastAccessTime();
-  }
-
-  @Override
   public synchronized Schema asSchema(boolean prependTime)
   {
-    if (numReferences < 0) {
-      return null;
-    }
-    QueryableIndex index = baseSegment.asQueryableIndex(false);
-    if (index != null) {
-      return index.asSchema(prependTime);
-    }
-    return baseSegment.asStorageAdapter(false).asSchema(prependTime);
+    return numReferences < 0 ? null : super.asSchema(prependTime);
   }
 
   @Override
   public synchronized String getIdentifier()
   {
-    return numReferences < 0 ? null : baseSegment.getIdentifier();
+    return numReferences < 0 ? null : segment.getIdentifier();
   }
 
   @Override
   public synchronized Interval getInterval()
   {
-    return numReferences < 0 ? null : baseSegment.getInterval();
+    return numReferences < 0 ? null : segment.getInterval();
   }
 
   @Override
   public synchronized QueryableIndex asQueryableIndex(boolean forQuery)
   {
-    return numReferences < 0 ? null : baseSegment.asQueryableIndex(forQuery);
+    return numReferences < 0 ? null : segment.asQueryableIndex(forQuery);
   }
 
   @Override
   public synchronized StorageAdapter asStorageAdapter(boolean forQuery)
   {
-    return numReferences < 0 ? null : baseSegment.asStorageAdapter(forQuery);
+    return numReferences < 0 ? null : segment.asStorageAdapter(forQuery);
   }
 
   @Override
   public synchronized void close() throws IOException
   {
     if (numReferences < 0) {
-      log.info("Failed to close, %s is closed already", baseSegment.getIdentifier());
+      log.info("Failed to close, %s is closed already", segment);
       return;
     }
 
     if (numReferences > 0) {
-      log.debug("%d references to %s still exist. Decrementing.", numReferences, baseSegment.getIdentifier());
+      log.debug("%d references to %s still exist. Decrementing.", numReferences, segment);
 
       decrement();
     } else {
@@ -172,17 +145,16 @@ public class ReferenceCountingSegment implements Segment
 
   private synchronized void innerClose() throws IOException
   {
-    log.debug("Closing %s, numReferences: %d", baseSegment.getIdentifier(), numReferences);
-
+    log.debug("Closing %s, numReferences: %d", segment, numReferences);
     numReferences = -1;
-    baseSegment.close();
+    segment.close();
   }
 
   @Override
   public String toString()
   {
     return "ReferenceCountingSegment{" +
-           "baseSegment=" + baseSegment.getIdentifier() +
+           "baseSegment=" + segment +
            ", numReferences=" + numReferences +
            '}';
   }

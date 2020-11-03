@@ -19,9 +19,6 @@
 
 package io.druid.segment;
 
-import io.druid.data.Pair;
-import io.druid.data.ValueDesc;
-
 import java.util.function.IntFunction;
 
 /**

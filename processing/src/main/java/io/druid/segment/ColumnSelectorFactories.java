@@ -179,7 +179,7 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static class DelegatedCursor extends Delegated implements Cursor
+  public static abstract class DelegatedCursor extends Delegated implements Cursor
   {
     public DelegatedCursor(ColumnSelectorFactory delegate)
     {

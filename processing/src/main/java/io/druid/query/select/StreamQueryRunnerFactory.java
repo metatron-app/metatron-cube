@@ -39,6 +39,7 @@ import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -149,8 +150,9 @@ public class StreamQueryRunnerFactory
       GuavaUtils.closeQuietly(dictionaries);
     }
     if (thresholds == null) {
+      DimensionSpec ordering = orderingSpec.asDimensionSpec();
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, query.asTimeseriesQuery(), orderingSpec.asDimensionSpec(), numSplit, strategy, -1
+          resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1
       );
     }
     if (thresholds == null || thresholds.length < 3) {

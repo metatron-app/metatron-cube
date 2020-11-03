@@ -56,7 +56,6 @@ import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
-import io.druid.segment.filter.BooleanValueMatcher;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.Filters.BitmapHolder;
@@ -325,7 +324,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   {
                     private final Offset initOffset = baseOffset.clone();
                     private final ValueMatcher filterMatcher =
-                        filter == null ? BooleanValueMatcher.TRUE : filter.makeMatcher(this);
+                        filter == null ? ValueMatcher.TRUE : filter.makeMatcher(this);
                     private Offset cursorOffset = baseOffset;
 
                     {

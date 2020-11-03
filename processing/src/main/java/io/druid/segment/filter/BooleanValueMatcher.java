@@ -25,12 +25,9 @@ import io.druid.query.filter.ValueMatcher;
 */
 public class BooleanValueMatcher implements ValueMatcher
 {
-  public static final ValueMatcher TRUE = new BooleanValueMatcher(true);
-  public static final ValueMatcher FALSE = new BooleanValueMatcher(false);
-
   public static ValueMatcher of(boolean bool)
   {
-    return bool ? TRUE : FALSE;
+    return bool ? ValueMatcher.TRUE : ValueMatcher.FALSE;
   }
 
   private final boolean matches;

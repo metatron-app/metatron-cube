@@ -20,18 +20,16 @@
 package io.druid.query.aggregation.cardinality;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.aggregation.HashAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -45,10 +43,9 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 @JsonTypeName("cardinality")
-public class CardinalityAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
+public class CardinalityAggregatorFactory extends HashAggregatorFactory implements AggregatorFactory.CubeSupport
 {
   public static CardinalityAggregatorFactory of(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
   {
@@ -57,12 +54,6 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
 
   private static final byte CACHE_TYPE_ID = (byte) 0x8;
 
-  private final String name;
-  private final String predicate;
-  private final List<String> fieldNames;
-  private final List<DimensionSpec> fields;
-  private final GroupingSetSpec groupingSets;
-  private final boolean byRow;
   private final boolean round;
 
   @JsonCreator
@@ -76,22 +67,19 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
       @JsonProperty("round") final boolean round
   )
   {
-    this.name = name;
-    this.predicate = predicate;
-    this.fieldNames = fieldNames;
-    this.fields = fields;
-    this.groupingSets = groupingSets;
-    this.byRow = byRow;
+    super(name, predicate, fieldNames, fields, groupingSets, byRow);
     this.round = round;
-    Preconditions.checkArgument(
-        fieldNames == null ^ fields == null,
-        "Must have a valid, non-null fieldNames or fields"
-    );
   }
 
   public CardinalityAggregatorFactory(String name, List<String> fieldNames, boolean byRow)
   {
     this(name, fieldNames, null, null, null, byRow, false);
+  }
+
+  @JsonProperty
+  public boolean isRound()
+  {
+    return round;
   }
 
   @Override
@@ -149,12 +137,6 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  protected boolean isMergeable(AggregatorFactory other)
-  {
-    return false;
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     return HyperLogLogCollector.deserialize(object);
@@ -173,19 +155,6 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  @JsonProperty
-  public String getName()
-  {
-    return name;
-  }
-
-  @Override
-  public String getFieldName()
-  {
-    return fieldNames != null ? Iterables.getOnlyElement(fieldNames, null) : null;
-  }
-
-  @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
     return new HyperUniquesAggregatorFactory(name, inputField, null, round);
@@ -198,60 +167,15 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   }
 
   @Override
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getPredicate()
+  public String getFieldName()
   {
-    return predicate;
-  }
-
-  @Override
-  public List<String> requiredFields()
-  {
-    List<String> required = Lists.newArrayList();
-    if (fieldNames != null) {
-      required.addAll(fieldNames);
-    } else {
-      required.addAll(DimensionSpecs.toInputNames(fields));
-    }
-    return required;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public List<String> getFieldNames()
-  {
-    return fieldNames;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public List<DimensionSpec> getFields()
-  {
-    return fields;
-  }
-
-  @JsonProperty
-  public boolean isByRow()
-  {
-    return byRow;
-  }
-
-  @JsonProperty
-  public boolean isRound()
-  {
-    return round;
+    return fieldNames != null ? Iterables.getOnlyElement(fieldNames, null) : null;
   }
 
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(CACHE_TYPE_ID)
-                  .append(fieldNames)
-                  .append(fields)
-                  .append(groupingSets)
-                  .append(predicate)
-                  .append(byRow, round);
+    return super.getCacheKey(builder.append(CACHE_TYPE_ID)).append(round);
   }
 
   @Override
@@ -269,50 +193,13 @@ public class CardinalityAggregatorFactory extends AggregatorFactory implements A
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    CardinalityAggregatorFactory that = (CardinalityAggregatorFactory) o;
-
-    if (byRow != that.byRow) {
-      return false;
-    }
-    if (round != that.round) {
-      return false;
-    }
-    if (!Objects.equals(fieldNames, that.fieldNames)) {
-      return false;
-    }
-    if (!Objects.equals(fields, that.fields)) {
-      return false;
-    }
-    if (!Objects.equals(name, that.name)) {
-      return false;
-    }
-    if (!Objects.equals(predicate, that.predicate)) {
-      return false;
-    }
-    if (!Objects.equals(groupingSets, that.groupingSets)) {
-      return false;
-    }
-
-    return true;
+    return super.equals(o) && round == ((CardinalityAggregatorFactory) o).round;
   }
 
   @Override
   public int hashCode()
   {
-    int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + Objects.hashCode(fieldNames);
-    result = 31 * result + Objects.hashCode(fields);
-    result = 31 * result + Objects.hashCode(predicate);
-    result = 31 * result + (byRow ? 1 : 0);
-    result = 31 * result + (round ? 1 : 0);
-    return result;
+    return 31 * super.hashCode() + (round ? 1 : 0);
   }
 
   @Override

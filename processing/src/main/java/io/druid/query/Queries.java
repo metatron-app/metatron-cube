@@ -29,7 +29,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.yahoo.memory.Memory;
+import com.yahoo.memory.UnsafeUtil;
+import com.yahoo.memory.WritableMemory;
+import com.yahoo.sketches.ArrayOfItemsSerDe;
 import com.yahoo.sketches.Family;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Union;
@@ -37,6 +42,8 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.BytesInputStream;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -65,15 +72,21 @@ import io.druid.query.select.SelectResultValue;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
+import io.druid.query.sketch.TypedSketch;
+import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.segment.Cursor;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSpecVirtualColumn;
+import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
@@ -543,6 +556,7 @@ public class Queries
 
   public static Object[] makeColumnHistogramOn(
       Supplier<RowResolver> supplier,
+      List<Segment> segments,
       QuerySegmentWalker segmentWalker,
       TimeseriesQuery metaQuery,
       DimensionSpec dimensionSpec,
@@ -554,28 +568,26 @@ public class Queries
     if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
       return null;
     }
-    ValueDesc type = dimensionSpec.resolve(supplier);
-    if (type.isDimension()) {
-      type = ValueDesc.STRING;
-    }
-    if (!type.isPrimitive()) {
-      return null;  // todo
-    }
     List<OrderingSpec> orderingSpecs = Lists.newArrayList();
-    List<VirtualColumn> virtualColumns = Lists.newArrayList(metaQuery.getVirtualColumns());
-    String fieldName = dimensionSpec.getDimension();
     if (dimensionSpec instanceof DimensionSpecWithOrdering) {
       DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
       orderingSpecs.add(explicit.asOrderingSpec());
       dimensionSpec = explicit.getDelegate();
     }
+    ValueDesc type = dimensionSpec.resolve(supplier);
+    if (!type.isPrimitive() && !type.isDimension()) {
+      return null;  // todo
+    }
+    String fieldName = dimensionSpec.getDimension();
+    List<VirtualColumn> virtualColumns = Lists.newArrayList(metaQuery.getVirtualColumns());
     if (!(dimensionSpec instanceof DefaultDimensionSpec)) {
       virtualColumns.add(DimensionSpecVirtualColumn.wrap(dimensionSpec, DUMMY_VC));
+      metaQuery = metaQuery.withVirtualColumns(virtualColumns);
       fieldName = DUMMY_VC;
     }
 
     AggregatorFactory aggregator = new GenericSketchAggregatorFactory(
-        "SKETCH", fieldName, type, SketchOp.QUANTILE, 128, orderingSpecs, false
+        "SKETCH", fieldName, type.isDimension() ? ValueDesc.STRING : type, SketchOp.QUANTILE, 128, orderingSpecs, false
     );
 
     Map<String, Object> pg = ImmutableMap.<String, Object>builder()
@@ -594,16 +606,102 @@ public class Queries
       return null;
     }
 
-    metaQuery = metaQuery.withGranularity(Granularities.ALL)
-                         .withVirtualColumns(virtualColumns)
-                         .withAggregatorSpecs(Arrays.asList(aggregator))
+    metaQuery = metaQuery.withAggregatorSpecs(Arrays.asList(aggregator))
                          .withPostAggregatorSpecs(Arrays.asList(postAggregator))
                          .withOutputColumns(Arrays.asList("SPLIT"))
                          .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);
 
+    if (type.isDimension() && dimensionSpec instanceof DefaultDimensionSpec && allQueryableIndex(segments)) {
+      Object[] histogram = makeColumnHistogramOn(segments, dimensionSpec, metaQuery, postAggregator);
+      if (histogram != null) {
+        return histogram;
+      }
+    }
+
     Row result = Sequences.only(QueryRunners.run(metaQuery, segmentWalker), null);
 
     return result == null ? null : (Object[]) result.getRaw("SPLIT");
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Object[] makeColumnHistogramOn(
+      List<Segment> segments,
+      DimensionSpec dimensionSpec,
+      TimeseriesQuery metaQuery,
+      PostAggregator postAggregator
+  )
+  {
+    ItemsUnion union = ItemsUnion.getInstance(128, GuavaUtils.noNullableNatural());
+    for (Segment segment : segments) {
+      metaQuery = metaQuery.withQuerySegmentSpec(QuerySegmentSpec.ETERNITY);
+      Sequence<Cursor> cursors = segment.asStorageAdapter(true).makeCursors(metaQuery, null);
+      cursors.accumulate(null, (x, cursor) -> {
+        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(128, GuavaUtils.noNullableNatural());
+        DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
+        for (; !cursor.isDone(); cursor.advance()) {
+          final IndexedInts row = selector.getRow();
+          final int size = row.size();
+          for (int i = 0; i < size; i++) {
+            sketch.update(row.get(i));
+          }
+        }
+        ArrayOfItemsSerDe serde = new ArrayItemConverter(selector);
+        Memory memory = Memory.wrap(sketch.toByteArray(serde));
+        union.update(ItemsSketch.getInstance(memory, GuavaUtils.noNullableNatural(), serde));
+        return null;
+      });
+    }
+    TypedSketch typedSketch = TypedSketch.of(ValueDesc.STRING, union.getResult());
+    return (Object[]) postAggregator.processor().compute(DateTime.now(), GuavaUtils.mutableMap("SKETCH", typedSketch));
+  }
+
+  private static boolean allQueryableIndex(List<Segment> segments)
+  {
+    for (Segment segment : segments) {
+      while (segment instanceof Segment.Delegated) {
+        segment = ((Segment.Delegated) segment).getSegment();
+      }
+      if (!(segment instanceof QueryableIndexSegment)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static class ArrayItemConverter extends ArrayOfItemsSerDe
+  {
+    private final DimensionSelector selector;
+
+    private ArrayItemConverter(DimensionSelector selector) {this.selector = selector;}
+
+    @Override
+    public byte[] serializeToByteArray(Object[] items)
+    {
+      final BytesOutputStream output = new BytesOutputStream();
+      output.writeInt(0);
+      for (int i = 0; i < items.length; i++) {
+        output.writeUnsignedVarInt((Integer) items[i]);
+      }
+      final byte[] bytes = output.toByteArray();
+      WritableMemory.wrap(bytes).putInt(0, bytes.length - Integer.BYTES);
+      return bytes;
+    }
+
+    @Override
+    public Object[] deserializeFromMemory(Memory mem, int numItems)
+    {
+      UnsafeUtil.checkBounds(0, Integer.BYTES, mem.getCapacity());
+      final byte[] bytes = new byte[mem.getInt(0)];
+      UnsafeUtil.checkBounds(Integer.BYTES, bytes.length, mem.getCapacity());
+      mem.getByteArray(Integer.BYTES, bytes, 0, bytes.length);
+
+      final BytesInputStream input = new BytesInputStream(bytes);
+      final Object[] dictionary = new String[numItems];
+      for (int i = 0; i < dictionary.length; i++) {
+        dictionary[i] = selector.lookupName(input.readUnsignedVarInt());
+      }
+      return dictionary;
+    }
   }
 
   public static boolean isNestedQuery(Query<?> query)

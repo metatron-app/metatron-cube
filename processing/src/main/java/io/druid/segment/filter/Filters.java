@@ -556,9 +556,6 @@ public class Filters
         if (holder != null) {
           exact &= holder.exact();
           bitmaps.add(holder.bitmap());
-          if (andExpression) {
-            context.andBaseBitmap(holder.bitmap());
-          }
         } else {
           exact = false;
         }

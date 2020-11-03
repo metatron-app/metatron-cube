@@ -47,4 +47,10 @@ public abstract class AbstractSegment implements Segment
   }
 
   public void close() throws IOException {}
+
+  @Override
+  public String toString()
+  {
+    return getIdentifier();
+  }
 }

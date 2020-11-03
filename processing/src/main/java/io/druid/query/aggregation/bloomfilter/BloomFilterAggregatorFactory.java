@@ -20,11 +20,9 @@
 package io.druid.query.aggregation.bloomfilter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -32,6 +30,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.aggregation.HashAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
@@ -44,10 +43,9 @@ import io.druid.segment.DimensionSelector;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 @JsonTypeName("bloomFilter")
-public class BloomFilterAggregatorFactory extends AggregatorFactory
+public class BloomFilterAggregatorFactory extends HashAggregatorFactory
 {
   public static BloomFilterAggregatorFactory of(String name, List<String> fieldNames, int maxNumEntries)
   {
@@ -65,12 +63,6 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
 
   private static final byte CACHE_TYPE_ID = 0x25;
 
-  private final String name;
-  private final List<String> fieldNames;
-  private final List<DimensionSpec> fields;
-  private final GroupingSetSpec groupingSets;
-  private final String predicate;
-  private final boolean byRow;
   private final int maxNumEntries;
   private final boolean combine;  // not supports cause seemed useless
 
@@ -86,12 +78,7 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
       @JsonProperty("combine") final boolean combine
   )
   {
-    this.name = name;
-    this.predicate = predicate;
-    this.fieldNames = fieldNames;
-    this.fields = fields;
-    this.groupingSets = groupingSets;
-    this.byRow = byRow;
+    super(name, predicate, fieldNames, fields, groupingSets, byRow);
     this.maxNumEntries = maxNumEntries;
     this.combine = combine;
     Preconditions.checkArgument(
@@ -175,12 +162,6 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  protected boolean isMergeable(AggregatorFactory other)
-  {
-    return false;
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     if (object == null || object instanceof BloomKFilter) {
@@ -197,59 +178,6 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
     return BloomKFilter.deserialize(buffer);
   }
 
-  @Override
-  @JsonProperty
-  public String getName()
-  {
-    return name;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public String getPredicate()
-  {
-    return predicate;
-  }
-
-  @Override
-  public List<String> requiredFields()
-  {
-    List<String> required = Lists.newArrayList();
-    if (fieldNames != null) {
-      required.addAll(fieldNames);
-    } else {
-      required.addAll(DimensionSpecs.toInputNames(fields));
-    }
-    return required;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public List<String> getFieldNames()
-  {
-    return fieldNames;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public List<DimensionSpec> getFields()
-  {
-    return fields;
-  }
-
-  @JsonProperty
-  public boolean isByRow()
-  {
-    return byRow;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  public GroupingSetSpec getGroupingSets()
-  {
-    return groupingSets;
-  }
-
   @JsonProperty
   public int getMaxNumEntries()
   {
@@ -259,13 +187,7 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(CACHE_TYPE_ID)
-                  .append(fieldNames)
-                  .append(fields)
-                  .append(groupingSets)
-                  .append(predicate)
-                  .append(byRow)
-                  .append(maxNumEntries);
+    return super.getCacheKey(builder.append(CACHE_TYPE_ID)).append(maxNumEntries);
   }
 
   @Override
@@ -283,51 +205,13 @@ public class BloomFilterAggregatorFactory extends AggregatorFactory
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    BloomFilterAggregatorFactory that = (BloomFilterAggregatorFactory) o;
-
-    if (byRow != that.byRow) {
-      return false;
-    }
-    if (maxNumEntries != that.maxNumEntries) {
-      return false;
-    }
-    if (!Objects.equals(fieldNames, that.fieldNames)) {
-      return false;
-    }
-    if (!Objects.equals(fields, that.fields)) {
-      return false;
-    }
-    if (!Objects.equals(name, that.name)) {
-      return false;
-    }
-    if (!Objects.equals(predicate, that.predicate)) {
-      return false;
-    }
-    if (!Objects.equals(groupingSets, that.groupingSets)) {
-      return false;
-    }
-
-    return true;
+    return super.equals(o) && maxNumEntries == ((BloomFilterAggregatorFactory) o).maxNumEntries;
   }
 
   @Override
   public int hashCode()
   {
-    int result = name != null ? name.hashCode() : 0;
-    result = 31 * result + Objects.hashCode(fieldNames);
-    result = 31 * result + Objects.hashCode(fields);
-    result = 31 * result + Objects.hashCode(groupingSets);
-    result = 31 * result + Objects.hashCode(predicate);
-    result = 31 * result + (byRow ? 1 : 0);
-    result = 31 * result + maxNumEntries;
-    return result;
+    return 31 * super.hashCode() + maxNumEntries;
   }
 
   @Override

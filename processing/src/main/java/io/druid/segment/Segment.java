@@ -43,7 +43,7 @@ public interface Segment extends SchemaProvider, Closeable
 
   class Delegated implements Segment
   {
-    private final Segment segment;
+    final Segment segment;
 
     public Delegated(Segment segment)
     {

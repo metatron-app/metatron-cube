@@ -293,7 +293,7 @@ public class GroupByQueryRunnerFactory
     }
     if (thresholds == null) {
       thresholds = Queries.makeColumnHistogramOn(
-          resolver, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, maxResults
+          resolver, segments, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, maxResults
       );
     }
     if (thresholds == null || thresholds.length < 3) {
