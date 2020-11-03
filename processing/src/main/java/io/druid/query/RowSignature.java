@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
@@ -38,7 +37,6 @@ import java.util.Objects;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RowSignature.Simple.class)
 public interface RowSignature extends TypeResolver
 {
   // this is needed to be implemented by all post processors, but let's do it step by step
