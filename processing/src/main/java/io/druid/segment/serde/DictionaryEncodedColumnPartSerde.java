@@ -42,7 +42,6 @@ import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedVSizedIntSupplier;
 import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.DictionarySketch;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
@@ -89,14 +88,21 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
   enum Feature
   {
-    MULTI_VALUE,
-    MULTI_VALUE_V3,
-    NO_DICTIONARY,
-    DICTIONARY_SKETCH,
-    CUMULATIVE_BITMAPS,
-    UNCOMPRESSED,     // override LEGACY_COMPRESSED
-    SPATIAL_INDEX     // technically, it's not backward compatible with index v8 but who cares?
+    MULTI_VALUE(0),
+    MULTI_VALUE_V3(1),
+    NO_DICTIONARY(2),
+    RESERVED(3),
+    CUMULATIVE_BITMAPS(4),
+    UNCOMPRESSED(5),     // override LEGACY_COMPRESSED
+    SPATIAL_INDEX(6)     // technically, it's not backward compatible with index v8 but who cares?
     ;
+
+    private final int mask;
+
+    Feature(int ordinal)
+    {
+      mask = 1 << ordinal;
+    }
 
     public static boolean hasAny(int flags, Feature... features)
     {
@@ -108,13 +114,12 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       return false;
     }
 
-    public boolean isSet(int flags) { return (getMask() & flags) != 0; }
+    public boolean isSet(int flags) { return (mask & flags) != 0; }
 
-    public int getMask() { return (1 << ordinal()); }
+    public int getMask() { return mask; }
 
     public int set(int flags, boolean bool)
     {
-      final int mask = getMask();
       if (bool) {
         flags |= mask;
       } else {
@@ -184,13 +189,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     {
       this.dictionaryWriter = dictionaryWriter;
       this.flags = Feature.NO_DICTIONARY.set(flags, dictionaryWriter == null);
-      return this;
-    }
-
-    public SerializerBuilder withDictionarySketch(ColumnPartWriter<Pair<String, Integer>> sketchWriter)
-    {
-      this.sketchWriter = sketchWriter;
-      this.flags = Feature.DICTIONARY_SKETCH.set(flags, sketchWriter != null);
       return this;
     }
 
@@ -488,11 +486,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           rDictionary = StringMetricSerde.deserializeDictionary(buffer, ObjectStrategy.STRING_STRATEGY);
         }
 
-        DictionarySketch sketch = null;
-        if (Feature.DICTIONARY_SKETCH.isSet(rFlags)) {
-          sketch = DictionarySketch.of(buffer);
-        }
-
         final boolean hasMultipleValues = Feature.hasAny(rFlags, Feature.MULTI_VALUE, Feature.MULTI_VALUE_V3);
         final boolean compressed = rVersion == VERSION.LEGACY_COMPRESSED && !Feature.UNCOMPRESSED.isSet(rFlags);
 
@@ -513,8 +506,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                    new DictionaryEncodedColumnSupplier(
                        rDictionary,
                        rSingleValuedColumn,
-                       rMultiValuedColumn,
-                       sketch
+                       rMultiValuedColumn
                    )
                );
 

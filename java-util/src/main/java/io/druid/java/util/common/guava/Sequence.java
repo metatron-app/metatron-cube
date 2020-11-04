@@ -14,6 +14,8 @@
 
 package io.druid.java.util.common.guava;
 
+import java.util.function.Consumer;
+
 /**
  * A Sequence represents an iterable sequence of elements.  Unlike normal Iterators however, it doesn't expose
  * a way for you to extract values from it, instead you provide it with a worker (an Accumulator) and that defines
@@ -29,6 +31,15 @@ package io.druid.java.util.common.guava;
  */
 public interface Sequence<T>
 {
-  public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator);
-  public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator);
+  <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator);
+
+  <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator);
+
+  default void accumulate(Consumer<T> consumer)
+  {
+    accumulate(null, (x, value) -> {
+      consumer.accept(value);
+      return null;
+    });
+  }
 }

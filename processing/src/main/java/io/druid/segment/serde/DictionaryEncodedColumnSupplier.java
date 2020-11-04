@@ -23,7 +23,6 @@ import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.SimpleDictionaryEncodedColumn;
 import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.DictionarySketch;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 
@@ -34,19 +33,16 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   private final ColumnPartProvider<Dictionary<String>> dictionary;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
-  private final DictionarySketch sketch;
 
   public DictionaryEncodedColumnSupplier(
       ColumnPartProvider<Dictionary<String>> dictionary,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
-      ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn,
-      DictionarySketch sketch
+      ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn
   )
   {
     this.dictionary = dictionary;
     this.singleValuedColumn = singleValuedColumn;
     this.multiValuedColumn = multiValuedColumn;
-    this.sketch = sketch;
   }
 
   @Override
@@ -55,8 +51,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
     return new SimpleDictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
-        dictionary == null ? null : dictionary.get(),
-        sketch
+        dictionary == null ? null : dictionary.get()
     );
   }
 

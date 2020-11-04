@@ -33,11 +33,8 @@ import com.yahoo.memory.Memory;
 import com.yahoo.memory.UnsafeUtil;
 import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
-import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
-import com.yahoo.sketches.theta.SetOperation;
-import com.yahoo.sketches.theta.Union;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
@@ -70,7 +67,6 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
-import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
 import io.druid.query.sketch.TypedSketch;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -78,14 +74,12 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
-import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSpecVirtualColumn;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -93,7 +87,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -519,39 +512,6 @@ public class Queries
     }).intValue();
   }
 
-  public static int getNumSplits(List<DictionaryEncodedColumn> dictionaries, int numSplit)
-  {
-    Union union = (Union) SetOperation.builder().setNominalEntries(64).build(Family.UNION);
-    for (DictionaryEncodedColumn dictionary : dictionaries) {
-      union.update(dictionary.getTheta());
-    }
-    int cardinality = (int) union.getResult().getEstimate();
-    if (cardinality > 0) {
-      return Math.max(numSplit, 1 + (cardinality >> 18));
-    }
-    return numSplit;
-  }
-
-  public static Object[] getThresholds(
-      List<DictionaryEncodedColumn> dictionaries,
-      int numSplit,
-      String strategy,
-      int maxThreshold,
-      Comparator comparator
-  )
-  {
-    ItemsUnion itemsUnion = ItemsUnion.getInstance(32, comparator);
-    for (DictionaryEncodedColumn dictionary : dictionaries) {
-      itemsUnion.update(dictionary.getQuantile());
-    }
-    if (!itemsUnion.isEmpty()) {
-      return (Object[]) QuantileOperation.QUANTILES.calculate(
-          itemsUnion.getResult(), QuantileOperation.valueOf(strategy, numSplit + 1, maxThreshold, true)
-      );
-    }
-    return null;
-  }
-
   private static final String DUMMY_VC = "$VC";
 
   public static Object[] makeColumnHistogramOn(
@@ -631,11 +591,10 @@ public class Queries
       PostAggregator postAggregator
   )
   {
+    metaQuery = metaQuery.withQuerySegmentSpec(QuerySegmentSpec.ETERNITY);
     ItemsUnion union = ItemsUnion.getInstance(128, GuavaUtils.noNullableNatural());
     for (Segment segment : segments) {
-      metaQuery = metaQuery.withQuerySegmentSpec(QuerySegmentSpec.ETERNITY);
-      Sequence<Cursor> cursors = segment.asStorageAdapter(true).makeCursors(metaQuery, null);
-      cursors.accumulate(null, (x, cursor) -> {
+      segment.asStorageAdapter(true).makeCursors(metaQuery, null).accumulate(cursor -> {
         ItemsSketch<Integer> sketch = ItemsSketch.getInstance(128, GuavaUtils.noNullableNatural());
         DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
         for (; !cursor.isDone(); cursor.advance()) {
@@ -648,7 +607,6 @@ public class Queries
         ArrayOfItemsSerDe serde = new ArrayItemConverter(selector);
         Memory memory = Memory.wrap(sketch.toByteArray(serde));
         union.update(ItemsSketch.getInstance(memory, GuavaUtils.noNullableNatural(), serde));
-        return null;
       });
     }
     TypedSketch typedSketch = TypedSketch.of(ValueDesc.STRING, union.getResult());

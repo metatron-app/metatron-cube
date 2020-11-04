@@ -930,8 +930,7 @@ public class IndexIO
                     null,
                     ColumnPartProviders.<IndexedMultivalue<IndexedInts>>with(
                         column, column.getSerializedSize(), column.size()
-                    ),
-                    null
+                    )
                 )
             )
             .setBitmapIndex(

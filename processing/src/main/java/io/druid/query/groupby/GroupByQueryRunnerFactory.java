@@ -27,7 +27,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -62,8 +61,6 @@ import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.Cuboids;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 
@@ -272,30 +269,12 @@ public class GroupByQueryRunnerFactory
     }
 
     // can split on all dimensions but it seemed not cost-effective
-    Object[] thresholds = null;
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
 
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
-    List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryWithSketch(segments, dimensionSpec.getDimension());
-    try {
-      if (dictionaries.size() << 2 > segments.size()) {
-        numSplit = Queries.getNumSplits(dictionaries, numSplit);
-        if (numSplit < 2) {
-          return null;
-        }
-        thresholds = Queries.getThresholds(
-            dictionaries, numSplit, strategy, maxResults, DimensionSpecs.toComparator(dimensionSpec)
-        );
-      }
-    }
-    finally {
-      GuavaUtils.closeQuietly(dictionaries);
-    }
-    if (thresholds == null) {
-      thresholds = Queries.makeColumnHistogramOn(
-          resolver, segments, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, maxResults
-      );
-    }
+    Object[] thresholds = Queries.makeColumnHistogramOn(
+        resolver, segments, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, maxResults
+    );
     if (thresholds == null || thresholds.length < 3) {
       return null;
     }

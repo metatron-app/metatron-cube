@@ -19,8 +19,6 @@
 
 package io.druid.segment.column;
 
-import com.yahoo.sketches.quantiles.ItemsSketch;
-import com.yahoo.sketches.theta.Sketch;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 
@@ -30,18 +28,14 @@ import java.io.Closeable;
  */
 public interface DictionaryEncodedColumn extends Closeable
 {
-  public int length();
-  public boolean hasMultipleValues();
-  public int getSingleValueRow(int rowNum);
-  public IndexedInts getMultiValueRow(int rowNum);
-  public String lookupName(int id);
-  public int lookupId(String name);
-  public int getCardinality();
+  int length();
+  boolean hasMultipleValues();
+  int getSingleValueRow(int rowNum);
+  IndexedInts getMultiValueRow(int rowNum);
+  String lookupName(int id);
+  int lookupId(String name);
+  int getCardinality();
 
-  public Dictionary<String> dictionary();
-  public DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary);
-
-  public boolean hasSketch();
-  public Sketch getTheta();
-  public ItemsSketch<String> getQuantile();
+  Dictionary<String> dictionary();
+  DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary);
 }

@@ -50,10 +50,8 @@ import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
-import org.apache.commons.io.IOUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -113,21 +111,6 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
               "Skipping %s, which is expected to be %s type but %s type",
               dimensionSpec.getDimension(), majorType, ValueDesc.STRING_TYPE
           );
-        } else if (dimensionSpec.getExtractionFn() == null) {
-          Column column = queryable.getColumn(dimensionSpec.getDimension());
-          if (column != null && column.getCapabilities().isDictionaryEncoded()) {
-            final DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
-            if (dictionary.hasSketch()) {
-              if (sketchOp == SketchOp.QUANTILE) {
-                sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getQuantile());
-                dimensions.set(index, null);
-              } else if (sketchOp == SketchOp.THETA) {
-                sketches[index] = TypedSketch.of(ValueDesc.STRING, dictionary.getTheta());
-                dimensions.set(index, null);
-              }
-            }
-            IOUtils.closeQuietly(dictionary);
-          }
         }
         index++;
       }

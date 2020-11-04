@@ -47,8 +47,6 @@ import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
@@ -120,8 +118,10 @@ public class StreamQueryRunnerFactory
     if (numSplit < 2) {
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
+        long start = System.currentTimeMillis();
         int numRows = getNumRows(query, segments, segmentWalker);
-        logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
+        long elapsed = System.currentTimeMillis() - start;
+        logger.info("Total number of rows [%,d] (%d msec), spliting on [%d] rows", numRows, elapsed, splitRows);
         numSplit = numRows / splitRows;
       }
     }
@@ -132,33 +132,20 @@ public class StreamQueryRunnerFactory
 
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
 
-    Object[] thresholds = null;
     OrderByColumnSpec orderingSpec = query.getOrderingSpecs().get(0);
     Map<String, String> mapping = QueryUtils.aliasMapping(query);
     String sortColumn = mapping.getOrDefault(orderingSpec.getDimension(), orderingSpec.getDimension());
-    List<DictionaryEncodedColumn> dictionaries = Segments.findDictionaryWithSketch(segments, sortColumn);
-    try {
-      if (dictionaries.size() << 2 > segments.size()) {
-        numSplit = Math.min(SPLIT_MAX_SPLIT, Queries.getNumSplits(dictionaries, numSplit));
-        if (numSplit < 2) {
-          return null;
-        }
-        thresholds = Queries.getThresholds(dictionaries, numSplit, strategy, -1, orderingSpec.getComparator());
-      }
-    }
-    finally {
-      GuavaUtils.closeQuietly(dictionaries);
-    }
-    if (thresholds == null) {
-      DimensionSpec ordering = orderingSpec.asDimensionSpec();
-      thresholds = Queries.makeColumnHistogramOn(
-          resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1
-      );
-    }
+
+    DimensionSpec ordering = orderingSpec.asDimensionSpec();
+    long start = System.currentTimeMillis();
+    Object[] thresholds = Queries.makeColumnHistogramOn(
+        resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1
+    );
+    long elapsed = System.currentTimeMillis() - start;
     if (thresholds == null || thresholds.length < 3) {
       return null;
     }
-    logger.info("split %s on values : %s", sortColumn, Arrays.toString(thresholds));
+    logger.info("split %s (%d msec) on values : %s", sortColumn, elapsed, Arrays.toString(thresholds));
 
     Direction direction = orderingSpec.getDirection();
     List<StreamQuery> splits = Lists.newArrayList();

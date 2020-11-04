@@ -488,7 +488,6 @@ public class IndexViewer extends CommonShell.WithUtils
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         Dictionary<String> dictionary = dictionaryEncoded.dictionary();
-        boolean hasSketch = dictionaryEncoded.hasSketch();
         long dictionarySize = cuboidSpec == null ? dictionary.getSerializedSize() : 0;
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = Objects.toString(dictionary.containsNull(), "unknown");
@@ -496,8 +495,8 @@ public class IndexViewer extends CommonShell.WithUtils
           append(
               builder, writer,
               format(
-                  "dictionary (cardinality = %d, hasNull = %s, hasSketch = %s, size = %,d bytes)",
-                  dictionary.size(), hasNull, hasSketch, dictionarySize
+                  "dictionary (cardinality = %d, hasNull = %s, size = %,d bytes)",
+                  dictionary.size(), hasNull, dictionarySize
               )
           );
         } else {
