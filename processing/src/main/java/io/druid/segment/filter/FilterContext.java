@@ -40,7 +40,7 @@ public class FilterContext implements Closeable
   protected final BitmapIndexSelector selector;
   protected final BitmapFactory factory;
   protected ImmutableBitmap baseBitmap;
-  protected Map<String, IntFunction> attached;
+  protected Map<String, IntFunction> attached;    // vc from filter (like lucene)
 
   public FilterContext(BitmapIndexSelector selector)
   {
@@ -102,9 +102,14 @@ public class FilterContext implements Closeable
     return selector.getNumRows();
   }
 
+  public int targetNumRows()
+  {
+    return baseBitmap == null ? selector.getNumRows() : baseBitmap.size();
+  }
+
   public boolean isAll(ImmutableBitmap bitmap)
   {
-    return baseBitmap == null ? bitmap.size() == selector.getNumRows() : bitmap.size() == baseBitmap.size();
+    return bitmap.size() == targetNumRows();
   }
 
   @Override

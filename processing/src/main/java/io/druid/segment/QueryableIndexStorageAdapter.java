@@ -34,6 +34,7 @@ import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.guava.Sequence;
@@ -205,6 +206,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
     context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters
 
+    final boolean fullscan =
+        Granularities.ALL.equals(granularity) && valueMatcher == null && actualInterval.contains(timeMinMax);
+
     return Sequences.withBaggage(
         Sequences.filter(
             new CursorSequenceBuilder(
@@ -217,6 +221,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                 timeMinMax.getStartMillis(),
                 timeMinMax.getEndMillis(),
                 descending,
+                fullscan,
                 context
             ).build(),
             Predicates.<Cursor>notNull()
@@ -247,6 +252,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final long minDataTimestamp;
     private final long maxDataTimestamp;
     private final boolean descending;
+    private final boolean fullscan;
 
     private final FilterContext context;
     private final Filter filter;
@@ -261,6 +267,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         long minDataTimestamp,
         long maxDataTimestamp,
         boolean descending,
+        boolean fullscan,
         FilterContext context
     )
     {
@@ -273,6 +280,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.minDataTimestamp = minDataTimestamp;
       this.maxDataTimestamp = maxDataTimestamp;
       this.descending = descending;
+      this.fullscan = fullscan;
       this.context = context;
     }
 
@@ -332,6 +340,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         while (!filterMatcher.matches() && cursorOffset.increment()) {
                         }
                       }
+                    }
+
+                    @Override
+                    public int getFullscanNumRows()
+                    {
+                      return fullscan ? context.targetNumRows() : -1;
                     }
 
                     @Override

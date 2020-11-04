@@ -34,6 +34,7 @@ public interface Cursor extends ColumnSelectorFactory
   boolean isDone();
   void reset();
 
+  default int getFullscanNumRows() { return -1;}
   default IntFunction getAttachment(String name) { return null;}
 
   abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor { }

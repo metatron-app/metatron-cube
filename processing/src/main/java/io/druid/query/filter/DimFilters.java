@@ -162,6 +162,7 @@ public class DimFilters
         Filters.BitmapHolder holder = Filters.toBitmapHolder(child, context);
         if (holder != null) {
           bitmaps.add(holder.bitmap());
+          context.andBaseBitmap(holder.bitmap());
         }
         if (holder == null || !holder.exact()) {
           remainings.add(child);

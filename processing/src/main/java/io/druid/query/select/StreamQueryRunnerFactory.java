@@ -24,11 +24,9 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
-import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -37,7 +35,6 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
-import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
@@ -45,7 +42,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
-import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Segment;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -119,7 +116,7 @@ public class StreamQueryRunnerFactory
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
         long start = System.currentTimeMillis();
-        int numRows = getNumRows(query, segments, segmentWalker);
+        int numRows = getNumRows(query, segments);
         long elapsed = System.currentTimeMillis() - start;
         logger.info("Total number of rows [%,d] (%d msec), spliting on [%d] rows", numRows, elapsed, splitRows);
         numSplit = numRows / splitRows;
@@ -175,29 +172,27 @@ public class StreamQueryRunnerFactory
     return splits;
   }
 
-  private int getNumRows(StreamQuery query, List<Segment> segments, QuerySegmentWalker segmentWalker)
+  private int getNumRows(StreamQuery query, List<Segment> segments)
   {
-    int numRows = 0;
-    if (query.getFilter() == null) {
+    final DimFilter filter = query.getFilter();
+    if (filter == null) {
+      int numRows = 0;
       for (Segment segment : segments) {
         numRows += segment.getNumRows();
       }
       return numRows;
     }
-    final DataSource ds = query.getDataSource();
-    final DimFilter filter = query.getFilter();
-    final Map<String, Object> context = BaseQuery.copyContextForMeta(query);
-    context.put(Query.DISABLE_LOG, true);
+    final SelectMetaQuery meta = SelectMetaQuery.of(
+        query.getDataSource(), QuerySegmentSpec.ETERNITY, filter, BaseQuery.copyContextForMeta(query)
+    );
+    final MutableInt counter = new MutableInt();
+    final SelectMetaQueryEngine engine = new SelectMetaQueryEngine();
     for (Segment segment : segments) {
-      SelectMetaQuery meta = SelectMetaQuery.of(
-          ds, new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor()), filter, context
-      );
-      Result<SelectMetaResultValue> result = Sequences.only(meta.run(segmentWalker, null), null);
-      if (result != null) {
-        numRows += result.getValue().getTotalCount();
-      }
+      DimFilter optimized = filter.optimize(segment, query.getVirtualColumns());
+      engine.process(meta.withFilter(optimized), segment, cache)
+            .accumulate(r -> counter.add(r.getValue().getTotalCount()));
     }
-    return numRows;
+    return counter.intValue();
   }
 
   @Override

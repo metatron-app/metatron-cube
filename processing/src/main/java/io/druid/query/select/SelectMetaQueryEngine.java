@@ -97,9 +97,11 @@ public class SelectMetaQueryEngine
           @Override
           public Result<SelectMetaResultValue> apply(Cursor cursor)
           {
-            int row = 0;
-            for (cursor.advanceTo(offset.startDelta()); !cursor.isDone(); cursor.advance()) {
-              row++;
+            int row = offset.startDelta() == 0 ? cursor.getFullscanNumRows() : -1;
+            if (row < 0) {
+              for (row = 0, cursor.advanceTo(offset.startDelta()); !cursor.isDone(); cursor.advance()) {
+                row++;
+              }
             }
             return new Result<>(
                 DateTimes.utc(cursor.getStartTime()),
