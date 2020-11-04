@@ -1815,32 +1815,34 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testSimpleAggregations() throws Exception
   {
     testQuery(
-        "SELECT COUNT(*), COUNT(cnt), COUNT(dim1), AVG(cnt), SUM(cnt), SUM(cnt) + MIN(cnt) + MAX(cnt) FROM druid.foo",
+        "SELECT COUNT(*), COUNT(cnt), COUNT(dim1), MIN(dim1), MAX(dim1), AVG(cnt), SUM(cnt), SUM(cnt) + MIN(cnt) + MAX(cnt) FROM druid.foo",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(
                   CountAggregatorFactory.of("a0"),
                   CountAggregatorFactory.of("a1", "dim1"),
-                  GenericSumAggregatorFactory.ofLong("a2:sum", "cnt"),
-                  CountAggregatorFactory.of("a2:count"),
-                  GenericSumAggregatorFactory.ofLong("a3", "cnt"),
-                  GenericMinAggregatorFactory.ofLong("a4", "cnt"),
-                  GenericMaxAggregatorFactory.ofLong("a5", "cnt")
+                  RelayAggregatorFactory.min("a2", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
+                  RelayAggregatorFactory.max("a3", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
+                  GenericSumAggregatorFactory.ofLong("a4:sum", "cnt"),
+                  CountAggregatorFactory.of("a4:count"),
+                  GenericSumAggregatorFactory.ofLong("a5", "cnt"),
+                  GenericMinAggregatorFactory.ofLong("a6", "cnt"),
+                  GenericMaxAggregatorFactory.ofLong("a7", "cnt")
               )
               .postAggregators(
                   new ArithmeticPostAggregator(
-                      "a2",
+                      "a4",
                       "quotient",
                       ImmutableList.of(
-                          new FieldAccessPostAggregator(null, "a2:sum"),
-                          new FieldAccessPostAggregator(null, "a2:count")
+                          new FieldAccessPostAggregator(null, "a4:sum"),
+                          new FieldAccessPostAggregator(null, "a4:count")
                       )
                   ),
-                  EXPR_POST_AGG("p0", "((a3 + a4) + a5)")
+                  EXPR_POST_AGG("p0", "((a5 + a6) + a7)")
               )
-              .outputColumns("a0", "a0", "a1", "a2", "a3", "p0")
+              .outputColumns("a0", "a0", "a1", "a2", "a3", "a4", "a5", "p0")
               .build(),
-        new Object[]{6L, 6L, 5L, 1L, 6L, 8L}
+        new Object[]{6L, 6L, 5L, "1", "def", 1L, 6L, 8L}
     );
   }
 

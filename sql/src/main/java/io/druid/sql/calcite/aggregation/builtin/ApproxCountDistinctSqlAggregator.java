@@ -80,11 +80,8 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
   {
     // Don't use Aggregations.getArgumentsForSimpleAggregator, since it won't let us use direct column access
     // for string columns.
-    final RexNode rexNode = Expressions.fromFieldAccess(
-        rowSignature,
-        project,
-        Iterables.getOnlyElement(aggregateCall.getArgList())
-    );
+    final int field = Iterables.getOnlyElement(aggregateCall.getArgList());
+    final RexNode rexNode = Expressions.fromFieldAccess(rowSignature, project, field);
 
     final DruidExpression arg = Expressions.toDruidExpression(plannerContext, rowSignature, rexNode);
     if (arg == null) {

@@ -21,7 +21,9 @@ package io.druid.sql.calcite.aggregation.builtin;
 
 import com.google.common.collect.Iterables;
 import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
@@ -88,6 +90,14 @@ public class MaxSqlAggregator implements SqlAggregator
       expression = arg.getExpression();
     }
 
-    return Aggregation.create(rowSignature, new GenericMaxAggregatorFactory(name, fieldName, expression, null, valueDesc));
+    AggregatorFactory factory;
+    if (valueDesc.isNumeric()) {
+      factory = new GenericMaxAggregatorFactory(name, fieldName, expression, null, valueDesc);
+    } else if (fieldName != null) {
+      factory = RelayAggregatorFactory.max(name, fieldName);
+    } else {
+      throw new UnsupportedOperationException("Not supports min on non-numeric expression");
+    }
+    return Aggregation.create(rowSignature, factory);
   }
 }

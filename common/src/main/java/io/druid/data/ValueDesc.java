@@ -70,11 +70,13 @@ public class ValueDesc implements Serializable, Cacheable
 
   // prefix of dimension
   private static final String DIMENSION_PREFIX = "dimension.";
-  private static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
 
   // descriptive type
   public static final String DECIMAL_TYPE = "decimal";
   public static final String STRUCT_TYPE = "struct";
+
+  public static final String STRING_DIMENSION_TYPE = DIMENSION_PREFIX + STRING_TYPE;
+  public static final String STRING_MULTIVALUED_TYPE = MULTIVALUED_PREFIX + STRING_TYPE;
 
   static {
     INTERNER.intern(STRING_TYPE);
@@ -101,7 +103,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   // dimension
   public static ValueDesc DIM_STRING = new ValueDesc(STRING_DIMENSION_TYPE);
-  public static ValueDesc MV_STRING = new ValueDesc(MULTIVALUED_PREFIX + STRING_TYPE);
+  public static ValueDesc MV_STRING = new ValueDesc(STRING_MULTIVALUED_TYPE);
 
   // internal types
   public static ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);

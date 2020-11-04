@@ -97,11 +97,8 @@ public class CountSqlAggregator implements SqlAggregator
     } else {
       // Not COUNT(*), not distinct
       // COUNT(x) should count all non-null values of x.
-      final RexNode rexNode = Expressions.fromFieldAccess(
-          rowSignature,
-          project,
-          Iterables.getOnlyElement(aggregateCall.getArgList())
-      );
+      final int field = Iterables.getOnlyElement(aggregateCall.getArgList());
+      final RexNode rexNode = Expressions.fromFieldAccess(rowSignature, project, field);
 
       if (rexNode.getType().isNullable()) {
         if (args.size() == 1 && args.get(0).isDirectColumnAccess()) {

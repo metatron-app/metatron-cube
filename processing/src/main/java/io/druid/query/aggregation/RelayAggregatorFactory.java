@@ -103,12 +103,22 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public static AggregatorFactory min(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "MIN");
+    return min(name, columnName, null);
+  }
+
+  public static AggregatorFactory min(String name, String columnName, String type)
+  {
+    return new RelayAggregatorFactory(name, columnName, type, "MIN");
   }
 
   public static AggregatorFactory max(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "MAX");
+    return max(name, columnName, null);
+  }
+
+  public static AggregatorFactory max(String name, String columnName, String type)
+  {
+    return new RelayAggregatorFactory(name, columnName, type, "MAX");
   }
 
   public static AggregatorFactory timeMin(String name, String columnName)

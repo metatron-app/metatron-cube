@@ -78,11 +78,8 @@ public class RelayAggregator implements SqlAggregator
     if (arguments.size() != 1) {
       return null; // todo
     }
-    final RexNode rexNode = Expressions.fromFieldAccess(
-        rowSignature,
-        project,
-        Iterables.getOnlyElement(aggregateCall.getArgList())
-    );
+    final int field = Iterables.getOnlyElement(aggregateCall.getArgList());
+    final RexNode rexNode = Expressions.fromFieldAccess(rowSignature, project, field);
 
     final DruidExpression arg = Expressions.toDruidExpression(plannerContext, rowSignature, rexNode);
     if (arg == null) {
