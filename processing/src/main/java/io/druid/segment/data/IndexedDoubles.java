@@ -19,8 +19,8 @@
 
 package io.druid.segment.data;
 
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.column.DoubleScanner;
+import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 
@@ -34,5 +34,17 @@ public interface IndexedDoubles extends Closeable
 
   int fill(int index, double[] toFill);
 
-  void scan(ImmutableBitmap include, DoubleScanner scanner);
+  default void scan(final IntIterator iterator, final DoubleScanner scanner)
+  {
+    if (iterator == null) {
+      final int size = size();
+      for (int index = 0; index < size; index++) {
+        scanner.apply(index, this::get);
+      }
+    } else {
+      while (iterator.hasNext()) {
+        scanner.apply(iterator.next(), this::get);
+      }
+    }
+  }
 }

@@ -21,7 +21,9 @@ package io.druid.segment;
 
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.IndexedInts;
+import org.roaringbitmap.IntIterator;
 
 /**
  */
@@ -97,6 +99,11 @@ public interface DimensionSelector
   {
   }
 
+  interface Scannable extends SingleValued
+  {
+    void scan(IntIterator iterator, IntScanner scanner);
+  }
+
   interface WithRawAccess extends DimensionSelector
   {
     byte[] lookupRaw(int id);
@@ -104,7 +111,7 @@ public interface DimensionSelector
     int copyTo(int id, BytesOutputStream output);
   }
 
-  interface SingleValuedWithRawAccess extends SingleValued, WithRawAccess
+  interface ScannableWithRawAccess extends Scannable, WithRawAccess
   {
   }
 

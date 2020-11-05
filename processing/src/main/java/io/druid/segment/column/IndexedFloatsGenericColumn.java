@@ -22,6 +22,7 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedFloats;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 
@@ -77,9 +78,9 @@ public class IndexedFloatsGenericColumn extends GenericColumn.FloatType
   }
 
   @Override
-  public void scan(ImmutableBitmap include, FloatScanner scanner)
+  public void scan(IntIterator iterator, FloatScanner scanner)
   {
-    column.scan(include, scanner);
+    column.scan(iterator, scanner);
   }
 
   @Override

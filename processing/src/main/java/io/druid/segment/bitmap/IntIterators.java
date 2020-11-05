@@ -21,6 +21,7 @@ package io.druid.segment.bitmap;
 
 import com.google.common.collect.Lists;
 import io.druid.collections.IntList;
+import io.druid.segment.Cursor;
 import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.roaringbitmap.IntIterator;
@@ -420,5 +421,34 @@ public class IntIterators
     {
       return new Mapped(delegate.clone(), conversion);
     }
+  }
+
+  public static IntIterator wrap(Cursor cursor)
+  {
+    if (cursor.isDone()) {
+      return EMPTY;
+    }
+    return new IntIterator()
+    {
+      @Override
+      public boolean hasNext()
+      {
+        return !cursor.isDone();
+      }
+
+      @Override
+      public int next()
+      {
+        final int offset = cursor.offset();
+        cursor.advance();
+        return offset;
+      }
+
+      @Override
+      public IntIterator clone()
+      {
+        throw new UnsupportedOperationException("clone");
+      }
+    };
   }
 }

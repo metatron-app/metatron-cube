@@ -24,7 +24,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -35,6 +34,7 @@ import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
+import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
@@ -67,9 +67,10 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
+import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
+import io.druid.query.sketch.SketchQuantilesPostAggregator;
 import io.druid.query.sketch.TypedSketch;
-import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
@@ -78,7 +79,7 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSpecVirtualColumn;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -86,7 +87,7 @@ import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -512,105 +513,125 @@ public class Queries
     }).intValue();
   }
 
-  private static final String DUMMY_VC = "$VC";
-
   public static Object[] makeColumnHistogramOn(
       Supplier<RowResolver> supplier,
       List<Segment> segments,
       QuerySegmentWalker segmentWalker,
-      TimeseriesQuery metaQuery,
-      DimensionSpec dimensionSpec,
+      BaseAggregationQuery metaQuery,
+      DimensionSpec column,
       int numSplits,
       String splitType,
-      int maxThreshold
+      int maxThreshold,
+      Cache cache
   )
   {
     if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
       return null;
     }
-    List<OrderingSpec> orderingSpecs = Lists.newArrayList();
-    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-      DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
-      orderingSpecs.add(explicit.asOrderingSpec());
-      dimensionSpec = explicit.getDelegate();
+    OrderingSpec orderingSpec = null;
+    if (column instanceof DimensionSpecWithOrdering) {
+      DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) column;
+      orderingSpec = explicit.asOrderingSpec();
+      column = explicit.getDelegate();
     }
-    ValueDesc type = dimensionSpec.resolve(supplier);
+    ValueDesc type = column.resolve(supplier);
     if (!type.isPrimitive() && !type.isDimension()) {
       return null;  // todo
     }
-    String fieldName = dimensionSpec.getDimension();
-    List<VirtualColumn> virtualColumns = Lists.newArrayList(metaQuery.getVirtualColumns());
-    if (!(dimensionSpec instanceof DefaultDimensionSpec)) {
-      virtualColumns.add(DimensionSpecVirtualColumn.wrap(dimensionSpec, DUMMY_VC));
-      metaQuery = metaQuery.withVirtualColumns(virtualColumns);
-      fieldName = DUMMY_VC;
-    }
 
+    TimeseriesQuery.Builder builder = new TimeseriesQuery.Builder(metaQuery);
+
+    String fieldName = column.getDimension();
+    if (!(column instanceof DefaultDimensionSpec)) {
+      builder.append(DimensionSpecVirtualColumn.wrap(column, "$VC"));
+      fieldName = "$VC";
+    }
     AggregatorFactory aggregator = new GenericSketchAggregatorFactory(
-        "SKETCH", fieldName, type.isDimension() ? ValueDesc.STRING : type, SketchOp.QUANTILE, 128, orderingSpecs, false
+        "$SKETCH", fieldName, type.isDimension() ? ValueDesc.STRING : type, SketchOp.QUANTILE, 128, orderingSpec, false
+    );
+    PostAggregator postAggregator = SketchQuantilesPostAggregator.quantile(
+        "$SPLIT", "$SKETCH", QuantileOperation.of(splitType, numSplits + 1, maxThreshold, true)
     );
 
-    Map<String, Object> pg = ImmutableMap.<String, Object>builder()
-                                         .put("type", "sketch.quantiles")
-                                         .put("name", "SPLIT")
-                                         .put("fieldName", "SKETCH")
-                                         .put("op", "QUANTILES")
-                                         .put("dedup", true)
-                                         .put(splitType, numSplits + 1)
-                                         .put("maxThreshold", maxThreshold)
-                                         .build();
+    TimeseriesQuery query = builder.aggregators(aggregator)
+                                   .postAggregators(postAggregator)
+                                   .addContext(Query.FINAL_MERGE, true)
+                                   .build();
 
-    PostAggregator postAggregator = Queries.convert(pg, segmentWalker.getObjectMapper(), PostAggregator.class);
-    if (postAggregator == null) {
-      LOG.info("Failed to convert map to 'sketch.quantiles' operator.. fix this");
-      return null;
+    Object[] histogram = null;
+    if (type.isDimension() && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM && allQueryableIndex(segments)) {
+      histogram = makeColumnHistogramOn(segments, column, orderingSpec, query.withQuerySegmentSpec(null), cache);
     }
-
-    metaQuery = metaQuery.withAggregatorSpecs(Arrays.asList(aggregator))
-                         .withPostAggregatorSpecs(Arrays.asList(postAggregator))
-                         .withOutputColumns(Arrays.asList("SPLIT"))
-                         .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);
-
-    if (type.isDimension() && dimensionSpec instanceof DefaultDimensionSpec && allQueryableIndex(segments)) {
-      Object[] histogram = makeColumnHistogramOn(segments, dimensionSpec, metaQuery, postAggregator);
-      if (histogram != null) {
-        return histogram;
-      }
+    if (histogram == null && segments.size() == 1) {
+      histogram = makeColumnHistogramOn(segments.get(0), query.withQuerySegmentSpec(null), cache);
     }
-
-    Row result = Sequences.only(QueryRunners.run(metaQuery, segmentWalker), null);
-
-    return result == null ? null : (Object[]) result.getRaw("SPLIT");
+    if (histogram == null && segmentWalker != null) {
+      Row result = Sequences.only(QueryRunners.run(query, segmentWalker), null);
+      histogram = result == null ? null : (Object[]) result.getRaw("$SPLIT");
+    }
+    return histogram;
   }
 
   @SuppressWarnings("unchecked")
   private static Object[] makeColumnHistogramOn(
       List<Segment> segments,
       DimensionSpec dimensionSpec,
-      TimeseriesQuery metaQuery,
-      PostAggregator postAggregator
+      OrderingSpec orderingSpec,
+      TimeseriesQuery query,
+      Cache cache
   )
   {
-    metaQuery = metaQuery.withQuerySegmentSpec(QuerySegmentSpec.ETERNITY);
-    ItemsUnion union = ItemsUnion.getInstance(128, GuavaUtils.noNullableNatural());
+    final Comparator comparator = orderingSpec == null ? GuavaUtils.noNullableNatural() : orderingSpec.getComparator();
+    ItemsUnion union = null;
     for (Segment segment : segments) {
-      segment.asStorageAdapter(true).makeCursors(metaQuery, null).accumulate(cursor -> {
-        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(128, GuavaUtils.noNullableNatural());
+      union = segment.asStorageAdapter(true).makeCursors(query, cache).accumulate(union, (current, cursor) -> {
+        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(128, comparator);
         DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
-        for (; !cursor.isDone(); cursor.advance()) {
-          final IndexedInts row = selector.getRow();
-          final int size = row.size();
-          for (int i = 0; i < size; i++) {
-            sketch.update(row.get(i));
+        if (selector instanceof DimensionSelector.Scannable) {
+          ((DimensionSelector.Scannable) selector).scan(
+              IntIterators.wrap(cursor), (x, v) -> sketch.update(v.applyAsInt(x))
+          );
+        } else if (selector instanceof DimensionSelector.SingleValued) {
+          for (; !cursor.isDone(); cursor.advance()) {
+            sketch.update(selector.getRow().get(0));
+          }
+        } else {
+          for (; !cursor.isDone(); cursor.advance()) {
+            final IndexedInts row = selector.getRow();
+            final int size = row.size();
+            for (int i = 0; i < size; i++) {
+              sketch.update(row.get(i));
+            }
           }
         }
-        ArrayOfItemsSerDe serde = new ArrayItemConverter(selector);
-        Memory memory = Memory.wrap(sketch.toByteArray(serde));
-        union.update(ItemsSketch.getInstance(memory, GuavaUtils.noNullableNatural(), serde));
+        ArrayOfItemsSerDe converter = new ArrayItemConverter(selector);
+        Memory memory = Memory.wrap(sketch.toByteArray(converter));
+        ItemsSketch instance = ItemsSketch.getInstance(memory, comparator, converter);
+        if (current == null) {
+          return ItemsUnion.getInstance(instance);
+        }
+        current.update(instance);
+        return current;
       });
     }
-    TypedSketch typedSketch = TypedSketch.of(ValueDesc.STRING, union.getResult());
-    return (Object[]) postAggregator.processor().compute(DateTime.now(), GuavaUtils.mutableMap("SKETCH", typedSketch));
+    if (union != null) {
+      PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
+      return (Object[]) postAggregator.processor().compute(
+          DateTime.now(), GuavaUtils.mutableMap("SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
+      );
+    }
+    return null;
+  }
+
+  private static Object[] makeColumnHistogramOn(Segment segment, TimeseriesQuery query, Cache cache)
+  {
+    TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
+    Row row = Sequences.only(engine.process(query, segment, false, cache), null);
+    if (row != null) {
+      PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
+      return (Object[]) postAggregator.processor().compute(row.getTimestamp(), ((MapBasedRow) row).getEvent());
+    }
+    return null;
   }
 
   private static boolean allQueryableIndex(List<Segment> segments)

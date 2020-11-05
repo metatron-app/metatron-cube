@@ -19,6 +19,9 @@
 
 package io.druid.segment.data;
 
+import io.druid.segment.column.IntScanner;
+import org.roaringbitmap.IntIterator;
+
 import java.io.Closeable;
 
 /**
@@ -30,9 +33,23 @@ public interface IndexedInts extends Closeable
 
   int get(int index);
 
+  default void scan(final IntIterator iterator, final IntScanner scanner)
+  {
+    if (iterator == null) {
+      final int size = size();
+      for (int index = 0; index < size; index++) {
+        scanner.apply(index, this::get);
+      }
+    } else {
+      while (iterator.hasNext()) {
+        scanner.apply(iterator.next(), this::get);
+      }
+    }
+  }
+
   abstract class Abstract implements IndexedInts
   {
-    @Override public void close() {}
+    public void close() {}
   }
 
   abstract class SingleValued extends Abstract

@@ -53,6 +53,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
@@ -61,6 +62,7 @@ import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.Filters.BitmapHolder;
 import org.joda.time.Interval;
+import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -559,8 +561,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           }
                         };
                         if (extractionFn != null) {
-                          return new DimensionSelector.SingleValued()
+                          return new DimensionSelector.Scannable()
                           {
+                            @Override
+                            public void scan(IntIterator iterator, IntScanner scanner)
+                            {
+                              column.scan(iterator, scanner);
+                            }
+
                             @Override
                             public IndexedInts getRow()
                             {
@@ -601,8 +609,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           };
                         } else {
                           final Dictionary<String> dictionary = column.dictionary();
-                          return new DimensionSelector.SingleValuedWithRawAccess()
+                          return new DimensionSelector.ScannableWithRawAccess()
                           {
+                            @Override
+                            public void scan(IntIterator iterator, IntScanner scanner)
+                            {
+                              column.scan(iterator, scanner);
+                            }
+
                             @Override
                             public IndexedInts getRow()
                             {

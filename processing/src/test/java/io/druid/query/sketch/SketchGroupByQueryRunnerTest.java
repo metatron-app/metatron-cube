@@ -132,7 +132,7 @@ public class SketchGroupByQueryRunnerTest
                 ValueDesc.STRING,
                 SketchOp.QUANTILE,
                 null,
-                OrderingSpec.toOrderingSpecs("stringarray(\u0001)"),
+                new OrderingSpec(null, "stringarray(\u0001)"),
                 false
             )
         )

@@ -158,15 +158,14 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
                 }
 
                 @Override
-                public void scan(ImmutableBitmap include, LongScanner scanner)
+                public void scan(IntIterator iterator, LongScanner scanner)
                 {
                   final Int2LongFunction supplier = x -> bufferToUse.get(x);
-                  if (include == null) {
+                  if (iterator == null) {
                     for (int i = 0; i < numRows; i++) {
                       scanner.apply(i, supplier);
                     }
                   } else {
-                    final IntIterator iterator = include.iterator();
                     while (iterator.hasNext()) {
                       scanner.apply(iterator.next(), supplier);
                     }

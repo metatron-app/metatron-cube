@@ -97,7 +97,7 @@ public class VSizeIntWriterTest
   public void testAdd() throws Exception
   {
     for (int maxValue : MAX_VALUES) {
-      generateVals(rand.nextInt(100) + 10, maxValue);
+      generateVals(65536, maxValue);
       checkSerializedSizeAndData();
     }
   }

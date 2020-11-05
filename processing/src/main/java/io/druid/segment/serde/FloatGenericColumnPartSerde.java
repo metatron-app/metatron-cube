@@ -158,15 +158,14 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
                 }
 
                 @Override
-                public void scan(ImmutableBitmap include, FloatScanner scanner)
+                public void scan(IntIterator iterator, FloatScanner scanner)
                 {
                   final Int2FloatFunction supplier = x -> bufferToUse.get(x);
-                  if (include == null) {
+                  if (iterator == null) {
                     for (int i = 0; i < numRows; i++) {
                       scanner.apply(i, supplier);
                     }
                   } else {
-                    final IntIterator iterator = include.iterator();
                     while (iterator.hasNext()) {
                       scanner.apply(iterator.next(), supplier);
                     }

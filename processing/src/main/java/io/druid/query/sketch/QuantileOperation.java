@@ -261,6 +261,17 @@ public enum QuantileOperation
     }
   }
 
+  public static QuantileParam of(String type, int partition, int maxThreshold, boolean dedup)
+  {
+    if ("evenSpaced".equals(type)) {
+      return evenSpaced(partition, dedup);
+    } else if ("evenCounted".equals(type)) {
+      return evenCounted(partition, dedup);
+    } else {
+      return slopedSpaced(partition, maxThreshold, dedup);
+    }
+  }
+
   public static QuantileParam evenSpaced(int partition, boolean dedup)
   {
     return new QuantileParam(partition, -1, true, false, false, dedup);

@@ -98,8 +98,7 @@ public class SelectQueryEngine
 
             final Map<String, ObjectColumnSelector> metSelectors = Maps.newLinkedHashMap();
             for (String metric : query.getMetrics()) {
-              final ObjectColumnSelector metricSelector = cursor.makeObjectColumnSelector(metric);
-              metSelectors.put(metric, metricSelector);
+              metSelectors.put(metric, cursor.makeObjectColumnSelector(metric));
             }
 
             final PagingOffset offset = query.getPagingOffset(segmentId);

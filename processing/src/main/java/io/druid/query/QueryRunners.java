@@ -46,6 +46,8 @@ import java.util.concurrent.TimeoutException;
 
 public class QueryRunners
 {
+  public static final int MAX_QUERY_PARALLELISM = 4;
+
   private static final Logger LOG = new Logger(QueryRunners.class);
 
   public static <T> QueryRunner<T> concat(final Iterable<QueryRunner<T>> runners)
@@ -182,7 +184,7 @@ public class QueryRunners
       };
     }
     // used for limiting resource usage from heavy aggregators like CountMinSketch
-    final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, 4);
+    final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, MAX_QUERY_PARALLELISM);
     if (parallelism < 1) {
       // no limit.. todo: deprecate this
       return new ChainedExecutionQueryRunner<T>(executor, watcher, runners);

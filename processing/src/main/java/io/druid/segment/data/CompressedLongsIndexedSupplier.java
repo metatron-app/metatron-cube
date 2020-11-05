@@ -23,16 +23,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
-import io.druid.segment.column.LongScanner;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
-import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -314,21 +311,6 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     }
 
     @Override
-    public void scan(ImmutableBitmap include, LongScanner scanner)
-    {
-      if (include == null) {
-        for (int index = 0; index < numRows; index++) {
-          scanner.apply(index, this::get);
-        }
-      } else {
-        final IntIterator iterator = include.iterator();
-        while (iterator.hasNext()) {
-          scanner.apply(iterator.next(), this::get);
-        }
-      }
-    }
-
-    @Override
     public long get(int index)
     {
       final int bufferNum = index / sizePer;
@@ -373,7 +355,7 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     @Override
     public String toString()
     {
-      return "CompressedLongsIndexedSupplier_Anonymous{" +
+      return "CompressedLongsIndexedSupplier{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreadedLongBuffers.size() +

@@ -22,9 +22,12 @@ package io.druid.segment.data;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
+import it.unimi.dsi.fastutil.ints.Int2IntFunction;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 
@@ -110,20 +113,59 @@ public class VSizedInt extends IndexedInts.Abstract implements Comparable<VSized
   }
 
   private final ByteBuffer buffer;
+  private final int position;
   private final int numBytes;
+  private final Int2IntFunction reader;
 
-  private final int bitsToShift;
   private final int size;
 
   public VSizedInt(ByteBuffer buffer, int numBytes)
   {
     this.buffer = buffer;
+    this.position = buffer.position();
     this.numBytes = numBytes;
+    this.reader = makeReader(buffer, numBytes);
+    this.size = (buffer.remaining() - (4 - numBytes)) / numBytes;
+  }
 
-    bitsToShift = 32 - (numBytes << 3); // numBytes * 8
+  private static Int2IntFunction makeReader(ByteBuffer buffer, int numBytes)
+  {
+    switch (numBytes) {
+      case 1:
+        return x -> buffer.get(x) & 0xff;
+      case 2:
+        return buffer.order() == ByteOrder.BIG_ENDIAN ?
+               x -> be(buffer.get(x), buffer.get(x + 1)) :
+               x -> le(buffer.get(x), buffer.get(x + 1));
+      case 3:
+        return buffer.order() == ByteOrder.BIG_ENDIAN ?
+               x -> be(buffer.get(x), buffer.get(x + 1), buffer.get(x + 2)) :
+               x -> le(buffer.get(x), buffer.get(x + 1), buffer.get(x + 2));
+      case 4:
+        return x -> buffer.getInt(x);
+      default:
+        throw new ISE("Invalid vint length " + numBytes);
+    }
+  }
 
-    int numBufferBytes = 4 - numBytes;
-    size = (buffer.remaining() - numBufferBytes) / numBytes;
+  private static int be(byte b0, byte b1)
+  {
+    return ((b0 & 0xff) << 8) + (b1 & 0xff);
+  }
+
+  private static int be(byte b0, byte b1, byte b2)
+  {
+    return ((b0 & 0xff) << 16) + ((b1 & 0xff) << 8) + (b2 & 0xff);
+  }
+
+  private static int le(byte b0, byte b1)
+  {
+    return (b0 & 0xff) + ((b1 & 0xff) << 8);
+  }
+
+  private static int le(byte b0, byte b1, byte b2)
+  {
+    return (b0 & 0xff) + ((b1 & 0xff) << 8) + ((b2 & 0xff) << 16);
   }
 
   @Override
@@ -135,20 +177,13 @@ public class VSizedInt extends IndexedInts.Abstract implements Comparable<VSized
   @Override
   public int get(int index)
   {
-    return buffer.getInt(buffer.position() + (index * numBytes)) >>> bitsToShift;
+    return reader.get(position + (index * numBytes));
   }
 
   public byte[] getBytesNoPadding()
   {
-    int bytesToTake = buffer.remaining() - (4 - numBytes);
-    byte[] bytes = new byte[bytesToTake];
-    buffer.asReadOnlyBuffer().get(bytes);
-    return bytes;
-  }
-
-  public byte[] getBytes()
-  {
-    byte[] bytes = new byte[buffer.remaining()];
+    final int bytesToTake = buffer.remaining() - (4 - numBytes);
+    final byte[] bytes = new byte[bytesToTake];
     buffer.asReadOnlyBuffer().get(bytes);
     return bytes;
   }
@@ -194,20 +229,19 @@ public class VSizedInt extends IndexedInts.Abstract implements Comparable<VSized
       bufferToUse.limit(bufferToUse.position() + size);
       buffer.position(bufferToUse.limit());
 
-      return new VSizedInt(
-          bufferToUse,
-          numBytes
-      );
+      return new VSizedInt(bufferToUse, numBytes);
     }
 
     throw new IAE("Unknown version[%s]", versionFromBuffer);
   }
 
-  public WritableSupplier<IndexedInts> asWritableSupplier() {
+  public WritableSupplier<IndexedInts> asWritableSupplier()
+  {
     return new VSizeIndexedIntsSupplier(this);
   }
 
-  public static class VSizeIndexedIntsSupplier implements WritableSupplier<IndexedInts> {
+  public static class VSizeIndexedIntsSupplier implements WritableSupplier<IndexedInts>
+  {
     final VSizedInt delegate;
 
     public VSizeIndexedIntsSupplier(VSizedInt delegate) {

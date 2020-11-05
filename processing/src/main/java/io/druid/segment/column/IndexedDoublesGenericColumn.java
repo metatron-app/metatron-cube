@@ -22,6 +22,7 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedDoubles;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 
@@ -77,9 +78,9 @@ public class IndexedDoublesGenericColumn extends GenericColumn.DoubleType
   }
 
   @Override
-  public void scan(ImmutableBitmap include, DoubleScanner scanner)
+  public void scan(IntIterator iterator, DoubleScanner scanner)
   {
-    column.scan(include, scanner);
+    column.scan(iterator, scanner);
   }
 
   @Override

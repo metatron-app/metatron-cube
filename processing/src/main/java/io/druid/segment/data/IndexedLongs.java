@@ -19,8 +19,8 @@
 
 package io.druid.segment.data;
 
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.column.LongScanner;
+import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 
@@ -35,5 +35,17 @@ public interface IndexedLongs extends Closeable
 
   int fill(int index, long[] toFill);
 
-  void scan(ImmutableBitmap include, LongScanner predicate);
+  default void scan(final IntIterator iterator, final LongScanner scanner)
+  {
+    if (iterator == null) {
+      final int size = size();
+      for (int index = 0; index < size; index++) {
+        scanner.apply(index, this::get);
+      }
+    } else {
+      while (iterator.hasNext()) {
+        scanner.apply(iterator.next(), this::get);
+      }
+    }
+  }
 }

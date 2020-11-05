@@ -23,16 +23,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
-import io.druid.segment.column.FloatScanner;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
-import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -244,21 +241,6 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     }
 
     @Override
-    public void scan(ImmutableBitmap include, FloatScanner scanner)
-    {
-      if (include == null) {
-        for (int index = 0; index < numRows; index++) {
-          scanner.apply(index, this::get);
-        }
-      } else {
-        final IntIterator iterator = include.iterator();
-        while (iterator.hasNext()) {
-          scanner.apply(iterator.next(), this::get);
-        }
-      }
-    }
-
-    @Override
     public float get(final int index)
     {
       // division + remainder is optimized by the compiler so keep those together
@@ -303,7 +285,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     @Override
     public String toString()
     {
-      return "CompressedFloatsIndexedSupplier_Anonymous{" +
+      return "CompressedFloatsIndexedSupplier{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
              ", numChunks=" + singleThreadedFloatBuffers.size() +

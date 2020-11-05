@@ -66,6 +66,7 @@ public class HllSketchMergeAggregatorFactory extends HllSketchAggregatorFactory
   @Override
   public Aggregator factorize(final ColumnSelectorFactory columnSelectorFactory)
   {
+    @SuppressWarnings("unchecked")
     final ObjectColumnSelector<HllSketch> selector = columnSelectorFactory.makeObjectColumnSelector(getFieldName());
     return new HllSketchMergeAggregator(selector, getLgK(), TgtHllType.valueOf(getTgtHllType()));
   }
@@ -73,6 +74,7 @@ public class HllSketchMergeAggregatorFactory extends HllSketchAggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(final ColumnSelectorFactory columnSelectorFactory)
   {
+    @SuppressWarnings("unchecked")
     final ObjectColumnSelector<HllSketch> selector = columnSelectorFactory.makeObjectColumnSelector(getFieldName());
     return new HllSketchMergeBufferAggregator(
         selector,

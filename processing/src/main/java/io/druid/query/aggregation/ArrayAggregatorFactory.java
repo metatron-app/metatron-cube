@@ -54,9 +54,9 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
+    @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(column);
 
     final DSuppliers.HandOver<List> holder = new DSuppliers.HandOver<>();
@@ -146,6 +146,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
+    @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(column);
 
     final DSuppliers.HandOver<List> holder = new DSuppliers.HandOver<>();

@@ -656,7 +656,7 @@ public class Filters
 
   private static ImmutableBitmap scanForRange(GenericColumn column, Range range, FilterContext context)
   {
-    final ImmutableBitmap baseBitmap = context.getBaseBitmap();
+    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
     try {
       final BoundType lowerType = range.hasLowerBound() ? range.lowerBoundType() : null;
@@ -665,7 +665,7 @@ public class Filters
         final float lower = range.hasLowerBound() ? (Float) range.lowerEndpoint() : 0;
         final float upper = range.hasUpperBound() ? (Float) range.upperEndpoint() : 0;
         return ((GenericColumn.FloatType) column).collect(
-            factory, baseBitmap,
+            factory, iterator,
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? f -> lower < f && f < upper : f -> lower < f && f <= upper :
@@ -677,7 +677,7 @@ public class Filters
         final double lower = range.hasLowerBound() ? (Double) range.lowerEndpoint() : 0;
         final double upper = range.hasUpperBound() ? (Double) range.upperEndpoint() : 0;
         return ((GenericColumn.DoubleType) column).collect(
-            factory, baseBitmap,
+            factory, iterator,
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? d -> lower < d && d < upper : d -> lower < d && d <= upper :
@@ -689,7 +689,7 @@ public class Filters
         final long lower = range.hasLowerBound() ? (Long) range.lowerEndpoint() : 0;
         final long upper = range.hasUpperBound() ? (Long) range.upperEndpoint() : 0;
         return ((GenericColumn.LongType) column).collect(
-            factory, baseBitmap,
+            factory, iterator,
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? l -> lower < l && l < upper : l -> lower < l && l <= upper :
@@ -710,20 +710,20 @@ public class Filters
 
   private static ImmutableBitmap scanForEqui(GenericColumn column, String value, FilterContext context)
   {
-    final ImmutableBitmap baseBitmap = context.getBaseBitmap();
+    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
     try {
       if (StringUtils.isNullOrEmpty(value)) {
         return column.getNulls();
       } else if (column instanceof GenericColumn.FloatType) {
         final float fv = Rows.parseFloat(value);
-        return ((GenericColumn.FloatType) column).collect(factory, baseBitmap, f -> f == fv);
+        return ((GenericColumn.FloatType) column).collect(factory, iterator, f -> f == fv);
       } else if (column instanceof GenericColumn.DoubleType) {
         final double dv = Rows.parseDouble(value);
-        return ((GenericColumn.DoubleType) column).collect(factory, baseBitmap, d -> d == dv);
+        return ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> d == dv);
       } else if (column instanceof GenericColumn.LongType) {
         final long lv = Rows.parseLong(value);
-        return ((GenericColumn.LongType) column).collect(factory, baseBitmap, l -> l == lv);
+        return ((GenericColumn.LongType) column).collect(factory, iterator, l -> l == lv);
       }
     }
     catch (Exception e) {
@@ -737,7 +737,7 @@ public class Filters
 
   private static ImmutableBitmap scanForEqui(GenericColumn column, Set<String> values, FilterContext context)
   {
-    final ImmutableBitmap baseBitmap = context.getBaseBitmap();
+    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
     try {
       Iterable<String> filtered = values;
@@ -752,19 +752,19 @@ public class Filters
         for (String value : filtered) {
           fset.add(Rows.parseFloat(value).floatValue());
         }
-        collected = ((GenericColumn.FloatType) column).collect(factory, baseBitmap, f -> fset.contains(f));
+        collected = ((GenericColumn.FloatType) column).collect(factory, iterator, f -> fset.contains(f));
       } else if (column instanceof GenericColumn.DoubleType) {
         final DoubleSet dset = new DoubleOpenHashSet();
         for (String value : filtered) {
           dset.add(Rows.parseDouble(value).doubleValue());
         }
-        collected = ((GenericColumn.DoubleType) column).collect(factory, baseBitmap, d -> dset.contains(d));
+        collected = ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> dset.contains(d));
       } else if (column instanceof GenericColumn.LongType) {
         final LongSet lset = new LongOpenHashSet();
         for (String value : filtered) {
           lset.add(Rows.parseLong(value).longValue());
         }
-        collected = ((GenericColumn.LongType) column).collect(factory, baseBitmap, l -> lset.contains(l));
+        collected = ((GenericColumn.LongType) column).collect(factory, iterator, l -> lset.contains(l));
       }
       if (collected != null && !nulls.isEmpty()) {
         collected = factory.union(Arrays.asList(collected, nulls));

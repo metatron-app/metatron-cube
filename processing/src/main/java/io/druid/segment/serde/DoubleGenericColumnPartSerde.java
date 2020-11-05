@@ -158,15 +158,14 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
                 }
 
                 @Override
-                public void scan(ImmutableBitmap include, DoubleScanner scanner)
+                public void scan(IntIterator iterator, DoubleScanner scanner)
                 {
                   final Int2DoubleFunction supplier = x -> bufferToUse.get(x);
-                  if (include == null) {
+                  if (iterator == null) {
                     for (int i = 0; i < numRows; i++) {
                       scanner.apply(i, supplier);
                     }
                   } else {
-                    final IntIterator iterator = include.iterator();
                     while (iterator.hasNext()) {
                       scanner.apply(iterator.next(), supplier);
                     }

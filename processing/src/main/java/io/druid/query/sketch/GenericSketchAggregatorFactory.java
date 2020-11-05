@@ -20,6 +20,7 @@
 package io.druid.query.sketch;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -47,6 +48,7 @@ import io.druid.segment.data.IndexedInts;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -66,7 +68,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   private final ValueDesc inputType;
   private final boolean merge;
 
-  private final List<OrderingSpec> orderingSpecs;
+  private final OrderingSpec orderingSpec;
 
   private transient Comparator sourceComparator;
 
@@ -77,7 +79,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       @JsonProperty("inputType") ValueDesc inputType,
       @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("sketchParam") Integer sketchParam,
-      @JsonProperty("orderingSpecs") List<OrderingSpec> orderingSpecs,
+      @JsonProperty("orderingSpec") OrderingSpec orderingSpec,
       @JsonProperty("merge") boolean merge
   )
   {
@@ -86,13 +88,14 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     this.inputType = inputType;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
-    this.orderingSpecs = orderingSpecs;
+    this.orderingSpec = orderingSpec;
     this.merge = merge;
   }
 
   private Comparator sourceComparator()
   {
     if (sourceComparator == null) {
+      List<OrderingSpec> orderingSpecs = orderingSpec == null ? null : Arrays.asList(orderingSpec);
       sourceComparator = StringComparators.makeComparator(inputType, orderingSpecs);
     }
     return sourceComparator;
@@ -168,7 +171,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       };
     }
     if (ValueDesc.isMultiValued(columnType)) {
-      ValueDesc elementType = columnType.subElement();
+      final ValueDesc elementType = columnType.subElement();
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
       return new BaseAggregator(elementType)
       {
@@ -216,7 +219,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     if (inputType.isDimension()) {
       inputType = ValueDesc.STRING;
     }
-    return new GenericSketchAggregatorFactory(name, fieldName, inputType, sketchOp, sketchParam, orderingSpecs, merge);
+    return new GenericSketchAggregatorFactory(name, fieldName, inputType, sketchOp, sketchParam, orderingSpec, merge);
   }
 
   @SuppressWarnings("unchecked")
@@ -332,7 +335,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       };
     }
     if (ValueDesc.isMultiValued(columnType)) {
-      ValueDesc elementType = columnType.subElement();
+      final ValueDesc elementType = columnType.subElement();
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
       return new BaseBufferAggregator(elementType)
       {
@@ -462,7 +465,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new GenericSketchAggregatorFactory(name, name, inputType, sketchOp, sketchParam, orderingSpecs, true);
+    return new GenericSketchAggregatorFactory(name, name, inputType, sketchOp, sketchParam, orderingSpec, true);
   }
 
   @Override
@@ -501,7 +504,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
-    return new GenericSketchAggregatorFactory(name, inputField, inputType, sketchOp, sketchParam, orderingSpecs, true);
+    return new GenericSketchAggregatorFactory(name, inputField, inputType, sketchOp, sketchParam, orderingSpec, true);
   }
 
   @JsonProperty
@@ -517,9 +520,10 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @JsonProperty
-  public List<OrderingSpec> getOrderingSpecs()
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public OrderingSpec getOrderingSpecs()
   {
-    return orderingSpecs;
+    return orderingSpec;
   }
 
   @JsonProperty
@@ -548,7 +552,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
                   .append(inputType)
                   .append(sketchOp)
                   .append(sketchParam)
-                  .append(orderingSpecs)
+                  .append(orderingSpec)
                   .append(merge);
   }
 
@@ -567,7 +571,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
            + ", inputType=" + inputType
            + ", sketchOp=" + sketchOp
            + ", sketchParam=" + sketchParam
-           + ", orderingSpecs=" + orderingSpecs
+           + ", orderingSpec=" + orderingSpec
            + ", merge=" + merge
            + '}';
   }
@@ -600,7 +604,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     if (sketchParam != that.sketchParam) {
       return false;
     }
-    if (!Objects.equals(orderingSpecs, that.orderingSpecs)) {
+    if (!Objects.equals(orderingSpec, that.orderingSpec)) {
       return false;
     }
     return merge == that.merge;
@@ -614,7 +618,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     result = 31 * result + Objects.hashCode(inputType);
     result = 31 * result + sketchOp.ordinal();
     result = 31 * result + sketchParam;
-    result = 31 * result + Objects.hashCode(orderingSpecs);
+    result = 31 * result + Objects.hashCode(orderingSpec);
     result = 31 * result + (merge ? 1 : 0);
     return result;
   }

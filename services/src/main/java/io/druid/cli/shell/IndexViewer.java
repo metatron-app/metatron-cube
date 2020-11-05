@@ -37,6 +37,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
@@ -426,7 +427,6 @@ public class IndexViewer extends CommonShell.WithUtils
     writer.println();
 
     Set<String> dimensions = Sets.newHashSet(index.getAvailableDimensions());
-    dimensions.add(Column.TIME_COLUMN_NAME);
 
     for (Pair<String, int[]> value : values) {
       String columnName = value.lhs;
@@ -438,7 +438,7 @@ public class IndexViewer extends CommonShell.WithUtils
       long columnSize = column.getSerializedSize();
       boolean dimensionsType = dimensions.contains(columnName);
 
-      String columnType = dimensionsType ? "dimension" : "metric";
+      String columnType = columnName.equals(Row.TIME_COLUMN_NAME) ? "timestamp" : dimensionsType ? "dimension" : "metric";
       writer.println(
           format(
               "> %s '%s' (%s, %,d ~ %,d : %3.1f%% of total)",

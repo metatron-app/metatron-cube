@@ -63,14 +63,14 @@ public class HllSketchBuildAggregatorFactory extends HllSketchAggregatorFactory
   @Override
   public Aggregator factorize(final ColumnSelectorFactory columnSelectorFactory)
   {
-    final ObjectColumnSelector<Object> selector = columnSelectorFactory.makeObjectColumnSelector(getFieldName());
+    final ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(getFieldName());
     return new HllSketchBuildAggregator(selector, getLgK(), TgtHllType.valueOf(getTgtHllType()));
   }
 
   @Override
   public BufferAggregator factorizeBuffered(final ColumnSelectorFactory columnSelectorFactory)
   {
-    final ObjectColumnSelector<Object> selector = columnSelectorFactory.makeObjectColumnSelector(getFieldName());
+    final ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(getFieldName());
     return new HllSketchBuildBufferAggregator(
         selector,
         getLgK(),

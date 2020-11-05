@@ -64,7 +64,7 @@ public interface ColumnSelectorFactory extends TypeResolver
     return ColumnSelectors.asLong(makeObjectColumnSelector(columnName));
   }
 
-  <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
+  ObjectColumnSelector makeObjectColumnSelector(String columnName);
   ExprEvalColumnSelector makeMathExpressionSelector(String expression);
   ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);
   ValueMatcher makePredicateMatcher(DimFilter filter);
@@ -92,7 +92,7 @@ public interface ColumnSelectorFactory extends TypeResolver
       final Map<String, TypedSupplier> values = Maps.newHashMap();
       final Map<String, WithRawAccess> rawAccessible = Maps.newHashMap();
       for (String columnName : Parser.findRequiredBindings(parsed)) {
-        ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
+        ObjectColumnSelector value = makeObjectColumnSelector(columnName);
         values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
         if (value instanceof WithRawAccess) {
           rawAccessible.put(columnName, (WithRawAccess) value);

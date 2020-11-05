@@ -204,19 +204,21 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
     @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
+      final IndexedInts row = new IndexedInts.SingleValued()
+      {
+        @Override
+        protected final int get()
+        {
+          return selector.getRow().get(index);
+        }
+      };
+
       return new DelegatedDimensionSelector(selector)
       {
         @Override
         public IndexedInts getRow()
         {
-          return new IndexedInts.SingleValued()
-          {
-            @Override
-            protected final int get()
-            {
-              return selector.getRow().get(index);
-            }
-          };
+          return row;
         }
       };
     }

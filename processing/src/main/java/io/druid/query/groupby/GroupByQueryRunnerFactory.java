@@ -271,14 +271,16 @@ public class GroupByQueryRunnerFactory
     // can split on all dimensions but it seemed not cost-effective
     DimensionSpec dimensionSpec = dimensionSpecs.get(0);
 
+    long start = System.currentTimeMillis();
     String strategy = query.getContextValue(Query.LOCAL_SPLIT_STRATEGY, "slopedSpaced");
     Object[] thresholds = Queries.makeColumnHistogramOn(
-        resolver, segments, segmentWalker, query.asTimeseriesQuery(), dimensionSpec, numSplit, strategy, maxResults
+        resolver, segments, segmentWalker, query, dimensionSpec, numSplit, strategy, maxResults, cache
     );
     if (thresholds == null || thresholds.length < 3) {
       return null;
     }
-    logger.info("split %s on values : %s", dimensionSpec.getDimension(), Arrays.toString(thresholds));
+    long elapsed = System.currentTimeMillis() - start;
+    logger.info("split %s on values : %s (%d msec)", dimensionSpec.getDimension(), Arrays.toString(thresholds), elapsed);
 
     ValueDesc type = dimensionSpec.resolve(resolver);
     if (type.isDimension()) {

@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 
@@ -62,6 +63,11 @@ public class SimpleDictionaryEncodedColumn
   public int getSingleValueRow(int rowNum)
   {
     return column.get(rowNum);
+  }
+
+  public void scan(final IntIterator iterator, final IntScanner scanner)
+  {
+    column.scan(iterator, scanner);
   }
 
   @Override

@@ -61,10 +61,23 @@ public class SketchQuantilesPostAggregator extends PostAggregator.Stateless
     );
   }
 
+  public static SketchQuantilesPostAggregator quantile(String name, String fieldName, Object parameter)
+  {
+    return new SketchQuantilesPostAggregator(name, fieldName, QuantileOperation.QUANTILES, parameter);
+  }
+
   private final String name;
   private final String fieldName;
   private final QuantileOperation op;
   private final Object parameter;
+
+  public SketchQuantilesPostAggregator(String name, String fieldName, QuantileOperation op, Object parameter)
+  {
+    this.name = name;
+    this.fieldName = fieldName;
+    this.op = op;
+    this.parameter = parameter;
+  }
 
   @JsonCreator
   public SketchQuantilesPostAggregator(

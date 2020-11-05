@@ -97,7 +97,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName)
+    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
     {
       throw new UnsupportedOperationException("makeObjectColumnSelector");
     }
@@ -143,7 +143,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName)
+    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
     {
       return delegate.makeObjectColumnSelector(columnName);
     }
@@ -389,8 +389,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
+    public ObjectColumnSelector makeObjectColumnSelector(final String columnName)
     {
       // creates VC if possible in here
       final ValueDesc resolved = resolver.resolve(columnName);
@@ -446,9 +445,8 @@ public class ColumnSelectorFactories
       return resolver.resolve(column);
     }
 
-        @Override
-    @SuppressWarnings("unchecked")
-    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
+    @Override
+    public ObjectColumnSelector makeObjectColumnSelector(final String columnName)
     {
       // creates VC if possible in here
       final ValueDesc resolved = resolver.resolve(columnName);
@@ -628,8 +626,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String column)
+    public ObjectColumnSelector makeObjectColumnSelector(final String column)
     {
       if (Column.TIME_COLUMN_NAME.equals(column)) {
         return new ObjectColumnSelector()

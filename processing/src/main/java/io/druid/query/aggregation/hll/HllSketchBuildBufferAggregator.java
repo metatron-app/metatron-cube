@@ -35,13 +35,13 @@ import java.nio.ByteOrder;
  */
 public class HllSketchBuildBufferAggregator implements BufferAggregator
 {
-  private final ObjectColumnSelector<Object> selector;
+  private final ObjectColumnSelector selector;
   private final int lgK;
   private final TgtHllType tgtHllType;
   private final int size;
 
   public HllSketchBuildBufferAggregator(
-      final ObjectColumnSelector<Object> selector,
+      final ObjectColumnSelector selector,
       final int lgK,
       final TgtHllType tgtHllType,
       final int size

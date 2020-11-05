@@ -22,6 +22,7 @@ package io.druid.segment.column;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IndexedLongs;
+import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 
@@ -77,7 +78,7 @@ public class IndexedLongsGenericColumn extends GenericColumn.LongType
   }
 
   @Override
-  public void scan(ImmutableBitmap include, LongScanner scanner)
+  public void scan(IntIterator include, LongScanner scanner)
   {
     column.scan(include, scanner);
   }

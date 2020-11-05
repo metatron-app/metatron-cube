@@ -710,6 +710,11 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       return setVirtualColumns(virtualColumns);
     }
 
+    public Builder<T> append(VirtualColumn... append)
+    {
+      return setVirtualColumns(GuavaUtils.concat(virtualColumns, append));
+    }
+
     public Builder<T> addAggregator(AggregatorFactory aggregator)
     {
       if (aggregatorSpecs == null) {

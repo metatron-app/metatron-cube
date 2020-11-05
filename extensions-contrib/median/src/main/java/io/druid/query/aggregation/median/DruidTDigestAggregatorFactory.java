@@ -62,7 +62,7 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory
     return new DruidTDigestAggregator(
         metricFactory.makeObjectColumnSelector(fieldName),
         compression
-        );
+    );
   }
 
   @Override

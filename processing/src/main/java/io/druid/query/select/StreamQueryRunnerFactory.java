@@ -115,10 +115,8 @@ public class StreamQueryRunnerFactory
     if (numSplit < 2) {
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
-        long start = System.currentTimeMillis();
         int numRows = getNumRows(query, segments);
-        long elapsed = System.currentTimeMillis() - start;
-        logger.info("Total number of rows [%,d] (%d msec), spliting on [%d] rows", numRows, elapsed, splitRows);
+        logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
         numSplit = numRows / splitRows;
       }
     }
@@ -136,13 +134,13 @@ public class StreamQueryRunnerFactory
     DimensionSpec ordering = orderingSpec.asDimensionSpec();
     long start = System.currentTimeMillis();
     Object[] thresholds = Queries.makeColumnHistogramOn(
-        resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1
+        resolver, segments, segmentWalker, query.asTimeseriesQuery(), ordering, numSplit, strategy, -1, cache
     );
     long elapsed = System.currentTimeMillis() - start;
     if (thresholds == null || thresholds.length < 3) {
       return null;
     }
-    logger.info("split %s (%d msec) on values : %s", sortColumn, elapsed, Arrays.toString(thresholds));
+    logger.info("split %s on values : %s (%d msec)", sortColumn, Arrays.toString(thresholds), elapsed);
 
     Direction direction = orderingSpec.getDirection();
     List<StreamQuery> splits = Lists.newArrayList();
