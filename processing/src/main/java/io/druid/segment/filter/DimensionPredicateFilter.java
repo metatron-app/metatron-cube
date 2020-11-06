@@ -31,8 +31,9 @@ import io.druid.segment.ColumnSelectorFactory;
  */
 public class DimensionPredicateFilter implements Filter
 {
-  private final String dimension;
-  private final Predicate<String> predicate;
+  protected final String dimension;
+  protected final ExtractionFn extractionFn;
+  protected final Predicate<String> predicate;
 
   public DimensionPredicateFilter(
       final String dimension,
@@ -40,32 +41,35 @@ public class DimensionPredicateFilter implements Filter
       final ExtractionFn extractionFn
   )
   {
-    Preconditions.checkNotNull(predicate, "predicate");
     this.dimension = Preconditions.checkNotNull(dimension, "dimension");
-
-    if (extractionFn == null) {
-      this.predicate = predicate;
-    } else {
-      this.predicate = new Predicate<String>()
-      {
-        @Override
-        public boolean apply(String input)
-        {
-          return predicate.apply(extractionFn.apply(input));
-        }
-      };
-    }
+    this.predicate = Preconditions.checkNotNull(predicate, "predicate");
+    this.extractionFn = extractionFn;
   }
 
   @Override
   public ImmutableBitmap getBitmapIndex(FilterContext context)
   {
-    return Filters.matchPredicate(dimension, predicate, context);
+    return Filters.matchPredicate(dimension, combine(predicate, extractionFn), context);
   }
 
   @Override
   public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
-    return Filters.toValueMatcher(factory, dimension, predicate);
+    return Filters.toValueMatcher(factory, dimension, combine(predicate, extractionFn));
+  }
+
+  private Predicate<String> combine(Predicate<String> predicate, ExtractionFn extractionFn)
+  {
+    if (extractionFn == null) {
+      return predicate;
+    }
+    return new Predicate<String>()
+    {
+      @Override
+      public boolean apply(String input)
+      {
+        return predicate.apply(extractionFn.apply(input));
+      }
+    };
   }
 }

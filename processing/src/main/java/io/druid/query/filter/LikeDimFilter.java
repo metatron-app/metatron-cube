@@ -24,9 +24,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import io.druid.common.KeyBuilder;
@@ -34,17 +36,22 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
-import io.druid.segment.data.Indexed;
-import io.druid.segment.filter.DimensionPredicateFilter;
+import io.druid.segment.filter.SelectorFilter;
+import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
+import it.unimi.dsi.fastutil.chars.CharSet;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class LikeDimFilter extends SingleInput
 {
   // Regex matching characters that are definitely okay to include unescaped in a regex.
   // Leads to excessively paranoid escaping, although shouldn't affect runtime beyond compiling the regex.
-  private static final Pattern DEFINITELY_FINE = Pattern.compile("[\\w\\d\\s-]");
+  private static final Matcher DEFINITELY_FINE = Pattern.compile("[\\w\\d\\s-]").matcher("");
   private static final String WILDCARD = ".*";
 
   private final String dimension;
@@ -72,124 +79,199 @@ public class LikeDimFilter extends SingleInput
     this.likeMatcherSupplier = Suppliers.memoize(() -> LikeMatcher.from(pattern, escapeChar));
   }
 
-  public static class LikeMatcher implements Predicate<String>
+  private static final CharSet REGEX_CHARS = new CharOpenHashSet(
+      new char[]{'?', '[', '\\', ']', '^'}
+  );
+
+  private static boolean isNonRegexAsciiChar(char x)
   {
-    public enum SuffixMatch
-    {
-      MATCH_ANY,
-      MATCH_EMPTY,
-      MATCH_PATTERN
-    }
+    return x == ' ' || (x >= '0' && x <= 'z' && !REGEX_CHARS.contains(x));
+  }
 
-    // Strings match if:
-    //  (a) suffixMatch is MATCH_ANY and they start with "prefix"
-    //  (b) suffixMatch is MATCH_EMPTY and they start with "prefix" and contain nothing after prefix
-    //  (c) suffixMatch is MATCH_PATTERN and the string matches "pattern"
-    private final SuffixMatch suffixMatch;
+  private static boolean isLikePattern(char x)
+  {
+    return x == '_' || x == '%';
+  }
 
+  public static class LikeMatcher
+  {
+    private final String pattern;
     // Prefix that matching strings are known to start with. May be empty.
     private final String prefix;
+    private final String suffix;
+    private final List<String> elements;
 
     // Regex pattern that describes matching strings.
-    private final Pattern pattern;
+    private final String regex;
 
-    private LikeMatcher(
-        final SuffixMatch suffixMatch,
+    public LikeMatcher(
+        final String pattern,
         final String prefix,
-        final Pattern pattern
+        final String suffix,
+        final List<String> elements,
+        final String regex
     )
     {
-      this.suffixMatch = Preconditions.checkNotNull(suffixMatch, "suffixMatch");
-      this.prefix = Strings.nullToEmpty(prefix);
-      this.pattern = Preconditions.checkNotNull(pattern, "pattern");
+      this.pattern = pattern;
+      this.prefix = prefix;
+      this.suffix = suffix;
+      this.elements = elements;
+      this.regex = regex;
     }
 
     public static LikeMatcher from(
-        final String likePattern,
+        final String pattern,
         @Nullable final Character escapeChar
     )
     {
-      final StringBuilder prefix = new StringBuilder();
-      final StringBuilder regex = new StringBuilder();
+      final StringBuilder builder = new StringBuilder();
       boolean escaping = false;
-      boolean inPrefix = true;
-      SuffixMatch suffixMatch = SuffixMatch.MATCH_EMPTY;
-      for (int i = 0; i < likePattern.length(); i++) {
-        final char c = likePattern.charAt(i);
+      for (int i = 0; i < pattern.length(); i++) {
+        final char c = pattern.charAt(i);
         if (escapeChar != null && c == escapeChar && !escaping) {
           escaping = true;
         } else if (c == '%' && !escaping) {
-          inPrefix = false;
-          if (suffixMatch == SuffixMatch.MATCH_EMPTY) {
-            suffixMatch = SuffixMatch.MATCH_ANY;
-          }
-          regex.append(WILDCARD);
+          builder.append(WILDCARD);
         } else if (c == '_' && !escaping) {
-          inPrefix = false;
-          suffixMatch = SuffixMatch.MATCH_PATTERN;
-          regex.append(".");
+          builder.append(".");
         } else {
-          if (inPrefix) {
-            prefix.append(c);
+          if (DEFINITELY_FINE.reset(String.valueOf(c)).matches()) {
+            builder.append(c);
           } else {
-            suffixMatch = SuffixMatch.MATCH_PATTERN;
+            builder.append("\\u").append(BaseEncoding.base16().encode(Chars.toByteArray(c)));
           }
-          addPatternCharacter(regex, c);
           escaping = false;
         }
       }
 
-      return new LikeMatcher(suffixMatch, prefix.toString(), Pattern.compile(regex.toString()));
-    }
-
-    private static void addPatternCharacter(final StringBuilder patternBuilder, final char c)
-    {
-      if (DEFINITELY_FINE.matcher(String.valueOf(c)).matches()) {
-        patternBuilder.append(c);
-      } else {
-        patternBuilder.append("\\u").append(BaseEncoding.base16().encode(Chars.toByteArray(c)));
+      int prev = 0;
+      List<int[]> strings = Lists.newArrayList();
+      int p = 0;
+      for (; p < pattern.length(); p++) {
+        if (!isNonRegexAsciiChar(pattern.charAt(p))) {
+          if (p > prev) {
+            strings.add(new int[]{prev, p});
+          }
+          if (!isLikePattern(pattern.charAt(p))) {
+            break;
+          }
+          prev = p + 1;
+        }
       }
-    }
-
-    public boolean matches(@Nullable final String s)
-    {
-      String val = Strings.nullToEmpty(s);
-      return val != null && pattern.matcher(val).matches();
-    }
-
-    /**
-     * Checks if the suffix of strings.get(i) matches the suffix of this matcher. The first prefix.length characters
-     * of s are ignored. This method is useful if you've already independently verified the prefix. This method
-     * evalutes strings.get(i) lazily to save time when it isn't necessary to actually look at the string.
-     */
-    public boolean matchesSuffixOnly(final Indexed<String> strings, final int i)
-    {
-      if (suffixMatch == SuffixMatch.MATCH_ANY) {
-        return true;
-      } else if (suffixMatch == SuffixMatch.MATCH_EMPTY) {
-        final String s = strings.get(i);
-        return s == null ? matches(null) : s.length() == prefix.length();
-      } else {
-        // suffixMatch is MATCH_PATTERN
-        final String s = strings.get(i);
-        return matches(s);
+      if (prev == 0 && p == pattern.length()) {
+        return new LikeMatcher(pattern, pattern, null, Arrays.asList(), null);
       }
+      int s = -1;
+      for (int i = pattern.length() - 1; i >= 0; i--) {
+        if (!isNonRegexAsciiChar(pattern.charAt(i))) {
+          if (isLikePattern(pattern.charAt(i))) {
+            s = i;
+          }
+          break;
+        }
+      }
+      String prefix = null;
+      if (!strings.isEmpty() && strings.get(0)[0] == 0) {
+        prefix = pattern.substring(0, strings.get(0)[1]);
+        strings = strings.subList(1, strings.size());
+      }
+      List<String> elements = Lists.newArrayList(Iterables.transform(strings, x -> pattern.substring(x[0], x[1])));
+      String suffix = s >= 0 && s < pattern.length() - 1 ? pattern.substring(s + 1, pattern.length()) : null;
+      return new LikeMatcher(pattern, prefix, suffix, elements, builder.toString());
+    }
+
+    public int predicateType()
+    {
+      if (pattern.equals(prefix)) {
+        return 0;
+      }
+      final int patternLen = pattern.length();
+
+      int type = 0;
+      if (prefix != null) {
+        type += 1;
+        if (patternLen == prefix.length() + 1 && isLikePattern(pattern.charAt(patternLen - 1))) {
+          return type;
+        }
+      }
+      if (suffix != null) {
+        type += 2;
+        if (patternLen == suffix.length() + 1 && isLikePattern(pattern.charAt(0))) {
+          return type;
+        }
+      }
+      if (prefix != null && suffix != null) {
+        if (patternLen == prefix.length() + suffix.length() + 1 && isLikePattern(pattern.charAt(prefix.length()))) {
+          return type;
+        }
+      }
+      if (!elements.isEmpty()) {
+        type += 4;
+      }
+      if (regex != null) {
+        type += 8;
+      }
+      return type;
+    }
+
+    public Predicate<String> asPredicate()
+    {
+      if (pattern.equals(prefix)) {
+        return s -> s.equals(prefix);
+      }
+      List<Predicate<String>> predicates = Lists.newArrayList();
+      if (prefix != null) {
+        if (pattern.length() == prefix.length() + 1 && isLikePattern(pattern.charAt(pattern.length() - 1))) {
+          return s -> s.startsWith(prefix);
+        }
+        predicates.add(s -> s.startsWith(prefix));
+      }
+      if (suffix != null) {
+        if (pattern.length() == suffix.length() + 1 && isLikePattern(pattern.charAt(0))) {
+          return s -> s.endsWith(suffix);
+        }
+        predicates.add(s -> s.endsWith(suffix));
+      }
+      if (prefix != null && suffix != null) {
+        if (pattern.length() == prefix.length() + suffix.length() + 1 && isLikePattern(pattern.charAt(prefix.length()))) {
+          return Predicates.and(predicates);
+        }
+      }
+      for (String element : elements) {
+        predicates.add(s -> s.contains(element));
+      }
+      if (regex != null) {
+        Matcher matcher = Pattern.compile(regex, Pattern.DOTALL).matcher("");
+        predicates.add(s -> matcher.reset(s).matches());
+      }
+      return Predicates.and(predicates);
     }
 
     @Override
-    public boolean apply(@Nullable String input)
+    public boolean equals(Object o)
     {
-      return matches(input);
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      LikeMatcher matcher1 = (LikeMatcher) o;
+      return Objects.equals(prefix, matcher1.prefix) &&
+             Objects.equals(suffix, matcher1.suffix) &&
+             Objects.equals(elements, matcher1.elements) &&
+             Objects.equals(regex, matcher1.regex);
     }
 
-    public String getPrefix()
+    @Override
+    public String toString()
     {
-      return prefix;
-    }
-
-    public SuffixMatch getSuffixMatch()
-    {
-      return suffixMatch;
+      return "LikeMatcher{" +
+             "prefix='" + prefix + '\'' +
+             ", suffix='" + suffix + '\'' +
+             ", elements=" + elements +
+             ", regex='" + regex + '\'' +
+             '}';
     }
   }
 
@@ -239,7 +321,11 @@ public class LikeDimFilter extends SingleInput
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new DimensionPredicateFilter(dimension, likeMatcherSupplier.get(), extractionFn);
+    final LikeMatcher matcher = likeMatcherSupplier.get();
+    if (extractionFn == null && matcher.regex == null) {
+      return new SelectorFilter(dimension, matcher.prefix);
+    }
+    return new LikeFilter(dimension, matcher, extractionFn);
   }
 
   @Override
