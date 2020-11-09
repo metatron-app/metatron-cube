@@ -183,10 +183,10 @@ public interface DimFilter extends Expression, Cacheable
   }
 
   // uses lucene index
-  abstract class LuceneFilter implements VCInflator
+  public abstract class LuceneFilter implements VCInflator
   {
-    protected final String field;
-    protected final String scoreField;
+    public final String field;
+    public final String scoreField;
 
     protected LuceneFilter(String field, String scoreField)
     {

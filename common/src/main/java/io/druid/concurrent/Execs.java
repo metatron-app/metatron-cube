@@ -392,7 +392,7 @@ public class Execs
       try {
         return set(callable.call());
       }
-      catch (Exception e) {
+      catch (Throwable e) {
         return setException(e);
       }
     }
