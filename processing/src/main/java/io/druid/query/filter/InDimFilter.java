@@ -111,7 +111,7 @@ public class InDimFilter extends SingleInput implements RangeFilter
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.IN_CACHE_ID)
+    return builder.append(DimFilterCacheKey.IN_CACHE_ID)
                   .append(dimension).sp()
                   .append(values).sp()
                   .append(extractionFn);

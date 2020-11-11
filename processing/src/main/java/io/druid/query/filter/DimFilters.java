@@ -46,6 +46,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.bitmap.WrappedBitSetBitmap;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
 
@@ -159,7 +160,7 @@ public class DimFilters
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       List<DimFilter> remainings = Lists.newArrayList();
       for (DimFilter child : ((AndDimFilter) current).getChildren()) {
-        Filters.BitmapHolder holder = Filters.toBitmapHolder(child, context);
+        BitmapHolder holder = Filters.toBitmapHolder(child, context);
         if (holder != null) {
           bitmaps.add(holder.bitmap());
           context.andBaseBitmap(holder.bitmap());
@@ -171,7 +172,7 @@ public class DimFilters
       ImmutableBitmap extracted = bitmaps.isEmpty() ? null : intersection(context.bitmapFactory(), bitmaps);
       return Pair.<ImmutableBitmap, DimFilter>of(extracted, and(remainings));
     } else {
-      Filters.BitmapHolder holder = Filters.toBitmapHolder(current, context);
+      BitmapHolder holder = Filters.toBitmapHolder(current, context);
       if (holder != null) {
         return Pair.<ImmutableBitmap, DimFilter>of(holder.bitmap(), holder.exact() ? null : current);
       }
@@ -387,11 +388,10 @@ public class DimFilters
     {
       return new Filter()
       {
-
         @Override
-        public ImmutableBitmap getBitmapIndex(FilterContext context)
+        public BitmapHolder getBitmapIndex(FilterContext context)
         {
-          return context != null ? context.getBaseBitmap() : makeTrue(context.bitmapFactory(), context.numRows());
+          return BitmapHolder.exact(makeTrue(context.bitmapFactory(), context.numRows()));
         }
 
         @Override

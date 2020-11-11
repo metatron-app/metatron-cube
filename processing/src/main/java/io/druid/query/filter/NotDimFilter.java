@@ -58,7 +58,7 @@ public class NotDimFilter implements DimFilter, NotExpression
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.NOT_CACHE_ID).append(field);
+    return builder.append(DimFilterCacheKey.NOT_CACHE_ID).append(field);
   }
 
   @Override

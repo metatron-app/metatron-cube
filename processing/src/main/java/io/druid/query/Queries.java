@@ -547,7 +547,7 @@ public class Queries
       fieldName = "$VC";
     }
     AggregatorFactory aggregator = new GenericSketchAggregatorFactory(
-        "$SKETCH", fieldName, type.isDimension() ? ValueDesc.STRING : type, SketchOp.QUANTILE, 128, orderingSpec, false
+        "$SKETCH", fieldName, type.isDimension() ? ValueDesc.STRING : type, SketchOp.QUANTILE, 4096, orderingSpec, false
     );
     PostAggregator postAggregator = SketchQuantilesPostAggregator.quantile(
         "$SPLIT", "$SKETCH", QuantileOperation.of(splitType, numSplits + 1, maxThreshold, true)
@@ -585,8 +585,9 @@ public class Queries
     ItemsUnion union = null;
     for (Segment segment : segments) {
       union = segment.asStorageAdapter(true).makeCursors(query, cache).accumulate(union, (current, cursor) -> {
-        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(128, comparator);
+        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(4096, comparator);
         DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
+        ItemsSketch.rand.setSeed(0);
         if (selector instanceof DimensionSelector.Scannable) {
           ((DimensionSelector.Scannable) selector).scan(
               IntIterators.wrap(cursor), (x, v) -> sketch.update(v.applyAsInt(x))

@@ -24,8 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.common.IntTagged;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
@@ -34,15 +32,15 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.AndFilter;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.InFilter;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public class InDimsFilter implements DimFilter.NotExact
+public class InDimsFilter implements DimFilter.BestEffort
 {
   private final List<List<String>> values;
   private final List<String> dimensions;
@@ -84,7 +82,7 @@ public class InDimsFilter implements DimFilter.NotExact
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.INS_CACHE_ID)
+    return builder.append(DimFilterCacheKey.INS_CACHE_ID)
                   .append(dimensions).sp()
                   .append(values);
   }
@@ -104,18 +102,17 @@ public class InDimsFilter implements DimFilter.NotExact
     return new Filter()
     {
       @Override
-      public ImmutableBitmap getBitmapIndex(FilterContext context)
+      public BitmapHolder getBitmapIndex(FilterContext context)
       {
-        final List<IntTagged<ImmutableBitmap>> bitmaps = Lists.newArrayList();
+        final List<BitmapHolder> holders = Lists.newArrayList();
         for (int i = 0; i < dimensions.size(); i++) {
           final String dimension = dimensions.get(i);
-          final ImmutableBitmap bitmap = new InFilter(dimension, values.get(i), null).getBitmapIndex(context);
-          if (bitmap != null) {
-            bitmaps.add(IntTagged.of(bitmap.size(), bitmap));
+          final BitmapHolder holder = new InFilter(dimension, values.get(i), null).getBitmapIndex(context);
+          if (holder != null) {
+            holders.add(holder);
           }
         }
-        Collections.sort(bitmaps, (t1, t2) -> Integer.compare(t1.tag, t2.tag));
-        return bitmaps.isEmpty() ? null : bitmaps.get(0).value;
+        return holders.isEmpty() ? null : BitmapHolder.intersection(context.bitmapFactory(), holders);
       }
 
       @Override
@@ -124,7 +121,8 @@ public class InDimsFilter implements DimFilter.NotExact
         final List<ValueMatcher> matchers = Lists.newArrayList();
         for (int i = 0; i < dimensions.size(); i++) {
           final String dimension = dimensions.get(i);
-          final ValueMatcher matcher = new InFilter(dimension, Sets.newHashSet(values.get(i)), null).makeMatcher(factory);
+          final Set<String> valueSet = Sets.newHashSet(values.get(i));
+          final ValueMatcher matcher = new InFilter(dimension, valueSet, null).makeMatcher(factory);
           if (matcher != null) {
             matchers.add(matcher);
           }

@@ -20,9 +20,7 @@
 package io.druid.segment.filter;
 
 import com.google.common.collect.Lists;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
-import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -51,22 +49,16 @@ public class OrFilter implements Filter, Expression.OrExpression
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(FilterContext context)
+  public BitmapHolder getBitmapIndex(FilterContext context)
   {
-    if (filters.size() == 1) {
-      return filters.get(0).getBitmapIndex(context);
-    }
-
-    List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+    final List<BitmapHolder> holders = Lists.newArrayList();
     for (Filter filter : filters) {
-      ImmutableBitmap bitmap = filter.getBitmapIndex(context);
-      if (bitmap == null) {
-        return null;
+      BitmapHolder holder = filter.getBitmapIndex(context);
+      if (holder != null) {
+        holders.add(holder);
       }
-      bitmaps.add(bitmap);
     }
-
-    return DimFilters.union(context.bitmapFactory(), bitmaps);
+    return BitmapHolder.union(context.bitmapFactory(), holders);
   }
 
   @Override

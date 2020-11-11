@@ -83,7 +83,7 @@ public class ExtractionDimFilter extends SingleInput
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.EXTRACTION_CACHE_ID)
+    return builder.append(DimFilterCacheKey.EXTRACTION_CACHE_ID)
                   .append(dimension).sp()
                   .append(value).sp()
                   .append(extractionFn);

@@ -22,7 +22,6 @@ package io.druid.segment.filter;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Range;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
@@ -52,12 +51,12 @@ public class SelectorFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ImmutableBitmap getBitmapIndex(FilterContext context)
+  public BitmapHolder getBitmapIndex(FilterContext context)
   {
     final BitmapIndexSelector selector = context.indexSelector();
     final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
     if (capabilities == null || capabilities.hasBitmapIndexes()) {
-      return selector.getBitmapIndex(dimension, value);
+      return BitmapHolder.exact(selector.getBitmapIndex(dimension, value));
     } else if (capabilities.hasLuceneIndex()) {
       return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value), context);
     } else if (capabilities.hasMetricBitmap()) {

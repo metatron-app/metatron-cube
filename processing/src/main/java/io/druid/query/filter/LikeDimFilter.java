@@ -305,7 +305,7 @@ public class LikeDimFilter extends SingleInput
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.LIKE_CACHE_ID)
+    return builder.append(DimFilterCacheKey.LIKE_CACHE_ID)
                   .append(dimension).sp()
                   .append(pattern).sp()
                   .append(escapeChar == null ? new byte[0] : Chars.toByteArray(escapeChar)).sp()

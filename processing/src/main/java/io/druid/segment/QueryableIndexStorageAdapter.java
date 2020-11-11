@@ -58,9 +58,9 @@ import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
-import io.druid.segment.filter.Filters.BitmapHolder;
 import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
@@ -1017,21 +1017,21 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ValueMatcher makePredicateMatcher(DimFilter filter)
                     {
-                      BitmapHolder holder = Filters.toBitmapHolder(filter, context);
+                      final BitmapHolder holder = Filters.toBitmapHolder(filter, context);
                       if (holder == null) {
                         return super.makePredicateMatcher(filter);
                       }
                       final ImmutableBitmap bitmap = holder.bitmap();
-                      if (holder.exact() && context.isAll(holder.bitmap())) {
+                      if (holder.exact() && context.isAll(bitmap)) {
                         return ValueMatcher.TRUE;
                       }
                       if (holder.exact() && bitmap.isEmpty()) {
                         return ValueMatcher.FALSE;
                       }
+                      final IntPredicate predicate = Filters.toMatcher(bitmap, descending);
                       final ValueMatcher valueMatcher =
                           holder.exact() ? ValueMatcher.TRUE : super.makePredicateMatcher(filter);
 
-                      final IntPredicate predicate = Filters.toMatcher(bitmap, descending);
                       return new ValueMatcher()
                       {
                         @Override

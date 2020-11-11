@@ -134,43 +134,43 @@ public class FloatHistogramTest
     Assert.assertArrayEquals(new int[]{2, 2, 2, 2, 4, 4, 4}, bitmaps.getSizes());
 
     // empty
-    assertEquals(bitmaps.filterFor(Range.openClosed(4f, 4f), null), new int[]{});
-    assertEquals(bitmaps.filterFor(Range.closedOpen(4f, 4f), null), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.openClosed(4f, 4f), null).bitmap(), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.closedOpen(4f, 4f), null).bitmap(), new int[]{});
 
     // point
-    assertEquals(bitmaps.filterFor(Range.closed(4f, 4f), null), new int[]{8, 9, 10, 11});
+    assertEquals(bitmaps.filterFor(Range.closed(4f, 4f), null).bitmap(), new int[]{8, 9, 10, 11});
 
     // lower ~
-    assertEquals(bitmaps.filterFor(Range.downTo(6f, BoundType.CLOSED), null), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
-    assertEquals(bitmaps.filterFor(Range.downTo(6f, BoundType.OPEN), null), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.downTo(6f, BoundType.CLOSED), null).bitmap(), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.downTo(6f, BoundType.OPEN), null).bitmap(), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
 
     // ~ upper
-    assertEquals(bitmaps.filterFor(Range.upTo(2f, BoundType.CLOSED), null), new int[]{0, 1, 2, 3, 4, 5});
-    assertEquals(bitmaps.filterFor(Range.upTo(2f, BoundType.OPEN), null), new int[]{0, 1, 2, 3});
+    assertEquals(bitmaps.filterFor(Range.upTo(2f, BoundType.CLOSED), null).bitmap(), new int[]{0, 1, 2, 3, 4, 5});
+    assertEquals(bitmaps.filterFor(Range.upTo(2f, BoundType.OPEN), null).bitmap(), new int[]{0, 1, 2, 3});
 
     // to max
-    assertEquals(bitmaps.filterFor(Range.openClosed(8f, 9f), null), new int[]{16, 17, 18, 19});
-    assertEquals(bitmaps.filterFor(Range.closedOpen(8f, 9f), null), new int[]{16, 17, 18, 19});
-    assertEquals(bitmaps.filterFor(Range.openClosed(8f, 10f), null), new int[]{16, 17, 18, 19});
-    assertEquals(bitmaps.filterFor(Range.closedOpen(8f, 10f), null), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.openClosed(8f, 9f), null).bitmap(), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.closedOpen(8f, 9f), null).bitmap(), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.openClosed(8f, 10f), null).bitmap(), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.closedOpen(8f, 10f), null).bitmap(), new int[]{16, 17, 18, 19});
 
     // over max
-    assertEquals(bitmaps.filterFor(Range.downTo(9f, BoundType.CLOSED), null), new int[]{16, 17, 18, 19});
-    assertEquals(bitmaps.filterFor(Range.downTo(9f, BoundType.OPEN), null), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.downTo(9f, BoundType.CLOSED), null).bitmap(), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.downTo(9f, BoundType.OPEN), null).bitmap(), new int[]{});
 
     // under min
-    assertEquals(bitmaps.filterFor(Range.upTo(0f, BoundType.CLOSED), null), new int[]{0, 1});
-    assertEquals(bitmaps.filterFor(Range.upTo(0f, BoundType.OPEN), null), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.upTo(0f, BoundType.CLOSED), null).bitmap(), new int[]{0, 1});
+    assertEquals(bitmaps.filterFor(Range.upTo(0f, BoundType.OPEN), null).bitmap(), new int[]{});
 
     // range
-    assertEquals(bitmaps.filterFor(Range.openClosed(1.5f, 2.5f), null), new int[]{2, 3, 4, 5});
-    assertEquals(bitmaps.filterFor(Range.openClosed(2f, 2.5f), null), new int[]{4, 5});
-    assertEquals(bitmaps.filterFor(Range.closed(1.5f, 3f), null), new int[]{2, 3, 4, 5, 6, 7});
-    assertEquals(bitmaps.filterFor(Range.openClosed(0.1f, 0.5f), null), new int[]{0, 1});
+    assertEquals(bitmaps.filterFor(Range.openClosed(1.5f, 2.5f), null).bitmap(), new int[]{2, 3, 4, 5});
+    assertEquals(bitmaps.filterFor(Range.openClosed(2f, 2.5f), null).bitmap(), new int[]{4, 5});
+    assertEquals(bitmaps.filterFor(Range.closed(1.5f, 3f), null).bitmap(), new int[]{2, 3, 4, 5, 6, 7});
+    assertEquals(bitmaps.filterFor(Range.openClosed(0.1f, 0.5f), null).bitmap(), new int[]{0, 1});
 
     // oob
-    assertEquals(bitmaps.filterFor(Range.upTo(-1f, BoundType.CLOSED), null), new int[]{});
-    assertEquals(bitmaps.filterFor(Range.downTo(10f, BoundType.CLOSED), null), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.upTo(-1f, BoundType.CLOSED), null).bitmap(), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.downTo(10f, BoundType.CLOSED), null).bitmap(), new int[]{});
   }
 
   private void assertEquals(ImmutableBitmap bitmap, int[] expected)
@@ -209,7 +209,7 @@ public class FloatHistogramTest
     Assert.assertArrayEquals(new float[]{0f, 3f, 6f, 9f}, bitmaps.breaks(), 0.001f);
     Assert.assertArrayEquals(new int[]{6, 6, 8}, bitmaps.getSizes());
 
-    assertEquals(bitmaps.filterFor(Range.closed(0f, 0f), null), new int[]{0, 1}); // return exactly
+    assertEquals(bitmaps.filterFor(Range.closed(0f, 0f), null).bitmap(), new int[]{0, 1}); // return exactly
   }
 
   @Test

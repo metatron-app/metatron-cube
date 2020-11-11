@@ -20,9 +20,11 @@
 package io.druid.segment.filter;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.Cacheable;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
@@ -49,10 +51,15 @@ public class FilterContext implements Closeable
     this.attached = Maps.newHashMap();
   }
 
-  public Filters.BitmapHolder createBitmap(DimFilter filter)
+  public BitmapHolder createBitmap(DimFilter filter)
+  {
+    return createBitmap(filter, () -> Filters.leafToBitmap(filter, this));
+  }
+
+  public BitmapHolder createBitmap(Cacheable filter, Supplier<BitmapHolder> populator)
   {
     long start = System.currentTimeMillis();
-    Filters.BitmapHolder holder = Filters.leafToBitmap(filter, this);
+    BitmapHolder holder = populator.get();
     if (holder != null && LOG.isDebugEnabled()) {
       long elapsed = System.currentTimeMillis() - start;
       LOG.debug("%s : %,d / %,d (%,d msec)", filter, holder.bitmap().size(), numRows(), elapsed);

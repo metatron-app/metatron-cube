@@ -25,11 +25,13 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilterCacheKey;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -54,29 +56,29 @@ public class BoundFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ImmutableBitmap getBitmapIndex(FilterContext context)
+  public BitmapHolder getBitmapIndex(FilterContext context)
   {
     // asserted to existing dimension
-    final BitmapIndexSelector selector = context.indexSelector();
     if (boundDimFilter.isLexicographic() && boundDimFilter.getExtractionFn() == null) {
-      return toRangeBitmap(selector, boundDimFilter.getDimension());
+      return BitmapHolder.exact(toRangeBitmap(context, boundDimFilter.getDimension()));
     }
-    return Filters.matchPredicate(
+    return BitmapHolder.exact(Filters.matchPredicate(
         boundDimFilter.getDimension(),
         toPredicate(
-            boundDimFilter.typeOfBound(selector),
+            boundDimFilter.typeOfBound(context.indexSelector()),
             boundDimFilter.getExtractionFn()
         ),
         context
-    );
+    ));
   }
 
   private static final int[] ALL = new int[]{0, Integer.MAX_VALUE};
   private static final int[] NONE = new int[]{0, 0};
 
   // can be slower..
-  private ImmutableBitmap toRangeBitmap(BitmapIndexSelector selector, String dimension)
+  private ImmutableBitmap toRangeBitmap(FilterContext context, String dimension)
   {
+    final BitmapIndexSelector selector = context.indexSelector();
     final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
     final int[] range = toRange(bitmapIndex);
 
@@ -87,7 +89,7 @@ public class BoundFilter implements Filter
     }
 
     if (bitmapIndex instanceof CumulativeSupport) {
-      final ImmutableBitmap bitmap = tryWithCumulative((CumulativeSupport) bitmapIndex, range, selector.getNumRows());
+      final ImmutableBitmap bitmap = tryWithCumulative((CumulativeSupport) bitmapIndex, range, context);
       if (bitmap != null) {
         return bitmap;
       }
@@ -142,7 +144,7 @@ public class BoundFilter implements Filter
     final String upper = Strings.emptyToNull(boundDimFilter.getUpper());
 
     if (lower == null && upper == null) {
-      return Strings.isNullOrEmpty(bitmapIndex.getValue(0)) ? new int[] {0, 1} : NONE;
+      return Strings.isNullOrEmpty(bitmapIndex.getValue(0)) ? new int[]{0, 1} : NONE;
     }
     // search for start, end indexes in the bitmaps; then include all bitmaps between those points
 
@@ -176,28 +178,33 @@ public class BoundFilter implements Filter
         }
       }
     }
-    return new int[]{startIndex, endIndex};
+    return startIndex == 0 && endIndex == bitmapIndex.getCardinality() ? ALL : new int[]{startIndex, endIndex};
   }
 
-  private static ImmutableBitmap tryWithCumulative(CumulativeSupport bitmap, int[] range, int numRows)
+  private static ImmutableBitmap tryWithCumulative(CumulativeSupport bitmap, int[] range, FilterContext context)
   {
     final int[] thresholds = bitmap.thresholds();
     if (thresholds == null || range[1] - range[0] <= thresholds[0] / 2) {
       return null;    // better to use iteration
     }
+    final int numRows = context.numRows();
     final BitmapFactory factory = bitmap.getBitmapFactory();
 
     final ImmutableBitmap end;
     if (range[1] < bitmap.getCardinality()) {
-      end = getBitmapUpto(bitmap, range[1], numRows);
+      Cacheable key = builder -> builder.append(DimFilterCacheKey.BOUND_ROWID_CACHE_ID)
+                                        .append(range[1]);
+      end = context.createBitmap(key, () -> BitmapHolder.exact(getBitmapUpto(bitmap, range[1], numRows))).bitmap();
     } else {
-      end = DimFilters.makeTrue(factory, numRows);
+      end = DimFilters.makeTrue(factory, context.numRows());
     }
     if (range[0] == 0) {
       return end;
     }
-    ImmutableBitmap start = getBitmapUpto(bitmap, range[0], numRows);
-    return DimFilters.difference(factory, end, start, numRows);
+    Cacheable key = builder -> builder.append(DimFilterCacheKey.BOUND_ROWID_CACHE_ID)
+                                      .append(range[0]);
+    BitmapHolder start = context.createBitmap(key, () -> BitmapHolder.exact(getBitmapUpto(bitmap, range[0], numRows)));
+    return DimFilters.difference(factory, end, start.bitmap(), context.numRows());
   }
 
   private static ImmutableBitmap getBitmapUpto(CumulativeSupport bitmap, int index, int numRows)

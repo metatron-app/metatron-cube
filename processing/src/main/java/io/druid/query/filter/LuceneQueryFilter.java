@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
@@ -32,6 +31,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
@@ -83,7 +83,7 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.LUCENE_QUERY_CACHE_ID)
+    return builder.append(DimFilterCacheKey.LUCENE_QUERY_CACHE_ID)
                   .append(field).sp()
                   .append(analyzer).sp()
                   .append(expression).sp()
@@ -112,7 +112,7 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
     return new Filter()
     {
       @Override
-      public ImmutableBitmap getBitmapIndex(FilterContext context)
+      public BitmapHolder getBitmapIndex(FilterContext context)
       {
         Column column = Preconditions.checkNotNull(
             Lucenes.findLuceneColumn(field, context.indexSelector()), "no lucene index on [%s]", field

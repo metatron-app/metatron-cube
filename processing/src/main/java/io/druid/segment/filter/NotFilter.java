@@ -19,9 +19,7 @@
 
 package io.druid.segment.filter;
 
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
-import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -51,10 +49,13 @@ public class NotFilter implements Filter, Expression.NotExpression
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(FilterContext context)
+  public BitmapHolder getBitmapIndex(FilterContext context)
   {
-    ImmutableBitmap bitmap = baseFilter.getBitmapIndex(context);
-    return bitmap == null ? null : DimFilters.complement(context.bitmapFactory(), bitmap, context.numRows());
+    BitmapHolder holder = baseFilter.getBitmapIndex(context);
+    if (holder != null) {
+      return BitmapHolder.not(context.bitmapFactory(), holder, context.numRows());
+    }
+    return null;
   }
 
   @Override

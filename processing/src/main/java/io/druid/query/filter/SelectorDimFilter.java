@@ -94,7 +94,7 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.SELECTOR_CACHE_ID)
+    return builder.append(DimFilterCacheKey.SELECTOR_CACHE_ID)
                   .append(dimension).sp()
                   .append(value).sp()
                   .append(extractionFn);

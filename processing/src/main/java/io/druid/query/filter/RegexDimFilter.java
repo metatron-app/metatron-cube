@@ -86,7 +86,7 @@ public class RegexDimFilter extends SingleInput
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.REGEX_CACHE_ID)
+    return builder.append(DimFilterCacheKey.REGEX_CACHE_ID)
                   .append(dimension).sp()
                   .append(pattern).sp()
                   .append(extractionFn);

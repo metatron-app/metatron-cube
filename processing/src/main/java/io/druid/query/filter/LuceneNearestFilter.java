@@ -25,11 +25,11 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
@@ -86,7 +86,7 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.LUCENE_NEAREST_CACHE_ID)
+    return builder.append(DimFilterCacheKey.LUCENE_NEAREST_CACHE_ID)
                   .append(field)
                   .append(latitude)
                   .append(longitude)
@@ -110,7 +110,7 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
     return new Filter()
     {
       @Override
-      public ImmutableBitmap getBitmapIndex(FilterContext context)
+      public BitmapHolder getBitmapIndex(FilterContext context)
       {
         BitmapIndexSelector selector = context.indexSelector();
         Column column = Preconditions.checkNotNull(
@@ -124,7 +124,7 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
         IndexSearcher searcher = column.getLuceneIndex().searcher();
         try {
           TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField, latitude, longitude, count);
-          return Lucenes.toBitmap(searched, context, scoreField);
+          return BitmapHolder.exact(Lucenes.toBitmap(searched, context, scoreField));
         }
         catch (Exception e) {
           throw Throwables.propagate(e);

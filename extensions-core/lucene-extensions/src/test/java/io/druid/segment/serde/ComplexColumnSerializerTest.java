@@ -106,7 +106,7 @@ public class ComplexColumnSerializerTest
 
     QueryParser parser = new QueryParser("test-lucene", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"navis\"");
-    ImmutableBitmap bitmap = luceneIndex.filterFor(query, context);
+    ImmutableBitmap bitmap = luceneIndex.filterFor(query, context).bitmap();
 
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
@@ -217,7 +217,7 @@ public class ComplexColumnSerializerTest
     };
     LuceneSpatialFilter filter = new LuceneSpatialFilter("geom", SpatialOperations.COVEREDBY, ShapeFormat.WKT, 서초1동, null);
     TypeResolver resolver = Parser.withTypeMap(ImmutableMap.of("geom", ValueDesc.STRING));
-    ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(new FilterContext(selector));
+    ImmutableBitmap bitmap = filter.toFilter(resolver).getBitmapIndex(new FilterContext(selector)).bitmap();
     Assert.assertEquals(2, bitmap.size());
     Assert.assertEquals(true, bitmap.get(0));
     Assert.assertEquals(true, bitmap.get(2));

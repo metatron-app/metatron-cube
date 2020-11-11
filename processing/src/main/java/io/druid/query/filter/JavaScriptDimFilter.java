@@ -97,7 +97,7 @@ public class JavaScriptDimFilter extends SingleInput
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.JAVASCRIPT_CACHE_ID)
+    return builder.append(DimFilterCacheKey.JAVASCRIPT_CACHE_ID)
                   .append(dimension).sp()
                   .append(function).sp()
                   .append(extractionFn);

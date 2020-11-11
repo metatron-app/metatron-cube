@@ -52,7 +52,7 @@ public class BitSlicedBitmapTest
 
   private <T extends Comparable> String find(BitSlicedBitmap<T> bitmap, Range<T> range)
   {
-    return BitSlicedBitmaps.toString(bitmap.filterFor(range, null));
+    return BitSlicedBitmaps.toString(bitmap.filterFor(range, null).bitmap());
   }
 
   @Test
@@ -258,7 +258,7 @@ public class BitSlicedBitmapTest
         for (int i = 0; i < iteration; i++) {
           final long value = input[x.nextInt(input.length)];
           final Range<Long> range = Ranges.<Long>of(value, op.op());
-          final ImmutableBitmap result = bitmap.filterFor(range, null);
+          final ImmutableBitmap result = bitmap.filterFor(range, null).bitmap();
           final IntIterator iterator = result.iterator();
           for (int j = 0; j < input.length; j++) {
             if (op.apply(input[j], value)) {
@@ -323,7 +323,7 @@ public class BitSlicedBitmapTest
         for (int i = 0; i < iteration; i++) {
           final float value = input[x.nextInt(input.length)];
           final Range<Float> range = Ranges.<Float>of(value, op.op());
-          final ImmutableBitmap result = bitmap.filterFor(range, null);
+          final ImmutableBitmap result = bitmap.filterFor(range, null).bitmap();
           final IntIterator iterator = result.iterator();
           for (int j = 0; j < input.length; j++) {
             if (op.apply(input[j], value)) {
@@ -392,7 +392,7 @@ public class BitSlicedBitmapTest
         FLOAT_OP op = FLOAT_OP.GT;
         final float value = input[x.nextInt(input.length)];
         final Range<Float> range = Ranges.<Float>of(value, op.op());
-        final ImmutableBitmap result = target.filterFor(range, null);
+        final ImmutableBitmap result = target.filterFor(range, null).bitmap();
         final IntIterator iterator = result.iterator();
         for (int j = 0; j < input.length; j++) {
           if (op.apply(input[j], value)) {
@@ -457,7 +457,7 @@ public class BitSlicedBitmapTest
         for (int i = 0; i < iteration; i++) {
           final double value = input[x.nextInt(input.length)];
           final Range<Double> range = Ranges.<Double>of(value, op.op());
-          final ImmutableBitmap result = bitmap.filterFor(range, null);
+          final ImmutableBitmap result = bitmap.filterFor(range, null).bitmap();
           final IntIterator iterator = result.iterator();
           for (int j = 0; j < input.length; j++) {
             if (op.apply(input[j], value)) {

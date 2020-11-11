@@ -361,7 +361,7 @@ public class GuavaUtils
     final int[] indices = new int[indexing.size()];
     for (int i = 0; i < indices.length; i++) {
       final int x = list.indexOf(indexing.get(i));
-      if (assertExistence && i < 0) {
+      if (assertExistence && x < 0) {
         return null;
       }
       indices[i] = x;

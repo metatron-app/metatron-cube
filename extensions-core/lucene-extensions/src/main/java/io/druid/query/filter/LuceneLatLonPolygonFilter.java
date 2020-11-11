@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
@@ -32,6 +31,7 @@ import io.druid.query.GeomUtils;
 import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.ShapeFormat;
 import org.apache.lucene.document.LatLonPoint;
@@ -78,7 +78,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
+    return builder.append(DimFilterCacheKey.LUCENE_GEOJSON_CACHE_ID)
                   .append(field, shapeString, scoreField);
   }
 
@@ -105,7 +105,7 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
     return new Filter()
     {
       @Override
-      public ImmutableBitmap getBitmapIndex(FilterContext context)
+      public BitmapHolder getBitmapIndex(FilterContext context)
       {
         // column-name.field-name or field-name (regarded same with column-name)
         String columnName = field;

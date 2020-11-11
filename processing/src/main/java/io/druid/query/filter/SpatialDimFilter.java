@@ -49,7 +49,7 @@ public class SpatialDimFilter implements DimFilter
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.SPATIAL_CACHE_ID)
+    return builder.append(DimFilterCacheKey.SPATIAL_CACHE_ID)
                   .append(dimension).sp()
                   .append(bound.getCacheKey());
   }

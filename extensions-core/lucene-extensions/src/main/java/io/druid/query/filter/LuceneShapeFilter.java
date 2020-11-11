@@ -104,7 +104,7 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.LUCENE_WITHIN_CACHE_ID)
+    return builder.append(DimFilterCacheKey.LUCENE_WITHIN_CACHE_ID)
                   .append(field)
                   .append(operation)
                   .append(shapeFormat)

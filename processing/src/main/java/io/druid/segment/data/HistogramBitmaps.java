@@ -39,6 +39,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.serde.ColumnPartSerde;
 
@@ -240,13 +241,13 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
   public abstract ValueDesc type();
 
   @Override
-  public ImmutableBitmap filterFor(Range<T> range, FilterContext context, String attachment)
+  public BitmapHolder filterFor(Range<T> range, FilterContext context, String attachment)
   {
     if (range.isEmpty()) {
-      return factory.makeEmptyImmutableBitmap();
+      return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
     }
     if (isPointZero(range)) {
-      return zeros;
+      return BitmapHolder.exact(zeros);
     }
     int from = 0;
     int to = bins.length - 1;
@@ -254,7 +255,9 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
       T lower = range.lowerEndpoint();
       int index = binarySearch(lower);
       if (index == bins.length) {
-        return range.lowerBoundType() == BoundType.CLOSED ? bins[index - 1] : factory.makeEmptyImmutableBitmap();
+        return BitmapHolder.notExact(
+            range.lowerBoundType() == BoundType.CLOSED ? bins[index - 1] : factory.makeEmptyImmutableBitmap()
+        );
       }
       from = index < 0 ? -index - 2 : index;
     }
@@ -262,23 +265,17 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
       T upper = range.upperEndpoint();
       int index = binarySearch(upper);
       if (index == -1 || (index == 0 && range.upperBoundType() == BoundType.OPEN)) {
-        return factory.makeEmptyImmutableBitmap();
+        return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
       }
       to = Math.min(to, index < 0 ? -index - 2 : range.upperBoundType() == BoundType.OPEN ? index - 1 : index);
     }
     if (from < 0) {
-      return factory.makeEmptyImmutableBitmap();
+      return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
     }
     if (from == to) {
-      return bins[from];
+      return BitmapHolder.notExact(bins[from]);
     }
-    return DimFilters.union(factory, Arrays.asList(bins).subList(from, to + 1));
-  }
-
-  @Override
-  public boolean isExact()
-  {
-    return false;
+    return BitmapHolder.notExact(DimFilters.union(factory, Arrays.asList(bins).subList(from, to + 1)));
   }
 
   @Override

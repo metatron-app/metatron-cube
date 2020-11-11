@@ -21,7 +21,6 @@ package io.druid.segment.filter;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -47,9 +46,9 @@ public class DimensionPredicateFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(FilterContext context)
+  public BitmapHolder getBitmapIndex(FilterContext context)
   {
-    return Filters.matchPredicate(dimension, combine(predicate, extractionFn), context);
+    return BitmapHolder.exact(Filters.matchPredicate(dimension, combine(predicate, extractionFn), context));
   }
 
   @Override

@@ -63,7 +63,7 @@ public class OrDimFilter implements DimFilter, OrExpression
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.OR_CACHE_ID)
+    return builder.append(DimFilterCacheKey.OR_CACHE_ID)
                   .append(fields);
   }
 

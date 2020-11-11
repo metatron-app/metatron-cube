@@ -26,7 +26,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
@@ -40,6 +39,7 @@ import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedComplexColumnSerializer;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
@@ -286,15 +286,9 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
                     }
 
                     @Override
-                    public ImmutableBitmap filterFor(Query query, FilterContext context, String attachment)
+                    public BitmapHolder filterFor(Query query, FilterContext context, String attachment)
                     {
-                      return Lucenes.toBitmap(query(query), context, attachment);
-                    }
-
-                    @Override
-                    public boolean isExact()
-                    {
-                      return true;    // really?
+                      return BitmapHolder.exact(Lucenes.toBitmap(query(query), context, attachment));   // really?
                     }
 
                     @Override

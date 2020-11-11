@@ -20,9 +20,8 @@ package io.druid.segment.filter;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.search.Bound;
-import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -44,10 +43,12 @@ public class SpatialFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(FilterContext context)
+  public BitmapHolder getBitmapIndex(FilterContext context)
   {
-    final BitmapIndexSelector selector = context.indexSelector();
-    return DimFilters.union(context.bitmapFactory(), selector.getSpatialIndex(dimension).search(bound));
+    final ImmutableRTree index = context.indexSelector().getSpatialIndex(dimension);
+    return index == null ? null : BitmapHolder.exact(
+        DimFilters.union(context.bitmapFactory(), index.search(bound))
+    );
   }
 
   @Override

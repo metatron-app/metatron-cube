@@ -63,7 +63,7 @@ public class AndDimFilter implements DimFilter, AndExpression
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.AND_CACHE_ID)
+    return builder.append(DimFilterCacheKey.AND_CACHE_ID)
                   .append(fields);
   }
 

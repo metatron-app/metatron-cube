@@ -85,12 +85,6 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
   }
 
   @Override
-  public boolean isExact()
-  {
-    return true;
-  }
-
-  @Override
   public int numRows()
   {
     return rowCount;

@@ -283,7 +283,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.BOUND_CACHE_ID)
+    return builder.append(DimFilterCacheKey.BOUND_CACHE_ID)
                   .append(lowerStrict, upperStrict)
                   .append(dimension).sp()
                   .append(lower).sp()

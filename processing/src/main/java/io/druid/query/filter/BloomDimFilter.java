@@ -29,7 +29,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
@@ -57,16 +56,19 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.Dictionary;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import static io.druid.query.filter.DimFilter.*;
+
 /**
  */
 @JsonTypeName("bloom")
-public class BloomDimFilter implements DimFilter.LogProvider
+public class BloomDimFilter implements LogProvider, BestEffort
 {
   private static final float BULKSCAN_THRESHOLD_RATIO = 0.4f;
 
@@ -99,7 +101,7 @@ public class BloomDimFilter implements DimFilter.LogProvider
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.BLOOM_CACHE_ID)
+    return builder.append(DimFilterCacheKey.BLOOM_CACHE_ID)
                   .append(fieldNames)
                   .append(fields)
                   .append(groupingSets)
@@ -122,7 +124,7 @@ public class BloomDimFilter implements DimFilter.LogProvider
     return new Filter()
     {
       @Override
-      public ImmutableBitmap getBitmapIndex(FilterContext context)
+      public BitmapHolder getBitmapIndex(FilterContext context)
       {
         // todo support multi dimension by looping ?
         final String onlyDimension;
@@ -135,8 +137,11 @@ public class BloomDimFilter implements DimFilter.LogProvider
         }
         final BitmapIndexSelector selector = context.indexSelector();
         final Column column = selector.getColumn(onlyDimension);
+        if (column == null) {
+          return null;
+        }
         final BitmapIndex bitmapIndex = column.getBitmapIndex();
-        if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+        if (bitmapIndex != null) {
           final Dictionary<String> dictionary = column.getDictionary();
           if (dictionary.size() > context.numRows() * BULKSCAN_THRESHOLD_RATIO) {
             return null;
@@ -148,7 +153,9 @@ public class BloomDimFilter implements DimFilter.LogProvider
               ids.add(x);
             }
           });
-          return selector.getBitmapFactory().union(Iterables.transform(ids, x -> bitmapIndex.getBitmap(x)));
+          return BitmapHolder.notExact(
+              selector.getBitmapFactory().union(Iterables.transform(ids, x -> bitmapIndex.getBitmap(x)))
+          );
         }
         return null;
       }
@@ -236,7 +243,7 @@ public class BloomDimFilter implements DimFilter.LogProvider
   }
 
   @JsonTypeName("bloom.factory")
-  public static class Factory extends FilterFactory implements DimFilter.Rewriting
+  public static class Factory extends FilterFactory implements Rewriting
   {
     public static BloomDimFilter.Factory fieldNames(List<String> fieldNames, ViewDataSource source, int maxNumEntries)
     {
@@ -343,7 +350,7 @@ public class BloomDimFilter implements DimFilter.LogProvider
     }
   }
 
-  public static class Lazy extends FilterFactory implements DimFilter.Rewriting
+  public static class Lazy extends FilterFactory implements Rewriting
   {
     public static BloomDimFilter.Lazy fieldNames(List<String> fieldNames, Supplier<BloomKFilter> supplier)
     {

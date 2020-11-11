@@ -183,7 +183,7 @@ public interface DimFilter extends Expression, Cacheable
   }
 
   // uses lucene index
-  public abstract class LuceneFilter implements VCInflator
+  public abstract class LuceneFilter implements BestEffort, VCInflator
   {
     public final String field;
     public final String scoreField;
@@ -369,8 +369,8 @@ public interface DimFilter extends Expression, Cacheable
     Filter.MathcherOnly toFilter(TypeResolver resolver);
   }
 
-  // marker.. returns not-exact bitmap
-  interface NotExact extends DimFilter
+  // marker.. logics in Filters should be moved into each filters
+  interface BestEffort extends DimFilter
   {
   }
 

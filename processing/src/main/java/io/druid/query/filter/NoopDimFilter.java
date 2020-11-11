@@ -19,10 +19,10 @@
 
 package io.druid.query.filter;
 
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.BooleanValueMatcher;
 import io.druid.segment.filter.FilterContext;
 
@@ -35,7 +35,7 @@ public class NoopDimFilter implements DimFilter
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.NOOP_CACHE_ID);
+    return builder.append(DimFilterCacheKey.NOOP_CACHE_ID);
   }
 
   @Override
@@ -50,7 +50,7 @@ public class NoopDimFilter implements DimFilter
     {
 
       @Override
-      public ImmutableBitmap getBitmapIndex(FilterContext context)
+      public BitmapHolder getBitmapIndex(FilterContext context)
       {
         throw new UnsupportedOperationException("getBitmapIndex");
       }

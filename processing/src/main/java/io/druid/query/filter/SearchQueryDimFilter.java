@@ -75,7 +75,7 @@ public class SearchQueryDimFilter extends SingleInput
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.SEARCH_QUERY_TYPE_ID)
+    return builder.append(DimFilterCacheKey.SEARCH_QUERY_TYPE_ID)
                   .append(dimension).sp()
                   .append(query).sp()
                   .append(extractionFn);

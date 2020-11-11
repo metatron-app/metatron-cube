@@ -60,7 +60,7 @@ public class MathExprFilter implements DimFilter
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return builder.append(DimFilterCacheHelper.MATH_EXPR_CACHE_ID)
+    return builder.append(DimFilterCacheKey.MATH_EXPR_CACHE_ID)
                   .append(expression);
   }
 

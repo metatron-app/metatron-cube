@@ -62,14 +62,14 @@ public class InFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final FilterContext context)
+  public BitmapHolder getBitmapIndex(final FilterContext context)
   {
     final BitmapIndexSelector selector = context.indexSelector();
     if (extractionFn != null && Filters.isColumnWithoutBitmap(selector, dimension)) {
       return null;  // extractionFn requires bitmap index
     }
     if (extractionFn == null) {
-      return DimFilters.union(
+      return BitmapHolder.exact(DimFilters.union(
           selector.getBitmapFactory(),
           Iterables.transform(
               values, new Function<String, ImmutableBitmap>()
@@ -81,9 +81,9 @@ public class InFilter implements Filter
                 }
               }
           )
-      );
+      ));
     } else {
-      return Filters.matchPredicate(
+      return BitmapHolder.exact(Filters.matchPredicate(
           dimension,
           new Predicate<String>()
           {
@@ -95,7 +95,7 @@ public class InFilter implements Filter
             }
           },
           context
-      );
+      ));
     }
   }
 

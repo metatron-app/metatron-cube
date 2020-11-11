@@ -20,7 +20,6 @@
 package io.druid.segment.filter;
 
 import com.google.common.base.Predicate;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.JavaScriptDimFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -39,7 +38,7 @@ public class JavaScriptFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(FilterContext context)
+  public BitmapHolder getBitmapIndex(FilterContext context)
   {
     final Context cx = Context.enter();
     try {
@@ -52,7 +51,7 @@ public class JavaScriptFilter implements Filter
         }
       };
 
-      return Filters.matchPredicate(dimension, contextualPredicate, context);
+      return BitmapHolder.exact(Filters.matchPredicate(dimension, contextualPredicate, context));
     }
     finally {
       Context.exit();
