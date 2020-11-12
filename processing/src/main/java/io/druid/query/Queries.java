@@ -60,6 +60,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.ordering.OrderingSpec;
@@ -75,12 +76,15 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSpecVirtualColumn;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.commons.lang.mutable.MutableLong;
@@ -155,7 +159,8 @@ public class Queries
       schema = ((UnionAllQuery) query).getSchema();
     }
     if (schema == null) {
-      schema = QueryUtils.retrieveSchema(query, segmentWalker).relay(query, false);
+      Query disabled = query.withOverriddenContext(Query.DISABLE_LOG, true);
+      schema = QueryUtils.retrieveSchema(disabled, segmentWalker).relay(query, false);
     }
     LOG.debug(
         "%s resolved schema : %s%s",
@@ -470,6 +475,54 @@ public class Queries
       estimated += Iterables.size(granularity.getIterable(interval));
     }
     return estimated;
+  }
+
+  private static long tryEstimateOnDictionary(GroupByQuery query, List<Segment> segments, long minCardinality)
+  {
+    long multiply = 1;
+    for (DimensionSpec dimension : query.getDimensions()) {
+      int cardinality = 0;
+      for (Segment segment : segments) {
+        QueryableIndex index = segment.asQueryableIndex(false);
+        if (index == null) {
+          return -1;
+        }
+        BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index, TypeResolver.UNKNOWN);
+        Column column = selector.getColumn(dimension.getDimension());
+        if (column == null) {
+          continue;
+        }
+        if (column.getCapabilities().isDictionaryEncoded()) {
+          try (Dictionary<String> dictionary = column.getDictionary()) {
+            cardinality += dictionary.size();
+          }
+        } else {
+          cardinality += column.getNumRows();
+        }
+      }
+      multiply *= Math.max(1, cardinality);
+      if (multiply >= minCardinality) {
+        return -1;
+      }
+    }
+    return minCardinality;
+  }
+
+  public static long estimateCardinality(
+      GroupByQuery query,
+      List<Segment> segments,
+      QuerySegmentWalker segmentWalker,
+      QueryConfig config,
+      long minCardinality
+  )
+  {
+    if (query.getFilter() == null && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM << 1) {
+      final long estimate = tryEstimateOnDictionary(query, segments, minCardinality);
+      if (estimate >= 0 && estimate < minCardinality) {
+        return estimate;
+      }
+    }
+    return estimateCardinality(query, segmentWalker, config);
   }
 
   public static long estimateCardinality(

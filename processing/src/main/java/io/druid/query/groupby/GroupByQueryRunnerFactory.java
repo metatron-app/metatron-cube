@@ -252,7 +252,7 @@ public class GroupByQueryRunnerFactory
       int splitCardinality = query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, gbyConfig.getLocalSplitCardinality());
       if (splitCardinality > 1) {
         splitCardinality = Math.min(splitCardinality, maxResults);
-        long cardinality = Queries.estimateCardinality(query, segmentWalker, config);
+        long cardinality = Queries.estimateCardinality(query, segments, segmentWalker, config, splitCardinality);
         if (cardinality <= 0) {
           return null;    // failed ?
         }
