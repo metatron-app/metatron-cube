@@ -22,8 +22,8 @@ package io.druid.segment;
 import java.util.function.IntFunction;
 
 /**
+ * should not be used outside of lifecycle. don't do like this: Sequences.only(factory.makeCursors())
  */
-
 public interface Cursor extends ColumnSelectorFactory
 {
   long getStartTime();

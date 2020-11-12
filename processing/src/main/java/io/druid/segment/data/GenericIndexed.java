@@ -448,7 +448,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public void close() throws IOException
+  public void close()
   {
   }
 

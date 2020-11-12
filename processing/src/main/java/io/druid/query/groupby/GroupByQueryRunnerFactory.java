@@ -259,6 +259,8 @@ public class GroupByQueryRunnerFactory
         numSplit = (int) Math.ceil(cardinality * 1.2 / splitCardinality);
         if (numSplit > 1) {
           logger.info("Expected cardinality %d, split into %d queries", cardinality, numSplit);
+        } else {
+          logger.info("Expected cardinality %d. not splitting..", cardinality);
         }
       }
     }

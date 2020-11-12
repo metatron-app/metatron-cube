@@ -193,21 +193,22 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index, resolver);
     final FilterContext context = Filters.createFilterContext(selector, cache, segmentId);
 
+    final long start = System.currentTimeMillis();
     final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);
-    final ImmutableBitmap baseBitmap = extracted.getKey();
-    final DimFilter valueMatcher = extracted.getValue();
 
+    final ImmutableBitmap baseBitmap = extracted.getKey();
     final Offset offset;
     if (baseBitmap == null) {
       offset = descending ? new DescNoFilter(0, context.numRows()) : new AscNoFilter(0, context.numRows());
     } else {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("%,d / %,d", baseBitmap.size(), context.numRows());
+        LOG.debug("%,d / %,d (%d msec)", baseBitmap.size(), context.numRows(), System.currentTimeMillis() - start);
       }
       offset = new BitmapOffset(selector.getBitmapFactory(), baseBitmap, descending);
     }
     context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters
 
+    final DimFilter valueMatcher = extracted.getValue();
     final boolean fullscan =
         Granularities.ALL.equals(granularity) && valueMatcher == null && actualInterval.contains(timeMinMax);
 

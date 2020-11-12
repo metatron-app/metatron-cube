@@ -35,6 +35,7 @@ import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryRunners;
@@ -245,6 +246,8 @@ public class BloomDimFilter implements LogProvider, BestEffort
   @JsonTypeName("bloom.factory")
   public static class Factory extends FilterFactory implements Rewriting
   {
+    private static final Logger LOG = new Logger(BloomDimFilter.Factory.class);
+
     public static BloomDimFilter.Factory fieldNames(List<String> fieldNames, ViewDataSource source, int maxNumEntries)
     {
       return new BloomDimFilter.Factory(fieldNames, null, GroupingSetSpec.EMPTY, source, maxNumEntries);
@@ -334,6 +337,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
           Arrays.asList(BloomFilterAggregatorFactory.of("$bloom", bloomSource.getColumns(), expectedCardinality))
       );
       BloomKFilter filter = (BloomKFilter) Sequences.only(QueryRunners.run(query, walker)).getRaw("$bloom");
+      LOG.info("-- bloom filter generated for [%s:%d]", BaseQuery.getAlias(parent), expectedCardinality);
       return new BloomDimFilter(fieldNames, fields, groupingSets, filter.serialize());
     }
 

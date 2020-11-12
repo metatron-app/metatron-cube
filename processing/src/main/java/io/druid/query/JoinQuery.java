@@ -36,6 +36,7 @@ import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.Sequences;
+import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BulkRow;
@@ -409,7 +410,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           if (rightEstimated > 0) {
             joinContext.put(CARDINALITY, rightEstimated);
           }
-          queries.add(new BroadcastJoinHolder(query1, processor, joinContext));
+          queries.add(new BroadcastJoinHolder(String.format("%s (R+l)", rightAlias), query1, processor, joinContext));
           if (rightEstimated > 0) {
             currentEstimation = rightEstimated;
           }
@@ -442,7 +443,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             joinContext.put(CARDINALITY, leftEstimated);
           }
 
-          queries.add(new BroadcastJoinHolder(query0, processor, joinContext));
+          queries.add(new BroadcastJoinHolder(String.format("%s (L+r)", leftAlias), query0, processor, joinContext));
           if (leftEstimated > 0) {
             currentEstimation = leftEstimated;
           }
@@ -517,10 +518,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return queries.get(0);
     }
 
+    List<String> aliases = JoinElement.getAliases(elements);
+
     List<String> prefixAliases;
     String timeColumn;
     if (prefixAlias) {
-      prefixAliases = JoinElement.getAliases(elements);
+      prefixAliases = aliases;
       timeColumn = timeColumnName == null ? prefixAliases.get(0) + "." + Column.TIME_COLUMN_NAME : timeColumnName;
     } else {
       prefixAliases = null;
@@ -531,7 +534,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     if (currentEstimation > 0) {
       joinContext.put(CARDINALITY, currentEstimation);
     }
-    CommonJoinHolder query = new CommonJoinHolder(queries, prefixAliases, timeColumn, outputColumns, limit, joinContext);
+    CommonJoinHolder query = new CommonJoinHolder(
+        StringUtils.concat("+", aliases), queries, prefixAliases, timeColumn, outputColumns, limit, joinContext
+    );
     if (schema != null) {
       query = query.withSchema(Suppliers.ofInstance(schema));
     }
@@ -708,7 +713,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   public static abstract class JoinHolder extends UnionAllQuery<Map<String, Object>>
       implements ArrayOutputSupport<Map<String, Object>>, SchemaProvider
   {
+    protected final String alias;   // just for debug
+
     public JoinHolder(
+        String alias,
         Query<Map<String, Object>> query,
         List<Query<Map<String, Object>>> queries,
         boolean sortOnUnion,
@@ -718,6 +726,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     )
     {
       super(query, queries, sortOnUnion, limit, parallelism, context);
+      this.alias = alias;
+    }
+
+    public String getAlias()
+    {
+      return alias;
     }
 
     @Override
@@ -805,12 +819,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     private final BroadcastJoinProcessor processor;
 
     public BroadcastJoinHolder(
+        String alias,
         Query query,
         BroadcastJoinProcessor processor,
         Map<String, Object> context
     )
     {
-      super(query, null, false, -1, -1, context);
+      super(alias, query, null, false, -1, -1, context);
       this.processor = processor;
     }
 
@@ -824,6 +839,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       Preconditions.checkArgument(queries == null);
       return new BroadcastJoinHolder(
+          alias,
           query,
           processor,
           context
@@ -850,7 +866,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
       final BroadcastJoinProcessor asArray = processor.withAsArray(true);
       return new BroadcastJoinHolder(
-          getQuery(), asArray, BaseQuery.copyContext(this, Query.POST_PROCESSING, processor)
+          alias, getQuery(), asArray, BaseQuery.copyContext(this, Query.POST_PROCESSING, processor)
       );
     }
 
@@ -878,6 +894,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     private final Execs.SettableFuture<List<OrderByColumnSpec>> future = new Execs.SettableFuture();
 
     public CommonJoinHolder(
+        String alias,
         List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
         String timeColumnName,
@@ -886,7 +903,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         Map<String, Object> context
     )
     {
-      super(null, list, false, limit, -1, context);     // not needed to be parallel (handled in post processor)
+      super(alias, null, list, false, limit, -1, context);     // not needed to be parallel (handled in post processor)
       this.prefixAliases = prefixAliases;
       this.outputColumns = outputColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
@@ -927,6 +944,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       Preconditions.checkArgument(query == null);
       return new CommonJoinHolder(
+          alias,
           queries,
           prefixAliases,
           timeColumnName,

@@ -330,6 +330,8 @@ public class NettyHttpClient extends AbstractHttpClient
     channel.write(httpRequest).addListener(
         new ChannelFutureListener()
         {
+          final long writeStart = System.currentTimeMillis();
+
           @Override
           public void operationComplete(ChannelFuture future) throws Exception
           {
@@ -344,6 +346,8 @@ public class NettyHttpClient extends AbstractHttpClient
                     )
                 );
               }
+            } else {
+              handler.writeCompleted(writeStart);
             }
           }
         }

@@ -66,7 +66,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DirectDruidClient<T> implements QueryRunner<T>
 {
   private static final Logger log = new Logger(DirectDruidClient.class);
-  private static final long WRITE_DELAY_LOG_THRESHOLD = 100;
+  private static final long CONNECT_DELAY_LOG_THRESHOLD = 200;
 
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
@@ -143,22 +143,24 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     final QueryMetrics<?> queryMetrics = toolChest.makeMetrics(query);
     queryMetrics.server(host);
 
-    final StreamHandler handler = handlerFactory.create(query, host, ioConfig.getQueueSize(), queryMetrics, context);
-
     if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
       log.debug("Querying [%s][%s:%s] to url[%s]", query.getId(), query.getType(), query.getDataSource(), hostURL);
     }
+
+    final byte[] content = serializeQuery(query);
+    final int queueSize = ioConfig.getQueueSize();
+    final StreamHandler handler = handlerFactory.create(query, content.length, host, queueSize, queryMetrics, context);
 
     final long start = System.currentTimeMillis();
     final ListenableFuture<InputStream> future = httpClient.go(
         new Request(HttpMethod.POST, hostURL)
             .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType)
-            .setContent(serializeQuery(query)),
+            .setContent(content),
         handler
     );
     final long elapsed = System.currentTimeMillis() - start;
-    if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
-      log.info("Took %,d msec to write query[%s:%s] to url[%s]", elapsed, query.getType(), query.getId(), hostURL);
+    if (elapsed > CONNECT_DELAY_LOG_THRESHOLD) {
+      log.info("Took %,d msec connecting to url[%s]", elapsed, hostURL);
     }
 
     openConnections.getAndIncrement();

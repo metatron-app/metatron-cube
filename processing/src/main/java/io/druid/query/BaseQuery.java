@@ -245,6 +245,14 @@ public abstract class BaseQuery<T> implements Query<T>
     return BaseQuery.allMetricsForEmpty(this, true);
   }
 
+  public static String getAlias(Query<?> query)
+  {
+    if (query instanceof JoinQuery.JoinHolder) {
+      return ((JoinQuery.JoinHolder) query).getAlias();
+    }
+    return StringUtils.concat(",", query.getDataSource().getNames());
+  }
+
   public static List<VirtualColumn> getVirtualColumns(Query query)
   {
     return query instanceof VCSupport ? ((VCSupport<?>) query).getVirtualColumns() : ImmutableList.<VirtualColumn>of();

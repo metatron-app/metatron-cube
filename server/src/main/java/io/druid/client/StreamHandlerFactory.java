@@ -286,6 +286,8 @@ public class StreamHandlerFactory
     }
   }
 
+  private static final int WRITE_DELAY_LOG_THRESHOLD = 100;
+
   public static class WithEmitter extends StreamHandlerFactory
   {
     private final ServiceEmitter emitter;
@@ -298,6 +300,7 @@ public class StreamHandlerFactory
 
     public StreamHandler create(
         final Query query,
+        final int content,
         final String host,
         final int queueSize,
         final QueryMetrics queryMetrics,
@@ -306,6 +309,18 @@ public class StreamHandlerFactory
     {
       return new BaseHandler(query, host, queueSize)
       {
+        @Override
+        public void writeCompleted(long writeStart)
+        {
+          final long elapsed = System.currentTimeMillis() - writeStart;
+          if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
+            log.info(
+                "Took %,d msec to write query[%s:%s] (%d bytes) to [%s]",
+                elapsed, query.getType(), query.getId(), content, host
+            );
+          }
+        }
+
         @Override
         public void handleHeader(HttpHeaders headers) throws IOException
         {

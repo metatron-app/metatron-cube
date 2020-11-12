@@ -36,14 +36,16 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
  */
 public interface HttpResponseHandler<IntermediateType, FinalType>
 {
+  default void writeCompleted(long writeStart) {}
+
   /**
    * Handles the initial HttpResponse object that comes back from Netty.
    *
    * @param response - response from Netty
    * @return
    */
-  public ClientResponse<IntermediateType> handleResponse(HttpResponse response);
-  public ClientResponse<IntermediateType> handleChunk(ClientResponse<IntermediateType> clientResponse, HttpChunk chunk);
-  public ClientResponse<FinalType> done(ClientResponse<IntermediateType> clientResponse);
-  public void exceptionCaught(ClientResponse<IntermediateType> clientResponse,Throwable e);
+  ClientResponse<IntermediateType> handleResponse(HttpResponse response);
+  ClientResponse<IntermediateType> handleChunk(ClientResponse<IntermediateType> clientResponse, HttpChunk chunk);
+  ClientResponse<FinalType> done(ClientResponse<IntermediateType> clientResponse);
+  void exceptionCaught(ClientResponse<IntermediateType> clientResponse,Throwable e);
 }

@@ -40,6 +40,8 @@ public interface Dictionary<T> extends Indexed.Closeable<T>
 
   void scan(Scanner scanner);
 
+  void close();
+
   interface Scanner
   {
     void scan(int number, ByteBuffer buffer, int offset, int length);
