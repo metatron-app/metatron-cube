@@ -327,7 +327,8 @@ public class QueryRunnerTestHelper
       "uniques",
       "quality_uniques",
       null,
-      true
+      true,
+      0
   );
   public static final CardinalityAggregatorFactory qualityCardinality = new CardinalityAggregatorFactory(
       "cardinality",

@@ -2704,7 +2704,8 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                         null,
                         null,
                         false,
-                        false
+                        false,
+                        0
                     )
                 )
             )

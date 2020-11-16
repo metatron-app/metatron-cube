@@ -29,24 +29,26 @@ import java.nio.ByteBuffer;
  */
 public class HyperUniquesBufferAggregator implements BufferAggregator
 {
-  private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
   private final ValueMatcher predicate;
   private final ObjectColumnSelector selector;
+  private final HyperLogLogCollector.Context context;
 
   public HyperUniquesBufferAggregator(
       ValueMatcher predicate,
-      ObjectColumnSelector selector
+      ObjectColumnSelector selector,
+      int b
   )
   {
     this.predicate = predicate;
     this.selector = selector;
+    this.context = HyperLogLogCollector.getContext(b);
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
     buf.position(position);
-    buf.put(EMPTY_BYTES);
+    buf.put(context.EMPTY_BYTES);
   }
 
   @Override
@@ -55,7 +57,7 @@ public class HyperUniquesBufferAggregator implements BufferAggregator
     if (predicate.matches()) {
       final HyperLogLogCollector collector = (HyperLogLogCollector) selector.get();
       if (collector != null) {
-        HyperLogLogCollector.makeCollector(buf, position).fold(collector);
+        HyperLogLogCollector.from(buf, position).fold(collector);
       }
     }
   }

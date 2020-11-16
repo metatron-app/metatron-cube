@@ -549,8 +549,8 @@ public class Queries
   // for cubing
   public static int estimateCardinality(GroupByQuery query, Segment segment)
   {
-    final CardinalityAggregatorFactory cardinality = new CardinalityAggregatorFactory(
-        "$cardinality", null, query.getDimensions(), query.getGroupingSets(), null, true, true
+    AggregatorFactory cardinality = CardinalityAggregatorFactory.dimensions(
+        "$cardinality", query.getDimensions(), query.getGroupingSets()
     );
     TimeseriesQuery timeseries = new TimeseriesQuery.Builder(query).setAggregatorSpecs(cardinality).build();
     TimeseriesQueryEngine engine = new TimeseriesQueryEngine();

@@ -38,6 +38,7 @@ import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
+import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.SketchOp;
 
@@ -172,7 +173,7 @@ public class Cuboids
       case "sum":
         return new GenericSumAggregatorFactory(name, fieldName, inputType);
       case "cardinality":
-        return new CardinalityAggregatorFactory(name, Arrays.asList(fieldName), true);
+        return CardinalityAggregatorFactory.fields(name, Arrays.asList(fieldName), GroupingSetSpec.EMPTY);
       case "hyperUnique":
         return new HyperUniquesAggregatorFactory(name, fieldName);
       case "sketch":

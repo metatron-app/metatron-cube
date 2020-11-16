@@ -22,6 +22,7 @@ package io.druid.query.aggregation.cardinality;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
@@ -43,18 +44,81 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
-@JsonTypeName("cardinality")
-public class CardinalityAggregatorFactory extends HashAggregatorFactory implements AggregatorFactory.CubeSupport
+public class CardinalityAggregatorFactory extends HashAggregatorFactory
+    implements AggregatorFactory.CubeSupport
 {
-  public static CardinalityAggregatorFactory of(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
+  public static final int DEFAULT_B_PARAM = 11;
+
+  public static AggregatorFactory fields(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
   {
-    return new CardinalityAggregatorFactory(name, fieldNames, null, groupingSets, null, true, true);
+    return new CardinalityAggregatorFactory(name, fieldNames, null, groupingSets, null, true, true, 0);
+  }
+
+  public static AggregatorFactory dimensions(String name, List<DimensionSpec> dimensions, GroupingSetSpec groupingSets)
+  {
+    return new CardinalityAggregatorFactory(name, null, dimensions, groupingSets, null, true, true, 0);
+  }
+
+  @JsonTypeName("cardinality12")
+  public static class B12 extends CardinalityAggregatorFactory
+  {
+    @JsonCreator
+    public B12(
+        @JsonProperty("name") final String name,
+        @JsonProperty("fieldNames") final List<String> fieldNames,
+        @JsonProperty("fields") final List<DimensionSpec> fields,
+        @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
+        @JsonProperty("predicate") final String predicate,
+        @JsonProperty("byRow") final boolean byRow,
+        @JsonProperty("round") final boolean round
+    )
+    {
+      super(name, fieldNames, fields, groupingSets, predicate, byRow, round, 12);
+    }
+  }
+
+  @JsonTypeName("cardinality14")
+  public static class B14 extends CardinalityAggregatorFactory
+  {
+    @JsonCreator
+    public B14(
+        @JsonProperty("name") final String name,
+        @JsonProperty("fieldNames") final List<String> fieldNames,
+        @JsonProperty("fields") final List<DimensionSpec> fields,
+        @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
+        @JsonProperty("predicate") final String predicate,
+        @JsonProperty("byRow") final boolean byRow,
+        @JsonProperty("round") final boolean round
+    )
+    {
+      super(name, fieldNames, fields, groupingSets, predicate, byRow, round, 14);
+    }
+  }
+
+  @JsonTypeName("cardinality16")
+  public static class B16 extends CardinalityAggregatorFactory
+  {
+    @JsonCreator
+    public B16(
+        @JsonProperty("name") final String name,
+        @JsonProperty("fieldNames") final List<String> fieldNames,
+        @JsonProperty("fields") final List<DimensionSpec> fields,
+        @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
+        @JsonProperty("predicate") final String predicate,
+        @JsonProperty("byRow") final boolean byRow,
+        @JsonProperty("round") final boolean round
+    )
+    {
+      super(name, fieldNames, fields, groupingSets, predicate, byRow, round, 16);
+    }
   }
 
   private static final byte CACHE_TYPE_ID = (byte) 0x8;
 
   private final boolean round;
+  private final int b;
 
   @JsonCreator
   public CardinalityAggregatorFactory(
@@ -64,22 +128,31 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
       @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
       @JsonProperty("predicate") final String predicate,
       @JsonProperty("byRow") final boolean byRow,
-      @JsonProperty("round") final boolean round
+      @JsonProperty("round") final boolean round,
+      @JsonProperty("b") final int b
   )
   {
     super(name, predicate, fieldNames, fields, groupingSets, byRow);
     this.round = round;
+    this.b = b == 0 ? DEFAULT_B_PARAM : b;
+    Preconditions.checkArgument(b == 0 || (11 <= b && b <= 16), "invalid b argument " + b);
   }
 
   public CardinalityAggregatorFactory(String name, List<String> fieldNames, boolean byRow)
   {
-    this(name, fieldNames, null, null, null, byRow, false);
+    this(name, fieldNames, null, null, null, byRow, false, 0);
   }
 
   @JsonProperty
   public boolean isRound()
   {
     return round;
+  }
+
+  @JsonProperty
+  public int getB()
+  {
+    return b;
   }
 
   @Override
@@ -93,7 +166,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
     ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, columnFactory);
-    return new CardinalityAggregator(matcher, selectors, grouping, byRow);
+    return new CardinalityAggregator(matcher, selectors, grouping, byRow, b);
   }
 
   @Override
@@ -107,7 +180,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
     ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, columnFactory);
-    return new CardinalityBufferAggregator(matcher, selectors, grouping, byRow);
+    return new CardinalityBufferAggregator(matcher, selectors, grouping, byRow, b);
   }
 
   @Override
@@ -133,7 +206,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new HyperUniquesAggregatorFactory(name, name, null, round);
+    return new HyperUniquesAggregatorFactory(name, name, null, round, b);
   }
 
   @Override
@@ -157,13 +230,13 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
   @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
-    return new HyperUniquesAggregatorFactory(name, inputField, null, round);
+    return new HyperUniquesAggregatorFactory(name, inputField, null, round, b);
   }
 
   @Override
   public String getCubeName()
   {
-    return "cardinality";
+    return b == DEFAULT_B_PARAM ? "cardinality" : String.format("cardinality%d", b);
   }
 
   @Override
@@ -175,7 +248,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
-    return super.getCacheKey(builder.append(CACHE_TYPE_ID)).append(round);
+    return super.getCacheKey(builder.append(CACHE_TYPE_ID)).append(round).append(b);
   }
 
   @Override
@@ -187,19 +260,21 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
   @Override
   public int getMaxIntermediateSize()
   {
-    return HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE;
+    return HyperLogLogCollector.getContext(b).NUM_BYTES_FOR_DENSE_STORAGE;
   }
 
   @Override
   public boolean equals(Object o)
   {
-    return super.equals(o) && round == ((CardinalityAggregatorFactory) o).round;
+    return super.equals(o) &&
+           round == ((CardinalityAggregatorFactory) o).round &&
+           b == ((CardinalityAggregatorFactory) o).b;
   }
 
   @Override
   public int hashCode()
   {
-    return 31 * super.hashCode() + (round ? 1 : 0);
+    return Objects.hash(super.hashCode(), round, b);
   }
 
   @Override
@@ -213,6 +288,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory implemen
            (predicate == null ? "" : ", predicate=" + predicate) +
            ", byRow=" + byRow +
            ", round=" + round +
+           ", b=" + b +
            '}';
   }
 }

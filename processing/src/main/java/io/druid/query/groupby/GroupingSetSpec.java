@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -59,6 +60,7 @@ public interface GroupingSetSpec extends Cacheable
 
   boolean isEmpty();
 
+  @JsonTypeName("names")
   public static class Names implements GroupingSetSpec
   {
     private final List<List<String>> names;
@@ -160,6 +162,7 @@ public interface GroupingSetSpec extends Cacheable
     }
   }
 
+  @JsonTypeName("indices")
   public static class Indices implements GroupingSetSpec
   {
     private final List<List<Integer>> indices;
@@ -261,6 +264,7 @@ public interface GroupingSetSpec extends Cacheable
     }
   }
 
+  @JsonTypeName("ids")
   public static class Ids implements GroupingSetSpec
   {
     private final List<Integer> ids;
@@ -330,17 +334,14 @@ public interface GroupingSetSpec extends Cacheable
     }
   }
 
+  @JsonTypeName("rollup")
   public static class Rollup implements GroupingSetSpec
   {
     @JsonCreator
-    public Rollup()
-    {
-    }
+    public Rollup() {}
 
     @Override
-    public void validate(List<String> dimensions)
-    {
-    }
+    public void validate(List<String> dimensions) {}
 
     @Override
     public int[][] getGroupings(List<String> dimensions)

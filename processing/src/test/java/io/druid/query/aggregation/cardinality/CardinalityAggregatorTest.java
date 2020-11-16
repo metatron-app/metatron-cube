@@ -493,7 +493,8 @@ public class CardinalityAggregatorTest
         null,
         null,
         true,
-        false
+        false,
+        0
     );
     ObjectMapper objectMapper = new DefaultObjectMapper();
     Assert.assertEquals(
@@ -518,7 +519,8 @@ public class CardinalityAggregatorTest
         null,
         null,
         false,
-        true
+        true,
+        0
     );
 
     Assert.assertEquals(

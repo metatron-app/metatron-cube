@@ -105,7 +105,7 @@ public class HyperUniquesSerde extends ComplexMetricSerde.CompressionSupport
       {
         final ByteBuffer readOnlyBuffer = buffer.asReadOnlyBuffer();
         readOnlyBuffer.limit(readOnlyBuffer.position() + numBytes);
-        return HyperLogLogCollector.makeCollector(readOnlyBuffer);
+        return HyperLogLogCollector.from(readOnlyBuffer);
       }
 
       @Override

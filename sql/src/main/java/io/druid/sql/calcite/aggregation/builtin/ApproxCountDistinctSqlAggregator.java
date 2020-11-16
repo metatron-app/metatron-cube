@@ -28,6 +28,7 @@ import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregato
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.aggregation.Aggregation;
@@ -93,7 +94,7 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
 
     if (arg.isDirectColumnAccess() && HyperLogLogCollector.HLL_TYPE.equals(rowSignature.resolve(arg.getDirectColumn()))) {
-      aggregatorFactory = new HyperUniquesAggregatorFactory(aggregatorName, arg.getDirectColumn(), null, true);
+      aggregatorFactory = HyperUniquesAggregatorFactory.of(aggregatorName, arg.getDirectColumn());
     } else {
 
       final DimensionSpec dimensionSpec;
@@ -108,8 +109,8 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
         virtualColumns.add(virtualColumn);
       }
 
-      aggregatorFactory = new CardinalityAggregatorFactory(
-          aggregatorName, null, ImmutableList.of(dimensionSpec), null, null, false, true
+      aggregatorFactory = CardinalityAggregatorFactory.dimensions(
+          aggregatorName, ImmutableList.of(dimensionSpec), GroupingSetSpec.EMPTY
       );
     }
 

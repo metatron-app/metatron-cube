@@ -167,9 +167,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
     int newWidth = width;
     byte[] newSketch = sketch;
     if (newWidth <= 0) {
-      AggregatorFactory factory = new CardinalityAggregatorFactory(
-          "$v", null, dimensions, GroupingSetSpec.EMPTY, null, true, true
-      );
+      AggregatorFactory factory = CardinalityAggregatorFactory.dimensions("$v", dimensions, GroupingSetSpec.EMPTY);
       Row result = QueryRunners.only(meta.withAggregatorSpecs(Arrays.asList(factory)), segmentWalker);
       int cardinality = Preconditions.checkNotNull(((Number) result.getRaw("$v")), "cardinality?").intValue();
       BigInteger prime = BigInteger.valueOf(cardinality).nextProbablePrime();

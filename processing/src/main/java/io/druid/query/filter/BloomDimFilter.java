@@ -97,6 +97,10 @@ public class BloomDimFilter implements LogProvider, BestEffort
     this.groupingSets = groupingSets;
     this.bloomFilter = Preconditions.checkNotNull(bloomFilter);
     this.hash = Hashing.sha512().hashBytes(bloomFilter);
+    Preconditions.checkArgument(
+        fieldNames == null ^ fields == null,
+        "Must have a valid, non-null fieldNames or fields"
+    );
   }
 
   @Override
@@ -327,7 +331,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
       int expectedCardinality = maxNumEntries;
       if (expectedCardinality <= 0) {
         query = query.withAggregatorSpecs(
-            Arrays.asList(CardinalityAggregatorFactory.of("$cardinality", bloomSource.getColumns(), groupingSets))
+            Arrays.asList(CardinalityAggregatorFactory.fields("$cardinality", bloomSource.getColumns(), groupingSets))
         );
         expectedCardinality = Ints.checkedCast(
             Sequences.only(QueryRunners.run(query, walker)).getLongMetric("$cardinality")

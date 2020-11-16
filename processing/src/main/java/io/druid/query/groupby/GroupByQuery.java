@@ -639,7 +639,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         limitSpec.getLimit(), ImmutableList.copyOf(orderings.subList(1, orderings.size()))
     );
     AggregatorFactory factory = new CardinalityAggregatorFactory(
-        "$v", null, dimensions, getGroupingSets(), null, true, true
+        "$v", null, dimensions, getGroupingSets(), null, true, true, 0
     );
     TimeseriesQuery meta = new TimeseriesQuery(
         getDataSource(),
@@ -975,7 +975,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     Granularity granularity = sortOnTime ? query.getGranularity() : Granularities.ALL;
 
     AggregatorFactory cardinality = new CardinalityAggregatorFactory(
-        "$cardinality", null, fields, groupingSet, null, true, true
+        "$cardinality", null, fields, groupingSet, null, true, true, 0
     );
     if (query.getFilter() != null) {
       Map<String, String> mapping = QueryUtils.aliasMapping(this);

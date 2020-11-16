@@ -7326,7 +7326,8 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                     null,
                     null,
                     false,
-                    false
+                    false,
+                    0
                 )
             )
         )

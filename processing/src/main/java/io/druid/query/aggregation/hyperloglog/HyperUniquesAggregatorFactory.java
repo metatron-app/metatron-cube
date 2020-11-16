@@ -22,6 +22,7 @@ package io.druid.query.aggregation.hyperloglog;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
@@ -29,6 +30,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ObjectColumnSelector;
@@ -43,6 +45,9 @@ import java.util.Objects;
 @JsonTypeName("hyperUnique")
 public class HyperUniquesAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
+  public static AggregatorFactory of(String name, String fieldName) {
+    return new HyperUniquesAggregatorFactory(name, fieldName, null, true, 0);
+  }
   public static Object estimateCardinality(Object object, boolean round)
   {
     if (object == null) {
@@ -59,6 +64,51 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     }
   }
 
+  @JsonTypeName("hyperUnique12")
+  public static class B12 extends HyperUniquesAggregatorFactory
+  {
+    @JsonCreator
+    public B12(
+        @JsonProperty("name") String name,
+        @JsonProperty("fieldName") String fieldName,
+        @JsonProperty("predicate") String predicate,
+        @JsonProperty("round") boolean round
+    )
+    {
+      super(name, fieldName, predicate, round, 12);
+    }
+  }
+
+  @JsonTypeName("hyperUnique14")
+  public static class B14 extends HyperUniquesAggregatorFactory
+  {
+    @JsonCreator
+    public B14(
+        @JsonProperty("name") String name,
+        @JsonProperty("fieldName") String fieldName,
+        @JsonProperty("predicate") String predicate,
+        @JsonProperty("round") boolean round
+    )
+    {
+      super(name, fieldName, predicate, round, 14);
+    }
+  }
+
+  @JsonTypeName("hyperUnique16")
+  public static class B16 extends HyperUniquesAggregatorFactory
+  {
+    @JsonCreator
+    public B16(
+        @JsonProperty("name") String name,
+        @JsonProperty("fieldName") String fieldName,
+        @JsonProperty("predicate") String predicate,
+        @JsonProperty("round") boolean round
+    )
+    {
+      super(name, fieldName, predicate, round, 16);
+    }
+  }
+
   private static final byte CACHE_TYPE_ID = 0x5;
 
   private final String name;
@@ -67,23 +117,28 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   private final String fieldName;
   private final String predicate;
 
+  private final int b;
+
   @JsonCreator
   public HyperUniquesAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("predicate") String predicate,
-      @JsonProperty("round") boolean round
+      @JsonProperty("round") boolean round,
+      @JsonProperty("b") int b
   )
   {
     this.name = name;
     this.fieldName = fieldName;
     this.predicate = predicate;
     this.round = round;
+    this.b = b == 0 ? CardinalityAggregatorFactory.DEFAULT_B_PARAM : b;
+    Preconditions.checkArgument(b == 0 || (11 <= b && b <= 16), "invalid b argument " + b);
   }
 
   public HyperUniquesAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, null, false);
+    this(name, fieldName, null, false, 0);
   }
 
   @Override
@@ -97,7 +152,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
 
     final ValueDesc valueType = selector.type();
     if (HyperLogLogCollector.HLL_TYPE.equals(valueType)) {
-      return new HyperUniquesAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector);
+      return new HyperUniquesAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector, b);
     }
 
     throw new IAE(
@@ -116,7 +171,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
 
     final ValueDesc type = selector.type();
     if (type.isUnknown() || HyperLogLogCollector.HLL_TYPE.equals(type)) {
-      return new HyperUniquesBufferAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector);
+      return new HyperUniquesBufferAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector, b);
     }
 
     throw new IAE("Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, type);
@@ -145,7 +200,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new HyperUniquesAggregatorFactory(name, name, null, round);
+    return new HyperUniquesAggregatorFactory(name, name, null, round, b);
   }
 
   @Override
@@ -193,6 +248,12 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     return round;
   }
 
+  @JsonProperty
+  public int getB()
+  {
+    return b;
+  }
+
   @Override
   public List<String> requiredFields()
   {
@@ -202,13 +263,14 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public String getCubeName()
   {
-    return HyperLogLogCollector.HLL_TYPE_NAME;
+    return b == CardinalityAggregatorFactory.DEFAULT_B_PARAM ?
+           HyperLogLogCollector.HLL_TYPE_NAME : String.format("%s%d", HyperLogLogCollector.HLL_TYPE_NAME, b);
   }
 
   @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
-    return new HyperUniquesAggregatorFactory(name, inputField, null, round);
+    return new HyperUniquesAggregatorFactory(name, inputField, null, round, b);
   }
 
   @Override
@@ -216,7 +278,8 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   {
     return builder.append(CACHE_TYPE_ID)
                   .append(fieldName, predicate)
-                  .append(round);
+                  .append(round)
+                  .append(b);
   }
 
   @Override
@@ -228,7 +291,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public int getMaxIntermediateSize()
   {
-    return HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE;
+    return HyperLogLogCollector.getContext(b).NUM_BYTES_FOR_DENSE_STORAGE;
   }
 
   @Override
@@ -237,8 +300,9 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     return "HyperUniquesAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
-           ", predicate='" + predicate + '\'' +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", round=" + round +
+           ", b=" + b +
            '}';
   }
 
@@ -266,6 +330,9 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     if (!Objects.equals(round, that.round)) {
       return false;
     }
+    if (!Objects.equals(b, that.b)) {
+      return false;
+    }
 
     return true;
   }
@@ -273,6 +340,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, fieldName, predicate, round);
+    return Objects.hash(name, fieldName, predicate, round, b);
   }
 }

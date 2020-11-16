@@ -42,8 +42,8 @@ import java.util.Random;
  */
 public class HyperLogLogCollectorTest
 {
-
-  private final HashFunction fn = Hashing.murmur3_128();
+  private static final HyperLogLogCollector.Context DEFAULT = HyperLogLogCollector.DEFAULT_CTX;
+  private static final HashFunction fn = Hashing.murmur3_128();
 
   @Test
   public void testFolding() throws Exception
@@ -214,8 +214,8 @@ public class HyperLogLogCollectorTest
         }
       }
 
-      HyperLogLogCollector folded = HyperLogLogCollector.makeCollector(
-          ByteBuffer.wrap(HyperLogLogCollector.makeEmptyVersionedByteArray())
+      HyperLogLogCollector folded = HyperLogLogCollector.from(
+          ByteBuffer.wrap(DEFAULT.makeEmpty())
                     .asReadOnlyBuffer()
       );
 
@@ -250,9 +250,9 @@ public class HyperLogLogCollectorTest
         }
       }
 
-      HyperLogLogCollector folded = HyperLogLogCollector.makeCollector(
+      HyperLogLogCollector folded = HyperLogLogCollector.from(
           shiftedBuffer(
-              ByteBuffer.wrap(HyperLogLogCollector.makeEmptyVersionedByteArray())
+              ByteBuffer.wrap(DEFAULT.makeEmpty())
                         .asReadOnlyBuffer(),
               17
           )
@@ -280,9 +280,9 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
-    Assert.assertEquals(outBuffer.getShort(), 2047);
+    Assert.assertEquals(outBuffer.getShort(), DEFAULT.BUCKET_MASK);
     outBuffer.get();
     outBuffer.getShort();
     Assert.assertEquals(outBuffer.get(), 0x10);
@@ -296,9 +296,9 @@ public class HyperLogLogCollectorTest
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
-    Assert.assertEquals(outBuffer.getShort(), 2047);
+    Assert.assertEquals(outBuffer.getShort(), DEFAULT.BUCKET_MASK);
     Assert.assertEquals(outBuffer.get(), 0);
     Assert.assertEquals(outBuffer.getShort(), 0);
     Assert.assertEquals(outBuffer.get(), 0x10);
@@ -313,16 +313,16 @@ public class HyperLogLogCollectorTest
     ByteBuffer biggerOffset = makeCollectorBuffer(1, (byte) 0x00, 0x11);
     ByteBuffer smallerOffset = makeCollectorBuffer(0, (byte) 0x20, 0x00);
 
-    ByteBuffer buffer = ByteBuffer.allocate(HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE);
-    HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(buffer.duplicate());
+    ByteBuffer buffer = ByteBuffer.wrap(DEFAULT.makeEmpty());
+    HyperLogLogCollector collector = HyperLogLogCollector.from(buffer.duplicate());
 
     // make sure the original buffer gets modified
     collector.fold(biggerOffset);
-    Assert.assertEquals(collector, HyperLogLogCollector.makeCollector(buffer.duplicate()));
+    Assert.assertEquals(collector, HyperLogLogCollector.from(buffer.duplicate()));
 
     // make sure the original buffer gets modified
     collector.fold(smallerOffset);
-    Assert.assertEquals(collector, HyperLogLogCollector.makeCollector(buffer.duplicate()));
+    Assert.assertEquals(collector, HyperLogLogCollector.from(buffer.duplicate()));
   }
 
   @Test
@@ -337,9 +337,9 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
-    Assert.assertEquals(outBuffer.getShort(), 2047);
+    Assert.assertEquals(outBuffer.getShort(), DEFAULT.BUCKET_MASK);
     outBuffer.get();
     outBuffer.getShort();
     Assert.assertEquals(outBuffer.get(), 0x10);
@@ -353,9 +353,9 @@ public class HyperLogLogCollectorTest
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
-    Assert.assertEquals(outBuffer.getShort(), 2047);
+    Assert.assertEquals(outBuffer.getShort(), DEFAULT.BUCKET_MASK);
     outBuffer.get();
     outBuffer.getShort();
     Assert.assertEquals(outBuffer.get(), 0x10);
@@ -385,20 +385,20 @@ public class HyperLogLogCollectorTest
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     outBuffer.get();
     outBuffer.getShort();
     Assert.assertFalse(outBuffer.hasRemaining());
 
-    collector = HyperLogLogCollector.makeLatestCollector();
+    collector = HyperLogLogCollector.makeLatestCollector(DEFAULT);
     collector.fold(smallerOffset);
     collector.fold(biggerOffset);
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     outBuffer.get();
@@ -409,27 +409,27 @@ public class HyperLogLogCollectorTest
   @Test
   public void testFoldWithUpperNibbleTriggersOffsetChange() throws Exception
   {
-    byte[] arr1 = new byte[HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE];
+    byte[] arr1 = new byte[DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE];
     Arrays.fill(arr1, (byte) 0x11);
     ByteBuffer buffer1 = ByteBuffer.wrap(arr1);
-    buffer1.put(0, HyperLogLogCollector.VERSION);
+    buffer1.put(0, DEFAULT.VERSION);
     buffer1.put(1, (byte) 0);
     buffer1.putShort(2, (short) (2047));
     buffer1.put(HyperLogLogCollector.HEADER_NUM_BYTES, (byte) 0x1);
 
-    byte[] arr2 = new byte[HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE];
+    byte[] arr2 = new byte[DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE];
     Arrays.fill(arr2, (byte) 0x11);
     ByteBuffer buffer2 = ByteBuffer.wrap(arr2);
-    buffer2.put(0, HyperLogLogCollector.VERSION);
+    buffer2.put(0, DEFAULT.VERSION);
     buffer2.put(1, (byte) 0);
     buffer2.putShort(2, (short) (2048));
 
-    HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(buffer1);
+    HyperLogLogCollector collector = HyperLogLogCollector.from(buffer1);
     collector.fold(buffer2);
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 1);
     Assert.assertEquals(outBuffer.getShort(), 0);
     outBuffer.get();
@@ -441,16 +441,16 @@ public class HyperLogLogCollectorTest
   public void testSparseFoldWithDifferentOffsets1() throws Exception
   {
     ByteBuffer biggerOffset = makeCollectorBuffer(1, new byte[]{0x11, 0x10}, 0x11);
-    ByteBuffer sparse = HyperLogLogCollector.makeCollector(makeCollectorBuffer(0, new byte[]{0x00, 0x02}, 0x00))
+    ByteBuffer sparse = HyperLogLogCollector.from(makeCollectorBuffer(0, new byte[]{0x00, 0x02}, 0x00))
                                             .toByteBuffer();
 
-    HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
+    HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector(DEFAULT);
     collector.fold(biggerOffset);
     collector.fold(sparse);
 
     ByteBuffer outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     Assert.assertEquals(outBuffer.get(), 0);
@@ -463,7 +463,7 @@ public class HyperLogLogCollectorTest
 
     outBuffer = collector.toByteBuffer();
 
-    Assert.assertEquals(outBuffer.get(), HyperLogLogCollector.VERSION);
+    Assert.assertEquals(outBuffer.get(), DEFAULT.VERSION);
     Assert.assertEquals(outBuffer.get(), 2);
     Assert.assertEquals(outBuffer.getShort(), 0);
     Assert.assertEquals(outBuffer.get(), 0);
@@ -484,10 +484,10 @@ public class HyperLogLogCollectorTest
     }
 
     final short numNonZeroInRemaining = computeNumNonZero((byte) remainingBytes);
-    numNonZero += (short)((HyperLogLogCollector.NUM_BYTES_FOR_BUCKETS - initialBytes.length) * numNonZeroInRemaining);
+    numNonZero += (short)((DEFAULT.NUM_BYTES_FOR_BUCKETS - initialBytes.length) * numNonZeroInRemaining);
 
-    ByteBuffer biggerOffset = ByteBuffer.allocate(HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE);
-    biggerOffset.put(HyperLogLogCollector.VERSION);
+    ByteBuffer biggerOffset = ByteBuffer.allocate(DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE);
+    biggerOffset.put(DEFAULT.VERSION);
     biggerOffset.put((byte) offset);
     biggerOffset.putShort(numNonZero);
     biggerOffset.put((byte) 0);
@@ -583,23 +583,49 @@ public class HyperLogLogCollectorTest
 
     final int[] valsToCheck = {10, 20, 50, 100, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 1000000, 2000000};
     final double[] expectedVals = {
-        11.029647221949576, 21.108407720752034, 51.64575281885815, 100.42231726408892,
-        981.8579991802412, 1943.1337257462792, 4946.192042635218, 9935.088157579434,
-        20366.1486889433, 49433.56029693898, 100615.26273314281, 980831.624899156000,
-        1982408.2608981386
+        10.024493827539368, 20.098296726168925, 50.62047119544231, 99.37233005831612,
+        980.2434937753821, 1943.1337257462792, 4946.192042635218, 10240.000000000004,
+        20480.00000000001, 49152.000000000065, 100352.00000000028, 980992.0000000261,
+        1982464.0000001066
     };
 
     int valsToCheckIndex = 0;
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
       collector.add(fn.hashLong(random.nextLong()).asBytes());
-      if (i == valsToCheck[valsToCheckIndex]) {
+      if (i == valsToCheck[valsToCheckIndex] - 1) {
         Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
         ++valsToCheckIndex;
       }
     }
-    Assert.assertEquals(expectedVals.length, valsToCheckIndex + 1);
-    Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
+  }
+
+  @Ignore
+  public void test() throws Exception
+  {
+    Random random = new Random(0L);
+
+    final int[] valsToCheck = {
+        10, 20, 50, 100, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 1000000, 2000000, 5000000, 10000000
+    };
+    for (int x = 11; x <= 16; x++) {
+      random.setSeed(0);
+      HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector(x);
+      System.out.println("-----------> param = " + x);
+      int valsToCheckIndex = 0;
+      for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
+        collector.add(fn.hashLong(random.nextLong()).asBytes());
+        if (i == valsToCheck[valsToCheckIndex] - 1) {
+          System.out.printf(
+              "%8d --> %s (%d bytes) %n",
+              valsToCheck[valsToCheckIndex],
+              collector.estimateCardinality() / valsToCheck[valsToCheckIndex] * 100,
+              collector.toByteArray().length
+          );
+          ++valsToCheckIndex;
+        }
+      }
+    }
   }
 
   @Test
@@ -609,27 +635,24 @@ public class HyperLogLogCollectorTest
 
     final int[] valsToCheck = {10, 20, 50, 100, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 1000000, 2000000};
     final double[] expectedVals = {
-        11.029647221949576, 21.108407720752034, 51.64575281885815, 100.42231726408892,
-        981.8579991802412, 1943.1337257462792, 4946.192042635218, 9935.088157579434,
-        20366.1486889433, 49433.56029693898, 100615.26273314281, 980831.624899156000,
-        1982408.2608981386
+        10.024493827539368, 20.098296726168925, 50.62047119544231, 99.37233005831612,
+        980.2434937753821, 1943.1337257462792, 4946.192042635218, 10240.000000000004,
+        20480.00000000001, 49152.000000000065, 100352.00000000028, 980992.0000000261,
+        1982464.0000001066
     };
 
     int valsToCheckIndex = 0;
-    HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(
-        ByteBuffer.allocateDirect(
-            HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE
-        )
+    HyperLogLogCollector collector = HyperLogLogCollector.from(
+        ByteBuffer.allocateDirect(DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE)
+                  .put(0, DEFAULT.VERSION)
     );
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
       collector.add(fn.hashLong(random.nextLong()).asBytes());
-      if (i == valsToCheck[valsToCheckIndex]) {
+      if (i == valsToCheck[valsToCheckIndex] - 1) {
         Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
         ++valsToCheckIndex;
       }
     }
-    Assert.assertEquals(expectedVals.length, valsToCheckIndex + 1);
-    Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
   }
 
   @Test
@@ -639,27 +662,25 @@ public class HyperLogLogCollectorTest
 
     final int[] valsToCheck = {10, 20, 50, 100, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 1000000, 2000000};
     final double[] expectedVals = {
-        11.029647221949576, 21.108407720752034, 51.64575281885815, 100.42231726408892,
-        981.8579991802412, 1943.1337257462792, 4946.192042635218, 9935.088157579434,
-        20366.1486889433, 49433.56029693898, 100615.26273314281, 980831.624899156000,
-        1982408.2608981386
+        10.024493827539368, 20.098296726168925, 50.62047119544231, 99.37233005831612,
+        980.2434937753821, 1943.1337257462792, 4946.192042635218, 10240.000000000004,
+        20480.00000000001, 49152.000000000065, 100352.00000000028, 980992.0000000261,
+        1982464.0000001066
     };
 
     int valsToCheckIndex = 0;
-    HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(
-        (ByteBuffer) ByteBuffer.allocate(10000)
-                               .position(0)
-                               .limit(HyperLogLogCollector.NUM_BYTES_FOR_DENSE_STORAGE)
-    );
+    final ByteBuffer buffer = (ByteBuffer) ByteBuffer.allocate(10000)
+                                                     .put(0, DEFAULT.VERSION)
+                                                     .position(0)
+                                                     .limit(DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE);
+    HyperLogLogCollector collector = HyperLogLogCollector.from(buffer);
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
       collector.add(fn.hashLong(random.nextLong()).asBytes());
-      if (i == valsToCheck[valsToCheckIndex]) {
+      if (i == valsToCheck[valsToCheckIndex] - 1) {
         Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
         ++valsToCheckIndex;
       }
     }
-    Assert.assertEquals(expectedVals.length, valsToCheckIndex + 1);
-    Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
   }
 
   @Test
@@ -869,7 +890,7 @@ public class HyperLogLogCollectorTest
     byte offset = startOffset;
     while (offset <= endOffset) {
       // fill buckets to shift registerOffset
-      for (short bucket = 0; bucket < 2048; ++bucket) {
+      for (short bucket = 0; bucket < DEFAULT.NUM_BUCKETS; ++bucket) {
         collector.addOnBucket(bucket, offset);
       }
       offset++;
@@ -895,7 +916,7 @@ public class HyperLogLogCollectorTest
               @Nullable String s
           )
           {
-            return HyperLogLogCollector.makeCollector(
+            return HyperLogLogCollector.from(
                 ByteBuffer.wrap(Base64.decodeBase64(s))
             );
           }
@@ -912,7 +933,7 @@ public class HyperLogLogCollectorTest
       }
       Assert.assertEquals(29, collector.getMaxOverflowValue());
       Assert.assertEquals(366, collector.getMaxOverflowRegister());
-      Assert.assertEquals(1.0429189446653817E7, collector.estimateCardinality(), 1);
+      Assert.assertEquals(1.0428416000002949E7, collector.estimateCardinality(), 1);
     }
   }
 

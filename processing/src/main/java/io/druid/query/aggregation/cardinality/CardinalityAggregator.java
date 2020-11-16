@@ -28,24 +28,29 @@ import java.util.List;
 
 public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
 {
+  private final int b;
+
   public CardinalityAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow
+      boolean byRow,
+      int b
   )
   {
     super(predicate, selectorList, groupings, byRow);
+    this.b = b;
   }
 
   public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
     super(ValueMatcher.TRUE, selectorList, null, byRow);
+    this.b = CardinalityAggregatorFactory.DEFAULT_B_PARAM;
   }
 
   @Override
   protected final HyperLogLogCollector newCollector()
   {
-    return HyperLogLogCollector.makeLatestCollector();
+    return HyperLogLogCollector.makeLatestCollector(b);
   }
 }

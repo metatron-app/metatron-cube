@@ -29,11 +29,13 @@ public class HyperUniquesAggregator implements Aggregator.Simple<HyperLogLogColl
 {
   private final ValueMatcher predicate;
   private final ObjectColumnSelector selector;
+  private final int b;
 
-  public HyperUniquesAggregator(ValueMatcher predicate, ObjectColumnSelector selector)
+  public HyperUniquesAggregator(ValueMatcher predicate, ObjectColumnSelector selector, int b)
   {
     this.predicate = predicate;
     this.selector = selector;
+    this.b = b;
   }
 
   @Override
@@ -41,7 +43,7 @@ public class HyperUniquesAggregator implements Aggregator.Simple<HyperLogLogColl
   {
     if (predicate.matches()) {
       if (current == null) {
-        current = HyperLogLogCollector.makeLatestCollector();
+        current = HyperLogLogCollector.makeLatestCollector(b);
       }
       return current.fold((HyperLogLogCollector) selector.get());
     }

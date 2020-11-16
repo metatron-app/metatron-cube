@@ -29,34 +29,36 @@ import java.util.List;
 
 public class CardinalityBufferAggregator extends HashBufferAggregator<HyperLogLogCollector>
 {
-  private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
+  private final HyperLogLogCollector.Context context;
 
   public CardinalityBufferAggregator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow
+      boolean byRow,
+      int b
   )
   {
     super(predicate, selectorList, groupings, byRow);
+    this.context = HyperLogLogCollector.getContext(b);
   }
 
   public CardinalityBufferAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(ValueMatcher.TRUE, selectorList, null, byRow);
+    this(ValueMatcher.TRUE, selectorList, null, byRow, 0);
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
     buf.position(position);
-    buf.put(EMPTY_BYTES);
+    buf.put(context.EMPTY_BYTES);
   }
 
   @Override
   protected HyperLogLogCollector toCollector(ByteBuffer buf, int position)
   {
-    return HyperLogLogCollector.makeCollector(buf, position);
+    return HyperLogLogCollector.from(buf, position);
   }
 
   @Override

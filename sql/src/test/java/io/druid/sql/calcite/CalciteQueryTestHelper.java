@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -32,7 +33,9 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Druids;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
+import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
@@ -49,6 +52,7 @@ import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.ordering.StringComparators;
@@ -402,7 +406,18 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     if (expectedQuery != null) {
       List<Query> recordedQueries = queryLogHook.getRecordedQueries();
       Assert.assertEquals(StringUtils.format("query count: %s", sql), 1, recordedQueries.size());
-      Assert.assertEquals(expectedQuery, recordedQueries.get(0));
+      try {
+        Assert.assertEquals(expectedQuery, recordedQueries.get(0));
+      }
+      catch (AssertionError e) {
+        try {
+          log.info(TestHelper.JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(recordedQueries.get(0)));
+        }
+        catch (JsonProcessingException e1) {
+          // ignore
+        }
+        throw e;
+      }
     }
   }
 
@@ -506,9 +521,14 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     return new CascadeExtractionFn(Arrays.asList(fns));
   }
 
-  protected static CardinalityAggregatorFactory CARDINALITY(String name, DimensionSpec... dimensions)
+  protected static AggregatorFactory CARDINALITY(String name, DimensionSpec... dimensions)
   {
-    return new CardinalityAggregatorFactory(name, null, Arrays.asList(dimensions), null, null, false, true);
+    return CardinalityAggregatorFactory.dimensions(name, Arrays.asList(dimensions), GroupingSetSpec.EMPTY);
+  }
+
+  protected static AggregatorFactory HYPERUNIQUE(String name, String fieldName)
+  {
+    return HyperUniquesAggregatorFactory.of(name, fieldName);
   }
 
   protected static List<DimensionSpec> DIMS(final DimensionSpec... dimensionSpecs)

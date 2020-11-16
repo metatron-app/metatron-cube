@@ -162,8 +162,8 @@ public class GroupByQueryRunnerFactory
       if (maxCardinality < 0) {
         return null;
       }
-      AggregatorFactory aggregator = new CardinalityAggregatorFactory(
-          "cardinality", null, query.getDimensions(), query.getGroupingSets(), null, true, true
+      AggregatorFactory aggregator = CardinalityAggregatorFactory.dimensions(
+          "cardinality", query.getDimensions(), query.getGroupingSets()
       );
       TimeseriesQuery timeseries = query.asTimeseriesQuery()
                                         .withPostAggregatorSpecs(null)
