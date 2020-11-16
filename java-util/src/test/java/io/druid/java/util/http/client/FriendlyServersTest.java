@@ -20,7 +20,6 @@
 package io.druid.java.util.http.client;
 
 import com.google.common.base.Charsets;
-import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
@@ -221,7 +220,7 @@ public class FriendlyServersTest
 
       // Incorrect name ("127.0.0.1")
       {
-        final ListenableFuture<StatusResponseHolder> response1 = trustingClient
+        final ChannelResource<StatusResponseHolder> response1 = trustingClient
             .go(
                 new Request(
                     HttpMethod.GET,
@@ -244,7 +243,7 @@ public class FriendlyServersTest
 
       {
         // Untrusting client
-        final ListenableFuture<StatusResponseHolder> response2 = skepticalClient
+        final ChannelResource<StatusResponseHolder> response2 = skepticalClient
             .go(
                 new Request(
                     HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", sslConnector.getLocalPort()))

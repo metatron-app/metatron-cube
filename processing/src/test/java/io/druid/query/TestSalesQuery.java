@@ -679,10 +679,10 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         .build();
     BloomKFilter filter = (BloomKFilter) Iterables.getOnlyElement(runQuery(query)).getRaw("BLOOM");
     for (String x : Arrays.asList("California", "New York", "Washington", "Michigan")) {
-      Assert.assertTrue(x, filter.test(null, new BytesRef(StringUtils.toUtf8(x))));
+      Assert.assertTrue(x, filter.test(new BytesRef(StringUtils.toUtf8(x))));
     }
     for (String x : Arrays.asList("CaliforniA", "New?York", "washington", "MiChigan")) {
-      Assert.assertFalse(x, filter.test(null, new BytesRef(StringUtils.toUtf8(x))));
+      Assert.assertFalse(x, filter.test(new BytesRef(StringUtils.toUtf8(x))));
     }
   }
 
@@ -701,7 +701,7 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         .build();
     BloomKFilter filter = (BloomKFilter) Iterables.getOnlyElement(runQuery(query)).getRaw("BLOOM");
     for (String x : Arrays.asList("California", "New York", "Washington", "Michigan")) {
-      Assert.assertEquals(values.contains(x), filter.test(null, new BytesRef(StringUtils.toUtf8(x))));
+      Assert.assertEquals(values.contains(x), filter.test(new BytesRef(StringUtils.toUtf8(x))));
     }
 
     StreamQuery stream = Druids.newSelectQueryBuilder()

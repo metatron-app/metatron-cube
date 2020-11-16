@@ -19,30 +19,10 @@
 
 package io.druid.java.util.http.client;
 
-import io.druid.java.util.http.client.auth.Credentials;
-import io.druid.java.util.http.client.response.HttpResponseHandler;
-import org.joda.time.Duration;
+import com.google.common.util.concurrent.ListenableFuture;
 
-/**
- */
-public class CredentialedHttpClient implements HttpClient
+import java.io.Closeable;
+
+public interface ChannelResource<T> extends ListenableFuture<T>, Closeable
 {
-  private final Credentials creds;
-  private final HttpClient delegate;
-
-  public CredentialedHttpClient(Credentials creds, HttpClient delegate)
-  {
-    this.creds = creds;
-    this.delegate = delegate;
-  }
-
-  @Override
-  public <Intermediate, Final> ChannelResource<Final> go(
-      Request request,
-      HttpResponseHandler<Intermediate, Final> handler,
-      Duration requestReadTimeout
-  )
-  {
-    return delegate.go(creds.addCredentials(request), handler, requestReadTimeout);
-  }
 }

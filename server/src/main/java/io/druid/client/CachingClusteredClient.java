@@ -41,7 +41,6 @@ import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.IdentityFunction;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -94,6 +93,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.ToIntFunction;
@@ -177,14 +177,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
     final boolean useCache = strategy != null && cacheConfig.isUseCache() && BaseQuery.isUseCache(query, true);
     final boolean populateCache = strategy != null && cacheConfig.isPopulateCache() && BaseQuery.isPopulateCache(query, true);
-
-    final ImmutableMap<String, Object> contextOverride;
-    if (populateCache) {
-      // prevent down-stream nodes from caching results as well if we are populating the cache
-      contextOverride = ImmutableMap.of(Query.POPULATE_CACHE, false, Query.BY_SEGMENT, true);
-    } else {
-      contextOverride = ImmutableMap.of();
-    }
 
     final boolean explicitBySegment = BaseQuery.isBySegment(query);
 
@@ -384,7 +376,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         final ToIntFunction counter = toolChest.numRows(query);
         final CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(counter, strategy.pullFromCache());
 
-        ArrayList<Sequence<T>> sequencesByInterval = Lists.newArrayList();
+        ArrayList<Future<Sequence>> sequencesByInterval = Lists.newArrayList();
         if (cacheAccessor != null && !cachedResults.isEmpty()) {
           addSequencesFromCache(sequencesByInterval, cacheAccessor);
         }
@@ -400,7 +392,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       }
 
       private void addSequencesFromCache(
-          final ArrayList<Sequence<T>> listOfSequences,
+          final ArrayList<Future<Sequence>> listOfSequences,
           final CacheAccessor cacheAccessor
       )
       {
@@ -432,19 +424,21 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                 }
               }
           );
-          listOfSequences.add(Sequences.map(cachedSequence, cacheAccessor));
+          listOfSequences.add(Futures.immediateFuture(Sequences.map(cachedSequence, cacheAccessor)));
         }
       }
 
-      private void addSequencesFromServer(ArrayList<Sequence<T>> listOfSequences)
+      private void addSequencesFromServer(ArrayList<Future<Sequence>> listOfSequences)
       {
-        listOfSequences.ensureCapacity(listOfSequences.size() + serverSegments.size());
-
-        final Query<T> prepared = prepareQuery(query);
+        final Query<T> prepared = prepareQuery(query, populateCache);
         final Function<T, T> deserializer = toolChest.makePreComputeManipulatorFn(
             prepared, MetricManipulatorFns.deserializing()
         );
-        final List<Sequence> needPostProcessing = Lists.newArrayList();
+        final Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> populator = bySegmentPopulator(
+            deserializer, strategy, cachePopulatorMap
+        );
+        final int parallelism = queryConfig.getQueryParallelism(query);
+        final Execs.ExecutorQueue<Sequence> queue = new Execs.ExecutorQueue(parallelism);
 
         // Loop through each server, setting up the query and initiating it.
         // The data gets handled as a Future and parsed in the long Sequence chain in the resultSeqToAdd setter.
@@ -452,104 +446,27 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           final DruidServer server = entry.getKey();
           final List<SegmentDescriptor> descriptors = entry.getValue();
 
-          Query<T> localized = prepared.toLocalQuery();
-          if (server.isAssignable() && populateCache) {
-            localized = localized.withOverriddenContext(contextOverride);
-          }
-          final Query<T> running = localized.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
+          final Query<T> running = prepared.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
           final QueryRunner runner = serverView.getQueryRunner(running, server);
           if (runner == null) {
-            log.error("server [%s] has disappeared.. skipping", server);
+            log.info("server [%s] has disappeared.. skipping", server);
             continue;
           }
 
-          // this should be lazy cause we cannot close sequence itself
-          final Sequence sequence = Sequences.lazy(() -> runner.run(running, responseContext));
           if (!BaseQuery.isBySegment(running)) {
-            listOfSequences.add(sequence);
+            queue.add(() -> runner.run(running, responseContext));
           } else if (!populateCache) {
-            Sequence deserialized = Sequences.map(sequence, BySegmentResultValueClass.applyAll(deserializer));
-            listOfSequences.add(deserialized);
+            queue.add(() -> Sequences.map(
+                runner.run(running, responseContext), BySegmentResultValueClass.applyAll(deserializer))
+            );
+          } else if (!explicitBySegment) {
+            queue.add(() -> QueryUtils.mergeSort(
+                running, Sequences.map(runner.run(running, responseContext), populator))
+            );
           } else {
-            needPostProcessing.add(sequence);
-          }
-        }
-
-        if (!needPostProcessing.isEmpty()) {
-          final Function<T, Object> prepareForCache = strategy.prepareForCache();
-
-          for (Sequence sequence : needPostProcessing) {
-            final Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> populator =
-                new Function<Result<BySegmentResultValueClass<T>>, Sequence<T>>()
-            {
-              // Acctually do something with the results
-              @Override
-              public Sequence<T> apply(Result<BySegmentResultValueClass<T>> input)
-              {
-                final BySegmentResultValueClass<T> value = input.getValue();
-                final CachePopulator cachePopulator = cachePopulatorMap.get(
-                    ObjectArray.of(value.getSegmentId(), value.getInterval())
-                );
-                if (cachePopulator == null) {
-                  return Sequences.<T>simple(Iterables.transform(value.getResults(), deserializer));
-                }
-
-                final Queue<ListenableFuture<Object>> cacheFutures = new ConcurrentLinkedQueue<>();
-
-                return Sequences.<T>withEffect(
-                    Sequences.map(
-                        Sequences.<T>simple(value.getResults()),
-                        new Function<T, T>()
-                        {
-                          @Override
-                          public T apply(final T input)
-                          {
-                            // only compute cache data if populating cache
-                            cacheFutures.add(
-                                backgroundExecutorService.submit(
-                                    GuavaUtils.asCallable(prepareForCache, input)
-                                )
-                            );
-                            return deserializer.apply(input);
-                          }
-                        }
-                    ),
-                    new Runnable()
-                    {
-                      @Override
-                      public void run()
-                      {
-                        Futures.addCallback(
-                            Futures.allAsList(cacheFutures),
-                            new FutureCallback<List<Object>>()
-                            {
-                              @Override
-                              public void onSuccess(List<Object> cacheData)
-                              {
-                                cachePopulator.populate(cacheData);
-                                // Help out GC by making sure all references are gone
-                                cacheFutures.clear();
-                              }
-
-                              @Override
-                              public void onFailure(Throwable throwable)
-                              {
-                                log.error(throwable, "Background caching failed");
-                                cacheFutures.clear();
-                              }
-                            },
-                            backgroundExecutorService
-                        );
-                      }
-                    },
-                    Execs.newDirectExecutorService()
-                );// End withEffect
-              }
-            };
-            if (explicitBySegment) {
-              sequence = Sequences.map(sequence, new IdentityFunction<Result<BySegmentResultValueClass<T>>>() {
-                @Override
-                public Result<BySegmentResultValueClass<T>> apply(Result<BySegmentResultValueClass<T>> input) {
+            queue.add(() -> Sequences.map(
+                runner.run(running, responseContext),
+                (Result<BySegmentResultValueClass<T>> input) -> {
                   final BySegmentResultValueClass value = input.getValue();
                   return new Result<BySegmentResultValueClass<T>>(
                       input.getTimestamp(),
@@ -558,26 +475,112 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                       )
                   );
                 }
-              });
-            } else {
-              sequence = QueryUtils.mergeSort(prepared, Sequences.map(sequence, populator));
-            }
-            listOfSequences.add(sequence);
+            ));
           }
         }
+        ExecutorService exec = parallelism <= 1 ? Execs.newDirectExecutorService() : executorService;
+        listOfSequences.ensureCapacity(listOfSequences.size() + serverSegments.size());
+        listOfSequences.addAll(queue.execute(exec, BaseQuery.getContextPriority(query, 0)));
       }
     }.get();
   }
 
-  private Query<T> prepareQuery(Query<T> query)
+  private Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> bySegmentPopulator(
+      Function<T, T> deserializer,
+      CacheStrategy strategy,
+      Map<ObjectArray, CachePopulator> cachePopulatorMap
+  )
   {
+    if (strategy == null) {
+      return null;
+    }
+    final Function<T, Object> prepareForCache = strategy.prepareForCache();
+    return new Function<Result<BySegmentResultValueClass<T>>, Sequence<T>>()
+    {
+      // Acctually do something with the results
+      @Override
+      public Sequence<T> apply(Result<BySegmentResultValueClass<T>> input)
+      {
+        final BySegmentResultValueClass<T> value = input.getValue();
+        final CachePopulator cachePopulator = cachePopulatorMap.get(
+            ObjectArray.of(value.getSegmentId(), value.getInterval())
+        );
+        if (cachePopulator == null) {
+          return Sequences.<T>simple(Iterables.transform(value.getResults(), deserializer));
+        }
+
+        final Queue<ListenableFuture<Object>> cacheFutures = new ConcurrentLinkedQueue<>();
+
+        return Sequences.<T>withEffect(
+            Sequences.map(
+                Sequences.<T>simple(value.getResults()),
+                new Function<T, T>()
+                {
+                  @Override
+                  public T apply(final T input)
+                  {
+                    // only compute cache data if populating cache
+                    cacheFutures.add(
+                        backgroundExecutorService.submit(
+                            GuavaUtils.asCallable(prepareForCache, input)
+                        )
+                    );
+                    return deserializer.apply(input);
+                  }
+                }
+            ),
+            new Runnable()
+            {
+              @Override
+              public void run()
+              {
+                Futures.addCallback(
+                    Futures.allAsList(cacheFutures),
+                    new FutureCallback<List<Object>>()
+                    {
+                      @Override
+                      public void onSuccess(List<Object> cacheData)
+                      {
+                        cachePopulator.populate(cacheData);
+                        // Help out GC by making sure all references are gone
+                        cacheFutures.clear();
+                      }
+
+                      @Override
+                      public void onFailure(Throwable throwable)
+                      {
+                        log.error(throwable, "Background caching failed");
+                        cacheFutures.clear();
+                      }
+                    },
+                    backgroundExecutorService
+                );
+              }
+            },
+            Execs.newDirectExecutorService()
+        );// End withEffect
+      }
+    };
+  }
+
+  private Query<T> prepareQuery(Query<T> query, boolean populateCache)
+  {
+    Map<String, Object> override = Maps.newHashMap();
     if (queryConfig.useCustomSerdeForDateTime(query)) {
-      query = query.withOverriddenContext(ImmutableMap.<String, Object>of(Query.DATETIME_CUSTOM_SERDE, true));
+      override.put(Query.DATETIME_CUSTOM_SERDE, true);
     }
     if (queryConfig.useBulkRow(query)) {
-      query = query.withOverriddenContext(ImmutableMap.<String, Object>of(Query.USE_BULK_ROW, true));
+      override.put(Query.USE_BULK_ROW, true);
     }
-    return query;
+    if (populateCache) {
+      // prevent down-stream nodes from caching results as well if we are populating the cache
+      override.put(Query.POPULATE_CACHE, false);
+      override.put(Query.BY_SEGMENT, true);
+    }
+    if (!override.isEmpty()) {
+      query = query.withOverriddenContext(override);
+    }
+    return query.toLocalQuery();
   }
 
   private List<DruidServer> getManagementTargets(Query<T> query) throws Exception
@@ -612,12 +615,13 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   protected Sequence<T> mergeCachedAndUncachedSequences(
       final Query<T> query,
       final QueryToolChest<T, Query<T>> toolChest,
-      final List<Sequence<T>> sequencesByInterval,
+      final List<Future<Sequence>> futures,
       final int numCachedSegments,
       final CacheAccessor cacheAccessor
   )
   {
-    Sequence<T> sequence = QueryUtils.mergeSort(query, sequencesByInterval, executorService);
+    List<Sequence<T>> sequences = GuavaUtils.transform(futures, future -> Futures.getUnchecked(future));
+    Sequence<T> sequence = QueryUtils.mergeSort(query, sequences, executorService);
     if (numCachedSegments > 0 && cacheAccessor != null) {
       sequence = Sequences.withBaggage(
           sequence, new Closeable()

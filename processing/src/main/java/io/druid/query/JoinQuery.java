@@ -391,7 +391,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
           Sequence<Object[]> array = query0.array(QueryRunners.run(query0, segmentWalker));
           Sequence<BulkRow> values;
-          if (query0.hasFilters() && query1 instanceof FilterSupport) {
+          if (query0.hasFilters() && query1 instanceof FilterSupport && !element.isCrossJoin()) {
             List<Object[]> list = Sequences.toList(array);
             RowResolver resolver = RowResolver.of(signature, BaseQuery.getVirtualColumns(query0));
             BloomKFilter bloom = BloomFilterAggregator.build(
@@ -423,7 +423,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
           Sequence<Object[]> array = query1.array(QueryRunners.run(query1, segmentWalker));
           Sequence<BulkRow> values;
-          if (query1.hasFilters() && query0 instanceof FilterSupport) {
+          if (query1.hasFilters() && query0 instanceof FilterSupport && !element.isCrossJoin()) {
             List<Object[]> list = Sequences.toList(array);
             RowResolver resolver = RowResolver.of(signature, BaseQuery.getVirtualColumns(query1));
             BloomKFilter bloom = BloomFilterAggregator.build(
@@ -489,7 +489,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       queries.add(query);
 
       // try bloom filter
-      if (i == 0) {
+      if (i == 0 && !element.isCrossJoin()) {
         final Query query0 = queries.get(0);
         final Query query1 = queries.get(1);
         if (joinType.isLeftDrivable() && query0.hasFilters() && rightEstimated > bloomFilterThreshold) {

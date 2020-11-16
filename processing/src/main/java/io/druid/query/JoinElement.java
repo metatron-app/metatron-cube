@@ -218,6 +218,12 @@ public class JoinElement
     return Arrays.asList(leftAlias, rightAlias);
   }
 
+  @JsonIgnore
+  public boolean isCrossJoin()
+  {
+    return leftJoinColumns.isEmpty();
+  }
+
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!DataSources.isFilterSupport(left)) {

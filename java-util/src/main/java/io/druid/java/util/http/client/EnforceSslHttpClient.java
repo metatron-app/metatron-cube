@@ -19,7 +19,6 @@
 
 package io.druid.java.util.http.client;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
 import org.joda.time.Duration;
 
@@ -27,20 +26,17 @@ import java.net.URL;
 
 /**
  */
-public class EnforceSslHttpClient extends AbstractHttpClient
+public class EnforceSslHttpClient implements HttpClient
 {
-
   private final HttpClient delegate;
 
-  public EnforceSslHttpClient(
-      HttpClient delegate
-  )
+  public EnforceSslHttpClient(HttpClient delegate)
   {
     this.delegate = delegate;
   }
 
   @Override
-  public <Intermediate, Final> ListenableFuture<Final> go(
+  public <Intermediate, Final> ChannelResource<Final> go(
       Request request,
       HttpResponseHandler<Intermediate, Final> handler,
       Duration requestReadTimeout

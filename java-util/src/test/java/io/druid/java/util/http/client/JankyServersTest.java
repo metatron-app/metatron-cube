@@ -20,7 +20,6 @@
 package io.druid.java.util.http.client;
 
 import com.google.common.base.Charsets;
-import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.lifecycle.Lifecycle;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
@@ -150,7 +149,7 @@ public class JankyServersTest
     try {
       final HttpClientConfig config = HttpClientConfig.builder().withReadTimeout(new Duration(100)).build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
-      final ListenableFuture<StatusResponseHolder> future = client
+      final ChannelResource<StatusResponseHolder> future = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d/", silentServerSocket.getLocalPort()))),
               new StatusResponseHandler(Charsets.UTF_8)
@@ -178,7 +177,7 @@ public class JankyServersTest
     try {
       final HttpClientConfig config = HttpClientConfig.builder().withReadTimeout(new Duration(86400L * 365)).build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
-      final ListenableFuture<StatusResponseHolder> future = client
+      final ChannelResource<StatusResponseHolder> future = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d/", silentServerSocket.getLocalPort()))),
               new StatusResponseHandler(Charsets.UTF_8),
@@ -211,7 +210,7 @@ public class JankyServersTest
                                                       .build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
 
-      final ListenableFuture<StatusResponseHolder> response = client
+      final ChannelResource<StatusResponseHolder> response = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", silentServerSocket.getLocalPort()))),
               new StatusResponseHandler(Charsets.UTF_8)
@@ -239,7 +238,7 @@ public class JankyServersTest
     try {
       final HttpClientConfig config = HttpClientConfig.builder().build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
-      final ListenableFuture<StatusResponseHolder> response = client
+      final ChannelResource<StatusResponseHolder> response = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d/", closingServerSocket.getLocalPort()))),
               new StatusResponseHandler(Charsets.UTF_8)
@@ -268,7 +267,7 @@ public class JankyServersTest
       final HttpClientConfig config = HttpClientConfig.builder().withSslContext(SSLContext.getDefault()).build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
 
-      final ListenableFuture<StatusResponseHolder> response = client
+      final ChannelResource<StatusResponseHolder> response = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", closingServerSocket.getLocalPort()))),
               new StatusResponseHandler(Charsets.UTF_8)
@@ -303,7 +302,7 @@ public class JankyServersTest
     try {
       final HttpClientConfig config = HttpClientConfig.builder().build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
-      final ListenableFuture<StatusResponseHolder> response = client
+      final ChannelResource<StatusResponseHolder> response = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("http://localhost:%d/", echoServerSocket.getLocalPort()))),
               new StatusResponseHandler(Charsets.UTF_8)
@@ -333,7 +332,7 @@ public class JankyServersTest
       final HttpClientConfig config = HttpClientConfig.builder().withSslContext(SSLContext.getDefault()).build();
       final HttpClient client = HttpClientInit.createClient(config, lifecycle);
 
-      final ListenableFuture<StatusResponseHolder> response = client
+      final ChannelResource<StatusResponseHolder> response = client
           .go(
               new Request(HttpMethod.GET, new URL(StringUtils.format("https://localhost:%d/", echoServerSocket.getLocalPort()))),
               new StatusResponseHandler(Charsets.UTF_8)

@@ -76,7 +76,7 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilte
     @Override
     public void collect(Object[] values, BytesRef bytes)
     {
-      BloomKFilter.collect(byteBuffer, position, values, bytes);
+      BloomKFilter.collect(byteBuffer, position, bytes);
     }
   }
 }

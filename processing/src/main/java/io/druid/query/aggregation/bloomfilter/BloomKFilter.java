@@ -363,12 +363,12 @@ public class BloomKFilter implements HashCollector
     addHash(Murmur3.hash64(key.bytes, 0, key.length));
   }
 
-  public static void collect(ByteBuffer buffer, int position, Object[] values, BytesRef key)
+  public static void collect(ByteBuffer buffer, int position, BytesRef key)
   {
     addHash(buffer, position, Murmur3.hash64(key.bytes, 0, key.length));
   }
 
-  public boolean test(Object[] values, BytesRef key)
+  public boolean test(BytesRef key)
   {
     return testHash(Murmur3.hash64(key.bytes, 0, key.length));
   }

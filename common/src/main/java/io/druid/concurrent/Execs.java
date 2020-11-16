@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
@@ -34,6 +35,7 @@ import io.druid.common.Tagged;
 import io.druid.common.guava.DirectExecutorService;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.utils.Runnables;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -264,6 +266,35 @@ public class Execs
         return Futures.getUnchecked(input);
       }
     };
+  }
+
+  public static class ExecutorQueue<T> implements Closeable
+  {
+    private final Semaphore semaphore;
+    private final Runnable closer;
+    private final List<Callable<T>> callables = Lists.newArrayList();
+
+    public ExecutorQueue(int parallelism)
+    {
+      semaphore = new Semaphore(parallelism);
+      closer = () -> semaphore.close();
+    }
+
+    public void add(Callable<T> callable)
+    {
+      callables.add(Runnables.after(callable, closer));
+    }
+
+    public List<ListenableFuture<T>> execute(ExecutorService executor, int priority)
+    {
+      return Execs.execute(executor, callables, semaphore, priority);
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      semaphore.destroy();
+    }
   }
 
   public static class Semaphore implements Closeable

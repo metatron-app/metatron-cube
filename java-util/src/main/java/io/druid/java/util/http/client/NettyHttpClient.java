@@ -17,8 +17,6 @@ package io.druid.java.util.http.client;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Multimap;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
@@ -55,7 +53,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  */
-public class NettyHttpClient extends AbstractHttpClient
+public class NettyHttpClient implements HttpClient
 {
   private static final Logger log = new Logger(NettyHttpClient.class);
 
@@ -113,7 +111,7 @@ public class NettyHttpClient extends AbstractHttpClient
   }
 
   @Override
-  public <Intermediate, Final> ListenableFuture<Final> go(
+  public <Intermediate, Final> ChannelResource<Final> go(
       final Request request,
       final HttpResponseHandler<Intermediate, Final> handler,
       final Duration requestReadTimeout
@@ -135,12 +133,7 @@ public class NettyHttpClient extends AbstractHttpClient
     final ChannelFuture channelFuture = channelResourceContainer.get().awaitUninterruptibly();
     if (!channelFuture.isSuccess()) {
       channelResourceContainer.returnResource(); // Some other poor sap will have to deal with it...
-      return Futures.immediateFailedFuture(
-          new ChannelException(
-              "Faulty channel in resource pool",
-              channelFuture.getCause()
-          )
-      );
+      return ChannelResources.immediateFailed(channelFuture);
     } else {
       channel = channelFuture.getChannel();
     }
@@ -353,7 +346,7 @@ public class NettyHttpClient extends AbstractHttpClient
         }
     );
 
-    return retVal;
+    return ChannelResources.wrap(retVal, channel);
   }
 
   private long getReadTimeout(Duration requestReadTimeout)

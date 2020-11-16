@@ -27,16 +27,17 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.common.utils.StringUtils;
+import io.druid.indexer.TaskLocation;
+import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.TaskInfoProvider;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.http.client.ChannelResources;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.FullResponseHandler;
 import io.druid.java.util.http.client.response.FullResponseHolder;
-import io.druid.common.utils.StringUtils;
-import io.druid.indexing.common.TaskInfoProvider;
-import io.druid.indexer.TaskLocation;
-import io.druid.indexer.TaskStatus;
-import io.druid.jackson.DefaultObjectMapper;
 import org.easymock.Capture;
 import org.easymock.CaptureType;
 import org.easymock.EasyMockSupport;
@@ -168,7 +169,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
             eq(TEST_HTTP_TIMEOUT)
         )
     ).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -188,7 +189,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
             eq(TEST_HTTP_TIMEOUT)
         )
     ).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -213,7 +214,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
             eq(TEST_HTTP_TIMEOUT)
         )
     ).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(2);
     replayAll();
 
@@ -230,7 +231,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK);
     expect(responseHolder.getContent()).andReturn("{\"0\":1, \"1\":10}");
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -265,7 +266,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(headers.get("X-Druid-Task-Id")).andReturn(TEST_ID).times(2);
 
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(3);
 
     replayAll();
@@ -305,7 +306,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
             anyObject(FullResponseHandler.class),
             eq(TEST_HTTP_TIMEOUT)
         )
-    ).andReturn(Futures.immediateFuture(responseHolder)).anyTimes();
+    ).andReturn(ChannelResources.wrap(responseHolder)).anyTimes();
     replayAll();
 
     client.getCurrentOffsets(TEST_ID, true);
@@ -319,7 +320,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK);
     expect(responseHolder.getContent()).andReturn("{\"0\":1, \"1\":10}");
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -353,7 +354,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(headers.get("X-Druid-Task-Id")).andReturn(null);
     expect(responseHolder.getContent()).andReturn(String.valueOf(now.getMillis())).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(2);
     replayAll();
 
@@ -380,7 +381,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK);
     expect(responseHolder.getContent()).andReturn(String.format("\"%s\"", status.toString())).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -405,7 +406,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).times(2);
     expect(responseHolder.getContent()).andReturn("{\"0\":1, \"1\":10}").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -432,7 +433,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).times(2);
     expect(responseHolder.getContent()).andReturn("{\"0\":1, \"1\":10}").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -463,13 +464,13 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getContent()).andReturn("\"PAUSED\"")
                                        .andReturn("{\"0\":1, \"1\":10}").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     expect(httpClient.go(capture(captured2), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     expect(httpClient.go(capture(captured3), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
 
     replayAll();
@@ -510,7 +511,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance();
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -534,7 +535,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance();
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -559,7 +560,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance();
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -582,7 +583,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance();
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -604,7 +605,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance();
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     );
     replayAll();
 
@@ -627,7 +628,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance(CaptureType.ALL);
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -659,7 +660,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance(CaptureType.ALL);
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -692,7 +693,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(responseHolder.getContent()).andReturn("{\"0\":\"1\"}").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -725,7 +726,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(responseHolder.getContent()).andReturn("{\"0\":\"1\"}").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -758,7 +759,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(responseHolder.getContent()).andReturn("\"READING\"").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -792,7 +793,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(responseHolder.getContent()).andReturn(String.valueOf(now.getMillis())).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -825,7 +826,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(responseHolder.getContent()).andReturn("{\"0\":\"1\"}").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -858,7 +859,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(responseHolder.getContent()).andReturn("{\"0\":\"1\"}").anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -891,7 +892,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance(CaptureType.ALL);
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 
@@ -930,7 +931,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
     Capture<Request> captured = Capture.newInstance(CaptureType.ALL);
     expect(responseHolder.getStatus()).andReturn(HttpResponseStatus.OK).anyTimes();
     expect(httpClient.go(capture(captured), anyObject(FullResponseHandler.class), eq(TEST_HTTP_TIMEOUT))).andReturn(
-        Futures.immediateFuture(responseHolder)
+        ChannelResources.wrap(responseHolder)
     ).times(numRequests);
     replayAll();
 

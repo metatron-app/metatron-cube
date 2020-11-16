@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
@@ -82,7 +83,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
   private final List<DimensionSpec> fields;
   private final GroupingSetSpec groupingSets;
   private final byte[] bloomFilter;
-  private final HashCode hash;
+  private final Supplier<HashCode> hash;
 
   @JsonCreator
   public BloomDimFilter(
@@ -96,9 +97,9 @@ public class BloomDimFilter implements LogProvider, BestEffort
     this.fields = fields;
     this.groupingSets = groupingSets;
     this.bloomFilter = Preconditions.checkNotNull(bloomFilter);
-    this.hash = Hashing.sha512().hashBytes(bloomFilter);
+    this.hash = Suppliers.memoize(() -> Hashing.sha512().hashBytes(bloomFilter));
     Preconditions.checkArgument(
-        fieldNames == null ^ fields == null,
+        fieldNames != null ^ fields != null,
         "Must have a valid, non-null fieldNames or fields"
     );
   }
@@ -110,7 +111,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
                   .append(fieldNames)
                   .append(fields)
                   .append(groupingSets)
-                  .append(hash.asBytes());
+                  .append(hash.get().asBytes());
   }
 
   @Override
@@ -206,7 +207,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
     @Override
     public void collect(Object[] values, BytesRef bytes)
     {
-      status = filter.test(values, bytes);
+      status = filter.test(bytes);
     }
   }
 

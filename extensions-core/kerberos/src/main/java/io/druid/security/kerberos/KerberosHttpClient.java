@@ -21,11 +21,11 @@ package io.druid.security.kerberos;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.http.client.AbstractHttpClient;
+import io.druid.java.util.http.client.ChannelResource;
+import io.druid.java.util.http.client.ChannelResources;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
@@ -33,6 +33,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.joda.time.Duration;
 
+import java.io.Closeable;
 import java.net.CookieManager;
 import java.net.URI;
 import java.security.PrivilegedExceptionAction;
@@ -41,7 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-public class KerberosHttpClient extends AbstractHttpClient
+public class KerberosHttpClient implements HttpClient
 {
   private static final Logger log = new Logger(KerberosHttpClient.class);
 
@@ -60,19 +61,18 @@ public class KerberosHttpClient extends AbstractHttpClient
   }
 
   @Override
-  public <Intermediate, Final> ListenableFuture<Final> go(
+  public <Intermediate, Final> ChannelResource<Final> go(
       Request request,
       HttpResponseHandler<Intermediate, Final> httpResponseHandler,
       Duration duration
   )
   {
     final SettableFuture<Final> retVal = SettableFuture.create();
-    inner_go(request, httpResponseHandler, duration, retVal);
-    return retVal;
+    final Closeable resource = inner_go(request, httpResponseHandler, duration, retVal);
+    return ChannelResources.wrap(retVal, resource);
   }
 
-
-  private <Intermediate, Final> void inner_go(
+  private <Intermediate, Final> Closeable inner_go(
       final Request request,
       final HttpResponseHandler<Intermediate, Final> httpResponseHandler,
       final Duration duration,
@@ -114,7 +114,7 @@ public class KerberosHttpClient extends AbstractHttpClient
         log.debug("Found Auth Cookie found for URI[%s].", uri);
       }
 
-      ListenableFuture<RetryResponseHolder<Final>> internalFuture = delegate.go(
+      ChannelResource<RetryResponseHolder<Final>> internalFuture = delegate.go(
           request,
           new RetryIfUnauthorizedResponseHandler<Intermediate, Final>(
               new ResponseCookieHandler<>(uri, cookieManager, httpResponseHandler)
@@ -146,10 +146,10 @@ public class KerberosHttpClient extends AbstractHttpClient
           future.setException(t);
         }
       }, exec);
+      return internalFuture;
     }
     catch (Throwable e) {
       throw new RuntimeException(e);
     }
   }
-
 }

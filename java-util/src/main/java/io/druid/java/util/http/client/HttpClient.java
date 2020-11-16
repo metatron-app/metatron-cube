@@ -19,7 +19,6 @@
 
 package io.druid.java.util.http.client;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
 import org.joda.time.Duration;
 
@@ -35,17 +34,20 @@ public interface HttpClient
    * largely done by composed clients, but the contract is that mutation is possible.  It is the caller's
    * responsibility to pass in a copy of the Request object if they want to have an object that is not mutated.
    *
-   * @param request        Request to process, this *may* be mutated by the client
-   * @param handler        An asynchronous response handler that will be used to process results from the http call
    * @param <Intermediate> The type of the intermediate results from the handler
    * @param <Final>        The type of the final results that the returned ListenableFuture will contain
    *
+   * @param request        Request to process, this *may* be mutated by the client
+   * @param handler        An asynchronous response handler that will be used to process results from the http call
    * @return A listenable future that will eventually provide an object of type Final
    */
-  public <Intermediate, Final> ListenableFuture<Final> go(
+  default  <Intermediate, Final> ChannelResource<Final> go(
       Request request,
       HttpResponseHandler<Intermediate, Final> handler
-  );
+  )
+  {
+    return go(request, handler, null);
+  }
 
   /**
    * Submit a request and process the response with the given response handler.
@@ -54,16 +56,16 @@ public interface HttpClient
    * largely done by composed clients, but the contract is that mutation is possible.  It is the caller's
    * responsibility to pass in a copy of the Request object if they want to have an object that is not mutated.
    *
+   * @param <Intermediate> The type of the intermediate results from the handler
+   * @param <Final>        The type of the final results that the returned ListenableFuture will contain
+   *
    * @param request        Request to process, this *may* be mutated by the client
    * @param handler        An asynchronous response handler that will be used to process results from the http call
    * @param readTimeout    Read timeout to use for this request. Leave null to use the default readTimeout. Set to zero
    *                       to disable timeouts for this request.
-   * @param <Intermediate> The type of the intermediate results from the handler
-   * @param <Final>        The type of the final results that the returned ListenableFuture will contain
-   *
    * @return A listenable future that will eventually provide an object of type Final
    */
-  public <Intermediate, Final> ListenableFuture<Final> go(
+  <Intermediate, Final> ChannelResource<Final> go(
       Request request,
       HttpResponseHandler<Intermediate, Final> handler,
       Duration readTimeout

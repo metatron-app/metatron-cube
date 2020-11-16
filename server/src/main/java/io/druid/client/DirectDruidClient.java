@@ -26,13 +26,13 @@ import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
-import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
+import io.druid.java.util.http.client.ChannelResource;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
@@ -65,7 +65,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class DirectDruidClient<T> implements QueryRunner<T>
 {
-  private static final Logger log = new Logger(DirectDruidClient.class);
+  private static final Logger LOG = new Logger(DirectDruidClient.class);
   private static final long CONNECT_DELAY_LOG_THRESHOLD = 200;
 
   private final QueryToolChestWarehouse warehouse;
@@ -111,7 +111,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                        ? SmileMediaTypes.APPLICATION_JACKSON_SMILE
                        : MediaType.APPLICATION_JSON;
     this.openConnections = new AtomicInteger();
-    this.handlerFactory = new StreamHandlerFactory.WithEmitter(log, emitter, objectMapper);
+    this.handlerFactory = new StreamHandlerFactory.WithEmitter(LOG, emitter, objectMapper);
   }
 
   public int getNumOpenConnections()
@@ -144,7 +144,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     queryMetrics.server(host);
 
     if (!query.getContextBoolean(Query.DISABLE_LOG, false)) {
-      log.debug("Querying [%s][%s:%s] to url[%s]", query.getId(), query.getType(), query.getDataSource(), hostURL);
+      LOG.debug("Querying [%s][%s:%s] to url[%s]", query.getId(), query.getType(), query.getDataSource(), hostURL);
     }
 
     final byte[] content = serializeQuery(query);
@@ -152,7 +152,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     final StreamHandler handler = handlerFactory.create(query, content.length, host, queueSize, queryMetrics, context);
 
     final long start = System.currentTimeMillis();
-    final ListenableFuture<InputStream> future = httpClient.go(
+    final ChannelResource<InputStream> future = httpClient.go(
         new Request(HttpMethod.POST, hostURL)
             .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType)
             .setContent(content),
@@ -160,7 +160,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     );
     final long elapsed = System.currentTimeMillis() - start;
     if (elapsed > CONNECT_DELAY_LOG_THRESHOLD) {
-      log.info("Took %,d msec connecting to url[%s]", elapsed, hostURL);
+      LOG.info("Took %,d msec connecting to url[%s]", elapsed, hostURL);
     }
 
     openConnections.getAndIncrement();
@@ -183,8 +183,8 @@ public class DirectDruidClient<T> implements QueryRunner<T>
             openConnections.getAndDecrement();
             queryWatcher.unregisterResource(query, handler);
             if (!parser.close()) {
-              future.cancel(true);
               cancelRemote(query);
+              IOUtils.closeQuietly(future);
             }
           }
         }
@@ -224,7 +224,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           ).get();
           HttpResponseStatus status = response.getStatus();
           if (status.getCode() >= 500) {
-            log.info(
+            LOG.info(
                 "Error cancelling query[%s]: [%s] returned status[%d] [%s].",
                 query.getId(),
                 cancelUrl.getHost(),

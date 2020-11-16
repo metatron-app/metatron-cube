@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
@@ -31,6 +30,8 @@ import io.druid.concurrent.Execs;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Sequences;
+import io.druid.java.util.http.client.ChannelResource;
+import io.druid.java.util.http.client.ChannelResources;
 import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
@@ -68,7 +69,8 @@ public class DirectDruidClientTest
     HttpClient httpClient = EasyMock.createMock(HttpClient.class);
     final URL url = new URL("http://foo/druid/v2/");
 
-    SettableFuture<InputStream> futureResult = SettableFuture.create();
+    SettableFuture<InputStream> future = SettableFuture.create();
+    ChannelResource<InputStream> resource = ChannelResources.wrap(future);
     Capture<Request> capturedRequest = EasyMock.newCapture();
     EasyMock.expect(
         httpClient.go(
@@ -76,7 +78,7 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(futureResult)
+            .andReturn(resource)
             .times(1);
 
     SettableFuture futureException = SettableFuture.create();
@@ -86,7 +88,7 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(futureException)
+            .andReturn(ChannelResources.wrap(futureException))
             .times(1);
     SettableFuture<Object> cancellationFuture = SettableFuture.create();
     EasyMock.expect(
@@ -95,7 +97,7 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(cancellationFuture)
+            .andReturn(ChannelResources.wrap(cancellationFuture))
             .once();
 
     EasyMock.expect(
@@ -104,7 +106,7 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(SettableFuture.create())
+            .andReturn(ChannelResources.wrap(SettableFuture.create()))
             .atLeastOnce();
 
     EasyMock.replay(httpClient);
@@ -191,7 +193,7 @@ public class DirectDruidClientTest
     Assert.assertTrue(client1.getNumOpenConnections() == 4);
 
     // produce result for first connection
-    futureResult.set(new ByteArrayInputStream("[{\"timestamp\":\"2014-01-01T01:02:03Z\", \"result\": 42.0}]".getBytes()));
+    future.set(new ByteArrayInputStream("[{\"timestamp\":\"2014-01-01T01:02:03Z\", \"result\": 42.0}]".getBytes()));
     List<Result> results = Sequences.toList(s1, Lists.<Result>newArrayList());
     Assert.assertEquals(1, results.size());
     Assert.assertEquals(new DateTime("2014-01-01T01:02:03Z"), results.get(0).getTimestamp());
@@ -213,8 +215,9 @@ public class DirectDruidClientTest
     HttpClient httpClient = EasyMock.createStrictMock(HttpClient.class);
 
     Capture<Request> capturedRequest = EasyMock.newCapture();
-    ListenableFuture<Object> cancelledFuture = Futures.immediateCancelledFuture();
-    SettableFuture<Object> cancellationFuture = SettableFuture.create();
+    ChannelResource<Object> cancelledResource = ChannelResources.wrap(Futures.immediateCancelledFuture());
+    SettableFuture<Object> future = SettableFuture.create();
+    ChannelResource<Object> cancellationResource = ChannelResources.wrap(future);
 
     EasyMock.expect(
         httpClient.go(
@@ -222,7 +225,7 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(cancelledFuture)
+            .andReturn(cancelledResource)
             .once();
 
     EasyMock.expect(
@@ -231,7 +234,7 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(cancellationFuture)
+            .andReturn(cancellationResource)
             .once();
 
     EasyMock.replay(httpClient);
@@ -272,7 +275,7 @@ public class DirectDruidClientTest
 
     TimeBoundaryQuery query = Druids.newTimeBoundaryQueryBuilder().dataSource("test").build();
     HashMap<String, List> context = Maps.newHashMap();
-    cancellationFuture.set(new StatusResponseHolder(HttpResponseStatus.OK, new StringBuilder("cancelled")));
+    future.set(new StatusResponseHolder(HttpResponseStatus.OK, new StringBuilder("cancelled")));
     Sequence results = client1.run(query, context);
     try {
       Sequences.toList(results, Lists.<Result>newArrayList());
@@ -291,7 +294,8 @@ public class DirectDruidClientTest
   public void testQueryInterruptionExceptionLogMessage() throws JsonProcessingException
   {
     HttpClient httpClient = EasyMock.createMock(HttpClient.class);
-    SettableFuture<Object> interruptionFuture = SettableFuture.create();
+    SettableFuture<Object> future = SettableFuture.create();
+    ChannelResource<Object> resource = ChannelResources.wrap(future);
     Capture<Request> capturedRequest = EasyMock.newCapture();
     String hostName = "localhost:8080";
     EasyMock.expect(
@@ -300,7 +304,7 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(interruptionFuture)
+            .andReturn(resource)
             .anyTimes();
 
     EasyMock.replay(httpClient);
@@ -341,7 +345,7 @@ public class DirectDruidClientTest
 
     TimeBoundaryQuery query = Druids.newTimeBoundaryQueryBuilder().dataSource("test").build();
     HashMap<String, List> context = Maps.newHashMap();
-    interruptionFuture.set(new ByteArrayInputStream("{\"error\":\"testing1\",\"errorMessage\":\"testing2\"}".getBytes()));
+    future.set(new ByteArrayInputStream("{\"error\":\"testing1\",\"errorMessage\":\"testing2\"}".getBytes()));
     Sequence results = client1.run(query, context);
 
     QueryInterruptedException actualException = null;
