@@ -22,6 +22,8 @@ package io.druid.indexing.common.task;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.data.input.FirehoseFactory;
@@ -167,5 +169,11 @@ public class NoopTask extends AbstractTask
   public static NoopTask create()
   {
     return new NoopTask(null, 0, 0, null, null, null);
+  }
+
+  @VisibleForTesting
+  public static NoopTask create(String id, int priority)
+  {
+    return new NoopTask(id, 0, 0, null, null, ImmutableMap.of("priority", priority));
   }
 }

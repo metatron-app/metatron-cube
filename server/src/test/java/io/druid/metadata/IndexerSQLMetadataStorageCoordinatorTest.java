@@ -23,12 +23,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.druid.common.Intervals;
 import io.druid.indexing.overlord.ObjectMetadata;
 import io.druid.indexing.overlord.SegmentPublishResult;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.DateTimes;
+import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
+import io.druid.timeline.partition.NumberedShardSpec;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
@@ -91,10 +96,11 @@ public class IndexerSQLMetadataStorageCoordinatorTest
   public void setUp()
   {
     derbyConnector = derbyConnectorRule.getConnector();
-    mapper.registerSubtypes(LinearShardSpec.class);
+    mapper.registerSubtypes(LinearShardSpec.class, NumberedShardSpec.class);
     derbyConnector.createDataSourceTable();
     derbyConnector.createTaskTables();
     derbyConnector.createSegmentTable();
+    derbyConnector.createPendingSegmentsTable();
     coordinator = new IndexerSQLMetadataStorageCoordinator(
         mapper,
         derbyConnectorRule.metadataTablesConfigSupplier().get(),
@@ -522,5 +528,106 @@ public class IndexerSQLMetadataStorageCoordinatorTest
             )
         )
     );
+  }
+
+  @Test
+  public void testAllocatePendingSegment() throws IOException
+  {
+    final String dataSource = "ds";
+    final Interval interval = Intervals.of("2017-01-01/2017-02-01");
+    final SegmentIdentifier identifier = coordinator.allocatePendingSegment(
+            dataSource,
+            "seq",
+            null,
+            interval,
+            "version",
+            false
+    );
+
+    Assert.assertEquals("ds_2017-01-01T00:00:00.000Z_2017-02-01T00:00:00.000Z_version", identifier.toString());
+
+    final SegmentIdentifier identifier1 = coordinator.allocatePendingSegment(
+            dataSource,
+            "seq",
+            identifier.toString(),
+            interval,
+            identifier.getVersion(),
+            false
+    );
+
+    Assert.assertEquals("ds_2017-01-01T00:00:00.000Z_2017-02-01T00:00:00.000Z_version_1", identifier1.toString());
+
+    final SegmentIdentifier identifier2 = coordinator.allocatePendingSegment(
+            dataSource,
+            "seq",
+            identifier1.toString(),
+            interval,
+            identifier1.getVersion(),
+            false
+    );
+
+    Assert.assertEquals("ds_2017-01-01T00:00:00.000Z_2017-02-01T00:00:00.000Z_version_2", identifier2.toString());
+
+    final SegmentIdentifier identifier3 = coordinator.allocatePendingSegment(
+            dataSource,
+            "seq",
+            identifier1.toString(),
+            interval,
+            identifier1.getVersion(),
+            false
+    );
+
+    Assert.assertEquals("ds_2017-01-01T00:00:00.000Z_2017-02-01T00:00:00.000Z_version_2", identifier3.toString());
+    Assert.assertEquals(identifier2, identifier3);
+
+    final SegmentIdentifier identifier4 = coordinator.allocatePendingSegment(
+            dataSource,
+            "seq1",
+            null,
+            interval,
+            "version",
+            false
+    );
+
+    Assert.assertEquals("ds_2017-01-01T00:00:00.000Z_2017-02-01T00:00:00.000Z_version_3", identifier4.toString());
+  }
+
+  @Test
+  public void testDeletePendingSegment() throws IOException, InterruptedException
+  {
+    final String dataSource = "ds";
+    final Interval interval = Intervals.of("2017-01-01/2017-02-01");
+    String prevSegmentId = null;
+
+    final DateTime begin = DateTimes.nowUtc();
+
+    for (int i = 0; i < 10; i++) {
+      final SegmentIdentifier identifier = coordinator.allocatePendingSegment(
+              dataSource,
+              "seq",
+              prevSegmentId,
+              interval,
+              "version",
+              false
+      );
+      prevSegmentId = identifier.toString();
+    }
+    Thread.sleep(100);
+
+    final DateTime secondBegin = DateTimes.nowUtc();
+    for (int i = 0; i < 5; i++) {
+      final SegmentIdentifier identifier = coordinator.allocatePendingSegment(
+              dataSource,
+              "seq",
+              prevSegmentId,
+              interval,
+              "version",
+              false
+      );
+      prevSegmentId = identifier.toString();
+    }
+
+    final int numDeleted = coordinator.deletePendingSegments(dataSource, new Interval(begin, secondBegin));
+    Assert.assertEquals(10, numDeleted);
   }
 }

@@ -126,6 +126,12 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
   }
 
   @Override
+  public int deletePendingSegments(String dataSource, Interval deleteInterval)
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteSegments(Set<String> segments)
   {
     nuked.addAll(segments);

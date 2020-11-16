@@ -373,6 +373,28 @@ public abstract class SQLMetadataStorageActionHandler<EntryType, StatusType, Log
   );
 
   @Override
+  @Nullable
+  public Pair<DateTime, String> getCreatedDateAndDataSource(String entryId)
+  {
+    return connector.retryWithHandle(
+        handle -> handle
+        .createQuery(
+            StringUtils.format(
+                "SELECT created_date, datasource FROM %s WHERE id = :entryId",
+                entryTable
+            )
+        )
+        .bind("entryId", entryId)
+        .map(
+            (index, resultSet, ctx) -> Pair.of(
+                DateTimes.of(resultSet.getString("created_date")), resultSet.getString("datasource")
+            )
+        )
+        .first()
+    );
+  }
+
+  @Override
   public boolean addLock(final String entryId, final LockType lock)
   {
     return connector.retryWithHandle(

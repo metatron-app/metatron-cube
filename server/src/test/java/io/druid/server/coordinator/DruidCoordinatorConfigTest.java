@@ -45,6 +45,7 @@ public class DruidCoordinatorConfigTest
     Assert.assertFalse(config.isMergeSegments());
     Assert.assertFalse(config.isConvertSegments());
     Assert.assertFalse(config.isKillSegments());
+    Assert.assertFalse(config.isKillPendingSegments());
     Assert.assertEquals(86400000, config.getCoordinatorKillPeriod().getMillis());
     Assert.assertEquals(-1000, config.getCoordinatorKillDurationToRetain().getMillis());
     Assert.assertEquals(0, config.getCoordinatorKillMaxSegments());
@@ -62,6 +63,7 @@ public class DruidCoordinatorConfigTest
     props.setProperty("druid.coordinator.kill.period", "PT1s");
     props.setProperty("druid.coordinator.kill.durationToRetain", "PT1s");
     props.setProperty("druid.coordinator.kill.maxSegments", "10000");
+    props.setProperty("druid.coordinator.kill.pendingSegments.on", "true");
     props.setProperty("druid.coordinator.load.timeout", "PT1s");
     props.setProperty("druid.coordinator.console.static", "test");
 
@@ -74,6 +76,7 @@ public class DruidCoordinatorConfigTest
     Assert.assertTrue(config.isMergeSegments());
     Assert.assertTrue(config.isConvertSegments());
     Assert.assertTrue(config.isKillSegments());
+    Assert.assertTrue(config.isKillPendingSegments());
     Assert.assertEquals(new Duration("PT1s"), config.getCoordinatorKillPeriod());
     Assert.assertEquals(new Duration("PT1s"), config.getCoordinatorKillDurationToRetain());
     Assert.assertEquals(10000, config.getCoordinatorKillMaxSegments());

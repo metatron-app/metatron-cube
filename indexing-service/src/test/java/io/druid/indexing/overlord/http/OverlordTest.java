@@ -38,6 +38,7 @@ import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.common.task.NoopTask;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.HeapMemoryTaskStorage;
+import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
 import io.druid.indexing.overlord.TaskLockbox;
 import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskRunner;
@@ -218,6 +219,7 @@ public class OverlordTest
     overlordResource = new OverlordResource(
         taskMaster,
         taskStorageQueryAdapter,
+        new IndexerMetadataStorageAdapter(taskStorageQueryAdapter, null),
         null,
         null,
         null,

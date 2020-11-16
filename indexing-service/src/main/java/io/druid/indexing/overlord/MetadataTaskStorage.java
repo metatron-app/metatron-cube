@@ -27,6 +27,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
+import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
 import io.druid.java.util.emitter.EmittingLogger;
@@ -296,4 +297,12 @@ public class MetadataTaskStorage implements TaskStorage
   {
     return handler.getLocks(taskid);
   }
+
+  @Nullable
+  @Override
+  public Pair<DateTime, String> getCreatedDateTimeAndDataSource(String taskId)
+  {
+    return handler.getCreatedDateAndDataSource(taskId);
+  }
+
 }

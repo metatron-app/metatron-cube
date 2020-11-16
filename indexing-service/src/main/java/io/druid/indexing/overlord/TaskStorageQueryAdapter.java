@@ -28,7 +28,9 @@ import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.actions.SegmentInsertAction;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.task.Task;
+import io.druid.java.util.common.Pair;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
@@ -66,6 +68,14 @@ public class TaskStorageQueryAdapter
   {
     return storage.getRecentlyFinishedTaskInfo(maxTaskStatuses, duration, dataSource);
   }
+
+  @Nullable
+  public DateTime getCreatedTime(String taskId)
+  {
+    final Pair<DateTime, String> pair = storage.getCreatedDateTimeAndDataSource(taskId);
+    return pair == null ? null : pair.lhs;
+  }
+
 
   public Optional<Task> getTask(final String taskid)
   {

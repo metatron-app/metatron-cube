@@ -59,6 +59,7 @@ import io.druid.indexing.common.actions.TaskActionHolder;
 import io.druid.indexing.common.task.IndexTask;
 import io.druid.indexing.common.task.RealtimeIndexTask;
 import io.druid.indexing.common.task.Task;
+import io.druid.indexing.overlord.IndexerMetadataStorageAdapter;
 import io.druid.indexing.overlord.TaskLockbox;
 import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskQueue;
@@ -85,6 +86,7 @@ import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.AuthorizerMapper;
+import io.druid.server.security.ForbiddenException;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceAction;
 import io.druid.server.security.ResourceType;
@@ -100,6 +102,7 @@ import org.joda.time.Period;
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
@@ -137,6 +140,7 @@ public class OverlordResource
 
   private final TaskMaster taskMaster;
   private final TaskStorageQueryAdapter taskStorageQueryAdapter;
+  private final IndexerMetadataStorageAdapter indexerMetadataStorageAdapter;
   private final TaskLockbox lockbox;
 
   private final TaskLogStreamer taskLogStreamer;
@@ -155,6 +159,7 @@ public class OverlordResource
   public OverlordResource(
       TaskMaster taskMaster,
       TaskStorageQueryAdapter taskStorageQueryAdapter,
+      IndexerMetadataStorageAdapter indexerMetadataStorageAdapter,
       TaskLockbox lockbox,
       TaskLogStreamer taskLogStreamer,
       JacksonConfigManager configManager,
@@ -167,6 +172,7 @@ public class OverlordResource
   {
     this.taskMaster = taskMaster;
     this.taskStorageQueryAdapter = taskStorageQueryAdapter;
+    this.indexerMetadataStorageAdapter = indexerMetadataStorageAdapter;
     this.lockbox = lockbox;
     this.taskLogStreamer = taskLogStreamer;
     this.configManager = configManager;
@@ -513,6 +519,38 @@ public class OverlordResource
   )
   {
     return getTasks("complete", null, null, maxTaskStatuses, null, req, null);
+  }
+
+  @DELETE
+  @Path("/pendingSegments/{dataSource}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response killPendingSegments(
+          @PathParam("dataSource") String dataSource,
+          @QueryParam("interval") String deleteIntervalString,
+          @Context HttpServletRequest request
+  )
+  {
+    final Interval deleteInterval = Intervals.of(deleteIntervalString);
+    // check auth for dataSource
+    final Access authResult = AuthorizationUtils.authorizeAllResourceActions(
+            request,
+            ImmutableList.of(
+                    new ResourceAction(new Resource(dataSource, ResourceType.DATASOURCE), Action.READ),
+                    new ResourceAction(new Resource(dataSource, ResourceType.DATASOURCE), Action.WRITE)
+            ),
+            authorizerMapper
+    );
+
+    if (!authResult.isAllowed()) {
+      throw new ForbiddenException(authResult.getMessage());
+    }
+
+    if (taskMaster.isLeading()) {
+      final int numDeleted = indexerMetadataStorageAdapter.deletePendingSegments(dataSource, deleteInterval);
+      return Response.ok().entity(ImmutableMap.of("numDeleted", numDeleted)).build();
+    } else {
+      return Response.status(Response.Status.SERVICE_UNAVAILABLE).build();
+    }
   }
 
   @GET

@@ -19,9 +19,17 @@
 
 package io.druid.indexing.overlord;
 
+import com.google.common.collect.ImmutableList;
+import io.druid.common.Intervals;
+import io.druid.indexing.common.task.NoopTask;
+import io.druid.java.util.common.DateTimes;
 import org.easymock.EasyMock;
+import org.hamcrest.CoreMatchers;
+import org.joda.time.Interval;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 public class IndexerMetadataStorageAdapterTest
@@ -44,4 +52,47 @@ public class IndexerMetadataStorageAdapterTest
     );
   }
 
+  @Test
+  public void testDeletePendingSegments()
+  {
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTasks())
+            .andReturn(ImmutableList.of(NoopTask.create("id1", 0), NoopTask.create("id2", 0)));
+    EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id1")))
+            .andReturn(DateTimes.of("2017-12-01"));
+    EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id2")))
+            .andReturn(DateTimes.of("2017-12-02"));
+
+    final Interval deleteInterval = Intervals.of("2017-01-01/2017-12-01");
+    EasyMock
+            .expect(
+                    indexerMetadataStorageCoordinator.deletePendingSegments(EasyMock.anyString(), EasyMock.eq(deleteInterval))
+            )
+            .andReturn(10);
+    EasyMock.replay(taskStorageQueryAdapter, indexerMetadataStorageCoordinator);
+
+    Assert.assertEquals(10, indexerMetadataStorageAdapter.deletePendingSegments("dataSource", deleteInterval));
+  }
+
+  @Test
+  public void testDeletePendingSegmentsOfRunningTasks()
+  {
+    EasyMock.expect(taskStorageQueryAdapter.getActiveTasks())
+            .andReturn(ImmutableList.of(NoopTask.create("id1", 0), NoopTask.create("id2", 0)));
+    EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id1")))
+            .andReturn(DateTimes.of("2017-11-01"));
+    EasyMock.expect(taskStorageQueryAdapter.getCreatedTime(EasyMock.eq("id2")))
+            .andReturn(DateTimes.of("2017-12-02"));
+
+    final Interval deleteInterval = Intervals.of("2017-01-01/2017-12-01");
+    EasyMock
+            .expect(
+                    indexerMetadataStorageCoordinator.deletePendingSegments(EasyMock.anyString(), EasyMock.eq(deleteInterval))
+            )
+            .andReturn(10);
+    EasyMock.replay(taskStorageQueryAdapter, indexerMetadataStorageCoordinator);
+
+    expectedException.expect(CoreMatchers.instanceOf(IllegalArgumentException.class));
+    expectedException.expectMessage("Cannot delete pendingSegments because there is at least one active task created");
+    indexerMetadataStorageAdapter.deletePendingSegments("dataSource", deleteInterval);
+  }
 }

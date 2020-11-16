@@ -19,7 +19,14 @@
 
 package io.druid.indexing.overlord;
 
+import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
+import io.druid.java.util.common.DateTimes;
+import org.joda.time.DateTime;
+import org.joda.time.Interval;
+
+import java.util.Comparator;
+import java.util.Optional;
 
 public class IndexerMetadataStorageAdapter
 {
@@ -34,6 +41,33 @@ public class IndexerMetadataStorageAdapter
   {
     this.taskStorageQueryAdapter = taskStorageQueryAdapter;
     this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
+  }
+
+  public int deletePendingSegments(String dataSource, Interval deleteInterval)
+  {
+    // Check the given interval overlaps the interval(minCreatedDateOfActiveTasks, MAX)
+    final Optional<DateTime> minCreatedDateOfActiveTasks = taskStorageQueryAdapter
+            .getActiveTasks()
+            .stream()
+            .map(task -> Preconditions.checkNotNull(
+                    taskStorageQueryAdapter.getCreatedTime(task.getId()),
+                    "Can't find the createdTime for task[%s]",
+                    task.getId()
+            ))
+            .min(Comparator.naturalOrder());
+
+    final Interval activeTaskInterval = new Interval(
+            minCreatedDateOfActiveTasks.orElse(DateTimes.MAX),
+            DateTimes.MAX
+    );
+
+    Preconditions.checkArgument(
+            !deleteInterval.overlaps(activeTaskInterval),
+            "Cannot delete pendingSegments because there is at least one active task created at %s",
+            activeTaskInterval.getStart()
+    );
+
+    return indexerMetadataStorageCoordinator.deletePendingSegments(dataSource, deleteInterval);
   }
 
 }

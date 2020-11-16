@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
+import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.indexing.common.TaskLock;
@@ -409,6 +410,21 @@ public class HeapMemoryTaskStorage implements TaskStorage
     private TaskStuff withStatus(TaskStatus _status)
     {
       return new TaskStuff(task, _status, createdDate, dataSource);
+    }
+  }
+
+  @Nullable
+  @Override
+  public Pair<DateTime, String> getCreatedDateTimeAndDataSource(String taskId)
+  {
+    giant.lock();
+
+    try {
+      final TaskStuff taskStuff = tasks.get(taskId);
+      return taskStuff == null ? null : Pair.of(taskStuff.getCreatedDate(), taskStuff.getDataSource());
+    }
+    finally {
+      giant.unlock();
     }
   }
 }

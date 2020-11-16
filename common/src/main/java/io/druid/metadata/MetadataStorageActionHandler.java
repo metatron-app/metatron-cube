@@ -21,6 +21,7 @@ package io.druid.metadata;
 
 import com.google.common.base.Optional;
 import io.druid.indexer.TaskInfo;
+import io.druid.java.util.common.Pair;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
@@ -32,7 +33,7 @@ public interface MetadataStorageActionHandler<EntryType, StatusType, LogType, Lo
 {
   /**
    * Creates a new entry.
-   * 
+   *
    * @param id entry id
    * @param timestamp timestamp this entry was created
    * @param dataSource datasource associated with this entry
@@ -99,6 +100,14 @@ public interface MetadataStorageActionHandler<EntryType, StatusType, LogType, Lo
    * @return list of {@link TaskInfo}
    */
   List<TaskInfo<EntryType, StatusType>> getActiveTaskInfo(@Nullable String dataSource);
+
+  /**
+   * Return createdDate and dataSource for the given id
+   *
+   * @return a pair of createdDate and dataSource or null if an entry for the given id is not found
+   */
+  @Nullable
+  Pair<DateTime, String> getCreatedDateAndDataSource(String entryId);
 
   /**
    * Add a lock to the given entry

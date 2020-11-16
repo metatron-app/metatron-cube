@@ -36,6 +36,7 @@ import io.druid.indexing.overlord.TaskMaster;
 import io.druid.indexing.overlord.TaskRunner;
 import io.druid.indexing.overlord.TaskRunnerWorkItem;
 import io.druid.indexing.overlord.TaskStorageQueryAdapter;
+import io.druid.java.util.common.DateTimes;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
 import io.druid.server.security.AuthConfig;
@@ -46,6 +47,7 @@ import io.druid.server.security.Resource;
 import org.easymock.EasyMock;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
+import org.joda.time.Interval;
 import org.joda.time.Period;
 import org.joda.time.chrono.ISOChronology;
 import org.junit.After;
@@ -58,6 +60,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public class OverlordResourceTest
 {
@@ -105,6 +108,7 @@ public class OverlordResourceTest
     overlordResource = new OverlordResource(
         taskMaster,
         taskStorageQueryAdapter,
+        indexerMetadataStorageAdapter,
         null,
         null,
         null,
@@ -710,6 +714,24 @@ public class OverlordResourceTest
     Task task = NoopTask.create();
     Response response = overlordResource.taskPost(task, req);
     Assert.assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
+  }
+
+  @Test
+  public void testKillPendingSegments()
+  {
+    expectAuthorizationTokenCheck();
+
+    EasyMock.expect(taskMaster.isLeading()).andReturn(true);
+    EasyMock
+            .expect(indexerMetadataStorageAdapter.deletePendingSegments(EasyMock.eq("allow"), EasyMock.anyObject(Interval.class)))
+            .andReturn(2);
+
+    EasyMock.replay(taskRunner, taskMaster, taskStorageQueryAdapter, indexerMetadataStorageAdapter, req);
+
+    final Map<String, Integer> response = (Map<String, Integer>) overlordResource
+            .killPendingSegments("allow", new Interval(DateTimes.MIN, DateTimes.nowUtc()).toString(), req)
+            .getEntity();
+    Assert.assertEquals(2, response.get("numDeleted").intValue());
   }
 
   @After

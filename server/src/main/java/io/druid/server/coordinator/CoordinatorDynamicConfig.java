@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import javax.validation.constraints.Min;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class CoordinatorDynamicConfig
@@ -60,13 +61,18 @@ public class CoordinatorDynamicConfig
   @JsonProperty
   private Set<String> killDataSourceWhitelist;
 
+
+  // The pending segments of the dataSources in this list are not killed.
+  @JsonProperty
+  private Set<String> killPendingSegmentsSkipList;
+
   @JsonProperty
   @Min(1)
   private int minimumServersForCoordination = 1;
 
   public CoordinatorDynamicConfig()
   {
-    this(15 * 60 * 1000L, 524288000L, 100, 0, -1, 15, 10, 1, false, null, null);
+    this(15 * 60 * 1000L, 524288000L, 100, 0, -1, 15, 10, 1, false, null, null, null);
   }
 
   @JsonCreator
@@ -85,6 +91,7 @@ public class CoordinatorDynamicConfig
       // coordinator console can not send array of strings in the update request.
       // See https://github.com/druid-io/druid/issues/3055
       @JsonProperty("killDataSourceWhitelist") Object killDataSourceWhitelist,
+      @JsonProperty("killPendingSegmentsSkipList") Object killPendingSegmentsSkipList,
       @JsonProperty("minimumServersForCoordination") Integer minimumServersForCoordination
   )
   {
@@ -97,22 +104,29 @@ public class CoordinatorDynamicConfig
     this.emitBalancingStats = emitBalancingStats;
     this.balancerComputeThreads = Math.max(balancerComputeThreads, 1);
 
-    if (killDataSourceWhitelist instanceof String) {
-      String[] tmp = ((String) killDataSourceWhitelist).split(",");
-      this.killDataSourceWhitelist = new HashSet<>();
-      for (int i = 0; i < tmp.length; i++) {
-        String trimmed = tmp[i].trim();
-        if (!trimmed.isEmpty()) {
-          this.killDataSourceWhitelist.add(trimmed);
-        }
-      }
-    } else if (killDataSourceWhitelist instanceof Collection){
-      this.killDataSourceWhitelist = ImmutableSet.copyOf(((Collection) killDataSourceWhitelist));
-    } else {
-      this.killDataSourceWhitelist = ImmutableSet.of();
-    }
+    this.killDataSourceWhitelist = parseJsonStringOrArray(killDataSourceWhitelist);
+    this.killPendingSegmentsSkipList = parseJsonStringOrArray(killPendingSegmentsSkipList);
     if (minimumServersForCoordination != null && minimumServersForCoordination > 0) {
       this.minimumServersForCoordination = minimumServersForCoordination;
+    }
+  }
+
+  private static Set<String> parseJsonStringOrArray(Object jsonStringOrArray)
+  {
+    if (jsonStringOrArray instanceof String) {
+      String[] list = ((String) jsonStringOrArray).split(",");
+      Set<String> result = new HashSet<>();
+      for (String item : list) {
+        String trimmed = item.trim();
+        if (!trimmed.isEmpty()) {
+          result.add(trimmed);
+        }
+      }
+      return result;
+    } else if (jsonStringOrArray instanceof Collection) {
+      return ImmutableSet.copyOf(((Collection) jsonStringOrArray));
+    } else {
+      return ImmutableSet.of();
     }
   }
 
@@ -168,6 +182,12 @@ public class CoordinatorDynamicConfig
   public Set<String> getKillDataSourceWhitelist()
   {
     return killDataSourceWhitelist;
+  }
+
+  @JsonProperty
+  public Set<String> getKillPendingSegmentsSkipList()
+  {
+    return killPendingSegmentsSkipList;
   }
 
   @JsonProperty
@@ -232,10 +252,11 @@ public class CoordinatorDynamicConfig
     if (emitBalancingStats != that.emitBalancingStats) {
       return false;
     }
-    return !(killDataSourceWhitelist != null
-             ? !killDataSourceWhitelist.equals(that.killDataSourceWhitelist)
-             : that.killDataSourceWhitelist != null);
+    if (!Objects.equals(killDataSourceWhitelist, that.killDataSourceWhitelist)) {
+      return false;
+    }
 
+    return Objects.equals(killPendingSegmentsSkipList, that.killPendingSegmentsSkipList);
   }
 
   @Override
@@ -251,6 +272,7 @@ public class CoordinatorDynamicConfig
     result = 31 * result + minimumServersForCoordination;
     result = 31 * result + (emitBalancingStats ? 1 : 0);
     result = 31 * result + (killDataSourceWhitelist != null ? killDataSourceWhitelist.hashCode() : 0);
+    result = 31 * result + (killPendingSegmentsSkipList != null ? killPendingSegmentsSkipList.hashCode() : 0);
     return result;
   }
 
@@ -266,11 +288,12 @@ public class CoordinatorDynamicConfig
     private boolean emitBalancingStats;
     private int balancerComputeThreads;
     private Set<String> killDataSourceWhitelist;
+    private Object killPendingSegmentsSkipList;
     private Integer minimumServersForCoordination;
 
     public Builder()
     {
-      this(15 * 60 * 1000L, 524288000L, 100, 5, 15, 10, 1, false, null);
+      this(15 * 60 * 1000L, 524288000L, 100, 5, 15, 10, 1, false, null, null);
     }
 
     private Builder(
@@ -282,7 +305,8 @@ public class CoordinatorDynamicConfig
         int replicationThrottleLimit,
         int balancerComputeThreads,
         boolean emitBalancingStats,
-        Set<String> killDataSourceWhitelist
+        Set<String> killDataSourceWhitelist,
+        Object killPendingSegmentsSkipList
     )
     {
       this.millisToWaitBeforeDeleting = millisToWaitBeforeDeleting;
@@ -294,6 +318,7 @@ public class CoordinatorDynamicConfig
       this.emitBalancingStats = emitBalancingStats;
       this.balancerComputeThreads = balancerComputeThreads;
       this.killDataSourceWhitelist = killDataSourceWhitelist;
+      this.killPendingSegmentsSkipList = killPendingSegmentsSkipList;
     }
 
     public Builder withMillisToWaitBeforeDeleting(long millisToWaitBeforeDeleting)
@@ -363,6 +388,7 @@ public class CoordinatorDynamicConfig
           balancerComputeThreads,
           emitBalancingStats,
           killDataSourceWhitelist,
+          killPendingSegmentsSkipList,
           minimumServersForCoordination
       );
     }
