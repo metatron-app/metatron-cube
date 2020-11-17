@@ -21,7 +21,6 @@ package org.geohex.geohex4j;
 
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -41,9 +40,7 @@ public class GeoHexFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("Function[%s] must have 3 arguments", name());
-      }
+      exactThree(args);
       return new StringChild()
       {
         @Override
@@ -64,9 +61,7 @@ public class GeoHexFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      exactTwo(args);
       return new StringChild()
       {
         @Override
@@ -90,9 +85,7 @@ public class GeoHexFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new DoubleArrayChild()
       {
         @Override
@@ -116,9 +109,7 @@ public class GeoHexFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override
@@ -143,9 +134,7 @@ public class GeoHexFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new GeomChild()
       {
         @Override

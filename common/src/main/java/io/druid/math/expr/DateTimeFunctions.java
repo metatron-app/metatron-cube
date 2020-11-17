@@ -58,9 +58,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver context)
     {
-      if (args.size() < 2) {
-        throw new IAE("function '%s' need at least 2 arguments", name());
-      }
+      atLeastTwo(args);
       return new LongChild()
       {
         @Override
@@ -218,9 +216,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("function '%s' needs one or two arguments", name());
-      }
+      oneOrTwo(args);
       return new Function()
       {
         @Override
@@ -250,9 +246,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 2) {
-        throw new IAE("function '%s' needs two arguments", name());
-      }
+      exactTwo(args);
       return new Function()
       {
         @Override
@@ -286,9 +280,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 2) {
-        throw new IAE("function '%s' needs two arguments", name());
-      }
+      exactTwo(args);
       String string = Evals.getConstantString(args.get(1));
       Granularity granularity;
       if (string.startsWith("P")) {
@@ -481,9 +473,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 2 && args.size() != 3) {
-        throw new IAE("function '%s' needs two or three arguments", name());
-      }
+      twoOrThree(args);
       final DateTimeZone timeZone = args.size() == 3
                                     ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2)))
                                     : null;
@@ -580,7 +570,7 @@ public interface DateTimeFunctions extends Function.Library
             case EPOCH:
               return ExprEval.of(new Duration(time1, time2).getMillis() / 1000);
             default:
-              throw new IllegalArgumentException("invalid time unit " + unit);
+              throw new IAE("invalid time unit %s", unit);
           }
         }
       };
@@ -985,7 +975,7 @@ public interface DateTimeFunctions extends Function.Library
           final DateTime dateTime = Evals.toDateTime(param, timeZone);
           if (dateTime == null) {
             if (unit == Unit.MINUTE || unit == Unit.EPOCH) {
-              throw new IllegalArgumentException("Invalid value " + param.value());
+              throw new IAE("Invalid value %s", param.value());
             }
             return ExprEval.of(-1);
           }

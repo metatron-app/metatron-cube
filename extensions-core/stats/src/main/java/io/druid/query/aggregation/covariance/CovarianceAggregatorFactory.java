@@ -255,7 +255,7 @@ public class CovarianceAggregatorFactory extends AggregatorFactory implements Ag
            "name='" + name + '\'' +
            ", fieldName1='" + fieldName1 + '\'' +
            ", fieldName2='" + fieldName2 + '\'' +
-           ", predicate='" + predicate + '\'' +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", inputType='" + inputType + '\'' +
            '}';
   }

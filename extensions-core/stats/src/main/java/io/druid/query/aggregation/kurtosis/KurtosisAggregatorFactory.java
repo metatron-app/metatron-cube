@@ -254,7 +254,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
     return getClass().getSimpleName() + "{" +
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
-           ", predicate='" + predicate + '\'' +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", inputType='" + inputType + '\'' +
            '}';
   }

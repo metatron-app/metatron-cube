@@ -224,19 +224,19 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
   }
 
   @Override
-  public Object get(final int index, final String name)
+  public Object get(final int index, final Expr expr)
   {
-    return index >= 0 && index < length ? partition.get(index).getRaw(name) : null;
+    return index >= 0 && index < length ? expr.eval(partition.get(index)).value() : null;
   }
 
   @Override
-  public Iterable<Object> iterator(final String name)
+  public Iterable<Object> iterator(final Expr expr)
   {
-    return Iterables.transform(partition, accessFunction(name));
+    return Iterables.transform(partition, row -> Evals.evalValue(expr, row));
   }
 
   @Override
-  public Iterable<Object> iterator(final int startRel, final int endRel, final String name)
+  public Iterable<Object> iterator(final int startRel, final int endRel, final Expr expr)
   {
     List<Row> target;
     if (startRel > endRel) {
@@ -245,7 +245,7 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
     } else {
       target = partition.subList(Math.max(0, index + startRel), Math.min(length, index + endRel + 1));
     }
-    return Iterables.transform(target, accessFunction(name));
+    return Iterables.transform(target, row -> Evals.evalValue(expr, row));
   }
 
   @Override
@@ -287,18 +287,6 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
           }
         }
     );
-  }
-
-  private Function<Row, Object> accessFunction(final String name)
-  {
-    return new Function<Row, Object>()
-    {
-      @Override
-      public Object apply(Row input)
-      {
-        return input.getRaw(name);
-      }
-    };
   }
 
   static class FrameFactory

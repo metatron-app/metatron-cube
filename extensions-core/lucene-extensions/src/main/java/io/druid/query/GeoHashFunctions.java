@@ -21,7 +21,6 @@ package io.druid.query;
 
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -44,9 +43,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2 && args.size() != 3) {
-        throw new IAE("Function[%s] must have 2 or 3 arguments", name());
-      }
+      twoOrThree(args);
       return new StringChild()
       {
         @Override
@@ -70,9 +67,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("Function[%s] must have 1 or 2 arguments", name());
-      }
+      oneOrTwo(args);
       return new LongChild()
       {
         @Override
@@ -128,9 +123,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new LatLonChild()
       {
         @Override
@@ -153,9 +146,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new GeomPointChild()
       {
         @Override
@@ -178,9 +169,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override
@@ -199,9 +188,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new DoubleArrayChild()
       {
         @Override
@@ -236,9 +223,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new GeomChild()
       {
         @Override
@@ -267,9 +252,7 @@ public class GeoHashFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override

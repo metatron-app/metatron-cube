@@ -82,7 +82,7 @@ import java.util.regex.Pattern;
  */
 public interface BuiltinFunctions extends Function.Library
 {
-  static final Logger log = new Logger(BuiltinFunctions.class);
+  static final Logger LOG = new Logger(BuiltinFunctions.class);
 
   abstract class NamedParams extends NamedFactory
   {
@@ -360,9 +360,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2 && args.size() != 3) {
-        throw new IAE("function 'regex' needs 2 or 3 arguments");
-      }
+      twoOrThree(args);
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
       final int index = args.size() == 3 ? Evals.getConstantInt(args.get(2)) : 0;
 
@@ -391,7 +389,7 @@ public interface BuiltinFunctions extends Function.Library
           engine = new Rengine(new String[]{"--vanilla"}, false, null);
         }
         catch (Exception e) {
-          log.warn(e, "Failed to initialize r");
+          LOG.warn(e, "Failed to initialize r");
         }
       }
       r = engine;
@@ -590,9 +588,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
-        throw new IAE("function 'r' should have at least two arguments");
-      }
+      atLeastTwo(args);
       String name = Evals.getConstantString(args.get(1));
       String expression = Evals.getConstantString(args.get(0));
       final String function = registerFunction(name, expression);
@@ -666,12 +662,12 @@ public interface BuiltinFunctions extends Function.Library
           success = true;
         }
         catch (Throwable e) {
-          log.info("failed initialize python interpreter.. disabling python functions");
+          LOG.info("failed initialize python interpreter.. disabling python functions");
           // ignore
         }
         init = success;
       } else {
-        log.info("invalid or absent of python.home in system environment.. disabling python functions");
+        LOG.info("invalid or absent of python.home in system environment.. disabling python functions");
         init = false;
       }
     }
@@ -750,9 +746,7 @@ public interface BuiltinFunctions extends Function.Library
       if (p == null) {
         throw new IAE("python initialization failed..");
       }
-      if (args.size() < 2) {
-        throw new IAE("function 'py' should have at least two arguments");
-      }
+      atLeastTwo(args);
       p.exec(Evals.getConstantString(args.get(0)));
       final boolean constantMethod = Evals.isConstantString(args.get(1));
 
@@ -813,9 +807,7 @@ public interface BuiltinFunctions extends Function.Library
       if (p == null) {
         throw new IAE("python initialization failed..");
       }
-      if (args.isEmpty()) {
-        throw new IAE("function 'pyEval' should have one argument");
-      }
+      exactOne(args);
       final PyCode code = p.compile(Evals.getConstantString(args.get(0)));
       return new ExternalChild()
       {
@@ -1032,9 +1024,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("function 'round' needs 1 or 2 arguments");
-      }
+      oneOrTwo(args);
       final ValueDesc type = args.get(0).returns();
       if (args.size() == 1) {
         return new Child()
@@ -1116,9 +1106,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function 'signum' needs 1 argument");
-      }
+      exactOne(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
         return new FloatChild()
@@ -1279,9 +1267,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function '%s' needs 1 argument", name());
-      }
+      exactOne(args);
       return new DoubleChild()
       {
         @Override
@@ -1301,9 +1287,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function '%s' needs 1 argument", name());
-      }
+      exactOne(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
         return new FloatChild()
@@ -1338,9 +1322,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function '%s' needs 1 argument", name());
-      }
+      exactOne(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
         return new FloatChild()
@@ -1387,9 +1369,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function '%s' needs 2 arguments", name());
-      }
+      exactTwo(args);
       return new DoubleChild()
       {
         @Override
@@ -1410,9 +1390,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function '%s' needs 2 arguments", name());
-      }
+      exactTwo(args);
       final ValueDesc type1 = args.get(0).returns();
       final ValueDesc type2 = args.get(1).returns();
       if (type1.isFloat() && type2.isFloat()) {
@@ -1450,9 +1428,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function '%s' needs 2 arguments", name());
-      }
+      exactTwo(args);
       final ValueDesc type1 = args.get(0).returns();
       final ValueDesc type2 = args.get(1).returns();
       if (type1.isLong() && type2.isLong()) {
@@ -1596,9 +1572,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function '%s' needs 2 arguments", name());
-      }
+      exactTwo(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
         return new FloatChild()
@@ -1632,9 +1606,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 3) {
-        throw new IAE("function 'if' needs at least 3 argument");
-      }
+      atLeastThree(args);
       if (args.size() % 2 == 0) {
         throw new IAE("function 'if' needs default value");
       }
@@ -1681,9 +1653,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'cast' needs 2 argument");
-      }
+      exactTwo(args);
       final ValueDesc castTo = ValueDesc.fromTypeString(Evals.getConstantString(args.get(1)));
       return new Child()
       {
@@ -1713,9 +1683,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'nvl' needs 2 arguments");
-      }
+      exactTwo(args);
       final Expr type1 = args.get(0);
       final Expr type2 = args.get(1);
       final ValueDesc common = Optional.ofNullable(ValueDesc.toCommonType(type1, type2)).orElse(ValueDesc.STRING);
@@ -1746,9 +1714,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.isEmpty()) {
-        throw new IAE("function 'coalesce' needs at least 1 argument");
-      }
+      atLeastOne(args);
       ValueDesc prev = null;
       for (int i = 0; i < args.size(); i++) {
         prev = ValueDesc.toCommonType(prev, args.get(i));
@@ -1781,9 +1747,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 3) {
-        throw new IAE("function 'switch' needs at least 3 arguments");
-      }
+      atLeastThree(args);
       ValueDesc prev = null;
       for (int i = 2; i < args.size(); i += 2) {
         prev = ValueDesc.toCommonType(prev, args.get(i));
@@ -1794,7 +1758,7 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() % 2 != 1) {
         prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1));
       }
-      final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);;
+      final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);
       return new Child()
       {
         @Override
@@ -1827,9 +1791,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
-        throw new IAE("function 'case' needs at least 2 arguments");
-      }
+      atLeastTwo(args);
       ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {
         prev = ValueDesc.toCommonType(prev, args.get(i));
@@ -1840,7 +1802,7 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() % 2 == 1) {
         prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1));
       }
-      final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);;
+      final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);
       return new Child()
       {
         @Override
@@ -1878,9 +1840,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'javascript' needs 2 argument");
-      }
+      exactTwo(args);
       final String[] parameters = splitAndTrim(Evals.getConstantString(args.get(0)));
       final String function =
           "function(" + StringUtils.join(parameters, ",") + ") {" + Evals.getConstantString(args.get(1)) + "}";
@@ -1956,9 +1916,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.isEmpty()) {
-        throw new IAE("function 'format' needs at least 1 argument");
-      }
+      atLeastOne(args);
       final String format = Evals.getConstantString(args.get(0));
       final Object[] formatArgs = new Object[args.size() - 1];
       return new StringChild()
@@ -1986,9 +1944,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 3) {
-        throw new IAE("function 'lpad' needs 3 arguments");
-      }
+      atLeastThree(args);
       final int length = Evals.getConstantInt(args.get(1));
       String string = Evals.getConstantString(args.get(2));
       if (string.length() != 1) {
@@ -2013,9 +1969,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 3) {
-        throw new IAE("function 'rpad' needs 3 arguments");
-      }
+      atLeastThree(args);
       final int length = Evals.getConstantInt(args.get(1));
       String string = Evals.getConstantString(args.get(2));
       if (string.length() != 1) {
@@ -2040,9 +1994,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function 'upper' needs 1 argument");
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override
@@ -2061,9 +2013,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function 'lower' needs 1 argument");
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override
@@ -2083,9 +2033,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("function 'splitRegex' needs 3 arguments");
-      }
+      exactThree(args);
       return new StringChild()
       {
         @Override
@@ -2112,9 +2060,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2 && args.size() != 3) {
-        throw new IAE("function 'split' needs 2 or 3 arguments");
-      }
+      twoOrThree(args);
       final Splitter splitter;
       final String separator = Evals.getConstantString(args.get(1));
       if (separator.length() == 1) {
@@ -2174,9 +2120,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function 'proper' needs 1 argument");
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override
@@ -2198,9 +2142,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function '%s' needs 1 argument", name());
-      }
+      exactOne(args);
       return new LongChild()
       {
         @Override
@@ -2224,9 +2166,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'left' needs 2 arguments");
-      }
+      exactTwo(args);
       if (Evals.isConstant(args.get(1))) {
         final int index = Evals.getConstantInt(args.get(1));
         return new StringChild()
@@ -2280,9 +2220,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'right' needs 2 arguments");
-      }
+      exactTwo(args);
       if (Evals.isConstant(args.get(1))) {
         final int index = Evals.getConstantInt(args.get(1));
         return new StringChild()
@@ -2336,9 +2274,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public final Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("function '" + name() + "' needs 3 arguments");
-      }
+      exactThree(args);
       if (Evals.isConstant(args.get(1)) && Evals.isConstant(args.get(2))) {
         final int start = Evals.getConstantInt(args.get(1));
         final int end = Evals.getConstantInt(args.get(2));
@@ -2399,9 +2335,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'indexOf' needs 2 arguments");
-      }
+      exactTwo(args);
       return new LongChild()
       {
         @Override
@@ -2422,9 +2356,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'countOf' needs 2 arguments");
-      }
+      exactTwo(args);
       return new LongChild()
       {
         @Override
@@ -2458,9 +2390,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("function 'replace' needs 3 arguments");
-      }
+      exactThree(args);
       return new StringChild()
       {
         @Override
@@ -2484,9 +2414,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function 'trim' needs 1 argument");
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override
@@ -2506,9 +2434,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("function 'btrim' needs 1 or 2 arguments");
-      }
+      oneOrTwo(args);
       return new StringChild()
       {
         @Override
@@ -2529,9 +2455,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("function 'ltrim' needs 1 or 2 arguments");
-      }
+      oneOrTwo(args);
       return new StringChild()
       {
         @Override
@@ -2552,9 +2476,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("function 'rtrim' needs 1 or 2 arguments");
-      }
+      oneOrTwo(args);
       return new StringChild()
       {
         @Override
@@ -2607,9 +2529,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
-        throw new IAE("function 'struct_desc' needs at least 2 arguments");
-      }
+      atLeastTwo(args);
       final String desc = Evals.getConstantString(GuavaUtils.lastOf(args));
       final String[] split = desc.split(",");
       final String[] fieldNames = new String[split.length];
@@ -2688,19 +2608,19 @@ public interface BuiltinFunctions extends Function.Library
     {
       protected final WindowContext context;
 
-      protected final String inputField;
+      protected final Expr inputExpr;
       protected final ValueDesc inputType;
       protected final Object[] parameters;
 
       protected WindowFunction(List<Expr> args, WindowContext context)
       {
         this.context = context;
-        if (args.size() > 0) {
-          inputField = Evals.getIdentifier(args.get(0));   // todo can be expression
-          inputType = context.resolve(inputField, ValueDesc.UNKNOWN);
+        if (!args.isEmpty()) {
+          inputExpr = args.get(0);
+          inputType = inputExpr.returns();
           parameters = Evals.getConstants(args.subList(1, args.size()));
         } else {
-          inputField = "$$$";
+          inputExpr = Evals.identifierExpr("$$$", ValueDesc.UNKNOWN);
           inputType = ValueDesc.UNKNOWN;
           parameters = new Object[0];
         }
@@ -2741,7 +2661,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(invoke(context, inputField), returns());
+        return ExprEval.of(invoke(context, inputExpr), returns());
       }
 
       @Override
@@ -2751,7 +2671,7 @@ public interface BuiltinFunctions extends Function.Library
       }
     }
 
-    protected abstract Object invoke(WindowContext context, String fieldName);
+    protected abstract Object invoke(WindowContext context, Expr inputExpr);
   }
 
   abstract class SimpleWindowFunctionFactory extends StatelessWindowFunctionFactory
@@ -2789,13 +2709,13 @@ public interface BuiltinFunctions extends Function.Library
       {
         if (window != null) {
           init();
-          for (Object object : context.iterator(window[0], window[1], inputField)) {
+          for (Object object : context.iterator(window[0], window[1], inputExpr)) {
             if (object != null) {
               invoke(object, context);
             }
           }
         } else {
-          Object current = context.get(inputField);
+          Object current = Evals.evalValue(inputExpr, context);
           if (current != null) {
             invoke(current, context);
           }
@@ -2818,9 +2738,9 @@ public interface BuiltinFunctions extends Function.Library
   final class Prev extends SimpleWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, String fieldName)
+    protected Object invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(context.index() - 1, fieldName);
+      return context.get(context.index() - 1, inputExpr);
     }
   }
 
@@ -2828,9 +2748,9 @@ public interface BuiltinFunctions extends Function.Library
   final class Next extends SimpleWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, String fieldName)
+    protected Object invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(context.index() + 1, fieldName);
+      return context.get(context.index() + 1, inputExpr);
     }
   }
 
@@ -2838,9 +2758,9 @@ public interface BuiltinFunctions extends Function.Library
   final class Last extends SimpleWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, String fieldName)
+    protected Object invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(context.size() - 1, fieldName);
+      return context.get(context.size() - 1, inputExpr);
     }
   }
 
@@ -2848,9 +2768,9 @@ public interface BuiltinFunctions extends Function.Library
   final class First extends SimpleWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, String fieldName)
+    protected Object invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(0, fieldName);
+      return context.get(0, inputExpr);
     }
   }
 
@@ -2860,9 +2780,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      if (args.size() != 2) {
-        throw new IAE("function '$nth' needs 2 argument");
-      }
+      exactTwo(args);
       return new NthWindowFunction(args, context);
     }
 
@@ -2879,7 +2797,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(context.get(nth, inputField), inputType);
+        return ExprEval.of(context.get(nth, inputExpr), inputType);
       }
     }
   }
@@ -2890,9 +2808,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      if (args.size() != 2) {
-        throw new IAE("function '$lag' needs 2 arguments");
-      }
+      exactTwo(args);
       return new LagWindowFunction(args, context);
     }
 
@@ -2909,7 +2825,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(context.get(context.index() - delta, inputField), inputType);
+        return ExprEval.of(context.get(context.index() - delta, inputExpr), inputType);
       }
     }
   }
@@ -2920,9 +2836,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      if (args.size() != 2) {
-        throw new IAE("function '$lead' needs 2 arguments");
-      }
+      exactTwo(args);
       return new LeadWindowFunction(args, context);
     }
 
@@ -2939,7 +2853,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(context.get(context.index() + delta, inputField), inputType);
+        return ExprEval.of(context.get(context.index() + delta, inputExpr), inputType);
       }
     }
   }
@@ -2950,9 +2864,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      if (args.size() != 1) {
-        throw new IAE("function '$delta' needs 1 argument");
-      }
+      exactOne(args);
       return new DeltaWindowFunction(args, context);
     }
 
@@ -2978,7 +2890,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        Object current = context.get(inputField);
+        Object current = Evals.evalValue(inputExpr, context);
         if (current == null) {
           return ExprEval.of(null, inputType);
         }
@@ -3182,7 +3094,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object invoke(WindowContext context, String fieldName)
+    protected Object invoke(WindowContext context, Expr inputExpr)
     {
       return context.index() + 1L;
     }
@@ -3222,7 +3134,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        final Object current = context.get(inputField);
+        Object current = Evals.evalValue(inputExpr, context);
         if (context.index() == 0 || !Objects.equals(prev, current)) {
           prev = current;
           prevRank = context.index() + 1;
@@ -3280,7 +3192,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        final Object current = context.get(inputField);
+        final Object current = Evals.evalValue(inputExpr, context);
         if (context.index() == 0 || !Objects.equals(prev, current)) {
           prev = current;
           prevRank++;
@@ -3633,7 +3545,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        final Object current = context.get(inputField);
+        final Object current = Evals.evalValue(inputExpr, context);
         if (current == null) {
           return ExprEval.of(null, ValueDesc.MAP);
         }
@@ -3765,7 +3677,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object invoke(WindowContext context, String fieldName)
+    protected Object invoke(WindowContext context, Expr inputExpr)
     {
       return (long) context.size();
     }
@@ -3783,7 +3695,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           if (args.isEmpty()) {
-            throw new IAE(name() + " should have at least output field name");
+            throw new IAE("%s should have at least output field name", name);
           }
           Object[] result = new Object[]{null, 0, 1};
           result[0] = Evals.evalString(args.get(0), bindings);
@@ -3808,7 +3720,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           if (args.size() != 1) {
-            throw new IAE(name() + " should have one argument (output field name)");
+            throw new IAE("%s should have at least output field name", name);
           }
           return ExprEval.of(new Object[]{Evals.evalString(args.get(0), bindings), 0, 1}, ValueDesc.STRUCT);
         }

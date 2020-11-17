@@ -285,7 +285,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory
            (fieldNames == null ? "" : ", fieldNames=" + fieldNames) +
            (fields == null ? "" : ", fields=" + fields) +
            (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
-           (predicate == null ? "" : ", predicate=" + predicate) +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", byRow=" + byRow +
            ", round=" + round +
            ", b=" + b +

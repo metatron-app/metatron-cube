@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Preconditions;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Expr.NumericBinding;
 
 import java.lang.annotation.ElementType;
@@ -73,6 +74,16 @@ public interface Function
 
   abstract class NamedEntity
   {
+    private static final String EXACT_ONE_PARAM = "function '%s' needs 1 argument";
+    private static final String EXACT_TWO_PARAM = "function '%s' needs 2 arguments";
+    private static final String EXACT_THREE_PARAM = "function '%s' needs 3 arguments";
+    private static final String ONE_OR_TWO_PARAM = "function '%s' needs 1 or 2 arguments";
+    private static final String TWO_OR_THREE_PARAM = "function '%s' needs 2 or 3 arguments";
+    private static final String AT_LEAST_ONE_PARAM = "function '%s' needs at least 1 argument";
+    private static final String AT_LEAST_TWO_PARAM = "function '%s' needs at least 2 arguments";
+    private static final String AT_LEAST_THREE_PARAM = "function '%s' needs at least 3 arguments";
+    private static final String AT_LEAST_FOUR_PARAM = "function '%s' needs at least 4 arguments";
+
     protected final String name;
 
     protected NamedEntity()
@@ -88,6 +99,69 @@ public interface Function
     public final String name()
     {
       return name;
+    }
+
+    public void exactOne(List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE(EXACT_ONE_PARAM, name);
+      }
+    }
+
+    public void exactTwo(List<Expr> args)
+    {
+      if (args.size() != 2) {
+        throw new IAE(EXACT_TWO_PARAM, name);
+      }
+    }
+
+    public void exactThree(List<Expr> args)
+    {
+      if (args.size() != 3) {
+        throw new IAE(EXACT_THREE_PARAM, name);
+      }
+    }
+
+    public void oneOrTwo(List<Expr> args)
+    {
+      if (args.size() != 1 && args.size() != 2) {
+        throw new IAE(ONE_OR_TWO_PARAM, name);
+      }
+    }
+
+    public void twoOrThree(List<Expr> args)
+    {
+      if (args.size() != 2 && args.size() != 3) {
+        throw new IAE(TWO_OR_THREE_PARAM, name);
+      }
+    }
+
+    public void atLeastOne(List<Expr> args)
+    {
+      if (args.isEmpty()) {
+        throw new IAE(AT_LEAST_ONE_PARAM, name);
+      }
+    }
+
+    public void atLeastTwo(List<Expr> args)
+    {
+      if (args.size() < 2) {
+        throw new IAE(AT_LEAST_TWO_PARAM, name);
+      }
+    }
+
+    public void atLeastThree(List<Expr> args)
+    {
+      if (args.size() < 3) {
+        throw new IAE(AT_LEAST_THREE_PARAM, name);
+      }
+    }
+
+    public void atLeastFour(List<Expr> args)
+    {
+      if (args.size() < 4) {
+        throw new IAE(AT_LEAST_FOUR_PARAM, name);
+      }
     }
   }
 

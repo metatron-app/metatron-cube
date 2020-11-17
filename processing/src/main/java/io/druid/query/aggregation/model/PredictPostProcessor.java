@@ -123,15 +123,12 @@ public abstract class PredictPostProcessor extends PostProcessingOperator.Abstra
     );
     if (timeExpression != null) {
       final Expr expr = Parser.parse(timeExpression);
-      final DSuppliers.HandOver<Row> rowSupplier = new DSuppliers.HandOver<>();
-      final Expr.NumericBinding binding = Parser.withRowSupplier(rowSupplier);
       timeFunction = new Function<Row, DateTime>()
       {
         @Override
         public DateTime apply(Row input)
         {
-          rowSupplier.set(input);
-          return expr.eval(binding).asDateTime();
+          return expr.eval(input).asDateTime();
         }
       };
     } else if (timeFormat != null) {

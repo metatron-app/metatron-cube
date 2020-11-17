@@ -226,7 +226,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     return "ApproximateHistogramFoldingAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
-           ", predicate='" + predicate + '\'' +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", resolution=" + resolution +
            ", numBuckets=" + numBuckets +
            ", lowerLimit=" + lowerLimit +

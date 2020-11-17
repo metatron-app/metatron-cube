@@ -73,7 +73,7 @@ public class ModuleBuiltinFunctions implements Function.Library
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
     {
       if (exprs.size() != 2) {
-        throw new IllegalArgumentException("function '" + name() + "' needs two generic arguments");
+        throw new IAE("function 'lookupMap' needs two generic arguments");
       }
       Map<String, Object> parameter = super.parameterize(exprs, namedParam);
 
@@ -131,7 +131,7 @@ public class ModuleBuiltinFunctions implements Function.Library
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
     {
       if (exprs.size() != 2 && exprs.size() != 3) {
-        throw new IllegalArgumentException("function '" + name() + "' needs two or three generic arguments");
+        throw new IAE("function 'lookup' needs two or three generic arguments");
       }
       Map<String, Object> parameter = super.parameterize(exprs, namedParam);
 
@@ -185,7 +185,7 @@ public class ModuleBuiltinFunctions implements Function.Library
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 4) {
-        throw new RuntimeException("function 'haversin_meter' needs 4 arguments (lat1,lon1,lat2,lon2)");
+        throw new IAE("function 'haversin_meter' needs 4 arguments (lat1,lon1,lat2,lon2)");
       }
       return new DoubleChild()
       {
@@ -208,9 +208,7 @@ public class ModuleBuiltinFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function '%s' needs 1 argument", name());
-      }
+      exactOne(args);
       return new LongChild()
       {
         @Override
@@ -230,9 +228,7 @@ public class ModuleBuiltinFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function '%s' needs 1 argument", name());
-      }
+      exactOne(args);
       return new LongChild()
       {
         @Override

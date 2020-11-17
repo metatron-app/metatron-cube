@@ -830,4 +830,39 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
     };
     TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
   }
+
+  @Test
+  public void test3513()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .dimensions(DefaultDimensionSpec.toSpec("Category", "Region"))
+        .aggregators(new GenericSumAggregatorFactory("SUM(Discount)", "Discount", ValueDesc.DOUBLE))
+        .limitSpec(LimitSpec.of(
+            new WindowingSpec(
+                Arrays.asList("Category"),
+                OrderByColumnSpec.descending("SUM(Discount)"),
+                "RatioToCentral = round(\"SUM(Discount)\" / $first(case(Region=='Central', \"SUM(Discount)\", -1)), 3)"
+            )
+        ))
+        .build();
+    String[] columnNames = {"__time", "Category", "Region", "SUM(Discount)", "RatioToCentral"};
+    Object[][] objects = new Object[][]{
+        array("2011-01-01", "Furniture", "Central", 143.0400000000001D, 1.0D),
+        array("2011-01-01", "Furniture", "West", 92.89999999999986D, 0.649D),
+        array("2011-01-01", "Furniture", "East", 92.59999999999998D, 0.647D),
+        array("2011-01-01", "Furniture", "South", 40.349999999999994D, 0.282D),
+        array("2011-01-01", "Office Supplies", "Central", 359.40000000000043D, 1.0D),
+        array("2011-01-01", "Office Supplies", "East", 244.70000000000084D, 0.681D),
+        array("2011-01-01", "Office Supplies", "West", 177.1000000000003D, 0.493D),
+        array("2011-01-01", "Office Supplies", "South", 166.60000000000016D, 0.464D),
+        array("2011-01-01", "Technology", "West", 80.19999999999985D, -80.2D),
+        array("2011-01-01", "Technology", "East", 76.69999999999995D, -76.7D),
+        array("2011-01-01", "Technology", "Central", 55.899999999999935D, -55.9D),
+        array("2011-01-01", "Technology", "South", 31.6D, -31.6D)
+    };
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+  }
 }

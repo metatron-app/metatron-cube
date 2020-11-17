@@ -81,9 +81,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new StringChild()
       {
         @Override
@@ -101,9 +99,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() < 2) {
-        throw new IAE("Function[%s] must have at least 2 arguments", name());
-      }
+      atLeastTwo(args);
       return new GeomChild()
       {
         @Override
@@ -129,9 +125,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() < 1 || args.size() > 2) {
-        throw new IAE("Function[%s] must have 1 or 2 arguments", name());
-      }
+      oneOrTwo(args);
       return new GeomChild()
       {
         @Override
@@ -153,9 +147,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() < 1 || args.size() > 2) {
-        throw new IAE("Function[%s] must have 1 or 2 arguments", name());
-      }
+      oneOrTwo(args);
       return new GeomChild()
       {
         @Override
@@ -298,9 +290,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have at 1 arguments", name());
-      }
+      exactOne(args);
       return new DoubleChild()
       {
         @Override
@@ -322,9 +312,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have at 1 arguments", name());
-      }
+      exactOne(args);
       return new DoubleChild()
       {
         @Override
@@ -346,9 +334,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 arguments", name());
-      }
+      exactOne(args);
       return new GeomChild()
       {
         @Override
@@ -392,9 +378,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 arguments", name());
-      }
+      exactOne(args);
       return new LongChild()
       {
         @Override
@@ -412,9 +396,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      exactTwo(args);
       return new GeomChild()
       {
         @Override
@@ -440,9 +422,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 arguments", name());
-      }
+      exactOne(args);
       return new DoubleChild()
       {
         @Override
@@ -482,9 +462,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have at 2 arguments", name());
-      }
+      exactTwo(args);
       return new BooleanChild()
       {
         final OperatorSimpleRelation relation = getRelationOperator();
@@ -596,10 +574,7 @@ public interface EsriFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver context)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
-
+      exactTwo(args);
       return new DoubleChild()
       {
         @Override

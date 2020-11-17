@@ -26,7 +26,6 @@ import com.uber.h3core.H3Core;
 import com.uber.h3core.util.GeoCoord;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -61,9 +60,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("Function[%s] must have 3 arguments", name());
-      }
+      exactThree(args);
       final H3Core instance = H3.get();
       return new LongChild()
       {
@@ -85,9 +82,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      exactTwo(args);
       final H3Core instance = H3.get();
       return new LongChild()
       {
@@ -112,9 +107,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("Function[%s] must have 3 arguments", name());
-      }
+      exactThree(args);
       final H3Core instance = H3.get();
       return new StringChild()
       {
@@ -136,9 +129,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final H3Core instance = H3.get();
       return new LatLonChild()
       {
@@ -167,9 +158,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final H3Core instance = H3.get();
       return new GeomPointChild()
       {
@@ -198,9 +187,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final H3Core instance = H3.get();
       return new StringChild()
       {
@@ -229,9 +216,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final H3Core instance = H3.get();
       return new DoubleArrayChild()
       {
@@ -263,9 +248,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final H3Core instance = H3.get();
       return new GeomChild()
       {
@@ -300,9 +283,7 @@ public class H3Functions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final H3Core instance = H3.get();
       return new StringChild()
       {

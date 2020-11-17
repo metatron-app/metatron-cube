@@ -62,9 +62,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("Function[%s] must have 1 or 2 arguments", name());
-      }
+      oneOrTwo(args);
       return new GeomChild()
       {
         @Override
@@ -161,9 +159,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IAE("Function[%s] must have 1 or 2 arguments", name());
-      }
+      oneOrTwo(args);
       final int srid = args.size() > 1 ? Evals.getConstantInt(args.get(1)) : 0;
       return new GeomChild()
       {
@@ -215,9 +211,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new StringChild()
       {
         private final ShapeWriter writer = newWriter();
@@ -269,9 +263,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      atLeastOne(args);
       final int srid = args.size() > 1 ? Evals.getConstantInt(args.get(1)) : GeomUtils.getSRID(args.get(0).returns());
       return new GeomChild()
       {
@@ -305,9 +297,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      exactTwo(args);
       return new GeomChild()
       {
         @Override
@@ -329,9 +319,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      exactTwo(args);
       final int srid = Evals.getConstantInt(args.get(1));
       return new GeomChild()
       {
@@ -410,9 +398,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new DoubleChild()
       {
         @Override
@@ -431,9 +417,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new DoubleChild()
       {
         @Override
@@ -452,9 +436,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      exactTwo(args);
       return new DoubleChild()
       {
         @Override
@@ -477,9 +459,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new DoubleArrayChild()
       {
         @Override
@@ -517,9 +497,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       return new DoubleArrayChild()
       {
         @Override
@@ -610,9 +588,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
-        throw new IAE("Function[%s] must have at least 2 arguments", name());
-      }
+      atLeastTwo(args);
       return new GeomChild()
       {
         @Override
@@ -645,9 +621,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have at 2 arguments", name());
-      }
+      exactTwo(args);
       return new BooleanChild()
       {
         @Override
@@ -835,9 +809,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have 2 arguments", name());
-      }
+      exactTwo(args);
       return new DoubleChild()
       {
         @Override
@@ -860,9 +832,7 @@ public class GeomFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("Function[%s] must have at 3 arguments", name());
-      }
+      exactThree(args);
       return new BooleanChild()
       {
         @Override

@@ -19,7 +19,6 @@
 
 package io.druid.math.expr;
 
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr.NumericBinding;
@@ -41,9 +40,7 @@ public interface ExcelFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 4) {
-        throw new IAE("function 'fv' needs at least 4 arguments");
-      }
+      atLeastFour(args);
       return new DoubleChild()
       {
         @Override
@@ -70,9 +67,7 @@ public interface ExcelFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 4) {
-        throw new IAE("function 'pv' needs at least 4 arguments");
-      }
+      atLeastFour(args);
       return new DoubleChild()
       {
         @Override
@@ -99,9 +94,7 @@ public interface ExcelFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 4) {
-        throw new IAE("function 'nper' needs at least 4 arguments");
-      }
+      atLeastFour(args);
       return new DoubleChild()
       {
         @Override
@@ -128,9 +121,7 @@ public interface ExcelFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 3) {
-        throw new IAE("function 'nper' needs at least 3 arguments");
-      }
+      atLeastThree(args);
       return new DoubleChild()
       {
         @Override
@@ -157,9 +148,7 @@ public interface ExcelFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 4) {
-        throw new IAE("function 'ipmt' needs at least 4 arguments");
-      }
+      atLeastFour(args);
       return new DoubleChild()
       {
         @Override
@@ -187,9 +176,7 @@ public interface ExcelFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 4) {
-        throw new IAE("function 'ppmt' needs at least 4 arguments");
-      }
+      atLeastFour(args);
       return new DoubleChild()
       {
         @Override
@@ -240,7 +227,7 @@ public interface ExcelFunctions extends Function.Library
         if (values == null || values.length < context.size()) {
           values = new double[context.size()];
         }
-        values[context.index()] = (Double) context.get(inputField);
+        values[context.index()] = Evals.evalDouble(inputExpr, context);
         if (!context.hasMore()) {
           return ExprEval.of(FinanceLib.npv(discountRate, Arrays.copyOfRange(values, 0, context.size())));
         }
@@ -282,7 +269,7 @@ public interface ExcelFunctions extends Function.Library
         if (values == null || values.length < context.size()) {
           values = new double[context.size()];
         }
-        values[context.index()] = (Double) context.get(inputField);
+        values[context.index()] = Evals.evalDouble(inputExpr, context);
         if (!context.hasMore()) {
           return ExprEval.of(Irr.irr(Arrays.copyOfRange(values, 0, context.size()), guess));
         }
@@ -329,7 +316,7 @@ public interface ExcelFunctions extends Function.Library
         if (values == null || values.length < context.size()) {
           values = new double[context.size()];
         }
-        values[context.index()] = (Double) context.get(inputField);
+        values[context.index()] = Evals.evalDouble(inputExpr, context);
         if (!context.hasMore()) {
           return ExprEval.of(mirr(Arrays.copyOfRange(values, 0, context.size()), financeRate, reinvestRate));
         }

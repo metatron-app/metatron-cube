@@ -54,9 +54,7 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
-        throw new IAE("Function[%s] must have at least 2 arguments", name());
-      }
+      atLeastTwo(args);
       final String fromCRS = Evals.getConstantString(args.get(0));
 
       final CoordinateReferenceSystem sourceCRS;
@@ -174,13 +172,12 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      final int fromCRS;
+      twoOrThree(args);
+      int fromCRS = 0;
       if (args.size() == 2) {
         fromCRS = GeomUtils.getSRID(args.get(0).returns());
       } else if (args.size() == 3) {
         fromCRS = Evals.getConstantInt(args.get(1));
-      } else {
-        throw new IAE("Function[%s] must have 2 or 3 arguments", name());
       }
       if (fromCRS <= 0) {
         throw new IAE("Function[%s] cannot resolve srid from geometry", name());
@@ -216,9 +213,7 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("Function[%s] must have at 2 arguments", name());
-      }
+      exactTwo(args);
       final double fit = Evals.getConstantNumber(args.get(1)).doubleValue();
       return new GeomChild()
       {
@@ -243,9 +238,7 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final Geodesic fixed = GeoToolsUtils.getGeodesic(GeomUtils.getSRID(args.get(0).returns()));
       return new DoubleChild()
       {
@@ -286,9 +279,7 @@ public class GeoToolsFunctions implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function[%s] must have 1 argument", name());
-      }
+      exactOne(args);
       final Geodesic fixed = GeoToolsUtils.getGeodesic(GeomUtils.getSRID(args.get(0).returns()));
       return new DoubleChild()
       {

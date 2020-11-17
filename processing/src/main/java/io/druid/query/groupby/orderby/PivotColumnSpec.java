@@ -29,13 +29,13 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
-import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.ordering.Direction;
@@ -213,16 +213,13 @@ public class PivotColumnSpec extends OrderingSpec
       };
     } else {
       final Expr expr = Parser.parse(expression, resolver);
-      final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<>();
-      final Expr.NumericBinding binding = Parser.withRowSupplier(supplier);
       return new Function<Row, String>()
       {
         @Override
         public String apply(Row input)
         {
-          supplier.set(input);
           try {
-            return StringUtils.toString(expr.eval(binding).asString(), nullValue);
+            return StringUtils.toString(Evals.evalString(expr, input), nullValue);
           }
           catch (Exception e) {
             LOG.info("Failed on expression %s", expression);

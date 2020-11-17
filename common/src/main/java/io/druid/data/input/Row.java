@@ -21,6 +21,7 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.math.expr.Expr;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
@@ -34,7 +35,7 @@ import java.util.List;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "v1", value = MapBasedRow.class)
 })
-public interface Row extends Comparable<Row>
+public interface Row extends Comparable<Row>, Expr.NumericBinding
 {
   String TIME_COLUMN_NAME = "__time";
 
@@ -113,6 +114,18 @@ public interface Row extends Comparable<Row>
   long getLongMetric(String metric);
 
   Collection<String> getColumns();
+
+  @Override
+  default Collection<String> names()
+  {
+    return getColumns();
+  }
+
+  @Override
+  default Object get(String name)
+  {
+    return Row.TIME_COLUMN_NAME.equals(name) ? getTimestampFromEpoch() : getRaw(name);
+  }
 
   interface Updatable extends Row
   {

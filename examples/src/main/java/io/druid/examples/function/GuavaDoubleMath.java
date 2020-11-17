@@ -20,7 +20,6 @@
 package io.druid.examples.function;
 
 import com.google.common.math.DoubleMath;
-import io.druid.java.util.common.IAE;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -39,9 +38,7 @@ public class GuavaDoubleMath implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("Function 'factorial' needs 1 argument");
-      }
+      exactOne(args);
       return new DoubleChild()
       {
         @Override
@@ -59,9 +56,7 @@ public class GuavaDoubleMath implements Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("Function 'fuzzyCompare' needs 3 arguments");
-      }
+      exactThree(args);
       return new DoubleChild()
       {
         @Override

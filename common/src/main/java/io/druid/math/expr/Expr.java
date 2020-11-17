@@ -59,9 +59,9 @@ public interface Expr extends Expression
   interface WindowContext extends NumericBinding, TypeResolver
   {
     List<String> partitionColumns();
-    Object get(int index, String name);
-    Iterable<Object> iterator(String name);
-    Iterable<Object> iterator(int startRel, int endRel, String name);
+    Object get(int index, Expr expr);
+    Iterable<Object> iterator(Expr expr);
+    Iterable<Object> iterator(int startRel, int endRel, Expr expr);
     int size();
     int index();
     boolean hasMore();

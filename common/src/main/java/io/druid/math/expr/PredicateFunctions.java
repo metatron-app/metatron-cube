@@ -47,9 +47,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 1) {
-        throw new IAE("function '%s' needs 1 argument", name());
-      }
+      exactOne(args);
       return new BooleanChild()
       {
         @Override
@@ -142,9 +140,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function '%s' needs 2 arguments", name());
-      }
+      exactTwo(args);
       final Pair<RegexUtils.PatternType, Object> matcher = RegexUtils.parse(Evals.getConstantString(args.get(1)));
       return new BooleanChild()
       {
@@ -164,12 +160,9 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      final int size = args.size();
-      if (size < 2) {
-        throw new IAE("function 'in' needs at least 2 arguments");
-      }
+      atLeastTwo(args);
       final Set<Object> set = Sets.newHashSet();
-      for (int i = 1; i < size; i++) {
+      for (int i = 1; i < args.size(); i++) {
         set.add(Evals.getConstant(args.get(i)));
       }
       if (Evals.isConstant(args.get(0))) {
@@ -202,10 +195,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      final int size = args.size();
-      if (size < 2) {
-        throw new IAE("function 'in' needs at least 2 arguments");
-      }
+      atLeastTwo(args);
       final Expr last = GuavaUtils.lastOf(args);
       final ValueDesc valueDesc = last.returns();
       if (!valueDesc.isArray()) {
@@ -213,7 +203,7 @@ public interface PredicateFunctions extends Function.Library
       }
       final ValueDesc elementType = ValueDesc.subElementOf(valueDesc, ValueDesc.UNKNOWN);
       final List<Object> targets = Lists.newArrayList();
-      for (int i = 0; i < size - 1; i++) {
+      for (int i = 0; i < args.size() - 1; i++) {
         targets.add(elementType.cast(Evals.getConstant(args.get(i))));
       }
       return new BooleanChild()
@@ -266,9 +256,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 3) {
-        throw new IAE("function 'between' needs 3 arguments");
-      }
+      exactThree(args);
       ExprEval eval1 = Evals.getConstantEval(args.get(1));
       ExprEval eval2 = Evals.castTo(Evals.getConstantEval(args.get(2)), eval1.type());
       final Range<Comparable> range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
@@ -291,9 +279,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'startsWith' needs 2 arguments");
-      }
+      exactTwo(args);
       final String prefix = Evals.getConstantString(args.get(1));
       return new BooleanChild()
       {
@@ -313,9 +299,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'endsWith' needs 2 arguments");
-      }
+      exactTwo(args);
       final String suffix = Evals.getConstantString(args.get(1));
       return new BooleanChild()
       {
@@ -335,9 +319,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'startsWithIgnoreCase' needs 2 arguments");
-      }
+      exactTwo(args);
       String value = Evals.getConstantString(args.get(1));
       final String prefix = value == null ? null : value.toLowerCase();
       return new BooleanChild()
@@ -358,9 +340,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'endsWithIgnoreCase' needs 2 arguments");
-      }
+      exactTwo(args);
       String value = Evals.getConstantString(args.get(1));
       final String suffix = value == null ? null : value.toLowerCase();
       return new BooleanChild()
@@ -381,9 +361,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'contains' needs 2 arguments");
-      }
+      exactTwo(args);
       final String contained = Evals.getConstantString(args.get(1));
       return new BooleanChild()
       {
@@ -403,9 +381,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() != 2) {
-        throw new IAE("function 'match' needs 2 arguments");
-      }
+      exactTwo(args);
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
       return new BooleanChild()
       {
@@ -425,9 +401,7 @@ public interface PredicateFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() < 2) {
-        throw new IAE("function 'ipv4_in' needs at least 2 arguments");
-      }
+      atLeastTwo(args);
       final byte[] start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
       final byte[] end;
       Preconditions.checkArgument(start.length == 4);

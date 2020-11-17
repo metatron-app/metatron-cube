@@ -69,7 +69,7 @@ public class JavaScriptFilter implements Filter
   {
     return "JavaScriptFilter{" +
            "dimension='" + dimension + '\'' +
-           ", predicate=" + predicate +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            '}';
   }
 }

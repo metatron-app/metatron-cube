@@ -228,7 +228,7 @@ public class CountMinAggregatorFactory extends HashAggregatorFactory
            ", fieldNames='" + fieldNames + '\'' +
            ", fields=" + fields +
            ", groupingSets=" + groupingSets +
-           ", predicate='" + predicate + '\'' +
+           (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", byRow=" + byRow +
            ", width=" + width +
            ", depth=" + depth +

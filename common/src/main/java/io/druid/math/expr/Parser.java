@@ -481,27 +481,6 @@ public class Parser
     };
   }
 
-  public static Expr.NumericBinding withRowSupplier(final Supplier<Row> rowSupplier)
-  {
-    return new Expr.NumericBinding()
-    {
-      @Override
-      public Collection<String> names()
-      {
-        return rowSupplier.get().getColumns();
-      }
-
-      @Override
-      public Object get(String name)
-      {
-        if (Row.TIME_COLUMN_NAME.equals(name)) {
-          return rowSupplier.get().getTimestampFromEpoch();
-        }
-        return rowSupplier.get().getRaw(name);
-      }
-    };
-  }
-
   public static Expr.NumericBinding withTimeAndMap(final DateTime timestamp, final Map<String, ?> bindings)
   {
     Preconditions.checkArgument(!bindings.containsKey(Row.TIME_COLUMN_NAME));
