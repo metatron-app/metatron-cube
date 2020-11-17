@@ -25,6 +25,7 @@ import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.Tools;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.ByteArrayOutputStream;
@@ -154,15 +155,21 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public void scan(Scanner scanner)
+  public ByteBuffer getAsBuffer(int index)
   {
-    bufferIndexed.scan(scanner);
+    return bufferIndexed.getAsBuffer(index);
   }
 
   @Override
-  public int copyTo(int index, BytesOutputStream output)
+  public <R> R apply(int index, Tools.Function<R> function)
   {
-    return bufferIndexed.copyTo(index, output);
+    return bufferIndexed.apply(index, function);
+  }
+
+  @Override
+  public void scan(Tools.Scanner scanner)
+  {
+    bufferIndexed.scan(scanner);
   }
 
   /**
@@ -214,7 +221,8 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     size = theBuffer.getInt();
     indexOffset = theBuffer.position();
     valuesOffset = theBuffer.position() + (size << 2);
-    bufferIndexed = new BufferIndexed() {
+    bufferIndexed = new BufferIndexed()
+    {
       @Override
       protected ByteBuffer bufferForRead()
       {
@@ -288,7 +296,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
     protected abstract ByteBuffer bufferForRead();
 
-    private void scan(Scanner scanner)
+    private void scan(Tools.Scanner scanner)
     {
       final ByteBuffer buffer = bufferForRead();
       int start = Integer.BYTES;
@@ -335,6 +343,42 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       byte[] array = new byte[endOffset - startOffset];
       copyBuffer.get(array);
       return array;
+    }
+
+    public final ByteBuffer getAsBuffer(final int index)
+    {
+      final ByteBuffer copyBuffer = bufferForRead();
+      final int startOffset;
+      final int endOffset;
+
+      if (index == 0) {
+        startOffset = 4;
+        endOffset = copyBuffer.getInt(indexOffset);
+      } else {
+        copyBuffer.position(indexOffset + ((index - 1) * 4));
+        startOffset = copyBuffer.getInt() + 4;
+        endOffset = copyBuffer.getInt();
+      }
+      copyBuffer.limit(valuesOffset + endOffset);
+      copyBuffer.position(valuesOffset + startOffset);
+      return copyBuffer.slice();
+    }
+
+    public final <R> R apply(final int index, final Tools.Function<R> function)
+    {
+      final ByteBuffer copyBuffer = bufferForRead();
+      final int startOffset;
+      final int endOffset;
+
+      if (index == 0) {
+        startOffset = 4;
+        endOffset = copyBuffer.getInt(indexOffset);
+      } else {
+        copyBuffer.position(indexOffset + ((index - 1) * 4));
+        startOffset = copyBuffer.getInt() + 4;
+        endOffset = copyBuffer.getInt();
+      }
+      return function.apply(copyBuffer, valuesOffset + startOffset, endOffset - startOffset);
     }
 
     public final int copyTo(final int index, final BytesOutputStream output)

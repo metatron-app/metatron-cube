@@ -33,7 +33,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.data.input.BytesOutputStream;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.CloseQuietly;
@@ -66,6 +65,7 @@ import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.function.IntFunction;
 
@@ -533,12 +533,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int copyTo(int id, BytesOutputStream output)
-                            {
-                              return dictionary.copyTo(id, output);
-                            }
-
-                            @Override
                             public int lookupId(Comparable name)
                             {
                               return column.lookupId((String) name);
@@ -562,14 +556,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           }
                         };
                         if (extractionFn != null) {
-                          return new DimensionSelector.Scannable()
+                          return new DimensionSelector()
                           {
-                            @Override
-                            public void scan(IntIterator iterator, IntScanner scanner)
-                            {
-                              column.scan(iterator, scanner);
-                            }
-
                             @Override
                             public IndexedInts getRow()
                             {
@@ -610,7 +598,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           };
                         } else {
                           final Dictionary<String> dictionary = column.dictionary();
-                          return new DimensionSelector.ScannableWithRawAccess()
+                          return new DimensionSelector.Scannable()
                           {
                             @Override
                             public void scan(IntIterator iterator, IntScanner scanner)
@@ -649,9 +637,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int copyTo(int id, BytesOutputStream output)
+                            public <R> R apply(Tools.Function<R> function)
                             {
-                              return dictionary.copyTo(id, output);
+                              return dictionary.apply(row.get(0), function);
                             }
 
                             @Override
@@ -872,6 +860,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public byte[] getRaw()
                             {
                               return dictionary.getAsRaw(columnVals.getSingleValueRow(cursorOffset.getOffset()));
+                            }
+
+                            @Override
+                            public ByteBuffer getAsBuffer()
+                            {
+                              return dictionary.getAsBuffer(columnVals.getSingleValueRow(cursorOffset.getOffset()));
                             }
                           };
                         }

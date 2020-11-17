@@ -39,7 +39,7 @@ public class CountMinAggregator extends HashAggregator<CountMinSketch>
       int depth
   )
   {
-    super(predicate, selectorList, groupings, byRow);
+    super(predicate, selectorList, groupings, byRow, false);
     this.width = width;
     this.depth = depth;
   }

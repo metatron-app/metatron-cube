@@ -176,7 +176,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
         if (groupingSets != null) {
           grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
         }
-        final HashAggregator<BloomTest> aggregator = new HashAggregator<BloomTest>(selectors, grouping);
+        final HashAggregator<BloomTest> aggregator = new HashAggregator<BloomTest>(selectors, grouping, false);
         return new ValueMatcher()
         {
           final BloomTest tester = new BloomTest(BloomKFilter.deserialize(bloomFilter));

@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,30 +17,19 @@
  * under the License.
  */
 
-package io.druid.segment.data;
-
-import io.druid.segment.Tools;
+package io.druid.segment;
 
 import java.nio.ByteBuffer;
 
-// common interface of non-compressed(GenericIndexed) and compressed dictionary
-public interface Dictionary<T> extends Indexed.Closeable<T>
+public interface Tools
 {
-  boolean isSorted();
+  public interface Scanner
+  {
+    void scan(int number, ByteBuffer buffer, int offset, int length);
+  }
 
-  Boolean containsNull();     // null for unknown
-
-  byte[] getAsRaw(int index);
-
-  ByteBuffer getAsBuffer(int index);
-
-  <R> R apply(int index, Tools.Function<R> function);
-
-  int sizeOfWords();
-
-  long getSerializedSize();
-
-  void scan(Tools.Scanner scanner);
-
-  void close();
+  public interface Function<T>
+  {
+    T apply(ByteBuffer buffer, int offset, int length);
+  }
 }

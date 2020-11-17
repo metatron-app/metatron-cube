@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 public class HashIterator
 {
@@ -54,33 +55,34 @@ public class HashIterator
   protected final List<DimensionSelector> selectorList;
   protected final int[][] groupings;
   protected final boolean byRow;
+  protected final boolean needValue;
+
+  protected final Consumer<HashCollector> consumer;
 
   public HashIterator(
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow
+      boolean byRow,
+      boolean needValue
   )
   {
     this.predicate = predicate == null ? ValueMatcher.TRUE : predicate;
     this.selectorList = selectorList;
     this.groupings = groupings;
     this.byRow = byRow;
+    this.needValue = needValue;
+    this.consumer = toConsumer();
   }
 
-  public HashIterator(List<DimensionSelector> selectorList, int[][] groupings)
-  {
-    this(null, selectorList, groupings, true);
-  }
-
-  protected void collect(final HashCollector collector)
+  private Consumer<HashCollector> toConsumer()
   {
     if (selectorList.isEmpty()) {
-      collector.collect(new Object[0], NULL_REF);
+      return collector -> collector.collect(new Object[0], NULL_REF);
     } else if (byRow) {
-      hashRow(collector, BUFFERS.get());
+      return collector -> hashRow(collector, BUFFERS.get());
     } else {
-      hashValues(collector);
+      return collector -> hashValues(collector);
     }
   }
 

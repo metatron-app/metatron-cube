@@ -31,22 +31,23 @@ public abstract class HashBufferAggregator<T extends HashCollector> extends Hash
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow
+      boolean byRow,
+      boolean needValue
   )
   {
-    super(predicate, selectorList, groupings, byRow);
+    super(predicate, selectorList, groupings, byRow, needValue);
   }
 
-  public HashBufferAggregator(List<DimensionSelector> selectorList, int[][] groupings)
+  public HashBufferAggregator(List<DimensionSelector> selectorList, int[][] groupings, boolean needValue)
   {
-    this(null, selectorList, groupings, true);
+    this(null, selectorList, groupings, true, needValue);
   }
 
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
     if (predicate.matches()) {
-      collect(toCollector(buf, position));
+      consumer.accept(toCollector(buf, position));
     }
   }
 

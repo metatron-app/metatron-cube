@@ -38,13 +38,13 @@ public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
       int b
   )
   {
-    super(predicate, selectorList, groupings, byRow);
+    super(predicate, selectorList, groupings, byRow, false);
     this.b = b;
   }
 
   public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    super(ValueMatcher.TRUE, selectorList, null, byRow);
+    super(ValueMatcher.TRUE, selectorList, null, byRow, false);
     this.b = CardinalityAggregatorFactory.DEFAULT_B_PARAM;
   }
 

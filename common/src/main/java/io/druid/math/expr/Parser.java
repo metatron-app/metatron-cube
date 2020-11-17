@@ -32,7 +32,6 @@ import io.druid.common.guava.DSuppliers.TypedSupplier;
 import io.druid.common.guava.DSuppliers.WithRawAccess;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
-import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
@@ -303,17 +302,17 @@ public class Parser
   {
     switch (op) {
       case "<":
-        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) < 0);
+        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) < 0);
       case "<=":
-        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) <= 0);
+        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) <= 0);
       case ">":
-        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) > 0);
+        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) > 0);
       case ">=":
-        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) >= 0);
+        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) >= 0);
       case "==":
-        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) == 0);
+        return x -> ExprEval.of(left.getAsBuffer().equals(right.getAsBuffer()));
       case "!=":
-        return x -> ExprEval.of(UTF8Bytes.COMPARATOR_NF.compare(left.getRaw(), right.getRaw()) != 0);
+        return x -> ExprEval.of(!left.getAsBuffer().equals(right.getAsBuffer()));
     }
     return null;
   }

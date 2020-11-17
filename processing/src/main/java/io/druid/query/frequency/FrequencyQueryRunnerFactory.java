@@ -149,7 +149,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
           selectors.add(cursor.makeDimensionSelector(dimension));
         }
         final int[][] groupings = query.getGroupings();
-        final HashAggregator<HashCollector> aggregator = new HashAggregator<HashCollector>(selectors, groupings);
+        final HashAggregator<HashCollector> aggregator = new HashAggregator<HashCollector>(selectors, groupings, true);
         while (!cursor.isDone()) {
           aggregator.aggregate(collector);
           cursor.advance();

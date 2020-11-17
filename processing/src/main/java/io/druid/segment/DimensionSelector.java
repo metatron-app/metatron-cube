@@ -20,7 +20,6 @@
 package io.druid.segment;
 
 import io.druid.data.ValueDesc;
-import io.druid.data.input.BytesOutputStream;
 import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.IndexedInts;
 import org.roaringbitmap.IntIterator;
@@ -99,23 +98,17 @@ public interface DimensionSelector
   {
   }
 
-  interface Scannable extends SingleValued
-  {
-    void scan(IntIterator iterator, IntScanner scanner);
-  }
-
+  // aka. dictionary without extract function
   interface WithRawAccess extends DimensionSelector
   {
     byte[] lookupRaw(int id);
-
-    int copyTo(int id, BytesOutputStream output);
   }
 
-  interface ScannableWithRawAccess extends Scannable, WithRawAccess
+  // aka. dictionary with single value without extract function
+  interface Scannable extends SingleValued, WithRawAccess
   {
-  }
+    void scan(IntIterator iterator, IntScanner scanner);
 
-  interface SortedDictionary
-  {
+    <T> T apply(Tools.Function<T> function);
   }
 }

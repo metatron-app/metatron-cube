@@ -31,22 +31,23 @@ public class HashAggregator<T extends HashCollector> extends HashIterator implem
       ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       int[][] groupings,
-      boolean byRow
+      boolean byRow,
+      boolean needValue
   )
   {
-    super(predicate, selectorList, groupings, byRow);
+    super(predicate, selectorList, groupings, byRow, needValue);
   }
 
-  public HashAggregator(List<DimensionSelector> selectorList, int[][] groupings)
+  public HashAggregator(List<DimensionSelector> selectorList, int[][] groupings, boolean needValue)
   {
-    this(null, selectorList, groupings, true);
+    this(null, selectorList, groupings, true, needValue);
   }
 
   @Override
   public T aggregate(T current)
   {
     if (predicate.matches()) {
-      collect(current == null ? current = newCollector() : current);
+      consumer.accept(current == null ? current = newCollector() : current);
     }
     return current;
   }
