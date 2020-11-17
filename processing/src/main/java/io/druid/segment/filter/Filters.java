@@ -786,9 +786,6 @@ public class Filters
             return holder;
           }
         }
-        if (generic.getType().isPrimitiveNumeric()) {
-          BitmapHolder holder = leafToRanges(columnName, funcExpr, context, index, withNot);
-        }
       }
       if (capabilities.hasBitmapIndexes() || capabilities.getType() == ValueType.BOOLEAN) {
         // traverse all possible values
