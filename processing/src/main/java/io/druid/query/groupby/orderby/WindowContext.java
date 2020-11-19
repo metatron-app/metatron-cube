@@ -224,9 +224,9 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
   }
 
   @Override
-  public Object get(final int index, final Expr expr)
+  public ExprEval evaluate(final int index, final Expr expr)
   {
-    return index >= 0 && index < length ? expr.eval(partition.get(index)).value() : null;
+    return index >= 0 && index < length ? expr.eval(partition.get(index)) : ExprEval.of(null, expr.returns());
   }
 
   @Override

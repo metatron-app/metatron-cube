@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -2608,28 +2609,28 @@ public interface BuiltinFunctions extends Function.Library
     {
       protected final WindowContext context;
 
-      protected final Expr inputExpr;
-      protected final ValueDesc inputType;
-      protected final Object[] parameters;
+      protected final Expr fieldExpr;
+      protected final ValueDesc fieldType;
+      protected final List<Expr> parameters;
 
       protected WindowFunction(List<Expr> args, WindowContext context)
       {
         this.context = context;
         if (!args.isEmpty()) {
-          inputExpr = args.get(0);
-          inputType = inputExpr.returns();
-          parameters = Evals.getConstants(args.subList(1, args.size()));
+          fieldExpr = args.get(0);
+          fieldType = fieldExpr.returns();
+          parameters = args.subList(1, args.size());
         } else {
-          inputExpr = Evals.identifierExpr("$$$", ValueDesc.UNKNOWN);
-          inputType = ValueDesc.UNKNOWN;
-          parameters = new Object[0];
+          fieldExpr = Evals.identifierExpr("$$$", ValueDesc.UNKNOWN);
+          fieldType = ValueDesc.UNKNOWN;
+          parameters = ImmutableList.of();
         }
       }
 
       @Override
       public ValueDesc returns()
       {
-        return inputType;
+        return fieldType;
       }
 
       protected void init() { }
@@ -2639,6 +2640,11 @@ public interface BuiltinFunctions extends Function.Library
   abstract class StatelessWindowFunctionFactory extends WindowFunctionFactory
   {
     private final ValueDesc outputType;
+
+    public StatelessWindowFunctionFactory()
+    {
+      this(null);
+    }
 
     public StatelessWindowFunctionFactory(ValueDesc outputType)
     {
@@ -2661,25 +2667,17 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(invoke(context, inputExpr), returns());
+        return ExprEval.of(invoke(context, fieldExpr), returns());
       }
 
       @Override
       public ValueDesc returns()
       {
-        return outputType != null ? outputType : inputType;
+        return outputType != null ? outputType : fieldType;
       }
     }
 
-    protected abstract Object invoke(WindowContext context, Expr inputExpr);
-  }
-
-  abstract class SimpleWindowFunctionFactory extends StatelessWindowFunctionFactory
-  {
-    public SimpleWindowFunctionFactory()
-    {
-      super(null);
-    }
+    protected abstract ExprEval invoke(WindowContext context, Expr inputExpr);
   }
 
   abstract class WindowSupport extends WindowFunctionFactory
@@ -2691,13 +2689,15 @@ public interface BuiltinFunctions extends Function.Library
       protected WindowSupportFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
-        if (parameters.length >= 2) {
+        if (parameters.size() >= 2) {
+          final Object param1 = Evals.getConstant(parameters.get(parameters.size() - 2));
+          final Object param2 = Evals.getConstant(parameters.get(parameters.size() - 1));
           window = new int[]{Integer.MIN_VALUE, 0};
-          if (!"?".equals(parameters[parameters.length - 2])) {
-            window[0] = ((Number) parameters[parameters.length - 2]).intValue();
+          if (!"?".equals(param1)) {
+            window[0] = ((Number) param1).intValue();
           }
-          if (!"?".equals(parameters[parameters.length - 1])) {
-            window[1] = ((Number) parameters[parameters.length - 1]).intValue();
+          if (!"?".equals(param2)) {
+            window[1] = ((Number) param2).intValue();
           }
         } else {
           window = null;
@@ -2709,13 +2709,13 @@ public interface BuiltinFunctions extends Function.Library
       {
         if (window != null) {
           init();
-          for (Object object : context.iterator(window[0], window[1], inputExpr)) {
+          for (Object object : context.iterator(window[0], window[1], fieldExpr)) {
             if (object != null) {
               invoke(object, context);
             }
           }
         } else {
-          Object current = Evals.evalValue(inputExpr, context);
+          Object current = Evals.evalValue(fieldExpr, context);
           if (current != null) {
             invoke(current, context);
           }
@@ -2735,42 +2735,91 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("$prev")
-  final class Prev extends SimpleWindowFunctionFactory
+  final class Prev extends StatelessWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, Expr inputExpr)
+    protected ExprEval invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(context.index() - 1, inputExpr);
+      return context.evaluate(context.index() - 1, inputExpr);
     }
   }
 
   @Function.Named("$next")
-  final class Next extends SimpleWindowFunctionFactory
+  final class Next extends StatelessWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, Expr inputExpr)
+    protected ExprEval invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(context.index() + 1, inputExpr);
+      return context.evaluate(context.index() + 1, inputExpr);
     }
   }
 
   @Function.Named("$last")
-  final class Last extends SimpleWindowFunctionFactory
+  final class Last extends StatelessWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, Expr inputExpr)
+    protected ExprEval invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(context.size() - 1, inputExpr);
+      return context.evaluate(context.size() - 1, inputExpr);
+    }
+  }
+
+  @Function.Named("$lastOf")
+  final class LastOf extends WindowFunctionFactory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new WindowFunction(args, context)
+      {
+        private final Expr predicate = parameters.get(0);
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          for (int i = context.size() - 1; i >= 0; i--) {
+            if (context.evaluate(i, predicate).asBoolean()) {
+              return context.evaluate(i, fieldExpr);
+            }
+          }
+          return ExprEval.of(null, fieldType);
+        }
+      };
     }
   }
 
   @Function.Named("$first")
-  final class First extends SimpleWindowFunctionFactory
+  final class First extends StatelessWindowFunctionFactory
   {
     @Override
-    protected Object invoke(WindowContext context, Expr inputExpr)
+    protected ExprEval invoke(WindowContext context, Expr inputExpr)
     {
-      return context.get(0, inputExpr);
+      return context.evaluate(0, inputExpr);
+    }
+  }
+
+  @Function.Named("$firstOf")
+  final class FirstOf extends WindowFunctionFactory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new WindowFunction(args, context)
+      {
+        private final Expr predicate = parameters.get(0);
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          final int size = context.size();
+          for (int i = 0; i < size; i++) {
+            if (context.evaluate(i, predicate).asBoolean()) {
+              return context.evaluate(i, fieldExpr);
+            }
+          }
+          return ExprEval.of(null, fieldType);
+        }
+      };
     }
   }
 
@@ -2791,13 +2840,13 @@ public interface BuiltinFunctions extends Function.Library
       protected NthWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
-        nth = ((Number) parameters[0]).intValue() - 1;
+        nth = Evals.getConstantNumber(parameters.get(0)).intValue() - 1;
       }
 
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(context.get(nth, inputExpr), inputType);
+        return context.evaluate(nth, fieldExpr);
       }
     }
   }
@@ -2819,13 +2868,13 @@ public interface BuiltinFunctions extends Function.Library
       protected LagWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
-        delta = ((Number) parameters[0]).intValue();
+        delta = Evals.getConstantNumber(parameters.get(0)).intValue();
       }
 
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(context.get(context.index() - delta, inputExpr), inputType);
+        return context.evaluate(context.index() - delta, fieldExpr);
       }
     }
   }
@@ -2847,13 +2896,13 @@ public interface BuiltinFunctions extends Function.Library
       protected LeadWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
-        delta = ((Number) parameters[0]).intValue();
+        delta = Evals.getConstantNumber(parameters.get(0)).intValue();
       }
 
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        return ExprEval.of(context.get(context.index() + delta, inputExpr), inputType);
+        return context.evaluate(context.index() + delta, fieldExpr);
       }
     }
   }
@@ -2890,12 +2939,12 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        Object current = Evals.evalValue(inputExpr, context);
+        Object current = Evals.evalValue(fieldExpr, context);
         if (current == null) {
-          return ExprEval.of(null, inputType);
+          return ExprEval.of(null, fieldType);
         }
         if (context.index() == 0) {
-          switch (inputType.type()) {
+          switch (fieldType.type()) {
             case LONG:
               longPrev = ((Number) current).longValue();
               return ExprEval.of(0L);
@@ -2906,10 +2955,10 @@ public interface BuiltinFunctions extends Function.Library
               doublePrev = ((Number) current).doubleValue();
               return ExprEval.of(0D);
             default:
-              throw new ISE("unsupported type %s", inputType);
+              throw new ISE("unsupported type %s", fieldType);
           }
         }
-        switch (inputType.type()) {
+        switch (fieldType.type()) {
           case LONG:
             long currentLong = ((Number) current).longValue();
             long deltaLong = currentLong - longPrev;
@@ -2926,7 +2975,7 @@ public interface BuiltinFunctions extends Function.Library
             doublePrev = currentDouble;
             return ExprEval.of(deltaDouble);
           default:
-            throw new ISE("unsupported type %s", inputType);
+            throw new ISE("unsupported type %s", fieldType);
         }
       }
     }
@@ -2954,7 +3003,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ValueDesc returns()
       {
-        return inputType.type() == ValueType.LONG ? ValueDesc.LONG : ValueDesc.DOUBLE;
+        return fieldType.type() == ValueType.LONG ? ValueDesc.LONG : ValueDesc.DOUBLE;
       }
 
       @Override
@@ -2970,7 +3019,7 @@ public interface BuiltinFunctions extends Function.Library
         if (current == null) {
           return;
         }
-        switch (inputType.type()) {
+        switch (fieldType.type()) {
           case LONG:
             longSum += ((Number) current).longValue();
             break;
@@ -2979,14 +3028,14 @@ public interface BuiltinFunctions extends Function.Library
             doubleSum += ((Number) current).doubleValue();
             break;
           default:
-            throw new ISE("unsupported type %s", inputType);
+            throw new ISE("unsupported type %s", fieldType);
         }
       }
 
       @Override
       protected ExprEval current(WindowContext context)
       {
-        if (inputType.isLong()) {
+        if (fieldType.isLong()) {
           return ExprEval.of(longSum);
         } else {
           return ExprEval.of(doubleSum);
@@ -3026,7 +3075,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       protected ExprEval current(WindowContext context)
       {
-        return ExprEval.of(prev, inputType);
+        return ExprEval.of(prev, fieldType);
       }
 
       @Override
@@ -3068,7 +3117,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       protected ExprEval current(WindowContext context)
       {
-        return ExprEval.of(prev, inputType);
+        return ExprEval.of(prev, fieldType);
       }
 
       @Override
@@ -3094,9 +3143,9 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object invoke(WindowContext context, Expr inputExpr)
+    protected ExprEval invoke(WindowContext context, Expr inputExpr)
     {
-      return context.index() + 1L;
+      return ExprEval.of(context.index() + 1L);
     }
   }
 
@@ -3134,7 +3183,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        Object current = Evals.evalValue(inputExpr, context);
+        Object current = Evals.evalValue(fieldExpr, context);
         if (context.index() == 0 || !Objects.equals(prev, current)) {
           prev = current;
           prevRank = context.index() + 1;
@@ -3192,7 +3241,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        final Object current = Evals.evalValue(inputExpr, context);
+        final Object current = Evals.evalValue(fieldExpr, context);
         if (context.index() == 0 || !Objects.equals(prev, current)) {
           prev = current;
           prevRank++;
@@ -3418,12 +3467,12 @@ public interface BuiltinFunctions extends Function.Library
       protected PercentileFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
-        if (parameters.length == 0 || !(parameters[0] instanceof Number)) {
+        if (parameters.isEmpty()) {
           throw new IAE("function 'percentile' needs 1 ratio argument");
         }
-        Preconditions.checkArgument(inputType.isPrimitiveNumeric());
-        type = inputType.type();
-        percentile = ((Number) parameters[0]).floatValue();
+        Preconditions.checkArgument(fieldType.isPrimitiveNumeric());
+        type = fieldType.type();
+        percentile = Evals.getConstantNumber(parameters.get(0)).floatValue();
         if (percentile < 0 || percentile > 1) {
           throw new IAE("percentile should be in [0 ~ 1]");
         }
@@ -3510,16 +3559,16 @@ public interface BuiltinFunctions extends Function.Library
       {
         super(args, context);
 
-        if (parameters.length == 0) {
-          throw new IAE(name() + " should have at least one argument (binCount)");
+        if (parameters.isEmpty()) {
+          throw new IAE("%s should have at least one argument (binCount)", name);
         }
-        Preconditions.checkArgument(inputType.isPrimitiveNumeric());
-        type = inputType.type();
+        Preconditions.checkArgument(fieldType.isPrimitiveNumeric());
+        type = fieldType.type();
 
-        binCount = ((Number) parameters[0]).intValue();
+        binCount = Evals.getConstantNumber(parameters.get(0)).intValue();
 
-        from = parameters.length > 1 ? ((Number) parameters[1]).doubleValue() : Double.MAX_VALUE;
-        step = parameters.length > 2 ? ((Number) parameters[2]).doubleValue() : Double.MAX_VALUE;
+        from = parameters.size() > 1 ? (Evals.getConstantNumber(parameters.get(1))).doubleValue() : Double.MAX_VALUE;
+        step = parameters.size() > 2 ? (Evals.getConstantNumber(parameters.get(2))).doubleValue() : Double.MAX_VALUE;
       }
 
       @Override
@@ -3545,7 +3594,7 @@ public interface BuiltinFunctions extends Function.Library
       @Override
       public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
-        final Object current = Evals.evalValue(inputExpr, context);
+        final Object current = Evals.evalValue(fieldExpr, context);
         if (current == null) {
           return ExprEval.of(null, ValueDesc.MAP);
         }
@@ -3677,9 +3726,9 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected Object invoke(WindowContext context, Expr inputExpr)
+    protected ExprEval invoke(WindowContext context, Expr inputExpr)
     {
-      return (long) context.size();
+      return ExprEval.of(context.size());
     }
   }
 

@@ -234,7 +234,7 @@ public class Evals
     return eval(arg, Expr.NULL_BINDING);
   }
 
-  public static Object getConstant(final Expr arg)
+  public static Object getConstant(Expr arg)
   {
     return getConstantEval(arg).value();
   }

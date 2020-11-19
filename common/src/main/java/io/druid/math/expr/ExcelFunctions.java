@@ -21,6 +21,7 @@ package io.druid.math.expr;
 
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Expr.NumericBinding;
 import org.apache.poi.ss.formula.functions.Finance;
 import org.apache.poi.ss.formula.functions.FinanceLib;
@@ -215,10 +216,10 @@ public interface ExcelFunctions extends Function.Library
       public NPVFunction(List<Expr> args, Expr.WindowContext context)
       {
         super(args, context);
-        if (parameters.length == 0) {
-          throw new RuntimeException("partition function '$npv' needs 1 more argument (discountRate)");
+        if (parameters.isEmpty()) {
+          throw new IAE("partition function '$npv' needs 1 more argument (discountRate)");
         }
-        discountRate = ((Number) parameters[0]).doubleValue();
+        discountRate = Evals.getConstantNumber(parameters.get(0)).doubleValue();
       }
 
       @Override
@@ -227,7 +228,7 @@ public interface ExcelFunctions extends Function.Library
         if (values == null || values.length < context.size()) {
           values = new double[context.size()];
         }
-        values[context.index()] = Evals.evalDouble(inputExpr, context);
+        values[context.index()] = Evals.evalDouble(fieldExpr, context);
         if (!context.hasMore()) {
           return ExprEval.of(FinanceLib.npv(discountRate, Arrays.copyOfRange(values, 0, context.size())));
         }
@@ -260,7 +261,7 @@ public interface ExcelFunctions extends Function.Library
       public IRRFunction(List<Expr> args, Expr.WindowContext context)
       {
         super(args, context);
-        guess = parameters.length > 0 ? ((Number) parameters[0]).doubleValue() : 0.1D;
+        guess = parameters.isEmpty() ? 0.1D : Evals.getConstantNumber(parameters.get(0)).doubleValue();
       }
 
       @Override
@@ -269,7 +270,7 @@ public interface ExcelFunctions extends Function.Library
         if (values == null || values.length < context.size()) {
           values = new double[context.size()];
         }
-        values[context.index()] = Evals.evalDouble(inputExpr, context);
+        values[context.index()] = Evals.evalDouble(fieldExpr, context);
         if (!context.hasMore()) {
           return ExprEval.of(Irr.irr(Arrays.copyOfRange(values, 0, context.size()), guess));
         }
@@ -306,8 +307,8 @@ public interface ExcelFunctions extends Function.Library
       public MIRRFunction(List<Expr> args, Expr.WindowContext context)
       {
         super(args, context);
-        financeRate = ((Number) parameters[0]).doubleValue();
-        reinvestRate = ((Number) parameters[1]).doubleValue();
+        financeRate = Evals.getConstantNumber(parameters.get(0)).doubleValue();
+        reinvestRate = Evals.getConstantNumber(parameters.get(1)).doubleValue();
       }
 
       @Override
@@ -316,7 +317,7 @@ public interface ExcelFunctions extends Function.Library
         if (values == null || values.length < context.size()) {
           values = new double[context.size()];
         }
-        values[context.index()] = Evals.evalDouble(inputExpr, context);
+        values[context.index()] = Evals.evalDouble(fieldExpr, context);
         if (!context.hasMore()) {
           return ExprEval.of(mirr(Arrays.copyOfRange(values, 0, context.size()), financeRate, reinvestRate));
         }
