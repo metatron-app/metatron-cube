@@ -22,6 +22,7 @@ package io.druid.data.input.parquet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.indexing.DataSchema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.parquet.read.DataWritableReadSupport;
@@ -58,6 +59,10 @@ import java.util.Set;
 // uses parquet in hive, not like parquet-extension
 public class HiveParquetInputFormat extends ParquetInputFormat
 {
+  public static final String COLUMNS_AS_LOWERCASE = "parquet.columns.as.lowercase";
+
+  private static final Logger LOG = new Logger(HiveParquetInputFormat.class);
+
   public HiveParquetInputFormat()
   {
     super(ArrayToMap.class);
@@ -74,12 +79,13 @@ public class HiveParquetInputFormat extends ParquetInputFormat
       Configuration configuration = context.getConfiguration();
       delegated = ReflectionUtils.newInstance(DataWritableReadSupport.class, configuration);
 
+      boolean lowercase = configuration.getBoolean(COLUMNS_AS_LOWERCASE, false);
       String[] required = configuration.getStrings(DataSchema.REQUIRED_COLUMNS);
       if (required != null && required.length > 0) {
         Set<String> filter = Sets.newHashSet(required);
         List<Type> projected = Lists.newArrayList();
         for (Type field : readSchema.getFields()) {
-          if (filter.contains(field.getName())) {
+          if (filter.contains(asLowercase(field.getName(), lowercase))) {
             projected.add(field);
           }
         }
@@ -99,15 +105,18 @@ public class HiveParquetInputFormat extends ParquetInputFormat
       final RecordMaterializer<ArrayWritable> materializer = delegated.prepareForRead(
           configuration, map, messageType, readContext
       );
+      final boolean lowercase = configuration.getBoolean(COLUMNS_AS_LOWERCASE, false);
       final Map<String, String> metadata = readContext.getReadSupportMetadata();
       final String schema = metadata.get(DataWritableReadSupport.HIVE_TABLE_AS_PARQUET_SCHEMA);
       final List<Type> fields = MessageTypeParser.parseMessageType(schema).getFields();
+      LOG.info("Reading parquet fields : %s", fields);
+
       return new RecordMaterializer<Map<String, Object>>()
       {
         @Override
         public Map<String, Object> getCurrentRecord()
         {
-          return parseStruct(materializer.getCurrentRecord().get(), fields);
+          return parseStruct(materializer.getCurrentRecord().get(), fields, lowercase);
         }
 
         @Override
@@ -119,12 +128,17 @@ public class HiveParquetInputFormat extends ParquetInputFormat
     }
   }
 
-  private static Map<String, Object> parseStruct(Writable[] values, List<Type> fields)
+  private static String asLowercase(String value, boolean lowercase)
+  {
+    return lowercase ? value.toLowerCase() : value;
+  }
+
+  private static Map<String, Object> parseStruct(Writable[] values, List<Type> fields, boolean lowercase)
   {
     final Map<String, Object> event = Maps.newLinkedHashMap();
     for (int i = 0; i < values.length; i++) {
       Type field = fields.get(i);
-      event.put(field.getName(), extract(field, values[i]));
+      event.put(asLowercase(field.getName(), lowercase), extract(field, values[i]));
     }
     return event;
   }
