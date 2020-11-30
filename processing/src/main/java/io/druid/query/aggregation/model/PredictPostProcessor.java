@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
@@ -231,14 +230,14 @@ public abstract class PredictPostProcessor extends PostProcessingOperator.Abstra
             }
           };
           return Sequences.concat(Arrays.asList(tapping, Sequences.lazy(supplier)));
-        } else if (query instanceof Query.ArrayOutputSupport) {
-          final List<String> outputColumns = ((Query.ArrayOutputSupport) query).estimatedOutputColumns();
+        } else if (query instanceof Query.ArrayOutputSupport && query.estimatedOutputColumns() != null) {
+          final List<String> outputColumns = query.estimatedOutputColumns();
           final int timeIdx = outputColumns.indexOf(Row.TIME_COLUMN_NAME);
           final int[] indices = GuavaUtils.indexOf(outputColumns, values);
           final Granularity granularity = query.getGranularity();
           // this is used for quick calculation of prediction only
           final BoundedTimeseries[] numbers = makeReservoir(valueColumns.length, granularity);
-          baseRunner.run(query, responseContext).accumulate(
+          ((Query.ArrayOutputSupport) query).array(baseRunner.run(query, responseContext)).accumulate(
               null, new Accumulator<Object, Object[]>()
               {
                 @Override

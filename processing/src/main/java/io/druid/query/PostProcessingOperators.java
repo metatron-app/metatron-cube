@@ -112,22 +112,6 @@ public class PostProcessingOperators
     return context;
   }
 
-  public static List<String> estimatedOutputColumns(Query<?> query, ObjectMapper mapper)
-  {
-    if (!(query instanceof Query.ArrayOutputSupport)) {
-      return null;
-    }
-    List<String> outputColumns = ((Query.ArrayOutputSupport<?>) query).estimatedOutputColumns();
-    if (outputColumns == null) {
-      return null;
-    }
-    PostProcessingOperator postProcessor = load(query, mapper);
-    if (postProcessor instanceof RowSignature.Evolving) {
-      outputColumns = ((RowSignature.Evolving) postProcessor).evolve(outputColumns);
-    }
-    return outputColumns;
-  }
-
   @SuppressWarnings("unchecked")
   public static <T> Query prepend(Query<T> query, ObjectMapper mapper, PostProcessingOperator processor)
   {

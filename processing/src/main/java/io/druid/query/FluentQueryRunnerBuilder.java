@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FluentQueryRunnerBuilder<T>
 {
   private final QueryToolChest<T, Query<T>> toolChest;
-  private final QueryRunner<T> baseRunner;
+  private final QueryRunner<T> runner;
 
   public static <T> FluentQueryRunnerBuilder<T> create(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
   {
@@ -37,12 +37,12 @@ public class FluentQueryRunnerBuilder<T>
   private FluentQueryRunnerBuilder(QueryToolChest<T, Query<T>> toolChest, QueryRunner<T> baseRunner)
   {
     this.toolChest = toolChest;
-    this.baseRunner = baseRunner;
+    this.runner = baseRunner;
   }
 
   public QueryRunner<T> build()
   {
-    return baseRunner;
+    return runner;
   }
 
   public FluentQueryRunnerBuilder<T> from(QueryRunner<T> runner)
@@ -52,49 +52,59 @@ public class FluentQueryRunnerBuilder<T>
 
   public FluentQueryRunnerBuilder<T> applyRetry(RetryQueryRunnerConfig config, ObjectMapper jsonMapper)
   {
-    return from(new RetryQueryRunner<T>(baseRunner, config, jsonMapper));
+    return from(new RetryQueryRunner<T>(runner, config, jsonMapper));
   }
 
   public FluentQueryRunnerBuilder<T> applyPreMergeDecoration()
   {
-    return toolChest == null ? this : from(new UnionQueryRunner<T>(toolChest.preMergeQueryDecoration(baseRunner)));
+    return from(new UnionQueryRunner<T>(toolChest == null ? runner : toolChest.preMergeQueryDecoration(runner)));
   }
 
   public FluentQueryRunnerBuilder<T> applyMergeResults()
   {
-    return from(toolChest.mergeResults(baseRunner));
+    return from(toolChest.mergeResults(runner));
   }
 
   public FluentQueryRunnerBuilder<T> applyPostMergeDecoration()
   {
-    return toolChest == null ? this : from(toolChest.postMergeQueryDecoration(baseRunner));
+    return toolChest == null ? this : from(toolChest.postMergeQueryDecoration(runner));
   }
 
   public FluentQueryRunnerBuilder<T> applyFinalizeResults()
   {
-    return toolChest == null ? this : from(toolChest.finalizeResults(baseRunner));
+    return toolChest == null ? this : from(toolChest.finalizeResults(runner));
   }
 
   public FluentQueryRunnerBuilder<T> applyFinalQueryDecoration()
   {
-    return toolChest == null ? this : from(toolChest.finalQueryDecoration(baseRunner));
+    return toolChest == null ? this : from(toolChest.finalQueryDecoration(runner));
   }
 
   public FluentQueryRunnerBuilder<T> applyPostProcessingOperator(ObjectMapper mapper)
   {
-    return from(PostProcessingOperators.wrap(baseRunner, mapper));
+    return from(PostProcessingOperators.wrap(runner, mapper));
   }
 
   public FluentQueryRunnerBuilder<T> applySubQueryResolver(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return from(QueryRunners.getSubQueryResolver(baseRunner, toolChest, segmentWalker, config));
+    return from(QueryRunners.getSubQueryResolver(runner, toolChest, segmentWalker, config));
+  }
+
+  public FluentQueryRunnerBuilder<T> runWithLocalized()
+  {
+    return from(QueryRunners.<T>runWithLocalized(runner));
+  }
+
+  public FluentQueryRunnerBuilder<T> runWith(Query<T> query)
+  {
+    return from(QueryRunners.<T>runWith(query, runner));
   }
 
   public FluentQueryRunnerBuilder<T> emitCPUTimeMetric(ServiceEmitter emitter)
   {
     return toolChest == null ? this : from(
         CPUTimeMetricQueryRunner.safeBuild(
-            baseRunner,
+            runner,
             toolChest,
             emitter,
             new AtomicLong(0L),

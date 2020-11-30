@@ -172,10 +172,13 @@ public class StreamQueryEngine
           } else {
             sorted = TopNSorter.topN(toComparator(comparators), keys, limit);
           }
-          return Sequences.once(Iterators.transform(sorted, key -> values.get(key[comparators.length])));
+          return Sequences.once(
+              query.getColumns(), Iterators.transform(sorted, key -> values.get(key[comparators.length]))
+          );
         }
 
         Sequence<Object[]> sequence = Sequences.simple(
+            query.getColumns(),
             new Iterable<Object[]>()
             {
               @Override

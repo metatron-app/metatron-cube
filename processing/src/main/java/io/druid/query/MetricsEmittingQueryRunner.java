@@ -93,7 +93,7 @@ public class MetricsEmittingQueryRunner<T> implements QueryRunner<T>
     final Sequence<T> sequence = queryRunner.run(query, responseContext);
     final long elapsed = System.nanoTime() - startTimeNs;
 
-    return new Sequence<T>()
+    return new Sequence.Delegate<T>(sequence)
     {
       @Override
       public <OutType> OutType accumulate(OutType outType, Accumulator<OutType, T> accumulator)

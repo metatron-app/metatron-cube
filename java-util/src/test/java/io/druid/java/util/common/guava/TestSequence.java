@@ -21,6 +21,7 @@ package io.druid.java.util.common.guava;
 
 import java.io.Closeable;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -53,6 +54,12 @@ public class TestSequence<T> implements Sequence<T>
           }
         }
     );
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return null;
   }
 
   @Override

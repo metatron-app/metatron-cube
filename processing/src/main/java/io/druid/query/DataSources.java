@@ -22,7 +22,6 @@ package io.druid.query;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
-import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.FilterSupport;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -132,10 +131,8 @@ public class DataSources
   public static List<String> getOutputColumns(DataSource dataSource)
   {
     if (dataSource instanceof QueryDataSource) {
-      Query query = ((QueryDataSource) dataSource).getQuery();
-      if (query instanceof ArrayOutputSupport) {
-        return ((ArrayOutputSupport<?>) query).estimatedOutputColumns();
-      }
+      Query<?> query = ((QueryDataSource) dataSource).getQuery();
+      return query.estimatedOutputColumns();
     } else if (dataSource instanceof ViewDataSource) {
       return ((ViewDataSource) dataSource).getColumns();
     }

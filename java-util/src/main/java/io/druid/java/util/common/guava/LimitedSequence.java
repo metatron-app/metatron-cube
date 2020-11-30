@@ -17,6 +17,7 @@ package io.druid.java.util.common.guava;
 import com.google.common.base.Preconditions;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Limits the number of inputs from this sequence.  For example, if there are actually 100 things in the sequence
@@ -24,26 +25,32 @@ import java.io.IOException;
  */
 public class LimitedSequence<T> extends YieldingSequenceBase<T>
 {
-  private final Sequence<T> baseSequence;
+  private final Sequence<T> sequence;
   private final int limit;
 
   public LimitedSequence(
-      Sequence<T> baseSequence,
+      Sequence<T> sequence,
       int limit
   )
   {
-    Preconditions.checkNotNull(baseSequence);
+    Preconditions.checkNotNull(sequence);
     Preconditions.checkArgument(limit >= 0, "limit is negative");
 
-    this.baseSequence = baseSequence;
+    this.sequence = sequence;
     this.limit = limit;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return sequence.columns();
   }
 
   @Override
   public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
   {
     final LimitedYieldingAccumulator<OutType, T> limited = new LimitedYieldingAccumulator<>(accumulator, limit);
-    final Yielder<OutType> subYielder = baseSequence.toYielder(initValue, limited);
+    final Yielder<OutType> subYielder = sequence.toYielder(initValue, limited);
     return new LimitedYielder<>(subYielder, limited);
   }
 

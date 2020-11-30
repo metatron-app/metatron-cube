@@ -30,6 +30,7 @@ import io.druid.java.util.common.guava.nary.BinaryFn;
 
 import java.io.IOException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -43,7 +44,7 @@ public class CombiningSequence<T> implements Sequence<T>
   )
   {
     if (ordering == null) {
-      return Sequences.lazy(new Supplier<Sequence<T>>()
+      return Sequences.lazy(sequence.columns(), new Supplier<Sequence<T>>()
       {
         @Override
         public Sequence<T> get()
@@ -69,6 +70,12 @@ public class CombiningSequence<T> implements Sequence<T>
     this.baseSequence = baseSequence;
     this.ordering = ordering;
     this.mergeFn = mergeFn;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return baseSequence.columns();
   }
 
   @Override

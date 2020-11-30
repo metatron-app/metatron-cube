@@ -24,13 +24,30 @@ import java.util.List;
  */
 public class MergeSequence<T> extends BaseMergeSequence<T>
 {
+  private final List<String> columns;
   private final Comparator<T> ordering;
   private final Sequence<Sequence<T>> sequences;
 
-  public MergeSequence(Comparator<T> ordering, Sequence<Sequence<T>> sequences)
+  public MergeSequence(
+      List<String> columns,
+      Comparator<T> ordering,
+      Sequence<Sequence<T>> sequences
+  )
   {
     this.ordering = ordering;
+    this.columns = columns;
     this.sequences = sequences;
+  }
+
+  public MergeSequence(Comparator<T> ordering, Sequence<Sequence<T>> sequences)
+  {
+    this(null, ordering, sequences);
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return columns;
   }
 
   @Override

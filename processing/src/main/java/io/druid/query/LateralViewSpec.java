@@ -34,7 +34,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "explode", value = ExplodeSpec.class),
     @JsonSubTypes.Type(name = "explodeMap", value = ExplodeMapSpec.class),
 })
-public interface LateralViewSpec extends RowSignature.Evolving
+public interface LateralViewSpec
 {
   Function<Map<String, Object>, Iterable<Map<String, Object>>> prepare();
 }

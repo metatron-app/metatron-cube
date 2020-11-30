@@ -98,11 +98,9 @@ public class ClassifyQuery extends BaseQuery<Object[]>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    if (query instanceof Query.ArrayOutputSupport) {
-      List<String> outputColumns = ((Query.ArrayOutputSupport<?>) query).estimatedOutputColumns();
-      if (outputColumns != null) {
-        return GuavaUtils.concat(outputColumns, tagColumn);
-      }
+    List<String> outputColumns = query.estimatedOutputColumns();
+    if (outputColumns != null) {
+      return GuavaUtils.concat(outputColumns, tagColumn);
     }
     return null;
   }

@@ -32,6 +32,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -239,6 +241,19 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   }
 
   @Override
+  public List<String> estimatedInitialColumns()
+  {
+    List<String> inputColumns = Lists.newArrayList(Row.TIME_COLUMN_NAME);
+    inputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
+    for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
+      if (!inputColumns.contains(aggregator)) {
+        inputColumns.add(aggregator);
+      }
+    }
+    return inputColumns;
+  }
+
+  @Override
   public List<String> estimatedOutputColumns()
   {
     List<String> outputColumns = getOutputColumns();
@@ -260,8 +275,8 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
         outputColumns.add(postAggregator);
       }
     }
-    if (lateralView != null) {
-      outputColumns = lateralView.evolve(outputColumns);
+    if (lateralView instanceof RowSignature.Evolving) {
+      outputColumns = ((RowSignature.Evolving) lateralView).evolve(outputColumns);
     }
     return outputColumns;
   }
@@ -312,6 +327,49 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public Query<Row> resolveQuery(Supplier<RowResolver> resolver, boolean expand)
   {
     return BaseQuery.setUniversalTimestamp(super.resolveQuery(resolver, expand));
+  }
+
+  public Function<Row, Row> compactToMap()
+  {
+    return compactToMap(estimatedOutputColumns());
+  }
+
+  public Function<Row, Row> compactToMap(final List<String> columns)
+  {
+    final int timeIdx = columns.indexOf(Row.TIME_COLUMN_NAME);
+    if (timeIdx < 0) {
+      return new Function<Row, Row>()
+      {
+        @Override
+        public Row apply(Row input)
+        {
+          final Object[] values = ((CompactRow) input).getValues();
+          final Map<String, Object> event = Maps.newLinkedHashMap();
+          for (int i = 0; i < values.length; i++) {
+            event.put(columns.get(i), values[i]);
+          }
+          return new MapBasedRow(null, event);
+        }
+      };
+    } else {
+      return new Function<Row, Row>()
+      {
+        private final Granularity granularity = getGranularity();
+
+        @Override
+        public Row apply(Row input)
+        {
+          final Object[] values = ((CompactRow) input).getValues();
+          final Map<String, Object> event = Maps.newLinkedHashMap();
+          for (int i = 0; i < values.length; i++) {
+            if (i != timeIdx) {
+              event.put(columns.get(i), values[i]);
+            }
+          }
+          return new MapBasedRow(granularity.toDateTime(((Number) values[timeIdx]).longValue()), event);
+        }
+      };
+    }
   }
 
   @Override

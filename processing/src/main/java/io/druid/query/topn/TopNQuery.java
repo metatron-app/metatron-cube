@@ -208,6 +208,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     final List<String> outputNames = estimatedOutputColumns();
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputNames));
     return Sequences.explode(
+        outputNames,
         sequence,
         new Function<Result<TopNResultValue>, Sequence<Object[]>>()
         {

@@ -19,10 +19,18 @@
 
 package io.druid.java.util.common.guava;
 
+import java.util.List;
+
 /**
 */
 public class UnsupportedSequence implements Sequence<Integer>
 {
+  @Override
+  public List<String> columns()
+  {
+    throw new UnsupportedOperationException();
+  }
+
   @Override
   public <OutType> OutType accumulate(
       OutType initValue, Accumulator<OutType, Integer> accumulator

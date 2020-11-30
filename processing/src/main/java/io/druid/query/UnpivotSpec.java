@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -219,18 +218,6 @@ public class UnpivotSpec implements LateralViewSpec, Function<Map<String, Object
       b.append(split[i]);
     }
     return b.toString();
-  }
-
-  @Override
-  public List<String> evolve(List<String> schema)
-  {
-    throw new UnsupportedOperationException("todo");
-  }
-
-  @Override
-  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
-  {
-    throw new UnsupportedOperationException("todo");
   }
 
   @Override

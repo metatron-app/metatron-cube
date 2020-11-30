@@ -192,13 +192,13 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                   )
                   {
                     final int priority = BaseQuery.getContextPriority(query, 0);
-                    ListenableFuture<Sequence<SegmentAnalysis>> future = queryExecutor.submit(
+                    final ListenableFuture<Sequence<SegmentAnalysis>> future = queryExecutor.submit(
                         new AbstractPrioritizedCallable<Sequence<SegmentAnalysis>>(priority)
                         {
                           @Override
                           public Sequence<SegmentAnalysis> call() throws Exception
                           {
-                            return Sequences.simple(Sequences.toList(input.run(query, responseContext)));
+                            return Sequences.materialize(input.run(query, responseContext));
                           }
                         }
                     );

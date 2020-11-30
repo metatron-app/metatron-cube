@@ -185,6 +185,13 @@ public class StreamQuery extends BaseQuery<Object[]>
 
   @Override
   @JsonIgnore
+  public List<String> estimatedInitialColumns()
+  {
+    return columns;
+  }
+
+  @Override
+  @JsonIgnore
   public List<String> estimatedOutputColumns()
   {
     return !GuavaUtils.isNullOrEmpty(outputColumns) ? outputColumns : limitSpec.estimateOutputColumns(columns);

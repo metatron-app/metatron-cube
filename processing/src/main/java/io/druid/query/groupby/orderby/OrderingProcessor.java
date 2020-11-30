@@ -84,9 +84,9 @@ public class OrderingProcessor
     final String[] columnNames = columns.toArray(new String[0]);
     final Comparator<Object[]> ordering = toArrayOrdering(orderingSpecs, sortOnTimeForLimit);
     return GuavaUtils.sequence(
-        Sequences.mapper(GroupByQueryEngine.rowToArray(columnNames)),
+        Sequences.mapper(columns, GroupByQueryEngine.rowToArray(columnNames)),
         new LimitSpec.SortingArrayFn(ordering, limit),
-        Sequences.mapper(GroupByQueryEngine.arrayToRow(columnNames))
+        Sequences.mapper(columns, GroupByQueryEngine.arrayToRow(columnNames))
     );
   }
 

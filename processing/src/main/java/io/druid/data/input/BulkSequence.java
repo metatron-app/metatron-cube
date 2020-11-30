@@ -47,28 +47,31 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
 
   public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema)
   {
-    return new BulkSequence(sequence, schema.getColumnTypes());
+    return new BulkSequence(sequence, schema);
   }
 
   private static final int DEFAULT_PAGE_SIZE = 1024 << 2;
 
   private final Sequence<Object[]> sequence;
+  private final RowSignature schema;
   private final int[] category;
   private final Object[] page;
   private final int max;
 
-  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types)
+  public BulkSequence(Sequence<Object[]> sequence, RowSignature schema)
   {
-    this(sequence, types, DEFAULT_PAGE_SIZE);
+    this(sequence, schema, DEFAULT_PAGE_SIZE);
   }
 
-  public BulkSequence(Sequence<Object[]> sequence, List<ValueDesc> types, final int max)
+  public BulkSequence(Sequence<Object[]> sequence, RowSignature schema, final int max)
   {
     Preconditions.checkArgument(max < 0xffff);
     this.max = max;
     this.sequence = sequence;
-    this.category = new int[types.size()];
-    this.page = new Object[types.size()];
+    this.schema = schema;
+    this.category = new int[schema.size()];
+    this.page = new Object[schema.size()];
+    final List<ValueDesc> types = schema.getColumnTypes();
     for (int i = 0; i < types.size(); i++) {
       final ValueDesc valueDesc = types.get(i);
       switch (valueDesc.isDimension() ? ValueDesc.typeOfDimension(valueDesc) : valueDesc.type()) {
@@ -97,6 +100,12 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
           page[i] = Array.newInstance(valueDesc.asClass(), max);
       }
     }
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return schema.getColumnNames();
   }
 
   @Override

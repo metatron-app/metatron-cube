@@ -40,6 +40,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
+import io.druid.query.RowSignature;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
@@ -523,8 +524,8 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
       return null;
     }
     List<String> columns = GuavaUtils.concat(DimensionSpecs.toOutputNames(dimensions), metrics);
-    if (lateralView != null) {
-      columns = lateralView.evolve(outputColumns);
+    if (lateralView instanceof RowSignature.Evolving) {
+      columns = ((RowSignature.Evolving) lateralView).evolve(outputColumns);
     }
     return columns;
   }
@@ -536,7 +537,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputColumns));
 
     return Sequences.explode(
-        sequence, new Function<Result<SelectResultValue>, Sequence<Object[]>>()
+        outputColumns, sequence, new Function<Result<SelectResultValue>, Sequence<Object[]>>()
         {
           private final String[] columns = outputColumns.toArray(new String[0]);
 

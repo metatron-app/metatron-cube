@@ -179,9 +179,9 @@ public class TimeSeriesUnionQueryRunnerTest
               )
               {
                 if (query.getDataSource().equals(new TableDataSource("ds1"))) {
-                  return Sequences.simple(descending ? Lists.reverse(ds1) : ds1);
+                  return Sequences.simple(query.estimatedInitialColumns(), descending ? Lists.reverse(ds1) : ds1);
                 } else {
-                  return Sequences.simple(descending ? Lists.reverse(ds2) : ds2);
+                  return Sequences.simple(query.estimatedInitialColumns(), descending ? Lists.reverse(ds2) : ds2);
                 }
               }
             }

@@ -19,12 +19,10 @@
 
 package io.druid.query;
 
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 import org.joda.time.DateTime;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,16 +49,15 @@ public class BySegmentQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> query, Map<String, Object> responseContext)
   {
     if (BaseQuery.isBySegment(query)) {
-      final List<T> results = Sequences.toList(base.run(query, responseContext));
-      return Sequences.simple(
-          Arrays.asList(
-              (T) new Result<BySegmentResultValueClass<T>>(
-                  timestamp,
-                  new BySegmentResultValueClass<T>(
-                      results,
-                      segmentIdentifier,
-                      query.getIntervals().get(0)
-                  )
+      final Sequence<T> sequence = base.run(query, responseContext);
+      return Sequences.of(
+          sequence.columns(),
+          (T) new Result<BySegmentResultValueClass<T>>(
+              timestamp,
+              new BySegmentResultValueClass<T>(
+                  Sequences.toList(sequence),
+                  segmentIdentifier,
+                  query.getIntervals().get(0)
               )
           )
       );

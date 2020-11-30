@@ -23,6 +23,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.query.aggregation.AggregatorFactory;
 
 import java.io.Closeable;
 import java.util.Arrays;
@@ -47,10 +48,17 @@ public interface MergeIndex<T> extends Closeable
 
   abstract class GroupByMerge implements MergeIndex<Row>
   {
-    private final Consumer<Object[]> consumer;
+    protected final Consumer<Object[]> consumer;
+    protected final GroupByQuery groupBy;
+
+    protected final AggregatorFactory.Combiner[] metrics;
+    protected final int metricStart;
 
     GroupByMerge(GroupByQuery groupBy)
     {
+    this.groupBy = groupBy;
+    this.metrics = AggregatorFactory.toCombinerArray(groupBy.getAggregatorSpecs());
+    this.metricStart = groupBy.getDimensions().size() + 1;
       final int[][] groupings = groupBy.getGroupings();
       if (groupings.length == 0) {
         consumer = values -> _addRow(values);

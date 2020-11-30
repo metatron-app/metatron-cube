@@ -173,7 +173,7 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
         );
         sequence = Sequences.withBaggage(mergeIndex.toMergeStream(true), mergeIndex);
         return Sequences.map(
-            sequence, Functions.compose(toPostAggregator(groupBy), toMapBasedRow(groupBy))
+            sequence, Functions.compose(toPostAggregator(groupBy), groupBy.compactToMap())
         );
       }
 

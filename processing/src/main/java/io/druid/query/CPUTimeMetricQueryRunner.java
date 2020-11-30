@@ -30,6 +30,7 @@ import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -67,7 +68,7 @@ public class CPUTimeMetricQueryRunner<T> implements QueryRunner<T>
   {
     final Sequence<T> baseSequence = delegate.run(query, responseContext);
     return Sequences.withEffect(
-        new Sequence<T>()
+        new Sequence.Delegate<T>(baseSequence)
         {
           @Override
           public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)

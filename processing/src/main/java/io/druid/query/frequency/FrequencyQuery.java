@@ -413,6 +413,12 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   }
 
   @Override
+  public List<String> estimatedInitialColumns()
+  {
+    return GuavaUtils.concat("count", DimensionSpecs.toOutputNames(dimensions));
+  }
+
+  @Override
   public List<String> estimatedOutputColumns()
   {
     return GuavaUtils.concat("count", DimensionSpecs.toOutputNames(dimensions));

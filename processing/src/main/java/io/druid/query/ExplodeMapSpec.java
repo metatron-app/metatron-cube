@@ -38,7 +38,7 @@ import java.util.Objects;
  *
  */
 @JsonTypeName("explodeMap")
-public class ExplodeMapSpec implements LateralViewSpec
+public class ExplodeMapSpec implements LateralViewSpec, RowSignature.Evolving
 {
   private final List<String> columns;
   private final String keyAlias;

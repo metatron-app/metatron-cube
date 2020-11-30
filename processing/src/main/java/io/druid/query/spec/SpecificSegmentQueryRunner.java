@@ -86,7 +86,7 @@ public class SpecificSegmentQueryRunner<T> implements QueryRunner<T>
         }
     );
 
-    return new Sequence<T>()
+    return new Sequence.Delegate<T>(baseSequence)
     {
       @Override
       public <OutType> OutType accumulate(final OutType initValue, final Accumulator<OutType, T> accumulator)

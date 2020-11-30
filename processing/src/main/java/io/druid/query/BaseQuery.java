@@ -349,14 +349,14 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
-  public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
+  public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> responseContext)
   {
     QuerySegmentSpec spec = querySegmentSpec == null ? QuerySegmentSpec.ETERNITY : querySegmentSpec;
     QueryRunner<T> runner = spec.lookup(this, walker);
     if (walker instanceof ForwardingSegmentWalker) {
       runner = ((ForwardingSegmentWalker) walker).handle(this, runner);
     }
-    return runner.run(this, assertContext(context));
+    return runner.run(this, assertContext(responseContext));
   }
 
   public Map<String, Object> assertContext(Map<String, Object> context)
@@ -492,9 +492,15 @@ public abstract class BaseQuery<T> implements Query<T>
     return copyContextForMeta(query.getContext());
   }
 
-  public static Map<String, Object> copyContextForMeta(Query<?> query, String key, Object value)
+  public static Map<String, Object> copyContextForMeta(Map<String, Object> context, String key, Object value)
   {
-    return copyContextForMeta(query.getContext(), key, value);
+    final Map<String, Object> forMeta = copyContextForMeta(context);
+    if (value != null) {
+      forMeta.put(key, value);
+    } else {
+      forMeta.remove(key);
+    }
+    return forMeta;
   }
 
   public static Map<String, Object> copyContextForMeta(Map<String, Object> context)
@@ -507,17 +513,6 @@ public abstract class BaseQuery<T> implements Query<T>
       if (context.containsKey(contextKey)) {
         forMeta.put(contextKey, context.get(contextKey));
       }
-    }
-    return forMeta;
-  }
-
-  public static Map<String, Object> copyContextForMeta(Map<String, Object> context, String key, Object value)
-  {
-    final Map<String, Object> forMeta = copyContextForMeta(context);
-    if (value != null) {
-      forMeta.put(key, value);
-    } else {
-      forMeta.remove(key);
     }
     return forMeta;
   }

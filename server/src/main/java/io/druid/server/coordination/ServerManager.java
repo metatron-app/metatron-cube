@@ -480,27 +480,32 @@ public class ServerManager implements ForwardingSegmentWalker
         );
       }
     };
+    List<String> columns = resolved.estimatedOutputColumns();
     if (splitable != null) {
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         log.info("Split segments into %d groups", splits.size());
         return QueryRunners.runWith(resolved, reporter.report(
-            QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
+            QueryRunners.concat(columns, Iterables.concat(missingSegments, Iterables.transform(splits, function)))
         ));
       }
     }
 
-    QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
+    QueryRunner<T> runner = QueryRunners.concat(columns, GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
       Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
-        return reporter.report(toConcatRunner(splits, runner));
+        return reporter.report(toConcatRunner(columns, splits, runner));
       }
     }
     return QueryRunners.runWith(resolved, reporter.report(runner));
   }
 
-  private <T> QueryRunner<T> toConcatRunner(final Iterable<Query<T>> queries, final QueryRunner<T> runner)
+  private <T> QueryRunner<T> toConcatRunner(
+      final List<String> columns,
+      final Iterable<Query<T>> queries,
+      final QueryRunner<T> runner
+  )
   {
     return new QueryRunner<T>()
     {
@@ -512,7 +517,7 @@ public class ServerManager implements ForwardingSegmentWalker
         queryManager.registerQuery(baseQuery, future);
         return Sequences.withBaggage(
             Sequences.interruptible(future, Sequences.concat(
-                Iterables.transform(queries, query -> runner.run(query, responseContext))
+                columns, Iterables.transform(queries, query -> runner.run(query, responseContext))
             )),
             future
         );

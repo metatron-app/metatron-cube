@@ -76,6 +76,12 @@ public class SpecificSegmentQueryRunnerTest
             return new Sequence()
             {
               @Override
+              public List<String> columns()
+              {
+                return null;
+              }
+
+              @Override
               public Object accumulate(Object initValue, Accumulator accumulator)
               {
                 throw new SegmentMissingException("FAILSAUCE");

@@ -26,6 +26,7 @@ import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.YieldingSequenceBase;
 
 import java.io.Closeable;
+import java.util.List;
 
 /**
  */
@@ -38,6 +39,12 @@ public class ReferenceCountingSequence<T> extends YieldingSequenceBase<T>
   {
     this.baseSequence = baseSequence;
     this.segment = segment;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return baseSequence.columns();
   }
 
   @Override

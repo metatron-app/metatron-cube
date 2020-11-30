@@ -41,7 +41,7 @@ public class GroupByQueryHelper
   )
   {
     if (BaseQuery.isBySegment(query)) {
-      return new DummyMergeIndex();
+      return new DummyMergeIndex(query);
     }
     final int maxResults = config.getMaxResults(query);
     final OrderedLimitSpec nodeLimit = query.getLimitSpec().getNodeLimit();
@@ -55,7 +55,13 @@ public class GroupByQueryHelper
   @SuppressWarnings("unchecked")
   private static class DummyMergeIndex implements MergeIndex
   {
+    private final GroupByQuery groupBy;
     private final Queue queue = new ConcurrentLinkedQueue();
+
+    private DummyMergeIndex(GroupByQuery groupBy)
+    {
+      this.groupBy = groupBy;
+    }
 
     @Override
     public void add(Object row)
@@ -66,7 +72,7 @@ public class GroupByQueryHelper
     @Override
     public Sequence toMergeStream(boolean compact)
     {
-      return Sequences.simple(queue);
+      return Sequences.simple(groupBy.estimatedInitialColumns(), queue);
     }
 
     @Override

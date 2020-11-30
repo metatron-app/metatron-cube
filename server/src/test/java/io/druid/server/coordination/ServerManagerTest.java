@@ -725,6 +725,12 @@ public class ServerManagerTest
     }
 
     @Override
+    public List<String> columns()
+    {
+      return baseSequence.columns();
+    }
+
+    @Override
     public <OutType> Yielder<OutType> toYielder(
         final OutType initValue, final YieldingAccumulator<OutType, T> accumulator
     )

@@ -342,7 +342,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
         Segment segment
     )
     {
-      return Sequences.withBaggage(Sequences.concat(sequences), segment);
+      return Sequences.withBaggage(Sequences.concat(query.estimatedOutputColumns(), sequences), segment);
     }
 
     @SuppressWarnings("unchecked")
@@ -358,7 +358,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 
       Sequence<Cursor> cursors;
       if (subQuery instanceof ArrayOutputSupport) {
-        Sequence<Object[]> sequence = QueryRunners.run((ArrayOutputSupport) subQuery, segmentWalker, responseContext);
+        ArrayOutputSupport array = (ArrayOutputSupport) subQuery;
+        Sequence<Object[]> sequence = QueryRunners.runArray(array, segmentWalker, responseContext);
         cursors = ColumnSelectorFactories.toArrayCursors(sequence, dataSource.getSchema(), timeColumn, query);
       } else {
         Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
@@ -374,7 +375,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 
     protected Sequence<ResultType> streamMerge(Query<ResultType> query, Sequence<Sequence<ResultType>> sequences)
     {
-      return Sequences.concat(sequences);
+      return Sequences.concat(query.estimatedOutputColumns(), sequences);
     }
 
     protected final void close(Segment segment)

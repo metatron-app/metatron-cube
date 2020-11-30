@@ -16,17 +16,25 @@ package io.druid.java.util.common.guava;
 
 import com.google.common.base.Supplier;
 
+import java.util.List;
+
 /**
  */
 public class LazySequence<T> implements Sequence<T>
 {
+  private final List<String> columns;
   private final Supplier<Sequence<T>> provider;
 
-  public LazySequence(
-      Supplier<Sequence<T>> provider
-  )
+  public LazySequence(List<String> columns, Supplier<Sequence<T>> provider)
   {
+    this.columns = columns;
     this.provider = provider;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return columns;
   }
 
   @Override

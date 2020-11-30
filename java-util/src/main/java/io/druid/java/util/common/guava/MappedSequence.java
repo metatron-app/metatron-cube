@@ -16,20 +16,30 @@ package io.druid.java.util.common.guava;
 
 import com.google.common.base.Function;
 
+import java.util.List;
+
 /**
  */
 public class MappedSequence<T, Out> implements Sequence<Out>
 {
+  public static <T, OUT> MappedSequence<T, OUT> of(List<String> columns, Sequence<T> baseSequence, Function<T, OUT> fn)
+  {
+    return columns == null ? new MappedSequence<>(baseSequence, fn) : new Explicit<>(columns, baseSequence, fn);
+  }
+
   private final Sequence<T> baseSequence;
   private final Function<T, Out> fn;
 
-  public MappedSequence(
-      Sequence<T> baseSequence,
-      Function<T, Out> fn
-  )
+  private MappedSequence(Sequence<T> baseSequence, Function<T, Out> fn)
   {
     this.baseSequence = baseSequence;
     this.fn = fn;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return baseSequence.columns();
   }
 
   @Override
@@ -42,5 +52,22 @@ public class MappedSequence<T, Out> implements Sequence<Out>
   public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, Out> accumulator)
   {
     return baseSequence.toYielder(initValue, new MappingYieldingAccumulator<>(fn, accumulator));
+  }
+
+  private static class Explicit<T, OUT> extends MappedSequence<T, OUT>
+  {
+    private final List<String> columns;
+
+    private Explicit(List<String> columns, Sequence<T> baseSequence, Function<T, OUT> fn)
+    {
+      super(baseSequence, fn);
+      this.columns = columns;
+    }
+
+    @Override
+    public List<String> columns()
+    {
+      return columns;
+    }
   }
 }

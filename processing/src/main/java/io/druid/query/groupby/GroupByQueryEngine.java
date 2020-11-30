@@ -51,7 +51,6 @@ import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -533,7 +532,7 @@ public class GroupByQueryEngine
       return GuavaUtils.identity("takeTopN");
     }
     final int dimension = 1 + query.getDimensions().size();
-    final List<String> columnNames = toOutputColumns(query);
+    final List<String> columnNames = query.estimatedInitialColumns();
     final Map<String, Comparator<?>> comparatorMap = toComparatorMap(query);
     final List<Pair<Integer, Comparator>> comparators = Lists.newArrayList();
 
@@ -590,16 +589,9 @@ public class GroupByQueryEngine
   public static Function<Object[], Row> arrayToRow(final Query.AggregationsSupport<?> query, final boolean compact)
   {
     if (compact) {
-      return new Function<Object[], Row>()
-      {
-        @Override
-        public Row apply(Object[] input)
-        {
-          return new CompactRow(input);
-        }
-      };
+      return CompactRow.WRAP;
     }
-    return arrayToRow(query.getGranularity(), toOutputColumns(query).toArray(new String[0]));
+    return arrayToRow(query.getGranularity(), query.estimatedInitialColumns().toArray(new String[0]));
   }
 
   public static Function<Object[], Row> arrayToRow(final List<String> columnNames)
@@ -633,11 +625,6 @@ public class GroupByQueryEngine
     };
   }
 
-  public static Function<Row, Object[]> rowToArray(final Query.AggregationsSupport<?> query)
-  {
-    return rowToArray(toOutputColumns(query));
-  }
-
   public static Function<Row, Object[]> rowToArray(final List<String> columnNames)
   {
     return rowToArray(columnNames.toArray(new String[0]));
@@ -666,16 +653,6 @@ public class GroupByQueryEngine
         return array;
       }
     };
-  }
-
-  private static List<String> toOutputColumns(Query.AggregationsSupport<?> query)
-  {
-    List<String> columns = Lists.newArrayList();
-    columns.add(Row.TIME_COLUMN_NAME);
-    columns.addAll(DimensionSpecs.toOutputNames(query.getDimensions()));
-    columns.addAll(AggregatorFactory.toNames(query.getAggregatorSpecs()));
-    columns.addAll(PostAggregators.toNames(query.getPostAggregatorSpecs()));
-    return columns;
   }
 
   private static Map<String, Comparator<?>> toComparatorMap(Query.AggregationsSupport<?> query)

@@ -17,25 +17,32 @@ package io.druid.java.util.common.guava;
 import com.google.common.base.Throwables;
 
 import java.io.Closeable;
+import java.util.List;
 
 /**
  */
 public class ResourceClosingSequence<T> implements Sequence<T>
 {
-  private final Sequence<T> baseSequence;
+  private final Sequence<T> sequence;
   private final Closeable closeable;
 
-  public ResourceClosingSequence(Sequence<T> baseSequence, Closeable closeable)
+  public ResourceClosingSequence(Sequence<T> sequence, Closeable closeable)
   {
-    this.baseSequence = baseSequence;
+    this.sequence = sequence;
     this.closeable = closeable;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return sequence.columns();
   }
 
   @Override
   public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
   {
     try {
-      return baseSequence.accumulate(initValue, accumulator);
+      return sequence.accumulate(initValue, accumulator);
     }
     finally {
       CloseQuietly.close(closeable);
@@ -49,7 +56,7 @@ public class ResourceClosingSequence<T> implements Sequence<T>
   {
     final Yielder<OutType> baseYielder;
     try {
-      baseYielder = baseSequence.toYielder(initValue, accumulator);
+      baseYielder = sequence.toYielder(initValue, accumulator);
     }
     catch (Throwable e) {
       CloseQuietly.close(closeable);

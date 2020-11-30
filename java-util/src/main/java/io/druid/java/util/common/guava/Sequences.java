@@ -16,12 +16,12 @@ package io.druid.java.util.common.guava;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import java.io.Closeable;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -32,7 +32,42 @@ public class Sequences
 
   public static <T> Sequence<T> simple(final Iterable<T> iterable)
   {
-    return BaseSequence.simple(iterable);
+    return simple(null, iterable);
+  }
+
+  public static <T> Sequence<T> simple(final List<String> columns, final Iterable<T> iterable)
+  {
+    return new BaseSequence<>(columns, new BaseSequence.IteratorMaker<T, Iterator<T>>()
+    {
+      @Override
+      public Iterator<T> make()
+      {
+        return iterable.iterator();
+      }
+
+      @Override
+      public void cleanup(Iterator<T> iterator)
+      {
+        try {
+          ((Closeable) iterator).close();
+        }
+        catch (Exception e) {
+          // ignore
+        }
+      }
+    });
+  }
+
+  @SafeVarargs
+  public static <T> Sequence<T> of(T... elements)
+  {
+    return simple(Arrays.asList(elements));
+  }
+
+  @SafeVarargs
+  public static <T> Sequence<T> of(List<String> columns, T... elements)
+  {
+    return simple(columns, Arrays.asList(elements));
   }
 
   @SuppressWarnings("unchecked")
@@ -41,25 +76,44 @@ public class Sequences
     return (Sequence<T>) EMPTY_SEQUENCE;
   }
 
+  public static <T> Sequence<T> empty(final List<String> columns)
+  {
+    return new EmptySequence<T>()
+    {
+      @Override
+      public List<String> columns() { return columns;}
+    };
+  }
+
   @SafeVarargs
   public static <T> Sequence<T> concat(Sequence<T>... sequences)
   {
-    return concat(Arrays.asList(sequences));
+    return sequences.length == 0 ? empty() : concat(sequences[0].columns(), Sequences.of(sequences));
   }
 
   public static <T> Sequence<T> concat(Iterable<Sequence<T>> sequences)
   {
-    return concat(Sequences.simple(sequences));
+    return concat(null, Sequences.simple(sequences));
+  }
+
+  public static <T> Sequence<T> concat(List<String> columns, Iterable<Sequence<T>> sequences)
+  {
+    return concat(columns, Sequences.simple(columns, sequences));
   }
 
   public static <T> Sequence<T> concat(Sequence<Sequence<T>> sequences)
   {
-    return new ConcatSequence<>(sequences);
+    return concat(null, sequences);
+  }
+
+  public static <T> Sequence<T> concat(List<String> columns, Sequence<Sequence<T>> sequences)
+  {
+    return new ConcatSequence<T>(columns, sequences);
   }
 
   public static <From, To> Sequence<To> map(Sequence<From> sequence, Function<From, To> fn)
   {
-    return new MappedSequence<>(sequence, fn);
+    return MappedSequence.of(null, sequence, fn);
   }
 
   public static <T> Sequence<T> filter(Sequence<T> sequence, Predicate<T> pred)
@@ -67,39 +121,47 @@ public class Sequences
     return new FilteredSequence<>(sequence, pred);
   }
 
-  public static <T> Sequence<T> limit(final Sequence<T> sequence, final int limit)
+  public static <T> Sequence<T> limit(Sequence<T> sequence, final int limit)
   {
     return new LimitedSequence<>(sequence, limit);
   }
 
-  public static <T> Sequence<T> withBaggage(final Sequence<T> seq, Closeable baggage)
+  public static <T> Sequence<T> withBaggage(Sequence<T> sequence, Closeable baggage)
   {
-    return new ResourceClosingSequence<>(seq, baggage);
+    return new ResourceClosingSequence<>(sequence, baggage);
   }
 
-  // This will materialize the entire sequence in memory. Use at your own risk.
-  public static <T> Sequence<T> sort(final Sequence<T> sequence, final Comparator<T> comparator)
+  public static <T> List<T> toList(Sequence<T> sequence)
   {
-    List<T> seqList = Sequences.toList(sequence, Lists.<T>newArrayList());
-    Collections.sort(seqList, comparator);
-    return BaseSequence.simple(seqList);
+    return sequence.accumulate(Lists.<T>newArrayList(), Accumulators.<List<T>, T>list());
   }
 
-  public static <T, ListType extends List<T>> ListType toList(Sequence<T> seq, ListType list)
+  public static <T, ListType extends List<T>> ListType toList(Sequence<T> sequence, ListType list)
   {
-    return seq.accumulate(list, Accumulators.<ListType, T>list());
+    return sequence.accumulate(list, Accumulators.<ListType, T>list());
   }
 
-  private static class EmptySequence implements Sequence<Object>
+  public static <T> Sequence<T> materialize(Sequence<T> sequence)
+  {
+    return Sequences.simple(sequence.columns(), Sequences.toList(sequence));
+  }
+
+  private static class EmptySequence<T> implements Sequence<T>
   {
     @Override
-    public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, Object> accumulator)
+    public List<String> columns()
+    {
+      return ImmutableList.of();
+    }
+
+    @Override
+    public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
     {
       return initValue;
     }
 
     @Override
-    public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, Object> accumulator)
+    public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
     {
       return Yielders.done(initValue, null);
     }

@@ -65,8 +65,7 @@ public class GeoJsonDecorator implements SelectiveDecorator<Object[]>
   @Override
   public boolean accepts(Query query, QueryToolChest toolChest)
   {
-    return query instanceof Query.ArrayOutputSupport &&
-           ((Query.ArrayOutputSupport) query).estimatedOutputColumns() != null;
+    return query instanceof Query.ArrayOutputSupport && query.estimatedOutputColumns() != null;
   }
 
   @Override

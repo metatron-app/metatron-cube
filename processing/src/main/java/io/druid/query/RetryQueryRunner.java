@@ -52,11 +52,18 @@ public class RetryQueryRunner<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {
+    final Sequence<T> sequence = baseRunner.run(query, context);
     final List<Sequence<T>> listOfSequences = Lists.newArrayList();
-    listOfSequences.add(baseRunner.run(query, context));
+    listOfSequences.add(sequence);
 
     return new YieldingSequenceBase<T>()
     {
+      @Override
+      public List<String> columns()
+      {
+        return sequence.columns();
+      }
+
       @Override
       public <OutType> Yielder<OutType> toYielder(
           OutType initValue, YieldingAccumulator<OutType, T> accumulator

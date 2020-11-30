@@ -17,6 +17,7 @@ package io.druid.java.util.common.guava;
 import com.google.common.base.Throwables;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +37,12 @@ public class ExecutorExecutingSequence<T> implements Sequence<T>
   {
     this.sequence = sequence;
     this.exec = exec;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return sequence.columns();
   }
 
   @Override

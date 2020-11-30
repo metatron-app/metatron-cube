@@ -22,7 +22,6 @@ package io.druid.query;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
 
 import java.util.List;
 import java.util.Map;
@@ -57,13 +56,7 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
             }
           }
       );
-      if (sequences.isEmpty()) {
-        return Sequences.empty();
-      }
-      if (sequences.size() == 1) {
-        return sequences.get(0);
-      }
-      return QueryUtils.mergeSort(query, Sequences.simple(sequences));
+      return QueryUtils.mergeSort(query, sequences);
     } else {
       return baseRunner.run(query, responseContext);
     }

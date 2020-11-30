@@ -100,7 +100,7 @@ public class DummyQuery<T> extends BaseQuery<T>
   }
 
   @Override
-  public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
+  public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> responseContext)
   {
     return sequence;
   }

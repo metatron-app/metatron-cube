@@ -32,7 +32,6 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.StringUtils;
-import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
@@ -115,7 +114,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
         final TypeReference<?> cacheObjectClazz = strategy.getCacheObjectClazz();
 
         return Sequences.map(
-            BaseSequence.simple(
+            Sequences.simple(
                 new Iterable<Object>()
                 {
                   @Override

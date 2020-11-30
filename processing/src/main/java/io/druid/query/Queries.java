@@ -48,7 +48,6 @@ import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.Accumulator;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.Query.ColumnsSupport;
 import io.druid.query.Query.DimensionSupport;
 import io.druid.query.Query.SchemaProvider;
@@ -169,7 +168,7 @@ public class Queries
     return schema;
   }
 
-  public static List<String> relayColumns(ArrayOutputSupport<?> query, ObjectMapper mapper)
+  public static List<String> relayColumns(Query<?> query, ObjectMapper mapper)
   {
     List<String> columns = query.estimatedOutputColumns();
     if (columns == null) {
@@ -177,8 +176,11 @@ public class Queries
     }
     if (query instanceof Query.LateralViewSupport) {
       LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
-      if (lateralView != null) {
-        columns = lateralView.evolve(columns);
+      if (lateralView instanceof RowSignature.Evolving) {
+        columns = ((RowSignature.Evolving) lateralView).evolve(columns);
+        if (columns == null) {
+          return columns;
+        }
       }
     }
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
@@ -245,19 +247,17 @@ public class Queries
     return resolving;
   }
 
-  public static RowSignature finalize(RowSignature source, Query query, ObjectMapper mapper)
+  public static RowSignature finalize(RowSignature source, Query<?> query, ObjectMapper mapper)
   {
     if (query instanceof Query.LateralViewSupport) {
       LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
-      if (lateralView != null) {
-        source = lateralView.evolve(query, source, mapper);
+      if (lateralView instanceof RowSignature.Evolving) {
+        source = ((RowSignature.Evolving) lateralView).evolve(query, source, mapper);
       }
     }
-    if (query instanceof Query.ArrayOutputSupport) {
-      List<String> outputColumns = ((ArrayOutputSupport<?>) query).estimatedOutputColumns();
-      if (outputColumns != null) {
-        source = source.retain(outputColumns);
-      }
+    List<String> outputColumns = query.estimatedOutputColumns();
+    if (outputColumns != null) {
+      source = source.retain(outputColumns);
     }
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
     if (postProcessor instanceof RowSignature.Evolving) {

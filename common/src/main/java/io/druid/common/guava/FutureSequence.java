@@ -26,6 +26,7 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.YieldingAccumulator;
 
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -35,21 +36,34 @@ public class FutureSequence<T> implements Sequence<T>
 {
   public static <V> Function<Future<Sequence<V>>, Sequence<V>> toSequence()
   {
+    return toSequence(null);
+  }
+
+  public static <V> Function<Future<Sequence<V>>, Sequence<V>> toSequence(List<String> columns)
+  {
     return new Function<Future<Sequence<V>>, Sequence<V>>()
     {
       @Override
       public Sequence<V> apply(Future<Sequence<V>> input)
       {
-        return new FutureSequence<V>(input);
+        return new FutureSequence<V>(columns, input);
       }
     };
   }
 
+  private final List<String> columns;
   private final Future<Sequence<T>> provider;
 
-  public FutureSequence(Future<Sequence<T>> provider)
+  public FutureSequence(List<String> columns, Future<Sequence<T>> provider)
   {
+    this.columns = columns;
     this.provider = provider;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return columns;
   }
 
   @Override

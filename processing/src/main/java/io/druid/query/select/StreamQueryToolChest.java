@@ -35,6 +35,7 @@ import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -159,7 +160,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
           Query.ArrayOutputSupport<Object[]> arrayOutput = (Query.ArrayOutputSupport) subQuery;
           List<String> outputColumns = Queries.relayColumns(arrayOutput, segmentWalker.getObjectMapper());
           if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-            Sequence<Object[]> sequence = arrayOutput.array(arrayOutput.run(segmentWalker, responseContext));
+            Sequence<Object[]> sequence = QueryRunners.runArray(arrayOutput, segmentWalker, responseContext);
             return streamQuery.applySimpleProjection(sequence, outputColumns);
           }
         }
@@ -175,7 +176,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       @Override
       protected final Sequence<Object[]> streamMerge(Query<Object[]> query, Sequence<Sequence<Object[]>> sequences)
       {
-        return ((StreamQuery) query).applyLimit(Sequences.concat(sequences));
+        return ((StreamQuery) query).applyLimit(Sequences.concat(query.estimatedOutputColumns(), sequences));
       }
     };
   }

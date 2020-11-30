@@ -26,6 +26,7 @@ import io.druid.java.util.common.guava.YieldingSequenceBase;
 import io.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.Future;
 
 /**
@@ -41,6 +42,12 @@ public class InterruptibleSequence<T> extends YieldingSequenceBase<T>
   {
     this.future = future;
     this.delegate = delegate;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return delegate.columns();
   }
 
   @Override

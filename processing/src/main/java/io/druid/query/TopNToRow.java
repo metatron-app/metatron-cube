@@ -43,7 +43,7 @@ public class TopNToRow extends PostProcessingOperator.ReturnsRow<Result<TopNResu
       @SuppressWarnings("unchecked")
       public Sequence<Row> run(Query query, Map responseContext)
       {
-        return Sequences.explode(baseRunner.run(query, responseContext), Queries.TOP_N_TO_ROWS);
+        return Sequences.explode(null, baseRunner.run(query, responseContext), Queries.TOP_N_TO_ROWS);
       }
     };
   }

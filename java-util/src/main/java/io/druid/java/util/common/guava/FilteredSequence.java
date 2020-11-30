@@ -17,6 +17,7 @@ package io.druid.java.util.common.guava;
 import com.google.common.base.Predicate;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  */
@@ -32,6 +33,12 @@ public class FilteredSequence<T> implements Sequence<T>
   {
     this.baseSequence = baseSequence;
     this.pred = pred;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return baseSequence.columns();
   }
 
   @Override

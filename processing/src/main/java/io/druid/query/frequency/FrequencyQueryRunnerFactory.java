@@ -82,12 +82,12 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         final CountMinSketch sketch = (CountMinSketch) Futures.getUnchecked(optimizer);
-        return Sequences.concat(QueryRunnerHelper.makeCursorBasedQuery(
+        return QueryRunnerHelper.makeCursorBasedQueryConcat(
             segment.asStorageAdapter(true),
             query,
             cache,
             processor((FrequencyQuery) query, sketch)
-        ));
+        );
       }
     };
   }

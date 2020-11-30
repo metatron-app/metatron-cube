@@ -34,14 +34,27 @@ import java.util.concurrent.Future;
 public class ParallelInitMergeSequence<T> extends BaseMergeSequence<T>
 {
   private final Comparator<T> ordering;
+  private final List<String> columns;
   private final Sequence<Sequence<T>> sequences;
   private final ExecutorService executor;
 
-  public ParallelInitMergeSequence(Comparator<T> ordering, Sequence<Sequence<T>> sequences, ExecutorService executor)
+  public ParallelInitMergeSequence(
+      Comparator<T> ordering,
+      List<String> columns,
+      Sequence<Sequence<T>> sequences,
+      ExecutorService executor
+  )
   {
     this.ordering = ordering;
+    this.columns = columns;
     this.sequences = sequences;
     this.executor = executor;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return columns;
   }
 
   @Override

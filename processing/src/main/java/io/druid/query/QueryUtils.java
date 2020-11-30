@@ -76,36 +76,42 @@ public class QueryUtils
 
   public static <T> Sequence<T> mergeSort(Query<T> query, List<Sequence<T>> sequences)
   {
+    Comparator<T> ordering = query.getMergeOrdering();
+    if (ordering == null) {
+      return Sequences.concat(sequences);
+    }
     if (sequences.isEmpty()) {
       return Sequences.empty();
     }
     if (sequences.size() == 1) {
       return sequences.get(0);
     }
-    return mergeSort(query, Sequences.simple(sequences));
+    return Sequences.mergeSort(sequences.get(0).columns(), ordering, Sequences.simple(sequences));
   }
 
   public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences)
   {
     Comparator<T> ordering = query.getMergeOrdering();
-    return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
+    if (ordering == null) {
+      return Sequences.concat(sequences);
+    } else {
+      return Sequences.mergeSort(null, ordering, sequences);
+    }
   }
 
   public static <T> Sequence<T> mergeSort(Query<T> query, List<Sequence<T>> sequences, ExecutorService executor)
   {
+    Comparator<T> ordering = query.getMergeOrdering();
+    if (ordering == null) {
+      return Sequences.concat(sequences);
+    }
     if (sequences.isEmpty()) {
       return Sequences.empty();
     }
     if (sequences.size() == 1) {
       return sequences.get(0);
     }
-    return mergeSort(query, Sequences.simple(sequences), executor);
-  }
-
-  public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences, ExecutorService executor)
-  {
-    Comparator<T> ordering = query.getMergeOrdering();
-    return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences, executor);
+    return Sequences.mergeSort(sequences.get(0).columns(), ordering, Sequences.simple(sequences), executor);
   }
 
   public static List<Interval> analyzeInterval(QuerySegmentWalker segmentWalker, Query<?> query)

@@ -332,7 +332,7 @@ public class ConcatSequenceTest
     List<TestSequence<Integer>> accumulationSeqs = Lists.newArrayList(theSequences);
     SequenceTestHelper.testAccumulation(
         "",
-        new ConcatSequence<Integer>((Sequence) Sequences.simple(accumulationSeqs)),
+        Sequences.concat((Sequence) Sequences.simple(accumulationSeqs)),
         Lists.newArrayList(Iterables.concat(vals))
     );
 
@@ -343,7 +343,7 @@ public class ConcatSequenceTest
     List<TestSequence<Integer>> yieldSeqs = Lists.newArrayList(theSequences);
     SequenceTestHelper.testYield(
         "",
-        new ConcatSequence<Integer>((Sequence) Sequences.simple(yieldSeqs)),
+        Sequences.concat((Sequence) Sequences.simple(yieldSeqs)),
         Lists.newArrayList(Iterables.concat(vals))
     );
 

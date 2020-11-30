@@ -380,7 +380,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
   @Override
   public List<String> estimatedOutputColumns()
   {
-    List<String> outputColumns = ((ArrayOutputSupport<?>) query).estimatedOutputColumns();
+    List<String> outputColumns = query.estimatedOutputColumns();
     return outputColumns == null ? null : GuavaUtils.concat(outputColumns, tagColumn);
   }
 

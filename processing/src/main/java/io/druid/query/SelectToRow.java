@@ -43,7 +43,7 @@ public class SelectToRow extends PostProcessingOperator.ReturnsRow<Result<Select
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map responseContext)
       {
-        return Sequences.explode(baseRunner.run(query, responseContext), Queries.SELECT_TO_ROWS);
+        return Sequences.explode(null, baseRunner.run(query, responseContext), Queries.SELECT_TO_ROWS);
       }
     };
   }

@@ -33,6 +33,7 @@ import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.guava.Yielder;
+import io.druid.query.RowSignature;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -42,12 +43,22 @@ import java.util.List;
 
 public class BulkSequenceTest
 {
+  private static RowSignature schema(ValueDesc... descs)
+  {
+    List<ValueDesc> columnTypes = Arrays.asList(descs);
+    List<String> columnNames = Lists.newArrayList();
+    for (int i = 0; i < columnTypes.size(); i++) {
+      columnNames.add("col" + i);
+    }
+    return new RowSignature.Simple(columnNames, columnTypes);
+  }
+
   @Test
   public void test() throws IOException
   {
     Sequence<Object[]> rows = Sequences.simple(cr(0), cr(1), cr(2), cr(3), cr(4));
 
-    Sequence<BulkRow> bulk = new BulkSequence(rows, Arrays.asList(
+    Sequence<BulkRow> bulk = new BulkSequence(rows, schema(
         ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 2
     );
 
@@ -155,7 +166,7 @@ public class BulkSequenceTest
   public void testSerde() throws IOException
   {
     Sequence<Object[]> rows = Sequences.simple(cr(0), cr(1), cr(2), cr(3), cr(4));
-    Sequence<BulkRow> object = new BulkSequence(rows, Arrays.asList(
+    Sequence<BulkRow> object = new BulkSequence(rows, schema(
         ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 2
     );
     DefaultObjectMapper mapper = new DefaultObjectMapper(new SmileFactory());
@@ -184,7 +195,7 @@ public class BulkSequenceTest
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
     Sequence<BulkRow> sequence = new BulkSequence(
-        rows, Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 5
+        rows, schema(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 5
     );
 
     Yielder<BulkRow> yielder = Yielders.each(sequence);
@@ -218,7 +229,7 @@ public class BulkSequenceTest
         Sequences.simple(cr(8), cr(9), cr(10), cr(11), cr(12))
     );
     Sequence<BulkRow> sequence = new BulkSequence(
-        Sequences.limit(rows, 7), Arrays.asList(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 3
+        Sequences.limit(rows, 7), schema(ValueDesc.LONG, ValueDesc.FLOAT, ValueDesc.DOUBLE, ValueDesc.STRING), 3
     );
 
     Yielder<BulkRow> yielder = Yielders.each(sequence);

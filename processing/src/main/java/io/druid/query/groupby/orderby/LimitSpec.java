@@ -261,7 +261,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
       Comparator<Object[]> ordering = new OrderingProcessor(query.getColumns(), null).toArrayOrdering(columns, false);
       Function<Sequence<Object[]>, Sequence<Object[]>> function = sequenceLimiter(ordering, limit);
       if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-        function = GuavaUtils.sequence(function, Sequences.mapper(remap(inputColumns, outputColumns)));
+        function = GuavaUtils.sequence(function, Sequences.mapper(outputColumns, remap(inputColumns, outputColumns)));
       }
       return function;
     }
@@ -272,7 +272,7 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     final WindowingProcessor processor = new WindowingProcessor(query, resolver.get(), windowingSpecs);
 
     final Function<Sequence<Object[]>, List<Row>> processed = GuavaUtils.sequence(
-        Sequences.mapper(toRow), LimitSpec.<Row>toList(), processor
+        Sequences.mapper(null, toRow), LimitSpec.<Row>toList(), processor
     );
 
     if (columns.isEmpty()) {
@@ -420,11 +420,11 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     public Sequence<Object[]> apply(Sequence<Object[]> sequence)
     {
       if (limit > 0) {
-        return Sequences.once(TopNSorter.topN(ordering, sequence, limit));
+        return Sequences.once(sequence.columns(), TopNSorter.topN(ordering, sequence, limit));
       } else {
         final Object[][] array = Sequences.toList(sequence).toArray(new Object[0][]);
         Arrays.sort(array, ordering);
-        return Sequences.simple(Arrays.asList(array));
+        return Sequences.simple(sequence.columns(), Arrays.asList(array));
       }
     }
   }

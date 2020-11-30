@@ -24,7 +24,6 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
@@ -33,7 +32,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.ParallelInitMergeSequence;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Accumulators;
 import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.DelegatingYieldingAccumulator;
 import io.druid.java.util.common.guava.LazySequence;
@@ -62,28 +60,6 @@ import java.util.concurrent.Future;
  */
 public class Sequences extends io.druid.java.util.common.guava.Sequences
 {
-  public static <T> Sequence<T> simple(final Iterable<T> iterable)
-  {
-    return new BaseSequence<>(
-        new BaseSequence.IteratorMaker<T, Iterator<T>>()
-        {
-          @Override
-          public Iterator<T> make()
-          {
-            return iterable.iterator();
-          }
-
-          @Override
-          public void cleanup(Iterator<T> iterator)
-          {
-            if (iterator instanceof Closeable) {
-              IOUtils.closeQuietly((Closeable) iterator);
-            }
-          }
-        }
-    );
-  }
-
   @SafeVarargs
   public static <T> Sequence<T> simple(final T a, T... as)
   {
@@ -104,26 +80,31 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
 
   public static <T> Sequence<T> lazy(Supplier<Sequence<T>> supplier)
   {
-    return new LazySequence<>(supplier);
+    return lazy(null, supplier);
   }
 
-  public static <T> Sequence<T> mergeSort(Comparator<T> ordering, Iterable<Sequence<T>> baseSequences)
+  public static <T> Sequence<T> lazy(List<String> columns, Supplier<Sequence<T>> supplier)
   {
-    return mergeSort(ordering, Sequences.simple(baseSequences));
-  }
-
-  public static <T> Sequence<T> mergeSort(Comparator<T> ordering, Sequence<Sequence<T>> baseSequences)
-  {
-    return new MergeSequence<T>(ordering, baseSequences);
+    return new LazySequence<>(columns, supplier);
   }
 
   public static <T> Sequence<T> mergeSort(
+      List<String> columns,
+      Comparator<T> ordering,
+      Sequence<Sequence<T>> sequences
+  )
+  {
+    return new MergeSequence<T>(columns, ordering, sequences);
+  }
+
+  public static <T> Sequence<T> mergeSort(
+      List<String> columns,
       Comparator<T> ordering,
       Sequence<Sequence<T>> baseSequences,
       ExecutorService executor
   )
   {
-    return new ParallelInitMergeSequence<T>(ordering, baseSequences, executor);
+    return new ParallelInitMergeSequence<T>(ordering, columns, baseSequences, executor);
   }
 
   public static <T> Sequence<T> filterNull(Sequence<T> sequence)
@@ -134,7 +115,7 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
   @SafeVarargs
   public static <T> Sequence<T> of(T... elements)
   {
-    return BaseSequence.simple(Arrays.asList(elements));
+    return simple(Arrays.asList(elements));
   }
 
   public static <T> T only(Sequence<T> seq)
@@ -147,30 +128,30 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     return Iterables.getOnlyElement(toList(seq), defaultValue);
   }
 
-  public static <T> List<T> toList(Sequence<T> seq)
-  {
-    return seq.accumulate(Lists.<T>newArrayList(), Accumulators.<List<T>, T>list());
-  }
-
   public static <T> Sequence<T> concat(List<Sequence<T>> sequences)
   {
-    return sequences.isEmpty() ? Sequences.<T>empty()
-           : sequences.size() == 1 ? sequences.get(0) : concat(simple(sequences));
+    return sequences.isEmpty() ? Sequences.<T>empty() :
+           sequences.size() == 1 ? sequences.get(0) :
+           concat(sequences.get(0).columns(), simple(sequences));
   }
 
   public static <From, To> Sequence<To> explode(Sequence<From> sequence, Function<From, Sequence<To>> fn)
   {
-    return concat(map(sequence, fn));
+    return concat(sequence.columns(), map(sequence, fn));
   }
 
-  public static <From, M, To> Sequence<To> map(Sequence<From> sequence, Function<From, M> fn1, Function<M, To> fn2)
+  public static <From, To> Sequence<To> explode(
+      List<String> columns,
+      Sequence<From> sequence,
+      Function<From, Sequence<To>> fn
+  )
   {
-    return Sequences.map(Sequences.map(sequence, fn1), fn2);
+    return concat(columns, map(sequence, fn));
   }
 
-  public static <F, T> Function<Sequence<F>, Sequence<T>> mapper(Function<F, T> f)
+  public static <F, T> Function<Sequence<F>, Sequence<T>> mapper(List<String> columns, Function<F, T> f)
   {
-    return input -> Sequences.map(input, f);
+    return input -> Sequences.map(columns, input, f);
   }
 
   public static <T> Sequence<T> withEffect(Sequence<T> sequence, Runnable effect)
@@ -178,14 +159,20 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     return withEffect(sequence, effect, Execs.newDirectExecutorService());
   }
 
-  public static <T> Sequence<T> withEffect(final Sequence <T> seq, final Runnable effect, final Executor exec)
+  public static <T> Sequence<T> withEffect(final Sequence<T> sequence, final Runnable effect, final Executor exec)
   {
     return new Sequence<T>()
     {
       @Override
+      public List<String> columns()
+      {
+        return sequence.columns();
+      }
+
+      @Override
       public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
       {
-        final OutType out = seq.accumulate(initValue, accumulator);
+        final OutType out = sequence.accumulate(initValue, accumulator);
         exec.execute(effect);
         return out;
       }
@@ -193,7 +180,7 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
       @Override
       public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
       {
-        return new ExecuteWhenDoneYielder<>(seq.toYielder(initValue, accumulator), effect, exec);
+        return new ExecuteWhenDoneYielder<>(sequence.toYielder(initValue, accumulator), effect, exec);
       }
     };
   }
@@ -218,7 +205,12 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
 
   public static <From, To> Sequence<To> map(Sequence<From> sequence, Function<From, To> fn)
   {
-    Sequence<To> mapped = new MappedSequence<>(sequence, fn);
+    return map(null, sequence, fn);
+  }
+
+  public static <From, To> Sequence<To> map(List<String> columns, Sequence<From> sequence, Function<From, To> fn)
+  {
+    Sequence<To> mapped = MappedSequence.of(columns, sequence, fn);
     if (sequence instanceof Progressing) {
       mapped = new ProgressingSequence<>(mapped, (Progressing) sequence);
     }
@@ -280,7 +272,13 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
 
   public static <T> Sequence<T> once(final Iterator<T> iterator)
   {
+    return once(null, iterator);
+  }
+
+  public static <T> Sequence<T> once(final List<String> columns, final Iterator<T> iterator)
+  {
     Sequence<T> sequence = new BaseSequence<>(
+        columns,
         new BaseSequence.IteratorMaker<T, Iterator<T>>()
         {
           @Override
@@ -355,6 +353,12 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     protected PeekingSequence(Sequence<T> sequence) {this.sequence = sequence;}
 
     @Override
+    public List<String> columns()
+    {
+      return sequence.columns();
+    }
+
+    @Override
     public <OutType> OutType accumulate(OutType initValue, final Accumulator<OutType, T> accumulator)
     {
       return sequence.accumulate(
@@ -389,15 +393,14 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
     protected abstract T peek(T row);
   }
 
-  public static class ProgressingSequence<T> implements Sequence<T>, Progressing
+  public static class ProgressingSequence<T> extends Sequence.Delegate<T> implements Progressing
   {
     private final Progressing progressing;
-    private final Sequence<T> sequence;
 
     public ProgressingSequence(Sequence<T> sequence, Progressing progressing)
     {
+      super(sequence);
       this.progressing = progressing;
-      this.sequence = sequence;
     }
 
     @Override

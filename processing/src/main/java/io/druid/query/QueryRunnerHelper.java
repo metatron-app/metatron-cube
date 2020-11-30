@@ -32,6 +32,7 @@ import io.druid.segment.Cursor;
 import io.druid.segment.CursorFactory;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -50,7 +51,7 @@ public class QueryRunnerHelper
   )
   {
     return Sequences.filterNull(
-        Sequences.map(factory.makeCursors(query, cache), mapFn)
+        Sequences.map(query.estimatedInitialColumns(), factory.makeCursors(query, cache), mapFn)
     );
   }
 
@@ -61,9 +62,10 @@ public class QueryRunnerHelper
       final Function<Cursor, Sequence<T>> mapFn
   )
   {
-    return Sequences.concat(Sequences.filterNull(
-        Sequences.map(factory.makeCursors(query, cache), mapFn)
-    ));
+    List<String> columns = query.estimatedInitialColumns();
+    return Sequences.concat(
+        columns, Sequences.filterNull(Sequences.map(columns, factory.makeCursors(query, cache), mapFn))
+    );
   }
 
   public static <T> QueryRunner<T> toManagementRunner(
@@ -131,7 +133,7 @@ public class QueryRunnerHelper
               @Override
               public Sequence<T> call() throws Exception
               {
-                return Sequences.simple(Sequences.toList(Sequences.withBaggage(callable.call(), semaphore)));
+                return Sequences.materialize(Sequences.withBaggage(callable.call(), semaphore));
               }
             };
           }

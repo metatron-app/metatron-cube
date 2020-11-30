@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Supplier;
@@ -145,6 +146,18 @@ public interface Query<T> extends QueryContextKeys
 
   Query<T> withDataSource(DataSource dataSource);
 
+  @JsonIgnore
+  default List<String> estimatedInitialColumns()
+  {
+    return null;
+  }
+
+  @JsonIgnore
+  default List<String> estimatedOutputColumns()
+  {
+    return null;
+  }
+
   interface VCSupport<T> extends Query<T>
   {
     List<VirtualColumn> getVirtualColumns();
@@ -217,8 +230,6 @@ public interface Query<T> extends QueryContextKeys
 
   interface ArrayOutputSupport<T> extends Query<T>
   {
-    List<String> estimatedOutputColumns();
-
     Sequence<Object[]> array(Sequence<T> sequence);
   }
 

@@ -69,7 +69,9 @@ public class TimeseriesQueryEngine
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-    return Sequences.explode(adapter.makeCursors(query, cache), processor(query, compact));
+    return Sequences.explode(
+        query.estimatedInitialColumns(), adapter.makeCursors(query, cache), processor(query, compact)
+    );
   }
 
   public static Function<Cursor, Sequence<Row>> processor(final TimeseriesQuery query, final boolean compact)

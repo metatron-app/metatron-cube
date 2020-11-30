@@ -20,17 +20,26 @@
 package io.druid.java.util.common.guava;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * copied from java-util to fix NPE
  */
 public class ConcatSequence<T> implements Sequence<T>
 {
+  private final List<String> columns;
   private final Sequence<Sequence<T>> baseSequences;
 
-  public ConcatSequence(Sequence<Sequence<T>> baseSequences)
+  public ConcatSequence(List<String> columns, Sequence<Sequence<T>> baseSequences)
   {
+    this.columns = columns;
     this.baseSequences = baseSequences;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return columns;
   }
 
   @Override

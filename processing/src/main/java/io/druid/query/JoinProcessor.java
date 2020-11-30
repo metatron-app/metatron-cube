@@ -501,7 +501,7 @@ public class JoinProcessor
       this.rows = GuavaUtils.peekingIterator(rows.iterator());
       this.hashed = null;
       this.estimatedNumRows = rows.size();
-      LOG.info("-- %s = sorted (%s)(numRows=%d)", alias, joinColumns, rows.size());
+      LOG.info("-- %s = sorted (%s:%s)(numRows=%d)", alias, joinColumns, columns, rows.size());
     }
 
     JoinAlias(
@@ -522,7 +522,7 @@ public class JoinProcessor
       this.rows = GuavaUtils.peekingIterator(rows);
       this.hashed = null;
       this.estimatedNumRows = estimatedNumRows;
-      LOG.info("-- %s = stream (estimated=%d)", alias, estimatedNumRows);
+      LOG.info("-- %s = stream (%s:%s)(estimated=%d)", alias, joinColumns, columns, estimatedNumRows);
     }
 
     JoinAlias(
@@ -541,7 +541,7 @@ public class JoinProcessor
       this.rows = Iterators.peekingIterator(Collections.emptyIterator());
       this.hashed = hash(iterator, indices);
       this.estimatedNumRows = hashed.size();
-      LOG.info("-- %s = hashed (group=%d)", alias, hashed.size());
+      LOG.info("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashed.size());
     }
 
     private boolean isHashed()

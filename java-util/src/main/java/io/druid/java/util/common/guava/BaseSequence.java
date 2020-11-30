@@ -20,6 +20,7 @@ import io.druid.java.util.common.logger.Logger;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  */
@@ -27,37 +28,24 @@ public class BaseSequence<T, IterType extends Iterator<T>> implements Sequence<T
 {
   private static final Logger log = new Logger(BaseSequence.class);
 
+  private final List<String> columns;
   private final IteratorMaker<T, IterType> maker;
-
-  public static <T> Sequence<T> simple(final Iterable<T> iterable)
-  {
-    return new BaseSequence<>(
-        new BaseSequence.IteratorMaker<T, Iterator<T>>()
-        {
-          @Override
-          public Iterator<T> make()
-          {
-            return iterable.iterator();
-          }
-
-          @Override
-          public void cleanup(Iterator<T> iterFromMake)
-          {
-            if (iterFromMake instanceof Closeable) {
-              try {
-                ((Closeable) iterFromMake).close();
-              }
-              catch (Exception e) {
-              }
-            }
-          }
-        }
-    );
-  }
 
   public BaseSequence(IteratorMaker<T, IterType> maker)
   {
+    this(null, maker);
+  }
+
+  public BaseSequence(List<String> columns, IteratorMaker<T, IterType> maker)
+  {
+    this.columns = columns;
     this.maker = maker;
+  }
+
+  @Override
+  public List<String> columns()
+  {
+    return columns;
   }
 
   @Override

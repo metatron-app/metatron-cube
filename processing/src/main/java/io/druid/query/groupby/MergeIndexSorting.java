@@ -20,15 +20,14 @@
 package io.druid.query.groupby;
 
 import com.google.common.collect.Iterables;
+import io.druid.common.guava.Comparators;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.common.guava.Comparators;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -43,11 +42,6 @@ public final class MergeIndexSorting extends MergeIndex.GroupByMerge
 {
   private static final Logger LOG = new Logger(MergeIndexSorting.class);
 
-  private final GroupByQuery groupBy;
-
-  private final AggregatorFactory.Combiner[] metrics;
-  private final int metricStart;
-
   private final Map<Object[], Object[]> mapping;
   private final BiFunction<Object[], Object[], Object[]> populator;
 
@@ -58,9 +52,6 @@ public final class MergeIndexSorting extends MergeIndex.GroupByMerge
   )
   {
     super(groupBy);
-    this.groupBy = groupBy;
-    this.metrics = AggregatorFactory.toCombinerArray(groupBy.getAggregatorSpecs());
-    this.metricStart = groupBy.getDimensions().size() + 1;
 
     final Comparator<Object[]> comparator =
         Comparators.toArrayComparator(
@@ -104,6 +95,7 @@ public final class MergeIndexSorting extends MergeIndex.GroupByMerge
   public Sequence<Row> toMergeStream(final boolean compact)
   {
     return Sequences.simple(
+        groupBy.estimatedInitialColumns(),
         Iterables.transform(mapping.values(), GroupByQueryEngine.arrayToRow(groupBy, compact))
     );
   }

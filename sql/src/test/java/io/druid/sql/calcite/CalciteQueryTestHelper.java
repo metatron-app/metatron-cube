@@ -29,6 +29,7 @@ import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Druids;
 import io.druid.query.Queries;
@@ -80,6 +81,7 @@ import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.sql.calcite.view.InProcessViewManager;
+import org.apache.calcite.rel.type.RelDataType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -352,9 +354,14 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
     try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
       final PlannerResult plan = planner.plan(sql, null);
-      List<Object[]> results = Sequences.toList(plan.run(), Lists.newArrayList());
-      log.info("result schema " + plan.rowType());
-      return results;
+      final Sequence<Object[]> sequence = plan.run();
+      final RelDataType dataType = plan.rowType();
+      Assert.assertNotNull(dataType);
+      log.info("final schema " + dataType);
+      if (sequence.columns() != null) {
+        log.info("result sequence " + sequence.columns());
+      }
+      return Sequences.toList(sequence);
     }
   }
 

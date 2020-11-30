@@ -448,9 +448,9 @@ public class AggregationTestHelper
       @Override
       public Sequence<Row> run(Query<Row> query, Map<String, Object> map)
       {
-        Sequence<Row> resultSeq = baseRunner.run(resolved, Maps.<String, Object>newHashMap());
+        Sequence<Row> sequence = baseRunner.run(resolved, Maps.<String, Object>newHashMap());
         try {
-          Yielder yielder = Yielders.each(resultSeq);
+          Yielder yielder = Yielders.each(sequence);
           String resultStr = mapper.writer().writeValueAsString(yielder);
 
           TypeFactory typeFactory = mapper.getTypeFactory();
@@ -464,7 +464,7 @@ public class AggregationTestHelper
                   MetricManipulatorFns.deserializing()
               )
           );
-          return Sequences.simple(resultRows);
+          return Sequences.simple(sequence.columns(), resultRows);
         } catch(Exception ex) {
           throw Throwables.propagate(ex);
         }

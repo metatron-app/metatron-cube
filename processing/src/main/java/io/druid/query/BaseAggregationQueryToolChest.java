@@ -43,7 +43,6 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.AggregationQueryBinaryFn;
 import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.DateTime;
@@ -72,12 +71,12 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
           Sequence<Row> sequence = runner.run(aggregation, responseContext);
           if (BaseQuery.isBySegment(aggregation)) {
             Function function = BySegmentResultValueClass.applyAll(
-                Functions.compose(toPostAggregator(aggregation), toMapBasedRow(aggregation)));
+                Functions.compose(toPostAggregator(aggregation), aggregation.compactToMap(sequence.columns())));
             return Sequences.map(sequence, function);
           }
           sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation));
           sequence = Sequences.map(
-              sequence, Functions.compose(toPostAggregator(aggregation), toMapBasedRow(aggregation))
+              sequence, Functions.compose(toPostAggregator(aggregation), aggregation.compactToMap(sequence.columns()))
           );
           return sequence;
         }
@@ -95,32 +94,6 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   protected BinaryFn getMergeFn(T aggregation)
   {
     return new AggregationQueryBinaryFn(aggregation);
-  }
-
-  protected Function<Row, Row> toMapBasedRow(final T query)
-  {
-    return new Function<Row, Row>()
-    {
-      private final Granularity granularity = query.getGranularity();
-      private final String[] columns = GuavaUtils.concat(
-          Row.TIME_COLUMN_NAME,
-          GuavaUtils.concat(
-              DimensionSpecs.toOutputNames(query.getDimensions()),
-              AggregatorFactory.toNames(query.getAggregatorSpecs())
-          )
-      ).toArray(new String[0]);
-
-      @Override
-      public Row apply(Row input)
-      {
-        final Object[] values = ((CompactRow) input).getValues();
-        final Map<String, Object> event = Maps.newLinkedHashMap();
-        for (int i = 1; i < columns.length; i++) {
-          event.put(columns[i], values[i]);
-        }
-        return new MapBasedRow(granularity.toDateTime(input.getTimestampFromEpoch()), event);
-      }
-    };
   }
 
   protected Function<Row, Row> toPostAggregator(final T query)
@@ -368,7 +341,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     final LateralViewSpec lateralViewSpec = aggregation.getLateralView();
     if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
       sequence = Sequences.map(
-          sequence, new Function<Row, Row>()
+          outputColumns, sequence, new Function<Row, Row>()
           {
             @Override
             public Row apply(Row input)
@@ -386,35 +359,37 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     return lateralViewSpec != null ? toLateralView(sequence, lateralViewSpec) : sequence;
   }
 
-  private Sequence<Row> toLateralView(final Sequence<Row> result, final LateralViewSpec lateralViewSpec)
+  private Sequence<Row> toLateralView(final Sequence<Row> sequence, final LateralViewSpec lateralViewSpec)
   {
+    List<String> columns = sequence.columns();
+    if (columns != null && lateralViewSpec instanceof RowSignature.Evolving) {
+      columns = ((RowSignature.Evolving) lateralViewSpec).evolve(columns);
+    }
     final Function<Map<String, Object>, Iterable<Map<String, Object>>> function = lateralViewSpec.prepare();
-    return Sequences.concat(
-        Sequences.map(
-            result, new Function<Row, Sequence<Row>>()
-            {
-              @Override
-              @SuppressWarnings("unchecked")
-              public Sequence<Row> apply(Row input)
-              {
-                final DateTime timestamp = input.getTimestamp();
-                final Map<String, Object> event = ((MapBasedRow) input).getEvent();
-                return Sequences.simple(
-                    Iterables.transform(
-                        function.apply(event),
-                        new Function<Map<String, Object>, Row>()
-                        {
-                          @Override
-                          public Row apply(Map<String, Object> input)
-                          {
-                            return new MapBasedRow(timestamp, input);
-                          }
-                        }
-                    )
-                );
-              }
-            }
-        )
+    return Sequences.explode(
+        columns, sequence, new Function<Row, Sequence<Row>>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public Sequence<Row> apply(Row input)
+          {
+            final DateTime timestamp = input.getTimestamp();
+            final Map<String, Object> event = ((MapBasedRow) input).getEvent();
+            return Sequences.simple(
+                Iterables.transform(
+                    function.apply(event),
+                    new Function<Map<String, Object>, Row>()
+                    {
+                      @Override
+                      public Row apply(Map<String, Object> input)
+                      {
+                        return new MapBasedRow(timestamp, input);
+                      }
+                    }
+                )
+            );
+          }
+        }
     );
   }
 

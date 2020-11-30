@@ -168,6 +168,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     StopWatch watch = queryWatcher.registerQuery(query, Execs.tag(future, host), handler);
 
     Sequence<T> sequence = new BaseSequence<>(
+        query.estimatedOutputColumns(),
         new BaseSequence.IteratorMaker<T, JsonParserIterator<T>>()
         {
           @Override

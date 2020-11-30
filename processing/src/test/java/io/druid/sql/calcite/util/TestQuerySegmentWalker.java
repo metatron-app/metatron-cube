@@ -354,16 +354,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private <T> QueryRunner<T> makeQueryRunner(Query<T> query)
   {
     hook.accept(query);
-    final Query<T> prepared = prepareQuery(query);
-    final QueryRunner<T> runner = toQueryRunner(prepared);
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return runner.run(prepared, responseContext);
-      }
-    };
+    Query<T> prepared = prepareQuery(query);
+    return QueryRunners.runWith(prepared, toQueryRunner(prepared));
   }
 
   private <T> Iterable<Pair<SegmentDescriptor, Segment>> getSegment(Query<T> input, int node)
@@ -447,7 +439,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> toQueryRunner(Query<T> query)
+  private <T> QueryRunner<T> toQueryRunner(final Query<T> query)
   {
     if (query instanceof ConveyQuery) {
       return QueryRunners.wrap(((ConveyQuery<T>) query).getValues());
@@ -483,21 +475,21 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     QueryRunner<T> runner = new QueryRunner<T>()
     {
       @Override
-      @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        QueryRunner<T> runner = new QueryRunner<T>()
-        {
-          @Override
-          public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-          {
-            final Query local = query.toLocalQuery();
-            return QueryUtils.mergeSort(query, Arrays.asList(
-                toLocalQueryRunner(local, getSegment(query, 0)).run(local, responseContext),
-                toLocalQueryRunner(local, getSegment(query, 1)).run(local, responseContext)
-            ));
-          }
-        };
+        return QueryUtils.mergeSort(query, Arrays.asList(
+            toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
+            toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)
+        ));
+      }
+    };
+
+    // todo: mimic serialize & deserialize
+    final QueryRunner<T> serde = new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
         QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
         Function manipulatorFn = toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing());
         if (BaseQuery.isBySegment(query)) {
@@ -506,8 +498,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         return Sequences.map(runner.run(query, responseContext), manipulatorFn);
       }
     };
-
     return FluentQueryRunnerBuilder.create(factory.getToolchest(), runner)
+                                   .runWithLocalized()
                                    .applyPreMergeDecoration()
                                    .applyMergeResults()
                                    .applyPostMergeDecoration()
@@ -527,6 +519,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     }
 
     List<Segment> targets = Lists.newArrayList();
+    List<SegmentDescriptor> descriptors = Lists.newArrayList();
     List<QueryRunner<T>> missingSegments = Lists.newArrayList();
     for (Pair<SegmentDescriptor, Segment> segment : segments) {
       if (segment.rhs != null) {
@@ -534,13 +527,18 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       } else {
         missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
       }
+      descriptors.add(segment.lhs);
+    }
+
+    if (!(query.getQuerySegmentSpec() instanceof MultipleSpecificSegmentSpec)) {
+      query = query.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
     }
     if (query.isDescending()) {
       targets = Lists.reverse(targets);
     }
 
     if (targets.isEmpty()) {
-      return PostProcessingOperators.wrap(QueryRunners.<T>empty(), objectMapper);
+      return PostProcessingOperators.wrap(QueryRunners.<T>empty(query.estimatedOutputColumns()), objectMapper);
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver, true);
@@ -576,20 +574,21 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       }
     };
 
+    List<String> columns = resolved.estimatedOutputColumns();
     if (splitable != null) {
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         return QueryRunners.runWith(
-            resolved, QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
+            resolved, QueryRunners.concat(columns, Iterables.concat(missingSegments, Iterables.transform(splits, function)))
         );
       }
     }
 
-    QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
+    QueryRunner<T> runner = QueryRunners.concat(columns, GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
       List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
-        return QueryRunners.concat(runner, splits);
+        return QueryRunners.concat(columns, runner, splits);
       }
     }
     return QueryRunners.runWith(resolved, runner);

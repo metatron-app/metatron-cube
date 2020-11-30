@@ -56,7 +56,7 @@ public class HashPartitionedQuery extends AbstractIteratingQuery<Object[], Objec
   @Override
   public List<String> estimatedOutputColumns()
   {
-    return ((Query.ArrayOutput) query).estimatedOutputColumns();
+    return query.estimatedOutputColumns();
   }
 
   @Override

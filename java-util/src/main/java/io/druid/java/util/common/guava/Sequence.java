@@ -14,6 +14,7 @@
 
 package io.druid.java.util.common.guava;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -31,6 +32,8 @@ import java.util.function.Consumer;
  */
 public interface Sequence<T>
 {
+  List<String> columns();
+
   <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator);
 
   <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator);
@@ -41,5 +44,36 @@ public interface Sequence<T>
       consumer.accept(value);
       return null;
     });
+  }
+
+  abstract class Delegate<T> implements Sequence<T>
+  {
+    protected final Sequence<T> sequence;
+
+    protected Delegate(Sequence<T> sequence) {this.sequence = sequence;}
+
+    @Override
+    public List<String> columns()
+    {
+      return sequence.columns();
+    }
+
+    @Override
+    public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
+    {
+      return sequence.accumulate(initValue, accumulator);
+    }
+
+    @Override
+    public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
+    {
+      return sequence.toYielder(initValue, accumulator);
+    }
+
+    @Override
+    public void accumulate(Consumer<T> consumer)
+    {
+      sequence.accumulate(consumer);
+    }
   }
 }

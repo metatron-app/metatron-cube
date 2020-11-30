@@ -107,7 +107,7 @@ public class GeomConvexHullPostProcessor extends ReturnsArray<Object[]>
 
         final Expr expr = Strings.isNullOrEmpty(convexExpression) ? null : Parser.parse(convexExpression);
         final Map<Object, BatchConvexHull> convexHulls = Maps.newHashMap();
-        final Sequence<Object[]> append = Sequences.lazy(() -> {
+        final Sequence<Object[]> append = Sequences.lazy(columns, () -> {
           final List<Object[]> result = Lists.newArrayList();
           for (Map.Entry<Object, BatchConvexHull> entry : convexHulls.entrySet()) {
             Object[] row = new Object[columns.size()];

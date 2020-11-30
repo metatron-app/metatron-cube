@@ -43,7 +43,7 @@ import java.util.Objects;
  *
  */
 @JsonTypeName("explode")
-public class ExplodeSpec implements LateralViewSpec
+public class ExplodeSpec implements LateralViewSpec, RowSignature.Evolving
 {
   public static ExplodeSpec of(String column)
   {

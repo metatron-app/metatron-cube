@@ -335,7 +335,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
             Supplier<List<Object[]>> fieldValues =
                 () -> Sequences.toList(Sequences.map(
-                    array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
+                    QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices)));
             DataSource filtered = DataSources.applyFilterAndProjection(
                 left, ValuesFilter.fieldNames(leftJoinColumns, fieldValues), outputColumns
             );
@@ -357,7 +357,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
             Supplier<List<Object[]>> fieldValues =
                 () -> Sequences.toList(Sequences.map(
-                    array.array(array.run(segmentWalker, null)), GuavaUtils.mapper(indices)));
+                    QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices)));
             DataSource filtered = DataSources.applyFilterAndProjection(
                 right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
             );
@@ -389,7 +389,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           Query query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
           LOG.info("-- %s (L) is broadcasted for %s (R) with estimated number of %,d", leftAlias, rightAlias, leftEstimated);
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
-          Sequence<Object[]> array = query0.array(QueryRunners.run(query0, segmentWalker));
+          Sequence<Object[]> array = QueryRunners.runArray(query0, segmentWalker);
           Sequence<BulkRow> values;
           if (query0.hasFilters() && query1 instanceof FilterSupport && !element.isCrossJoin()) {
             List<Object[]> list = Sequences.toList(array);
@@ -421,7 +421,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
           LOG.info("-- %s (R) is broadcasted for %s (L) with estimated number of %,d", rightAlias, leftAlias, rightEstimated);
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
-          Sequence<Object[]> array = query1.array(QueryRunners.run(query1, segmentWalker));
+          Sequence<Object[]> array = QueryRunners.runArray(query1, segmentWalker);
           Sequence<BulkRow> values;
           if (query1.hasFilters() && query0 instanceof FilterSupport && !element.isCrossJoin()) {
             List<Object[]> list = Sequences.toList(array);
@@ -530,10 +530,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
-    Map<String, Object> joinContext = BaseQuery.copyContextForMeta(this);
-    if (currentEstimation > 0) {
-      joinContext.put(CARDINALITY, currentEstimation);
-    }
+    Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, CARDINALITY, currentEstimation);
     CommonJoinHolder query = new CommonJoinHolder(
         StringUtils.concat("+", aliases), queries, prefixAliases, timeColumn, outputColumns, limit, joinContext
     );
@@ -849,7 +846,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     @Override
     public List<String> estimatedOutputColumns()
     {
-      return processor.estimatedOutputColumns(((Query.ArrayOutputSupport) getQuery()).estimatedOutputColumns());
+      return processor.estimatedOutputColumns(getQuery().estimatedOutputColumns());
     }
 
     @Override
@@ -976,7 +973,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
       List<Query<Map<String, Object>>> queries = getQueries();
       for (int i = 0; i < queries.size(); i++) {
-        List<String> columns = ((ArrayOutputSupport<?>) queries.get(i)).estimatedOutputColumns();
+        List<String> columns = queries.get(i).estimatedOutputColumns();
         Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(columns));
         if (prefixAliases == null) {
           Queries.uniqueNames(columns, uniqueNames, columnNames);

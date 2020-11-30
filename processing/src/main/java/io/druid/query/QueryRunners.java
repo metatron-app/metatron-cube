@@ -50,14 +50,14 @@ public class QueryRunners
 
   private static final Logger LOG = new Logger(QueryRunners.class);
 
-  public static <T> QueryRunner<T> concat(final Iterable<QueryRunner<T>> runners)
+  public static <T> QueryRunner<T> concat(final List<String> columns, final Iterable<QueryRunner<T>> runners)
   {
     return new QueryRunner<T>()
     {
       @Override
       public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
       {
-        return Sequences.concat(Iterables.transform(runners, new Function<QueryRunner<T>, Sequence<T>>()
+        return Sequences.concat(columns, Iterables.transform(runners, new Function<QueryRunner<T>, Sequence<T>>()
         {
           @Override
           public Sequence<T> apply(QueryRunner<T> runner)
@@ -69,7 +69,11 @@ public class QueryRunners
     };
   }
 
-  public static <T> QueryRunner<T> concat(final QueryRunner<T> runner, final Iterable<Query<T>> queries)
+  public static <T> QueryRunner<T> concat(
+      final List<String> columns,
+      final QueryRunner<T> runner,
+      final Iterable<Query<T>> queries
+  )
   {
     return new QueryRunner<T>()
     {
@@ -77,6 +81,7 @@ public class QueryRunners
       public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
       {
         return Sequences.concat(
+            columns,
             Iterables.transform(
                 queries, new Function<Query<T>, Sequence<T>>()
                 {
@@ -88,6 +93,18 @@ public class QueryRunners
                 }
             )
         );
+      }
+    };
+  }
+
+  public static <T> QueryRunner<T> runWithLocalized(final QueryRunner<T> runner)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return runner.run(query.toLocalQuery(), responseContext);
       }
     };
   }
@@ -107,6 +124,18 @@ public class QueryRunners
   public static <T> QueryRunner<T> empty()
   {
     return NoopQueryRunner.instance();
+  }
+
+  public static <T> QueryRunner<T> empty(List<String> columns)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return Sequences.empty(columns);
+      }
+    };
   }
 
   public static <T> QueryRunner<T> withResource(final QueryRunner<T> runner, final Closeable closeable)
@@ -138,14 +167,19 @@ public class QueryRunners
     return query.run(segmentWalker, Maps.<String, Object>newHashMap());
   }
 
+  public static Sequence<Object[]> runArray(Query.ArrayOutputSupport query, QuerySegmentWalker segmentWalker)
+  {
+    return runArray(query, segmentWalker, Maps.newHashMap());
+  }
+
   @SuppressWarnings("unchecked")
-  public static <T> Sequence<Object[]> run(
+  public static Sequence<Object[]> runArray(
       Query.ArrayOutputSupport query,
       QuerySegmentWalker segmentWalker,
       Map<String, Object> responseContext
   )
   {
-    return query.array(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
+    return query.array(query.run(segmentWalker, responseContext));
   }
 
   public static <T> List<T> list(Query<T> query, QuerySegmentWalker segmentWalker)
@@ -210,7 +244,8 @@ public class QueryRunners
           final List<ListenableFuture<Sequence<T>>> others = futures.subList(1, futures.size());
           final Sequence<T> sequence = waitForCompletion(query, first, watcher, resource);
           return sequence == null ? Sequences.empty() :
-                 Sequences.concat(sequence, Sequences.concat(Iterables.transform(others, FutureSequence.toSequence())));
+                 Sequences.concat(sequence, Sequences.concat(
+                     Iterables.transform(others, FutureSequence.toSequence(sequence.columns()))));
         }
         final List<Sequence<T>> sequences = waitForCompletion(query, future, watcher, resource);
         return sequences == null ? Sequences.empty() : QueryUtils.mergeSort(query, sequences);

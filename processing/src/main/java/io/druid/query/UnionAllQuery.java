@@ -452,8 +452,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
                         {
                           Sequence<T> sequence = QueryUtils.rewrite(query, segmentWalker, queryConfig)
                                                            .run(segmentWalker, responseContext);
-                          sequence = Sequences.withBaggage(sequence, semaphore);
-                          return Sequences.simple(Sequences.toList(sequence));    // eagely
+                          return Sequences.materialize(Sequences.withBaggage(sequence, semaphore));    // eagely
                         }
 
                         @Override
