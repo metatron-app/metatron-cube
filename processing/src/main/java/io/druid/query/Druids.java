@@ -1232,6 +1232,7 @@ public class Druids
     private int limit;
     private int maxOutputRow;
     private List<String> outputColumns;
+    private RowSignature signature;
     private Map<String, Object> context = Maps.newHashMap();
 
     public JoinQuery build()
@@ -1249,7 +1250,7 @@ public class Druids
           maxOutputRow,
           outputColumns,
           context
-      );
+      ).withSchema(signature);
     }
 
     public JoinQueryBuilder dataSources(Map<String, DataSource> dataSources)
@@ -1377,6 +1378,12 @@ public class Druids
     public JoinQueryBuilder outputColumns(List<String> outputColumns)
     {
       this.outputColumns = outputColumns;
+      return this;
+    }
+
+    public JoinQueryBuilder withSchema(RowSignature signature)
+    {
+      this.signature = signature;
       return this;
     }
   }

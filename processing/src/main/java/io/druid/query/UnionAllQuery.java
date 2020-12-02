@@ -387,40 +387,35 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   )
   {
     if (parallelism <= 1) {
-      // executes when the first element of the sequence is accessed
       return new UnionAllQueryRunner<T>()
       {
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(
-            final Query<T> query,
+            final Query<T> union,
             final Map<String, Object> responseContext
         )
         {
-          return Sequences.simple(
-              Lists.transform(
-                  ((UnionAllQuery) query).toTargetQueries(),
-                  new Function<Query<T>, Pair<Query<T>, Sequence<T>>>()
-                  {
-                    @Override
-                    public Pair<Query<T>, Sequence<T>> apply(final Query<T> query)
-                    {
-                      return Pair.<Query<T>, Sequence<T>>of(
-                          query, Sequences.lazy(
-                              new Supplier<Sequence<T>>()
-                              {
-                                @Override
-                                public Sequence<T> get()
-                                {
-                                  return QueryUtils.rewrite(query, segmentWalker, queryConfig)
-                                                   .run(segmentWalker, responseContext);
-                                }
-                              }
-                          )
-                      );
-                    }
-                  }
-              )
-          );
+          final List<Query<T>> queries = ((UnionAllQuery<T>) union).toTargetQueries();
+          final Pair<Query<T>, Sequence<T>>[] sequences = new Pair[queries.size()];
+          for (int i = 0; i < sequences.length; i++) {
+            Query<T> query = queries.get(i);
+            if (Queries.isNestedQuery(queries.get(i))) {
+              sequences[i] = Pair.<Query<T>, Sequence<T>>of(
+                  query, QueryUtils.rewrite(query, segmentWalker, queryConfig)
+                                   .run(segmentWalker, responseContext)
+              );
+            }
+          }
+          for (int i = 0; i < sequences.length; i++) {
+            Query<T> query = queries.get(i);
+            if (!Queries.isNestedQuery(queries.get(i))) {
+              sequences[i] = Pair.<Query<T>, Sequence<T>>of(
+                  query, QueryUtils.rewrite(query, segmentWalker, queryConfig)
+                                   .run(segmentWalker, responseContext)
+              );
+            }
+          }
+          return Sequences.of(sequences);
         }
       };
     } else {

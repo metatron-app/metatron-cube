@@ -104,12 +104,13 @@ public abstract class CommonJoinProcessor extends JoinProcessor
     return outputColumns;
   }
 
-  protected Sequence projection(Iterator<Object[]> outputRows, List<String> columns)
+  protected Sequence projection(Iterator<Object[]> outputRows, List<String> columnNames)
   {
+    final List<String> columns = outputColumns == null ? columnNames : outputColumns;
     if (asArray) {
-      return Sequences.once(columns, GuavaUtils.map(outputRows, LimitSpec.remap(columns, outputColumns)));
+      return Sequences.once(columns, GuavaUtils.map(outputRows, LimitSpec.remap(columnNames, outputColumns)));
     }
-    return Sequences.once(columns, GuavaUtils.map(outputRows, toMap(columns, outputColumns)));
+    return Sequences.once(columns, GuavaUtils.map(outputRows, toMap(columnNames, outputColumns)));
   }
 
   private static Function<Object[], Map<String, Object>> toMap(List<String> inputColumns, List<String> outputColumns)

@@ -94,21 +94,14 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         for (int i = 0; i < joinAliases; i++) {
           aliases.add(toAlias(i));
         }
-        final List<List<String>> columnsNames = Lists.newArrayList();
-        final Future[] joining = new Future[joinAliases];
 
-        final CommonJoinHolder joinQuery = (CommonJoinHolder) query;
-        final int estimatedNumRows = joinQuery.getContextInt(JoinQuery.CARDINALITY, -1);
         final List<Pair<Query, Sequence>> pairs = Sequences.toList(baseRunner.run(query, responseContext));
         final List<IntTagged<Callable<JoinAlias>>> nested = Lists.newArrayList();
         final List<IntTagged<Callable<JoinAlias>>> nonNested = Lists.newArrayList();
-        for (int i = 0; i < joinAliases; i++) {
+        for (int i = 0; i < pairs.size(); i++) {
           Pair<Query, Sequence> in = pairs.get(i);
-          Query.ArrayOutputSupport array = (Query.ArrayOutputSupport) in.lhs;
-          columnsNames.add(array.estimatedOutputColumns());
-          Sequence<Object[]> sequence = array.array(in.rhs);
-
-          Callable<JoinAlias> callable = toJoinAlias(toAlias(i), array, toJoinColumns(i), sequence);
+          Query.ArrayOutputSupport alias = (Query.ArrayOutputSupport) in.lhs;
+          Callable<JoinAlias> callable = toJoinAlias(toAlias(i), alias, toJoinColumns(i), alias.array(in.rhs));
           if (Queries.isNestedQuery(in.lhs)) {
             nested.add(IntTagged.of(i, callable));
           } else {
@@ -116,17 +109,21 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
           }
         }
         // nested first
+        final Future[] joining = new Future[joinAliases];
         for (IntTagged<Callable<JoinAlias>> callable : nested) {
           joining[callable.tag] = Execs.excuteDirect(callable.value);
         }
         for (IntTagged<Callable<JoinAlias>> callable : nonNested) {
           joining[callable.tag] = exec.submit(callable.value);
         }
+        final CommonJoinHolder joinQuery = (CommonJoinHolder) query;
+        final int estimatedNumRows = query.getContextInt(JoinQuery.CARDINALITY, -1);
         try {
           JoinResult join = join(joining, estimatedNumRows);
           joinQuery.setCollation(join.collation);
 
-          return projection(join.iterator, concatColumnNames(columnsNames, prefixAlias ? aliases : null));
+          List<List<String>> names = GuavaUtils.transform(pairs, pair -> pair.rhs.columns());
+          return projection(join.iterator, concatColumnNames(names, prefixAlias ? aliases : null));
         }
         catch (Throwable t) {
           if (t instanceof ExecutionException && t.getCause() != null) {
@@ -147,7 +144,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   )
   {
     final List<String> aliases = Arrays.asList(alias);
-    final List<String> columnNames = source.estimatedOutputColumns();
+    final List<String> columnNames = sequence.columns();
     final int[] indices = GuavaUtils.indexOf(columnNames, joinColumns, true);
     if (indices == null) {
       throw new IAE("Cannot find join column %s in %s", joinColumns, columnNames);

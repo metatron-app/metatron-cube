@@ -176,10 +176,10 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         .dataSource(rightAlias, QueryDataSource.of(rightDruid))
         .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
         .context(getPlannerContext().copyQueryContext())
-        .asArray(true)
         .outputColumns(outputColumns == null ? null : outRowSignature.getColumnNames())
-        .build()
-        .withSchema(outRowSignature);
+        .withSchema(outRowSignature)
+        .asArray(true)
+        .build();
 
     return new DruidQuery()
     {
