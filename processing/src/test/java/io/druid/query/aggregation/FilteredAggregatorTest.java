@@ -54,7 +54,7 @@ import java.util.Arrays;
 
 public class FilteredAggregatorTest
 {
-  private Object aggregate(TestFloatColumnSelector selector, FilteredAggregator agg, Object aggregate)
+  private Object aggregate(TestFloatColumnSelector selector, Aggregator agg, Object aggregate)
   {
     aggregate = agg.aggregate(aggregate);
     selector.increment();
@@ -72,9 +72,7 @@ public class FilteredAggregatorTest
         new SelectorDimFilter("dim", "a", null)
     );
 
-    FilteredAggregator agg = (FilteredAggregator) factory.factorize(
-     makeColumnSelector(selector)
-    );
+    Aggregator agg = factory.factorize(makeColumnSelector(selector));
 
     double expectedFirst = new Float(values[0]).doubleValue();
     double expectedSecond = new Float(values[1]).doubleValue() + expectedFirst;
@@ -224,7 +222,7 @@ public class FilteredAggregatorTest
     };
   }
 
-  private void assertValues(FilteredAggregator agg,TestFloatColumnSelector selector, double... expectedVals){
+  private void assertValues(Aggregator agg,TestFloatColumnSelector selector, double... expectedVals){
     Object aggregate = null;
     Assert.assertEquals(0.0d, agg.get(aggregate));
     Assert.assertEquals(0.0d, agg.get(aggregate));
@@ -262,9 +260,7 @@ public class FilteredAggregatorTest
         new OrDimFilter(Lists.<DimFilter>newArrayList(new SelectorDimFilter("dim", "a", null), new SelectorDimFilter("dim", "b", null)))
     );
 
-    FilteredAggregator agg = (FilteredAggregator) factory.factorize(
-        makeColumnSelector(selector)
-    );
+    Aggregator agg = factory.factorize(makeColumnSelector(selector));
 
     double expectedFirst = new Float(values[0]).doubleValue();
     double expectedSecond = new Float(values[1]).doubleValue() + expectedFirst;
@@ -382,9 +378,7 @@ public class FilteredAggregatorTest
       TestFloatColumnSelector selector
   )
   {
-    FilteredAggregator agg = (FilteredAggregator) factory.factorize(
-        makeColumnSelector(selector)
-    );
+    Aggregator agg = factory.factorize(makeColumnSelector(selector));
 
     double expectedFirst = new Float(values[0]).doubleValue();
     double expectedSecond = new Float(values[1]).doubleValue() + expectedFirst;

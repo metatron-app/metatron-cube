@@ -35,11 +35,14 @@ import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
@@ -63,9 +66,11 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   private final String name;
   private final String fieldName;
 
+  private final String predicate;
+  private final ValueDesc inputType;
+
   private final int sketchParam;
   private final SketchOp sketchOp;
-  private final ValueDesc inputType;
   private final boolean merge;
 
   private final OrderingSpec orderingSpec;
@@ -76,6 +81,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   public GenericSketchAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("predicate") String predicate,
       @JsonProperty("inputType") ValueDesc inputType,
       @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("sketchParam") Integer sketchParam,
@@ -85,6 +91,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   {
     this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
     this.fieldName = fieldName == null ? name : fieldName;
+    this.predicate = predicate;
     this.inputType = inputType;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
@@ -124,15 +131,16 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       };
     }
 
-    ValueDesc columnType = metricFactory.resolve(fieldName);
+    final ValueDesc columnType = metricFactory.resolve(fieldName);
     if (columnType == null) {
       return Aggregator.NULL;
     }
+    final ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
     if (ValueDesc.isDimension(columnType)) {
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
       if (selector instanceof SingleValued) {
         if (selector instanceof WithRawAccess) {
-          return new BaseAggregator(selector.type())
+          return Aggregators.wrap(matcher, new BaseAggregator(selector.type())
           {
             @Override
             public TypedSketch aggregate(TypedSketch current)
@@ -141,18 +149,18 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
                   current, UTF8Bytes.of(((WithRawAccess) selector).lookupRaw(selector.getRow().get(0)))
               );
             }
-          };
+          });
         }
-        return new BaseAggregator(selector.type())
+        return Aggregators.wrap(matcher, new BaseAggregator(selector.type())
         {
           @Override
           public TypedSketch aggregate(TypedSketch current)
           {
             return updateWithValue(current, selector.lookupName(selector.getRow().get(0)));
           }
-        };
+        });
       }
-      return new BaseAggregator(selector.type())
+      return Aggregators.wrap(matcher, new BaseAggregator(selector.type())
       {
         @Override
         public TypedSketch aggregate(TypedSketch current)
@@ -168,12 +176,12 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
           }
           return current;
         }
-      };
+      });
     }
     if (ValueDesc.isMultiValued(columnType)) {
       final ValueDesc elementType = columnType.subElement();
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-      return new BaseAggregator(elementType)
+      return Aggregators.wrap(matcher, new BaseAggregator(elementType)
       {
         @Override
         public TypedSketch aggregate(TypedSketch current)
@@ -192,9 +200,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
           }
           return current;
         }
-      };
+      });
     }
-    return new BaseAggregator(columnType)
+    return Aggregators.wrap(matcher, new BaseAggregator(columnType)
     {
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
@@ -203,7 +211,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       {
         return updateWithValue(current, selector.get());
       }
-    };
+    });
   }
 
   @Override
@@ -219,7 +227,16 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     if (inputType.isDimension()) {
       inputType = ValueDesc.STRING;
     }
-    return new GenericSketchAggregatorFactory(name, fieldName, inputType, sketchOp, sketchParam, orderingSpec, merge);
+    return new GenericSketchAggregatorFactory(
+        name,
+        fieldName,
+        predicate,
+        inputType,
+        sketchOp,
+        sketchParam,
+        orderingSpec,
+        merge
+    );
   }
 
   @SuppressWarnings("unchecked")
@@ -239,18 +256,14 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
 
     final TypedSketch updateWithValue(TypedSketch sketch, Object value)
     {
-      if (sketch == null) {
-        sketch = newSketch();
-      }
+      sketch = sketch == null ? newSketch() : sketch;
       handler.updateWithValue(sketch, value);
       return sketch;
     }
 
     final TypedSketch updateWithSketch(TypedSketch sketch, Object value)
     {
-      if (sketch == null) {
-        sketch = newSketch();
-      }
+      sketch = sketch == null ? newSketch() : sketch;
       handler.updateWithSketch(sketch, value);
       return sketch;
     }
@@ -315,9 +328,10 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     if (columnType == null) {
       return BufferAggregator.NULL;
     }
+    final ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
     if (ValueDesc.isDimension(columnType)) {
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
-      return new BaseBufferAggregator(selector.type())
+      return Aggregators.wrap(matcher, new BaseBufferAggregator(selector.type())
       {
         @Override
         public void aggregate(ByteBuffer buf, int position)
@@ -332,12 +346,12 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
             }
           }
         }
-      };
+      });
     }
     if (ValueDesc.isMultiValued(columnType)) {
       final ValueDesc elementType = columnType.subElement();
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-      return new BaseBufferAggregator(elementType)
+      return Aggregators.wrap(matcher, new BaseBufferAggregator(elementType)
       {
         @Override
         public void aggregate(ByteBuffer buf, int position)
@@ -355,9 +369,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
             updateWithValue(buf, position, value);
           }
         }
-      };
+      });
     }
-    return new BaseBufferAggregator(columnType)
+    return Aggregators.wrap(matcher, new BaseBufferAggregator(columnType)
     {
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
@@ -366,7 +380,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       {
         updateWithValue(buf, position, selector.get());
       }
-    };
+    });
   }
 
   @SuppressWarnings("unchecked")
@@ -465,7 +479,16 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new GenericSketchAggregatorFactory(name, name, inputType, sketchOp, sketchParam, orderingSpec, true);
+    return new GenericSketchAggregatorFactory(
+        name,
+        name,
+        null,
+        inputType,
+        sketchOp,
+        sketchParam,
+        orderingSpec,
+        true
+    );
   }
 
   @Override
@@ -489,9 +512,10 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @Override
+  @JsonProperty
   public String getPredicate()
   {
-    return null;
+    return predicate;
   }
 
   @Override
@@ -504,7 +528,16 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory getCombiningFactory(String inputField)
   {
-    return new GenericSketchAggregatorFactory(name, inputField, inputType, sketchOp, sketchParam, orderingSpec, true);
+    return new GenericSketchAggregatorFactory(
+        name,
+        inputField,
+        null,
+        inputType,
+        sketchOp,
+        sketchParam,
+        orderingSpec,
+        true
+    );
   }
 
   @JsonProperty
@@ -549,6 +582,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   {
     return builder.append(CACHE_TYPE_ID)
                   .append(fieldName)
+                  .append(predicate)
                   .append(inputType)
                   .append(sketchOp)
                   .append(sketchParam)
@@ -568,6 +602,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     return getClass().getSimpleName() + "{"
            + "name='" + name + '\''
            + ", fieldName='" + fieldName + '\''
+           + (predicate == null ? "": ", predicate=" + predicate)
            + ", inputType=" + inputType
            + ", sketchOp=" + sketchOp
            + ", sketchParam=" + sketchParam
@@ -595,6 +630,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     if (!fieldName.equals(that.fieldName)) {
       return false;
     }
+    if (!Objects.equals(predicate, that.predicate)) {
+      return false;
+    }
     if (!Objects.equals(inputType, that.inputType)) {
       return false;
     }
@@ -615,6 +653,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   {
     int result = name.hashCode();
     result = 31 * result + fieldName.hashCode();
+    result = 31 * result + Objects.hashCode(predicate);
     result = 31 * result + Objects.hashCode(inputType);
     result = 31 * result + sketchOp.ordinal();
     result = 31 * result + sketchParam;

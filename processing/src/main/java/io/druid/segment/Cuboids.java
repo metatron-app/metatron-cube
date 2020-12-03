@@ -179,7 +179,7 @@ public class Cuboids
       case "sketch":
         SketchOp op = SketchOp.fromString(parameter.rhs.get("op"));
         int param = Rows.parseInt(parameter.rhs.get("param"), op.defaultParam());
-        return new GenericSketchAggregatorFactory(name, fieldName, inputType, op, param, null, false);
+        return new GenericSketchAggregatorFactory(name, fieldName, null, inputType, op, param, null, false);
     }
     LOG.warn("Not supported cube aggregator [%s]", aggregator);
     return null;

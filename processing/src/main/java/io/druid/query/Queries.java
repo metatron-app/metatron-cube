@@ -599,8 +599,9 @@ public class Queries
       builder.append(DimensionSpecVirtualColumn.wrap(column, "$VC"));
       fieldName = "$VC";
     }
+    ValueDesc inputType = type.isDimension() ? ValueDesc.STRING : type;
     AggregatorFactory aggregator = new GenericSketchAggregatorFactory(
-        "$SKETCH", fieldName, type.isDimension() ? ValueDesc.STRING : type, SketchOp.QUANTILE, 4096, orderingSpec, false
+        "$SKETCH", fieldName, null, inputType, SketchOp.QUANTILE, 4096, orderingSpec, false
     );
     PostAggregator postAggregator = SketchQuantilesPostAggregator.quantile(
         "$SPLIT", "$SKETCH", QuantileOperation.of(splitType, numSplits + 1, maxThreshold, true)

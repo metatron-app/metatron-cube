@@ -115,6 +115,12 @@ public class SketchGroupByQueryRunnerTest
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    query = query.withFilter(null)
+                 .withAggregatorSpecs(Arrays.asList(SketchTestHelper.indexQuantileAggr("index > 100")));
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test
@@ -129,6 +135,7 @@ public class SketchGroupByQueryRunnerTest
             new GenericSketchAggregatorFactory(
                 "SKETCH",
                 "VC",
+                null,
                 ValueDesc.STRING,
                 SketchOp.QUANTILE,
                 null,

@@ -24,6 +24,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IntArray;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory.Combiner;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -435,4 +436,83 @@ public class Aggregators
       }
     };
   }
+
+  public static <T> Aggregator<T> wrap(ValueMatcher matcher, Aggregator<T> aggregator)
+  {
+    return matcher == null || matcher == ValueMatcher.TRUE ? aggregator : new FilteredAggregator<T>(aggregator, matcher);
+  }
+
+  public static BufferAggregator wrap(ValueMatcher matcher, BufferAggregator aggregator)
+  {
+    return matcher == null || matcher == ValueMatcher.TRUE ? aggregator : new FilteredBufferAggregator(aggregator, matcher);
+  }
+
+  private static class FilteredAggregator<T> implements Aggregator<T>
+  {
+    private final Aggregator<T> delegate;
+    private final ValueMatcher matcher;
+
+    private FilteredAggregator(Aggregator<T> delegate, ValueMatcher matcher)
+    {
+      this.delegate = delegate;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public T aggregate(T current)
+    {
+      return matcher.matches() ? delegate.aggregate(current) : current;
+    }
+
+    @Override
+    public Object get(T current)
+    {
+      return delegate.get(current);
+    }
+
+    @Override
+    public void close()
+    {
+      delegate.close();
+    }
+  }
+
+  private static class FilteredBufferAggregator implements BufferAggregator
+  {
+    private final BufferAggregator delegate;
+    private final ValueMatcher matcher;
+
+    public FilteredBufferAggregator(BufferAggregator delegate, ValueMatcher matcher)
+    {
+      this.delegate = delegate;
+      this.matcher = matcher;
+    }
+
+    @Override
+    public void init(ByteBuffer buf, int position)
+    {
+      delegate.init(buf, position);
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      if (matcher.matches()) {
+        delegate.aggregate(buf, position);
+      }
+    }
+
+    @Override
+    public Object get(ByteBuffer buf, int position)
+    {
+      return delegate.get(buf, position);
+    }
+
+    @Override
+    public void close()
+    {
+      delegate.close();
+    }
+  }
+
 }

@@ -30,9 +30,24 @@ public class SketchTestHelper extends QueryRunnerTestHelper
 {
   public static final String indexSketchMetric = "index_sketch";
 
+  public static AggregatorFactory indexQuantileAggr(String predicate)
+  {
+    return new GenericSketchAggregatorFactory(
+        indexSketchMetric,
+        indexMetric,
+        predicate,
+        ValueDesc.DOUBLE,
+        SketchOp.QUANTILE,
+        null,
+        null,
+        false
+    );
+  }
+
   public static final AggregatorFactory indexQuantileAggr = new GenericSketchAggregatorFactory(
       indexSketchMetric,
       indexMetric,
+      null,
       ValueDesc.DOUBLE,
       SketchOp.QUANTILE,
       null,
@@ -43,6 +58,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory indexThetaAggr = new GenericSketchAggregatorFactory(
       indexSketchMetric,
       indexMetric,
+      null,
       ValueDesc.DOUBLE,
       SketchOp.THETA,
       null,
@@ -55,6 +71,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory qualityQuantileAggr = new GenericSketchAggregatorFactory(
       qualitySketchMetric,
       qualityDimension,
+      null,
       ValueDesc.STRING,
       SketchOp.QUANTILE,
       null,
@@ -65,6 +82,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory qualityThetaAggr = new GenericSketchAggregatorFactory(
       qualitySketchMetric,
       qualityDimension,
+      null,
       ValueDesc.STRING,
       SketchOp.THETA,
       null,

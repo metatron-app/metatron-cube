@@ -52,18 +52,16 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory columnSelectorFactory)
   {
-    return new FilteredAggregator(
-        columnSelectorFactory.makePredicateMatcher(filter),
-        delegate.factorize(columnSelectorFactory)
+    return Aggregators.wrap(
+        columnSelectorFactory.makePredicateMatcher(filter), delegate.factorize(columnSelectorFactory)
     );
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory columnSelectorFactory)
   {
-    return new FilteredBufferAggregator(
-        columnSelectorFactory.makePredicateMatcher(filter),
-        delegate.factorizeBuffered(columnSelectorFactory)
+    return Aggregators.wrap(
+        columnSelectorFactory.makePredicateMatcher(filter), delegate.factorizeBuffered(columnSelectorFactory)
     );
   }
 
