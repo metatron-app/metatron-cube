@@ -409,7 +409,7 @@ public class FrequencyQuery extends BaseQuery<Object[]>
   public int limitForCandidate()
   {
     final int limit = limitSpec.getLimit();
-    return getContextBoolean(FINAL_MERGE, true) ? limit : Math.max(MIN_CANDIDATES, limit << 1);
+    return BaseQuery.isFinalize(this) ? limit : Math.max(MIN_CANDIDATES, limit << 1);
   }
 
   @Override

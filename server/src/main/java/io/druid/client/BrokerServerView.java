@@ -52,7 +52,6 @@ import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSources;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -637,7 +636,7 @@ public class BrokerServerView implements TimelineServerView
     return QueryRunners.runWith(
         resolved,
         reporter.report(
-            FinalizeResultsQueryRunner.finalize(
+            QueryRunners.finalizeAndPostProcessing(
                 toolChest.mergeResults(
                     factory.mergeRunners(resolved, exec, queryRunners, optimizer)
                 ),

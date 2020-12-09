@@ -254,37 +254,42 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   }
 
   @Override
+  public BaseAggregationQuery toLocalQuery()
+  {
+    return (BaseAggregationQuery) super.toLocalQuery();
+  }
+
+  @Override
   public List<String> estimatedOutputColumns()
   {
     List<String> outputColumns = getOutputColumns();
     if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-      return outputColumns;
+      return PostProcessingOperators.resove(this, outputColumns);
     }
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       return null;
     }
-    outputColumns = Lists.newArrayList(Row.TIME_COLUMN_NAME);
-    outputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
-    for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
-      if (!outputColumns.contains(aggregator)) {
-        outputColumns.add(aggregator);
-      }
-    }
-    for (String postAggregator : PostAggregators.toNames(getPostAggregatorSpecs())) {
-      if (!outputColumns.contains(postAggregator)) {
-        outputColumns.add(postAggregator);
-      }
-    }
+    List<String> columnNames = GuavaUtils.concat(
+        Row.TIME_COLUMN_NAME,
+        GuavaUtils.dedupConcat(
+            DimensionSpecs.toOutputNames(getDimensions()),
+            AggregatorFactory.toNames(aggregatorSpecs),
+            PostAggregators.toNames(postAggregatorSpecs)
+        )
+    );
     if (lateralView instanceof RowSignature.Evolving) {
-      outputColumns = ((RowSignature.Evolving) lateralView).evolve(outputColumns);
+      columnNames = ((RowSignature.Evolving) lateralView).evolve(columnNames);
     }
-    return outputColumns;
+    return PostProcessingOperators.resove(this, columnNames);
   }
 
   @Override
   public Sequence<Object[]> array(Sequence<Row> sequence)
   {
-    final String[] columns = Preconditions.checkNotNull(estimatedOutputColumns()).toArray(new String[0]);
+    if (!BaseQuery.isBrokerSide(this)) {
+      return Sequences.map(sequence, CompactRow.UNWRAP);
+    }
+    final String[] columns = Preconditions.checkNotNull(sequence.columns()).toArray(new String[0]);
     final int timeIndex = Arrays.asList(columns).indexOf(Row.TIME_COLUMN_NAME);
     return Sequences.map(
         sequence,
@@ -303,7 +308,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     );
   }
 
-  public String getLocalSplitStrategy()
+  protected String getLocalSplitStrategy()
   {
     if (GuavaUtils.isNullOrEmpty(limitSpec.getColumns()) && GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       return "slopedSpaced";
@@ -327,11 +332,6 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public Query<Row> resolveQuery(Supplier<RowResolver> resolver, boolean expand)
   {
     return BaseQuery.setUniversalTimestamp(super.resolveQuery(resolver, expand));
-  }
-
-  public Function<Row, Row> compactToMap()
-  {
-    return compactToMap(estimatedOutputColumns());
   }
 
   public Function<Row, Row> compactToMap(final List<String> columns)
@@ -478,7 +478,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       havingSpec = query.getHavingSpec();
       lateralViewSpec = query.getLateralView();
       outputColumns = query.getOutputColumns();
-      context = query.getContext();
+      setContext(query.getContext());
     }
 
     public Builder(Builder<?> builder)
@@ -498,7 +498,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       havingSpec = builder.havingSpec;
       lateralViewSpec = builder.lateralViewSpec;
       outputColumns = builder.outputColumns;
-      context = builder.context;
+      setContext(builder.context);
     }
 
     protected LimitSpec buildLimitSpec()
@@ -845,7 +845,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
     public Builder<T> setContext(Map<String, Object> context)
     {
-      this.context = context;
+      this.context = context == null ? null : Maps.newHashMap(context);
       return this;
     }
 
@@ -854,17 +854,12 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       return setContext(context);
     }
 
-    public Builder<T> overrideContext(Map<String, Object> override)
-    {
-      return setContext(BaseQuery.overrideContextWith(context, override));
-    }
-
     public Builder<T> addContext(String key, Object value)
     {
       if (context == null) {
         context = Maps.newHashMap();
       } else {
-        context = Maps.newHashMap(context);
+        context = MapBasedRow.toUpdatable(context);
       }
       context.put(key, value);
       return this;

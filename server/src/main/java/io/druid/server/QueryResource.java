@@ -392,7 +392,7 @@ public class QueryResource
     String queryId = query.getId();
     if (queryId != null) {
       // test queries don't have ids
-      query = QueryUtils.setQueryId(query, queryId);
+      query = QueryUtils.prepareQuery(query, jsonMapper, queryId);
     }
     return query;
   }

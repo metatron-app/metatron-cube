@@ -21,7 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
@@ -33,6 +33,7 @@ import io.druid.java.util.common.guava.Sequence;
 import java.util.List;
 import java.util.Map;
 
+@JsonTypeName("rowMapping")
 public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<Row>
     implements RowSignature.Evolving
 {
@@ -93,7 +94,7 @@ public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<R
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema)
   {
     if (GuavaUtils.isNullOrEmpty(mapping)) {
       return schema;

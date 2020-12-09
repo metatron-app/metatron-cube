@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -50,14 +51,14 @@ public class QueryRunners
 
   private static final Logger LOG = new Logger(QueryRunners.class);
 
-  public static <T> QueryRunner<T> concat(final List<String> columns, final Iterable<QueryRunner<T>> runners)
+  public static <T> QueryRunner<T> concat(final Iterable<QueryRunner<T>> runners)
   {
     return new QueryRunner<T>()
     {
       @Override
       public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
       {
-        return Sequences.concat(columns, Iterables.transform(runners, new Function<QueryRunner<T>, Sequence<T>>()
+        return Sequences.concat(query.estimatedOutputColumns(), Iterables.transform(runners, new Function<QueryRunner<T>, Sequence<T>>()
         {
           @Override
           public Sequence<T> apply(QueryRunner<T> runner)
@@ -70,7 +71,6 @@ public class QueryRunners
   }
 
   public static <T> QueryRunner<T> concat(
-      final List<String> columns,
       final QueryRunner<T> runner,
       final Iterable<Query<T>> queries
   )
@@ -78,10 +78,10 @@ public class QueryRunners
     return new QueryRunner<T>()
     {
       @Override
-      public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
+      public Sequence<T> run(Query<T> resolved, final Map<String, Object> responseContext)
       {
         return Sequences.concat(
-            columns,
+            resolved.estimatedOutputColumns(),
             Iterables.transform(
                 queries, new Function<Query<T>, Sequence<T>>()
                 {
@@ -124,18 +124,6 @@ public class QueryRunners
   public static <T> QueryRunner<T> empty()
   {
     return NoopQueryRunner.instance();
-  }
-
-  public static <T> QueryRunner<T> empty(List<String> columns)
-  {
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return Sequences.empty(columns);
-      }
-    };
   }
 
   public static <T> QueryRunner<T> withResource(final QueryRunner<T> runner, final Closeable closeable)
@@ -355,5 +343,18 @@ public class QueryRunners
         return baseRunner.run(query, responseContext);
       }
     };
+  }
+
+  public static <T> QueryRunner<T> finalizeAndPostProcessing(
+      final QueryRunner<T> baseRunner,
+      final QueryToolChest<T, Query<T>> toolChest,
+      final ObjectMapper objectMapper
+  )
+  {
+    return FluentQueryRunnerBuilder.create(toolChest, baseRunner)
+                                   .applyFinalizeResults()
+                                   .applyFinalQueryDecoration()
+                                   .applyPostProcessingOperator()
+                                   .build();
   }
 }

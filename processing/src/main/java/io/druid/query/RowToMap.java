@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -31,7 +32,7 @@ import java.util.Map;
 
 /**
  */
-@SuppressWarnings("unchecked")
+@JsonTypeName("rowToMap")
 public class RowToMap extends PostProcessingOperator.ReturnsMap<Row>
 {
   private final String timestampColumn;
@@ -50,6 +51,7 @@ public class RowToMap extends PostProcessingOperator.ReturnsMap<Row>
   }
 
   @Override
+@SuppressWarnings("unchecked")
   public QueryRunner<Map<String, Object>> postProcess(final QueryRunner<Row> baseRunner)
   {
     return new QueryRunner<Map<String, Object>>()

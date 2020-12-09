@@ -70,7 +70,14 @@ public class AndDimFilter implements DimFilter, AndExpression
   @Override
   public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    return DimFilters.and(DimFilters.optimize(fields, segment, virtualColumns));
+    boolean changed = false;
+    List<DimFilter> optimized = Lists.newArrayList();
+    for (DimFilter field : fields) {
+      DimFilter filter = field.optimize(segment, virtualColumns);
+      changed |= field != filter;
+      optimized.add(filter);
+    }
+    return changed ? DimFilters.and(optimized) : this;
   }
 
   @Override

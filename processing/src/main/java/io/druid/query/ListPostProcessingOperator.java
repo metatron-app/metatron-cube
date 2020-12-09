@@ -22,7 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.query.PostProcessingOperator.UnionSupport;
@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  */
+@JsonTypeName("list")
 public class ListPostProcessingOperator<T> implements RowSignature.Evolving, UnionSupport<T>
 {
   private final List<PostProcessingOperator> processors;
@@ -106,11 +107,11 @@ public class ListPostProcessingOperator<T> implements RowSignature.Evolving, Uni
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema)
   {
     for (PostProcessingOperator child : processors) {
       if (child instanceof RowSignature.Evolving) {
-        schema = ((RowSignature.Evolving) child).evolve(query, schema, mapper);
+        schema = ((RowSignature.Evolving) child).evolve(query, schema);
       }
     }
     return schema;

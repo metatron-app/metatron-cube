@@ -38,7 +38,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.ConveyQuery;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.LocalStorageHandler;
@@ -327,7 +326,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private <T> Query<T> prepareQuery(Query<T> query)
   {
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
-    query = QueryUtils.setQueryId(query, queryId);
+    query = QueryUtils.prepareQuery(query, objectMapper, queryId);
     query = QueryUtils.rewriteRecursively(query, this, queryConfig);
     query = QueryUtils.resolveRecursively(query, this);
     return query;
@@ -452,23 +451,25 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
-                                     .applyPostProcessingOperator(objectMapper)
+                                     .applyPostProcessingOperator()
                                      .applySubQueryResolver(this, queryConfig)
+                                     .runWith(query)
                                      .build();
     }
     if (query instanceof UnionAllQuery) {
-      return ((UnionAllQuery) query).getUnionQueryRunner(this, queryConfig);
+      return QueryRunners.runWith(query, ((UnionAllQuery) query).getUnionQueryRunner(this, queryConfig));
     }
     if (query instanceof Query.IteratingQuery) {
       QueryRunner runner = QueryRunners.getIteratingRunner((Query.IteratingQuery) query, this);
       return FluentQueryRunnerBuilder.create(factory == null ? null : factory.getToolchest(), runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
-                                     .applyPostProcessingOperator(objectMapper)
+                                     .applyPostProcessingOperator()
+                                     .runWith(query)
                                      .build();
     }
     if (factory == null) {
-      return PostProcessingOperators.wrap(NoopQueryRunner.instance(), objectMapper);
+      return PostProcessingOperators.wrap(NoopQueryRunner.instance());
     }
 
     // things done in CCC
@@ -483,6 +484,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         ));
       }
     };
+    if (!BaseQuery.isBrokerSide(query)) {
+      return runner;
+    }
 
     // todo: mimic serialize & deserialize
     final QueryRunner<T> serde = new QueryRunner<T>()
@@ -505,7 +509,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                                    .applyPostMergeDecoration()
                                    .applyFinalizeResults()
                                    .applyFinalQueryDecoration()
-                                   .applyPostProcessingOperator(objectMapper)
+                                   .applyPostProcessingOperator()
+                                   .runWith(query)
                                    .build();
   }
 
@@ -538,7 +543,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     }
 
     if (targets.isEmpty()) {
-      return PostProcessingOperators.wrap(QueryRunners.<T>empty(query.estimatedOutputColumns()), objectMapper);
+      return PostProcessingOperators.wrap(QueryRunners.empty());
     }
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver, true);
@@ -564,7 +569,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
             );
           }
         });
-        return FinalizeResultsQueryRunner.finalize(
+        return QueryRunners.finalizeAndPostProcessing(
             toolChest.mergeResults(
                 factory.mergeRunners(resolved, executor, runners, optimizer)
             ),
@@ -574,21 +579,20 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       }
     };
 
-    List<String> columns = resolved.estimatedOutputColumns();
     if (splitable != null) {
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         return QueryRunners.runWith(
-            resolved, QueryRunners.concat(columns, Iterables.concat(missingSegments, Iterables.transform(splits, function)))
+            resolved, QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
         );
       }
     }
 
-    QueryRunner<T> runner = QueryRunners.concat(columns, GuavaUtils.concat(missingSegments, function.apply(targets)));
+    QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
       List<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
-        return QueryRunners.concat(columns, runner, splits);
+        return QueryRunners.concat(runner, splits);
       }
     }
     return QueryRunners.runWith(resolved, runner);

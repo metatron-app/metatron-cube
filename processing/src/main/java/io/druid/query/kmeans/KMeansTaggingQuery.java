@@ -356,7 +356,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
     ObjectMapper mapper = segmentWalker.getObjectMapper();
 
     Map<String, Object> postProcessors = Maps.newHashMap(getContext());
-    PostProcessingOperators.append(postProcessors, mapper, new ClassifyPostProcessor(tagColumn));
+    PostProcessingOperators.append(postProcessors, new ClassifyPostProcessor(tagColumn));
     if (appendConvexHull) {
       Map<String, Object> convexHull = ImmutableMap.of(
           "type", "convexHull",
@@ -365,7 +365,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
           "geomColumn", geomColumn,
           "convexExpression", Strings.nullToEmpty(convexExpression)
       );
-      PostProcessingOperators.append(postProcessors, mapper, convexHull);
+      PostProcessingOperators.append(postProcessors, PostProcessingOperators.convert(mapper, convexHull));
     }
     return new UnionAllQuery(
         null,

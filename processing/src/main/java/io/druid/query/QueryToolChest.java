@@ -27,7 +27,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.JoinQuery.CommonJoinHolder;
 import io.druid.query.Query.ArrayOutputSupport;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
@@ -126,6 +125,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    */
   public Function<ResultType, ResultType> makePreComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
   {
+    // called with local query
     return GuavaUtils.identity("preCompute");
   }
 
@@ -317,7 +317,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
 
       Query subQuery = dataSource.getQuery();
-      Sequence<Row> innerSequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
+      Sequence<Row> sequence = Queries.convertToRow(subQuery, subQuery.run(segmentWalker, responseContext));
 
       RowSignature schema = dataSource.getSchema();
       LOG.info(
@@ -326,7 +326,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       );
       int maxResult = config.getMaxResults(query);
       IncrementalIndex index = new OnheapIncrementalIndex(IncrementalIndexSchema.from(schema), false, true, false, maxResult);
-      IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
+      IncrementalIndex accumulated = sequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(
           "Accumulated sub-query into index in %,d msec.. total %,d rows",
           System.currentTimeMillis() - start, accumulated.size()
@@ -352,8 +352,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       Query subQuery = dataSource.getQuery();
 
       String timeColumn = Row.TIME_COLUMN_NAME;
-      if (subQuery instanceof CommonJoinHolder) {
-        timeColumn = ((CommonJoinHolder) subQuery).getTimeColumnName();
+      if (subQuery instanceof JoinQuery.JoinHolder) {
+        timeColumn = ((JoinQuery.JoinHolder) subQuery).getTimeColumnName();
       }
 
       Sequence<Cursor> cursors;

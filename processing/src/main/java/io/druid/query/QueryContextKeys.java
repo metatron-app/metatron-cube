@@ -30,17 +30,14 @@ public interface QueryContextKeys
   String PRIORITY = "priority";
   String TIMEOUT = "timeout";
   String FINALIZE = "finalize";
-  String FINAL_MERGE = "finalMerge";
   String BY_SEGMENT = "bySegment";
-  String LOCAL_POST_PROCESSING = "#localPostProcessing";
   String DATETIME_CUSTOM_SERDE = "#dateTimeCustomSerde"; // datetime serde between broker & others
   String LOCAL_SPLIT_STRATEGY = "#localSplitStrategy";
   String FUDGE_TIMESTAMP = "#fudgeTimestamp";
   String USE_BULK_ROW = "#useBulkRow";
   String MAJOR_TYPES = "#majorTypes";   // for sketch
   String DISABLE_LOG = "#disableLog";
-
-  String USE_CUBOIDS = "useCuboids";
+  String BROKER_SIDE = "#brokerSide";
 
   // group-by config.. overriding
   String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
@@ -55,7 +52,7 @@ public interface QueryContextKeys
   String GBY_USE_BULK_ROW = "groupByUseBulkRow";
   String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
 
-  // select.stream.raw
+  // select.stream
   String STREAM_USE_BULK_ROW = "streamUseBulkRow";
   String STREAM_USE_RAW_UTF8 = "streamUseRawUTF8";
   String STREAM_RAW_LOCAL_SPLIT_NUM = "streamRawLocalSplitNum";
@@ -70,35 +67,35 @@ public interface QueryContextKeys
   String BROADCASTJOIN_THRESHOLD = "broadcastJoinThreshold";
   String BLOOMFILTER_THRESHOLD = "bloomFilterThreshold";
 
-  // CacheConfig
-  String USE_CACHE = "useCache";
-  String POPULATE_CACHE = "populateCache";
-
-  String OPTIMIZE_QUERY = "optimizeQuery";
-  String POST_PROCESSING = "postProcessing";
-  String ALL_DIMENSIONS_FOR_EMPTY = "allDimensionsForEmpty";
-  String ALL_METRICS_FOR_EMPTY = "allMetricsForEmpty";
-  String FORWARD_URL = "forwardURL";
-  String FORWARD_CONTEXT = "forwardContext";
-  String DATETIME_STRING_SERDE = "dateTimeStringSerde";   // use string always
-
-  // for jmx
+  // jmx
   String PREVIOUS_JMX = "previousJmx";
 
-  // forward context
-  String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
-  String FORWARD_PARALLEL = "parallel";
+  // post processing
+  String POST_PROCESSING = "postProcessing";
+  String LOCAL_POST_PROCESSING = "localPostProcessing";
+  String DECORATOR_CONTEXT = "decoratorContext";
+  String FORWARD_URL = "forwardURL";
+  String FORWARD_CONTEXT = "forwardContext";
 
   // generic
   String MAX_RESULTS = "maxResults";
-  String DECORATOR_CONTEXT = "decoratorContext";
   String MAX_QUERY_PARALLELISM = "maxQueryParallelism";
+
+  // cache
+  String USE_CACHE = "useCache";
+  String POPULATE_CACHE = "populateCache";
+
+  // etc
+  String USE_CUBOIDS = "useCuboids";
+  String OPTIMIZE_QUERY = "optimizeQuery";
+  String ALL_DIMENSIONS_FOR_EMPTY = "allDimensionsForEmpty";
+  String ALL_METRICS_FOR_EMPTY = "allMetricsForEmpty";
+  String DATETIME_STRING_SERDE = "dateTimeStringSerde";   // use string always
 
   List<String> FOR_META = Arrays.asList(
       QUERYID,
       PRIORITY,
       TIMEOUT,
-      USE_CUBOIDS,
       GBY_USE_PARALLEL_SORT,
       GBY_CONVERT_TIMESERIES,
       GBY_CONVERT_FREQUENCY,
@@ -120,6 +117,7 @@ public interface QueryContextKeys
       BLOOMFILTER_THRESHOLD,
       USE_CACHE,
       POPULATE_CACHE,
+      USE_CUBOIDS,
       OPTIMIZE_QUERY,
       ALL_DIMENSIONS_FOR_EMPTY,
       ALL_METRICS_FOR_EMPTY,

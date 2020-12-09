@@ -366,7 +366,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         limitSpec.withNoLocalProcessing(),
         null,
         null,
-        computeOverriddenContext(defaultPostActionContext())
+        computeOverriddenContext(DEFAULT_DATALOCAL_CONTEXT)
     );
   }
 

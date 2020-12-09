@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
+import io.druid.common.utils.Sequences;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;

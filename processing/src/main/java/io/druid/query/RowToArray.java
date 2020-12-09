@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
@@ -33,6 +34,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("rowToArray")
 public class RowToArray extends PostProcessingOperator.ReturnsArray<Row>
 {
   private final List<String> columnNames;

@@ -31,6 +31,7 @@ import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
@@ -140,16 +141,18 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
     ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
     Map<String, Object> summaryContext = computeOverriddenContext(
-        ImmutableMap.<String, Object>of(POST_PROCESSING, jsonMapper.convertValue(
-            ImmutableMap.of(
-                "type", "sketch.summary",
-                "round", round,
-                "includeTimeStats", includeTimeStats,
-                "includeCovariance", includeCovariance,
-                "typeDetail", typeDetail
+        ImmutableMap.<String, Object>of(
+            POST_PROCESSING,
+            PostProcessingOperators.convert(
+                jsonMapper, ImmutableMap.of(
+                    "type", "sketch.summary",
+                    "round", round,
+                    "includeTimeStats", includeTimeStats,
+                    "includeCovariance", includeCovariance,
+                    "typeDetail", typeDetail
+                )
             )
-            , SummaryPostProcessor.class
-        ))
+        )
     );
 
     return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, 2, summaryContext);

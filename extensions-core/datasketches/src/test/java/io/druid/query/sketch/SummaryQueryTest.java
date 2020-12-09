@@ -24,6 +24,7 @@ import com.google.common.collect.Maps;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.TableDataSource;
+import io.druid.query.aggregation.datasketches.theta.SketchEstimatePostProcessor;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.TestIndex;
@@ -39,6 +40,12 @@ import java.util.Map;
  */
 public class SummaryQueryTest extends SketchQueryRunnerTestHelper
 {
+  static {
+    segmentWalker.getObjectMapper().registerSubtypes(
+        SummaryPostProcessor.class, SketchEstimatePostProcessor.class
+    );
+  }
+
   @Test
   @SuppressWarnings("unchecked")
   public void testSummaryQuery() throws Exception

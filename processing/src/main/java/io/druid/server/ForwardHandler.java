@@ -126,7 +126,7 @@ public class ForwardHandler implements ForwardConstants
         URI rewritten = uri;
         try {
           final Map<String, Object> context = prepareContext(query, forwardContext);
-          if (PropUtils.parseBoolean(context, Query.LOCAL_POST_PROCESSING)) {
+          if (PropUtils.parseBoolean(context, ForwardConstants.REWRITE_URI_WITH_LOCAL)) {
             rewritten = rewriteURI(rewritten, scheme, null, rewritten.getPath() + "/" + node.toPathName());
           }
           if (StorageHandler.FILE_SCHEME.equals(scheme) || StorageHandler.LOCAL_SCHEME.equals(scheme)) {
@@ -162,13 +162,13 @@ public class ForwardHandler implements ForwardConstants
       private Sequence<Map<String, Object>> asMap(Query<T> query, Map<String, Object> context, Map responseContext)
       {
         Sequence sequence = baseRunner.run(query, responseContext);
-        if (PostProcessingOperators.isMapOutput(query, jsonMapper)) {
+        if (PostProcessingOperators.returns(query) == Map.class) {
           // already converted to map
           return sequence;
         }
         // union-all does not have toolchest. delegate it to inner query
         Query<T> representative = BaseQuery.getRepresentative(query);
-        String timestampColumn = PropUtils.parseString(context, Query.FORWARD_TIMESTAMP_COLUMN);
+        String timestampColumn = PropUtils.parseString(context, ForwardConstants.TIMESTAMP_COLUMN);
         return warehouse.getToolChest(representative).asMap(query, timestampColumn).apply(sequence);
       }
     };

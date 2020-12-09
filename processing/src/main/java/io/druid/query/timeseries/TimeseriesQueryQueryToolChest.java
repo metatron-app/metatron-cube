@@ -22,7 +22,6 @@ package io.druid.query.timeseries;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.inject.Inject;
-import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -101,10 +100,7 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
           @Override
           public Sequence<Row> apply(Cursor input)
           {
-            return Sequences.map(
-                TimeseriesQueryEngine.processor(timeseries, false).apply(input),
-                toPostAggregator(timeseries)
-            );
+            return postAggregation(timeseries, TimeseriesQueryEngine.processor(timeseries, false).apply(input));
           }
         };
       }

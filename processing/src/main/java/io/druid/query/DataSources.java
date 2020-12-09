@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.FilterSupport;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.select.StreamQuery;
@@ -123,9 +124,26 @@ public class DataSources
   {
     if (source instanceof QueryDataSource) {
       Query inner = ((QueryDataSource) source).getQuery();
-      return inner instanceof JoinQuery.BroadcastJoinHolder || inner.getDataSource() instanceof TableDataSource;
+      return inner instanceof StreamQuery &&
+             inner.getDataSource() instanceof TableDataSource &&
+             inner.getContextValue(Query.LOCAL_POST_PROCESSING) == null;    // todo: let's do it one by one
     }
     return true;
+  }
+
+  public static List<String> getInvariantColumns(DataSource dataSource)
+  {
+    if (dataSource instanceof QueryDataSource) {
+      Query<?> query = ((QueryDataSource) dataSource).getQuery();
+      if (query instanceof BaseAggregationQuery) {
+        return DimensionSpecs.toOutputNames(((BaseAggregationQuery) query).getDimensions());
+      } else if (query instanceof Query.ColumnsSupport) {
+        return ((Query.ColumnsSupport<?>) query).getColumns();
+      }
+    } else if (dataSource instanceof ViewDataSource) {
+      return ((ViewDataSource) dataSource).getColumns();
+    }
+    return null;
   }
 
   public static List<String> getOutputColumns(DataSource dataSource)

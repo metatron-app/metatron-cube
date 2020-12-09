@@ -262,14 +262,26 @@ public class JoinElement
     return false;
   }
 
-  public boolean isLeftBroadcastable(DataSource right)
+  public boolean isLeftBroadcastable(DataSource left, DataSource right)
   {
-    return joinType.isRightDrivable() && DataSources.isDataNodeSourced(right);
+    if (joinType.isRightDrivable() && DataSources.isDataNodeSourced(right)) {
+      List<String> columns = DataSources.getInvariantColumns(right);
+      if (columns != null && columns.containsAll(rightJoinColumns)) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  public boolean isRightBroadcastable(DataSource left)
+  public boolean isRightBroadcastable(DataSource left, DataSource right)
   {
-    return joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left);
+    if (joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left)) {
+      List<String> columns = DataSources.getInvariantColumns(left);
+      if (columns != null && columns.containsAll(leftJoinColumns)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public static ArrayOutputSupport toQuery(
@@ -297,9 +309,6 @@ public class JoinElement
       }
       if (!(query instanceof ArrayOutputSupport)) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());
-      }
-      if (GuavaUtils.isNullOrEmpty(query.estimatedOutputColumns())) {
-        throw new UnsupportedOperationException("todo: cannot resolve output column names..");
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
         if (!(query.getDataSource() instanceof QueryDataSource)) {

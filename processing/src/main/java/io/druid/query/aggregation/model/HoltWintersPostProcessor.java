@@ -21,6 +21,7 @@ package io.druid.query.aggregation.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -40,6 +41,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("holtWinters")
 public class HoltWintersPostProcessor extends PredictPostProcessor
 {
   public static HoltWintersPostProcessor of(int numPrediction, String... columns)

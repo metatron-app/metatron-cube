@@ -41,6 +41,6 @@ public class NoopQueryRunner<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
   {
-    return Sequences.empty();
+    return Sequences.empty(query.estimatedOutputColumns());
   }
 }

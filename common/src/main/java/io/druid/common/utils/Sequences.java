@@ -312,19 +312,14 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
   {
     return new CloseableIterator<T>()
     {
-      @Override
-      public void close() throws IOException
-      {
-        yielder.close();
-      }
-
       private Yielder<T> yielder = Yielders.each(sequence);
 
       @Override
       public boolean hasNext()
       {
-        if (yielder.isDone()) {
+        if (yielder == null || yielder.isDone()) {
           IOUtils.closeQuietly(yielder);
+          yielder = null;
           return false;
         }
         return true;
@@ -340,7 +335,17 @@ public class Sequences extends io.druid.java.util.common.guava.Sequences
         }
         catch (Exception e) {
           IOUtils.closeQuietly(yielder);
+          yielder = null;
           throw Throwables.propagate(e);
+        }
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        if (yielder != null) {
+          yielder.close();
+          yielder = null;
         }
       }
     };

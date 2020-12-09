@@ -35,6 +35,7 @@ import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.output.ForwardConstants;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.Sequence;
@@ -70,7 +71,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static boolean isLocalFinalizingQuery(Query<?> query)
   {
-    return query.getContextBoolean(FINAL_MERGE, true) || query.getContextBoolean(FINALIZE, true);
+    return isBrokerSide(query) || isFinalize(query);    // ??
   }
 
   public static int getContextPriority(Query<?> query, int defaultValue)
@@ -112,24 +113,24 @@ public abstract class BaseQuery<T> implements Query<T>
     return query.getContextBoolean(BY_SEGMENT, false);
   }
 
-  public static boolean isPopulateCache(Query<?> query, boolean defaultValue)
-  {
-    return query.getContextBoolean(POPULATE_CACHE, defaultValue);
-  }
-
   public static boolean isUseCache(Query<?> query, boolean defaultValue)
   {
     return query.getContextBoolean(USE_CACHE, defaultValue);
   }
 
-  public static boolean isFinalize(Query<?> query, boolean defaultValue)
+  public static boolean isPopulateCache(Query<?> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), FINALIZE, defaultValue);
+    return query.getContextBoolean(POPULATE_CACHE, defaultValue);
   }
 
-  public static boolean isOptimizeQuery(Query<?> query, boolean defaultValue)
+  public static boolean isFinalize(Query<?> query)
   {
-    return PropUtils.parseBoolean(query.getContext(), OPTIMIZE_QUERY, defaultValue);
+    return PropUtils.parseBoolean(query.getContext(), FINALIZE, true);
+  }
+
+  public static boolean isBrokerSide(Query<?> query)
+  {
+    return PropUtils.parseBoolean(query.getContext(), BROKER_SIDE, true);
   }
 
   public static boolean allDimensionsForEmpty(Query<?> query, boolean defaultValue)
@@ -166,7 +167,7 @@ public abstract class BaseQuery<T> implements Query<T>
   public static boolean isParallelForwarding(Query<?> query)
   {
     return !Strings.isNullOrEmpty(getResultForwardURL(query)) &&
-           PropUtils.parseBoolean(getResultForwardContext(query), FORWARD_PARALLEL, false);
+           PropUtils.parseBoolean(getResultForwardContext(query), ForwardConstants.PARALLEL, false);
   }
 
   private final DataSource dataSource;
@@ -374,7 +375,7 @@ public abstract class BaseQuery<T> implements Query<T>
   public Duration getDuration()
   {
     if (duration == null) {
-      Duration totalDuration = new Duration(0);
+      Duration totalDuration = Duration.ZERO;
       for (Interval interval : Iterables.filter(getIntervals(), Predicates.notNull())) {
         totalDuration = totalDuration.plus(interval.toDuration());
       }
@@ -430,19 +431,16 @@ public abstract class BaseQuery<T> implements Query<T>
     return withOverriddenContext(GuavaUtils.mutableMap(contextKey, contextValue));
   }
 
+  protected static final Map<String, Object> DEFAULT_DATALOCAL_CONTEXT = GuavaUtils.mutableMap(
+      FINALIZE, false,
+      BROKER_SIDE, false,
+      POST_PROCESSING, null
+  );
+
   @Override
   public Query<T> toLocalQuery()
   {
-    return withOverriddenContext(defaultPostActionContext());
-  }
-
-  protected final Map<String, Object> defaultPostActionContext()
-  {
-    Map<String, Object> override = Maps.newHashMap();
-    override.put(FINALIZE, false);
-    override.put(FINAL_MERGE, false);
-    override.put(POST_PROCESSING, null);
-    return override;
+    return withOverriddenContext(DEFAULT_DATALOCAL_CONTEXT);
   }
 
   public int getContextIntWithMax(String key, int defaultValue)

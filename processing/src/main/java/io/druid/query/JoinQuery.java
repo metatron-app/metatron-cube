@@ -23,10 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -39,7 +43,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.BulkRow;
 import io.druid.data.input.BulkSequence;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -315,6 +318,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     final List<Query<Map<String, Object>>> queries = Lists.newArrayList();
 
+    final ObjectMapper mapper = segmentWalker.getObjectMapper();
     for (int i = 0; i < elements.size(); i++) {
       final JoinElement element = elements.get(i);
       final JoinType joinType = element.getJoinType();
@@ -341,7 +345,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {
         if (i == 0 && isUnderThreshold(rightEstimated, semiJoinThrehold) && element.isLeftSemiJoinable(left, right, outputColumns)) {
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          List<String> rightColumns = array.estimatedOutputColumns();
+          RowSignature signature = Queries.relaySchema(array, segmentWalker);
+          List<String> rightColumns = signature.getColumnNames();
           if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
             int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
             Supplier<List<Object[]>> fieldValues =
@@ -363,7 +368,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         }
         if (isUnderThreshold(leftEstimated, semiJoinThrehold) && element.isRightSemiJoinable(left, right, outputColumns)) {
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
-          List<String> leftColumns = array.estimatedOutputColumns();
+          RowSignature signature = Queries.relaySchema(array, segmentWalker);
+          List<String> leftColumns = signature.getColumnNames();
           if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
             int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
             Supplier<List<Object[]>> fieldValues =
@@ -386,8 +392,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
 
       if (i == 0 && broadcastThreshold > 0) {
-        boolean leftBroadcast = isUnderThreshold(leftEstimated, broadcastThreshold) && element.isLeftBroadcastable(right);
-        boolean rightBroadcast = isUnderThreshold(rightEstimated, broadcastThreshold) && element.isRightBroadcastable(left);
+        boolean leftBroadcast =
+            isUnderThreshold(leftEstimated, broadcastThreshold) && element.isLeftBroadcastable(left, right);
+        boolean rightBroadcast =
+            isUnderThreshold(rightEstimated, broadcastThreshold) && element.isRightBroadcastable(left, right);
         if (leftBroadcast && rightBroadcast) {
           if (leftEstimated > rightEstimated) {
             leftBroadcast = false;
@@ -398,66 +406,61 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         if (leftBroadcast) {
           Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           Query query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info("-- %s (L) is broadcasted for %s (R) with estimated number of %,d", leftAlias, rightAlias, leftEstimated);
+          LOG.info(
+              "-- %s (L) will be broadcasted for %s (R) with estimated number of row %d",
+              leftAlias, rightAlias, leftEstimated
+          );
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
-          Sequence<Object[]> array = QueryRunners.runArray(query0, segmentWalker);
-          Sequence<BulkRow> values;
-          if (query0.hasFilters() && query1 instanceof FilterSupport && !element.isCrossJoin()) {
-            List<Object[]> list = Sequences.toList(array);
-            RowResolver resolver = RowResolver.of(signature, BaseQuery.getVirtualColumns(query0));
+          List<Object[]> values = Sequences.toList(QueryRunners.runArray(query0, segmentWalker));
+          LOG.info("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
+          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
+          if (query0.hasFilters() && query1 instanceof FilterSupport && !element.isCrossJoin() && leftEstimated > 0) {
+            RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(
-                resolver, element.getLeftJoinColumns(), leftEstimated, list.iterator()
+                resolver, element.getLeftJoinColumns(), leftEstimated, values.iterator()
             );
             query1 = DimFilters.and((FilterSupport<?>) query1, BloomDimFilter.of(element.getRightJoinColumns(), bloom));
-            values = BulkSequence.fromArray(Sequences.simple(list), signature);
             LOG.info(".. apply bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
-          } else {
-            values = BulkSequence.fromArray(array, signature);
+            rightEstimated = broadcastThreshold > 0 && rightEstimated > broadcastThreshold ? rightEstimated >> 1 : rightEstimated;
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              config.getJoin(), element, true, signature, prefixAlias, asArray, outputAlias, outputColumns, values
+              mapper, config, element, true, signature, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow, bytes
           );
-          Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, Query.POST_PROCESSING, processor);
-          if (rightEstimated > 0) {
-            joinContext.put(CARDINALITY, rightEstimated);
-          }
-          queries.add(new BroadcastJoinHolder(String.format("%s (R+l)", rightAlias), query1, processor, joinContext));
-          if (rightEstimated > 0) {
-            currentEstimation = rightEstimated;
-          }
+          query1 = query1.withOverriddenContext(PostProcessingOperators.appendLocal(
+              BaseQuery.copyContext(query1, CARDINALITY, rightEstimated), processor
+          ));
+          query1 = ((LastProjectionSupport) query1).withOutputColumns(null);
+          queries.add(query1);
           continue;
         }
         if (rightBroadcast) {
           Query query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info("-- %s (R) is broadcasted for %s (L) with estimated number of %,d", rightAlias, leftAlias, rightEstimated);
+          LOG.info(
+              "-- %s (R) will be broadcasted for %s (L) with estimated number of row %d",
+              rightAlias, leftAlias, rightEstimated
+          );
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
-          Sequence<Object[]> array = QueryRunners.runArray(query1, segmentWalker);
-          Sequence<BulkRow> values;
-          if (query1.hasFilters() && query0 instanceof FilterSupport && !element.isCrossJoin()) {
-            List<Object[]> list = Sequences.toList(array);
-            RowResolver resolver = RowResolver.of(signature, BaseQuery.getVirtualColumns(query1));
+          List<Object[]> values = Sequences.toList(QueryRunners.runArray(query1, segmentWalker));
+          LOG.info("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
+          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
+          if (query1.hasFilters() && query0 instanceof FilterSupport && !element.isCrossJoin() && rightEstimated > 0) {
+            RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(
-                resolver, element.getRightJoinColumns(), rightEstimated, list.iterator()
+                resolver, element.getRightJoinColumns(), rightEstimated, values.iterator()
             );
             query0 = DimFilters.and((FilterSupport<?>) query0, BloomDimFilter.of(element.getLeftJoinColumns(), bloom));
-            values = BulkSequence.fromArray(Sequences.simple(list), signature);
             LOG.info("-- .. with bloom filter %s(%s) to %s (L)", rightAlias, BaseQuery.getDimFilter(query1), leftAlias);
-          } else {
-            values = BulkSequence.fromArray(array, signature);
+            leftEstimated = broadcastThreshold > 0 && leftEstimated > broadcastThreshold ? leftEstimated >> 1 : leftEstimated;
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              config.getJoin(), element, false, signature, prefixAlias, asArray, outputAlias, outputColumns, values
+              mapper, config, element, false, signature, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow, bytes
           );
-          Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, Query.POST_PROCESSING, processor);
-          if (leftEstimated > 0) {
-            joinContext.put(CARDINALITY, leftEstimated);
-          }
-
-          queries.add(new BroadcastJoinHolder(String.format("%s (L+r)", leftAlias), query0, processor, joinContext));
-          if (leftEstimated > 0) {
-            currentEstimation = leftEstimated;
-          }
+          query0 = query0.withOverriddenContext(PostProcessingOperators.appendLocal(
+              BaseQuery.copyContext(query0, CARDINALITY, leftEstimated), processor
+          ));
+          query0 = ((LastProjectionSupport) query0).withOutputColumns(null);
+          queries.add(query0);
           continue;
         }
       }
@@ -481,9 +484,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         if (leftHashing) {
           query = query.withOverriddenContext(HASHING, true);
         }
-        if (leftEstimated >= 0) {
-          query = query.withOverriddenContext(CARDINALITY, leftEstimated);
-        }
+        query = query.withOverriddenContext(CARDINALITY, leftEstimated);
         queries.add(query);
       }
       List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
@@ -494,9 +495,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (rightHashing) {
         query = query.withOverriddenContext(HASHING, true);
       }
-      if (rightEstimated >= 0) {
-        query = query.withOverriddenContext(CARDINALITY, rightEstimated);
-      }
+      query = query.withOverriddenContext(CARDINALITY, rightEstimated);
       queries.add(query);
 
       // try bloom filter
@@ -539,7 +538,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, CARDINALITY, currentEstimation);
-    CommonJoinHolder query = new CommonJoinHolder(
+    JoinHolder query = new JoinHolder(
         StringUtils.concat("+", aliases), queries, timeColumn, outputAlias, outputColumns, limit, joinContext
     );
     Supplier<RowSignature> signature = schema == null ? null : Suppliers.ofInstance(schema);
@@ -561,9 +560,18 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
     return PostProcessingOperators.append(
         query.withSchema(signature),
-        segmentWalker.getObjectMapper(),
         new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow)
     );
+  }
+
+  private static byte[] writeBytes(ObjectMapper objectMapper, Object value)
+  {
+    try {
+      return objectMapper.writeValueAsBytes(value);
+    }
+    catch (JsonProcessingException e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   private boolean isUnderThreshold(long estimation, long threshold)
@@ -732,28 +740,62 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            '}';
   }
 
-  public static abstract class JoinHolder extends UnionAllQuery<Map<String, Object>>
+  public static class JoinHolder extends UnionAllQuery<Map<String, Object>>
       implements ArrayOutputSupport<Map<String, Object>>, SchemaProvider
   {
-    protected final String alias;   // just for debug
+    private final String alias;   // just for debug
+    private final List<String> outputAlias;
+    private final List<String> outputColumns;
+
+    private final String timeColumnName;
+
+    private final Execs.SettableFuture<List<OrderByColumnSpec>> future = new Execs.SettableFuture<>();
 
     public JoinHolder(
         String alias,
-        Query<Map<String, Object>> query,
         List<Query<Map<String, Object>>> queries,
-        boolean sortOnUnion,
+        String timeColumnName,
+        List<String> outputAlias,
+        List<String> outputColumns,
         int limit,
-        int parallelism,
         Map<String, Object> context
     )
     {
-      super(query, queries, sortOnUnion, limit, parallelism, context);
+      super(null, queries, false, limit, -1, context);     // not needed to be parallel (handled in post processor)
       this.alias = alias;
+      this.outputAlias = outputAlias;
+      this.outputColumns = outputColumns;
+      this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
     }
 
     public String getAlias()
     {
       return alias;
+    }
+
+    public String getTimeColumnName()
+    {
+      return timeColumnName;
+    }
+
+    public List<String> getOutputAlias()
+    {
+      return outputAlias;
+    }
+
+    public List<OrderByColumnSpec> getCollation()
+    {
+      return future.isDone() ? Futures.getUnchecked(future) : null;
+    }
+
+    public void setCollation(List<OrderByColumnSpec> collation)
+    {
+      future.set(collation);
+    }
+
+    public void setException(Throwable ex)
+    {
+      future.setException(ex);
     }
 
     @Override
@@ -834,131 +876,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           }
       );
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  public static class BroadcastJoinHolder extends JoinHolder
-  {
-    private final BroadcastJoinProcessor processor;
-
-    public BroadcastJoinHolder(
-        String alias,
-        Query query,
-        BroadcastJoinProcessor processor,
-        Map<String, Object> context
-    )
-    {
-      super(alias, query, null, false, -1, -1, context);
-      this.processor = processor;
-    }
 
     @Override
-    protected UnionAllQuery newInstance(
-        Query<Map<String, Object>> query,
-        List<Query<Map<String, Object>>> queries,
-        int parallism,
-        Map<String, Object> context
-    )
-    {
-      Preconditions.checkArgument(queries == null);
-      return new BroadcastJoinHolder(
-          alias,
-          query,
-          processor,
-          context
-      ).withSchema(schema);
-    }
-
-    @Override
-    public List<String> estimatedOutputColumns()
-    {
-      return processor.estimatedOutputColumns(getQuery().estimatedOutputColumns());
-    }
-
-    @Override
-    protected boolean isArrayOutput()
-    {
-      return processor.isAsArray();
-    }
-
-    @Override
-    public JoinHolder toArrayJoin()
-    {
-      if (processor.isAsArray()) {
-        return this;
-      }
-      final BroadcastJoinProcessor asArray = processor.withAsArray(true);
-      return new BroadcastJoinHolder(
-          alias, getQuery(), asArray, BaseQuery.copyContext(this, Query.POST_PROCESSING, processor)
-      );
-    }
-
-    @Override
-    public RowSignature schema(QuerySegmentWalker segmentWalker)
-    {
-      return processor.estimatedSchema(getQuery(), segmentWalker);
-    }
-
-    @Override
-    public String toString()
-    {
-      return "BroadcastJoin{query=" + getQuery() + '}';
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  public static class CommonJoinHolder extends JoinHolder
-  {
-    private final List<String> outputAlias;
-    private final List<String> outputColumns;
-
-    private final String timeColumnName;
-
-    private final Execs.SettableFuture<List<OrderByColumnSpec>> future = new Execs.SettableFuture();
-
-    public CommonJoinHolder(
-        String alias,
-        List<Query<Map<String, Object>>> list,
-        String timeColumnName,
-        List<String> outputAlias,
-        List<String> outputColumns,
-        int limit,
-        Map<String, Object> context
-    )
-    {
-      super(alias, null, list, false, limit, -1, context);     // not needed to be parallel (handled in post processor)
-      this.outputAlias = outputAlias;
-      this.outputColumns = outputColumns;
-      this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
-    }
-
-    public List<String> getOutputAlias()
-    {
-      return outputAlias;
-    }
-
-    public String getTimeColumnName()
-    {
-      return timeColumnName;
-    }
-
-    public List<OrderByColumnSpec> getCollation()
-    {
-      return future.isDone() ? Futures.getUnchecked(future) : null;
-    }
-
-    public void setCollation(List<OrderByColumnSpec> collation)
-    {
-      future.set(collation);
-    }
-
-    public void setException(Throwable ex)
-    {
-      future.setException(ex);
-    }
-
-    @Override
-    protected CommonJoinHolder newInstance(
+    protected JoinHolder newInstance(
         Query<Map<String, Object>> query,
         List<Query<Map<String, Object>>> queries,
         int parallism,
@@ -966,7 +886,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     )
     {
       Preconditions.checkArgument(query == null);
-      return new CommonJoinHolder(
+      return new JoinHolder(
           alias,
           queries,
           timeColumnName,
@@ -978,7 +898,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
-    public CommonJoinHolder withSchema(Supplier<RowSignature> schema)
+    public JoinHolder withSchema(Supplier<RowSignature> schema)
     {
       this.schema = schema;
       return this;
@@ -991,6 +911,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Sequence<Row> asRow(Sequence sequence)
     {
       if (isArrayOutput()) {

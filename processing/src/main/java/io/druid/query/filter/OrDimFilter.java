@@ -70,7 +70,14 @@ public class OrDimFilter implements DimFilter, OrExpression
   @Override
   public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
   {
-    return DimFilters.or(DimFilters.optimize(fields, segment, virtualColumns));
+    boolean changed = false;
+    List<DimFilter> optimized = Lists.newArrayList();
+    for (DimFilter field : fields) {
+      DimFilter filter = field.optimize(segment, virtualColumns);
+      changed |= field != filter;
+      optimized.add(filter);
+    }
+    return changed ? DimFilters.or(optimized) : this;
   }
 
   @Override

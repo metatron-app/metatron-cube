@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -30,6 +31,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import io.druid.common.IntTagged;
 import io.druid.common.Progressing;
@@ -56,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -332,6 +335,24 @@ public class GuavaUtils
   public static <T> List<T> concat(List<T>... lists)
   {
     return Lists.newArrayList(Iterables.concat(lists));
+  }
+
+  @SafeVarargs
+  public static <T> List<T> dedupConcat(List<T>... lists)
+  {
+    Iterator<List<T>> iterator = Iterables.filter(Arrays.asList(lists), Predicates.notNull()).iterator();
+    if (!iterator.hasNext()) {
+      return Lists.newArrayList();
+    }
+    Set<T> set = Sets.newLinkedHashSet(iterator.next());
+    while (iterator.hasNext()) {
+      for (T element : iterator.next()) {
+        if (!set.contains(element)) {
+          set.add(element);
+        }
+      }
+    }
+    return Lists.newArrayList(set);
   }
 
   @SuppressWarnings("unchecked")

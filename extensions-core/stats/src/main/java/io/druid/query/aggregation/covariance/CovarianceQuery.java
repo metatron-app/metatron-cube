@@ -34,7 +34,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
@@ -96,8 +95,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
       }
     }
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
-        QueryContextKeys.POST_PROCESSING,
-        ImmutableMap.of("type", "stats.covariance")
+        Query.POST_PROCESSING, new CovariancePostProcessor()
     );
     return new TimeseriesQuery(
         getDataSource(),

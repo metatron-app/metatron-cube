@@ -24,15 +24,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.java.util.common.Pair;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.query.CacheStrategy;
-import io.druid.query.DefaultGenericQueryMetricsFactory;
-import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.SchemaQuery;
-import io.druid.query.SchemaQueryToolChest;
+import io.druid.java.util.common.Pair;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.TestIndex;
 import io.druid.timeline.DataSegment;
@@ -92,7 +87,7 @@ public class SchemaQueryRunnerTest
 
     List<Pair<String, ValueDesc>> expected;
     if (incremental) {
-      expected= Arrays.asList(
+      expected = Arrays.asList(
           Pair.of("__time", ValueDesc.LONG),
           Pair.of("market", ValueDesc.ofDimension(ValueType.STRING)),
           Pair.of("quality", ValueDesc.ofDimension(ValueType.STRING)),
@@ -107,7 +102,7 @@ public class SchemaQueryRunnerTest
           Pair.of("indexDecimal", ValueDesc.DECIMAL)
       );
     } else {
-      expected= Arrays.asList(
+      expected = Arrays.asList(
           Pair.of("__time", ValueDesc.LONG),
           Pair.of("market", ValueDesc.ofDimension(ValueType.STRING)),
           Pair.of("quality", ValueDesc.ofDimension(ValueType.STRING)),

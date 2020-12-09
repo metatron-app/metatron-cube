@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -149,7 +150,7 @@ public class QueryUtils
           public Object accumulate(Object accumulated, Result<BySegmentResultValue<Schema>> in)
           {
             BySegmentResultValue<Schema> bySegment = in.getValue();
-            for (Schema schema : bySegment.getResults()) {
+            for (RowSignature schema : bySegment.getResults()) {
               for (Pair<String, ValueDesc> pair : schema.columnAndTypes()) {
                 Map<ValueDesc, MutableInt> counters = results.get(pair.lhs);
                 if (counters == null) {
@@ -256,18 +257,38 @@ public class QueryUtils
     return Arrays.asList(array);
   }
 
-  public static Query setQueryId(final Query query, final String queryId)
+  public static Query prepareQuery(final Query query, final ObjectMapper mapper, final String queryId)
   {
     return Queries.iterate(
         query, new IdentityFunction<Query>()
         {
           @Override
+          @SuppressWarnings("unchecked")
           public Query apply(Query input)
           {
-            if (input.getId() == null) {
-              input = input.withId(queryId);
+            Map<String, Object> context = input.getContext();
+            if (context == null) {
+              return input.withOverriddenContext(ImmutableMap.of(Query.QUERYID, queryId));
             }
-            return input;
+            Object id = context.get(Query.QUERYID);
+            Object postProcessing = context.get(Query.POST_PROCESSING);
+            Object localProcessing = context.get(Query.LOCAL_POST_PROCESSING);
+            if (id != null &&
+                (postProcessing == null || postProcessing instanceof PostProcessingOperator) &&
+                (localProcessing == null || localProcessing instanceof PostProcessingOperator)) {
+              return input;
+            }
+            Map<String, Object> override = Maps.newHashMap();
+            if (id == null) {
+              override.put(Query.QUERYID, queryId);
+            }
+            if (postProcessing != null && !(postProcessing instanceof PostProcessingOperator)) {
+              override.put(Query.POST_PROCESSING, PostProcessingOperators.convert(mapper, postProcessing));
+            }
+            if (localProcessing != null && !(localProcessing instanceof PostProcessingOperator)) {
+              override.put(Query.LOCAL_POST_PROCESSING, PostProcessingOperators.convert(mapper, localProcessing));
+            }
+            return input.withOverriddenContext(override);
           }
         }
     );
@@ -286,6 +307,18 @@ public class QueryUtils
             }
             if (input instanceof Query.FilterSupport) {
               input = DimFilters.rewrite(input, DimFilters.LOG_PROVIDER);
+            }
+            Object proc = input.getContextValue(Query.POST_PROCESSING, null);
+            if (proc instanceof PostProcessingOperator.LogProvider) {
+              input = input.withOverriddenContext(ImmutableMap.of(
+                  Query.POST_PROCESSING, ((PostProcessingOperator.LogProvider) proc).forLog()
+              ));
+            }
+            Object local = input.getContextValue(Query.LOCAL_POST_PROCESSING, null);
+            if (local instanceof PostProcessingOperator.LogProvider) {
+              input = input.withOverriddenContext(ImmutableMap.of(
+                  Query.LOCAL_POST_PROCESSING, ((PostProcessingOperator.LogProvider) local).forLog()
+              ));
             }
             return input;
           }

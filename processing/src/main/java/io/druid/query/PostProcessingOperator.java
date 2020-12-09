@@ -19,8 +19,11 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.groupby.LimitingPostProcessor;
@@ -47,9 +50,18 @@ import java.util.concurrent.ExecutorService;
     @JsonSubTypes.Type(name = "rowMapping", value = RowMappingPostProcessor.class),
     @JsonSubTypes.Type(name = "dbScan", value = DBScanPostProcessor.class),
     @JsonSubTypes.Type(name = "fft", value = FFTPostProcessor.class),
+    @JsonSubTypes.Type(name = "classify", value = ClassifyPostProcessor.class),
 })
 public interface PostProcessingOperator<T>
 {
+  TypeReference<PostProcessingOperator> TYPE_REF = new TypeReference<PostProcessingOperator>() {};
+
+  @JsonProperty
+  default String getType()
+  {
+    return getClass().getAnnotation(JsonTypeName.class).value();
+  }
+
   QueryRunner postProcess(QueryRunner<T> baseQueryRunner);
 
   default boolean supportsUnionProcessing()
@@ -110,6 +122,11 @@ public interface PostProcessingOperator<T>
     {
       return Object[].class;
     }
+  }
+
+  interface LogProvider<T> extends PostProcessingOperator<T>
+  {
+    PostProcessingOperator<T> forLog();
   }
 
   // marker for not-serializable post processors

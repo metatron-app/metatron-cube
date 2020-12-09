@@ -352,9 +352,7 @@ public class TimeseriesQueryRunnerTest
     assertExpectedResults(expected, results);
 
     // do post aggregation for inner query
-    subQuery = subQuery.withOverriddenContext(
-        BaseQuery.contextRemover(Query.FINALIZE, Query.FINAL_MERGE)
-    );
+    subQuery = subQuery.withOverriddenContext(Query.FINALIZE, null);
 
     TimeseriesQuery query = Druids
         .newTimeseriesQueryBuilder()

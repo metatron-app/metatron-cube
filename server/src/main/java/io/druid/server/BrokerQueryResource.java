@@ -38,6 +38,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
+import io.druid.data.output.ForwardConstants;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
@@ -243,7 +244,7 @@ public class BrokerQueryResource extends QueryResource
     query = QueryUtils.rewriteRecursively(query, segmentWalker, warehouse.getQueryConfig());
     query = QueryUtils.resolveRecursively(query, segmentWalker);
 
-    if (BaseQuery.isOptimizeQuery(query, false)) {
+    if (query.getContextBoolean(Query.OPTIMIZE_QUERY, false)) {
       QueryToolChest toolChest = warehouse.getToolChest(query);
       if (toolChest != null) {
         query = toolChest.optimizeQuery(query, segmentWalker);
@@ -270,8 +271,8 @@ public class BrokerQueryResource extends QueryResource
       Map<String, Object> forward = BaseQuery.copyContext(query);
 
       Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
-      forwardContext.put(Query.FORWARD_PARALLEL, false);
-      forwardContext.put(Query.LOCAL_POST_PROCESSING, true);
+      forwardContext.put(ForwardConstants.PARALLEL, false);
+      forwardContext.put(ForwardConstants.REWRITE_URI_WITH_LOCAL, true);
 
       query = query.withOverriddenContext(
           ImmutableMap.of(

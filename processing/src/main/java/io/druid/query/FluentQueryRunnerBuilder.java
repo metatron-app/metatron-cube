@@ -80,9 +80,9 @@ public class FluentQueryRunnerBuilder<T>
     return toolChest == null ? this : from(toolChest.finalQueryDecoration(runner));
   }
 
-  public FluentQueryRunnerBuilder<T> applyPostProcessingOperator(ObjectMapper mapper)
+  public FluentQueryRunnerBuilder<T> applyPostProcessingOperator()
   {
-    return from(PostProcessingOperators.wrap(runner, mapper));
+    return from(PostProcessingOperators.wrap(runner));
   }
 
   public FluentQueryRunnerBuilder<T> applySubQueryResolver(QuerySegmentWalker segmentWalker, QueryConfig config)

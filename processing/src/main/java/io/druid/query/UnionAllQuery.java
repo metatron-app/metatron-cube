@@ -41,7 +41,6 @@ import io.druid.data.input.Row;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.PostProcessingOperator.UnionSupport;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
@@ -338,46 +337,9 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   }
 
 
-  @SuppressWarnings("unchecked")
-  public QueryRunner<T> getUnionQueryRunner(
-      final QuerySegmentWalker segmentWalker,
-      final QueryConfig queryConfig
-  )
+  public QueryRunner<T> getUnionQueryRunner(final QuerySegmentWalker segmentWalker, final QueryConfig queryConfig)
   {
-    final UnionAllQueryRunner<T> baseRunner = toUnionAllRunner(segmentWalker, queryConfig);
-    final PostProcessingOperator postProcessing = PostProcessingOperators.load(this, segmentWalker.getObjectMapper());
-
-    final QueryRunner<T> runner;
-    if (postProcessing != null && postProcessing.supportsUnionProcessing()) {
-      runner = ((UnionSupport<T>) postProcessing).postProcess(baseRunner, segmentWalker.getExecutor());
-    } else {
-      QueryRunner<T> merged = new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-        {
-          Sequence<Sequence<T>> sequences = Sequences.map(
-              baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
-          );
-          if (isSortOnUnion()) {
-            return QueryUtils.mergeSort(query, sequences);
-          }
-          return Sequences.concat(sequences);
-        }
-      };
-      runner = postProcessing == null ? merged : postProcessing.postProcess(merged);
-    }
-    if (getLimit() > 0 && getLimit() < Integer.MAX_VALUE) {
-      return new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-        {
-          return Sequences.limit(runner.run(query, responseContext), getLimit());
-        }
-      };
-    }
-    return runner;
+    return PostProcessingOperators.wrap(toUnionAllRunner(segmentWalker, queryConfig), segmentWalker);
   }
 
   @SuppressWarnings("unchecked")

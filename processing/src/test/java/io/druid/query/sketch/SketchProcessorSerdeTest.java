@@ -19,38 +19,57 @@
 
 package io.druid.query.sketch;
 
+import com.google.common.collect.ImmutableMap;
 import io.druid.query.PostProcessingOperator;
+import io.druid.query.PostProcessingOperators;
+import io.druid.query.Query;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class SketchProcessorSerdeTest
 {
   @Test
   public void testTheta() throws IOException
   {
-    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(new SketchThetaProcessor());
-    Assert.assertEquals("{\"type\":\"sketch.theta\"}", value);
-    PostProcessingOperator operator = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
+    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(
+        ImmutableMap.of(Query.POST_PROCESSING, new SketchThetaProcessor())
+    );
+    Assert.assertEquals("{\"postProcessing\":{\"type\":\"sketch.theta\"}}", value);
+    Map context = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, Map.class);
+    PostProcessingOperator operator = PostProcessingOperators.convert(
+        SketchQueryRunnerTestHelper.JSON_MAPPER, context.get(Query.POST_PROCESSING)
+    );
     Assert.assertTrue(operator instanceof SketchThetaProcessor);
   }
 
   @Test
   public void testSampling() throws IOException
   {
-    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(new SketchSamplingProcessor());
-    Assert.assertEquals("{\"type\":\"sketch.sampling\"}", value);
-    PostProcessingOperator operator = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
+    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(
+        ImmutableMap.of(Query.POST_PROCESSING, new SketchSamplingProcessor())
+    );
+    Assert.assertEquals("{\"postProcessing\":{\"type\":\"sketch.sampling\"}}", value);
+    Map context = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, Map.class);
+    PostProcessingOperator operator = PostProcessingOperators.convert(
+        SketchQueryRunnerTestHelper.JSON_MAPPER, context.get(Query.POST_PROCESSING)
+    );
     Assert.assertTrue(operator instanceof SketchSamplingProcessor);
   }
 
   @Test
   public void testFrequency() throws IOException
   {
-    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(new SketchFrequencyProcessor());
-    Assert.assertEquals("{\"type\":\"sketch.frequency\"}", value);
-    PostProcessingOperator operator = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, PostProcessingOperator.class);
+    String value = SketchQueryRunnerTestHelper.JSON_MAPPER.writeValueAsString(
+        ImmutableMap.of(Query.POST_PROCESSING, new SketchFrequencyProcessor())
+    );
+    Assert.assertEquals("{\"postProcessing\":{\"type\":\"sketch.frequency\"}}", value);
+    Map context = SketchQueryRunnerTestHelper.JSON_MAPPER.readValue(value, Map.class);
+    PostProcessingOperator operator = PostProcessingOperators.convert(
+        SketchQueryRunnerTestHelper.JSON_MAPPER, context.get(Query.POST_PROCESSING)
+    );
     Assert.assertTrue(operator instanceof SketchFrequencyProcessor);
   }
 }

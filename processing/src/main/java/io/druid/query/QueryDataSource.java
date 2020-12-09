@@ -57,6 +57,7 @@ public class QueryDataSource implements DataSource
   }
 
   @JsonProperty
+  @SuppressWarnings("unchecked")
   public <T> Query<T> getQuery()
   {
     return query;

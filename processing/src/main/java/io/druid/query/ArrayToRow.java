@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 import io.druid.common.utils.Sequences;
@@ -34,6 +35,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("arrayToRow")
 public class ArrayToRow extends PostProcessingOperator.ReturnsRow<Object[]>
 {
   private final List<String> columnNames;

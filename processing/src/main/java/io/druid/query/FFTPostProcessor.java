@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.guava.Sequence;
 import org.apache.commons.math3.transform.DftNormalization;
@@ -31,6 +32,7 @@ import org.apache.commons.math3.transform.TransformType;
 import java.util.List;
 import java.util.Map;
 
+@JsonTypeName("fft")
 public class FFTPostProcessor extends PostProcessingOperator.Abstract
 {
   private final String normalization;

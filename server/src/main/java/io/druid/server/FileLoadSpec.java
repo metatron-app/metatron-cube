@@ -52,6 +52,7 @@ import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.RowToMap;
 import io.druid.query.StorageHandler;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -315,10 +316,10 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
 
     final DummyQuery<Row> query = DummyQuery.instance().withOverriddenContext(
         ImmutableMap.<String, Object>of(
-            BaseQuery.QUERYID, UUID.randomUUID().toString(),
+            Query.QUERYID, UUID.randomUUID().toString(),
             Query.FORWARD_URL, ForwardConstants.LOCAL_TEMP_URL,
             Query.FORWARD_CONTEXT, forwardContext,
-            QueryContextKeys.POST_PROCESSING, ImmutableMap.of("type", "rowToMap") // dummy to skip tabulating
+            Query.POST_PROCESSING, new RowToMap(Row.TIME_COLUMN_NAME)  // dummy to skip tabulating
         )
     );
 

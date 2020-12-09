@@ -32,11 +32,9 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
-import io.druid.query.JoinQuery.CommonJoinHolder;
 import io.druid.query.Query.OrderingSupport;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.apache.commons.io.IOUtils;
@@ -59,10 +57,7 @@ public class JoinProcessor
   protected final JoinQueryConfig config;
   protected final int maxOutputRow;
 
-  public JoinProcessor(
-      JoinQueryConfig config,
-      int maxOutputRow
-  )
+  public JoinProcessor(JoinQueryConfig config, int maxOutputRow)
   {
     this.config = config;
     this.maxOutputRow = config == null ? maxOutputRow : config.getMaxOutputRow(maxOutputRow);
@@ -156,7 +151,7 @@ public class JoinProcessor
       final boolean leftDriving
   )
   {
-    LOG.info(">> %s (%s %s %s)", type, left, leftDriving ? "-->" : "<--", right);
+    LOG.info(">> %s (%s %s %s) (%s + %s)", type, left, leftDriving ? "-->" : "<--", right, left.columns, right.columns);
     if (leftDriving) {
       if (left.isHashed()) {
         return JoinPostProcessor.JoinResult.of(new JoinIterator(type, left.prepareHashIterator(), right, maxOutputRow)
@@ -238,7 +233,15 @@ public class JoinProcessor
     @Override
     public void close() throws IOException
     {
-      LOG.info("<< %s (%s --> %s), resulting %d rows", type, leftAlias, rightAlias, count);
+      LOG.info(
+          "<< %s (%s + %s), resulting %d rows (%s+%s)",
+          type,
+          leftAlias,
+          rightAlias,
+          count,
+          leftAlias.columns,
+          rightAlias.columns
+      );
       leftAlias.close();
       rightAlias.close();
     }
@@ -586,7 +589,7 @@ public class JoinProcessor
     // with materialization
     private JoinAlias hashOrSort(int hashThreshold)
     {
-      final List<Object[]> materialized = Sequences.toList(Sequences.once(rows));
+      final List<Object[]> materialized = Lists.newArrayList(rows);
       if (hashThreshold > 0 && materialized.size() < hashThreshold) {
         return new JoinAlias(alias, columns, joinColumns, indices, materialized.iterator());
       }
@@ -595,7 +598,7 @@ public class JoinProcessor
 
     private JoinAlias sortAll()
     {
-      final List<Object[]> materialized = Sequences.toList(Sequences.once(this.rows));
+      final List<Object[]> materialized = Lists.newArrayList(rows);
       return new JoinAlias(alias, columns, joinColumns, indices, sort(alias, materialized, indices));
     }
 
@@ -828,8 +831,8 @@ public class JoinProcessor
         return Suppliers.ofInstance(ordering);
       }
     }
-    if (query instanceof CommonJoinHolder) {
-      return () -> ((CommonJoinHolder) query).getCollation();
+    if (query instanceof JoinQuery.JoinHolder) {
+      return () -> ((JoinQuery.JoinHolder) query).getCollation();
     }
     return null;
   }

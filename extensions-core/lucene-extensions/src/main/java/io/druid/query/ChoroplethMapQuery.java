@@ -177,7 +177,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]>
       GroupByQuery filtered = query.withFilter(DimFilters.and(filter, polygonFilter.withWKT(boundary)));
       if (!joinMapping.isEmpty()) {
         Map<String, Object> copy = Maps.newHashMap(context);
-        copy.put(QueryContextKeys.POST_PROCESSING, new ElementMapProcessor(
+        copy.put(Query.POST_PROCESSING, new ElementMapProcessor(
             new Function<Row, Row>()
             {
               @Override
@@ -196,7 +196,7 @@ public class ChoroplethMapQuery extends BaseQuery<Object[]>
       queries.add(filtered.rewriteQuery(segmentWalker, queryConfig));
     }
     Map<String, Object> copy = Maps.newHashMap(context);
-    copy.put(QueryContextKeys.POST_PROCESSING, new RowToArray(estimatedOutputColumns()));
+    copy.put(Query.POST_PROCESSING, new RowToArray(estimatedOutputColumns()));
     return new UnionAllQuery(null, queries, false, -1, 3, copy);
   }
 

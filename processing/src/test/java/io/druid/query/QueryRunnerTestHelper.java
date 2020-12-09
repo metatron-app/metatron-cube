@@ -252,7 +252,7 @@ public class QueryRunnerTestHelper
                       new TestQueryRunnerFactory()
                   )
                   .put(
-                      JoinQuery.CommonJoinHolder.class,
+                      JoinQuery.JoinHolder.class,
                       new TestQueryRunnerFactory()
                   )
                   .build()
@@ -684,7 +684,7 @@ public class QueryRunnerTestHelper
                         )
                     )
                 )
-            ), TestHelper.JSON_MAPPER
+            )
         )
     );
   }
@@ -841,13 +841,12 @@ public class QueryRunnerTestHelper
       @SuppressWarnings("unchecked")
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        Function manipulatorFn = toolChest.makePreComputeManipulatorFn(
-            query, MetricManipulatorFns.deserializing()
-        );
-        if (BaseQuery.isBySegment(query)) {
+        Query<T> prepared = query.toLocalQuery();
+        Function manipulatorFn = toolChest.makePreComputeManipulatorFn(prepared, MetricManipulatorFns.deserializing());
+        if (BaseQuery.isBySegment(prepared)) {
           manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
         }
-        return Sequences.map(runner.run(query.toLocalQuery(), responseContext), manipulatorFn);
+        return Sequences.map(runner.run(prepared, responseContext), manipulatorFn);
       }
     };
   }

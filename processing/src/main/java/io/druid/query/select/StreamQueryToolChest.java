@@ -27,11 +27,11 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.BulkRow;
 import io.druid.data.input.BulkSequence;
 import io.druid.java.util.common.guava.Sequence;
+import io.druid.query.BaseQuery;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
@@ -68,7 +68,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         StreamQuery stream = (StreamQuery) query;
-        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
+        if (BaseQuery.isFinalize(query)) {
           return stream.applyLimit(queryRunner.run(query, responseContext));
         }
         Sequence<Object[]> sequence = queryRunner.run(query, responseContext);

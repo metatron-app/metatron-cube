@@ -88,6 +88,7 @@ import org.joda.time.Interval;
 import org.joda.time.chrono.ISOChronology;
 import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.internal.ArrayComparisonFailure;
 import org.junit.internal.ComparisonCriteria;
 
 import java.util.Arrays;
@@ -362,7 +363,14 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         log.info("result sequence " + sequence.columns());
       }
       return Sequences.toList(sequence);
+    } catch (Exception ex) {
+      return failed(ex);
     }
+  }
+
+  protected <T extends Throwable> List<Object[]> failed(T ex) throws T
+  {
+    throw ex;
   }
 
   protected void verifyResults(
@@ -381,7 +389,21 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       log.info("#%d: %s", i, Arrays.toString(expectedResults.get(i)));
     }
 
-    int compareTo = Math.min(expectedResults.size(), results.size());
+    final ComparisonCriteria comparison = new ComparisonCriteria()
+    {
+      @Override
+      protected void assertElementsEqual(Object expected, Object actual)
+      {
+        if (expected instanceof Float && actual instanceof Float) {
+          Assert.assertEquals((Float) expected, (Float) actual, 0.000001d);
+        } else if (expected instanceof Double && actual instanceof Double) {
+          Assert.assertEquals((Double) expected, (Double) actual, 0.000001d);
+        } else {
+          Assert.assertEquals(expected, actual);
+        }
+      }
+    };
+    final int compareTo = Math.min(expectedResults.size(), results.size());
     for (int i = 0; i < compareTo; i++) {
       final Object[] expected = expectedResults.get(i);
       final Object[] actual = results.get(i);
@@ -389,24 +411,12 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       if (masked >= 0) {
         expected[masked] = actual[masked] = null;
       }
-      new ComparisonCriteria()
-      {
-        @Override
-        protected void assertElementsEqual(Object expected, Object actual)
-        {
-          if (expected instanceof Float && actual instanceof Float) {
-            Assert.assertEquals((Float) expected, (Float) actual, 0.000001d);
-          } else if (expected instanceof Double && actual instanceof Double) {
-            Assert.assertEquals((Double) expected, (Double) actual, 0.000001d);
-          } else {
-            Assert.assertEquals(expected, actual);
-          }
-        }
-      }.arrayEquals(
-          StringUtils.format("result #%d: %s", i + 1, sql),
-          expected,
-          actual
-      );
+      try {
+        comparison.arrayEquals(StringUtils.format("result #%d: %s", i + 1, sql), expected, actual);
+      }
+      catch (ArrayComparisonFailure f) {
+        failed(f);
+      }
     }
     Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), results.size());
 

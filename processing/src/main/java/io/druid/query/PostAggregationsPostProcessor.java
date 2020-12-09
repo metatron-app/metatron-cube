@@ -22,7 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -41,6 +41,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("postAggregations")
 public class PostAggregationsPostProcessor extends PostProcessingOperator.ReturnsRow<Row>
     implements RowSignature.Evolving
 {
@@ -111,7 +112,7 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
   }
 
   @Override
-  public RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper)
+  public RowSignature evolve(Query query, RowSignature schema)
   {
     if (GuavaUtils.isNullOrEmpty(postAggregations)) {
       return schema;

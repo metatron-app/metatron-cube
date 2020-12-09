@@ -21,7 +21,9 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -37,6 +39,11 @@ import java.util.Objects;
 
 /**
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = RowSignature.Simple.class)
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "simple", value = RowSignature.Simple.class),
+    @JsonSubTypes.Type(name = "schema", value = Schema.class)
+})
 public interface RowSignature extends TypeResolver
 {
   // this is needed to be implemented by all post processors, but let's do it step by step
@@ -44,7 +51,7 @@ public interface RowSignature extends TypeResolver
   {
     List<String> evolve(List<String> schema);
 
-    RowSignature evolve(Query query, RowSignature schema, ObjectMapper mapper);
+    RowSignature evolve(Query query, RowSignature schema);
   }
 
   @JsonProperty
@@ -138,7 +145,13 @@ public interface RowSignature extends TypeResolver
 
   default RowSignature relay(Query<?> query, boolean finalzed)
   {
-    return Queries.finalize(Queries.bestEffortOf(this, query, finalzed), query, null);
+    RowSignature signature = this;
+    if (BaseQuery.isBrokerSide(query)) {
+      signature = Queries.finalize(Queries.bestEffortOf(signature, query, finalzed), query.toLocalQuery(), null);
+    } else {
+      signature = Queries.bestEffortOf(signature, query, finalzed);
+    }
+    return Queries.finalize(signature, query, null);
   }
 
   default String asTypeString()
@@ -153,6 +166,7 @@ public interface RowSignature extends TypeResolver
     return s.toString();
   }
 
+  @JsonTypeName("simple")
   class Simple implements RowSignature
   {
     public static RowSignature of(List<String> columnNames, List<ValueDesc> columnTypes)

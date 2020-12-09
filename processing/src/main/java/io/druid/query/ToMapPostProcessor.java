@@ -23,12 +23,14 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.java.util.common.guava.Sequence;
 
 import java.util.Map;
 
 /**
  */
+@JsonTypeName("toMap")
 public class ToMapPostProcessor extends PostProcessingOperator.ReturnsMap
 {
   private final String timestampColumn;

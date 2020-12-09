@@ -24,6 +24,8 @@ public interface ForwardConstants
   String FORMAT = "format";
   String CLEANUP = "cleanup";
   String DATA_FILENAME = "dataFileName";
+  String PARALLEL = "parallel";
+  String REWRITE_URI_WITH_LOCAL = "#rewriteUriWithLocal";
 
   // format
   String INDEX_FORMAT = "index";

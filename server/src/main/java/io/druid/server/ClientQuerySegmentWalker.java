@@ -114,7 +114,7 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
-                                     .applyPostProcessingOperator(objectMapper)
+                                     .applyPostProcessingOperator()
                                      .applySubQueryResolver(this, queryConfig)
                                      .build();
     }
@@ -129,7 +129,7 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
       return FluentQueryRunnerBuilder.create(toolChest, runner)
                                      .applyFinalizeResults()
                                      .applyFinalQueryDecoration()
-                                     .applyPostProcessingOperator(objectMapper)
+                                     .applyPostProcessingOperator()
                                      .build();
     }
 
@@ -140,7 +140,7 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
                                    .applyPostMergeDecoration()
                                    .applyFinalizeResults()
                                    .applyFinalQueryDecoration()
-                                   .applyPostProcessingOperator(objectMapper)
+                                   .applyPostProcessingOperator()
                                    .emitCPUTimeMetric(emitter)
                                    .build();
   }

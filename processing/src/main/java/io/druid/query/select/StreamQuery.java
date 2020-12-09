@@ -42,6 +42,7 @@ import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.JoinQuery;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
@@ -194,7 +195,8 @@ public class StreamQuery extends BaseQuery<Object[]>
   @JsonIgnore
   public List<String> estimatedOutputColumns()
   {
-    return !GuavaUtils.isNullOrEmpty(outputColumns) ? outputColumns : limitSpec.estimateOutputColumns(columns);
+    List<String> columnNames = outputColumns != null ? outputColumns : limitSpec.estimateOutputColumns(columns);
+    return PostProcessingOperators.resove(this, columnNames);
   }
 
   @JsonIgnore
@@ -351,7 +353,7 @@ public class StreamQuery extends BaseQuery<Object[]>
         getConcatString(),
         limitSpec,
         null,
-        computeOverriddenContext(defaultPostActionContext())
+        computeOverriddenContext(DEFAULT_DATALOCAL_CONTEXT)
     );
   }
 
@@ -556,7 +558,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   {
     return Sequences.map(sequence, new Function<Object[], Map<String, Object>>()
     {
-      private final List<String> columnNames = estimatedOutputColumns();
+      private final List<String> columnNames = sequence.columns();
 
       @Override
       public Map<String, Object> apply(Object[] input)
@@ -575,7 +577,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   {
     return Sequences.map(asMap(sequence), new Function<Map<String, Object>, Row>()
     {
-      private final List<String> columnNames = estimatedOutputColumns();
+      private final List<String> columnNames = sequence.columns();
 
       @Override
       public Row apply(Map<String, Object> input)

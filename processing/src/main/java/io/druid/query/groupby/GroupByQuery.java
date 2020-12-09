@@ -476,8 +476,8 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   @Override
   public GroupByQuery toLocalQuery()
   {
-    Map<String, Object> override = defaultPostActionContext();
-    override.put(LOCAL_SPLIT_STRATEGY, getLocalSplitStrategy());
+    Map<String, Object> context = computeOverriddenContext(DEFAULT_DATALOCAL_CONTEXT);
+    context.put(LOCAL_SPLIT_STRATEGY, getLocalSplitStrategy());
 
     return new GroupByQuery(
         getDataSource(),
@@ -493,7 +493,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         getLimitSpec().withNoLocalProcessing(),
         null,
         null,
-        computeOverriddenContext(override)
+        context
     );
   }
 
@@ -681,7 +681,6 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
     return PostProcessingOperators.prepend(
         query,
-        segmentWalker.getObjectMapper(),
         new ArrayToRow(GuavaUtils.concat(name, DimensionSpecs.toOutputNames(dimensions)), Row.TIME_COLUMN_NAME)
     );
   }
@@ -994,7 +993,6 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         .aggregators(cardinality)
         .setContext(query.getContext())
         .addContext(FINALIZE, true)
-        .addContext(FINAL_MERGE, true)
         .addContext(GBY_CONVERT_TIMESERIES, true)
         .addContext(ALL_DIMENSIONS_FOR_EMPTY, false)
         .addContext(POST_PROCESSING, new PostProcessingOperator.ReturnsRow<Row>()
@@ -1036,7 +1034,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   private Query<Row> toWorstCase(GroupByQuery query, ObjectMapper jsonMapper)
   {
     return PostProcessingOperators.append(
-        query.withLimitSpec(query.getLimitSpec().withNoLimiting()), jsonMapper, SequenceCountingProcessor.INSTANCE
+        query.withLimitSpec(query.getLimitSpec().withNoLimiting()), SequenceCountingProcessor.INSTANCE
     );
   }
 }

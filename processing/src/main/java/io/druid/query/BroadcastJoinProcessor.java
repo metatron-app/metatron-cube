@@ -21,41 +21,54 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.BulkRow;
 import io.druid.java.util.common.guava.Sequence;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
-public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostProcessingOperator
+@JsonTypeName("broadcastJoin")
+public class BroadcastJoinProcessor extends CommonJoinProcessor
+    implements PostProcessingOperator.LogProvider, RowSignature.Evolving
 {
+  private final ObjectMapper mapper;
+  private final QueryConfig config;
   private final JoinElement element;
   private final boolean hashLeft;
   private final RowSignature hashSignature;
-  private final Sequence<BulkRow> values;
+  private final byte[] values;
 
   @JsonCreator
   public BroadcastJoinProcessor(
-      @JacksonInject JoinQueryConfig config,
+      @JacksonInject ObjectMapper mapper,
+      @JacksonInject QueryConfig config,
       @JsonProperty("element") JoinElement element,
-      @JsonProperty("leftHashed") boolean hashLeft,
+      @JsonProperty("hashLeft") boolean hashLeft,
       @JsonProperty("hashSignature") RowSignature hashSignature,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
       @JsonProperty("outputAlias") List<String> outputAlias,
       @JsonProperty("outputColumns") List<String> outputColumns,
-      @JsonProperty("values") Sequence<BulkRow> values
-
+      @JsonProperty("maxOutputRow") int maxOutputRow,
+      @JsonProperty("values") byte[] values
   )
   {
-    super(config, prefixAlias, asArray, outputAlias, outputColumns, -1);
+    super(config.getJoin(), prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow);
+    this.mapper = mapper;
+    this.config = config;
     this.element = element;
     this.hashLeft = hashLeft;
     this.hashSignature = hashSignature;
@@ -66,6 +79,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
   public BroadcastJoinProcessor withAsArray(boolean asArray)
   {
     return new BroadcastJoinProcessor(
+        mapper,
         config,
         element,
         hashLeft,
@@ -74,6 +88,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
         asArray,
         outputAlias,
         outputColumns,
+        maxOutputRow,
         values
     );
   }
@@ -97,7 +112,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
   }
 
   @JsonProperty
-  public Sequence<BulkRow> getValues()
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  public byte[] getValues()
   {
     return values;
   }
@@ -111,15 +127,8 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map response)
       {
-        JoinQuery.BroadcastJoinHolder joinQuery = (JoinQuery.BroadcastJoinHolder) query;
-        Preconditions.checkArgument(joinQuery.getQuery() instanceof Query.ArrayOutputSupport, "?? %s", query);
-
-        Query.ArrayOutputSupport arrayQuery = (Query.ArrayOutputSupport) joinQuery.getQuery();
-        List<String> queryColumns = arrayQuery.estimatedOutputColumns();
-        List<String> hashColumns = hashSignature.getColumnNames();
-
-        Sequence<Object[]> queried = arrayQuery.array(QueryRunners.run(joinQuery, baseRunner));
-        Sequence<Object[]> hashing = Sequences.explode(values, bulk -> Sequences.once(bulk.decompose()));
+        Preconditions.checkArgument(query instanceof Query.ArrayOutputSupport, "?? %s", query);
+        Query.ArrayOutputSupport arrayQuery = (Query.ArrayOutputSupport) query;   // currently stream query only
 
         List<String> leftAlias = Arrays.asList(element.getLeftAlias());
         List<String> rightAlias = Arrays.asList(element.getRightAlias());
@@ -127,6 +136,16 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
         List<String> rightJoinColumns = element.getRightJoinColumns();
 
         List<List<String>> names;
+        LOG.info("Preparing broadcast join %s + %s", leftAlias, rightAlias);
+
+        Sequence<BulkRow> rows = Sequences.simple(deserializeValue(mapper, values));
+        Sequence<Object[]> queried = arrayQuery.array(QueryRunners.run(query, baseRunner));
+        boolean stringAsRaw = arrayQuery.getContextBoolean(Query.STREAM_USE_RAW_UTF8, config.getSelect().isUseRawUTF8());
+        Sequence<Object[]> hashing = Sequences.explode(rows, bulk -> Sequences.once(bulk.decompose(stringAsRaw)));
+
+        List<String> hashColumns = hashSignature.getColumnNames();
+        List<String> queryColumns = queried.columns();
+
         JoinAlias left;
         JoinAlias right;
         if (hashLeft) {
@@ -144,7 +163,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
         if (outputAlias == null) {
           outputAlias = concatColumnNames(names, prefixAlias ? element.getAliases() : null);
         }
-        return projection(join.iterator, outputAlias);
+        return projection(join.iterator, outputAlias, query instanceof BaseAggregationQuery);
       }
 
       private JoinAlias toHashAlias(
@@ -184,30 +203,56 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
     };
   }
 
-  public List<String> estimatedOutputColumns(List<String> queryColumns)
+  private static List<BulkRow> deserializeValue(ObjectMapper mapper, byte[] values)
+  {
+    TypeFactory factory = mapper.getTypeFactory();
+    try {
+      return mapper.readValue(values, factory.constructParametricType(List.class, BulkRow.class));
+    }
+    catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @Override
+  public List<String> evolve(List<String> schema)
   {
     if (outputColumns != null) {
       return outputColumns;
     }
     if (hashLeft) {
-      return GuavaUtils.concat(hashSignature.getColumnNames(), queryColumns);
+      return GuavaUtils.concat(hashSignature.getColumnNames(), schema);
     } else {
-      return GuavaUtils.concat(queryColumns, hashSignature.getColumnNames());
+      return GuavaUtils.concat(schema, hashSignature.getColumnNames());
     }
   }
 
-  public RowSignature estimatedSchema(Query query, QuerySegmentWalker segmentWalker)
+  @Override
+  public RowSignature evolve(Query query, RowSignature schema)
   {
-    RowSignature signature;
-    if (hashLeft) {
-      signature = hashSignature.concat(Queries.relaySchema(query, segmentWalker));
-    } else {
-      signature = Queries.relaySchema(query, segmentWalker).concat(hashSignature);
-    }
+    RowSignature signature = hashLeft ? hashSignature.concat(schema) : schema.concat(hashSignature);
     if (outputColumns != null) {
       signature = signature.retain(outputColumns);
     }
     return signature;
+  }
+
+  @Override
+  public PostProcessingOperator forLog()
+  {
+    return new BroadcastJoinProcessor(
+        mapper,
+        config,
+        element,
+        hashLeft,
+        hashSignature,
+        prefixAlias,
+        asArray,
+        outputAlias,
+        outputColumns,
+        maxOutputRow,
+        null
+    );
   }
 
   @Override

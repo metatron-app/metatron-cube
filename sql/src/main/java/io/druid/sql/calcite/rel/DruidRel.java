@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.DataContext;
@@ -218,7 +217,7 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
 
   protected String toExplainString(DruidQuery druidQuery)
   {
-    Query query = druidQuery.getQuery().withOverriddenContext(BaseQuery.contextRemover(Query.QUERYID));
+    Query query = druidQuery.getQuery().withOverriddenContext(Query.QUERYID, null);
     try {
       return getObjectMapper().writeValueAsString(query);
     }

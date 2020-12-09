@@ -37,7 +37,6 @@ import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -45,6 +44,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.StorageHandler;
@@ -436,7 +436,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
       QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-      return FinalizeResultsQueryRunner.finalize(plumber.getQueryRunner(query), toolChest, mapper);
+      return QueryRunners.finalizeAndPostProcessing(plumber.getQueryRunner(query), toolChest, mapper);
     }
 
     public void close() throws IOException

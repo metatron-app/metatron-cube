@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
@@ -34,7 +35,7 @@ import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.guava.Sequence;
-import io.druid.query.JoinQuery.CommonJoinHolder;
+import io.druid.query.JoinQuery.JoinHolder;
 import io.druid.query.PostProcessingOperator.Local;
 
 import java.util.Arrays;
@@ -48,6 +49,7 @@ import java.util.concurrent.Future;
 
 /**
  */
+@JsonTypeName("join")
 public class JoinPostProcessor extends CommonJoinProcessor implements PostProcessingOperator.UnionSupport, Local
 {
   private final JoinElement[] elements;
@@ -98,7 +100,6 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
       public Sequence run(Query query, Map responseContext)
       {
         final int joinAliases = elements.length + 1;
-        LOG.info("Running %d-way join processing %s", joinAliases, toAliases());
         final List<String> aliases = Lists.newArrayList();
         for (int i = 0; i < joinAliases; i++) {
           aliases.add(toAlias(i));
@@ -125,8 +126,10 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         for (IntTagged<Callable<JoinAlias>> callable : nonNested) {
           joining[callable.tag] = exec.submit(callable.value);
         }
-        final CommonJoinHolder joinQuery = (CommonJoinHolder) query;
+        final JoinHolder joinQuery = (JoinHolder) query;
         final int estimatedNumRows = query.getContextInt(JoinQuery.CARDINALITY, -1);
+
+        LOG.info("Running %d-way join processing %s", joinAliases, toAliases());
         try {
           JoinResult join = join(joining, estimatedNumRows);
           joinQuery.setCollation(join.collation);
@@ -136,7 +139,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
             List<List<String>> names = GuavaUtils.transform(pairs, pair -> pair.rhs.columns());
             outputAlias = concatColumnNames(names, prefixAlias ? aliases : null);
           }
-          return projection(join.iterator, outputAlias);
+          return projection(join.iterator, outputAlias, false);
         }
         catch (Throwable t) {
           if (t instanceof ExecutionException && t.getCause() != null) {
@@ -160,7 +163,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     final List<String> columnNames = sequence.columns();
     final int[] indices = GuavaUtils.indexOf(columnNames, joinColumns, true);
     if (indices == null) {
-      throw new IAE("Cannot find join column %s in %s", joinColumns, columnNames);
+      throw new IAE("Cannot find join column %s in %s of %s", joinColumns, columnNames, aliases);
     }
     final int cardinality = source.getContextInt(JoinQuery.CARDINALITY, -1);
     final boolean hashing = source.getContextBoolean(JoinQuery.HASHING, false);

@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
@@ -29,6 +30,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("selectToRow")
 public class SelectToRow extends PostProcessingOperator.ReturnsRow<Result<SelectResultValue>>
 {
   @JsonCreator

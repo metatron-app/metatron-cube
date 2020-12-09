@@ -21,9 +21,8 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 
@@ -33,25 +32,17 @@ import java.util.Map;
  */
 public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
 {
-  public static <T> QueryRunner<T> finalize(
+  public static <T> QueryRunner<T> finalizeAndPostProcessing(
       final QueryRunner<T> baseRunner,
       final QueryToolChest<T, Query<T>> toolChest,
       final ObjectMapper objectMapper
   )
   {
-    return new QueryRunner<T>()
-    {
-      @Override
-      @SuppressWarnings("unchecked")
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        QueryRunner<T> runner = PostProcessingOperators.wrap(
-            toolChest.finalQueryDecoration(toolChest.finalizeResults(baseRunner)),
-            objectMapper
-        );
-        return runner.run(query, responseContext);
-      }
-    };
+    return FluentQueryRunnerBuilder.create(toolChest, baseRunner)
+                                   .applyFinalizeResults()
+                                   .applyFinalQueryDecoration()
+                                   .applyPostProcessingOperator()
+                                   .build();
   }
 
   private final QueryRunner<T> baseRunner;
@@ -71,21 +62,13 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
       return baseRunner.run(query, responseContext);
     }
 
-    final Query<T> queryToRun;
-    final MetricManipulationFn metricManipulationFn;
+    boolean finalize = BaseQuery.isFinalize(query);
+    MetricManipulationFn manipulator = finalize ? MetricManipulatorFns.finalizing() : MetricManipulatorFns.identity();
 
-    if (BaseQuery.isFinalize(query, true)) {
-      queryToRun = query.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.FINALIZE, false));
-      metricManipulationFn = MetricManipulatorFns.finalizing();
-    } else {
-      queryToRun = query;
-      metricManipulationFn = MetricManipulatorFns.identity();
-    }
-
-    Function finalizerFn = toolChest.makePostComputeManipulatorFn(query, metricManipulationFn);
+    Function finalizerFn = toolChest.makePostComputeManipulatorFn(query, manipulator);
     if (BaseQuery.isBySegment(query)) {
       finalizerFn = BySegmentResultValueClass.applyAll(finalizerFn);
     }
-    return Sequences.map(baseRunner.run(queryToRun, responseContext), finalizerFn);
+    return Sequences.map(baseRunner.run(query, responseContext), finalizerFn);
   }
 }

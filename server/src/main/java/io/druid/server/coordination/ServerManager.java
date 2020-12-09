@@ -45,7 +45,6 @@ import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricBuilder;
 import io.druid.query.DataSource;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
@@ -471,7 +470,7 @@ public class ServerManager implements ForwardingSegmentWalker
         Iterable<QueryRunner<T>> runners = Iterables.transform(
             segments, buildAndDecorateQueryRunner(factory, optimizer, reporter)
         );
-        return FinalizeResultsQueryRunner.finalize(
+        return QueryRunners.finalizeAndPostProcessing(
             toolChest.mergeResults(
                 factory.mergeRunners(resolved, exec, runners, optimizer)
             ),
@@ -480,29 +479,27 @@ public class ServerManager implements ForwardingSegmentWalker
         );
       }
     };
-    List<String> columns = resolved.estimatedOutputColumns();
     if (splitable != null) {
       List<List<Segment>> splits = splitable.splitSegments(resolved, targets, optimizer, resolver, this);
       if (!GuavaUtils.isNullOrEmpty(splits)) {
         log.info("Split segments into %d groups", splits.size());
         return QueryRunners.runWith(resolved, reporter.report(
-            QueryRunners.concat(columns, Iterables.concat(missingSegments, Iterables.transform(splits, function)))
+            QueryRunners.concat(Iterables.concat(missingSegments, Iterables.transform(splits, function)))
         ));
       }
     }
 
-    QueryRunner<T> runner = QueryRunners.concat(columns, GuavaUtils.concat(missingSegments, function.apply(targets)));
+    QueryRunner<T> runner = QueryRunners.concat(GuavaUtils.concat(missingSegments, function.apply(targets)));
     if (splitable != null) {
       Iterable<Query<T>> splits = splitable.splitQuery(resolved, targets, optimizer, resolver, this);
       if (splits != null) {
-        return reporter.report(toConcatRunner(columns, splits, runner));
+        return reporter.report(toConcatRunner(splits, runner));
       }
     }
     return QueryRunners.runWith(resolved, reporter.report(runner));
   }
 
   private <T> QueryRunner<T> toConcatRunner(
-      final List<String> columns,
       final Iterable<Query<T>> queries,
       final QueryRunner<T> runner
   )
@@ -510,14 +507,15 @@ public class ServerManager implements ForwardingSegmentWalker
     return new QueryRunner<T>()
     {
       @Override
-      public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
+      public Sequence<T> run(Query<T> resolved, final Map<String, Object> responseContext)
       {
         // stop streaming if canceled
         final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture<>(), "split-runner");
-        queryManager.registerQuery(baseQuery, future);
+        queryManager.registerQuery(resolved, future);
         return Sequences.withBaggage(
             Sequences.interruptible(future, Sequences.concat(
-                columns, Iterables.transform(queries, query -> runner.run(query, responseContext))
+                resolved.estimatedOutputColumns(),
+                Iterables.transform(queries, query -> runner.run(query, responseContext))
             )),
             future
         );

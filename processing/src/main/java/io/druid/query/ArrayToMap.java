@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 import io.druid.java.util.common.guava.Sequence;
@@ -31,6 +32,7 @@ import java.util.Map;
 
 /**
  */
+@JsonTypeName("arrayToMap")
 public class ArrayToMap extends PostProcessingOperator.ReturnsMap<Object[]>
 {
   private final List<String> columnNames;

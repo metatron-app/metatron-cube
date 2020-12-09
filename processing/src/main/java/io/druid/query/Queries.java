@@ -41,8 +41,10 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.Accumulator;
@@ -171,23 +173,7 @@ public class Queries
   public static List<String> relayColumns(Query<?> query, ObjectMapper mapper)
   {
     List<String> columns = query.estimatedOutputColumns();
-    if (columns == null) {
-      return columns;
-    }
-    if (query instanceof Query.LateralViewSupport) {
-      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
-      if (lateralView instanceof RowSignature.Evolving) {
-        columns = ((RowSignature.Evolving) lateralView).evolve(columns);
-        if (columns == null) {
-          return columns;
-        }
-      }
-    }
-    PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
-    if (postProcessor instanceof RowSignature.Evolving) {
-      columns = ((RowSignature.Evolving) postProcessor).evolve(columns);
-    }
-    return columns;
+    return columns == null ? columns : finalize(columns, query, mapper);
   }
 
   public static RowSignature bestEffortOf(Query<?> query, boolean finalzed)
@@ -252,18 +238,33 @@ public class Queries
     if (query instanceof Query.LateralViewSupport) {
       LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
       if (lateralView instanceof RowSignature.Evolving) {
-        source = ((RowSignature.Evolving) lateralView).evolve(query, source, mapper);
+        source = ((RowSignature.Evolving) lateralView).evolve(query, source);
       }
     }
-    List<String> outputColumns = query.estimatedOutputColumns();
-    if (outputColumns != null) {
-      source = source.retain(outputColumns);
+    if (query instanceof Query.LastProjectionSupport) {
+      List<String> outputColumns = ((Query.LastProjectionSupport<?>) query).getOutputColumns();
+      if (outputColumns != null) {
+        source = source.retain(outputColumns);
+      }
     }
-    PostProcessingOperator postProcessor = PostProcessingOperators.load(query, mapper);
-    if (postProcessor instanceof RowSignature.Evolving) {
-      source = ((RowSignature.Evolving) postProcessor).evolve(query, source, mapper);
+    return PostProcessingOperators.resove(query, source);
+  }
+
+  public static List<String> finalize(List<String> source, Query<?> query, ObjectMapper mapper)
+  {
+    if (query instanceof Query.LateralViewSupport) {
+      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
+      if (lateralView instanceof RowSignature.Evolving) {
+        source = ((RowSignature.Evolving) lateralView).evolve(source);
+      }
     }
-    return source;
+    if (query instanceof Query.LastProjectionSupport) {
+      List<String> outputColumns = ((Query.LastProjectionSupport<?>) query).getOutputColumns();
+      if (outputColumns != null) {
+        source = GuavaUtils.retain(source, outputColumns);
+      }
+    }
+    return PostProcessingOperators.resove(query, source);
   }
 
   public static List<String> uniqueNames(List<String> names, Set<String> uniqueNames, List<String> appendTo)
@@ -540,7 +541,11 @@ public class Queries
       @Override
       public MutableLong accumulate(MutableLong accumulated, Row in)
       {
-        accumulated.add(in.getLongMetric("cardinality"));
+        if (in instanceof CompactRow) {
+          accumulated.add(Rows.parseLong(((CompactRow)in).getValues()[1]));
+        } else {
+          accumulated.add(in.getLongMetric("cardinality"));
+        }
         return accumulated;
       }
     }).longValue();
@@ -609,7 +614,7 @@ public class Queries
 
     TimeseriesQuery query = builder.aggregators(aggregator)
                                    .postAggregators(postAggregator)
-                                   .addContext(Query.FINAL_MERGE, true)
+                                   .addContext(Query.BROKER_SIDE, true)   // hack
                                    .build();
 
     Object[] histogram = null;

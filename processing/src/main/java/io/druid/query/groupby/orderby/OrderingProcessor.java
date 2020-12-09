@@ -55,10 +55,10 @@ public class OrderingProcessor
     columns.addAll(AggregatorFactory.toNames(query.getAggregatorSpecs()));
     columns.addAll(PostAggregators.toNames(query.getPostAggregatorSpecs()));
 
-    boolean finalized = BaseQuery.isFinalize(query, true);
+    boolean finalizing = BaseQuery.isFinalize(query);
     Map<String, Comparator> comparators = Maps.newHashMap();
     for (AggregatorFactory agg : query.getAggregatorSpecs()) {
-      comparators.put(agg.getName(), finalized ? agg.getFinalizedComparator() : agg.getComparator());
+      comparators.put(agg.getName(), finalizing ? agg.getFinalizedComparator() : agg.getComparator());
     }
     for (PostAggregator postAgg : query.getPostAggregatorSpecs()) {
       comparators.put(postAgg.getName(), postAgg.getComparator());

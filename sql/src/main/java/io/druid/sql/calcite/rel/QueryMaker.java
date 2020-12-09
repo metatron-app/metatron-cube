@@ -118,7 +118,7 @@ public class QueryMaker
   // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
   public Query prepareQuery(Query<?> query)
   {
-    Query prepared = QueryUtils.setQueryId(query, Preconditions.checkNotNull(query.getId()));
+    Query prepared = QueryUtils.prepareQuery(query, getJsonMapper(), Preconditions.checkNotNull(query.getId()));
     prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker, queryConfig);
     prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
@@ -156,7 +156,7 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private Sequence<Object[]> coerce(DruidQuery druidQuery, Query schema, Sequence sequence)
   {
-    Class<?> clazz = PostProcessingOperators.returns(schema, plannerContext.getObjectMapper());
+    Class<?> clazz = PostProcessingOperators.returns(schema);
     if (Row.class == clazz) {
       return executeRow(druidQuery, sequence);
     } else if (Map.class == clazz) {

@@ -58,6 +58,7 @@ import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.LocatedSegmentDescriptor;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
@@ -686,8 +687,10 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       {
         super.initialize(split, configuration);
         Map<String, Object> toMapProcessor = ImmutableMap.<String, Object>of(
-            BaseQuery.QUERYID, UUID.randomUUID().toString(),
-            BaseQuery.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", timeColumn)
+            Query.QUERYID, UUID.randomUUID().toString(),
+            Query.POST_PROCESSING, PostProcessingOperators.convert(
+                mapper, ImmutableMap.of("type", "toMap", "timestampColumn", timeColumn)
+            )
         );
         StreamQuery query = builder.intervals(new MultipleSpecificSegmentSpec(split.getSegments()))
                                    .addContext(toMapProcessor)

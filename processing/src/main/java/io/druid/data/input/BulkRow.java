@@ -33,6 +33,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BytesRef;
+import io.druid.data.UTF8Bytes;
 import io.druid.java.util.common.ISE;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
@@ -326,6 +327,11 @@ public class BulkRow extends AbstractRow
 
   public Iterator<Object[]> decompose()
   {
+    return decompose(false);
+  }
+
+  public Iterator<Object[]> decompose(boolean stringAsRaw)
+  {
     // for test
     final Object[] copy = Arrays.copyOf(values, values.length);
     for (int i = 0; i < category.length; i++) {
@@ -350,7 +356,11 @@ public class BulkRow extends AbstractRow
         final Object[] row = new Object[copy.length];
         for (int i = 0; i < row.length; i++) {
           if (category[i] == 5) {
-            row[i] = ((BytesInputStream) copy[i]).readVarSizeUTF();
+            if (stringAsRaw) {
+              row[i] = UTF8Bytes.of(((BytesInputStream) copy[i]).readVarSizeBytes());
+            } else {
+              row[i] = ((BytesInputStream) copy[i]).readVarSizeUTF();
+            }
           } else {
             row[i] = ((Object[]) copy[i])[ix];
           }

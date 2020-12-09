@@ -114,7 +114,7 @@ public class ClassifyQuery extends BaseQuery<Object[]>
       q = ((Query.RewritingQuery) q).rewriteQuery(segmentWalker, queryConfig);
     }
     ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
-    if (estimatedOutputColumns() == null && !PostProcessingOperators.isMapOutput(q, jsonMapper)) {
+    if (estimatedOutputColumns() == null && PostProcessingOperators.returns(q) != Map.class) {
       throw new IllegalArgumentException("cannot classify which is neither array output supported or map format");
     }
     Query c = classifier.getId() == null ? classifier.withId(getId()) : classifier;
@@ -122,7 +122,7 @@ public class ClassifyQuery extends BaseQuery<Object[]>
       c = ((Query.RewritingQuery) c).rewriteQuery(segmentWalker, queryConfig);
     }
     Map<String, Object> postProcessing = ImmutableMap.<String, Object>of(
-        QueryContextKeys.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)
+        Query.POST_PROCESSING, new ClassifyPostProcessor(tagColumn)
     );
     final Map<String, Object> context = computeOverriddenContext(postProcessing);
     return new UnionAllQuery(null, Arrays.asList(c, q), false, -1, 2, context);

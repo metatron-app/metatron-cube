@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -42,6 +43,7 @@ import java.util.Map;
  * the query interval to discard data that would be mapped to the future.
  *
  */
+@JsonTypeName("timewarp")
 public class TimewarpOperator<T> extends PostProcessingOperator.Abstract<T> implements PostProcessingOperator.Local
 {
   private final Interval dataInterval;

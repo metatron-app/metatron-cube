@@ -79,7 +79,7 @@ public class QueryRunnerHelper
     QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
     exec = exec == null ? Execs.newDirectExecutorService() : exec;
-    return FinalizeResultsQueryRunner.finalize(
+    return QueryRunners.finalizeAndPostProcessing(
         toolChest.mergeResults(
             factory.mergeRunners(query, exec, Arrays.asList(factory.createRunner(null, null)), null)
         ),

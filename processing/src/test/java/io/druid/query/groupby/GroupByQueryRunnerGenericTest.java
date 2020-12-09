@@ -3573,7 +3573,11 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     // Subqueries are handled by the ToolChest
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    final List<Row> results = runQuery(query);
+    for (Row x : results) {
+      System.out.println(x);
+    }
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test

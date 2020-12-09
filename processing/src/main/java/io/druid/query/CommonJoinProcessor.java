@@ -26,8 +26,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.data.input.CompactRow;
+import io.druid.data.input.Rows;
 import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.segment.column.Column;
 
 import java.util.Iterator;
 import java.util.List;
@@ -40,7 +43,6 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   protected final boolean asArray;
   protected final List<String> outputAlias;
   protected final List<String> outputColumns;
-  protected final int maxOutputRow;
 
   public CommonJoinProcessor(
       JoinQueryConfig config,
@@ -56,7 +58,6 @@ public abstract class CommonJoinProcessor extends JoinProcessor
     this.asArray = asArray;
     this.outputAlias = outputAlias;
     this.outputColumns = outputColumns;
-    this.maxOutputRow = config == null ? maxOutputRow : config.getMaxOutputRow(maxOutputRow);
   }
 
   public abstract CommonJoinProcessor withAsArray(boolean asArray);
@@ -116,13 +117,16 @@ public abstract class CommonJoinProcessor extends JoinProcessor
     return outputColumns;
   }
 
-  protected Sequence projection(Iterator<Object[]> outputRows, List<String> outputAlias)
+  @SuppressWarnings("unchecked")
+  protected Sequence projection(Iterator<Object[]> outputRows, List<String> outputAlias, boolean asRow)
   {
     final List<String> projectedNames = outputColumns == null ? outputAlias : outputColumns;
     if (asArray) {
-      return Sequences.once(projectedNames, GuavaUtils.map(outputRows, LimitSpec.remap(outputAlias, projectedNames)));
+      Iterator iterator = GuavaUtils.map(outputRows, LimitSpec.remap(outputAlias, projectedNames));
+      return Sequences.once(projectedNames, asRow ? GuavaUtils.map(iterator, CompactRow.WRAP) : iterator);
     }
-    return Sequences.once(projectedNames, GuavaUtils.map(outputRows, toMap(outputAlias, projectedNames)));
+    Iterator iterator = GuavaUtils.map(outputRows, toMap(outputAlias, projectedNames));
+    return Sequences.once(projectedNames, asRow ? GuavaUtils.map(iterator, Rows.mapToRow(Column.TIME_COLUMN_NAME)) : iterator);
   }
 
   private static Function<Object[], Map<String, Object>> toMap(List<String> inputColumns, List<String> outputColumns)

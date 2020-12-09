@@ -205,7 +205,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   @Override
   public Sequence<Object[]> array(Sequence<Result<TopNResultValue>> sequence)
   {
-    final List<String> outputNames = estimatedOutputColumns();
+    final List<String> outputNames = sequence.columns();
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputNames));
     return Sequences.explode(
         outputNames,
@@ -460,7 +460,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         null,
-        computeOverriddenContext(defaultPostActionContext())
+        computeOverriddenContext(DEFAULT_DATALOCAL_CONTEXT)
     );
   }
 

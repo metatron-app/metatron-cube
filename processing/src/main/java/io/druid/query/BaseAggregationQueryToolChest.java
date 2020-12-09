@@ -67,7 +67,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
         T aggregation = (T) query;
-        if (aggregation.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
+        if (BaseQuery.isBrokerSide(aggregation)) {
           Sequence<Row> sequence = runner.run(aggregation, responseContext);
           if (BaseQuery.isBySegment(aggregation)) {
             Function function = BySegmentResultValueClass.applyAll(
@@ -75,9 +75,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
             return Sequences.map(sequence, function);
           }
           sequence = CombiningSequence.create(sequence, getMergeOrdering(aggregation), getMergeFn(aggregation));
-          sequence = Sequences.map(
-              sequence, Functions.compose(toPostAggregator(aggregation), aggregation.compactToMap(sequence.columns()))
-          );
+          sequence = postAggregation(aggregation, Sequences.map(sequence, aggregation.compactToMap(sequence.columns())));
           return sequence;
         }
         Sequence<Row> sequence = runner.run(aggregation, responseContext);
@@ -96,7 +94,15 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     return new AggregationQueryBinaryFn(aggregation);
   }
 
-  protected Function<Row, Row> toPostAggregator(final T query)
+  protected Sequence<Row> postAggregation(final T query, final Sequence<Row> sequence)
+  {
+    final List<String> columns = GuavaUtils.dedupConcat(
+        sequence.columns(), PostAggregators.toNames(query.getPostAggregatorSpecs())
+    );
+    return Sequences.map(columns, sequence, toPostAggregator(query));
+  }
+
+  private Function<Row, Row> toPostAggregator(final T query)
   {
     final Granularity granularity = query.getGranularity();
     final List<PostAggregator.Processor> postAggregators = PostAggregators.toProcessors(PostAggregators.decorate(
@@ -106,22 +112,17 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     if (postAggregators.isEmpty() && granularity.isUTC()) {
       return GuavaUtils.identity("postAggr");
     }
-    return new Function<Row, Row>()
-    {
-      @Override
-      public Row apply(final Row row)
-      {
-        final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
+    return row -> {
+      final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
 
-        for (PostAggregator.Processor postAggregator : postAggregators) {
-          newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
-        }
-        final DateTime current = row.getTimestamp();
-        if (current == null || granularity.isUTC()) {
-          return new MapBasedRow(current, newMap);
-        }
-        return new MapBasedRow(granularity.toDateTime(current.getMillis()), newMap);
+      for (PostAggregator.Processor postAggregator : postAggregators) {
+        newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
       }
+      final DateTime current = row.getTimestamp();
+      if (current == null || granularity.isUTC()) {
+        return new MapBasedRow(current, newMap);
+      }
+      return new MapBasedRow(granularity.toDateTime(current.getMillis()), newMap);
     };
   }
 
@@ -131,22 +132,8 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     if (fn == MetricManipulatorFns.identity()) {
       return super.makePreComputeManipulatorFn(query, fn);
     }
-    return new Function<Row, Row>()
-    {
-      private final int start = query.getDimensions().size() + 1;
-      private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
-
-      @Override
-      public Row apply(Row input)
-      {
-        final Object[] values = ((CompactRow) input).getValues();
-        int x = start;
-        for (AggregatorFactory metric : metrics) {
-          values[x] = fn.manipulate(metric, values[x++]);
-        }
-        return input;
-      }
-    };
+    final List<String> columns = query.estimatedOutputColumns();
+    return manipulateMetricOnCompactRow(query.aggregatorSpecs, columns, fn);
   }
 
   @Override
@@ -193,6 +180,9 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     if (fn == MetricManipulatorFns.identity()) {
       return super.makePostComputeManipulatorFn(query, fn);
     }
+    if (!BaseQuery.isBrokerSide(query)) {
+      return manipulateMetricOnCompactRow(query.aggregatorSpecs, query.estimatedOutputColumns(), fn);
+    }
     return new Function<Row, Row>()
     {
       private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
@@ -210,6 +200,31 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
           }
         }
         return updatable;
+      }
+    };
+  }
+
+  private static Function<Row, Row> manipulateMetricOnCompactRow(
+      List<AggregatorFactory> factories,
+      List<String> columns,
+      MetricManipulationFn fn
+  )
+  {
+    final int[] indices = GuavaUtils.indexOf(columns, AggregatorFactory.toNames(factories));
+    final AggregatorFactory[] metrics = factories.toArray(new AggregatorFactory[0]);
+
+    return new Function<Row, Row>()
+    {
+      @Override
+      public Row apply(Row input)
+      {
+        final Object[] values = ((CompactRow) input).getValues();
+        for (int i = 0; i < metrics.length; i++) {
+          if (indices[i] >= 0) {
+            values[indices[i]] = fn.manipulate(metrics[i], values[indices[i]]);
+          }
+        }
+        return input;
       }
     };
   }
@@ -323,7 +338,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
         Sequence<Row> sequence = runner.run(query, responseContext);
-        if (query.getContextBoolean(QueryContextKeys.FINAL_MERGE, true)) {
+        if (BaseQuery.isBrokerSide(query)) {
           sequence = finalDecoration(query, sequence);
         }
         return sequence;

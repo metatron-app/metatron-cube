@@ -44,11 +44,11 @@ import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.DruidMetrics;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeIOConfig;
@@ -188,7 +188,7 @@ public class RealtimeIndexTask extends AbstractTask
       QueryRunnerFactory<T, Query<T>> factory = queryRunnerFactoryConglomerate.findFactory(query);
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-      return FinalizeResultsQueryRunner.finalize(plumber.getQueryRunner(query), toolChest, jsonMapper);
+      return QueryRunners.finalizeAndPostProcessing(plumber.getQueryRunner(query), toolChest, jsonMapper);
     } else {
       return null;
     }

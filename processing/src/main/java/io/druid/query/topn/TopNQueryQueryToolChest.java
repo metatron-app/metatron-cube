@@ -52,9 +52,6 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.joda.time.DateTime;
@@ -222,9 +219,10 @@ public class TopNQueryQueryToolChest
       {
         final DateTime timestamp = result.getTimestamp();
         final TopNResultValue holder = result.getValue();
+        final AggregatorFactory[] factories = query.getAggregatorSpecs().toArray(new AggregatorFactory[0]);
         return new Result<TopNResultValue>(
             timestamp,
-            new TopNResultValue(Lists.transform(
+            new TopNResultValue(GuavaUtils.transform(
                 holder.getValue(),
                 new Function<Map<String, Object>, Map<String, Object>>()
                 {
@@ -232,8 +230,8 @@ public class TopNQueryQueryToolChest
                   @Override
                   public Map<String, Object> apply(Map<String, Object> input)
                   {
-                    for (AggregatorFactory agg : query.getAggregatorSpecs()) {
-                      input.put(agg.getName(), fn.manipulate(agg, input.get(agg.getName())));
+                    for (AggregatorFactory factory : factories) {
+                      input.put(factory.getName(), fn.manipulate(factory, input.get(factory.getName())));
                     }
                     return input;
                   }
@@ -390,83 +388,9 @@ public class TopNQueryQueryToolChest
   }
 
   @Override
-  public QueryRunner<Result<TopNResultValue>> preMergeQueryDecoration(final QueryRunner<Result<TopNResultValue>> runner)
-  {
-    return new QueryRunner<Result<TopNResultValue>>()
-    {
-      @Override
-      public Sequence<Result<TopNResultValue>> run(
-          Query<Result<TopNResultValue>> query, Map<String, Object> responseContext
-      )
-      {
-        TopNQuery topNQuery = (TopNQuery) query;
-        if (TopNQueryEngine.canApplyExtractionInPost(topNQuery)) {
-          DimensionSpec dimensionSpec = topNQuery.getDimensionSpec();
-          topNQuery = topNQuery.withDimensionSpec(
-              new DefaultDimensionSpec(
-                  dimensionSpec.getDimension(),
-                  dimensionSpec.getOutputName()
-              )
-          );
-        }
-        return runner.run(topNQuery, responseContext);
-      }
-    };
-  }
-
-  @Override
   public QueryRunner<Result<TopNResultValue>> postMergeQueryDecoration(final QueryRunner<Result<TopNResultValue>> runner)
   {
-    final ThresholdAdjustingQueryRunner thresholdRunner = new ThresholdAdjustingQueryRunner(
-        runner,
-        config
-    );
-    return new QueryRunner<Result<TopNResultValue>>()
-    {
-
-      @Override
-      public Sequence<Result<TopNResultValue>> run(
-          final Query<Result<TopNResultValue>> query, final Map<String, Object> responseContext
-      )
-      {
-        // thresholdRunner.run throws ISE if query is not TopNQuery
-        final Sequence<Result<TopNResultValue>> resultSequence = thresholdRunner.run(query, responseContext);
-        final TopNQuery topNQuery = (TopNQuery) query;
-        if (!TopNQueryEngine.canApplyExtractionInPost(topNQuery)) {
-          return resultSequence;
-        } else {
-          final DimensionSpec dimensionSpec = topNQuery.getDimensionSpec();
-          final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
-          final String dimOutputName = dimensionSpec.getOutputName();
-          return Sequences.map(
-              resultSequence, new Function<Result<TopNResultValue>, Result<TopNResultValue>>()
-              {
-                @Override
-                public Result<TopNResultValue> apply(Result<TopNResultValue> input)
-                {
-                  TopNResultValue resultValue = input.getValue();
-
-                  return new Result<TopNResultValue>(
-                      input.getTimestamp(),
-                      new TopNResultValue(Lists.transform(
-                          resultValue.getValue(),
-                          new Function<Map<String, Object>, Map<String, Object>>()
-                          {
-                            @Override
-                            public Map<String, Object> apply(Map<String, Object> input)
-                            {
-                              input.put(dimOutputName, extractionFn.apply(input.get(dimOutputName)));
-                              return input;
-                            }
-                          }
-                      ))
-                  );
-                }
-              }
-          );
-        }
-      }
-    };
+    return new ThresholdAdjustingQueryRunner(runner, config);
   }
 
   static class ThresholdAdjustingQueryRunner implements QueryRunner<Result<TopNResultValue>>
