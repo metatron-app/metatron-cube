@@ -22,11 +22,11 @@ package io.druid.query.timeseries;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -121,10 +121,7 @@ public class TimeSeriesUnionQueryRunnerTest
         )
     );
     HashMap<String, Object> context = new HashMap<>();
-    Iterable<Row> results = Sequences.toList(
-        runner.run(query, context),
-        Lists.<Row>newArrayList()
-    );
+    Iterable<Row> results = Sequences.toList(runner.run(query, context));
 
     assertExpectedResults(expectedResults, results);
   }

@@ -19,8 +19,8 @@
 
 package io.druid.query;
 
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.guava.Sequence;
 import org.joda.time.DateTime;
 
 import java.util.Map;

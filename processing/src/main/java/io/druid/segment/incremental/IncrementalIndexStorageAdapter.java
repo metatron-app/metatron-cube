@@ -26,11 +26,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.cache.Cache;
 import io.druid.common.Intervals;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.Schema;

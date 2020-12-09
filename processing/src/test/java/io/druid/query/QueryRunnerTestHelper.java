@@ -32,6 +32,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.MergeSequence;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.MapBasedRow;
@@ -41,8 +43,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.UOE;
-import io.druid.java.util.common.guava.MergeSequence;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;

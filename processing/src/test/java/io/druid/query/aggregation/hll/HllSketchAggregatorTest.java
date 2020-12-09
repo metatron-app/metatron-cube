@@ -20,7 +20,7 @@
 package io.druid.query.aggregation.hll;
 
 import com.fasterxml.jackson.databind.Module;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;

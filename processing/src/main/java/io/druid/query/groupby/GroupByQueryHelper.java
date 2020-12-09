@@ -19,11 +19,11 @@
 
 package io.druid.query.groupby;
 
+import io.druid.common.guava.Accumulator;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.QueryConfig;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;

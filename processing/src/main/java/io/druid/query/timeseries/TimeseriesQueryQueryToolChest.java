@@ -22,10 +22,11 @@ package io.druid.query.timeseries;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.inject.Inject;
+import io.druid.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.query.BaseAggregationQueryToolChest;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;

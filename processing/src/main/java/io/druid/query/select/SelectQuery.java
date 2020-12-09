@@ -29,10 +29,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;

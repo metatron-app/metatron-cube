@@ -32,10 +32,11 @@ import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;

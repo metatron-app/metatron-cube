@@ -20,26 +20,34 @@
 package io.druid.common.utils;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import io.druid.common.InterruptibleSequence;
+import com.google.common.collect.Lists;
+import io.druid.common.Accumulators;
+import io.druid.common.guava.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
+import io.druid.common.guava.Accumulator;
+import io.druid.common.guava.BaseSequence;
+import io.druid.common.guava.ConcatSequence;
 import io.druid.common.guava.ExecuteWhenDoneYielder;
+import io.druid.common.guava.FilteredSequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.LimitedSequence;
+import io.druid.common.guava.MappedSequence;
 import io.druid.common.guava.ParallelInitMergeSequence;
+import io.druid.common.guava.ResourceClosingSequence;
+import io.druid.common.guava.Sequence;
+import io.druid.common.guava.Yielder;
+import io.druid.common.guava.YieldingAccumulator;
 import io.druid.concurrent.Execs;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.BaseSequence;
-import io.druid.java.util.common.guava.DelegatingYieldingAccumulator;
-import io.druid.java.util.common.guava.LazySequence;
-import io.druid.java.util.common.guava.MappedSequence;
-import io.druid.java.util.common.guava.MergeSequence;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
+import io.druid.common.guava.DelegatingYieldingAccumulator;
+import io.druid.common.guava.LazySequence;
+import io.druid.common.guava.MergeSequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.commons.io.IOUtils;
@@ -58,8 +66,135 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class Sequences extends io.druid.java.util.common.guava.Sequences
+public class Sequences
 {
+  private static final EmptySequence EMPTY_SEQUENCE = new EmptySequence();
+
+  public static <T> Sequence<T> simple(final Iterable<T> iterable)
+  {
+    return simple(null, iterable);
+  }
+
+  public static <T> Sequence<T> simple(final List<String> columns, final Iterable<T> iterable)
+  {
+    return new BaseSequence<>(columns, new BaseSequence.IteratorMaker<T, Iterator<T>>()
+    {
+      @Override
+      public Iterator<T> make()
+      {
+        return iterable.iterator();
+      }
+
+      @Override
+      public void cleanup(Iterator<T> iterator)
+      {
+        try {
+          ((Closeable) iterator).close();
+        }
+        catch (Exception e) {
+          // ignore
+        }
+      }
+    });
+  }
+
+  @SafeVarargs
+  public static <T> Sequence<T> of(List<String> columns, T... elements)
+  {
+    return simple(columns, Arrays.asList(elements));
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> Sequence<T> empty()
+  {
+    return (Sequence<T>) EMPTY_SEQUENCE;
+  }
+
+  public static <T> Sequence<T> empty(final List<String> columns)
+  {
+    return new EmptySequence<T>()
+    {
+      @Override
+      public List<String> columns() { return columns;}
+    };
+  }
+
+  @SafeVarargs
+  public static <T> Sequence<T> concat(Sequence<T>... sequences)
+  {
+    return sequences.length == 0 ? empty() : concat(sequences[0].columns(), Sequences.of(sequences));
+  }
+
+  public static <T> Sequence<T> concat(Iterable<Sequence<T>> sequences)
+  {
+    return concat(null, Sequences.simple(sequences));
+  }
+
+  public static <T> Sequence<T> concat(List<String> columns, Iterable<Sequence<T>> sequences)
+  {
+    return concat(columns, Sequences.simple(columns, sequences));
+  }
+
+  public static <T> Sequence<T> concat(Sequence<Sequence<T>> sequences)
+  {
+    return concat(null, sequences);
+  }
+
+  public static <T> Sequence<T> concat(List<String> columns, Sequence<Sequence<T>> sequences)
+  {
+    return new ConcatSequence<T>(columns, sequences);
+  }
+
+  public static <T> Sequence<T> filter(Sequence<T> sequence, Predicate<T> pred)
+  {
+    return new FilteredSequence<>(sequence, pred);
+  }
+
+  public static <T> Sequence<T> limit(Sequence<T> sequence, final int limit)
+  {
+    return new LimitedSequence<>(sequence, limit);
+  }
+
+  public static <T> Sequence<T> withBaggage(Sequence<T> sequence, Closeable baggage)
+  {
+    return new ResourceClosingSequence<>(sequence, baggage);
+  }
+
+  public static <T> List<T> toList(Sequence<T> sequence)
+  {
+    return sequence.accumulate(Lists.<T>newArrayList(), Accumulators.<List<T>, T>list());
+  }
+
+  public static <T, ListType extends List<T>> ListType toList(Sequence<T> sequence, ListType list)
+  {
+    return sequence.accumulate(list, Accumulators.<ListType, T>list());
+  }
+
+  public static <T> Sequence<T> materialize(Sequence<T> sequence)
+  {
+    return Sequences.simple(sequence.columns(), Sequences.toList(sequence));
+  }
+
+  private static class EmptySequence<T> implements Sequence<T>
+  {
+    @Override
+    public List<String> columns()
+    {
+      return ImmutableList.of();
+    }
+
+    @Override
+    public <OutType> OutType accumulate(OutType initValue, Accumulator<OutType, T> accumulator)
+    {
+      return initValue;
+    }
+
+    @Override
+    public <OutType> Yielder<OutType> toYielder(OutType initValue, YieldingAccumulator<OutType, T> accumulator)
+    {
+      return Yielders.done(initValue, null);
+    }
+  }
   @SafeVarargs
   public static <T> Sequence<T> simple(final T a, T... as)
   {

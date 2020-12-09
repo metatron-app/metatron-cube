@@ -21,8 +21,8 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;

@@ -26,11 +26,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryHelper;

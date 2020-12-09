@@ -22,7 +22,7 @@ package io.druid.query.timeboundary;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
-import io.druid.java.util.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -73,8 +73,7 @@ public class TimeBoundaryQueryRunnerTest
                                                 .build();
     HashMap<String,Object> context = new HashMap<String, Object>();
     Iterable<Result<TimeBoundaryResultValue>> results = Sequences.toList(
-        runner.run(timeBoundaryQuery, context),
-        Lists.<Result<TimeBoundaryResultValue>>newArrayList()
+        runner.run(timeBoundaryQuery, context)
     );
     TimeBoundaryResultValue val = results.iterator().next().getValue();
     DateTime minTime = val.getMinTime();

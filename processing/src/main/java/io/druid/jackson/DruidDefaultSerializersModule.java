@@ -29,15 +29,17 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Throwables;
+import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.HostAndPort;
 import io.druid.common.guava.HostAndPortDeserializer;
+import io.druid.common.guava.Sequence;
+import io.druid.common.guava.Yielder;
 import io.druid.common.utils.Sequences;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BulkRow;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
+
+
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTimeZone;

@@ -20,7 +20,7 @@
 package io.druid.query;
 
 import com.google.common.base.Function;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 
 import java.util.Map;

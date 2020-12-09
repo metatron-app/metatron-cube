@@ -21,7 +21,7 @@ package io.druid.query.aggregation.distinctcount;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;

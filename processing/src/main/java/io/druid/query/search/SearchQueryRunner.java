@@ -19,8 +19,9 @@
 
 package io.druid.query.search;
 
+import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.cache.Cache;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;

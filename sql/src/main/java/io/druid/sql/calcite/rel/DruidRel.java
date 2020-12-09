@@ -22,7 +22,7 @@ package io.druid.sql.calcite.rel;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.sql.calcite.planner.PlannerContext;

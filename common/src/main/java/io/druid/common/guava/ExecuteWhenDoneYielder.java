@@ -19,8 +19,6 @@
 
 package io.druid.common.guava;
 
-import io.druid.java.util.common.guava.Yielder;
-
 import java.io.IOException;
 import java.util.concurrent.Executor;
 

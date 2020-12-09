@@ -27,8 +27,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.query.BySegmentSkippingQueryRunner;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultGenericQueryMetricsFactory;

@@ -28,13 +28,14 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.guava.ByteArray;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.query.BaseAggregationQuery;

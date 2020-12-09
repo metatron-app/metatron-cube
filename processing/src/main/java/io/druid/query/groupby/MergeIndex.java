@@ -19,10 +19,10 @@
 
 package io.druid.query.groupby;
 
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.io.Closeable;

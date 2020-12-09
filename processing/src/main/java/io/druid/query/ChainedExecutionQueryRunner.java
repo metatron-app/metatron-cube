@@ -27,12 +27,13 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.common.guava.BaseSequence;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.BaseSequence;
 import io.druid.java.util.common.guava.MergeIterable;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.Comparators;
 import io.druid.utils.StopWatch;

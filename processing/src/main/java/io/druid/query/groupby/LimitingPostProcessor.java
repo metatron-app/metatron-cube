@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;

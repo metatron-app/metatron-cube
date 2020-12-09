@@ -24,9 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.logger.Logger;
 
 import java.util.List;

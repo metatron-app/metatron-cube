@@ -25,8 +25,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 import com.yahoo.sketches.frequencies.ErrorType;
 import com.yahoo.sketches.frequencies.ItemsSketch;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;

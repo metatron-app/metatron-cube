@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import io.druid.common.KeyBuilder;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
 import io.druid.query.select.StreamQuery;

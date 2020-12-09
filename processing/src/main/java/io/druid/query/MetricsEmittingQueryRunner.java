@@ -19,10 +19,12 @@
 
 package io.druid.query;
 
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
+
+
+import io.druid.common.guava.Accumulator;
+import io.druid.common.guava.Sequence;
+import io.druid.common.guava.Yielder;
+import io.druid.common.guava.YieldingAccumulator;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 
 import java.io.IOException;

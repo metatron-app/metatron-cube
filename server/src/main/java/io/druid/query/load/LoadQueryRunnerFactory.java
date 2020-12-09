@@ -22,7 +22,7 @@ package io.druid.query.load;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.data.Pair;
 import io.druid.query.ForwardingSegmentWalker;
 import io.druid.query.Query;

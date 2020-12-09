@@ -19,7 +19,7 @@
 
 package io.druid.data.output;
 
-import io.druid.java.util.common.guava.Accumulator;
+import io.druid.common.guava.Accumulator;
 
 import java.io.IOException;
 import java.util.Map;

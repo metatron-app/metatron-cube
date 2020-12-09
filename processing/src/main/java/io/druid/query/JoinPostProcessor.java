@@ -29,12 +29,13 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.query.JoinQuery.JoinHolder;
 import io.druid.query.PostProcessingOperator.Local;
 

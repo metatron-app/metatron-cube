@@ -21,11 +21,11 @@ package io.druid.query.topn;
 
 import com.google.common.base.Supplier;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
 import io.druid.guice.annotations.Global;
+import io.druid.java.util.common.ISE;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;

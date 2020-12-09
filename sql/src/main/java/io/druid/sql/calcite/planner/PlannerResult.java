@@ -21,7 +21,7 @@ package io.druid.sql.calcite.planner;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.query.Query;
 import org.apache.calcite.rel.type.RelDataType;
 

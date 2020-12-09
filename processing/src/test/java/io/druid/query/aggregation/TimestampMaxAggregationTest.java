@@ -20,12 +20,12 @@
 package io.druid.query.aggregation;
 
 import com.google.common.collect.Lists;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.AggregatorsModule;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.easymock.EasyMock;
@@ -173,7 +173,7 @@ public class TimestampMaxAggregationTest
         groupBy
     );
 
-    List<Row> results = Sequences.toList(seq, Lists.<Row>newArrayList());
+    List<Row> results = Sequences.toList(seq);
     Assert.assertEquals(36, results.size());
   }
 

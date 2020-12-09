@@ -21,11 +21,11 @@ package io.druid.query.groupby;
 
 import com.google.common.collect.Iterables;
 import io.druid.common.guava.Comparators;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.dimension.DimensionSpecs;
 

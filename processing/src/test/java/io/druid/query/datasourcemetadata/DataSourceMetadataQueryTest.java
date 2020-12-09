@@ -25,10 +25,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.GenericQueryMetricsFactory;
@@ -137,8 +137,7 @@ public class DataSourceMetadataQueryTest
     Map<String, Object> context = new MapMaker().makeMap();
     context.put(Result.MISSING_SEGMENTS_KEY, Lists.newArrayList());
     Iterable<Result<DataSourceMetadataResultValue>> results = Sequences.toList(
-        runner.run(dataSourceMetadataQuery, context),
-        Lists.<Result<DataSourceMetadataResultValue>>newArrayList()
+        runner.run(dataSourceMetadataQuery, context)
     );
     DataSourceMetadataResultValue val = results.iterator().next().getValue();
     DateTime maxIngestedEventTime = val.getMaxIngestedEventTime();

@@ -22,10 +22,6 @@ package io.druid.common.guava;
 import com.google.common.base.Supplier;
 import io.druid.common.Yielders;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 
 import java.io.IOException;

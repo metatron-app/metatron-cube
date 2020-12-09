@@ -24,8 +24,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
+
+
 import com.yahoo.egads.data.TimeSeries;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;

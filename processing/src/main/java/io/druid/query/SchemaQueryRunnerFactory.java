@@ -20,7 +20,8 @@
 package io.druid.query;
 
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.Sequence;
+
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.segment.Segment;
 

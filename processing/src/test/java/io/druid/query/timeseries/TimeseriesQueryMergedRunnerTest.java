@@ -20,10 +20,9 @@
 package io.druid.query.timeseries;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.guava.Sequences;
 import io.druid.query.Druids;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -120,8 +119,7 @@ public class TimeseriesQueryMergedRunnerTest
     );
 
     Iterable<Row> results = Sequences.toList(
-        runner.run(query, CONTEXT),
-        Lists.<Row>newArrayList()
+        runner.run(query, CONTEXT)
     );
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

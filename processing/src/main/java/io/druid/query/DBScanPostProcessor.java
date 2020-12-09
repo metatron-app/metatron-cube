@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.kmeans.Centroid;
 import io.druid.query.kmeans.KMeansQuery;
 

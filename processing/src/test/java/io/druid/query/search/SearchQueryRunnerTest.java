@@ -21,7 +21,7 @@ package io.druid.query.search;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Parser;
 import io.druid.query.Druids;
@@ -583,8 +583,7 @@ public class SearchQueryRunnerTest
   private void checkSearchQuery(SearchQuery searchQuery, List<SearchHit> expectedResults)
   {
     Iterable<Result<SearchResultValue>> results = Sequences.toList(
-        searchQuery.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
-        Lists.<Result<SearchResultValue>>newArrayList()
+        searchQuery.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of())
     );
     List<SearchHit> copy = Lists.newLinkedList(expectedResults);
     for (Result<SearchResultValue> result : results) {

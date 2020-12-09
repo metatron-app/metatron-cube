@@ -21,7 +21,7 @@ package io.druid.benchmark.indexing;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.guava.Sequences;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.benchmark.datagen.BenchmarkDataGenerator;

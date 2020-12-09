@@ -19,9 +19,8 @@
 
 package io.druid.query.select;
 
-import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
-import io.druid.java.util.common.guava.Sequences;
+import io.druid.common.utils.Sequences;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
@@ -77,8 +76,7 @@ public class SelectQueryConcatTest
 
     selectQuery = builder.build();
     List<Result<SelectResultValue>> results = Sequences.toList(
-        queryRunner.run(selectQuery, context),
-        Lists.<Result<SelectResultValue>>newArrayList()
+        queryRunner.run(selectQuery, context)
     );
 
     Assert.assertTrue(results.get(0).getValue().getEvents().get(0).getEvent().get(QueryRunnerTestHelper.placementishDimension) instanceof List);
@@ -86,8 +84,7 @@ public class SelectQueryConcatTest
     selectQuery = builder.concatString(concatString).build();
 
     List<Result<SelectResultValue>> concatResults = Sequences.toList(
-        queryRunner.run(selectQuery, context),
-        Lists.<Result<SelectResultValue>>newArrayList()
+        queryRunner.run(selectQuery, context)
     );
 
     Assert.assertTrue(concatResults.get(0).getValue().getEvents().get(0).getEvent().get(QueryRunnerTestHelper.placementishDimension) instanceof String);

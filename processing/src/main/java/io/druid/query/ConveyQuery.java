@@ -20,7 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Map;

@@ -20,8 +20,8 @@
 package io.druid.query.aggregation.histogram;
 
 import com.google.common.collect.Lists;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregationTestHelper;

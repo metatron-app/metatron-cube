@@ -21,7 +21,8 @@ package io.druid.jackson;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.druid.java.util.common.guava.Sequence;
+
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import org.joda.time.DateTime;
 import org.junit.Assert;

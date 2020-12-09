@@ -19,8 +19,9 @@
 
 package io.druid.query;
 
+import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.common.utils.Sequences;
 import io.druid.segment.ReferenceCountingSegment;
 

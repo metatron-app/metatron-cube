@@ -30,7 +30,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.java.util.common.guava.Sequences;
 import com.yahoo.egads.data.Anomaly;
 import com.yahoo.egads.data.TimeSeries;

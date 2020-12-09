@@ -19,11 +19,11 @@
 
 package io.druid.segment;
 
-import io.druid.java.util.common.guava.ResourceClosingYielder;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
-import io.druid.java.util.common.guava.YieldingSequenceBase;
+import io.druid.common.guava.ResourceClosingYielder;
+import io.druid.common.guava.Sequence;
+import io.druid.common.guava.Yielder;
+import io.druid.common.guava.YieldingAccumulator;
+import io.druid.common.guava.YieldingSequenceBase;
 
 import java.io.Closeable;
 import java.util.List;

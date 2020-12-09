@@ -19,7 +19,7 @@
 
 package io.druid.benchmark.query;
 
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;

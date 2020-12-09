@@ -24,7 +24,8 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.java.util.common.guava.Sequence;
+
+import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Queries;

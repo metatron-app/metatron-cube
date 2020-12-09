@@ -25,10 +25,10 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Rows;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.column.Column;
 

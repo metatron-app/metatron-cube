@@ -24,9 +24,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.PostProcessingOperator.UnionSupport;
 
 import java.util.Arrays;

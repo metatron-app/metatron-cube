@@ -20,10 +20,10 @@
 package io.druid.query;
 
 import com.google.common.collect.ImmutableMap;
+import io.druid.common.guava.Accumulator;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.ReadConstants;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.ForwardConstants;

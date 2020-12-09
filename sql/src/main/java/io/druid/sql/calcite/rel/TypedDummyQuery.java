@@ -21,10 +21,10 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.DataSource;
 import io.druid.query.DummyQuery;
 import io.druid.query.Query;

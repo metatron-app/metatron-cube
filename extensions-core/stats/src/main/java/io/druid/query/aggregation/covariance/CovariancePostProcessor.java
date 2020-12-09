@@ -27,8 +27,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.Sequence;
+
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.query.PostProcessingOperator;

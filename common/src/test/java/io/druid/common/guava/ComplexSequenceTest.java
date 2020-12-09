@@ -24,8 +24,6 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import io.druid.common.Yielders;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.junit.Assert;

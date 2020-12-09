@@ -19,7 +19,7 @@
 
 package io.druid.query;
 
-import io.druid.java.util.common.guava.Sequence;
+import io.druid.common.guava.Sequence;
 
 import java.util.Map;
 

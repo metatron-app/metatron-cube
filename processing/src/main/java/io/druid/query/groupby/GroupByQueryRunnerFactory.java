@@ -27,6 +27,8 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.Accumulator;
+import io.druid.common.guava.Sequence;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -34,8 +36,8 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Accumulator;
-import io.druid.java.util.common.guava.Sequence;
+
+
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;

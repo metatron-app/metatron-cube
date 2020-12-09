@@ -20,14 +20,14 @@
 package io.druid.data.input;
 
 import com.google.common.base.Preconditions;
+import io.druid.common.guava.Sequence;
+import io.druid.common.guava.Yielder;
+import io.druid.common.guava.YieldingAccumulator;
+import io.druid.common.guava.YieldingSequenceBase;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Yielder;
-import io.druid.java.util.common.guava.YieldingAccumulator;
-import io.druid.java.util.common.guava.YieldingSequenceBase;
 import io.druid.query.RowSignature;
 
 import java.io.IOException;

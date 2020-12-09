@@ -21,9 +21,9 @@ package io.druid.segment;
 
 import com.google.common.collect.Iterables;
 import io.druid.cache.Cache;
+import io.druid.common.guava.Sequence;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.java.util.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;

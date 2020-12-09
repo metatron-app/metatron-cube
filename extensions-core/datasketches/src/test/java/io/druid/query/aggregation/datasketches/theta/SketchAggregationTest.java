@@ -21,16 +21,15 @@ package io.druid.query.aggregation.datasketches.theta;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-import io.druid.java.util.common.guava.Sequence;
-import io.druid.java.util.common.guava.Sequences;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
@@ -176,7 +175,7 @@ public class SketchAggregationTest
         readFileFromClasspathAsString("select_query.json")
     );
 
-    Result<SelectResultValue> result = (Result<SelectResultValue>) Iterables.getOnlyElement(Sequences.toList(seq, Lists.newArrayList()));
+    Result<SelectResultValue> result = (Result<SelectResultValue>) Sequences.only(seq);
     Assert.assertEquals(new DateTime("2014-10-20T00:00:00.000Z"), result.getTimestamp());
     Assert.assertEquals(100, result.getValue().getEvents().size());
     Assert.assertEquals("AgMDAAAazJMCAAAAAACAPzz9j7pWTMdROWGf15uY1nI=", result.getValue().getEvents().get(0).getEvent().get("pty_country"));
