@@ -45,7 +45,7 @@ import java.util.Set;
 
 /**
  */
-public class RowResolver implements RowSignature
+public class RowResolver implements io.druid.data.RowSignature
 {
   public static Supplier<RowResolver> supplier(final List<Segment> segments, final Query query)
   {

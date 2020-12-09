@@ -50,7 +50,7 @@ import java.util.List;
  * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
  * well defined types) but we do impose types for the SQL layer.
  */
-public class RowSignature extends io.druid.query.RowSignature.Simple
+public class RowSignature extends io.druid.query.RowSignature
 {
   private RowSignature(List<String> columnNames, List<ValueDesc> columnTypes)
   {

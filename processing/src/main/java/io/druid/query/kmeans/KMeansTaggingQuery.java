@@ -390,7 +390,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
     final RowSignature signature = Queries.relaySchema(query, segmentWalker);
     List<String> columnNames = GuavaUtils.concat(signature.getColumnNames(), tagColumn);
     List<ValueDesc> columnTypes = GuavaUtils.concat(signature.getColumnTypes(), ValueDesc.LONG);
-    return new RowSignature.Simple(columnNames, columnTypes);
+    return RowSignature.of(columnNames, columnTypes);
   }
 
   @Override

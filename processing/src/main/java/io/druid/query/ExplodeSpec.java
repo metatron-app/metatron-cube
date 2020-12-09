@@ -184,6 +184,6 @@ public class ExplodeSpec implements LateralViewSpec, RowSignature.Evolving
       columnTypes.set(index, ValueDesc.of(ValueDesc.typeOfDimension(type)));
     }
     columnNames.set(index, alias);
-    return new RowSignature.Simple(columnNames, columnTypes);
+    return RowSignature.of(columnNames, columnTypes);
   }
 }

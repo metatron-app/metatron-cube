@@ -79,7 +79,7 @@ public class GeoJsonFormatter implements Formatter
     this.path = new Path(outputPath);
     this.fs = path.getFileSystem(new Configuration());
     this.writer = new OutputStreamWriter(fs.create(path), StringUtils.UTF8_STRING);
-    RowSignature signature = RowSignature.Simple.fromTypeString(typeString);
+    RowSignature signature = RowSignature.fromTypeString(typeString);
     this.inputColumns = inputColumns == null ? signature.getColumnNames() : Arrays.asList(inputColumns);
     this.outputColumns = signature.getColumnNames();
     this.geomIndex = findGeomIndex(signature, geomColumn);

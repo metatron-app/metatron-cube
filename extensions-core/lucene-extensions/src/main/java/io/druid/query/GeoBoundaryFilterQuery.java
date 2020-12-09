@@ -396,7 +396,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
       }
     }
     if (boundaryJoin.isEmpty()) {
-      return new RowSignature.Simple(qnames, qtypes);
+      return RowSignature.of(qnames, qtypes);
     }
     final List<String> bnames = Lists.newArrayList();
     final List<ValueDesc> btypes = Lists.newArrayList();
@@ -410,7 +410,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
     }
     final List<String> names = flip ? GuavaUtils.concat(bnames, qnames) : GuavaUtils.concat(qnames, bnames);
     final List<ValueDesc> types = flip ? GuavaUtils.concat(btypes, qtypes) : GuavaUtils.concat(qtypes, btypes);
-    return new RowSignature.Simple(names, types);
+    return RowSignature.of(names, types);
   }
 
   @Override

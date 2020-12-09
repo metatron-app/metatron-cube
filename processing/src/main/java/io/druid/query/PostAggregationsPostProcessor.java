@@ -130,7 +130,7 @@ public class PostAggregationsPostProcessor extends PostProcessingOperator.Return
         columnTypes.add(valueDesc);
       }
     }
-    return new RowSignature.Simple(columnNames, columnTypes);
+    return RowSignature.of(columnNames, columnTypes);
   }
 
   @Override

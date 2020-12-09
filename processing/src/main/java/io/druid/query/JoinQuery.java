@@ -555,7 +555,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             columnTypes.add(pair.rhs);
           }
         }
-        return RowSignature.Simple.of(columnNames, columnTypes);
+        return RowSignature.of(columnNames, columnTypes);
       });
     }
     return PostProcessingOperators.append(

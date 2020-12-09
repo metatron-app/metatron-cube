@@ -109,6 +109,6 @@ public class RowMappingPostProcessor extends PostProcessingOperator.ReturnsRow<R
         columnNames.set(findex, to);
       }
     }
-    return new RowSignature.Simple(columnNames, schema.getColumnTypes());
+    return RowSignature.of(columnNames, schema.getColumnTypes());
   }
 }

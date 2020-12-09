@@ -50,7 +50,7 @@ public class BulkSequenceTest
     for (int i = 0; i < columnTypes.size(); i++) {
       columnNames.add("col" + i);
     }
-    return new RowSignature.Simple(columnNames, columnTypes);
+    return RowSignature.of(columnNames, columnTypes);
   }
 
   @Test

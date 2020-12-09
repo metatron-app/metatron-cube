@@ -160,6 +160,6 @@ public class ExplodeMapSpec implements LateralViewSpec, RowSignature.Evolving
       columnNames.add(valueAlias);
       columnTypes.add(merged);
     }
-    return new RowSignature.Simple(columnNames, columnTypes);
+    return RowSignature.of(columnNames, columnTypes);
   }
 }

@@ -42,7 +42,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("schema")
-public class Schema extends RowSignature.Simple
+public class Schema extends RowSignature
 {
   public static final Schema EMPTY = new Schema(
       Collections.<String>emptyList(),

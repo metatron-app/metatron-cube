@@ -187,7 +187,7 @@ public class Queries
     List<String> newColumnNames = Lists.newArrayList();
     List<ValueDesc> newColumnTypes = Lists.newArrayList();
 
-    RowSignature.Simple resolving = new RowSignature.Simple(newColumnNames, newColumnTypes);
+    RowSignature resolving = RowSignature.of(newColumnNames, newColumnTypes);
     TypeResolver resolver;
     if (source != null) {
       resolver = TypeResolver.override(RowResolver.of(source, BaseQuery.getVirtualColumns(query)), resolving);
