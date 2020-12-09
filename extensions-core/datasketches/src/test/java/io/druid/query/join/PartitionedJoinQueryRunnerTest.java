@@ -144,16 +144,16 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTestHelper
         array("2011-04-01", "premium", "total_market", 1522.043701171875, "april_premium", 41115L),
         array("2011-04-01", "mezzanine", "upfront", 1447.3411865234375, "april_mezzanine", 41114L),
         array("2011-04-01", "premium", "upfront", 1234.24755859375, "april_premium", 41115L),
-        array("2011-04-01", "automotive", "spot", 147.42593383789062, "april_automotive", 41111L),
-        array("2011-04-01", "business", "spot", 112.98703002929688, "april_business", 41112L),
-        array("2011-04-01", "health", "spot", 113.44600677490234, "april_health", 41113L),
-        array("2011-04-01", "mezzanine", "spot", 110.93193054199219, "april_mezzanine", 41114L),
-        array("2011-04-01", "premium", "spot", 135.30149841308594, "april_premium", 41115L),
-        array("2011-04-01", "technology", "spot", 97.38743591308594, "april_technology", 41116L),
-        array("2011-04-01", "mezzanine", "total_market", 1193.5562744140625, "april_mezzanine", 41114L),
-        array("2011-04-01", "premium", "total_market", 1321.375, "april_premium", 41115L),
-        array("2011-04-01", "mezzanine", "upfront", 1144.3424072265625, "april_mezzanine", 41114L),
-        array("2011-04-01", "premium", "upfront", 1049.738525390625, "april_premium", 41115L)
+        array("2011-04-02", "automotive", "spot", 147.42593383789062, "april_automotive", 41111L),
+        array("2011-04-02", "business", "spot", 112.98703002929688, "april_business", 41112L),
+        array("2011-04-02", "health", "spot", 113.44600677490234, "april_health", 41113L),
+        array("2011-04-02", "mezzanine", "spot", 110.93193054199219, "april_mezzanine", 41114L),
+        array("2011-04-02", "premium", "spot", 135.30149841308594, "april_premium", 41115L),
+        array("2011-04-02", "technology", "spot", 97.38743591308594, "april_technology", 41116L),
+        array("2011-04-02", "mezzanine", "total_market", 1193.5562744140625, "april_mezzanine", 41114L),
+        array("2011-04-02", "premium", "total_market", 1321.375, "april_premium", 41115L),
+        array("2011-04-02", "mezzanine", "upfront", 1144.3424072265625, "april_mezzanine", 41114L),
+        array("2011-04-02", "premium", "upfront", 1049.738525390625, "april_premium", 41115L)
     );
 
     Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));

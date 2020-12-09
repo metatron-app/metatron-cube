@@ -143,15 +143,20 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
     final List<String> leftOrder = leftQuery.getOutputRowSignature().getColumnNames();
     final List<String> rightOrder = rightQuery.getOutputRowSignature().getColumnNames();
 
-    List<String> outputNames = Utils.uniqueNames(leftOrder, rightOrder);
+    final List<String> outputAlias = Utils.uniqueNames(leftOrder, rightOrder);
+    final List<String> outputProjection;
+    final RowSignature finalSignature;
     if (outputColumns != null) {
       List<String> extracted = Lists.newArrayList();
       for (int i = 0; i < outputColumns.size(); i++) {
-        extracted.add(Preconditions.checkNotNull(outputNames.get(outputColumns.get(i))));
+        extracted.add(Preconditions.checkNotNull(outputAlias.get(outputColumns.get(i))));
       }
-      outputNames = extracted;
+      outputProjection = extracted;
+      finalSignature = RowSignature.from(outputProjection, rowType);
+    } else {
+      outputProjection = null;
+      finalSignature = RowSignature.from(outputAlias, rowType);
     }
-    final RowSignature outRowSignature = RowSignature.from(outputNames, rowType);
 
     final List<String> leftKeys = Lists.newArrayList();
     for (int leftKey : leftExpressions) {
@@ -175,9 +180,10 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
         .dataSource(leftAlias, QueryDataSource.of(leftDruid))
         .dataSource(rightAlias, QueryDataSource.of(rightDruid))
         .element(new JoinElement(JoinType.fromString(joinType.name()), leftAlias, leftKeys, rightAlias, rightKeys))
+        .outputAlias(outputAlias)
+        .outputColumns(outputProjection)
         .context(getPlannerContext().copyQueryContext())
-        .outputColumns(outputColumns == null ? null : outRowSignature.getColumnNames())
-        .withSchema(outRowSignature)
+        .withSchema(finalSignature)
         .asArray(true)
         .build();
 
@@ -192,7 +198,7 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
       @Override
       public RowSignature getOutputRowSignature()
       {
-        return outRowSignature;
+        return finalSignature;
       }
 
       @Override

@@ -85,6 +85,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final boolean asArray;
   private final int limit;
   private final int maxOutputRow;
+  private final List<String> outputAlias;
   private final List<String> outputColumns;
 
   private transient RowSignature schema;
@@ -99,6 +100,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("timeColumnName") String timeColumnName,
       @JsonProperty("limit") int limit,
       @JsonProperty("maxOutputRow") int maxOutputRow,
+      @JsonProperty("outputAlias") List<String> outputAlias,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -111,6 +113,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     this.elements = elements;
     this.limit = limit;
     this.maxOutputRow = maxOutputRow;
+    this.outputAlias = outputAlias;
     this.outputColumns = outputColumns;
   }
 
@@ -218,6 +221,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
   @JsonProperty
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getOutputAlias()
+  {
+    return outputAlias;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getOutputColumns()
   {
     return outputColumns;
@@ -253,6 +263,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         timeColumnName,
         limit,
         maxOutputRow,
+        outputAlias,
         outputColumns,
         computeOverriddenContext(contextOverride)
     ).withSchema(schema);
@@ -404,7 +415,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             values = BulkSequence.fromArray(array, signature);
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              config.getJoin(), element, true, signature, prefixAlias, asArray, outputColumns, values
+              config.getJoin(), element, true, signature, prefixAlias, asArray, outputAlias, outputColumns, values
           );
           Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, Query.POST_PROCESSING, processor);
           if (rightEstimated > 0) {
@@ -436,7 +447,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             values = BulkSequence.fromArray(array, signature);
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              config.getJoin(), element, false, signature, prefixAlias, asArray, outputColumns, values
+              config.getJoin(), element, false, signature, prefixAlias, asArray, outputAlias, outputColumns, values
           );
           Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, Query.POST_PROCESSING, processor);
           if (leftEstimated > 0) {
@@ -520,27 +531,38 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     List<String> aliases = JoinElement.getAliases(elements);
 
-    List<String> prefixAliases;
     String timeColumn;
     if (prefixAlias) {
-      prefixAliases = aliases;
-      timeColumn = timeColumnName == null ? prefixAliases.get(0) + "." + Column.TIME_COLUMN_NAME : timeColumnName;
+      timeColumn = timeColumnName == null ? aliases.get(0) + "." + Column.TIME_COLUMN_NAME : timeColumnName;
     } else {
-      prefixAliases = null;
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
     Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, CARDINALITY, currentEstimation);
     CommonJoinHolder query = new CommonJoinHolder(
-        StringUtils.concat("+", aliases), queries, prefixAliases, timeColumn, outputColumns, limit, joinContext
+        StringUtils.concat("+", aliases), queries, timeColumn, outputAlias, outputColumns, limit, joinContext
     );
-    if (schema != null) {
-      query = query.withSchema(Suppliers.ofInstance(schema));
+    Supplier<RowSignature> signature = schema == null ? null : Suppliers.ofInstance(schema);
+    if (signature == null) {
+      signature = Suppliers.memoize(() -> {
+        List<String> columnNames = Lists.newArrayList();
+        List<ValueDesc> columnTypes = Lists.newArrayList();
+        Set<String> uniqueNames = Sets.newHashSet();
+        for (int i = 0; i < queries.size(); i++) {
+          final RowSignature element = Queries.relaySchema(queries.get(i), segmentWalker);
+          final String prefix = aliases == null ? "" : aliases.get(i) + ".";
+          for (Pair<String, ValueDesc> pair : element.columnAndTypes()) {
+            columnNames.add(Queries.uniqueName(prefix + pair.lhs, uniqueNames));
+            columnTypes.add(pair.rhs);
+          }
+        }
+        return RowSignature.Simple.of(columnNames, columnTypes);
+      });
     }
     return PostProcessingOperators.append(
-        query,
+        query.withSchema(signature),
         segmentWalker.getObjectMapper(),
-        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, outputColumns, maxOutputRow)
+        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow)
     );
   }
 
@@ -614,6 +636,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getTimeColumnName(),
         limit,
         maxOutputRow,
+        outputAlias,
         outputColumns,
         getContext()
     ).withSchema(schema);
@@ -630,6 +653,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         timeColumnName,
         limit,
         maxOutputRow,
+        outputAlias,
         outputColumns,
         getContext()
     ).withSchema(schema);
@@ -646,6 +670,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         timeColumnName,
         limit,
         maxOutputRow,
+        outputAlias,
         outputColumns,
         getContext()
     ).withSchema(schema);
@@ -791,17 +816,18 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (isArrayOutput()) {
         return sequence;
       }
+      final List<String> columns = sequence.columns();
       return Sequences.map(
           sequence, new Function<Map<String, Object>, Object[]>()
           {
-            private final String[] columns = estimatedOutputColumns().toArray(new String[0]);
+            private final String[] columnNames = columns.toArray(new String[0]);
 
             @Override
             public Object[] apply(Map<String, Object> input)
             {
-              final Object[] array = new Object[columns.length];
-              for (int i = 0; i < columns.length; i++) {
-                array[i] = input.get(columns[i]);
+              final Object[] array = new Object[columnNames.length];
+              for (int i = 0; i < columnNames.length; i++) {
+                array[i] = input.get(columnNames[i]);
               }
               return array;
             }
@@ -883,7 +909,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   @SuppressWarnings("unchecked")
   public static class CommonJoinHolder extends JoinHolder
   {
-    private final List<String> prefixAliases;  // for schema resolving
+    private final List<String> outputAlias;
     private final List<String> outputColumns;
 
     private final String timeColumnName;
@@ -893,22 +919,22 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     public CommonJoinHolder(
         String alias,
         List<Query<Map<String, Object>>> list,
-        List<String> prefixAliases,
         String timeColumnName,
+        List<String> outputAlias,
         List<String> outputColumns,
         int limit,
         Map<String, Object> context
     )
     {
       super(alias, null, list, false, limit, -1, context);     // not needed to be parallel (handled in post processor)
-      this.prefixAliases = prefixAliases;
+      this.outputAlias = outputAlias;
       this.outputColumns = outputColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
     }
 
-    public List<String> getPrefixAliases()
+    public List<String> getOutputAlias()
     {
-      return prefixAliases;
+      return outputAlias;
     }
 
     public String getTimeColumnName()
@@ -943,8 +969,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return new CommonJoinHolder(
           alias,
           queries,
-          prefixAliases,
           timeColumnName,
+          outputAlias,
           outputColumns,
           getLimit(),
           context
@@ -961,37 +987,14 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     @Override
     public List<String> estimatedOutputColumns()
     {
-      if (outputColumns != null) {
-        return outputColumns;
-      }
-      RowSignature schema = getSchema();
-      if (schema != null) {
-        return schema.getColumnNames();   // resolved already
-      }
-      Set<String> uniqueNames = Sets.newHashSet();
-      List<String> columnNames = Lists.newArrayList();
-
-      List<Query<Map<String, Object>>> queries = getQueries();
-      for (int i = 0; i < queries.size(); i++) {
-        List<String> columns = queries.get(i).estimatedOutputColumns();
-        Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(columns));
-        if (prefixAliases == null) {
-          Queries.uniqueNames(columns, uniqueNames, columnNames);
-        } else {
-          String alias = prefixAliases.get(i) + ".";
-          for (String column : columns) {
-            columnNames.add(Queries.uniqueName(alias + column, uniqueNames));
-          }
-        }
-      }
-      return columnNames;
+      return outputColumns != null ? outputColumns : outputAlias;
     }
 
     @Override
     public Sequence<Row> asRow(Sequence sequence)
     {
       if (isArrayOutput()) {
-        final List<String> columns = estimatedOutputColumns();
+        final List<String> columns = sequence.columns();
         final int timeIndex = columns.indexOf(timeColumnName);
         return Sequences.map(sequence, new Function<Object[], Row>()
         {
@@ -1019,23 +1022,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     @Override
     public RowSignature schema(QuerySegmentWalker segmentWalker)
     {
-      if (schema == null) {
-        List<String> columnNames = Lists.newArrayList();
-        List<ValueDesc> columnTypes = Lists.newArrayList();
-
-        List queries = getQueries();
-        List<String> aliases = getPrefixAliases();
-        Set<String> uniqueNames = Sets.newHashSet();
-        for (int i = 0; i < queries.size(); i++) {
-          final RowSignature element = Queries.relaySchema((Query) queries.get(i), segmentWalker);
-          final String prefix = aliases == null ? "" : aliases.get(i) + ".";
-          for (Pair<String, ValueDesc> pair : element.columnAndTypes()) {
-            columnNames.add(Queries.uniqueName(prefix + pair.lhs, uniqueNames));
-            columnTypes.add(pair.rhs);
-          }
-        }
-        schema = Suppliers.ofInstance(new RowSignature.Simple(columnNames, columnTypes));
-      }
       return schema.get();
     }
 
@@ -1044,8 +1030,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       return "CommonJoin{" +
              "queries=" + getQueries() +
-             (prefixAliases == null ? "" : ", prefixAliases=" + getPrefixAliases()) +
-             (timeColumnName == null ? "" : ", timeColumnName=" + getTimeColumnName()) +
+             (timeColumnName == null ? "" : ", timeColumnName=" + timeColumnName) +
              (getLimit() > 0 ? ", limit=" + getLimit() : "") +
              '}';
     }

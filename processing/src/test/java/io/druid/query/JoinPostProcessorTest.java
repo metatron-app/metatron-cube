@@ -240,6 +240,7 @@ public class JoinPostProcessorTest
         false,
         false,
         null,
+        null,
         0
     );
   }

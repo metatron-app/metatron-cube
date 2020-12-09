@@ -1231,6 +1231,7 @@ public class Druids
     private String timeColumnName;
     private int limit;
     private int maxOutputRow;
+    private List<String> outputAlias;
     private List<String> outputColumns;
     private RowSignature signature;
     private Map<String, Object> context = Maps.newHashMap();
@@ -1248,6 +1249,7 @@ public class Druids
           timeColumnName,
           limit,
           maxOutputRow,
+          outputAlias,
           outputColumns,
           context
       ).withSchema(signature);
@@ -1367,6 +1369,17 @@ public class Druids
     public JoinQueryBuilder maxOutputRow(int maxOutputRow)
     {
       this.maxOutputRow = maxOutputRow;
+      return this;
+    }
+
+    public JoinQueryBuilder outputAlias(String... outputAlias)
+    {
+      return outputAlias(Arrays.asList(outputAlias));
+    }
+
+    public JoinQueryBuilder outputAlias(List<String> outputAlias)
+    {
+      this.outputAlias = outputAlias;
       return this;
     }
 

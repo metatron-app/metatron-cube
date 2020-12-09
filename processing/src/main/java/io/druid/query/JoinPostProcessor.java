@@ -59,18 +59,27 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
+      @JsonProperty("outputAlias") List<String> outputAlias,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("maxOutputRow") int maxOutputRow
   )
   {
-    super(config, prefixAlias, asArray, outputColumns, maxOutputRow);
+    super(config, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow);
     this.elements = elements.toArray(new JoinElement[0]);
   }
 
   @Override
   public JoinPostProcessor withAsArray(boolean asArray)
   {
-    return new JoinPostProcessor(config, Arrays.asList(elements), prefixAlias, asArray, outputColumns, maxOutputRow);
+    return new JoinPostProcessor(
+        config,
+        Arrays.asList(elements),
+        prefixAlias,
+        asArray,
+        outputAlias,
+        outputColumns,
+        maxOutputRow
+    );
   }
 
   @Override
@@ -122,8 +131,12 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
           JoinResult join = join(joining, estimatedNumRows);
           joinQuery.setCollation(join.collation);
 
-          List<List<String>> names = GuavaUtils.transform(pairs, pair -> pair.rhs.columns());
-          return projection(join.iterator, concatColumnNames(names, prefixAlias ? aliases : null));
+          List<String> outputAlias = getOutputAlias();
+          if (outputAlias == null) {
+            List<List<String>> names = GuavaUtils.transform(pairs, pair -> pair.rhs.columns());
+            outputAlias = concatColumnNames(names, prefixAlias ? aliases : null);
+          }
+          return projection(join.iterator, outputAlias);
         }
         catch (Throwable t) {
           if (t instanceof ExecutionException && t.getCause() != null) {

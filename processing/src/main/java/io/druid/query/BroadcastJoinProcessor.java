@@ -49,12 +49,13 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
       @JsonProperty("hashSignature") RowSignature hashSignature,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("asArray") boolean asArray,
+      @JsonProperty("outputAlias") List<String> outputAlias,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("values") Sequence<BulkRow> values
 
   )
   {
-    super(config, prefixAlias, asArray, outputColumns, -1);
+    super(config, prefixAlias, asArray, outputAlias, outputColumns, -1);
     this.element = element;
     this.hashLeft = hashLeft;
     this.hashSignature = hashSignature;
@@ -71,6 +72,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
         hashSignature,
         prefixAlias,
         asArray,
+        outputAlias,
         outputColumns,
         values
     );
@@ -124,21 +126,25 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor implements PostP
         List<String> leftJoinColumns = element.getLeftJoinColumns();
         List<String> rightJoinColumns = element.getRightJoinColumns();
 
-        List<List<String>> columnsNames;
+        List<List<String>> names;
         JoinAlias left;
         JoinAlias right;
         if (hashLeft) {
           left = toHashAlias(leftAlias, hashColumns, leftJoinColumns, hashing);
           right = toAlias(rightAlias, queryColumns, rightJoinColumns, query, queried);
-          columnsNames = Arrays.asList(hashColumns, queryColumns);
+          names = Arrays.asList(hashColumns, queryColumns);
         } else {
           left = toAlias(leftAlias, queryColumns, leftJoinColumns, query, queried);
           right = toHashAlias(rightAlias, hashColumns, rightJoinColumns, hashing);
-          columnsNames = Arrays.asList(queryColumns, hashColumns);
+          names = Arrays.asList(queryColumns, hashColumns);
         }
         JoinResult join = join(element.getJoinType(), left, right);
 
-        return projection(join.iterator, concatColumnNames(columnsNames, prefixAlias ? element.getAliases() : null));
+        List<String> outputAlias = getOutputAlias();
+        if (outputAlias == null) {
+          outputAlias = concatColumnNames(names, prefixAlias ? element.getAliases() : null);
+        }
+        return projection(join.iterator, outputAlias);
       }
 
       private JoinAlias toHashAlias(

@@ -155,6 +155,11 @@ public interface RowSignature extends TypeResolver
 
   class Simple implements RowSignature
   {
+    public static RowSignature of(List<String> columnNames, List<ValueDesc> columnTypes)
+    {
+      return new Simple(columnNames, columnTypes);
+    }
+
     public static RowSignature fromTypeString(String typeString)
     {
       List<String> columnNames = Lists.newArrayList();

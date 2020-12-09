@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
@@ -37,6 +38,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
 {
   protected final boolean prefixAlias;
   protected final boolean asArray;
+  protected final List<String> outputAlias;
   protected final List<String> outputColumns;
   protected final int maxOutputRow;
 
@@ -44,6 +46,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
       JoinQueryConfig config,
       boolean prefixAlias,
       boolean asArray,
+      List<String> outputAlias,
       List<String> outputColumns,
       int maxOutputRow
   )
@@ -51,6 +54,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
     super(config, maxOutputRow);
     this.prefixAlias = prefixAlias;
     this.asArray = asArray;
+    this.outputAlias = outputAlias;
     this.outputColumns = outputColumns;
     this.maxOutputRow = config == null ? maxOutputRow : config.getMaxOutputRow(maxOutputRow);
   }
@@ -70,6 +74,14 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getOutputAlias()
+  {
+    return outputAlias;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<String> getOutputColumns()
   {
     return outputColumns;
@@ -104,13 +116,13 @@ public abstract class CommonJoinProcessor extends JoinProcessor
     return outputColumns;
   }
 
-  protected Sequence projection(Iterator<Object[]> outputRows, List<String> columnNames)
+  protected Sequence projection(Iterator<Object[]> outputRows, List<String> outputAlias)
   {
-    final List<String> columns = outputColumns == null ? columnNames : outputColumns;
+    final List<String> projectedNames = outputColumns == null ? outputAlias : outputColumns;
     if (asArray) {
-      return Sequences.once(columns, GuavaUtils.map(outputRows, LimitSpec.remap(columnNames, outputColumns)));
+      return Sequences.once(projectedNames, GuavaUtils.map(outputRows, LimitSpec.remap(outputAlias, projectedNames)));
     }
-    return Sequences.once(columns, GuavaUtils.map(outputRows, toMap(columnNames, outputColumns)));
+    return Sequences.once(projectedNames, GuavaUtils.map(outputRows, toMap(outputAlias, projectedNames)));
   }
 
   private static Function<Object[], Map<String, Object>> toMap(List<String> inputColumns, List<String> outputColumns)
