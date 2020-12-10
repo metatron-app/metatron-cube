@@ -194,7 +194,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
             alias,
             columns,
             joinColumns,
-            getCollation(query),
+            getCollations(query),
             GuavaUtils.indexOf(columns, joinColumns, true),
             Sequences.toIterator(queried),
             -1

@@ -167,10 +167,14 @@ public class JoinPostProcessorTest
         },
         a1, a2, a3
     );
+    // RO result is regarded as sorted on right key, which induces hash join
     test2(
         ro,
-        new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
-                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}
+        new int[][]{
+            {100, 300, 500}, {100, 400, 500},
+            {200, 300, 500}, {200, 400, 500},
+            {100, 300, 600}, {100, 400, 600},
+            {200, 300, 600}, {200, 400, 600}
         },
         a1, a2, a3
     );
@@ -210,7 +214,7 @@ public class JoinPostProcessorTest
     JoinPostProcessor.JoinResult result = processor.join(futures, -1);
     List<Object[]> joined = Lists.newArrayList(result.iterator);
     System.out.println("-------------");
-    System.out.println("collation " + result.collation);
+    System.out.println("collation " + result.collations);
     for (Object[] x : joined) {
       System.out.println(Arrays.toString(x));
     }

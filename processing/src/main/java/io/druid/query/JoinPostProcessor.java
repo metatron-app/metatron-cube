@@ -133,7 +133,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
         LOG.info("Running %d-way join processing %s", joinAliases, toAliases());
         try {
           JoinResult join = join(joining, estimatedNumRows);
-          joinQuery.setCollation(join.collation);
+          joinQuery.setCollation(join.collations);
 
           List<String> outputAlias = getOutputAlias();
           if (outputAlias == null) {
@@ -184,7 +184,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
       public JoinAlias call()
       {
         final Iterator<Object[]> rows = Sequences.toIterator(sequence);
-        return new JoinAlias(aliases, columnNames, joinColumns, getCollation(source), indices, rows, cardinality);
+        return new JoinAlias(aliases, columnNames, joinColumns, getCollations(source), indices, rows, cardinality);
       }
     };
   }
@@ -225,7 +225,7 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     List<String> joinColumns = elements[0].getLeftJoinColumns();
     for (int i = 2; i < futures.length; i++) {
       left = new JoinAlias(
-          alias, columns, joinColumns, Suppliers.ofInstance(result.collation),
+          alias, columns, joinColumns, Suppliers.ofInstance(result.collations),
           GuavaUtils.indexOf(columns, joinColumns), result.iterator, estimatedNumRows
       );
       right = futures[i].get();

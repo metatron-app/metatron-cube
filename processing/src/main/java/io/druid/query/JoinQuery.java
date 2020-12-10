@@ -749,7 +749,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     private final String timeColumnName;
 
-    private final Execs.SettableFuture<List<OrderByColumnSpec>> future = new Execs.SettableFuture<>();
+    private final Execs.SettableFuture<List<List<OrderByColumnSpec>>> future = new Execs.SettableFuture<>();
 
     public JoinHolder(
         String alias,
@@ -783,14 +783,14 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return outputAlias;
     }
 
-    public List<OrderByColumnSpec> getCollation()
+    public List<List<OrderByColumnSpec>> getCollations()
     {
-      return future.isDone() ? Futures.getUnchecked(future) : null;
+      return future.isDone() ? Futures.getUnchecked(future) : ImmutableList.of();
     }
 
-    public void setCollation(List<OrderByColumnSpec> collation)
+    public void setCollation(List<List<OrderByColumnSpec>> collations)
     {
-      future.set(collation);
+      future.set(collations);
     }
 
     public void setException(Throwable ex)

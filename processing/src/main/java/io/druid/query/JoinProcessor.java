@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -52,6 +53,8 @@ import java.util.function.BiFunction;
 
 public class JoinProcessor
 {
+  public static final Supplier<List<List<OrderByColumnSpec>>> NO_COLLATION = Suppliers.ofInstance(ImmutableList.of());
+
   protected final Logger LOG = new Logger(getClass());
 
   protected final JoinQueryConfig config;
@@ -64,12 +67,12 @@ public class JoinProcessor
   }
 
   @VisibleForTesting
-  final JoinPostProcessor.JoinResult join(JoinType type, JoinAlias left, JoinAlias right)
+  final JoinResult join(JoinType type, JoinAlias left, JoinAlias right)
   {
     Preconditions.checkArgument(left.joinColumns.size() == right.joinColumns.size());
     if (left.joinColumns.size() == 0) {
       LOG.info(">> CROSS (%s x %s)", left, right);
-      return JoinPostProcessor.JoinResult.of(product(left.materialize(), right.materialize(), false));
+      return JoinResult.none(product(left.materialize(), right.materialize(), false));
     }
     if (left.isHashed() && right.isHashed()) {
       switch (type) {
@@ -130,11 +133,10 @@ public class JoinProcessor
     return joinSorted(left, right, type);
   }
 
-  private JoinPostProcessor.JoinResult joinSorted(JoinAlias left, JoinAlias right, JoinType type)
+  private JoinResult joinSorted(JoinAlias left, JoinAlias right, JoinType type)
   {
     LOG.info(">> %s (%s --> %s) (SortedMerge)", type, left, right);
-    final List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(left.joinColumns);
-    return JoinPostProcessor.JoinResult.of(collation, new JoinIterator(type, left, right, maxOutputRow)
+    return JoinResult.sortMerge(new JoinIterator(type, left, right, maxOutputRow)
     {
       @Override
       protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -144,7 +146,7 @@ public class JoinProcessor
     });
   }
 
-  private JoinPostProcessor.JoinResult joinHashed(
+  private JoinResult joinHashed(
       final JoinAlias left,
       final JoinAlias right,
       final JoinType type,
@@ -154,7 +156,7 @@ public class JoinProcessor
     LOG.info(">> %s (%s %s %s) (%s + %s)", type, left, leftDriving ? "-->" : "<--", right, left.columns, right.columns);
     if (leftDriving) {
       if (left.isHashed()) {
-        return JoinPostProcessor.JoinResult.of(new JoinIterator(type, left.prepareHashIterator(), right, maxOutputRow)
+        return JoinResult.none(new JoinIterator(type, left.prepareHashIterator(), right, maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -165,7 +167,7 @@ public class JoinProcessor
       }
       if (left.isSorted()) {
         List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(left.joinColumns);
-        return JoinPostProcessor.JoinResult.of(collation, new JoinIterator(type, left, right, maxOutputRow)
+        return JoinResult.left(new JoinIterator(type, left, right, maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -174,7 +176,7 @@ public class JoinProcessor
           }
         });
       }
-      return JoinPostProcessor.JoinResult.of(new JoinIterator(type, left, right, maxOutputRow)
+      return JoinResult.none(new JoinIterator(type, left, right, maxOutputRow)
       {
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -184,7 +186,7 @@ public class JoinProcessor
       });
     } else {
       if (right.isHashed()) {
-        return JoinPostProcessor.JoinResult.of(new JoinIterator(type, left, right.prepareHashIterator(), maxOutputRow)
+        return JoinResult.none(new JoinIterator(type, left, right.prepareHashIterator(), maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -194,8 +196,7 @@ public class JoinProcessor
         });
       }
       if (right.isSorted()) {
-        List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(right.joinColumns);
-        return JoinPostProcessor.JoinResult.of(collation, new JoinIterator(type, left, right, maxOutputRow)
+        return JoinResult.right(new JoinIterator(type, left, right, maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -204,7 +205,7 @@ public class JoinProcessor
           }
         });
       }
-      return JoinPostProcessor.JoinResult.of(new JoinIterator(type, left, right, maxOutputRow)
+      return JoinResult.none(new JoinIterator(type, left, right, maxOutputRow)
       {
         @Override
         protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
@@ -228,6 +229,19 @@ public class JoinProcessor
       this.leftAlias = leftAlias;
       this.rightAlias = rightAlias;
       this.limit = limit;
+    }
+
+    private List<List<OrderByColumnSpec>> asCollations()
+    {
+      switch (type) {
+        case INNER:
+          return Arrays.asList(leftAlias.asCollation(), rightAlias.asCollation());
+        case LO:
+          return Arrays.asList(leftAlias.asCollation());
+        case RO:
+          return Arrays.asList(rightAlias.asCollation());
+      }
+      return ImmutableList.of();
     }
 
     @Override
@@ -479,7 +493,7 @@ public class JoinProcessor
     final List<String> columns;
     final List<String> joinColumns;
     final int estimatedNumRows;
-    final Supplier<List<OrderByColumnSpec>> collation;  // set after inner query is executed
+    final Supplier<List<List<OrderByColumnSpec>>> collations;  // set after inner query is executed
     final int[] indices;
     final PeekingIterator<Object[]> rows;
     final Map<JoinKey, Object> hashed;
@@ -499,7 +513,7 @@ public class JoinProcessor
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
-      this.collation = Suppliers.ofInstance(OrderByColumnSpec.ascending(joinColumns));
+      this.collations = Suppliers.ofInstance(Arrays.asList(OrderByColumnSpec.ascending(joinColumns)));
       this.indices = indices;
       this.rows = GuavaUtils.peekingIterator(rows.iterator());
       this.hashed = null;
@@ -511,7 +525,7 @@ public class JoinProcessor
         List<String> alias,
         List<String> columns,
         List<String> joinColumns,
-        Supplier<List<OrderByColumnSpec>> collation,
+        Supplier<List<List<OrderByColumnSpec>>> collations,
         int[] indices,
         Iterator<Object[]> rows,
         int estimatedNumRows
@@ -520,7 +534,7 @@ public class JoinProcessor
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
-      this.collation = collation;
+      this.collations = collations == null ? NO_COLLATION : collations;
       this.indices = indices;
       this.rows = GuavaUtils.peekingIterator(rows);
       this.hashed = null;
@@ -539,12 +553,17 @@ public class JoinProcessor
       this.alias = alias;
       this.columns = columns;
       this.joinColumns = joinColumns;
-      this.collation = null;
+      this.collations = NO_COLLATION;
       this.indices = indices;
       this.rows = Iterators.peekingIterator(Collections.emptyIterator());
       this.hashed = hash(iterator, indices);
       this.estimatedNumRows = hashed.size();
       LOG.info("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashed.size());
+    }
+
+    private List<OrderByColumnSpec> asCollation()
+    {
+      return OrderByColumnSpec.ascending(joinColumns);
     }
 
     private boolean isHashed()
@@ -555,7 +574,12 @@ public class JoinProcessor
     private boolean isSorted()
     {
       // todo: regarded as ascending
-      return collation != null && joinColumns.equals(OrderByColumnSpec.getColumns(collation.get()));
+      for (List<OrderByColumnSpec> collation : collations.get()) {
+        if (joinColumns.equals(OrderByColumnSpec.getColumns(collation))) {
+          return true;
+        }
+      }
+      return false;
     }
 
     private JoinAlias prepareHashIterator()
@@ -659,23 +683,33 @@ public class JoinProcessor
 
   static class JoinResult
   {
-    static JoinResult of(Iterator<Object[]> iterator)
+    static JoinResult none(Iterator<Object[]> iterator)
     {
-      return new JoinResult(iterator, null);
+      return new JoinResult(iterator, ImmutableList.of());
     }
 
-    static JoinResult of(List<OrderByColumnSpec> collation, Iterator<Object[]> iterator)
+    static JoinResult left(JoinIterator iterator)
     {
-      return new JoinResult(iterator, collation);
+      return new JoinResult(iterator, Arrays.asList(iterator.leftAlias.asCollation()));
+    }
+
+    static JoinResult right(JoinIterator iterator)
+    {
+      return new JoinResult(iterator, Arrays.asList(iterator.rightAlias.asCollation()));
+    }
+
+    static JoinResult sortMerge(JoinIterator iterator)
+    {
+      return new JoinResult(iterator, iterator.asCollations());
     }
 
     final Iterator<Object[]> iterator;
-    final List<OrderByColumnSpec> collation;
+    final List<List<OrderByColumnSpec>> collations;
 
-    private JoinResult(Iterator<Object[]> iterator, List<OrderByColumnSpec> collation)
+    private JoinResult(Iterator<Object[]> iterator, List<List<OrderByColumnSpec>> collations)
     {
       this.iterator = iterator;
-      this.collation = collation;
+      this.collations = collations;
     }
   }
 
@@ -823,17 +857,17 @@ public class JoinProcessor
     }
   };
 
-  protected Supplier<List<OrderByColumnSpec>> getCollation(Query<?> query)
+  protected Supplier<List<List<OrderByColumnSpec>>> getCollations(Query<?> query)
   {
     if (query instanceof OrderingSupport) {
       List<OrderByColumnSpec> ordering = ((OrderingSupport<?>) query).getResultOrdering();
       if (ordering != null) {
-        return Suppliers.ofInstance(ordering);
+        return Suppliers.ofInstance(Arrays.asList(ordering));
       }
     }
     if (query instanceof JoinQuery.JoinHolder) {
-      return () -> ((JoinQuery.JoinHolder) query).getCollation();
+      return () -> ((JoinQuery.JoinHolder) query).getCollations();
     }
-    return null;
+    return NO_COLLATION;
   }
 }
