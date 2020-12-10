@@ -21,7 +21,6 @@ package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
 import io.druid.common.KeyBuilder;
@@ -35,7 +34,6 @@ import io.druid.data.UTF8Bytes;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.java.util.common.ISE;
-
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.query.BaseAggregationQuery;
@@ -119,7 +117,7 @@ public class QueryMaker
   // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
   public Query prepareQuery(Query<?> query)
   {
-    Query prepared = QueryUtils.prepareQuery(query, getJsonMapper(), Preconditions.checkNotNull(query.getId()));
+    Query prepared = QueryUtils.readPostProcessors(query, getJsonMapper());
     prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker, queryConfig);
     prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
@@ -143,7 +141,7 @@ public class QueryMaker
   public Sequence<Object[]> runQuery(DruidQuery druidQuery, Query prepared)
   {
     Query query = druidQuery.getQuery();
-    LOG.info("Running.. %s", toLazyLog(plannerContext.getObjectMapper(), query));
+    LOG.debug("Running.. %s", toLazyLog(plannerContext.getObjectMapper(), query));
 
     Hook.QUERY_PLAN.run(query);   // original query
 

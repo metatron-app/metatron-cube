@@ -360,11 +360,8 @@ public class QueryResource
 
   private Query readQuery(InputStream in, RequestContext context) throws IOException
   {
-    Query query = context.getInputMapper(false).readValue(in, Query.class);
-    if (query.getId() == null) {
-      query = query.withOverriddenContext(Query.QUERYID, UUID.randomUUID().toString());
-    }
-    return BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout());
+    ObjectMapper mapper = context.getInputMapper(false);
+    return QueryUtils.readPostProcessors(mapper.readValue(in, Query.class), mapper);
   }
 
   // clear previous query name if exists (should not)
@@ -389,12 +386,8 @@ public class QueryResource
 
   protected Query prepareQuery(Query query, RequestContext context) throws Exception
   {
-    String queryId = query.getId();
-    if (queryId != null) {
-      // test queries don't have ids
-      query = QueryUtils.prepareQuery(query, jsonMapper, queryId);
-    }
-    return query;
+    query = QueryUtils.setQueryId(query, UUID.randomUUID().toString());
+    return BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout());
   }
 
   protected class RequestContext

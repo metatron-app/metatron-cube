@@ -327,7 +327,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private <T> Query<T> prepareQuery(Query<T> query)
   {
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
-    query = QueryUtils.prepareQuery(query, objectMapper, queryId);
+    query = QueryUtils.readPostProcessors(query, objectMapper);
+    query = QueryUtils.setQueryId(query, queryId);
     query = QueryUtils.rewriteRecursively(query, this, queryConfig);
     query = QueryUtils.resolveRecursively(query, this);
     return query;

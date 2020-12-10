@@ -257,7 +257,7 @@ public class QueryUtils
     return Arrays.asList(array);
   }
 
-  public static Query prepareQuery(final Query query, final ObjectMapper mapper, final String queryId)
+  public static Query readPostProcessors(final Query query, final ObjectMapper mapper)
   {
     return Queries.iterate(
         query, new IdentityFunction<Query>()
@@ -268,20 +268,15 @@ public class QueryUtils
           {
             Map<String, Object> context = input.getContext();
             if (context == null) {
-              return input.withOverriddenContext(ImmutableMap.of(Query.QUERYID, queryId));
+              return input;
             }
-            Object id = context.get(Query.QUERYID);
             Object postProcessing = context.get(Query.POST_PROCESSING);
             Object localProcessing = context.get(Query.LOCAL_POST_PROCESSING);
-            if (id != null &&
-                (postProcessing == null || postProcessing instanceof PostProcessingOperator) &&
+            if ((postProcessing == null || postProcessing instanceof PostProcessingOperator) &&
                 (localProcessing == null || localProcessing instanceof PostProcessingOperator)) {
               return input;
             }
             Map<String, Object> override = Maps.newHashMap();
-            if (id == null) {
-              override.put(Query.QUERYID, queryId);
-            }
             if (postProcessing != null && !(postProcessing instanceof PostProcessingOperator)) {
               override.put(Query.POST_PROCESSING, PostProcessingOperators.convert(mapper, postProcessing));
             }
@@ -289,6 +284,26 @@ public class QueryUtils
               override.put(Query.LOCAL_POST_PROCESSING, PostProcessingOperators.convert(mapper, localProcessing));
             }
             return input.withOverriddenContext(override);
+          }
+        }
+    );
+  }
+
+  public static Query setQueryId(final Query query, final String queryId)
+  {
+    final Map<String, Object> override = ImmutableMap.of(Query.QUERYID, queryId);
+    return Queries.iterate(
+        query, new IdentityFunction<Query>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public Query apply(Query input)
+          {
+            Map<String, Object> context = input.getContext();
+            if (context == null || context.get(Query.QUERYID) == null) {
+              return input.withOverriddenContext(override);
+            }
+            return input;
           }
         }
     );

@@ -25,6 +25,7 @@ import io.druid.data.ValueDesc;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -120,5 +121,17 @@ public class DSuppliers
     {
       threadLocal.remove();
     }
+  }
+
+  public static Object lazyLog(Supplier supplier)
+  {
+    return new Object()
+    {
+      @Override
+      public String toString()
+      {
+        return Objects.toString(supplier.get(), null);
+      }
+    };
   }
 }
