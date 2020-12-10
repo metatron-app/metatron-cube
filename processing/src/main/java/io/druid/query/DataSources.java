@@ -80,7 +80,15 @@ public class DataSources
     }
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
-      return QueryDataSource.of(DimFilters.and((FilterSupport<?>) query, filter));
+      if (query instanceof FilterSupport) {
+        return QueryDataSource.of(DimFilters.and((FilterSupport<?>) query, filter));
+      }
+      return QueryDataSource.of(
+          Druids.newSelectQueryBuilder()
+                .dataSource(dataSource)
+                .filters(filter)
+                .streaming()
+      );
     }
     throw new ISE("Not filter support %s", dataSource);
   }

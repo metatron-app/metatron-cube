@@ -226,9 +226,6 @@ public class JoinElement
 
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
-    if (!DataSources.isFilterSupport(left)) {
-      return false;
-    }
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
       List<String> rightOutputColumns = DataSources.getOutputColumns(right);
       if (rightOutputColumns == null) {
