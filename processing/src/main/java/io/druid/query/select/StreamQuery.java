@@ -42,7 +42,7 @@ import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.JoinQuery;
-import io.druid.query.PostProcessingOperators;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
@@ -71,6 +71,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     implements Query.ColumnsSupport<Object[]>,
     Query.OrderingSupport<Object[]>,
     Query.RewritingQuery<Object[]>,
+    Query.LimitSupport<Object[]>,
     Query.RowOutputSupport<Object[]>,
     Query.LastProjectionSupport<Object[]>,
     Query.ArrayOutput
@@ -162,6 +163,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     return concatString;
   }
 
+  @Override
   @JsonProperty
   public LimitSpec getLimitSpec()
   {
@@ -195,8 +197,7 @@ public class StreamQuery extends BaseQuery<Object[]>
   @JsonIgnore
   public List<String> estimatedOutputColumns()
   {
-    List<String> columnNames = outputColumns != null ? outputColumns : limitSpec.estimateOutputColumns(columns);
-    return PostProcessingOperators.resove(this, columnNames);
+    return Queries.estimatedOutputColumns(this);
   }
 
   @JsonIgnore
@@ -518,6 +519,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     );
   }
 
+  @Override
   public StreamQuery withLimitSpec(LimitSpec limitSpec)
   {
     return new StreamQuery(

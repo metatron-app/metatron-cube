@@ -55,7 +55,7 @@ import java.util.List;
     @JsonSubTypes.Type(name = "noop", value = NoopLimitSpec.class),
     @JsonSubTypes.Type(name = "default", value = LimitSpec.class)
 })
-public class LimitSpec extends OrderedLimitSpec implements Cacheable
+public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving, Cacheable
 {
   public static LimitSpec of(OrderByColumnSpec... orderings)
   {
@@ -348,27 +348,6 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
     return LimitSpec.sequenceLimiter(ordering, limit).apply(sequence);
   }
 
-  public List<String> estimateOutputColumns(List<String> columns)
-  {
-    if (GuavaUtils.isNullOrEmpty(windowingSpecs)) {
-      return columns;
-    }
-    List<String> estimated = Lists.newArrayList(columns);
-    for (WindowingSpec windowingSpec : windowingSpecs) {
-      if (windowingSpec.getPivotSpec() != null || windowingSpec.getFlattenSpec() != null) {
-        return null;  // cannot estimate
-      }
-      for (String expression : windowingSpec.getExpressions()) {
-        Expr assignee = Evals.splitAssign(expression, WindowContext.UNKNOWN).lhs;
-        String key = Evals.toAssigneeEval(assignee).asString();
-        if (!estimated.contains(key)) {
-          estimated.add(key);
-        }
-      }
-    }
-    return estimated;
-  }
-
   public static Function<Object[], Object[]> remap(List<String> source, List<String> target)
   {
     if (GuavaUtils.isNullOrEmpty(target) || source.equals(target)) {
@@ -403,6 +382,34 @@ public class LimitSpec extends OrderedLimitSpec implements Cacheable
   public boolean isNoop()
   {
     return super.isNoop() && segmentLimit == null && nodeLimit == null && GuavaUtils.isNullOrEmpty(windowingSpecs);
+  }
+
+  @Override
+  public List<String> evolve(List<String> columns)
+  {
+    if (GuavaUtils.isNullOrEmpty(windowingSpecs)) {
+      return columns;
+    }
+    List<String> estimated = Lists.newArrayList(columns);
+    for (WindowingSpec windowingSpec : windowingSpecs) {
+      if (windowingSpec.getPivotSpec() != null || windowingSpec.getFlattenSpec() != null) {
+        return null;  // cannot estimate
+      }
+      for (String expression : windowingSpec.getExpressions()) {
+        Expr assignee = Evals.splitAssign(expression, WindowContext.UNKNOWN).lhs;
+        String key = Evals.toAssigneeEval(assignee).asString();
+        if (!estimated.contains(key)) {
+          estimated.add(key);
+        }
+      }
+    }
+    return estimated;
+  }
+
+  @Override
+  public RowSignature evolve(Query query, RowSignature schema)
+  {
+    return GuavaUtils.isNullOrEmpty(windowingSpecs) ? schema : null;
   }
 
   public static class SortingArrayFn implements Function<Sequence<Object[]>, Sequence<Object[]>>

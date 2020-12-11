@@ -44,6 +44,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
@@ -284,6 +285,21 @@ public abstract class BaseQuery<T> implements Query<T>
     return query instanceof AggregationsSupport
            ? ((AggregationsSupport) query).getPostAggregatorSpecs()
            : Arrays.asList();
+  }
+
+  public static LimitSpec getLimitSpec(Query query)
+  {
+    return query instanceof LimitSupport ? ((LimitSupport) query).getLimitSpec() : null;
+  }
+
+  public static List<String> getLastProjection(Query query)
+  {
+    return query instanceof LastProjectionSupport ? ((LastProjectionSupport) query).getOutputColumns() : null;
+  }
+
+  public static LateralViewSpec getLateralViewSpec(Query query)
+  {
+    return query instanceof LateralViewSupport ? ((LateralViewSupport) query).getLateralView() : null;
   }
 
   public static ViewDataSource asView(Query query, List<String> columns)

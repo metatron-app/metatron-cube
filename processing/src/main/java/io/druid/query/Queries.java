@@ -64,6 +64,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectQuery;
@@ -170,19 +171,13 @@ public class Queries
     return schema;
   }
 
-  public static List<String> relayColumns(Query<?> query, ObjectMapper mapper)
-  {
-    List<String> columns = query.estimatedOutputColumns();
-    return columns == null ? columns : finalize(columns, query, mapper);
-  }
-
   public static RowSignature bestEffortOf(Query<?> query, boolean finalzed)
   {
     return bestEffortOf(null, query, finalzed);
   }
 
-  // best effort without segment walker, upto before final decoration (output-columns) and post processing
-  public static RowSignature bestEffortOf(RowSignature source, Query<?> query, boolean finalzed)
+  // best effort signature just before the final decoration (limit, output, lateral view) and post processing
+  private static RowSignature bestEffortOf(RowSignature source, Query<?> query, boolean finalzed)
   {
     List<String> newColumnNames = Lists.newArrayList();
     List<ValueDesc> newColumnTypes = Lists.newArrayList();
@@ -233,46 +228,65 @@ public class Queries
     return resolving;
   }
 
-  public static RowSignature finalize(RowSignature source, Query<?> query, ObjectMapper mapper)
+  public static RowSignature relay(RowSignature source, Query<?> query, boolean finalzed)
   {
-    if (query instanceof Query.LateralViewSupport) {
-      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
-      if (lateralView instanceof RowSignature.Evolving) {
-        source = ((RowSignature.Evolving) lateralView).evolve(query, source);
-      }
+    source = Queries.bestEffortOf(source, query, finalzed);
+    Object localProc = query.getContextValue(Query.LOCAL_POST_PROCESSING);
+    if (localProc instanceof RowSignature.Evolving) {
+      source = ((RowSignature.Evolving) localProc).evolve(query, source);
     }
-    if (query instanceof Query.LastProjectionSupport) {
-      List<String> outputColumns = ((Query.LastProjectionSupport<?>) query).getOutputColumns();
-      if (outputColumns != null) {
-        source = source.retain(outputColumns);
-      }
+    LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
+    if (limitSpec != null) {
+      source = limitSpec.evolve(query, source);
     }
-    return PostProcessingOperators.resove(query, source);
+    List<String> outputColumns = BaseQuery.getLastProjection(query);
+    if (outputColumns != null) {
+      source = source.retain(outputColumns);
+    }
+    LateralViewSpec lateralView = BaseQuery.getLateralViewSpec(query);
+    if (lateralView instanceof RowSignature.Evolving) {
+      source = ((RowSignature.Evolving) lateralView).evolve(query, source);
+    }
+    Object processor = query.getContextValue(Query.POST_PROCESSING);
+    if (processor instanceof RowSignature.Evolving) {
+      source = ((RowSignature.Evolving) processor).evolve(query, source);
+    }
+    return source;
   }
 
-  public static List<String> finalize(List<String> source, Query<?> query, ObjectMapper mapper)
+  // limit -> output -> lateral -> post
+  public static List<String> estimatedOutputColumns(Query<?> query)
   {
-    if (query instanceof Query.LateralViewSupport) {
-      LateralViewSpec lateralView = ((Query.LateralViewSupport) query).getLateralView();
+    List<String> outputColumns = BaseQuery.getLastProjection(query);
+    if (outputColumns != null) {
+      LateralViewSpec lateralView = BaseQuery.getLateralViewSpec(query);
       if (lateralView instanceof RowSignature.Evolving) {
-        source = ((RowSignature.Evolving) lateralView).evolve(source);
+        outputColumns = ((RowSignature.Evolving) lateralView).evolve(outputColumns);
       }
+      return PostProcessingOperators.resove(outputColumns, query);
     }
-    if (query instanceof Query.LastProjectionSupport) {
-      List<String> outputColumns = ((Query.LastProjectionSupport<?>) query).getOutputColumns();
-      if (outputColumns != null) {
-        source = GuavaUtils.retain(source, outputColumns);
-      }
-    }
-    return PostProcessingOperators.resove(query, source);
-  }
 
-  public static List<String> uniqueNames(List<String> names, Set<String> uniqueNames, List<String> appendTo)
-  {
-    for (String name : names) {
-      appendTo.add(uniqueName(name, uniqueNames));
+    List<String> source = query.estimatedInitialColumns();
+    Object localProc = query.getContextValue(Query.LOCAL_POST_PROCESSING);
+    if (localProc instanceof RowSignature.Evolving) {
+      source = ((RowSignature.Evolving) localProc).evolve(source);
     }
-    return appendTo;
+    if (query instanceof Query.AggregationsSupport) {
+      source = GuavaUtils.dedupConcat(source, PostAggregators.toNames(BaseQuery.getPostAggregators(query)));
+    }
+    LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
+    if (limitSpec != null) {
+      source = limitSpec.evolve(source);
+    }
+    LateralViewSpec lateralView = BaseQuery.getLateralViewSpec(query);
+    if (lateralView instanceof RowSignature.Evolving) {
+      source = ((RowSignature.Evolving) lateralView).evolve(source);
+    }
+    Object processor = query.getContextValue(Query.POST_PROCESSING);
+    if (processor instanceof RowSignature.Evolving) {
+      source = ((RowSignature.Evolving) processor).evolve(source);
+    }
+    return source;
   }
 
   public static String uniqueName(String name, Set<String> uniqueNames)
@@ -526,13 +540,8 @@ public class Queries
     return estimateCardinality(query, segmentWalker, config);
   }
 
-  public static long estimateCardinality(
-      GroupByQuery query,
-      QuerySegmentWalker segmentWalker,
-      QueryConfig config
-  )
+  public static long estimateCardinality(GroupByQuery query, QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    ObjectMapper objectMapper = segmentWalker.getObjectMapper();
     query = query.withOverriddenContext(BaseQuery.copyContextForMeta(query));
     Query<Row> sequence = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
 

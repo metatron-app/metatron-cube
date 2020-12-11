@@ -345,8 +345,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {
         if (i == 0 && isUnderThreshold(rightEstimated, semiJoinThrehold) && element.isLeftSemiJoinable(left, right, outputColumns)) {
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          RowSignature signature = Queries.relaySchema(array, segmentWalker);
-          List<String> rightColumns = signature.getColumnNames();
+          List<String> rightColumns = array.estimatedOutputColumns();
           if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
             int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
             Supplier<List<Object[]>> fieldValues =
@@ -368,8 +367,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         }
         if (isUnderThreshold(leftEstimated, semiJoinThrehold) && element.isRightSemiJoinable(left, right, outputColumns)) {
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
-          RowSignature signature = Queries.relaySchema(array, segmentWalker);
-          List<String> leftColumns = signature.getColumnNames();
+          List<String> leftColumns = array.estimatedOutputColumns();
           if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
             int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
             Supplier<List<Object[]>> fieldValues =

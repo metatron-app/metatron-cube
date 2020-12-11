@@ -72,8 +72,9 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     implements Query.AggregationsSupport<Row>,
     Query.ArrayOutputSupport<Row>,
     Query.OrderingSupport<Row>,
-    Query.LateralViewSupport<Row>,
+    Query.LimitSupport<Row>,
     Query.LastProjectionSupport<Row>,
+    Query.LateralViewSupport<Row>,
     Query.RowOutput
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
@@ -163,6 +164,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     return havingSpec;
   }
 
+  @Override
   @JsonProperty
   public LimitSpec getLimitSpec()
   {
@@ -191,9 +193,10 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
 
   public abstract BaseAggregationQuery withGranularity(Granularity granularity);
 
-  public abstract BaseAggregationQuery withLimitSpec(LimitSpec limitSpec);
-
   public abstract BaseAggregationQuery withHavingSpec(HavingSpec havingSpec);
+
+  @Override
+  public abstract BaseAggregationQuery withLimitSpec(LimitSpec limitSpec);
 
   @Override
   public abstract BaseAggregationQuery withOutputColumns(List<String> outputColumns);
@@ -243,44 +246,17 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   @Override
   public List<String> estimatedInitialColumns()
   {
-    List<String> inputColumns = Lists.newArrayList(Row.TIME_COLUMN_NAME);
-    inputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
-    for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
-      if (!inputColumns.contains(aggregator)) {
-        inputColumns.add(aggregator);
-      }
-    }
-    return inputColumns;
-  }
-
-  @Override
-  public BaseAggregationQuery toLocalQuery()
-  {
-    return (BaseAggregationQuery) super.toLocalQuery();
+    List<String> columns = Lists.newArrayList();
+    columns.add(Row.TIME_COLUMN_NAME);
+    columns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
+    columns.addAll(AggregatorFactory.toNames(getAggregatorSpecs()));
+    return columns;
   }
 
   @Override
   public List<String> estimatedOutputColumns()
   {
-    List<String> outputColumns = getOutputColumns();
-    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-      return PostProcessingOperators.resove(this, outputColumns);
-    }
-    if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
-      return null;
-    }
-    List<String> columnNames = GuavaUtils.concat(
-        Row.TIME_COLUMN_NAME,
-        GuavaUtils.dedupConcat(
-            DimensionSpecs.toOutputNames(getDimensions()),
-            AggregatorFactory.toNames(aggregatorSpecs),
-            PostAggregators.toNames(postAggregatorSpecs)
-        )
-    );
-    if (lateralView instanceof RowSignature.Evolving) {
-      columnNames = ((RowSignature.Evolving) lateralView).evolve(columnNames);
-    }
-    return PostProcessingOperators.resove(this, columnNames);
+    return Queries.estimatedOutputColumns(this);
   }
 
   @Override

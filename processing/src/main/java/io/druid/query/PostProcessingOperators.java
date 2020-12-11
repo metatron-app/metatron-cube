@@ -101,7 +101,7 @@ public class PostProcessingOperators
     return mapper.convertValue(value, PostProcessingOperator.TYPE_REF);
   }
 
-  public static RowSignature resove(Query<?> query, RowSignature source)
+  public static RowSignature resove(RowSignature source, Query<?> query)
   {
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query);
     if (postProcessor instanceof RowSignature.Evolving) {
@@ -110,7 +110,7 @@ public class PostProcessingOperators
     return source;
   }
 
-  public static List<String> resove(Query<?> query, List<String> source)
+  public static List<String> resove(List<String> source, Query<?> query)
   {
     PostProcessingOperator postProcessor = PostProcessingOperators.load(query);
     if (postProcessor instanceof RowSignature.Evolving) {

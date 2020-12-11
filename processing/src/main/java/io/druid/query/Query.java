@@ -34,6 +34,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.KMeansQuery;
@@ -270,6 +271,13 @@ public interface Query<T> extends QueryContextKeys
     LateralViewSpec getLateralView();
 
     LateralViewSupport<T> withLateralView(LateralViewSpec lateralViewSpec);
+  }
+
+  interface LimitSupport<T> extends Query<T>
+  {
+    LimitSpec getLimitSpec();
+
+    LimitSupport<T> withLimitSpec(LimitSpec limitSpec);
   }
 
   interface RewritingQuery<T> extends Query<T>

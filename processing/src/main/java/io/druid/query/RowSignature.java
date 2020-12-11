@@ -190,12 +190,6 @@ public class RowSignature implements io.druid.data.RowSignature
 
   public RowSignature relay(Query<?> query, boolean finalzed)
   {
-    RowSignature signature = this;
-    if (BaseQuery.isBrokerSide(query)) {
-      signature = Queries.finalize(Queries.bestEffortOf(signature, query, finalzed), query.toLocalQuery(), null);
-    } else {
-      signature = Queries.bestEffortOf(signature, query, finalzed);
-    }
-    return Queries.finalize(signature, query, null);
+    return Queries.relay(this, query, finalzed);
   }
 }

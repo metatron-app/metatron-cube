@@ -353,7 +353,6 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     sequence = aggregation.applyLimit(sequence, aggregation.isSortOnTimeForLimit(isSortOnTime()));
 
     final List<String> outputColumns = aggregation.getOutputColumns();
-    final LateralViewSpec lateralViewSpec = aggregation.getLateralView();
     if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
       sequence = Sequences.map(
           outputColumns, sequence, new Function<Row, Row>()
@@ -371,6 +370,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
           }
       );
     }
+    final LateralViewSpec lateralViewSpec = aggregation.getLateralView();
     return lateralViewSpec != null ? toLateralView(sequence, lateralViewSpec) : sequence;
   }
 
