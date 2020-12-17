@@ -161,6 +161,7 @@ public class SqlModule implements Module
 
   public static void main(String[] args) throws Exception
   {
+//    String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/";
     String url = "jdbc:avatica:remote:url=http://localhost:8082/druid/v2/sql/avatica/;serialization=PROTOBUF";
 
     // Set any connection context parameters you need here (see "Connection context" below).
@@ -168,10 +169,12 @@ public class SqlModule implements Module
     Properties connectionProperties = new Properties();
     connectionProperties.setProperty("aaa", "bbb");   // avoid bug in protocol buf handler(empty property -> NPE)
 
+//    String sql = "select L_EXTENDEDPRICE/ 0 from lineitem limit 1";
+    String sql = "select * from lineitem limit 1000";
     try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
       try (
           final Statement statement = connection.createStatement();
-          final ResultSet resultSet = statement.executeQuery("select L_EXTENDEDPRICE/ 0 from lineitem limit 1")
+          final ResultSet resultSet = statement.executeQuery(sql)
       ) {
         ResultSetMetaData metaData = resultSet.getMetaData();
         int count = metaData.getColumnCount();

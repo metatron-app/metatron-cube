@@ -215,4 +215,21 @@ public class PostProcessingOperators
       return converter.apply(processor);
     }
   }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends PostProcessingOperator> T find(PostProcessingOperator processor, Class<T> clazz)
+  {
+    if (processor instanceof ListPostProcessingOperator) {
+      List<PostProcessingOperator> processors = ((ListPostProcessingOperator<?>) processor).getProcessors();
+      for (PostProcessingOperator element : Lists.reverse(processors)) {
+        if (clazz.isInstance(element)) {
+          return (T) element;
+        }
+      }
+    }
+    if (clazz.isInstance(processor)) {
+      return (T) processor;
+    }
+    return null;
+  }
 }

@@ -302,7 +302,7 @@ public class JoinElement
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       if (query instanceof JoinQuery.JoinHolder) {
-        return ((JoinQuery.JoinHolder) query).toArrayJoin();  // keep array for output
+        return ((JoinQuery.JoinHolder) query).toArrayJoin(sortColumns);  // keep array for output
       }
       if (!(query instanceof ArrayOutputSupport)) {
         throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());

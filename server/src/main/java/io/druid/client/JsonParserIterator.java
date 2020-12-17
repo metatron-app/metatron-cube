@@ -58,25 +58,17 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
   public boolean hasNext()
   {
     init();
-
-    if (jp.isClosed()) {
-      return false;
-    }
-    if (jp.getCurrentToken() == JsonToken.END_ARRAY) {
-      CloseQuietly.close(jp);
-      return false;
-    }
-
-    return true;
+    return !jp.isClosed();
   }
 
   @Override
   public T next()
   {
-    init();
     try {
       final T retVal = objectCodec.readValue(jp, typeRef);
-      jp.nextToken();
+      if (jp.nextToken() == JsonToken.END_ARRAY) {
+        CloseQuietly.close(jp);
+      }
       return retVal;
     }
     catch (Throwable e) {
@@ -103,8 +95,11 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
         } else if (nextToken != JsonToken.START_ARRAY) {
           throw new IAE("Next token wasn't a START_ARRAY, was[%s]", jp.getCurrentToken());
         } else {
-          jp.nextToken();
-          objectCodec = jp.getCodec();
+          if (jp.nextToken() == JsonToken.END_ARRAY) {
+            CloseQuietly.close(jp);
+          } else {
+            objectCodec = jp.getCodec();
+          }
         }
       }
       catch (Throwable e) {

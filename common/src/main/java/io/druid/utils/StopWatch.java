@@ -41,4 +41,9 @@ public class StopWatch
     }
     return future.get(remaining, TimeUnit.MILLISECONDS);
   }
+
+  public boolean isExpired()
+  {
+    return timeout < System.currentTimeMillis();
+  }
 }

@@ -184,7 +184,9 @@ public class DirectDruidClient<T> implements QueryRunner<T>
             openConnections.getAndDecrement();
             queryWatcher.unregisterResource(query, handler);
             if (!parser.close()) {
-              cancelRemote(query);
+              if (watch.isExpired()) {
+                cancelRemote(query);
+              }
               IOUtils.closeQuietly(future);
             }
           }
@@ -214,7 +216,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     }
   }
 
-  public void cancelRemote(Query<T> query)
+  private void cancelRemote(Query<T> query)
   {
     backgroundExecutorService.submit(
         () -> {

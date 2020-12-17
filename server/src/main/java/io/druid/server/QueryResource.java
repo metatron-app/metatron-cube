@@ -314,6 +314,12 @@ public class QueryResource
             os.close();
           }
           catch (Throwable t) {
+            if (QueryLifecycle.isEOF(t)) {
+              // ignore.. todo: let's find better way to handle intentional disconnect
+              lifecycle.emitLogsAndMetrics(toLoggingQuery(query), null, remote, os.getCount(), counter.intValue());
+              currThread.setName(currThreadName);
+              return;
+            }
             // it's not propagated to handlings below. so do it here
             lifecycle.emitLogsAndMetrics(toLoggingQuery(query), t, remote, os.getCount(), counter.intValue());
             currThread.setName(currThreadName);

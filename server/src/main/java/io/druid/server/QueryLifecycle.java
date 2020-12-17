@@ -46,9 +46,11 @@ import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.ForbiddenException;
+import org.eclipse.jetty.io.EofException;
 
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
+import java.io.EOFException;
 import java.io.InterruptedIOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -323,6 +325,16 @@ public class  QueryLifecycle
           e instanceof TimeoutException ||
           e instanceof org.jboss.netty.handler.timeout.TimeoutException ||
           e instanceof CancellationException) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isEOF(@Nullable Throwable e)
+  {
+    for (; e != null; e = e.getCause()) {
+      if (e instanceof EOFException || e instanceof EofException) {
         return true;
       }
     }

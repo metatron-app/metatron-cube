@@ -63,6 +63,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -832,21 +833,74 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       public PostProcessingOperator apply(PostProcessingOperator input)
       {
         if (input instanceof CommonJoinProcessor) {
-          input = ((CommonJoinProcessor) input).withAsArray(true);
+          CommonJoinProcessor join = (CommonJoinProcessor) input;
+          if (!join.isAsArray()) {
+            input = join.withAsArray(true);
+          }
         }
         return input;
       }
     };
 
-    public JoinHolder toArrayJoin()
+    public JoinHolder toArrayJoin(List<String> sortColumns)
     {
-      PostProcessingOperator processor = getContextValue(Query.POST_PROCESSING);
-      if (processor != null) {
-        return (JoinHolder) withOverriddenContext(
-            Query.POST_PROCESSING, PostProcessingOperators.rewrite(processor, AS_ARRAY)
-        );
+      JoinHolder holder = this;
+      PostProcessingOperator processor = PostProcessingOperators.rewrite(
+          getContextValue(Query.POST_PROCESSING), AS_ARRAY
+      );
+      holder = (JoinHolder) holder.withOverriddenContext(Query.POST_PROCESSING, processor);
+      if (getQueries().size() == 2 && !GuavaUtils.isNullOrEmpty(sortColumns)) {
+        // best effort
+        JoinPostProcessor proc = PostProcessingOperators.find(processor, JoinPostProcessor.class);
+        JoinElement element = proc.getElements()[0];
+        Query<Map<String, Object>> query0 = getQueries().get(0);
+        Query<Map<String, Object>> query1 = getQueries().get(1);
+        boolean hashing0 = query0.getContextBoolean(HASHING, false);
+        boolean hashing1 = query1.getContextBoolean(HASHING, false);
+        if (hashing0 && hashing1) {
+          return holder;    // todo use tree map?
+        }
+        final JoinType type = element.getJoinType();
+        if (type.isLeftDrivable()) {
+          if (hashing1 && query0 instanceof OrderingSupport) {
+            OrderingSupport reordered = tryReordering((OrderingSupport) query0, sortColumns);
+            if (reordered != null) {
+              LOG.info("reordered.. %s : %s", query0.getDataSource().getNames(), reordered.getResultOrdering());
+              return (JoinHolder) holder.withQueries(Arrays.asList(reordered, query1));
+            }
+          }
+        }
+        if (type.isRightDrivable()) {
+          if (hashing0 && query1 instanceof OrderingSupport) {
+            OrderingSupport reordered = tryReordering((OrderingSupport) query1, sortColumns);
+            if (reordered != null) {
+              LOG.info("reordered.. %s : %s", query1.getDataSource().getNames(), reordered.getResultOrdering());
+              return (JoinHolder) holder.withQueries(Arrays.asList(query0, reordered));
+            }
+          }
+        }
       }
-      return this;
+      return holder;
+    }
+
+    private static OrderingSupport tryReordering(OrderingSupport<?> query, List<String> expected)
+    {
+      List<String> outputColumns = query.estimatedOutputColumns();
+      if (outputColumns == null || !outputColumns.containsAll(expected)) {
+        return null;
+      }
+      List<OrderByColumnSpec> current = query.getResultOrdering();
+      if (GuavaUtils.isNullOrEmpty(current)) {
+        return query.withResultOrdering(OrderByColumnSpec.ascending(expected));
+      }
+      // append ordering
+      List<String> columns = OrderByColumnSpec.getColumns(current);
+      if (expected.size() > columns.size() && GuavaUtils.startsWith(expected, columns)) {
+        return query.withResultOrdering(GuavaUtils.concat(
+            current, OrderByColumnSpec.ascending(expected.subList(current.size(), columns.size()))
+        ));
+      }
+      return null;
     }
 
     @Override

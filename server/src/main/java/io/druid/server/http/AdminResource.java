@@ -35,6 +35,7 @@ import io.druid.guice.annotations.Self;
 import io.druid.java.util.common.IAE;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.server.DruidNode;
+import io.druid.server.QueryLifecycle;
 import io.druid.server.Shutdown;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -48,7 +49,6 @@ import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.filter.AbstractFilter;
 import org.apache.logging.log4j.core.layout.AbstractStringLayout;
 import org.apache.logging.log4j.core.layout.PatternLayout;
-import org.eclipse.jetty.io.EofException;
 
 import javax.inject.Inject;
 import javax.management.MBeanOperationInfo;
@@ -302,7 +302,7 @@ public class AdminResource
           }
         }
         catch (Throwable t) {
-          if (!(t instanceof EofException)) {
+          if (!QueryLifecycle.isEOF(t)) {
             throw Throwables.propagate(t);
           }
         }

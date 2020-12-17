@@ -35,7 +35,6 @@ import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
-
 import io.druid.query.JoinQuery.JoinHolder;
 import io.druid.query.PostProcessingOperator.Local;
 
@@ -69,6 +68,11 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   {
     super(config, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow);
     this.elements = elements.toArray(new JoinElement[0]);
+  }
+
+  public JoinElement[] getElements()
+  {
+    return elements;
   }
 
   @Override

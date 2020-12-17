@@ -571,6 +571,11 @@ public class GuavaUtils
     };
   }
 
+  public static boolean startsWith(List<String> target, List<String> starts)
+  {
+    return starts.isEmpty() || target.size() >= starts.size() && target.subList(0, starts.size()).equals(starts);
+  }
+
   public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {
   }
 

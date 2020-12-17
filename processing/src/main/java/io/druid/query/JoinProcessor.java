@@ -161,18 +161,17 @@ public class JoinProcessor
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return hashedHashJoin(type, leftAlias, rightAlias, false);
+            return hashToHashJoin(type, leftAlias, rightAlias, false);
           }
         });
       }
       if (left.isSorted()) {
-        List<OrderByColumnSpec> collation = OrderByColumnSpec.ascending(left.joinColumns);
         return JoinResult.left(new JoinIterator(type, left, right, maxOutputRow)
         {
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return hashJoinPartitioned(type, leftAlias, rightAlias, false);
+            return sortedToHashJoin(type, leftAlias, rightAlias, false);
           }
         });
       }
@@ -191,7 +190,7 @@ public class JoinProcessor
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return hashedHashJoin(type.revert(), rightAlias, leftAlias, true);
+            return hashToHashJoin(type.revert(), rightAlias, leftAlias, true);
           }
         });
       }
@@ -201,7 +200,7 @@ public class JoinProcessor
           @Override
           protected Iterator<Object[]> next(JoinType type, JoinAlias leftAlias, JoinAlias rightAlias)
           {
-            return hashJoinPartitioned(type.revert(), rightAlias, leftAlias, true);
+            return sortedToHashJoin(type.revert(), rightAlias, leftAlias, true);
           }
         });
       }
@@ -372,7 +371,7 @@ public class JoinProcessor
     return compare;
   }
 
-  private Iterator<Object[]> hashJoinPartitioned(
+  private Iterator<Object[]> sortedToHashJoin(
       final JoinType type,
       final JoinAlias left,
       final JoinAlias right,
@@ -392,7 +391,7 @@ public class JoinProcessor
     return null;
   }
 
-  private Iterator<Object[]> hashedHashJoin(
+  private Iterator<Object[]> hashToHashJoin(
       final JoinType type,
       final JoinAlias driving,
       final JoinAlias target,
@@ -563,6 +562,11 @@ public class JoinProcessor
 
     private List<OrderByColumnSpec> asCollation()
     {
+      for (List<OrderByColumnSpec> collation : collations.get()) {
+        if (GuavaUtils.startsWith(OrderByColumnSpec.getColumns(collation), joinColumns)) {
+          return collation;
+        }
+      }
       return OrderByColumnSpec.ascending(joinColumns);
     }
 
@@ -575,7 +579,7 @@ public class JoinProcessor
     {
       // todo: regarded as ascending
       for (List<OrderByColumnSpec> collation : collations.get()) {
-        if (joinColumns.equals(OrderByColumnSpec.getColumns(collation))) {
+        if (GuavaUtils.startsWith(OrderByColumnSpec.getColumns(collation), joinColumns)) {
           return true;
         }
       }
