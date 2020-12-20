@@ -30,9 +30,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
@@ -81,17 +79,14 @@ import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceInstance;
 import org.joda.time.Interval;
 
-import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -102,7 +97,7 @@ import java.util.function.ToIntFunction;
  */
 public class CachingClusteredClient<T> implements QueryRunner<T>
 {
-  private static final EmittingLogger log = new EmittingLogger(CachingClusteredClient.class);
+  private static final EmittingLogger LOG = new EmittingLogger(CachingClusteredClient.class);
 
   private final ServiceDiscovery<String> discovery;
   private final QueryToolChestWarehouse warehouse;
@@ -184,7 +179,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     final TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(dataSource);
 
     if (timeline == null) {
-      return Sequences.empty();
+      return Sequences.empty(query.estimatedOutputColumns());
     }
 
     // build set of segments to query
@@ -248,6 +243,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     // minor quick-path
     if (query instanceof SegmentMetadataQuery && ((SegmentMetadataQuery) query).analyzingOnlyInterval()) {
       return (Sequence<T>) Sequences.simple(
+          query.estimatedOutputColumns(),
           new SegmentAnalysis(
               JodaUtils.condenseIntervals(
                   Iterables.transform(
@@ -304,7 +300,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         for (byte[] value : cachedValues.values()) {
           total += value.length;
         }
-        log.debug(
+        LOG.debug(
             "Requested %,d segments from cache for [%s] and returned %,d segments (%,d bytes), took %,d msec",
             cacheKeys.size(), query.getType(), cachedValues.size(), total, System.currentTimeMillis() - start
         );
@@ -327,7 +323,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           final String segmentIdentifier = segment.lhs.getSegment().getIdentifier();
           cachePopulatorMap.put(
               ObjectArray.of(segmentIdentifier, segmentQueryInterval),
-              results -> CacheUtil.populate(cache, objectMapper, segmentCacheKey, results)
+              new CachePopulator(cache, objectMapper, segmentCacheKey)
           );
         }
       }
@@ -357,7 +353,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       final QueryableDruidServer selected = segment.lhs.pick(predicate, counts);
 
       if (selected == null) {
-        log.makeAlert(
+        LOG.makeAlert(
             "No servers found for SegmentDescriptor[%s] for DataSource[%s]?! How can this be?!",
             segment.rhs,
             query.getDataSource()
@@ -368,22 +364,27 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       }
     }
 
+    final Query<T> prepared = prepareQuery(query, populateCache);
+    final Comparator<T> ordering = prepared.getMergeOrdering();
+    final List<String> columns = prepared.estimatedOutputColumns();
+
     return new Supplier<Sequence<T>>()
     {
       @Override
       public Sequence<T> get()
       {
-        final ToIntFunction counter = toolChest.numRows(query);
-        final CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(counter, strategy.pullFromCache());
+        ToIntFunction counter = toolChest.numRows(prepared);
+        CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(counter, strategy.pullFromCache());
 
-        ArrayList<Future<Sequence>> sequencesByInterval = Lists.newArrayList();
+        List<Future<Sequence>> sequencesByInterval = Lists.newArrayList();
         if (cacheAccessor != null && !cachedResults.isEmpty()) {
           addSequencesFromCache(sequencesByInterval, cacheAccessor);
         }
         addSequencesFromServer(sequencesByInterval);
 
         return mergeCachedAndUncachedSequences(
-            query,
+            ordering,
+            columns,
             toolChest,
             sequencesByInterval,
             cachedResults.size(),
@@ -391,15 +392,13 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         );
       }
 
-      private void addSequencesFromCache(
-          final ArrayList<Future<Sequence>> listOfSequences,
-          final CacheAccessor cacheAccessor
-      )
+      private void addSequencesFromCache(List<Future<Sequence>> listOfSequences, CacheAccessor cacheAccessor)
       {
         final TypeReference<Object> cacheObjectClazz = strategy.getCacheObjectClazz();
         for (Pair<Interval, byte[]> cachedResultPair : cachedResults) {
           final byte[] cachedResult = cachedResultPair.rhs;
           Sequence<Object> cachedSequence = Sequences.simple(
+              columns,
               new Iterable<Object>()
               {
                 @Override
@@ -424,20 +423,19 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                 }
               }
           );
-          listOfSequences.add(Futures.immediateFuture(Sequences.map(cachedSequence, cacheAccessor)));
+          listOfSequences.add(Futures.immediateFuture(Sequences.map(columns, cachedSequence, cacheAccessor)));
         }
       }
 
-      private void addSequencesFromServer(ArrayList<Future<Sequence>> listOfSequences)
+      private void addSequencesFromServer(List<Future<Sequence>> listOfSequences)
       {
-        final Query<T> prepared = prepareQuery(query, populateCache);
         final Function<T, T> deserializer = toolChest.makePreComputeManipulatorFn(
             prepared, MetricManipulatorFns.deserializing()
         );
         final Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> populator = bySegmentPopulator(
-            deserializer, strategy, cachePopulatorMap
+            columns, deserializer, strategy, cachePopulatorMap
         );
-        final int parallelism = queryConfig.getQueryParallelism(query);
+        final int parallelism = queryConfig.getQueryParallelism(prepared);
         final Execs.ExecutorQueue<Sequence> queue = new Execs.ExecutorQueue(parallelism);
 
         // Loop through each server, setting up the query and initiating it.
@@ -449,7 +447,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           final Query<T> running = prepared.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
           final QueryRunner runner = serverView.getQueryRunner(running, server);
           if (runner == null) {
-            log.info("server [%s] has disappeared.. skipping", server);
+            LOG.info("server [%s] has disappeared.. skipping", server);
             continue;
           }
 
@@ -461,7 +459,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             );
           } else if (!explicitBySegment) {
             queue.add(() -> QueryUtils.mergeSort(
-                running, Sequences.map(runner.run(running, responseContext), populator))
+                columns, ordering, Sequences.map(runner.run(running, responseContext), populator))
             );
           } else {
             queue.add(() -> Sequences.map(
@@ -479,13 +477,13 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           }
         }
         ExecutorService exec = parallelism <= 1 ? Execs.newDirectExecutorService() : executorService;
-        listOfSequences.ensureCapacity(listOfSequences.size() + serverSegments.size());
         listOfSequences.addAll(queue.execute(exec, BaseQuery.getContextPriority(query, 0)));
       }
     }.get();
   }
 
   private Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> bySegmentPopulator(
+      List<String> columns,
       Function<T, T> deserializer,
       CacheStrategy strategy,
       Map<ObjectArray, CachePopulator> cachePopulatorMap
@@ -506,59 +504,26 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             ObjectArray.of(value.getSegmentId(), value.getInterval())
         );
         if (cachePopulator == null) {
-          return Sequences.<T>simple(Iterables.transform(value.getResults(), deserializer));
+          return Sequences.<T>simple(columns, Iterables.transform(value.getResults(), deserializer));
         }
 
-        final Queue<ListenableFuture<Object>> cacheFutures = new ConcurrentLinkedQueue<>();
-
-        return Sequences.<T>withEffect(
-            Sequences.map(
-                Sequences.<T>simple(value.getResults()),
-                new Function<T, T>()
-                {
-                  @Override
-                  public T apply(final T input)
-                  {
-                    // only compute cache data if populating cache
-                    cacheFutures.add(
-                        backgroundExecutorService.submit(
-                            GuavaUtils.asCallable(prepareForCache, input)
-                        )
-                    );
-                    return deserializer.apply(input);
-                  }
-                }
-            ),
-            new Runnable()
+        final Iterable<T> transform = Iterables.transform(
+            value.getResults(),
+            new Function<T, T>()
             {
               @Override
-              public void run()
+              public T apply(final T input)
               {
-                Futures.addCallback(
-                    Futures.allAsList(cacheFutures),
-                    new FutureCallback<List<Object>>()
-                    {
-                      @Override
-                      public void onSuccess(List<Object> cacheData)
-                      {
-                        cachePopulator.populate(cacheData);
-                        // Help out GC by making sure all references are gone
-                        cacheFutures.clear();
-                      }
-
-                      @Override
-                      public void onFailure(Throwable throwable)
-                      {
-                        log.error(throwable, "Background caching failed");
-                        cacheFutures.clear();
-                      }
-                    },
-                    backgroundExecutorService
-                );
+                cachePopulator.write(input, prepareForCache);
+                return deserializer.apply(input);
               }
-            },
-            Execs.newDirectExecutorService()
-        );// End withEffect
+            }
+        );
+        return Sequences.<T>withEffect(
+            Sequences.<T>simple(columns, transform),
+            cachePopulator,
+            backgroundExecutorService
+        );
       }
     };
   }
@@ -613,7 +578,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   }
 
   protected Sequence<T> mergeCachedAndUncachedSequences(
-      final Query<T> query,
+      final Comparator<T> ordering,
+      final List<String> columns,
       final QueryToolChest<T, Query<T>> toolChest,
       final List<Future<Sequence>> futures,
       final int numCachedSegments,
@@ -621,20 +587,14 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   )
   {
     List<Sequence<T>> sequences = GuavaUtils.transform(futures, future -> Futures.getUnchecked(future));
-    Sequence<T> sequence = QueryUtils.mergeSort(query, sequences, executorService);
-    if (numCachedSegments > 0 && cacheAccessor != null) {
+    Sequence<T> sequence = QueryUtils.mergeSort(columns, ordering, sequences);
+    if (numCachedSegments > 0 && cacheAccessor != null && LOG.isDebugEnabled()) {
       sequence = Sequences.withBaggage(
-          sequence, new Closeable()
-          {
-            @Override
-            public void close() throws IOException
-            {
-              log.debug(
-                  "Deserialized %,d rows from %,d cached segments, took %,d msec",
-                  cacheAccessor.rows(), numCachedSegments, cacheAccessor.time()
-              );
-            }
-          }
+          sequence,
+          () -> LOG.debug(
+              "Deserialized %,d rows from %,d cached segments, took %,d msec",
+              cacheAccessor.rows(), numCachedSegments, cacheAccessor.time()
+          )
       );
     }
     return sequence;
@@ -680,10 +640,5 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         lhs.addAndGet(System.currentTimeMillis() - start);
       }
     }
-  }
-
-  private static interface CachePopulator
-  {
-    void populate(Iterable<Object> results);
   }
 }

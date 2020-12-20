@@ -28,26 +28,26 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.Accumulators;
-import io.druid.common.guava.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.BaseSequence;
 import io.druid.common.guava.ConcatSequence;
+import io.druid.common.guava.DelegatingYieldingAccumulator;
 import io.druid.common.guava.ExecuteWhenDoneYielder;
 import io.druid.common.guava.FilteredSequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.InterruptibleSequence;
+import io.druid.common.guava.LazySequence;
 import io.druid.common.guava.LimitedSequence;
 import io.druid.common.guava.MappedSequence;
+import io.druid.common.guava.MergeSequence;
 import io.druid.common.guava.ParallelInitMergeSequence;
 import io.druid.common.guava.ResourceClosingSequence;
 import io.druid.common.guava.Sequence;
 import io.druid.common.guava.Yielder;
 import io.druid.common.guava.YieldingAccumulator;
 import io.druid.concurrent.Execs;
-import io.druid.common.guava.DelegatingYieldingAccumulator;
-import io.druid.common.guava.LazySequence;
-import io.druid.common.guava.MergeSequence;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.commons.io.IOUtils;
@@ -282,6 +282,37 @@ public class Sequences
   )
   {
     return concat(columns, map(sequence, fn));
+  }
+
+  public static Sequence<Object[]> projection(Sequence<Object[]> sequence, int[] mapping)
+  {
+    final List<String> output = projection(sequence.columns(), mapping);
+    return map(output, sequence, new Function<Object[], Object[]>()
+    {
+      @Override
+      public Object[] apply(Object[] input)
+      {
+        final Object[] output = new Object[mapping.length];
+        for (int i = 0; i < mapping.length; i++) {
+          if (mapping[i] >= 0) {
+            output[i] = input[mapping[i]];
+          }
+        }
+        return output;
+      }
+    });
+  }
+
+  private static List<String> projection(List<String> columns, int[] mapping)
+  {
+    if (columns != null) {
+      List<String> reordered = Lists.newArrayList();
+      for (int x : mapping) {
+        reordered.add(GuavaUtils.get(columns, x));
+      }
+      return reordered;
+    }
+    return columns;
   }
 
   public static <F, T> Function<Sequence<F>, Sequence<T>> mapper(List<String> columns, Function<F, T> f)

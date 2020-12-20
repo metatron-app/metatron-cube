@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
@@ -67,7 +68,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -75,19 +75,49 @@ public class QueryUtils
 {
   private static final Logger log = new Logger(QueryUtils.class);
 
+  private static <T> List<String> getColumns(List<Sequence<T>> sequences)
+  {
+    return Iterables.getFirst(
+        Iterables.filter(Iterables.transform(sequences, Sequence::columns), Predicates.notNull()), null
+    );
+  }
+
   public static <T> Sequence<T> mergeSort(Query<T> query, List<Sequence<T>> sequences)
   {
-    Comparator<T> ordering = query.getMergeOrdering();
-    if (ordering == null) {
-      return Sequences.concat(sequences);
-    }
+    List<String> columns = getColumns(sequences);
     if (sequences.isEmpty()) {
-      return Sequences.empty();
+      return Sequences.empty(columns);
     }
     if (sequences.size() == 1) {
       return sequences.get(0);
     }
-    return Sequences.mergeSort(sequences.get(0).columns(), ordering, Sequences.simple(sequences));
+    Comparator<T> ordering = query.getMergeOrdering();
+    if (ordering == null) {
+      return Sequences.concat(columns, sequences);
+    }
+    return Sequences.mergeSort(columns, ordering, Sequences.simple(sequences));
+  }
+
+  public static <T> Sequence<T> mergeSort(List<String> columns, Comparator<T> ordering, Sequence<Sequence<T>> sequences)
+  {
+    if (ordering == null) {
+      return Sequences.concat(columns, sequences);
+    }
+    return mergeSort(columns, ordering, Sequences.toList(sequences));
+  }
+
+  public static <T> Sequence<T> mergeSort(List<String> columns, Comparator<T> ordering, List<Sequence<T>> sequences)
+  {
+    if (sequences.isEmpty()) {
+      return Sequences.empty(columns);
+    }
+    if (sequences.size() == 1) {
+      return sequences.get(0);
+    }
+    if (ordering == null) {
+      return Sequences.concat(columns, sequences);
+    }
+    return Sequences.mergeSort(columns, ordering, Sequences.simple(sequences));
   }
 
   public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences)
@@ -98,21 +128,6 @@ public class QueryUtils
     } else {
       return Sequences.mergeSort(null, ordering, sequences);
     }
-  }
-
-  public static <T> Sequence<T> mergeSort(Query<T> query, List<Sequence<T>> sequences, ExecutorService executor)
-  {
-    Comparator<T> ordering = query.getMergeOrdering();
-    if (ordering == null) {
-      return Sequences.concat(sequences);
-    }
-    if (sequences.isEmpty()) {
-      return Sequences.empty();
-    }
-    if (sequences.size() == 1) {
-      return sequences.get(0);
-    }
-    return Sequences.mergeSort(sequences.get(0).columns(), ordering, Sequences.simple(sequences), executor);
   }
 
   public static List<Interval> analyzeInterval(QuerySegmentWalker segmentWalker, Query<?> query)

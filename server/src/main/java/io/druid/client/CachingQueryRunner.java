@@ -23,9 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.cache.Cache;
@@ -42,8 +39,6 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.SegmentDescriptor;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -107,84 +102,57 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
       return base.run(query, responseContext);
     }
 
+    final List<String> columns = query.estimatedInitialColumns();
+
     if (useCache) {
-      final Function<Object, T> cacheFn = strategy.pullFromCache();
       final byte[] cachedResult = cache.get(key);
       if (cachedResult != null) {
+        if (cachedResult.length == 0) {
+          return Sequences.empty(columns);
+        }
         final TypeReference<?> cacheObjectClazz = strategy.getCacheObjectClazz();
 
-        return Sequences.map(
-            Sequences.simple(
-                new Iterable<Object>()
-                {
-                  @Override
-                  public Iterator<Object> iterator()
-                  {
-                    try {
-                      if (cachedResult.length == 0) {
-                        return Collections.emptyIterator();
-                      }
-
-                      return mapper.readValues(
-                          mapper.getFactory().createParser(cachedResult),
-                          cacheObjectClazz
-                      );
-                    }
-                    catch (IOException e) {
-                      throw Throwables.propagate(e);
-                    }
-                  }
+        final Sequence<Object> sequence = Sequences.simple(
+            new Iterable<Object>()
+            {
+              @Override
+              public Iterator<Object> iterator()
+              {
+                try {
+                  return mapper.readValues(
+                      mapper.getFactory().createParser(cachedResult),
+                      cacheObjectClazz
+                  );
                 }
-            ),
-            cacheFn
+                catch (IOException e) {
+                  throw Throwables.propagate(e);
+                }
+              }
+            }
         );
+        return Sequences.map(columns, sequence, strategy.pullFromCache());
       }
     }
 
-    final Collection<ListenableFuture<?>> cacheFutures = Collections.synchronizedList(Lists.<ListenableFuture<?>>newLinkedList());
     if (populateCache) {
+      final CachePopulator populator = new CachePopulator(cache, mapper, key);
       final Function<T, Object> cacheFn = strategy.prepareForCache();
-      final List<Object> cacheResults = Lists.newLinkedList();
 
       return Sequences.withEffect(
           Sequences.map(
+              columns,
               base.run(query, responseContext),
               new Function<T, T>()
               {
                 @Override
                 public T apply(final T input)
                 {
-                  cacheFutures.add(
-                      backgroundExecutorService.submit(
-                          new Runnable()
-                          {
-                            @Override
-                            public void run()
-                            {
-                              cacheResults.add(cacheFn.apply(input));
-                            }
-                          }
-                      )
-                  );
+                  populator.write(input, cacheFn);
                   return input;
                 }
               }
           ),
-          new Runnable()
-          {
-            @Override
-            public void run()
-            {
-              try {
-                Futures.allAsList(cacheFutures).get();
-                CacheUtil.populate(cache, mapper, key, cacheResults);
-              }
-              catch (Exception e) {
-                log.error(e, "Error while getting future for cache task");
-                throw Throwables.propagate(e);
-              }
-            }
-          },
+          populator,
           backgroundExecutorService
       );
     } else {
@@ -200,5 +168,4 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
     }
     return null;
   }
-
 }

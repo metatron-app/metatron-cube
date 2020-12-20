@@ -881,6 +881,14 @@ public class CachingClusteredClientTest
             )
         );
 
+    final TopNQuery query = new TopNQueryBuilder()
+        .dataSource("test")
+        .intervals("2011-01-06/2011-01-10")
+        .dimension("a")
+        .metric("b")
+        .threshold(3)
+        .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("b")))
+        .build();
     TestHelper.assertExpectedResults(
         makeTopNResults(
             new DateTime("2011-01-06T01"), "a", 50, 4991, "b", 50, 4990, "c", 50, 4989,
@@ -892,14 +900,8 @@ public class CachingClusteredClientTest
             new DateTime("2011-01-09T01"), "a", 50, 4985, "b", 50, 4984, "c", 50, 4983
         ),
         client.mergeCachedAndUncachedSequences(
-            new TopNQueryBuilder()
-                .dataSource("test")
-                .intervals("2011-01-06/2011-01-10")
-                .dimension("a")
-                .metric("b")
-                .threshold(3)
-                .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("b")))
-                .build(),
+            query.getMergeOrdering(),
+            query.estimatedOutputColumns(),
             new TopNQueryQueryToolChest(
                 new TopNQueryConfig(),
                 TestHelper.testTopNQueryEngine()

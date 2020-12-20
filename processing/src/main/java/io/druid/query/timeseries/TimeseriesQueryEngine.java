@@ -84,14 +84,15 @@ public class TimeseriesQueryEngine
       @Override
       public Sequence<Row> apply(final Cursor cursor)
       {
+        final List<String> columns = query.estimatedInitialColumns();
         if (cursor.isDone()) {
-          return Sequences.empty();
+          return Sequences.empty(columns);
         }
         final Granularity granularity = query.getGranularity();
         final Aggregator[] aggregators = Aggregators.makeAggregators(aggregatorSpecs, cursor);
         final Object[] values = new Object[aggregators.length];
         if (Granularities.ALL.equals(granularity)) {
-          return Sequences.simple(new Iterable<Row>()
+          return Sequences.simple(columns, new Iterable<Row>()
           {
             @Override
             public Iterator<Row> iterator()
@@ -125,7 +126,7 @@ public class TimeseriesQueryEngine
             }
           });
         }
-        return Sequences.simple(new Iterable<Row>()
+        return Sequences.simple(columns, new Iterable<Row>()
         {
           @Override
           public Iterator<Row> iterator()
