@@ -20,6 +20,8 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.concurrent.Execs;
+import io.druid.jackson.DefaultObjectMapper;
 import org.joda.time.Interval;
 
 import java.util.concurrent.ExecutorService;
@@ -28,6 +30,33 @@ import java.util.concurrent.ExecutorService;
  */
 public interface QuerySegmentWalker
 {
+  QuerySegmentWalker DUMMY = new QuerySegmentWalker()
+  {
+    @Override
+    public ExecutorService getExecutor()
+    {
+      return Execs.newDirectExecutorService();
+    }
+
+    @Override
+    public ObjectMapper getObjectMapper()
+    {
+      return new DefaultObjectMapper();
+    }
+
+    @Override
+    public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
+    {
+      throw new UnsupportedOperationException("getQueryRunnerForIntervals");
+    }
+
+    @Override
+    public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
+    {
+      throw new UnsupportedOperationException("getQueryRunnerForSegments");
+    }
+  };
+
   ExecutorService getExecutor();
 
   ObjectMapper getObjectMapper();

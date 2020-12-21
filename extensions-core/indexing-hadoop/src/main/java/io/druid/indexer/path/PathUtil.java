@@ -49,7 +49,7 @@ public class PathUtil
             resolved.add(status.getPath().toString());
           }
         } else {
-          RemoteIterator<LocatedFileStatus> files = fileSystem.listFiles(basePath, recursive);
+          RemoteIterator<LocatedFileStatus> files = fileSystem.listFiles(child, recursive);
           while (files.hasNext()) {
             resolved.add(files.next().getPath().toString());
           }

@@ -38,6 +38,7 @@ import io.druid.indexer.path.PathUtil;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.StringUtils;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
@@ -61,8 +62,10 @@ import java.util.List;
 import java.util.Map;
 
 @JsonTypeName("parquet")
-public class PaquetSchemaResolver implements FileLoadSpec.Resolver
+public class ParquetSchemaResolver implements FileLoadSpec.Resolver
 {
+  private static final Logger LOG = new Logger(ParquetSchemaResolver.class);
+
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
   private final List<String> paths;
   private final boolean recursive;
@@ -71,7 +74,7 @@ public class PaquetSchemaResolver implements FileLoadSpec.Resolver
   private final Granularity segmentGranularity;
 
   @JsonCreator
-  public PaquetSchemaResolver(
+  public ParquetSchemaResolver(
       @JsonProperty("basePath") String basePath,
       @JsonProperty("paths") String paths,
       @JsonProperty("recursive") boolean recursive,
@@ -96,7 +99,8 @@ public class PaquetSchemaResolver implements FileLoadSpec.Resolver
       throw new IAE("Cannot resolve path %s + %s", base, paths);
     }
     // from first file
-    Path path = base == null ? new Path(resolved.get(0)) : new Path(base, resolved.get(0));
+    String first = resolved.get(0);
+    Path path = base == null ? new Path(first) : first.isEmpty() ? base : new Path(base, first);
     ParquetMetadata metadata = ParquetFileReader.readFooter(
         new Configuration(), path, ParquetMetadataConverter.NO_FILTER
     );
@@ -131,6 +135,7 @@ public class PaquetSchemaResolver implements FileLoadSpec.Resolver
         switch (primitive.getPrimitiveTypeName()) {
           case INT32:
           case INT64:
+          case INT96:
             agggregators.add(RelayAggregatorFactory.of(field.getName(), ValueDesc.LONG));
             continue;
           case BOOLEAN:
@@ -157,7 +162,7 @@ public class PaquetSchemaResolver implements FileLoadSpec.Resolver
     DataSchema schema = new DataSchema(
         dataSource, spec, agggregators.toArray(new AggregatorFactory[0]), false, granularity, null, null, true
     );
-    return new FileLoadSpec(
+    FileLoadSpec loadSpec = new FileLoadSpec(
         basePath,
         resolved,
         "druid-hive-extensions",
@@ -168,5 +173,20 @@ public class PaquetSchemaResolver implements FileLoadSpec.Resolver
         null,
         null
     );
+    LOG.info("Extracted schema.. %s", loadSpec.getSchema().asTypeString(parser));
+    return loadSpec;
+  }
+
+  public static void main(String[] args) throws Exception
+  {
+    LOG.warn(QuerySegmentWalker.DUMMY.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(
+        new ParquetSchemaResolver(
+            null,
+            StringUtils.concat(",", args),
+            false,
+            null,
+            null
+        ).resolve("<test>", QuerySegmentWalker.DUMMY)
+    ));
   }
 }

@@ -81,7 +81,8 @@ public class Main
                InsertSegment.class,
                DumpSegment.class,
                ResetCluster.class,
-               SimpleShell.class
+               SimpleShell.class,
+               SimpleExec.class
            );
 
     builder.withGroup("index")
