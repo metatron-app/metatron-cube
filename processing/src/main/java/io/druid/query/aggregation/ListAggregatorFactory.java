@@ -94,7 +94,7 @@ public class ListAggregatorFactory extends AggregatorFactory
     return dedup ? Sets.newHashSet() : Lists.newArrayList();
   }
 
-  private Object finalizeCollection(Collection collection)
+  private List finalizeCollection(Collection collection)
   {
     List finalized = Lists.newArrayList(collection);
     if (sort) {
@@ -306,10 +306,10 @@ public class ListAggregatorFactory extends AggregatorFactory
           Set set = Sets.newHashSet();
           set.addAll(param1);
           set.addAll(param2);
-          return Lists.newArrayList(set);
+          return finalizeCollection(set);
         } else {
           param1.addAll(param2);
-          return param1;
+          return finalizeCollection(param1);
         }
       }
     };

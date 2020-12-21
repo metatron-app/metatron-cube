@@ -181,7 +181,7 @@ public interface BuiltinFunctions extends Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          final Object value = Evals.eval(args.get(0), bindings);
+          final Object value = Evals.evalValue(args.get(0), bindings);
           if (value == null) {
             return ExprEval.of(0);
           }

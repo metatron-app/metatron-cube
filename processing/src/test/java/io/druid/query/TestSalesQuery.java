@@ -32,6 +32,7 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.bloomfilter.BloomKFilter;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
@@ -866,6 +867,23 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         array("2011-01-01", "Technology", "East", 76.69999999999995D, -76.7D, "Central", "East"),
         array("2011-01-01", "Technology", "Central", 55.899999999999935D, -55.9D, "Central", "East"),
         array("2011-01-01", "Technology", "South", 31.6D, -31.6D, "Central", "East")
+    };
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+  }
+
+  @Test
+  public void test3539()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .aggregators(new SetAggregatorFactory("set(Region)", "Region", "string", -1, true))
+        .postAggregators(new MathPostAggregator("count", "size(\"set(Region)\")"))
+        .build();
+    String[] columnNames = {"__time", "set(Region)", "count"};
+    Object[][] objects = new Object[][]{
+        array("2011-01-01", Arrays.asList("Central", "East", "South", "West"), 4L)
     };
     TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
   }
