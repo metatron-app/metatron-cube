@@ -367,7 +367,10 @@ public class DruidBaseQuery implements DruidQuery
         final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
             plannerContext, sourceRowSignature, aggCall, null
         );
-        final String expression = DruidExpression.functionCall(aggCall.getAggregation().getName(), arguments);
+        final String functionName = aggCall.getAggregation().getName();
+        final String expression = DruidExpression.functionCall(
+            !functionName.startsWith("$") ? "$" + functionName : functionName, arguments    // hack
+        );
         expressions.add(StringUtils.format("\"%s\" = %s", aggCall.getName(), expression));
       }
       RowSignature outputRowSignature = RowSignature.from(window.getRowType());

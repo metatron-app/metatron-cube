@@ -32,10 +32,15 @@ import com.google.common.collect.Maps;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
+import io.druid.query.Query;
+import io.druid.query.RowSignature;
+import io.druid.query.groupby.orderby.WindowContext.Frame;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -46,7 +51,7 @@ import java.util.Objects;
 
 /**
  */
-public class WindowingSpec implements Cacheable
+public class WindowingSpec implements RowSignature.Evolving, Cacheable
 {
   public static WindowingSpec expressions(String... expressions)
   {
@@ -200,12 +205,12 @@ public class WindowingSpec implements Cacheable
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
         return context.with(partitionKey, partition)
-                      .evaluate(Iterables.transform(expressions, new Function<String, WindowContext.Frame>()
+                      .evaluate(Iterables.transform(expressions, new Function<String, Frame>()
                       {
                         @Override
-                        public WindowContext.Frame apply(String expression)
+                        public Frame apply(String expression)
                         {
-                          return WindowContext.Frame.of(Evals.splitAssign(expression, context));
+                          return Frame.of(Evals.splitAssign(expression, context));
                         }
                       }));
       }
@@ -285,6 +290,44 @@ public class WindowingSpec implements Cacheable
                   .append(expressions).sp()
                   .append(flattenSpec)
                   .append(pivotSpec);
+  }
+
+  @Override
+  public List<String> evolve(List<String> schema)
+  {
+    if (schema == null || pivotSpec != null || flattenSpec != null) {
+      return null;
+    }
+    List<String> columns = Lists.newArrayList(schema);
+    for (String expression : expressions) {
+      String outputName = Frame.of(Evals.splitAssign(Parser.parse(expression))).getOutputName();
+      if (schema.indexOf(outputName) < 0) {
+        columns.add(outputName);
+      }
+    }
+    return columns;
+  }
+
+  @Override
+  public RowSignature evolve(Query query, RowSignature schema)
+  {
+    if (schema == null || pivotSpec != null || flattenSpec != null) {
+      return null;
+    }
+    List<String> names = Lists.newArrayList(schema.getColumnNames());
+    List<ValueDesc> types = Lists.newArrayList(schema.getColumnTypes());
+    for (String expression : expressions) {
+      Frame frame = Frame.of(Evals.splitAssign(Parser.parse(expression, WindowContext.UNKNOWN)));
+      int index = names.indexOf(frame.getOutputName());
+      if (index < 0) {
+        names.add(frame.getOutputName());
+        types.add(frame.getOutputType());
+      } else {
+        names.set(index, frame.getOutputName());
+        types.set(index, frame.getOutputType());
+      }
+    }
+    return RowSignature.of(names, types);
   }
 
   @Override

@@ -68,7 +68,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         StreamQuery stream = (StreamQuery) query;
-        if (BaseQuery.isFinalize(query)) {
+        if (BaseQuery.isBrokerSide(query)) {
           return stream.applyLimit(queryRunner.run(query, responseContext));
         }
         Sequence<Object[]> sequence = queryRunner.run(query, responseContext);

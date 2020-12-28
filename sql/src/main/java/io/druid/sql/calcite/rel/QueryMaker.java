@@ -141,7 +141,7 @@ public class QueryMaker
   public Sequence<Object[]> runQuery(DruidQuery druidQuery, Query prepared)
   {
     Query query = druidQuery.getQuery();
-    LOG.debug("Running.. %s", toLazyLog(plannerContext.getObjectMapper(), query));
+    LOG.info("Running.. %s", toLazyLog(plannerContext.getObjectMapper(), query));
 
     Hook.QUERY_PLAN.run(query);   // original query
 

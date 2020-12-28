@@ -346,6 +346,16 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
       this.window = window;
     }
 
+    public String getOutputName()
+    {
+      return outputName;
+    }
+
+    public ValueDesc getOutputType()
+    {
+      return expression.returns();
+    }
+
     private boolean isTemporaryAssign()
     {
       return outputName.startsWith("#");

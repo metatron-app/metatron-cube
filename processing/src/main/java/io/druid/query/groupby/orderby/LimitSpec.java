@@ -36,8 +36,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.Expr;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
@@ -387,29 +385,19 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
   @Override
   public List<String> evolve(List<String> columns)
   {
-    if (GuavaUtils.isNullOrEmpty(windowingSpecs)) {
-      return columns;
+    for (WindowingSpec window : windowingSpecs) {
+      columns = window.evolve(columns);
     }
-    List<String> estimated = Lists.newArrayList(columns);
-    for (WindowingSpec windowingSpec : windowingSpecs) {
-      if (windowingSpec.getPivotSpec() != null || windowingSpec.getFlattenSpec() != null) {
-        return null;  // cannot estimate
-      }
-      for (String expression : windowingSpec.getExpressions()) {
-        Expr assignee = Evals.splitAssign(expression, WindowContext.UNKNOWN).lhs;
-        String key = Evals.toAssigneeEval(assignee).asString();
-        if (!estimated.contains(key)) {
-          estimated.add(key);
-        }
-      }
-    }
-    return estimated;
+    return columns;
   }
 
   @Override
   public RowSignature evolve(Query query, RowSignature schema)
   {
-    return GuavaUtils.isNullOrEmpty(windowingSpecs) ? schema : null;
+    for (WindowingSpec window : windowingSpecs) {
+      schema = window.evolve(query, schema);
+    }
+    return schema;
   }
 
   public static class SortingArrayFn implements Function<Sequence<Object[]>, Sequence<Object[]>>
