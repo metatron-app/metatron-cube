@@ -210,7 +210,7 @@ public class StreamQueryEngine
             }
         );
         if (!orderings.isEmpty()) {
-          sequence = LimitSpec.sortLimit(sequence, query.getMergeOrdering(), -1);
+          sequence = LimitSpec.sortLimit(sequence, query.getMergeOrdering(sequence.columns()), -1);
         }
         return sequence;
       }

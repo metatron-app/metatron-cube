@@ -116,7 +116,7 @@ public class ConfigQuery extends BaseQuery<Map<String, Object>> implements Filte
   }
 
   @Override
-  public Comparator<Map<String, Object>> getMergeOrdering()
+  public Comparator<Map<String, Object>> getMergeOrdering(List<String> columns)
   {
     return null;
   }

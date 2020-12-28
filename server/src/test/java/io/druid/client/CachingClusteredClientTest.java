@@ -900,7 +900,7 @@ public class CachingClusteredClientTest
             new DateTime("2011-01-09T01"), "a", 50, 4985, "b", 50, 4984, "c", 50, 4983
         ),
         client.mergeCachedAndUncachedSequences(
-            query.getMergeOrdering(),
+            query.getMergeOrdering(null),
             query.estimatedOutputColumns(),
             new TopNQueryQueryToolChest(
                 new TopNQueryConfig(),

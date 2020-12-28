@@ -121,7 +121,7 @@ public class SegmentMetadataQueryQueryToolChest
           return GuavaUtils.<SegmentAnalysis>allEquals();
         }
 
-        return query.getMergeOrdering(); // No two elements should be equal, so it should never merge
+        return query.getMergeOrdering(null); // No two elements should be equal, so it should never merge
       }
 
       @Override

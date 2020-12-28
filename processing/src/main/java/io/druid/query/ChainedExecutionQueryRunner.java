@@ -28,14 +28,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.common.guava.BaseSequence;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.MergeIterable;
-
 import io.druid.java.util.common.logger.Logger;
-import io.druid.common.guava.Comparators;
 import io.druid.utils.StopWatch;
 
 import java.util.Collections;
@@ -174,7 +173,12 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
   private Iterable<T> mergeResults(Query<T> query, List<Iterable<T>> results)
   {
-    final Comparator<T> ordering = query.getMergeOrdering();
+    final Comparator<T> ordering = getMergeOrdering(query);
     return ordering == null ? Iterables.concat(results) : new MergeIterable<>(Comparators.NULL_FIRST(ordering), results);
+  }
+
+  protected Comparator<T> getMergeOrdering(Query<T> query)
+  {
+    return query.getMergeOrdering(null);
   }
 }

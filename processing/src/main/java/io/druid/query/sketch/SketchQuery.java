@@ -262,7 +262,7 @@ public class SketchQuery extends BaseQuery<Object[]>
   }
 
   @Override
-  public Comparator<Object[]> getMergeOrdering()
+  public Comparator<Object[]> getMergeOrdering(List<String> columns)
   {
     return GuavaUtils.allEquals();
   }

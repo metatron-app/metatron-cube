@@ -120,6 +120,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -802,7 +803,8 @@ public class QueryRunnerTestHelper
           );
           sequences.add(factory.createRunner(segment, null).run(running, responseContext));
         }
-        return new MergeSequence<>(query.getMergeOrdering(), Sequences.simple(sequences));
+        Comparator<T> ordering = query.getMergeOrdering(query.estimatedInitialColumns());
+        return new MergeSequence<>(ordering, Sequences.simple(sequences));
       }
     };
     return FluentQueryRunnerBuilder.create(toolChest, baseRunner)

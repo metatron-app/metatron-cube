@@ -17,38 +17,32 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.sql.calcite;
 
-import io.druid.common.guava.CombiningSequence;
-import io.druid.common.guava.Sequence;
-import io.druid.java.util.common.guava.nary.BinaryFn;
+import io.druid.segment.TestIndex;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
-import java.util.Comparator;
-import java.util.Map;
-
-/**
- */
-public abstract class ResultMergeQueryRunner<T> extends BySegmentSkippingQueryRunner<T>
+public class TpchTestHelper extends CalciteQueryTestHelper
 {
-  public ResultMergeQueryRunner(QueryRunner<T> baseRunner)
-  {
-    super(baseRunner);
+  protected static final MiscQueryHook hook = new MiscQueryHook();
+  protected static final TestQuerySegmentWalker walker;
+
+  static {
+    walker = TestIndex.segmentWalker.duplicate().withQueryHook(hook);
+    walker.populate("lineitem");  // 30201
+    walker.populate("orders");    // 7500
+    walker.populate("partsupp");  // 4000
+    walker.populate("customer");  // 750
+    walker.populate("part");      // 1000
+    walker.populate("supplier");  // 50
+    walker.populate("nation");    // 25
+    walker.populate("region");    // 5
   }
 
   @Override
-  public Sequence<T> doRun(QueryRunner<T> baseRunner, Query<T> query, Map<String, Object> context)
+  protected TestQuerySegmentWalker walker()
   {
-    return CombiningSequence.create(
-        baseRunner.run(query, context),
-        makeOrdering(query),
-        createMergeFn(query)
-    );
+    return walker;
   }
-
-  protected Comparator<T> makeOrdering(Query<T> query)
-  {
-    return query.getMergeOrdering(null);
-  }
-
-  protected abstract BinaryFn<T,T,T> createMergeFn(Query<T> query);
 }
+

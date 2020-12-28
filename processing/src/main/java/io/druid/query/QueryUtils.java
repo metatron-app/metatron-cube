@@ -91,7 +91,7 @@ public class QueryUtils
     if (sequences.size() == 1) {
       return sequences.get(0);
     }
-    Comparator<T> ordering = query.getMergeOrdering();
+    Comparator<T> ordering = query.getMergeOrdering(columns);
     if (ordering == null) {
       return Sequences.concat(columns, sequences);
     }
@@ -122,7 +122,7 @@ public class QueryUtils
 
   public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences)
   {
-    Comparator<T> ordering = query.getMergeOrdering();
+    Comparator<T> ordering = query.getMergeOrdering(null);
     if (ordering == null) {
       return Sequences.concat(sequences);
     } else {

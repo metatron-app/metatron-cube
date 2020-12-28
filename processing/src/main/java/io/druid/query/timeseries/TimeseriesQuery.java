@@ -371,9 +371,9 @@ public class TimeseriesQuery extends BaseAggregationQuery
   }
 
   @Override
-  public Comparator<Row> getMergeOrdering()
+  public Comparator<Row> getMergeOrdering(List<String> columns)
   {
-    return Granularities.ALL.equals(granularity) ? null : super.getMergeOrdering();
+    return Granularities.ALL.equals(granularity) ? null : super.getMergeOrdering(columns);
   }
 
   public static class Builder extends BaseAggregationQuery.Builder<TimeseriesQuery>

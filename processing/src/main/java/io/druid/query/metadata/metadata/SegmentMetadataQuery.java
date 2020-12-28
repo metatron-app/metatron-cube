@@ -222,7 +222,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   }
 
   @Override
-  public Comparator<SegmentAnalysis> getMergeOrdering()
+  public Comparator<SegmentAnalysis> getMergeOrdering(List<String> columns)
   {
     Comparator<SegmentAnalysis> ordering = GuavaUtils.<SegmentAnalysis>noNullableNatural();
     if (!merge && analyzingInterval()) {

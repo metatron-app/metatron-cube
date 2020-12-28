@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -72,7 +73,7 @@ public class SchemaQuery extends BaseQuery<Schema>
   }
 
   @Override
-  public Comparator<Schema> getMergeOrdering()
+  public Comparator<Schema> getMergeOrdering(List<String> columns)
   {
     return null;
   }

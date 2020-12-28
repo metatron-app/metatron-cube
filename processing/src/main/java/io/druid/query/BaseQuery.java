@@ -597,7 +597,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Comparator<T> getMergeOrdering()
+  public Comparator<T> getMergeOrdering(List<String> columns)
   {
     final Comparator<T> retVal = GuavaUtils.<T>noNullableNatural();
     return descending ? Comparators.REVERT(retVal) : retVal;

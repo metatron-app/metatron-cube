@@ -298,14 +298,15 @@ public class StreamQuery extends BaseQuery<Object[]>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Comparator<Object[]> getMergeOrdering()
+  public Comparator<Object[]> getMergeOrdering(List<String> columns)
   {
     if (GuavaUtils.isNullOrEmpty(orderingSpecs)) {
       return null;
     }
+    final List<String> columnNames = columns == null ? getColumns() : columns;
     final List<Comparator<Object[]>> comparators = Lists.newArrayList();
     for (OrderByColumnSpec ordering : orderingSpecs) {
-      final int index = columns.indexOf(ordering.getDimension());
+      final int index = columnNames.indexOf(ordering.getDimension());
       if (index >= 0) {
         final Comparator comparator = ordering.getComparator();
         comparators.add((l, r) -> comparator.compare(l[index], r[index]));
@@ -579,8 +580,6 @@ public class StreamQuery extends BaseQuery<Object[]>
   {
     return Sequences.map(asMap(sequence), new Function<Map<String, Object>, Row>()
     {
-      private final List<String> columnNames = sequence.columns();
-
       @Override
       public Row apply(Map<String, Object> input)
       {
@@ -627,7 +626,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     }
 
     builder.append(
-        toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING)
+        toString(POST_PROCESSING, LOCAL_POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING)
     );
 
     return builder.append('}').toString();

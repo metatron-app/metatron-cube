@@ -365,8 +365,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }
 
     final Query<T> prepared = prepareQuery(query, populateCache);
-    final Comparator<T> ordering = prepared.getMergeOrdering();
     final List<String> columns = prepared.estimatedOutputColumns();
+    final Comparator<T> ordering = prepared.getMergeOrdering(columns);
 
     return new Supplier<Sequence<T>>()
     {

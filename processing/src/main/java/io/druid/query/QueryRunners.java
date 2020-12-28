@@ -36,6 +36,7 @@ import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,18 @@ public class QueryRunners
     return NoopQueryRunner.instance();
   }
 
+  public static <T> QueryRunner<T> empty(List<String> columns)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return Sequences.empty(columns);
+      }
+    };
+  }
+
   public static <T> QueryRunner<T> withResource(final QueryRunner<T> runner, final Closeable closeable)
   {
     return new QueryRunner<T>()
@@ -185,6 +198,7 @@ public class QueryRunners
     return runner.run(query, Maps.<String, Object>newHashMap());
   }
 
+  // for QueryRunnerFactory.mergeRunners (using Query.estimatedInitialColumns)
   public static <T> QueryRunner<T> executeParallel(
       final Query<T> query,
       final ExecutorService executor,
@@ -193,7 +207,7 @@ public class QueryRunners
   )
   {
     if (runners.isEmpty()) {
-      return QueryRunners.empty();
+      return QueryRunners.empty(query.estimatedInitialColumns());
     }
     if (runners.size() == 1) {
       return new QueryRunner<T>()
@@ -205,11 +219,20 @@ public class QueryRunners
         }
       };
     }
+    final List<String> columns = query.estimatedInitialColumns();
+    final Comparator<T> ordering = query.getMergeOrdering(columns);
     // used for limiting resource usage from heavy aggregators like CountMinSketch
     final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, MAX_QUERY_PARALLELISM);
     if (parallelism < 1) {
       // no limit.. todo: deprecate this
-      return new ChainedExecutionQueryRunner<T>(executor, watcher, runners);
+      return new ChainedExecutionQueryRunner<T>(executor, watcher, runners)
+      {
+        @Override
+        protected Comparator<T> getMergeOrdering(Query<T> query)
+        {
+          return ordering;
+        }
+      };
     }
     return new QueryRunner<T>()
     {
@@ -227,16 +250,16 @@ public class QueryRunners
           semaphore.destroy();
           Execs.cancelQuietly(future);
         };
-        if (query.getMergeOrdering() == null) {
+        if (ordering == null) {
           final ListenableFuture<Sequence<T>> first = futures.get(0);
           final List<ListenableFuture<Sequence<T>>> others = futures.subList(1, futures.size());
           final Sequence<T> sequence = waitForCompletion(query, first, watcher, resource);
-          return sequence == null ? Sequences.empty() :
+          return sequence == null ? Sequences.empty(columns) :
                  Sequences.concat(sequence, Sequences.concat(
                      Iterables.transform(others, FutureSequence.toSequence(sequence.columns()))));
         }
         final List<Sequence<T>> sequences = waitForCompletion(query, future, watcher, resource);
-        return sequences == null ? Sequences.empty() : QueryUtils.mergeSort(query, sequences);
+        return sequences == null ? Sequences.empty(columns) : QueryUtils.mergeSort(columns, ordering, sequences);
       }
     };
   }

@@ -131,7 +131,7 @@ public interface Query<T> extends QueryContextKeys
   boolean isDescending();
 
   // used for merging partial results.. return null if no need to (concat all: see stream query)
-  Comparator<T> getMergeOrdering();
+  Comparator<T> getMergeOrdering(List<String> columns);
 
   Query<T> withOverriddenContext(Map<String, Object> contextOverride);
 

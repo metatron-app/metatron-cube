@@ -843,7 +843,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   }
 
   @Override
-  public Comparator<Row> getMergeOrdering()
+  public Comparator<Row> getMergeOrdering(List<String> columns)
   {
     return isBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getRowOrdering();
   }

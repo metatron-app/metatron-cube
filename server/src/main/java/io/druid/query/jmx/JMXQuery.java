@@ -133,7 +133,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
   }
 
   @Override
-  public Comparator<Map<String, Object>> getMergeOrdering()
+  public Comparator<Map<String, Object>> getMergeOrdering(List<String> columns)
   {
     return Ordering.natural().nullsFirst().onResultOf(
         new Function<Map<String, Object>, Comparable>()
