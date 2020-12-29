@@ -261,7 +261,7 @@ public class JoinElement
 
   public boolean isLeftBroadcastable(DataSource left, DataSource right)
   {
-    if (joinType.isRightDrivable() && DataSources.isDataNodeSourced(right)) {
+    if (joinType.isRightDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
       List<String> columns = DataSources.getInvariantColumns(right);
       if (columns != null && columns.containsAll(rightJoinColumns)) {
         return true;
@@ -272,7 +272,7 @@ public class JoinElement
 
   public boolean isRightBroadcastable(DataSource left, DataSource right)
   {
-    if (joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left)) {
+    if (joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
       List<String> columns = DataSources.getInvariantColumns(left);
       if (columns != null && columns.containsAll(leftJoinColumns)) {
         return true;

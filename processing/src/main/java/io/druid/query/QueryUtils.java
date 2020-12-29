@@ -340,15 +340,17 @@ public class QueryUtils
             }
             Object proc = input.getContextValue(Query.POST_PROCESSING, null);
             if (proc instanceof PostProcessingOperator.LogProvider) {
-              input = input.withOverriddenContext(ImmutableMap.of(
-                  Query.POST_PROCESSING, ((PostProcessingOperator.LogProvider) proc).forLog()
-              ));
+              PostProcessingOperator forLog = ((PostProcessingOperator.LogProvider) proc).forLog();
+              if (proc != forLog) {
+                input = input.withOverriddenContext(ImmutableMap.of(Query.POST_PROCESSING, forLog));
+              }
             }
             Object local = input.getContextValue(Query.LOCAL_POST_PROCESSING, null);
             if (local instanceof PostProcessingOperator.LogProvider) {
-              input = input.withOverriddenContext(ImmutableMap.of(
-                  Query.LOCAL_POST_PROCESSING, ((PostProcessingOperator.LogProvider) local).forLog()
-              ));
+              PostProcessingOperator forLog = ((PostProcessingOperator.LogProvider) local).forLog();
+              if (local != forLog) {
+                input = input.withOverriddenContext(ImmutableMap.of(Query.LOCAL_POST_PROCESSING, forLog));
+              }
             }
             return input;
           }

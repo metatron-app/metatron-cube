@@ -355,10 +355,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             DataSource filtered = DataSources.applyFilterAndProjection(
                 left, ValuesFilter.fieldNames(leftJoinColumns, fieldValues), outputColumns
             );
-            LOG.info(
-                "-- %s (R) is merged into %s (L) as a filter with expected number of values = %d",
-                rightAlias, leftAlias, rightEstimated
-            );
+            LOG.info("-- %s:%d (R) is merged into %s (L) as a filter", rightAlias, rightEstimated, leftAlias);
             queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
             if (leftEstimated >= 0) {
               currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
@@ -377,10 +374,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             DataSource filtered = DataSources.applyFilterAndProjection(
                 right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
             );
-            LOG.info(
-                "-- %s (L) is merged into %s (R) as a filter with expected number of values = %d",
-                leftAlias, rightAlias, leftEstimated
-            );
+            LOG.info("-- %s:%d (L) is merged into %s (R) as a filte", leftAlias, leftEstimated, rightAlias);
             queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
             if (rightEstimated >= 0) {
               currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
@@ -405,10 +399,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         if (leftBroadcast) {
           Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           Query query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info(
-              "-- %s (L) will be broadcasted for %s (R) with estimated number of row %d",
-              leftAlias, rightAlias, leftEstimated
-          );
+          LOG.info("-- %s:%d (L) will be broadcasted to %s (R)", leftAlias, leftEstimated, rightAlias);
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query0, segmentWalker));
           LOG.info("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
@@ -420,8 +411,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             );
             query1 = DimFilters.and((FilterSupport<?>) query1, BloomDimFilter.of(element.getRightJoinColumns(), bloom));
             LOG.info(".. apply bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
-            rightEstimated = broadcastThreshold > 0 && rightEstimated > broadcastThreshold ? rightEstimated >> 1 : rightEstimated;
+            rightEstimated = rightEstimated > 0 && rightEstimated > broadcastThreshold ? rightEstimated >> 1 : rightEstimated;
           }
+          currentEstimation = rightEstimated;
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, true, signature, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow, bytes
           );
@@ -435,10 +427,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         if (rightBroadcast) {
           Query query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info(
-              "-- %s (R) will be broadcasted for %s (L) with estimated number of row %d",
-              rightAlias, leftAlias, rightEstimated
-          );
+          LOG.info("-- %s:%d (R) will be broadcasted to %s (L)", rightAlias, rightEstimated, leftAlias);
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query1, segmentWalker));
           LOG.info("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
@@ -450,8 +439,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             );
             query0 = DimFilters.and((FilterSupport<?>) query0, BloomDimFilter.of(element.getLeftJoinColumns(), bloom));
             LOG.info("-- .. with bloom filter %s(%s) to %s (L)", rightAlias, BaseQuery.getDimFilter(query1), leftAlias);
-            leftEstimated = broadcastThreshold > 0 && leftEstimated > broadcastThreshold ? leftEstimated >> 1 : leftEstimated;
+            leftEstimated = leftEstimated > 0 && leftEstimated > broadcastThreshold ? leftEstimated >> 1 : leftEstimated;
           }
+          currentEstimation = leftEstimated;
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, false, signature, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow, bytes
           );
@@ -477,7 +467,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (i == 0) {
         List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : leftJoinColumns;
         LOG.info(
-            "-- %s (L) : %d rows (%s)", leftAlias, leftEstimated, leftHashing ? "hash" : sortOn != null ? "sort" : "-"
+            "-- %s:%d (L) (%s)", leftAlias, leftEstimated, leftHashing ? "hash" : sortOn != null ? "sort" : "-"
         );
         Query query = JoinElement.toQuery(segmentWalker, left, sortOn, segmentSpec, context);
         if (leftHashing) {
@@ -488,7 +478,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
       List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
       LOG.info(
-          "-- %s (R) : %d rows (%s)", rightAlias, rightEstimated, rightHashing ? "hash" : sortOn != null ? "sort" : "-"
+          "-- %s:%d (R) (%s)", rightAlias, rightEstimated, rightHashing ? "hash" : sortOn != null ? "sort" : "-"
       );
       Query query = JoinElement.toQuery(segmentWalker, right, sortOn, segmentSpec, context);
       if (rightHashing) {

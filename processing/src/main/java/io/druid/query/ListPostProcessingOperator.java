@@ -33,7 +33,8 @@ import java.util.concurrent.ExecutorService;
 /**
  */
 @JsonTypeName("list")
-public class ListPostProcessingOperator<T> implements RowSignature.Evolving, UnionSupport<T>
+public class ListPostProcessingOperator<T>
+    implements RowSignature.Evolving, UnionSupport<T>, PostProcessingOperator.LogProvider<T>
 {
   private final List<PostProcessingOperator> processors;
   private final boolean supportsUnion;
@@ -115,6 +116,22 @@ public class ListPostProcessingOperator<T> implements RowSignature.Evolving, Uni
       }
     }
     return schema;
+  }
+
+  @Override
+  public PostProcessingOperator<T> forLog()
+  {
+    boolean changed = false;
+    List<PostProcessingOperator> rewritten = Lists.newArrayList();
+    for (PostProcessingOperator child : processors) {
+      if (child instanceof LogProvider) {
+        PostProcessingOperator forLog = ((LogProvider<?>) child).forLog();
+        changed |= forLog != child;
+        child = forLog;
+      }
+      rewritten.add(child);
+    }
+    return changed ? new ListPostProcessingOperator<>(rewritten) : this;
   }
 
   @Override

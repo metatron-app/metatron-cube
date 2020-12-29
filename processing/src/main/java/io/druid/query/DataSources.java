@@ -122,19 +122,23 @@ public class DataSources
     );
   }
 
-  public static boolean isApplicable(DataSource dataSource, Class<?> clazz)
-  {
-    return (dataSource instanceof ViewDataSource && clazz.isAssignableFrom(StreamQuery.class)) ||
-           (dataSource instanceof QueryDataSource && clazz.isInstance(((QueryDataSource) dataSource).getQuery()));
-  }
-
   public static boolean isDataNodeSourced(DataSource source)
   {
     if (source instanceof QueryDataSource) {
       Query inner = ((QueryDataSource) source).getQuery();
-      return inner instanceof StreamQuery &&
-             inner.getDataSource() instanceof TableDataSource &&
-             inner.getContextValue(Query.LOCAL_POST_PROCESSING) == null;    // todo: let's do it one by one
+      if (inner.getContextValue(Query.POST_PROCESSING) != null) {
+        return false;
+      }
+      if (!(inner.getDataSource() instanceof TableDataSource)) {
+        return false;
+      }
+      if (inner instanceof StreamQuery) {
+        StreamQuery stream = (StreamQuery) inner;
+        if (stream.getLimitSpec().isNoop() || stream.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
+          return true;
+        }
+      }
+      return false;
     }
     return true;
   }
