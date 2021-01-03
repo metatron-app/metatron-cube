@@ -32,7 +32,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.client.BrokerServerView;
-import io.druid.common.guava.BaseSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -64,21 +63,11 @@ import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.timeline.DataSegment;
-import org.apache.calcite.DataContext;
-import org.apache.calcite.adapter.java.JavaTypeFactory;
-import org.apache.calcite.interpreter.BindableConvention;
-import org.apache.calcite.interpreter.BindableRel;
-import org.apache.calcite.interpreter.Bindables;
-import org.apache.calcite.linq4j.Enumerable;
-import org.apache.calcite.linq4j.Enumerator;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlExplain;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -91,9 +80,7 @@ import org.apache.calcite.util.Pair;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -143,22 +130,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
     final SqlNode validated = planner.validate(target);
     final RelRoot root = planner.rel(validated);
 
-    try {
-      return planWithDruidConvention(source, root);
-    }
-    catch (RelOptPlanner.CannotPlanException e) {
-      // Try again with BINDABLE convention. Used for querying Values and metadata tables.
-      try {
-        if (!SqlKind.DML.contains(source.getKind())) {
-          return planWithBindableConvention(source, root);
-        }
-      }
-      catch (Exception e2) {
-        e.addSuppressed(e2);
-        throw e;
-      }
-      throw e;
-    }
+    return planWithDruidConvention(source, root);
   }
 
   public PlannerContext getPlannerContext()
@@ -226,94 +198,6 @@ public class DruidPlanner implements Closeable, ForwardConstants
       }
     };
     return new PlannerResult(query, resultsSupplier, root.validatedRowType, datasourceNames);
-  }
-
-  private PlannerResult planWithBindableConvention(final SqlNode source, final RelRoot root)
-      throws RelConversionException
-  {
-    BindableRel bindableRel = (BindableRel) planner.transform(
-        Rules.BINDABLE_CONVENTION_RULES,
-        planner.getEmptyTraitSet()
-               .replace(BindableConvention.INSTANCE)
-               .plus(root.collation),
-        root.rel
-    );
-
-    if (!root.isRefTrivial()) {
-      // Add a projection on top to accommodate root.fields.
-      final List<RexNode> projects = new ArrayList<>();
-      final RexBuilder rexBuilder = bindableRel.getCluster().getRexBuilder();
-      for (int field : Pair.left(root.fields)) {
-        projects.add(rexBuilder.makeInputRef(bindableRel, field));
-      }
-      bindableRel = new Bindables.BindableProject(
-          bindableRel.getCluster(),
-          bindableRel.getTraitSet(),
-          bindableRel,
-          projects,
-          root.validatedRowType
-      );
-    }
-
-    if (source.getKind() == SqlKind.EXPLAIN) {
-      return handleExplain(bindableRel, (SqlExplain) source);
-    } else {
-      final BindableRel theRel = bindableRel;
-      final DataContext dataContext = plannerContext.createDataContext((JavaTypeFactory) planner.getTypeFactory());
-      final Supplier<Sequence<Object[]>> resultsSupplier = () -> {
-        final Enumerable enumerable = theRel.bind(dataContext);
-        final Enumerator enumerator = enumerable.enumerator();
-        return Sequences.withBaggage(new BaseSequence<>(
-            new BaseSequence.IteratorMaker<Object[], EnumeratorIterator<Object[]>>()
-            {
-              @Override
-              public EnumeratorIterator<Object[]> make()
-              {
-                return new EnumeratorIterator<Object[]>(new Iterator<Object[]>()
-                {
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return enumerator.moveNext();
-                  }
-
-                  @Override
-                  public Object[] next()
-                  {
-                    return (Object[]) enumerator.current();
-                  }
-                });
-              }
-
-              @Override
-              public void cleanup(EnumeratorIterator iterFromMake) {}
-            }
-        ), enumerator::close);
-      };
-      return new PlannerResult(resultsSupplier, root.validatedRowType);
-    }
-  }
-
-  private static class EnumeratorIterator<T> implements Iterator<T>
-  {
-    private final Iterator<T> it;
-
-    public EnumeratorIterator(Iterator<T> it)
-    {
-      this.it = it;
-    }
-
-    @Override
-    public boolean hasNext()
-    {
-      return it.hasNext();
-    }
-
-    @Override
-    public T next()
-    {
-      return it.next();
-    }
   }
 
   private PlannerResult handleExplain(final RelNode rel, final SqlExplain explain)

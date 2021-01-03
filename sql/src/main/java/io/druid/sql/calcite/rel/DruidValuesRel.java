@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rel;
 
+import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCluster;
@@ -26,6 +27,7 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
@@ -135,6 +137,9 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
   @Override
   public List<String> getDataSourceNames()
   {
+    if (source instanceof TableScan) {
+      return Arrays.asList(StringUtils.concat(".", source.getTable().getQualifiedName()));
+    }
     return Arrays.asList();
   }
 }

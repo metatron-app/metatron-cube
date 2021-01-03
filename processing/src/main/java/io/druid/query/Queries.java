@@ -62,18 +62,23 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByMetaQuery;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.EventHolder;
+import io.druid.query.select.SelectMetaQuery;
+import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.QuantileOperation;
 import io.druid.query.sketch.SketchOp;
 import io.druid.query.sketch.SketchQuantilesPostAggregator;
 import io.druid.query.sketch.TypedSketch;
+import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
@@ -464,7 +469,7 @@ public class Queries
   }
 
   public static long estimateCardinality(
-      BaseAggregationQuery query,
+      Query query,
       QuerySegmentWalker segmentWalker,
       QueryConfig config
   )
@@ -473,9 +478,31 @@ public class Queries
       return estimateCardinality((TimeseriesQuery) query, segmentWalker, config);
     } else if (query instanceof GroupByQuery) {
       return estimateCardinality((GroupByQuery) query, segmentWalker, config);
+    } else if (query instanceof StreamQuery) {
+      StreamQuery stream = (StreamQuery) query;
+      return estimateCardinality(
+          stream.getDataSource(),
+          stream.getQuerySegmentSpec(),
+          stream.getFilter(),
+          BaseQuery.copyContextForMeta(stream),
+          segmentWalker
+      );
     } else {
       return -1;
     }
+  }
+
+  public static long estimateCardinality(
+      DataSource dataSource,
+      QuerySegmentSpec segmentSpec,
+      DimFilter filter,
+      Map<String, Object> context,
+      QuerySegmentWalker segmentWalker
+  )
+  {
+    SelectMetaQuery query = SelectMetaQuery.of(dataSource, segmentSpec, filter, context);
+    Result<SelectMetaResultValue> result = Sequences.only(query.run(segmentWalker, null), null);
+    return result == null ? -1 : result.getValue().getTotalCount();
   }
 
   public static long estimateCardinality(

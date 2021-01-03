@@ -288,8 +288,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     testQuery(
         "SELECT DISTINCT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA",
         new Object[]{"druid"},
-        new Object[]{"sys"},
-        new Object[]{"INFORMATION_SCHEMA"}
+        new Object[]{"INFORMATION_SCHEMA"},
+        new Object[]{"sys"}
     );
   }
 
@@ -421,9 +421,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainInformationSchemaColumns() throws Exception
   {
     final String explanation =
-        "BindableProject(COLUMN_NAME=[$3], DATA_TYPE=[$7])\n"
-        + "  BindableFilter(condition=[AND(=($1, 'druid'), =($2, 'foo'))])\n"
-        + "    BindableTableScan(table=[[INFORMATION_SCHEMA, COLUMNS]])\n";
+        "DruidOuterQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"descending\":false,\"filter\":{\"type\":\"and\",\"fields\":[{\"type\":\"selector\",\"dimension\":\"TABLE_SCHEMA\",\"value\":\"druid\"},{\"type\":\"selector\",\"dimension\":\"TABLE_NAME\",\"value\":\"foo\"}]},\"columns\":[\"COLUMN_NAME\",\"DATA_TYPE\"],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{COLUMN_NAME:string, DATA_TYPE:string}])\n"
+        + "  DruidValuesRel\n";
 
     testQuery(
         "EXPLAIN PLAN FOR\n"

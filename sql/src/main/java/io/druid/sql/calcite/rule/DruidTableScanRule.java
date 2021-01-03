@@ -20,12 +20,14 @@
 package io.druid.sql.calcite.rule;
 
 import io.druid.sql.calcite.rel.DruidQueryRel;
+import io.druid.sql.calcite.rel.DruidValuesRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.schema.ScannableTable;
 
 public class DruidTableScanRule extends RelOptRule
 {
@@ -47,6 +49,13 @@ public class DruidTableScanRule extends RelOptRule
       call.transformTo(
           DruidQueryRel.fullScan(scan, table, druidTable, queryMaker)
       );
+    } else {
+      final ScannableTable scannable = table.unwrap(ScannableTable.class);
+      if (scannable != null) {
+        call.transformTo(
+            new DruidValuesRel(scan.getCluster(), scan.getTraitSet(), scan, scannable.scan(null), queryMaker)
+        );
+      }
     }
   }
 }

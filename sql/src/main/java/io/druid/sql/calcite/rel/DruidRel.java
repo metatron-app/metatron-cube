@@ -21,17 +21,10 @@ package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
 import io.druid.sql.calcite.planner.PlannerContext;
-import org.apache.calcite.DataContext;
-import org.apache.calcite.interpreter.BindableRel;
-import org.apache.calcite.interpreter.Node;
-import org.apache.calcite.interpreter.Row;
-import org.apache.calcite.interpreter.Sink;
-import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
@@ -46,7 +39,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Predicate;
 
-public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode implements BindableRel
+public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode
 {
   static final Logger LOG = new Logger(DruidRel.class);
 
@@ -184,36 +177,6 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode imple
    * Get a list of names of datasources read by this DruidRel
    */
   public abstract List<String> getDataSourceNames();
-
-  @Override
-  public Class<Object[]> getElementType()
-  {
-    return Object[].class;
-  }
-
-  @Override
-  public Node implement(InterpreterImplementor implementor)
-  {
-    final Sink sink = implementor.compiler.sink(this);
-    return () -> runQuery().accumulate(
-        sink,
-        (Sink theSink, Object[] in) -> {
-          try {
-            theSink.send(Row.of(in));
-          }
-          catch (InterruptedException e) {
-            throw Throwables.propagate(e);
-          }
-          return theSink;
-        }
-    );
-  }
-
-  @Override
-  public Enumerable<Object[]> bind(final DataContext dataContext)
-  {
-    throw new UnsupportedOperationException();
-  }
 
   protected String toExplainString(DruidQuery druidQuery)
   {

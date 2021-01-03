@@ -27,14 +27,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.ArrayOutputSupport;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.select.SelectMetaQuery;
-import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -385,7 +381,7 @@ public class JoinElement
       }
       if (query instanceof StreamQuery) {
         StreamQuery stream = (StreamQuery) query;
-        return runSelectMetaQuery(
+        return Queries.estimateCardinality(
             stream.getDataSource(),
             stream.getQuerySegmentSpec(),
             stream.getFilter(),
@@ -395,20 +391,13 @@ public class JoinElement
       }
       return -1;
     }
-    return runSelectMetaQuery(dataSource, segmentSpec, null, BaseQuery.copyContextForMeta(context), segmentWalker);
-  }
-
-  public static long runSelectMetaQuery(
-      DataSource dataSource,
-      QuerySegmentSpec segmentSpec,
-      DimFilter filter,
-      Map<String, Object> context,
-      QuerySegmentWalker segmentWalker
-  )
-  {
-    SelectMetaQuery query = SelectMetaQuery.of(dataSource, segmentSpec, filter, context);
-    Result<SelectMetaResultValue> result = Sequences.only(query.run(segmentWalker, null), null);
-    return result == null ? -1 : result.getValue().getTotalCount();
+    return Queries.estimateCardinality(
+        dataSource,
+        segmentSpec,
+        null,
+        BaseQuery.copyContextForMeta(context),
+        segmentWalker
+    );
   }
 
   @Override

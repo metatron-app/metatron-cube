@@ -51,7 +51,6 @@ import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.rel.rules.AggregateJoinTransposeRule;
 import org.apache.calcite.rel.rules.AggregateProjectMergeRule;
 import org.apache.calcite.rel.rules.AggregateProjectPullUpConstantsRule;
-import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
 import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.AggregateStarTableRule;
 import org.apache.calcite.rel.rules.AggregateValuesRule;
@@ -104,7 +103,6 @@ public class Rules
   static final Logger LOG = new Logger(DruidPlanner.class);
 
   public static final int DRUID_CONVENTION_RULES = 0;
-  public static final int BINDABLE_CONVENTION_RULES = 1;
 
   // RelOptRules.BASE_RULES
   private static final List<RelOptRule> DEFAULT_RULES =
@@ -213,7 +211,7 @@ public class Rules
   public static List<Program> programs(QueryMaker queryMaker)
   {
     PlannerContext context = queryMaker.getPlannerContext();
-    return ImmutableList.of(druidPrograms(context, queryMaker), bindablePrograms(context));
+    return ImmutableList.of(druidPrograms(context, queryMaker));
   }
 
   private static Program druidPrograms(PlannerContext plannerContext, QueryMaker queryMaker)
@@ -260,16 +258,6 @@ public class Rules
             .build(),
         DAG, DefaultRelMetadataProvider.INSTANCE
     );
-  }
-
-  private static Program bindablePrograms(PlannerContext plannerContext)
-  {
-    List<Program> programs = Lists.newArrayList();
-    programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
-    programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
-    programs.add(Programs.ofRules(bindableConventionRuleSet(plannerContext)));
-
-    return Programs.sequence(programs.toArray(new Program[0]));
   }
 
   private static Program relLogProgram(final String subject)
@@ -348,15 +336,6 @@ public class Rules
     rules.add(DruidRelToDruidRule.instance());
 
     return ImmutableList.copyOf(rules);
-  }
-
-  private static List<RelOptRule> bindableConventionRuleSet(PlannerContext plannerContext)
-  {
-    return ImmutableList.<RelOptRule>builder()
-        .addAll(baseRuleSet(plannerContext))
-        .addAll(Bindables.RULES)
-        .add(AggregateReduceFunctionsRule.INSTANCE)
-        .build();
   }
 
   private static List<RelOptRule> baseRuleSet(PlannerContext plannerContext)

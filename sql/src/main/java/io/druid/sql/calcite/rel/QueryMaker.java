@@ -45,8 +45,10 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
+import io.druid.query.TableDataSource;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.server.QueryLifecycleFactory;
@@ -421,18 +423,41 @@ public class QueryMaker
     };
   }
 
-  public long estimateCardinality(final BaseAggregationQuery query)
+  @SuppressWarnings("unchecked")
+  public long estimateCardinality(final Query query)
   {
-    final byte[] key = KeyBuilder.get()
-                                 .appendIntervals(query.getIntervals())
-                                 .append(query.getGranularity())
-                                 .append(query.getFilter())
-                                 .append(query.getVirtualColumns())
-                                 .append(query.getDimensions())
-                                 .append(query.getGroupingSets())
-                                 .build();
+    if (!(query.getDataSource() instanceof TableDataSource)) {
+      return -1;
+    }
+    final byte[] key = computeKey(query);
     return cardinalityCache.computeIfAbsent(
         ByteArray.wrap(key), k -> Queries.estimateCardinality(query, segmentWalker, queryConfig)
     );
+  }
+
+  private byte[] computeKey(Query source)
+  {
+    if (source instanceof BaseAggregationQuery) {
+      BaseAggregationQuery query = (BaseAggregationQuery) source;
+      return KeyBuilder.get()
+                       .append(query.getType())
+                       .append(query.getDataSource())
+                       .appendIntervals(query.getIntervals())
+                       .append(query.getGranularity())
+                       .append(query.getFilter())
+                       .append(query.getVirtualColumns())
+                       .append(query.getDimensions())
+                       .append(query.getGroupingSets())
+                       .build();
+    } else if (source instanceof StreamQuery) {
+      StreamQuery query = (StreamQuery) source;
+      return KeyBuilder.get()
+                       .append(query.getType())
+                       .append(query.getDataSource())
+                       .appendIntervals(query.getIntervals())
+                       .append(query.getFilter())
+                       .build();
+    }
+    return null;
   }
 }
