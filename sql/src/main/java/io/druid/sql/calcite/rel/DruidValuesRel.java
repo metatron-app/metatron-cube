@@ -69,6 +69,12 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
   }
 
   @Override
+  public boolean isValidDruidQuery()
+  {
+    return true;
+  }
+
+  @Override
   public DruidQuery toDruidQuery(boolean finalizeAggregations)
   {
     final RowSignature signature = RowSignature.from(source.getRowType());

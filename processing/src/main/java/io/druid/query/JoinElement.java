@@ -224,6 +224,22 @@ public class JoinElement
     return leftJoinColumns.isEmpty();
   }
 
+  public void earlyCheckMaxJoin(long leftEstimated, long rightEstimated, int maxResult)
+  {
+    if (maxResult <= 0) {
+      return;
+    }
+    if (isCrossJoin() && leftEstimated > 0 && rightEstimated > 0 && leftEstimated * rightEstimated > maxResult) {
+      throw new ISE("Exceeding maxOutputRow of %d in %s + %s", maxResult, leftAlias, rightAlias);
+    }
+    if (joinType == JoinType.LO && leftEstimated > 0 && leftEstimated > maxResult) {
+      throw new ISE("Exceeding maxOutputRow of %d in %s + %s", maxResult, leftAlias, rightAlias);
+    }
+    if (joinType == JoinType.RO && rightEstimated > 0 && rightEstimated > maxResult) {
+      throw new ISE("Exceeding maxOutputRow of %d in %s + %s", maxResult, leftAlias, rightAlias);
+    }
+  }
+
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
@@ -242,9 +258,6 @@ public class JoinElement
 
   public boolean isRightSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
-    if (!DataSources.isFilterSupport(right)) {
-      return false;
-    }
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
       List<String> leftOutputColumns = DataSources.getOutputColumns(left);
       if (leftOutputColumns == null) {

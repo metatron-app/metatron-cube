@@ -127,6 +127,20 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   }
 
   @Override
+  public boolean isValidDruidQuery()
+  {
+    final DruidRel leftRel = Utils.getDruidRel(left);
+    if (leftRel == null || !leftRel.isValidDruidQuery()) {
+      return false;
+    }
+    final DruidRel rightRel = Utils.getDruidRel(right);
+    if (rightRel == null || !rightRel.isValidDruidQuery()) {
+      return false;
+    }
+    return true;
+  }
+
+  @Override
   public DruidQuery toDruidQuery(boolean finalizeAggregations)
   {
     final RelDataType rowType = getRowType();

@@ -308,6 +308,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           "Invalid schema %s, expected column names %s", schema, outputColumns
       );
     }
+    final int maxResult = config.getJoin().getMaxOutputRow(maxOutputRow);
     final int hashThreshold = config.getHashJoinThreshold(this);
     final int semiJoinThrehold = config.getSemiJoinThreshold(this);
     final int broadcastThreshold = config.getBroadcastJoinThreshold(this);
@@ -341,6 +342,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
       }
       LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinType(), leftAlias, leftEstimated, rightAlias, rightEstimated);
+
+      element.earlyCheckMaxJoin(leftEstimated, rightEstimated, maxResult);
 
       // try convert semi-join to filter
       if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {

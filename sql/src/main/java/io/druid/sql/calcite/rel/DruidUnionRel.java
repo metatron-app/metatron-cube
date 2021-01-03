@@ -93,6 +93,18 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
   }
 
   @Override
+  public boolean isValidDruidQuery()
+  {
+    for (RelNode relNode : rels) {
+      final DruidRel leftRel = Utils.getDruidRel(relNode);
+      if (leftRel == null || !leftRel.isValidDruidQuery()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @Override
   public DruidQuery toDruidQuery(final boolean finalizeAggregations)
   {
     RelDataType dataType0 = null;
