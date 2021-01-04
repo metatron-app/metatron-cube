@@ -81,7 +81,7 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
 
   @Override
   @Nonnull
-  public DruidQuery toDruidQuery(final boolean finalizeAggregations)
+  public DruidQuery makeDruidQuery(final boolean finalizeAggregations)
   {
     return partialQuery.build(
         druidTable.getDataSource(),

@@ -120,7 +120,7 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   }
 
   @Override
-  public DruidQuery toDruidQuery(boolean finalizeAggregations)
+  public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
     final DruidQueryRel queryRel = Utils.findRel(query, DruidQueryRel.class);
     final DruidQueryRel boundaryRel = Utils.findRel(boundary, DruidQueryRel.class);

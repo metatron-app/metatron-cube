@@ -109,7 +109,7 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
 
   @Nullable
   @Override
-  public DruidQuery toDruidQuery(final boolean finalizeAggregations)
+  public DruidQuery makeDruidQuery(final boolean finalizeAggregations)
   {
     // Must finalize aggregations on subqueries.
 

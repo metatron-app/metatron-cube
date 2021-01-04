@@ -105,7 +105,7 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
   }
 
   @Override
-  public DruidQuery toDruidQuery(final boolean finalizeAggregations)
+  public DruidQuery makeDruidQuery(final boolean finalizeAggregations)
   {
     RelDataType dataType0 = null;
     RowSignature signature0 = null;

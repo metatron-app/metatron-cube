@@ -551,9 +551,12 @@ public class PartialDruidQuery
 
   public double cost(DruidTable table)
   {
-    double base = COST_BASE;
+    return cost(table.getRowSignature(), COST_BASE);
+  }
 
-    List<String> columns = table.getRowSignature().getColumnNames();
+  public double cost(RowSignature signature, double base)
+  {
+    List<String> columns = signature.getColumnNames();
     if (scanProject != null) {
       base *= scanProject.getChildExps().size() / (double) columns.size();
     }

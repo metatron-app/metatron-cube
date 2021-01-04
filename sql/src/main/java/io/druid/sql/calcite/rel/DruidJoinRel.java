@@ -143,6 +143,12 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   @Override
   public DruidQuery toDruidQuery(boolean finalizeAggregations)
   {
+    return withFinalize.get();
+  }
+
+  @Override
+  public DruidQuery makeDruidQuery(boolean finalizeAggregations)
+  {
     final RelDataType rowType = getRowType();
     final DruidRel leftRel = Utils.getDruidRel(left);
     final DruidRel rightRel = Utils.getDruidRel(right);

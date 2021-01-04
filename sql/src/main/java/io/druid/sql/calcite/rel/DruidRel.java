@@ -21,6 +21,8 @@ package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
@@ -121,6 +123,12 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode
     }
   }
 
+  public double estimateNumRows()
+  {
+    final DruidQuery query = toDruidQuery(false);
+    return query == null ? Integer.MAX_VALUE : queryMaker.estimateCardinality(query.getQuery());
+  }
+
   public abstract RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq);
 
   /**
@@ -138,7 +146,15 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode
    * @throws CannotBuildQueryException
    */
   @Nullable
-  public abstract DruidQuery toDruidQuery(boolean finalizeAggregations);
+  protected abstract DruidQuery makeDruidQuery(boolean finalizeAggregations);
+
+  final Supplier<DruidQuery> withFinalize = Suppliers.memoize(() -> makeDruidQuery(true));
+  final Supplier<DruidQuery> withoutFinalize = Suppliers.memoize(() -> makeDruidQuery(false));
+
+  public DruidQuery toDruidQuery(boolean finalizeAggregations)
+  {
+    return finalizeAggregations ? withFinalize.get() : withoutFinalize.get();
+  }
 
   /**
    * Convert this DruidRel to a DruidQuery for purposes of explaining. This must be an inexpensive operation. For

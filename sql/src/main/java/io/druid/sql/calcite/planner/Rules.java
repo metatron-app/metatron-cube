@@ -246,15 +246,20 @@ public class Rules
 
   private static Program createHepProgram(RelOptRule... rules)
   {
+    return createHepProgram(Arrays.asList(rules));
+  }
+
+  private static Program createHepProgram(List<RelOptRule> rules)
+  {
     return createHepProgram(HepMatchOrder.TOP_DOWN, rules);
   }
 
-  private static Program createHepProgram(HepMatchOrder order, RelOptRule... rules)
+  private static Program createHepProgram(HepMatchOrder order, List<RelOptRule> rules)
   {
     return Programs.of(
         new HepProgramBuilder()
             .addMatchOrder(order)
-            .addRuleCollection(Arrays.asList(rules))
+            .addRuleCollection(rules)
             .build(),
         DAG, DefaultRelMetadataProvider.INSTANCE
     );

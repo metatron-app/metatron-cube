@@ -42,8 +42,8 @@ public class DruidTable implements TranslatableTable
 {
   private final DataSource dataSource;
   private final RowSignature signature;
+  private final Statistic statistic;
   private final Map<String, Map<String, String>> descriptors;
-  private final long rowNum;
 
   public DruidTable(
       DataSource dataSource,
@@ -54,8 +54,8 @@ public class DruidTable implements TranslatableTable
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
     this.signature = Preconditions.checkNotNull(signature, "signature");
+    this.statistic = Statistics.of(rowNum, ImmutableList.of());
     this.descriptors = descriptors;
-    this.rowNum = rowNum;
   }
 
   public DataSource getDataSource()
@@ -82,7 +82,7 @@ public class DruidTable implements TranslatableTable
   @Override
   public Statistic getStatistic()
   {
-    return Statistics.of(rowNum, ImmutableList.of());
+    return statistic;
   }
 
   @Override
@@ -140,7 +140,7 @@ public class DruidTable implements TranslatableTable
            "dataSource=" + dataSource +
            ", rowSignature=" + signature +
            ", descriptors=" + descriptors +
-           ", rowNum=" + rowNum +
+           ", rowCount=" + statistic.getRowCount() +
            '}';
   }
 
