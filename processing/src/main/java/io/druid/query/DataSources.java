@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.FilterSupport;
@@ -146,16 +147,21 @@ public class DataSources
   public static List<String> getInvariantColumns(DataSource dataSource)
   {
     if (dataSource instanceof QueryDataSource) {
-      Query<?> query = ((QueryDataSource) dataSource).getQuery();
-      if (query instanceof BaseAggregationQuery) {
-        return DimensionSpecs.toOutputNames(((BaseAggregationQuery) query).getDimensions());
-      } else if (query instanceof Query.ColumnsSupport) {
-        return ((Query.ColumnsSupport<?>) query).getColumns();
-      }
+      return getInvariantColumns(((QueryDataSource) dataSource).getQuery());
     } else if (dataSource instanceof ViewDataSource) {
       return ((ViewDataSource) dataSource).getColumns();
     }
     return null;
+  }
+
+  public static List<String> getInvariantColumns(Query<?> query)
+  {
+    if (query instanceof BaseAggregationQuery) {
+      return DimensionSpecs.toOutputNames(((BaseAggregationQuery) query).getDimensions());
+    } else if (query instanceof Query.ColumnsSupport) {
+      return ((Query.ColumnsSupport<?>) query).getColumns();
+    }
+    return ImmutableList.of();
   }
 
   public static List<String> getOutputColumns(DataSource dataSource)

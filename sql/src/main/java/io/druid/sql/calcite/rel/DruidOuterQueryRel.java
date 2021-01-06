@@ -93,7 +93,7 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   {
     return new DruidOuterQueryRel(
         getCluster(),
-        getTraitSet().plusAll(newQueryBuilder.getRelTraits()),
+        getTraitSet().plus(newQueryBuilder.getCollation()),
         sourceRel,
         newQueryBuilder,
         getQueryMaker()

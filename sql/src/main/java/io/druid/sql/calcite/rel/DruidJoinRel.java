@@ -59,8 +59,8 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   public static DruidJoinRel create(Join join, JoinInfo joinInfo, DruidRel left, DruidRel right)
   {
     return new DruidJoinRel(
-        left.getCluster(),
-        left.getTraitSet(),
+        join.getCluster(),
+        join.getTraitSet(),
         join.getJoinType(),
         left,
         right,

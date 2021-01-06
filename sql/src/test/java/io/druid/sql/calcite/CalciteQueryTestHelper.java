@@ -20,6 +20,8 @@
 package io.druid.sql.calcite;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Functions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -91,7 +93,10 @@ import org.junit.Rule;
 import org.junit.internal.ArrayComparisonFailure;
 import org.junit.internal.ComparisonCriteria;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -631,6 +636,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
     protected void verifyHooked(List<String> expected)
     {
+      expected = expected.subList(1, expected.size());
       try {
         final int compareTo = Math.min(expected.size(), hooked.size());
         for (int i = 0; i < compareTo; i++) {
@@ -660,14 +666,28 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
     protected void printHooked()
     {
+      MessageDigest md5;
+      try {
+        md5 = MessageDigest.getInstance("MD5");
+      }
+      catch (NoSuchAlgorithmException e) {
+        throw Throwables.propagate(e);
+      }
       StringBuilder builder = new StringBuilder();
-      for (int i = 0; i < hooked.size(); i++) {
-        builder.append('"').append(hooked.get(i).toString()).append('\"');
-        if (i < hooked.size() - 1) {
+      List<String> queries = GuavaUtils.transform(hooked, Functions.toStringFunction());
+      for (String query : queries) {
+        md5.update(StringUtils.toUtf8(query));
+      }
+      builder.append("hook.verifyHooked(\n");
+      queries.add(0, Base64.getEncoder().encodeToString(md5.digest()));
+      for (int i = 0; i < queries.size(); i++) {
+        builder.append('\t').append('"').append(queries.get(i)).append('\"');
+        if (i < queries.size() - 1) {
           builder.append(',');
         }
         builder.append('\n');
       }
+      builder.append(");\n");
       System.out.println(builder.toString());
     }
 

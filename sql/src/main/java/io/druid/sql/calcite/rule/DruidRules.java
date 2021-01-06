@@ -91,7 +91,7 @@ public class DruidRules
           final RelType otherRel = call.rel(0);
           final DruidRel druidRel = call.rel(1);
 
-          DruidRel newDruidRel = tryQueryRel(otherRel, druidRel);
+          RelNode newDruidRel = tryMergeRel(otherRel, druidRel);
           if (newDruidRel == null) {
             newDruidRel = tryOuterRel(otherRel, druidRel);
           }
@@ -100,12 +100,15 @@ public class DruidRules
           }
         }
 
-        private DruidRel tryQueryRel(RelType otherRel, DruidRel druidRel)
+        private RelNode tryMergeRel(RelType otherRel, DruidRel druidRel)
         {
           final PartialDruidQuery druidQuery = druidRel.getPartialDruidQuery();
           if (druidQuery != null) {
             final PartialDruidQuery newDruidQuery = f.apply(druidQuery, otherRel);
             if (newDruidQuery != null) {
+              if (newDruidQuery.isScanOnly()) {
+                return newDruidQuery.getScan();   // prevents circular reference
+              }
               final DruidRel newDruidRel = druidRel.withPartialQuery(newDruidQuery);
               if (newDruidRel.isValidDruidQuery()) {
                 return newDruidRel;
@@ -115,7 +118,7 @@ public class DruidRules
           return null;
         }
 
-        private DruidRel tryOuterRel(RelType otherRel, DruidRel druidRel)
+        private RelNode tryOuterRel(RelType otherRel, DruidRel druidRel)
         {
           final PartialDruidQuery newDruidQuery = f.apply(PartialDruidQuery.create(druidRel.getLeafRel()), otherRel);
           if (newDruidQuery != null) {

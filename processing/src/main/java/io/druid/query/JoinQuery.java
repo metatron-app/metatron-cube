@@ -377,7 +377,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             DataSource filtered = DataSources.applyFilterAndProjection(
                 right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
             );
-            LOG.info("-- %s:%d (L) is merged into %s (R) as a filte", leftAlias, leftEstimated, rightAlias);
+            LOG.info("-- %s:%d (L) is merged into %s (R) as a filter", leftAlias, leftEstimated, rightAlias);
             queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
             if (rightEstimated >= 0) {
               currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
@@ -494,7 +494,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       if (i == 0 && !element.isCrossJoin()) {
         final Query query0 = queries.get(0);
         final Query query1 = queries.get(1);
-        if (joinType.isLeftDrivable() && query0.hasFilters() && rightEstimated > bloomFilterThreshold) {
+        if (joinType.isLeftDrivable() && query0.hasFilters() && query0.getContextValue(Query.LOCAL_POST_PROCESSING) == null && rightEstimated > bloomFilterThreshold) {
           // left to right
           Query applied = bloom(query0, leftJoinColumns, leftEstimated, rightEstimated, query1, rightJoinColumns);
           if (applied != null) {
@@ -502,7 +502,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
             queries.set(1, applied);
           }
         }
-        if (joinType.isRightDrivable() && query1.hasFilters() && leftEstimated > bloomFilterThreshold) {
+        if (joinType.isRightDrivable() && query1.hasFilters() && query1.getContextValue(Query.LOCAL_POST_PROCESSING) == null && leftEstimated > bloomFilterThreshold) {
           // right to left
           Query applied = bloom(query1, rightJoinColumns, rightEstimated, leftEstimated, query0, leftJoinColumns);
           if (applied != null) {

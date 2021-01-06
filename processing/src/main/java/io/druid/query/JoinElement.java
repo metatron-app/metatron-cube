@@ -239,6 +239,10 @@ public class JoinElement
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
+      List<String> leftOutputColumns = DataSources.getOutputColumns(left);
+      if (leftOutputColumns == null || !leftOutputColumns.containsAll(leftJoinColumns)) {
+        return false;
+      }
       List<String> rightOutputColumns = DataSources.getOutputColumns(right);
       if (rightOutputColumns == null) {
         return false;
@@ -255,6 +259,10 @@ public class JoinElement
   public boolean isRightSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
+      List<String> rightOutputColumns = DataSources.getOutputColumns(right);
+      if (rightOutputColumns == null || !rightOutputColumns.containsAll(rightJoinColumns)) {
+        return false;
+      }
       List<String> leftOutputColumns = DataSources.getOutputColumns(left);
       if (leftOutputColumns == null) {
         return false;
@@ -272,7 +280,7 @@ public class JoinElement
   {
     if (joinType.isRightDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
       List<String> columns = DataSources.getInvariantColumns(right);
-      if (columns != null && columns.containsAll(rightJoinColumns)) {
+      if (columns.containsAll(rightJoinColumns)) {
         return true;
       }
     }
@@ -283,7 +291,7 @@ public class JoinElement
   {
     if (joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
       List<String> columns = DataSources.getInvariantColumns(left);
-      if (columns != null && columns.containsAll(leftJoinColumns)) {
+      if (columns.containsAll(leftJoinColumns)) {
         return true;
       }
     }
@@ -317,7 +325,8 @@ public class JoinElement
         throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
-        if (!(query.getDataSource() instanceof QueryDataSource)) {
+        if (!(query.getDataSource() instanceof QueryDataSource) &&
+            DataSources.getInvariantColumns(query).containsAll(sortColumns)) {
           query = ((Query.OrderingSupport) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns));
         }
       }

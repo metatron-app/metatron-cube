@@ -29,6 +29,7 @@ import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
+import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Aggregate;
@@ -185,7 +186,7 @@ public class PartialDruidQuery
     return sortProject;
   }
 
-  public boolean isEmpty()
+  public boolean isScanOnly()
   {
     return scanFilter == null && scanProject == null && stage() == Stage.SELECT;
   }
@@ -458,9 +459,9 @@ public class PartialDruidQuery
     return leafRel().getRowType();
   }
 
-  public RelTrait[] getRelTraits()
+  public RelTrait getCollation()
   {
-    return leafRel().getTraitSet().toArray(new RelTrait[0]);
+    return leafRel().getTraitSet().getTrait(RelCollationTraitDef.INSTANCE);
   }
 
   public DruidQuery build(
@@ -542,7 +543,7 @@ public class PartialDruidQuery
   // and limits through stacks of nested queries when possible.
   private static final double COST_BASE = 1;
   private static final double COST_PER_COLUMN = 0.001;
-  private static final double COST_FILTER_MULTIPLIER = 0.1;
+  private static final double COST_FILTER_MULTIPLIER = 0.2;
   private static final double COST_GROUPING_MULTIPLIER = 0.5;
   private static final double COST_WINDOW_MULTIPLIER = 2.5;
   private static final double COST_SORT_MULTIPLIER = 2.0;

@@ -122,7 +122,7 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
   {
     return new DruidQueryRel(
         getCluster(),
-        getTraitSet().plusAll(newQueryBuilder.getRelTraits()),
+        getTraitSet().plus(newQueryBuilder.getCollation()),
         table,
         druidTable,
         getQueryMaker(),

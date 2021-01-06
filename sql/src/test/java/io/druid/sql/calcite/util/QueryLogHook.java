@@ -19,10 +19,8 @@
 
 package io.druid.sql.calcite.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -38,26 +36,15 @@ import java.util.function.Consumer;
 /**
  * JUnit Rule that adds a Calcite hook to log and remember Druid queries.
  */
-public class QueryLogHook implements TestRule
+public class QueryLogHook implements TestRule, Consumer<Object>
 {
   private static final Logger log = new Logger(QueryLogHook.class);
 
-  private final ObjectMapper objectMapper;
   private final List<Query> recordedQueries = Lists.newCopyOnWriteArrayList();
-
-  public QueryLogHook(final ObjectMapper objectMapper)
-  {
-    this.objectMapper = objectMapper;
-  }
 
   public static QueryLogHook create()
   {
-    return new QueryLogHook(new DefaultObjectMapper());
-  }
-
-  public static QueryLogHook create(final ObjectMapper objectMapper)
-  {
-    return new QueryLogHook(objectMapper);
+    return new QueryLogHook();
   }
 
   public void clearRecordedQueries()
@@ -79,25 +66,18 @@ public class QueryLogHook implements TestRule
       public void evaluate() throws Throwable
       {
         clearRecordedQueries();
-
-        final Consumer<Object> function = query -> {
-          query = Queries.iterate((Query) query, q -> q.withOverriddenContext(CalciteQueryTestHelper.REMOVER));
-          try {
-            recordedQueries.add((Query) query);
-            log.info(
-                "Issued query: %s",
-                objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(query)
-            );
-          }
-          catch (Exception e) {
-            log.warn(e, "Failed to serialize query: %s", query);
-          }
-        };
-
-        try (final Hook.Closeable unhook = Hook.QUERY_PLAN.add(function)) {
+        try (final Hook.Closeable unhook = Hook.QUERY_PLAN.add(QueryLogHook.this)) {
           base.evaluate();
         }
       }
     };
+  }
+
+  @Override
+  public void accept(Object query)
+  {
+    recordedQueries.add(
+        Queries.iterate((Query) query, q -> q.withOverriddenContext(CalciteQueryTestHelper.REMOVER))
+    );
   }
 }
