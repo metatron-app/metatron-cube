@@ -85,13 +85,18 @@ public class BitmapHolder extends Pair<Boolean, ImmutableBitmap>
 
   public static BitmapHolder intersection(BitmapFactory factory, List<BitmapHolder> holders)
   {
+    return intersection(factory, holders, true);
+  }
+
+  public static BitmapHolder intersection(BitmapFactory factory, List<BitmapHolder> holders, boolean exact)
+  {
     if (GuavaUtils.isNullOrEmpty(holders)) {
       return null;
     }
     if (holders.size() == 1) {
-      return holders.get(0);
+      BitmapHolder holder = holders.get(0);
+      return exact ^ holder.exact() ? BitmapHolder.of(exact, holder.rhs) : holder;
     }
-    boolean exact = true;
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (BitmapHolder holder : holders) {
       if (holder != null) {

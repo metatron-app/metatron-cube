@@ -23,20 +23,22 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Maps;
+import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
-import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.InFilter;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -112,22 +114,48 @@ public class InDimsFilter implements DimFilter.BestEffort
             holders.add(holder);
           }
         }
-        return holders.isEmpty() ? null : BitmapHolder.intersection(context.bitmapFactory(), holders);
+        return holders.isEmpty() ? null : BitmapHolder.intersection(context.bitmapFactory(), holders, false);
       }
 
       @Override
       public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
       {
-        final List<ValueMatcher> matchers = Lists.newArrayList();
-        for (int i = 0; i < dimensions.size(); i++) {
-          final String dimension = dimensions.get(i);
-          final Set<String> valueSet = Sets.newHashSet(values.get(i));
-          final ValueMatcher matcher = new InFilter(dimension, valueSet, null).makeMatcher(factory);
-          if (matcher != null) {
-            matchers.add(matcher);
-          }
+        final List<ObjectColumnSelector> selectors = GuavaUtils.transform(
+            dimensions, dimension -> factory.makeObjectColumnSelector(dimension)
+        );
+        final Map<String, IntList> mapping = Maps.newHashMap();
+        final List<String> strings = values.get(0);
+        for (int i = 0; i < strings.size(); i++) {
+          mapping.computeIfAbsent(strings.get(i), k -> new IntList()).add(i);
         }
-        return AndFilter.makeMatcher(matchers);
+        // todo: optimize this
+        return new ValueMatcher()
+        {
+          @Override
+          public boolean matches()
+          {
+            final IntList indices = mapping.get(selectors.get(0).get());
+            if (indices == null || indices.isEmpty()) {
+              return false;
+            }
+            for (int x = 0; x < indices.size(); x++) {
+              if (matches(indices.get(x), 1)) {
+                return true;
+              }
+            }
+            return false;
+          }
+
+          private boolean matches(int index, int order)
+          {
+            final String expected = values.get(order).get(index);
+            final String value = Objects.toString(selectors.get(order).get(), null);
+            if (Objects.equals(expected, value)) {
+              return order == selectors.size() - 1 || matches(index, order + 1);
+            }
+            return false;
+          }
+        };
       }
     };
   }
