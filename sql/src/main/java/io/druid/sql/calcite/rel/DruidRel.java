@@ -41,7 +41,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.function.Predicate;
 
-public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode
+public abstract class DruidRel extends AbstractRelNode
 {
   static final Logger LOG = new Logger(DruidRel.class);
 
@@ -110,7 +110,7 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode
     return getQueryMaker().prepareAndRun(toDruidQuery(false));
   }
 
-  public abstract T withPartialQuery(PartialDruidQuery newQueryBuilder);
+  public abstract DruidRel withPartialQuery(PartialDruidQuery newQueryBuilder);
 
   public boolean isValidDruidQuery()
   {
@@ -187,7 +187,7 @@ public abstract class DruidRel<T extends DruidRel> extends AbstractRelNode
     return queryMaker.getJsonMapper();
   }
 
-  public abstract T asDruidConvention();
+  public abstract DruidRel asDruidConvention();
 
   /**
    * Get a list of names of datasources read by this DruidRel

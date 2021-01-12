@@ -54,7 +54,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.LeafRel
+public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
 {
   public static DruidJoinRel create(Join join, JoinInfo joinInfo, DruidRel left, DruidRel right)
   {
@@ -253,8 +253,8 @@ public class DruidJoinRel extends DruidRel<DruidJoinRel> implements DruidRel.Lea
   @Override
   public List<String> getDataSourceNames()
   {
-    final DruidRel<?> druidRight = (DruidRel) this.right;
-    final DruidRel<?> druidLeft = (DruidRel) this.left;
+    final DruidRel druidLeft = Utils.getDruidRel(left);
+    final DruidRel druidRight = Utils.getDruidRel(right);
     Set<String> datasourceNames = new LinkedHashSet<>();
     datasourceNames.addAll(druidLeft.getDataSourceNames());
     datasourceNames.addAll(druidRight.getDataSourceNames());

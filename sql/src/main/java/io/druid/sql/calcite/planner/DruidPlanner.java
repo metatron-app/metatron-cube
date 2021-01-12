@@ -146,7 +146,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
 
   private PlannerResult planWithDruidConvention(final SqlNode source, final RelRoot root) throws RelConversionException
   {
-    final DruidRel<?> druidRel = (DruidRel<?>) planner.transform(
+    final DruidRel druidRel = (DruidRel) planner.transform(
         Rules.DRUID_CONVENTION_RULES,
         planner.getEmptyTraitSet()
                .replace(DruidConvention.instance())
@@ -228,7 +228,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
   @SuppressWarnings("unchecked")
   private PlannerResult handleCTAS(
       final List<String> mappedColumns,
-      final DruidRel<?> druidRel,
+      final DruidRel druidRel,
       final SqlCreateTable source
   )
   {
@@ -370,7 +370,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
   @SuppressWarnings("unchecked")
   private PlannerResult handleInsertDirectory(
       final List<String> mappedColumns,
-      final DruidRel<?> druidRel,
+      final DruidRel druidRel,
       final SqlInsertDirectory source
   )
   {

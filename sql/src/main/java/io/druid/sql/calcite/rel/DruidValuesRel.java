@@ -27,6 +27,7 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
@@ -34,7 +35,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import java.util.Arrays;
 import java.util.List;
 
-public class DruidValuesRel extends DruidRel<DruidValuesRel>
+public class DruidValuesRel extends DruidRel
 {
   private final RelNode source;
   private final Iterable<Object[]> values;
@@ -147,5 +148,12 @@ public class DruidValuesRel extends DruidRel<DruidValuesRel>
       return Arrays.asList(StringUtils.concat(".", source.getTable().getQualifiedName()));
     }
     return Arrays.asList();
+  }
+
+  @Override
+  public RelWriter explainTerms(RelWriter pw)
+  {
+    return super.explainTerms(pw)
+                .input("source", source);
   }
 }

@@ -443,7 +443,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         catch (JsonProcessingException e1) {
           // ignore
         }
-        throw e;
+        failed(e);
       }
     }
   }

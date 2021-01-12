@@ -38,7 +38,7 @@ import java.util.List;
 /**
  * DruidRel that uses a "table" dataSource.
  */
-public class DruidQueryRel extends DruidRel<DruidQueryRel>
+public class DruidQueryRel extends DruidRel
 {
   private final RelOptTable table;
   private final DruidTable druidTable;
@@ -151,10 +151,7 @@ public class DruidQueryRel extends DruidRel<DruidQueryRel>
   @Override
   public RelWriter explainTerms(RelWriter pw)
   {
-    DruidQuery druidQuery = toDruidQueryForExplaining();
-    return super.explainTerms(pw)
-                .item("query", toExplainString(druidQuery))
-                .item("signature", druidQuery.getOutputRowSignature());
+    return partialQuery.explainTerms(pw.item("table", table.getQualifiedName()));
   }
 
   @Override

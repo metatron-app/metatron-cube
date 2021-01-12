@@ -52,7 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implements DruidRel.LeafRel
+public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
 {
   private static final Logger LOG = new Logger(DruidSpatialJoinRel.class);
 
@@ -229,8 +229,8 @@ public class DruidSpatialJoinRel extends DruidRel<DruidSpatialJoinRel> implement
   @Override
   public List<String> getDataSourceNames()
   {
-    final DruidRel<?> druidLeft = (DruidRel) query;
-    final DruidRel<?> druidRight = (DruidRel) boundary;
+    final DruidRel druidLeft = Utils.getDruidRel(query);
+    final DruidRel druidRight = Utils.getDruidRel(boundary);
     Set<String> datasourceNames = new LinkedHashSet<>();
     datasourceNames.addAll(druidLeft.getDataSourceNames());
     datasourceNames.addAll(druidRight.getDataSourceNames());

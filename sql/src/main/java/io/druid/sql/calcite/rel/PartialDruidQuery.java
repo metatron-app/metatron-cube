@@ -27,12 +27,15 @@ import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.core.Aggregate;
+import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
@@ -45,6 +48,7 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.util.Util;
 
 import java.util.List;
 import java.util.Objects;
@@ -89,6 +93,48 @@ public class PartialDruidQuery
       rexNode = RelOptUtil.pushPastProject(rexNode, scanProject);
     }
     return rexNode;
+  }
+
+  public RelWriter explainTerms(RelWriter relWriter)
+  {
+    if (scanFilter != null) {
+      relWriter.item("scanFilter", scanFilter.getCondition());
+    }
+    if (scanProject != null) {
+      relWriter.item("scanProject", scanProject.getProjects());
+    }
+    if (aggregate != null) {
+      relWriter.itemIf("group", aggregate.getGroupSet(), !aggregate.getGroupSet().isEmpty())
+               .itemIf("groups", aggregate.getGroupSets(), aggregate.getGroupType() != Aggregate.Group.SIMPLE);
+      for (Ord<AggregateCall> ord : Ord.zip(aggregate.getAggCallList())) {
+        relWriter.item(Util.first(ord.e.name, "agg#" + ord.i), ord.e);
+      }
+    }
+    if (aggregateFilter != null) {
+      relWriter.item("aggregateFilter", aggregateFilter.getCondition());
+    }
+    if (aggregateProject != null) {
+      relWriter.item("aggregateProject", aggregateProject.getProjects());
+    }
+    if (window != null) {
+      for (Ord<Window.Group> window : Ord.zip(window.groups)) {
+        relWriter.item("window#" + window.i, window.e.toString());
+      }
+    }
+    if (sort != null) {
+      for (Ord<RexNode> ord : Ord.zip(sort.getChildExps())) {
+        relWriter.item("sort" + ord.i, ord.e);
+      }
+      for (Ord<RelFieldCollation> ord : Ord.zip(sort.getCollation().getFieldCollations())) {
+        relWriter.item("dir" + ord.i, ord.e.shortString());
+      }
+      relWriter.itemIf("offset", sort.offset, sort.offset != null);
+      relWriter.itemIf("fetch", sort.fetch, sort.fetch != null);
+    }
+    if (sortProject != null) {
+      relWriter.item("sortProject", sortProject.getProjects());
+    }
+    return relWriter;
   }
 
   public enum Operator

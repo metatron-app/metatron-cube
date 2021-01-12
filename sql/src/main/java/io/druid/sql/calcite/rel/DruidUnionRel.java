@@ -21,7 +21,6 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
 import io.druid.query.UnionAllQuery;
 import io.druid.sql.calcite.Utils;
@@ -40,7 +39,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.LeafRel
+public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
 {
   private final RelDataType rowType;
   private final List<RelNode> rels;
@@ -111,7 +110,7 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
     RowSignature signature0 = null;
     List<Query> queries = Lists.newArrayList();
     for (RelNode relNode : rels) {
-      DruidRel<?> druidRel = Utils.getDruidRel(relNode);
+      DruidRel druidRel = Utils.getDruidRel(relNode);
       if (druidRel == null) {
         return null;
       }
@@ -177,7 +176,7 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
   public List<String> getDataSourceNames()
   {
     return rels.stream()
-               .flatMap(rel -> ((DruidRel<?>) rel).getDataSourceNames().stream())
+               .flatMap(rel -> Utils.getDruidRel(rel).getDataSourceNames().stream())
                .distinct()
                .collect(Collectors.toList());
   }
@@ -213,7 +212,7 @@ public class DruidUnionRel extends DruidRel<DruidUnionRel> implements DruidRel.L
     super.explainTerms(pw);
 
     for (int i = 0; i < rels.size(); i++) {
-      pw.input(StringUtils.format("input#%d", i), rels.get(i));
+      pw.input("input#" + i, rels.get(i));
     }
 
     return pw.item("limit", limit);

@@ -137,6 +137,13 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     hook.clear();
   }
 
+  @Override
+  protected <T extends Throwable> List<Object[]> failed(T ex) throws T
+  {
+    hook.printHooked();
+    throw ex;
+  }
+
   @Test
   public void testShowTables() throws Exception
   {
@@ -421,7 +428,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainInformationSchemaColumns() throws Exception
   {
     final String explanation =
-        "DruidOuterQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"descending\":false,\"filter\":{\"type\":\"and\",\"fields\":[{\"type\":\"selector\",\"dimension\":\"TABLE_SCHEMA\",\"value\":\"druid\"},{\"type\":\"selector\",\"dimension\":\"TABLE_NAME\",\"value\":\"foo\"}]},\"columns\":[\"COLUMN_NAME\",\"DATA_TYPE\"],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{COLUMN_NAME:string, DATA_TYPE:string}])\n"
+        "DruidOuterQueryRel(scanFilter=[AND(=($1, 'druid'), =($2, 'foo'))], scanProject=[[$3, $7]])\n"
         + "  DruidValuesRel\n";
 
     testQuery(
@@ -492,7 +499,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     testQuery(
         "EXPLAIN PLAN FOR SELECT * FROM druid.foo",
         new Object[]{
-            "DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{__time:long, cnt:long, dim1:dimension.string, dim2:dimension.string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
+            "DruidQueryRel(table=[[druid, foo]])\n"
         }
     );
   }
@@ -1611,12 +1618,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainCountStarOnView() throws Exception
   {
     String explanation =
-        "DruidQueryRel(query=["
-        + "{\"queryType\":\"timeseries\","
-        + "\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},"
-        + "\"descending\":false,"
-        + "\"filter\":{\"type\":\"and\",\"fields\":[{\"type\":\"selector\",\"dimension\":\"dim2\",\"value\":\"a\"},{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"z\",\"extractionFn\":{\"type\":\"substring\",\"index\":0,\"length\":1}}}]},"
-        + "\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"a0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n";
+        "DruidQueryRel(table=[[druid, foo]], "
+        + "scanFilter=[AND(=($3, 'a'), <>(SUBSTRING($2, 1, 1), 'z'))], scanProject=[[$2]], "
+        + "EXPR$0=[COUNT()])\n";
 
     testQuery(
         "EXPLAIN PLAN FOR SELECT COUNT(*) FROM aview WHERE dim1_firstchar <> 'z'",
@@ -3062,8 +3066,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainDoubleNestedGroupBy() throws Exception
   {
     final String explanation =
-        "DruidOuterQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"sum\",\"name\":\"a0\",\"fieldName\":\"cnt\",\"inputType\":\"long\"},{\"type\":\"count\",\"name\":\"a1\"}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"a0\",\"a1\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long, a1:long}])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d0\"}],\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"d0\",\"a0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, a0:long}])\n";
+        "DruidOuterQueryRel(EXPR$0=[SUM($1)], EXPR$1=[COUNT()])\n"
+        + "  DruidQueryRel(table=[[druid, foo]], scanProject=[[$2, $3]], group=[{1}], cnt=[COUNT()])\n";
 
     testQuery(
         "EXPLAIN PLAN FOR SELECT SUM(cnt), COUNT(*) FROM (\n"
@@ -3234,13 +3238,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .streaming()
                     )
                     .element(JoinElement.inner("foo.dim2 = foo$.d0"))
+                    .outputColumns("dim1", "cnt")
                     .asArray(true)
                     .build()
             )
-            .dimensions(DefaultDimensionSpec.of("dim1", "_d0"))
-            .aggregators(GenericSumAggregatorFactory.ofLong("_a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("_d0")))
-            .outputColumns("_d0", "_a0")
+            .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
+            .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
+            .outputColumns("d0", "a0")
             .build(),
         new Object[]{"", 1L},
         new Object[]{"1", 1L},
@@ -3249,8 +3254,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"abc", 1L}
     );
     hook.verifyHooked(
-        "qudharzlqZ/VGbEDGChG8w==",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[cnt, dim1, dim2], $hash=true}, TopNQuery{dataSource='foo', dimensionSpec=DefaultDimensionSpec{dimension='dim2', outputName='d0'}, virtualColumns=[], topNMetricSpec=NumericTopNMetricSpec{metric='a0'}, threshold=2, querySegmentSpec=null, filter=null, granularity='AllGranularity', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='cnt', inputType='long'}], postAggregatorSpecs=[], outputColumns=[a0, d0]}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='_d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='_a0', fieldName='cnt', inputType='long'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_d0', direction=ascending}], limit=-1}, outputColumns=[_d0, _a0]}",
+        "gGlKJQbBNNGgQznkyh1PGQ==",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[cnt, dim1, dim2], $hash=true}, TopNQuery{dataSource='foo', dimensionSpec=DefaultDimensionSpec{dimension='dim2', outputName='d0'}, virtualColumns=[], topNMetricSpec=NumericTopNMetricSpec{metric='a0'}, threshold=2, querySegmentSpec=null, filter=null, granularity='AllGranularity', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='cnt', inputType='long'}], postAggregatorSpecs=[], outputColumns=[a0, d0]}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='cnt', inputType='long'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[d0, a0]}",
         "StreamQuery{dataSource='foo', columns=[cnt, dim1, dim2], $hash=true}",
         "TopNQuery{dataSource='foo', dimensionSpec=DefaultDimensionSpec{dimension='dim2', outputName='d0'}, virtualColumns=[], topNMetricSpec=NumericTopNMetricSpec{metric='a0'}, threshold=2, querySegmentSpec=null, filter=null, granularity='AllGranularity', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='cnt', inputType='long'}], postAggregatorSpecs=[], outputColumns=[a0, d0]}"
     );
@@ -3328,13 +3333,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .build()
                     )
                     .element(JoinElement.of(JoinType.LO, "foo.dim2 = foo$.d0"))
+                    .outputColumns("dim1", "cnt")
                     .asArray(true)
                     .build()
             )
-            .dimensions(DefaultDimensionSpec.of("dim1", "_d0"))
-            .aggregators(GenericSumAggregatorFactory.ofLong("_a0", "cnt"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("_d0")))
-            .outputColumns("_d0", "_a0")
+            .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
+            .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
+            .outputColumns("d0", "a0")
             .build(),
         new Object[]{"", 1L},
         new Object[]{"1", 1L},
@@ -3377,6 +3383,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                                   .build()
                               )
                               .element(JoinElement.inner("foo.v0 = foo$.d0"))
+                              .outputColumns("dim2", "d0")
                               .asArray(true)
                               .build()
                       )
@@ -3431,6 +3438,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                                   .build()
                               )
                               .element(JoinElement.inner("foo.v0 = foo$.d0"))
+                              .outputColumns("dim2", "d0")
                               .asArray(true)
                               .build())
                       .dimensions(DefaultDimensionSpec.of("dim2", "_d0"))
@@ -3481,11 +3489,12 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                                   .build()
                               )
                               .element(JoinElement.inner("foo.dim2 = foo$.d0"))
+                              .outputColumns("dim2")
                               .asArray(true)
                               .build()
                       )
-                      .dimensions(DefaultDimensionSpec.of("dim2", "_d0"))
-                      .outputColumns("_d0")
+                      .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                      .outputColumns("d0")
                       .build())
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
@@ -3493,10 +3502,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{2L}
     );
     hook.verifyHooked(
-        "4DI/JQfcs8dOGRg54JaO7Q==",
+        "tZh/BnmvuhWjRgclnR1DFw==",
         "TimeseriesQuery{dataSource='foo', descending=false, granularity=AllGranularity, limitSpec=Noop, filter=!(dim2==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], limitSpec=Noop, outputColumns=[_d0]}",
+        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], limitSpec=Noop, outputColumns=[d0]}', descending=false, granularity=AllGranularity, limitSpec=Noop, aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2]}, GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}], timeColumnName=__time}', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], limitSpec=Noop, outputColumns=[d0]}",
         "StreamQuery{dataSource='foo', columns=[dim2]}",
         "GroupByQuery{dataSource='foo', granularity=AllGranularity, dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=!(dim2==NULL), limitSpec=Noop, outputColumns=[d0], $hash=true}"
     );
@@ -3506,11 +3515,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainExactCountDistinctOfSemiJoinResult() throws Exception
   {
     String explanation =
-        "DruidOuterQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"a0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n"
-        + "  DruidOuterQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"__subquery__\"},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim2\",\"outputName\":\"d0\"}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"d0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string}])\n"
-        + "    DruidJoinRel(joinType=[INNER], leftExpressions=[[1]], rightExpressions=[[0]], outputColumns=[null])\n"
-        + "      DruidQueryRel(query=[{\"queryType\":\"select.stream\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"descending\":false,\"columns\":[\"dim2\",\"v0\"],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"substring(dim2, 0, 1)\",\"outputName\":\"v0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{dim2:string, v0:string}])\n"
-        + "      DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"extraction\",\"dimension\":\"dim1\",\"outputName\":\"d0\",\"extractionFn\":{\"type\":\"substring\",\"index\":0,\"length\":1}}],\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":[\"d0\"],\"context\":{\"groupby.sort.on.time\":false,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string}])\n";
+        "DruidOuterQueryRel(EXPR$0=[COUNT()])\n"
+        + "  DruidOuterQueryRel(group=[{0}])\n"
+        + "    DruidJoinRel(joinType=[INNER], leftExpressions=[[1]], rightExpressions=[[0]], outputColumns=[[0, 2]])\n"
+        + "      DruidQueryRel(table=[[druid, foo]], scanProject=[[$3, SUBSTRING($3, 1, 1)]])\n"
+        + "      DruidQueryRel(table=[[druid, foo]], scanFilter=[<>($2, '')], scanProject=[[SUBSTRING($2, 1, 1)]], group=[{0}])\n";
 
     testQuery(
         PLANNER_CONFIG_JOIN_ENABLED,
@@ -4887,16 +4896,17 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .streaming()
                     )
                     .element(JoinElement.inner("foo.dim2 = foo$.d0"))
+                    .outputColumns("dim1", "dim2")
                     .asArray(true)
                     .build()
             )
             .dimensions(
-                DefaultDimensionSpec.of("dim1", "_d0"),
-                DefaultDimensionSpec.of("dim2", "_d1")
+                DefaultDimensionSpec.of("dim1", "d0"),
+                DefaultDimensionSpec.of("dim2", "d1")
             )
             .aggregators(CountAggregatorFactory.of("a0"))
-            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("_d1")))
-            .outputColumns("_d0", "_d1", "a0")
+            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d1")))
+            .outputColumns("d0", "d1", "a0")
             .build(),
         new Object[]{"def", "abc", 1L}
     );

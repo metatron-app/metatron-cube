@@ -43,7 +43,7 @@ import java.util.List;
 /**
  * DruidRel that uses a "query" dataSource.
  */
-public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
+public class DruidOuterQueryRel extends DruidRel
 {
   private static final TableDataSource DUMMY_DATA_SOURCE = new TableDataSource("__subquery__");
 
@@ -160,7 +160,7 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   @Override
   public List<String> getDataSourceNames()
   {
-    return Preconditions.checkNotNull(Utils.getDruidRel(sourceRel)).getDataSourceNames();
+    return Utils.getDruidRel(sourceRel).getDataSourceNames();
   }
 
   @Override
@@ -193,11 +193,7 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
   @Override
   public RelWriter explainTerms(RelWriter pw)
   {
-    DruidQuery druidQuery = toDruidQueryForExplaining();
-    return super.explainTerms(pw)
-                .input("innerQuery", sourceRel)
-                .item("query", toExplainString(druidQuery))
-                .item("signature", druidQuery.getOutputRowSignature());
+    return partialQuery.explainTerms(pw.input("input", sourceRel));
   }
 
   @Override
