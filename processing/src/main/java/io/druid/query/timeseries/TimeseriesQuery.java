@@ -39,6 +39,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
@@ -412,9 +413,8 @@ public class TimeseriesQuery extends BaseAggregationQuery
     return "TimeseriesQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
-           ", descending=" + isDescending() +
-           ", granularity=" + granularity +
-           (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
+           (granularity == null || granularity.equals(Granularities.ALL) ? "" : ", filter=" + filter) +
+           (limitSpec == NoopLimitSpec.INSTANCE ? "" : ", limitSpec=" + limitSpec) +
            (filter == null ? "" : ", filter=" + filter) +
            (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +
            (aggregatorSpecs.isEmpty()? "" : ", aggregatorSpecs=" + aggregatorSpecs) +

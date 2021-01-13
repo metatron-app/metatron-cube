@@ -340,9 +340,9 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
                 .input("left", left)
                 .input("right", right)
                 .item("joinType", joinType)
-                .item("leftExpressions", leftExpressions)
-                .item("rightExpressions", rightExpressions)
-                .item("outputColumns", outputColumns);
+                .itemIf("leftKeys", StringUtils.join(leftExpressions, ", "), !leftExpressions.isEmpty())
+                .itemIf("rightKeys", StringUtils.join(rightExpressions, ", "), !rightExpressions.isEmpty())
+                .itemIf("outputColumns", StringUtils.join(outputColumns, ", "), outputColumns != null);
   }
 
   @Override

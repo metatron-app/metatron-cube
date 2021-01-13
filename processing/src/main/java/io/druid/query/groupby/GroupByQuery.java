@@ -76,6 +76,7 @@ import io.druid.query.groupby.having.AlwaysHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
+import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.ordering.Direction;
@@ -827,7 +828,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return "GroupByQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
-           ", granularity=" + granularity +
+           (granularity == null || granularity.equals(Granularities.ALL) ? "" : ", filter=" + filter) +
            ", dimensions=" + dimensions +
            (filter == null ? "" : ", filter=" + filter) +
            (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
@@ -835,7 +836,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
            (aggregatorSpecs.isEmpty() ? "" : ", aggregatorSpecs=" + aggregatorSpecs) +
            (postAggregatorSpecs.isEmpty() ? "" : ", postAggregatorSpecs=" + postAggregatorSpecs) +
            (havingSpec == null ? "" : ", havingSpec=" + havingSpec) +
-           (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
+           (limitSpec == NoopLimitSpec.INSTANCE ? "" : ", limitSpec=" + limitSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
            (lateralView == null ? "" : "lateralView=" + lateralView) +
            toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING) +

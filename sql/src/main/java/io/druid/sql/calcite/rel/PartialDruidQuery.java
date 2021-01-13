@@ -49,6 +49,7 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.Util;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 import java.util.Objects;
@@ -101,7 +102,7 @@ public class PartialDruidQuery
       relWriter.item("scanFilter", scanFilter.getCondition());
     }
     if (scanProject != null) {
-      relWriter.item("scanProject", scanProject.getProjects());
+      relWriter.item("scanProject", StringUtils.join(scanProject.getProjects(), ", "));
     }
     if (aggregate != null) {
       relWriter.itemIf("group", aggregate.getGroupSet(), !aggregate.getGroupSet().isEmpty())
@@ -114,7 +115,7 @@ public class PartialDruidQuery
       relWriter.item("aggregateFilter", aggregateFilter.getCondition());
     }
     if (aggregateProject != null) {
-      relWriter.item("aggregateProject", aggregateProject.getProjects());
+      relWriter.item("aggregateProject", StringUtils.join(aggregateProject.getProjects(), ", "));
     }
     if (window != null) {
       for (Ord<Window.Group> window : Ord.zip(window.groups)) {
@@ -122,17 +123,22 @@ public class PartialDruidQuery
       }
     }
     if (sort != null) {
-      for (Ord<RexNode> ord : Ord.zip(sort.getChildExps())) {
-        relWriter.item("sort" + ord.i, ord.e);
+      final List<RexNode> childExps = sort.getChildExps();
+      final List<RelFieldCollation> collations = sort.getCollation().getFieldCollations();
+      final StringBuilder builder = new StringBuilder();
+      for (int i = 0; i < childExps.size(); i++) {
+        if (builder.length() > 0) {
+          builder.append(", ");
+        }
+        builder.append(childExps.get(i));
+        builder.append(':').append(collations.get(i).shortString());
       }
-      for (Ord<RelFieldCollation> ord : Ord.zip(sort.getCollation().getFieldCollations())) {
-        relWriter.item("dir" + ord.i, ord.e.shortString());
-      }
+      relWriter.itemIf("sort", builder.toString(), builder.length() > 0);
       relWriter.itemIf("offset", sort.offset, sort.offset != null);
       relWriter.itemIf("fetch", sort.fetch, sort.fetch != null);
     }
     if (sortProject != null) {
-      relWriter.item("sortProject", sortProject.getProjects());
+      relWriter.item("sortProject", StringUtils.join(sortProject.getProjects(), ", "));
     }
     return relWriter;
   }

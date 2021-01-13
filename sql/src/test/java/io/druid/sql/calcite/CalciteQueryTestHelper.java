@@ -32,6 +32,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Druids;
 import io.druid.query.Queries;
@@ -99,6 +100,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -187,6 +189,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
           sql,
           authenticationResult,
           null,
+          null,
           ImmutableList.of()
       );
       Assert.fail("Expected ForbiddenException");
@@ -224,6 +227,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_DEFAULT,
         sql,
+        null,
         expectedQuery,
         expectedResults
     );
@@ -231,19 +235,38 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected void testQuery(PlannerConfig plannerConfig, String sql, Object[]... expectedResults) throws Exception
   {
-    testQuery(plannerConfig, sql, (Query) null, expectedResults);
+    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, null, null, Arrays.asList(expectedResults));
   }
 
-  protected void testQuery(PlannerConfig plannerConfig, String sql, String expectedQuery, Object[]... expectedResults)
+  protected void testQuery(PlannerConfig plannerConfig, String sql, String expectedExplain, Object[]... expectedResults)
       throws Exception
   {
-    testQuery(plannerConfig, sql, TestHelper.JSON_MAPPER.readValue(expectedQuery, Query.class), expectedResults);
+    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, expectedExplain, null, Arrays.asList(expectedResults));
   }
 
   protected void testQuery(PlannerConfig plannerConfig, String sql, Query expectedQuery, Object[]... expectedResults)
       throws Exception
   {
-    testQuery(plannerConfig, sql, expectedQuery, Arrays.asList(expectedResults));
+    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, null, expectedQuery, Arrays.asList(expectedResults));
+  }
+
+  protected void testQuery(
+      PlannerConfig plannerConfig,
+      String sql,
+      String expectedExplain,
+      Query expectedQuery,
+      Object[]... expectedResults
+  )
+      throws Exception
+  {
+    testQuery(
+        plannerConfig,
+        QUERY_CONTEXT_DEFAULT,
+        sql,
+        expectedExplain,
+        expectedQuery,
+        Arrays.asList(expectedResults)
+    );
   }
 
   protected void testQuery(
@@ -257,6 +280,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         plannerConfig,
         QUERY_CONTEXT_DEFAULT,
         sql,
+        null,
         expectedQuery,
         expectedResults
     );
@@ -270,30 +294,14 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       Object[]... expectedResults
   ) throws Exception
   {
-    testQuery(plannerConfig, queryContext, sql, expectedQuery, Arrays.asList(expectedResults));
-  }
-
-  protected void testQuery(
-      PlannerConfig plannerConfig,
-      Map<String, Object> queryContext,
-      String sql,
-      String expectedQuery,
-      Object[]... expectedResults
-  ) throws Exception
-  {
-    testQuery(
-        plannerConfig,
-        queryContext,
-        sql,
-        TestHelper.JSON_MAPPER.readValue(expectedQuery, Query.class),
-        Arrays.asList(expectedResults)
-    );
+    testQuery(plannerConfig, queryContext, sql, null, expectedQuery, Arrays.asList(expectedResults));
   }
 
   protected void testQuery(
       final PlannerConfig plannerConfig,
       final Map<String, Object> queryContext,
       final String sql,
+      final String expectedExplain,
       final Query expectedQuery,
       final List<Object[]> expectedResults
   ) throws Exception
@@ -303,31 +311,37 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         queryContext,
         sql,
         CalciteTests.REGULAR_USER_AUTH_RESULT,
+        expectedExplain,
         expectedQuery,
         expectedResults
     );
   }
 
+  // main
   protected void testQuery(
       final PlannerConfig plannerConfig,
       final Map<String, Object> queryContext,
       final String sql,
       final AuthenticationResult authenticationResult,
+      final String expectedExplain,
       final Query expectedQuery,
       final List<Object[]> expectedResults
   ) throws Exception
   {
     log.info("SQL: %s", sql);
     queryLogHook.clearRecordedQueries();
-    final List<Object[]> plannerResults = getResults(plannerConfig, queryContext, sql, authenticationResult);
-    verifyResults(sql, expectedQuery, expectedResults, plannerResults);
+    final Pair<String, List<Object[]>> plannerResults = getResults(
+        plannerConfig, queryContext, sql, authenticationResult, expectedExplain != null
+    );
+    verifyResults(sql, expectedExplain, expectedQuery, expectedResults, plannerResults);
   }
 
-  public List<Object[]> getResults(
+  private Pair<String, List<Object[]>> getResults(
       final PlannerConfig plannerConfig,
       final Map<String, Object> queryContext,
       final String sql,
-      final AuthenticationResult authenticationResult
+      final AuthenticationResult authenticationResult,
+      final boolean withExplain
   ) throws Exception
   {
     final TestQuerySegmentWalker walker = walker();
@@ -363,6 +377,13 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         + "WHERE __time >= CURRENT_TIMESTAMP + INTERVAL '1' DAY AND __time < TIMESTAMP '2002-01-01 00:00:00'"
     );
 
+    String explain = null;
+    if (withExplain) {
+      try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
+        PlannerResult plan = planner.plan("EXPLAIN PLAN FOR " + sql, null);
+        explain = Objects.toString(Sequences.only(plan.run())[0], null);
+      }
+    }
     try (DruidPlanner planner = plannerFactory.createPlanner(queryContext, authenticationResult)) {
       final PlannerResult plan = planner.plan(sql, null);
       final Sequence<Object[]> sequence = plan.run();
@@ -372,31 +393,40 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       if (sequence.columns() != null) {
         log.info("result sequence " + sequence.columns());
       }
-      return Sequences.toList(sequence);
+      return Pair.of(explain, Sequences.toList(sequence));
     } catch (Exception ex) {
       return failed(ex);
     }
   }
 
-  protected <T extends Throwable> List<Object[]> failed(T ex) throws T
+  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
   {
     throw ex;
   }
 
   protected void verifyResults(
       final String sql,
+      final String expectedExplain,
       final Query expectedQuery,
       final List<Object[]> expectedResults,
-      final List<Object[]> results
+      final Pair<String, List<Object[]>> results
   )
   {
+    List<Object[]> rows = results.rhs;
     log.info("results..");
-    for (int i = 0; i < results.size(); i++) {
-      log.info("#%d: %s", i, Arrays.toString(results.get(i)));
+    for (int i = 0; i < rows.size(); i++) {
+      log.info("#%d: %s", i, Arrays.toString(rows.get(i)));
     }
     log.info("expected..");
     for (int i = 0; i < expectedResults.size(); i++) {
       log.info("#%d: %s", i, Arrays.toString(expectedResults.get(i)));
+    }
+    if (expectedExplain != null) {
+      log.info("results..");
+      log.info(results.lhs);
+      log.info("expected..");
+      log.info(expectedExplain);
+      Assert.assertEquals(expectedExplain, results.lhs);
     }
 
     final ComparisonCriteria comparison = new ComparisonCriteria()
@@ -413,10 +443,10 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         }
       }
     };
-    final int compareTo = Math.min(expectedResults.size(), results.size());
+    final int compareTo = Math.min(expectedResults.size(), rows.size());
     for (int i = 0; i < compareTo; i++) {
       final Object[] expected = expectedResults.get(i);
-      final Object[] actual = results.get(i);
+      final Object[] actual = rows.get(i);
       final int masked = Arrays.asList(expected).indexOf(MASKED);
       if (masked >= 0) {
         expected[masked] = actual[masked] = null;
@@ -428,7 +458,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         failed(f);
       }
     }
-    Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), results.size());
+    Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), rows.size());
 
     if (expectedQuery != null) {
       List<Query> recordedQueries = queryLogHook.getRecordedQueries();

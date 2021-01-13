@@ -352,7 +352,7 @@ public class SqlResourceTest extends CalciteTestBase
         ImmutableList.of(
             ImmutableMap.<String, Object>of(
                 "PLAN",
-                "DruidQueryRel(table=[[druid, foo]], scanProject=[[0]], cnt=[COUNT()])\n"
+                "DruidQueryRel(table=[druid.foo], scanProject=[0], cnt=[COUNT()])\n"
             )
         ),
         rows

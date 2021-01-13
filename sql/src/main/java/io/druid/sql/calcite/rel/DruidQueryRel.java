@@ -31,6 +31,7 @@ import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.util.List;
@@ -151,7 +152,7 @@ public class DruidQueryRel extends DruidRel
   @Override
   public RelWriter explainTerms(RelWriter pw)
   {
-    return partialQuery.explainTerms(pw.item("table", table.getQualifiedName()));
+    return partialQuery.explainTerms(pw.item("table", StringUtils.join(table.getQualifiedName(), '.')));
   }
 
   @Override
