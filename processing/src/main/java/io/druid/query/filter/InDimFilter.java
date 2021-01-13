@@ -23,9 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -48,38 +48,32 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
-public class InDimFilter extends SingleInput implements RangeFilter
+public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.LogProvider
 {
-  private final ImmutableSortedSet<String> values;
   private final String dimension;
   private final ExtractionFn extractionFn;
+  private final List<String> values;
 
   @JsonCreator
   public InDimFilter(
       @JsonProperty("dimension") String dimension,
-      @JsonProperty("values") List<String> values,
+      @JsonProperty("values") Collection<String> values,
       @JsonProperty("extractionFn") ExtractionFn extractionFn
   )
   {
-    Preconditions.checkNotNull(dimension, "dimension can not be null");
-    Preconditions.checkNotNull(values, "values can not be null");
-    this.values = ImmutableSortedSet.copyOf(
-        Iterables.transform(
-            values, new Function<String, String>()
-            {
-              @Override
-              public String apply(String input)
-              {
-                return Strings.nullToEmpty(input);
-              }
-
-            }
-        )
+    this(
+        dimension,
+        extractionFn,
+        ImmutableList.copyOf(ImmutableSortedSet.copyOf(Iterables.transform(values, s -> Strings.nullToEmpty(s))))
     );
-    this.dimension = dimension;
+  }
+
+  private InDimFilter(String dimension, ExtractionFn extractionFn, List<String> values)
+  {
+    this.dimension = Preconditions.checkNotNull(dimension, "dimension can not be null");
     this.extractionFn = extractionFn;
+    this.values = Preconditions.checkNotNull(values, "values can not be null");
   }
 
   @Override
@@ -92,11 +86,11 @@ public class InDimFilter extends SingleInput implements RangeFilter
   @Override
   protected DimFilter withDimension(String dimension)
   {
-    return new InDimFilter(dimension, Lists.newArrayList(values), extractionFn);
+    return new InDimFilter(dimension, extractionFn, values);
   }
 
   @JsonProperty
-  public Set<String> getValues()
+  public List<String> getValues()
   {
     return values;
   }
@@ -122,7 +116,7 @@ public class InDimFilter extends SingleInput implements RangeFilter
   {
     InDimFilter inFilter = optimizeLookup();
     if (inFilter.values.size() == 1) {
-      return new SelectorDimFilter(inFilter.dimension, inFilter.values.first(), inFilter.getExtractionFn());
+      return new SelectorDimFilter(inFilter.dimension, inFilter.values.get(0), inFilter.getExtractionFn());
     }
     return inFilter;
   }
@@ -162,7 +156,7 @@ public class InDimFilter extends SingleInput implements RangeFilter
       if (keys.isEmpty()) {
         return this;
       } else {
-        return new InDimFilter(dimension, keys, null);
+        return new InDimFilter(dimension, null, keys);
       }
     }
     return this;
@@ -233,11 +227,23 @@ public class InDimFilter extends SingleInput implements RangeFilter
     if (values.size() > 10) {
       logging = GuavaUtils.concat(Iterables.limit(values, 10), String.format("..%d more", values.size() - 10));
     }
-    Lists.newArrayList(Iterables.limit(values, 10));
     return "InDimFilter{" +
-           "values=" + logging +
-           ", dimension='" + dimension + '\'' +
+           "dimension='" + dimension + '\'' +
            (extractionFn == null ? "" : ", extractionFn=" + extractionFn) +
+           ", values=" + logging +
            '}';
+  }
+
+  @Override
+  public DimFilter forLog()
+  {
+    if (values.size() > 100) {
+      return new InDimFilter(
+          dimension,
+          extractionFn,
+          GuavaUtils.concat(Iterables.limit(values, 100), String.format("..%d more", values.size() - 100))
+      );
+    }
+    return this;
   }
 }

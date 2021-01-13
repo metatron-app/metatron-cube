@@ -29,11 +29,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.Comparators;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.common.guava.Comparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
 import org.joda.time.DateTime;
@@ -529,6 +529,15 @@ public abstract class AggregatorFactory implements Cacheable
     {
       return outputName.equals(((FinalizingPostAggregator) other).outputName) &&
              factory.equals(((FinalizingPostAggregator) other).factory);
+    }
+
+    @Override
+    public String toString()
+    {
+      return "FinalizingPostAggregator{" +
+             "name='" + factory.getName() + '\'' +
+             ", outputName='" + outputName + '\'' +
+             '}';
     }
   }
 }

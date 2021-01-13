@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DataSource;
@@ -40,6 +41,7 @@ import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.core.Sort;
+import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -48,6 +50,7 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
 import org.apache.commons.lang.StringUtils;
 
@@ -594,56 +597,81 @@ public class PartialDruidQuery
   // Factors used for computing cost (see computeSelfCost). These are intended to encourage pushing down filters
   // and limits through stacks of nested queries when possible.
   private static final double COST_BASE = 1;
-  private static final double COST_PER_COLUMN = 0.001;
-  private static final double COST_FILTER_MULTIPLIER = 0.2;
-  private static final double COST_GROUPING_MULTIPLIER = 0.5;
-  private static final double COST_WINDOW_MULTIPLIER = 2.5;
-  private static final double COST_SORT_MULTIPLIER = 2.0;
-  private static final double COST_LIMIT_MULTIPLIER = 0.5;
-  private static final double COST_HAVING_MULTIPLIER = 0.5;
+  private static final double TABLESCAN_PROJECT_BASE = 0.5;
+  private static final double SCAN_PROJECT_BASE = 0.5;
+  private static final double SCAN_PROJECT_BASE_OUTER = 0.9;
+  private static final double SCAN_FILTER_BASE = 0.5;
+  private static final double SCAN_FILTER_BASE_OUTER = 0.9;
+  private static final double TIMESERIES_MULTIPLIER = 0.2;
+  private static final double GROUPBY_MULTIPLIER = 1.6;
+  private static final double AGGR_PER_COLUMN = 0.1;
+  private static final double AGGR_PROJECT_BASE = 0.8;
+  private static final double AGGR_PROJECT_BASE_OUTER = 0.96;
+  private static final double EXPR_PER_COLUMN = 0.05;
+  private static final double WINDOW_MULTIPLIER = 3.0;
+  private static final double SORT_MULTIPLIER = 2.0;
+  private static final double LIMIT_MULTIPLIER = 0.5;
+  private static final double HAVING_MULTIPLIER = 0.9;
 
   public double cost(DruidTable table)
   {
-    return cost(table.getRowSignature(), COST_BASE);
+    return cost(COST_BASE);
   }
 
-  public double cost(RowSignature signature, double base)
+  public double cost(double base)
   {
-    List<String> columns = signature.getColumnNames();
-    if (scanProject != null) {
-      base *= scanProject.getChildExps().size() / (double) columns.size();
+    boolean tableScan = scan instanceof TableScan;
+    double numColumns = scan.getRowType().getFieldCount();
+    if (tableScan) {
+      base *= TABLESCAN_PROJECT_BASE * (1 + numColumns / 10d);   // normalize
     }
 
     if (scanFilter != null) {
-      base *= COST_FILTER_MULTIPLIER;
+      base *= tableScan ? SCAN_FILTER_BASE : SCAN_FILTER_BASE_OUTER;
+    }
+
+    if (scanProject != null) {
+      List<RexNode> rexNodes = scanProject.getChildExps();
+      double ratio = tableScan ? SCAN_PROJECT_BASE : SCAN_PROJECT_BASE_OUTER;
+      base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
+      base *= (1 + EXPR_PER_COLUMN * Iterables.size(Iterables.filter(rexNodes, rex -> !Utils.isInputRef(rex))));
+      numColumns = rexNodes.size();
     }
 
     if (aggregate != null) {
-      base *= COST_GROUPING_MULTIPLIER;
-      base += COST_PER_COLUMN * aggregate.getGroupSet().cardinality();
-      base += COST_PER_COLUMN * aggregate.getAggCallList().size();
+      ImmutableBitSet grouping = aggregate.getGroupSet();
+      int cardinality = grouping.cardinality();
+      int aggregations = aggregate.getAggCallList().size();
+      base *= cardinality == 0 ? TIMESERIES_MULTIPLIER : Math.pow(GROUPBY_MULTIPLIER, Math.min(3, cardinality));
+      base *= (1 + AGGR_PER_COLUMN * aggregations);
+      base *= Math.max(1, aggregate.getGroupSets().size());
+      numColumns += aggregations;
     }
 
     if (aggregateProject != null) {
-      base += COST_PER_COLUMN * aggregateProject.getChildExps().size();
+      List<RexNode> rexNodes = aggregateProject.getChildExps();
+      double ratio = tableScan ? AGGR_PROJECT_BASE : AGGR_PROJECT_BASE_OUTER;
+      base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
+      base *= (1 + EXPR_PER_COLUMN * Iterables.size(Iterables.filter(rexNodes, rex -> !Utils.isInputRef(rex))));
     }
 
     if (aggregateFilter != null) {
-      base *= COST_HAVING_MULTIPLIER;
+      base *= HAVING_MULTIPLIER;
     }
 
     if (window != null) {
-      base *= COST_WINDOW_MULTIPLIER * window.groups.size();
+      base *= WINDOW_MULTIPLIER * window.groups.size();
     }
+
     if (sort != null) {
-      base *= COST_SORT_MULTIPLIER;
+      base *= SORT_MULTIPLIER;
       if (sort.fetch != null) {
-        base *= COST_LIMIT_MULTIPLIER;
+        base *= LIMIT_MULTIPLIER;
       }
     }
 
     if (sortProject != null) {
-      base += COST_PER_COLUMN * sortProject.getChildExps().size();
+      base *= (1 + EXPR_PER_COLUMN * sortProject.getChildExps().size());
     }
 
     return base;

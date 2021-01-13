@@ -583,7 +583,7 @@ public class Filters
           String value = ((SelectorDimFilter) filter).getValue();
           bitmap = scanForEqui(column.getGenericColumn(), value, context);
         } else if (filter instanceof InDimFilter) {
-          Set<String> values = ((InDimFilter) filter).getValues();
+          List<String> values = ((InDimFilter) filter).getValues();
           bitmap = scanForEqui(column.getGenericColumn(), values, context);
         }
         if (bitmap != null) {
@@ -675,7 +675,7 @@ public class Filters
     return null;
   }
 
-  private static ImmutableBitmap scanForEqui(GenericColumn column, Set<String> values, FilterContext context)
+  private static ImmutableBitmap scanForEqui(GenericColumn column, List<String> values, FilterContext context)
   {
     final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();

@@ -3051,7 +3051,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .dataSource(CalciteTests.DATASOURCE1)
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                       .aggregators(CountAggregatorFactory.of("a0"))
-                      .outputColumns("d0", "a0")
+                      .outputColumns("a0")
                       .build()
               )
               .aggregators(
@@ -3068,8 +3068,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainDoubleNestedGroupBy() throws Exception
   {
     final String explanation =
-        "DruidOuterQueryRel(EXPR$0=[SUM($1)], EXPR$1=[COUNT()])\n"
-        + "  DruidQueryRel(table=[druid.foo], scanProject=[$2, $3], group=[{1}], cnt=[COUNT()])\n";
+        "DruidOuterQueryRel(EXPR$0=[SUM($0)], EXPR$1=[COUNT()])\n"
+        + "  DruidQueryRel(table=[druid.foo], scanProject=[$2, $3], group=[{1}], cnt=[COUNT()], aggregateProject=[$1])\n";
 
     testQuery(
         "EXPLAIN PLAN FOR SELECT SUM(cnt), COUNT(*) FROM (\n"
@@ -3102,7 +3102,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .dataSource(CalciteTests.DATASOURCE1)
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                       .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                      .outputColumns("d0", "a0")
+                      .outputColumns("a0")
                       .build()
               )
               .aggregators(
@@ -3179,7 +3179,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                             new HyperUniqueFinalizingPostAggregator("a0", "a0:a", true),
                             EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')")
                         )
-                        .outputColumns("d0", "a0")
+                        .outputColumns("a0")
                         .build()
               )
               .aggregators(
@@ -3554,7 +3554,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .filters(NOT(SELECTOR("dim2", "")))
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                       .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                      .outputColumns("d0", "a0")
+                      .outputColumns("a0")
                       .build()
               )
               .aggregators(
@@ -3565,7 +3565,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .build(),
         new Object[]{3L, 2L}
     );
+  }
 
+  @Test
+  public void testExactCountDistinctUsingSubqueryWithWherePushDown2() throws Exception
+  {
     testQuery(
         "SELECT\n"
         + "  SUM(cnt),\n"
@@ -3579,7 +3583,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .filters(NOT(SELECTOR("dim2", "")))
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                       .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                      .outputColumns("d0", "a0")
+                      .outputColumns("a0")
                       .build()
               )
               .aggregators(
@@ -5073,11 +5077,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
 
     hook.verifyHooked(
-        "3qXBTS1HnIAyBbNEYGyOFQ==",
+        "LJqQ1bJuykHQkt8QVkKEgQ==",
         "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
         "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], outputColumns=[d0]}",
-        "StreamQuery{dataSource='StreamQuery{dataSource='foo', filter=InDimFilter{values=[, a, abc], dimension='dim2'}, columns=[dim1, dim2]}', columns=[dim1, dim2], orderingSpecs=[OrderByColumnSpec{dimension='dim2', direction=descending}]}",
-        "StreamQuery{dataSource='foo', filter=InDimFilter{values=[, a, abc], dimension='dim2'}, columns=[dim1, dim2]}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='foo', filter=InDimFilter{dimension='dim2', values=[, a, abc]}, columns=[dim1, dim2]}', columns=[dim1, dim2], orderingSpecs=[OrderByColumnSpec{dimension='dim2', direction=descending}]}",
+        "StreamQuery{dataSource='foo', filter=InDimFilter{dimension='dim2', values=[, a, abc]}, columns=[dim1, dim2]}"
     );
   }
 
@@ -5330,9 +5334,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 CountAggregatorFactory.of("a0"),
                 GenericSumAggregatorFactory.ofDouble("a1", "m2")
             )
-            .postAggregators(EXPR_POST_AGG("s0", "(a1 / a0)"))
+            .postAggregators(EXPR_POST_AGG("p0", "(a1 / a0)"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("a0")))
-            .outputColumns("s0", "d0", "d1", "a1", "a0")
+            .outputColumns("p0", "d0", "d1", "a1", "a0")
             .build(),
         new Object[]{1.0, "", "a", 1.0},
         new Object[]{4.0, "1", "a", 4.0},
@@ -5400,7 +5404,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         DefaultDimensionSpec.of("m2", "d1"),
                         DefaultDimensionSpec.of("dim1", "d2")
                     )
-                    .outputColumns("d0", "d1", "d2")
+                    .outputColumns("d0", "d2")
                     .build()
             )
             .dimensions(
@@ -5443,11 +5447,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   GenericSumAggregatorFactory.ofDouble("a1", "m2")
               )
               .postAggregators(
-                  EXPR_POST_AGG("s0", "(a0 + a1)"),
+                  EXPR_POST_AGG("p0", "(a0 + a1)"),
                   EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1Y','','UTC')")
               )
               .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
-              .outputColumns("d0", "a0", "s0")
+              .outputColumns("d0", "a0", "p0")
               .descending(true)
               .build(),
         new Object[]{978307200000L, 4.0, 8.0},
@@ -5601,7 +5605,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .intervals(interval)
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                       .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
-                      .outputColumns("d0", "a0")
+                      .outputColumns("a0")
                       .build()
               )
               .aggregators(
@@ -5912,7 +5916,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                       .aggregators(factory)
                       .postAggregators(AggregatorFactory.asFinalizer("a0", factory))
-                      .outputColumns("d0", "a0")
+                      .outputColumns("a0")
                       .build()
               )
               .aggregators(GenericSumAggregatorFactory.ofDouble("_a0", "a0"))
