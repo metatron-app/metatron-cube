@@ -134,7 +134,7 @@ public class Rules
           ExchangeRemoveConstantKeysRule.SORT_EXCHANGE_INSTANCE
       );
 
-  // Rules from CalcitePrepareImpl's createPlanner.
+  // Rules from CalcitePrepareImpl's createPlanner. (Not Used)
   private static final List<RelOptRule> MISCELLANEOUS_RULES =
       ImmutableList.of(
           Bindables.BINDABLE_TABLE_SCAN_RULE,
@@ -350,7 +350,6 @@ public class Rules
 
     // Calcite rules.
     rules.addAll(DEFAULT_RULES);
-    rules.addAll(MISCELLANEOUS_RULES);
     rules.addAll(CONSTANT_REDUCTION_RULES);
     rules.addAll(ABSTRACT_RELATIONAL_RULES);
     rules.addAll(ABSTRACT_RULES);
