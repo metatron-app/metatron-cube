@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rule;
 
+import com.google.common.primitives.Ints;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidJoinRel;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
@@ -26,11 +27,17 @@ import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.PartialDruidQuery;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Project;
+import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.util.ImmutableIntList;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -56,22 +63,44 @@ public class DruidJoinProjectRule extends RelOptRule
     final DruidOuterQueryRel outer = call.rel(0);
     final DruidJoinRel join = call.rel(1);
     final PartialDruidQuery druidQuery = outer.getPartialDruidQuery();
-    if (druidQuery.getScanFilter() != null) {
-      return;   // todo
-    }
+
+    final Filter filter = druidQuery.getScanFilter();
     final Project project = druidQuery.getScanProject();
+
+    // from ProjectFilterTransposeRule
+    if (RexOver.containsOver(project.getProjects(), null)) {
+      return;
+    }
+    if (project.getRowType().isStruct() &&
+        project.getRowType().getFieldList().stream().anyMatch(RelDataTypeField::isDynamicStar)) {
+      return;
+    }
+
     final List<RexNode> childExps = project.getChildExps();
     final int[] indices = Utils.collectInputRefs(childExps);
-
-    DruidRel newJoin = join.withOutputColumns(ImmutableIntList.of(indices));
-
-    if (!Utils.isAllInputRef(childExps)) {
-      List<RexNode> rewritten = Utils.rewrite(join.getCluster().getRexBuilder(), childExps, indices);
-      Project newProject = LogicalProject.create(newJoin, rewritten, project.getRowType());
-      newJoin = DruidOuterQueryRel.create(newJoin, druidQuery.withScanProject(newJoin, newProject));
-    } else if (!druidQuery.isProjectOnly()) {
-      newJoin = DruidOuterQueryRel.create(newJoin, druidQuery.withScanProject(newJoin, null));
+    if (filter != null) {
+      for (int x : Utils.collectInputRefs(Arrays.asList(filter.getCondition()))) {
+        if (!Ints.contains(indices, x)) {
+          return;
+        }
+      }
     }
-    call.transformTo(newJoin);
+    final RexBuilder builder = join.getCluster().getRexBuilder();
+    final DruidRel newJoin = join.withOutputColumns(ImmutableIntList.of(indices));
+
+    final int[] revert = Utils.revert(indices);
+
+    Project newProject = null;
+    if (!Utils.isAllInputRef(childExps)) {
+      List<RexNode> rewritten = Utils.rewrite(builder, childExps, revert);
+      newProject = LogicalProject.create(newJoin, rewritten, project.getRowType());
+    }
+    Filter newFilter = null;
+    if (filter != null) {
+      RexNode rewritten = Utils.rewrite(builder, filter.getCondition(), revert);
+      newFilter = LogicalFilter.create(newJoin, rewritten);
+    }
+    PartialDruidQuery rewritten = druidQuery.withScanProject(newJoin, newFilter, newProject);
+    call.transformTo(rewritten.isScanOnly() ? newJoin : DruidOuterQueryRel.create(newJoin, rewritten));
   }
 }

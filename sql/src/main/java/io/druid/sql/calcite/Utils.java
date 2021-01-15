@@ -28,8 +28,6 @@ import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.table.RowSignature;
-import it.unimi.dsi.fastutil.ints.Int2IntMap;
-import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -52,6 +50,7 @@ import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -144,12 +143,18 @@ public class Utils
     return indices.array();
   }
 
-  public static List<RexNode> rewrite(RexBuilder builder, List<RexNode> nodes, int[] indices)
+  public static int[] revert(int[] indices)
   {
-    final Int2IntMap mapping = new Int2IntOpenHashMap();
+    final int[] mapping = new int[Ints.max(indices) + 1];
+    Arrays.fill(mapping, -1);
     for (int i = 0; i < indices.length; i++) {
-      mapping.put(indices[i], i);
+      mapping[indices[i]] = i;
     }
+    return mapping;
+  }
+
+  public static List<RexNode> rewrite(RexBuilder builder, List<RexNode> nodes, int[] mapping)
+  {
     final List<RexNode> rewrite = Lists.newArrayList();
     for (RexNode node : nodes) {
       rewrite.add(node.accept(new RexShuttle()
@@ -157,11 +162,23 @@ public class Utils
         @Override
         public RexNode visitInputRef(RexInputRef ref)
         {
-          return builder.makeInputRef(ref.getType(), mapping.get(ref.getIndex()));
+          return builder.makeInputRef(ref.getType(), mapping[ref.getIndex()]);
         }
       }));
     }
     return rewrite;
+  }
+
+  public static RexNode rewrite(RexBuilder builder, RexNode node, int[] mapping)
+  {
+    return node.accept(new RexShuttle()
+    {
+      @Override
+      public RexNode visitInputRef(RexInputRef ref)
+      {
+        return builder.makeInputRef(ref.getType(), mapping[ref.getIndex()]);
+      }
+    });
   }
 
   public static RexNode and(RexBuilder builder, List<RexNode> operands)

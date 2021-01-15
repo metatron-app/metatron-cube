@@ -639,8 +639,8 @@ public class TpchTest extends TpchTestHelper
       + "    L_YEAR";
 
   public static final String TPCH7_EXPLAIN =
-      "DruidOuterQueryRel(scanFilter=[OR(AND(=($13, 'KENYA'), =($0, 'PERU')), AND(=($13, 'PERU'), =($0, 'KENYA')))], scanProject=[$13, $0, YEAR($7), *($5, -(1, $4))], group=[{0, 1, 2}], REVENUE=[SUM($3)], sort=[$0:ASC, $1:ASC, $2:ASC])\n"
-      + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1])\n"
+      "DruidOuterQueryRel(scanFilter=[OR(AND(=($0, 'KENYA'), =($1, 'PERU')), AND(=($0, 'PERU'), =($1, 'KENYA')))], scanProject=[$0, $1, YEAR($2), *($3, -(1, $4))], group=[{0, 1, 2}], REVENUE=[SUM($3)], sort=[$0:ASC, $1:ASC, $2:ASC])\n"
+      + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[1], outputColumns=[13, 0, 7, 5, 4])\n"
       + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[10])\n"
       + "      DruidQueryRel(table=[druid.nation], scanProject=[$1, $2])\n"
       + "      DruidJoinRel(joinType=[INNER], leftKeys=[7], rightKeys=[0])\n"
@@ -2336,8 +2336,8 @@ public class TpchTest extends TpchTestHelper
         + "    CNTRYCODE\n"
         + " ORDER BY\n"
         + "    CNTRYCODE",
-        "DruidOuterQueryRel(scanFilter=[>($2, $0)], scanProject=[$1, $2, $0], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
-        + "  DruidJoinRel(joinType=[INNER])\n"
+        "DruidOuterQueryRel(scanFilter=[>($1, $2)], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
+        + "  DruidJoinRel(joinType=[INNER], outputColumns=[1, 2, 0])\n"
         + "    DruidQueryRel(table=[druid.customer], scanFilter=[AND(OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')), >($0, 0.00:DECIMAL(3, 2)))], scanProject=[$0], AVG_ACCTBAL=[AVG($0)])\n"
         + "    DruidOuterQueryRel(scanFilter=[IS NULL($0)], scanProject=[$3, $1])\n"
         + "      DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1])\n"

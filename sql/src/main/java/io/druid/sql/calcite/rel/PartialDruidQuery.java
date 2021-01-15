@@ -392,11 +392,11 @@ public class PartialDruidQuery
     return (Project) relBuilder.build();
   }
 
-  public PartialDruidQuery withScanProject(RelNode source, Project scanProject)
+  public PartialDruidQuery withScanProject(RelNode source, Filter scanFilter, Project scanProject)
   {
     return new PartialDruidQuery(
         source,
-        null,
+        scanFilter,
         scanProject,
         aggregate,
         aggregateFilter,
