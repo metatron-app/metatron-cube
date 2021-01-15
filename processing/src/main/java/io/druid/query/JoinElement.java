@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.ArrayOutputSupport;
@@ -239,17 +238,12 @@ public class JoinElement
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
-      List<String> leftOutputColumns = DataSources.getOutputColumns(left);
-      if (leftOutputColumns == null || !leftOutputColumns.containsAll(leftJoinColumns)) {
+      List<String> leftInvariantColumns = DataSources.getInvariantColumns(left);
+      if (leftInvariantColumns == null || !leftInvariantColumns.containsAll(leftJoinColumns)) {
         return false;
       }
       List<String> rightOutputColumns = DataSources.getOutputColumns(right);
-      if (rightOutputColumns == null) {
-        return false;
-      }
-      Set<String> copy = Sets.newHashSet(rightOutputColumns);
-      copy.removeAll(rightJoinColumns);
-      if (!GuavaUtils.containsAny(outputColumns, copy)) {
+      if (rightOutputColumns != null && !GuavaUtils.containsAny(outputColumns, rightOutputColumns)) {
         return true;
       }
     }
@@ -259,17 +253,12 @@ public class JoinElement
   public boolean isRightSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
-      List<String> rightOutputColumns = DataSources.getOutputColumns(right);
-      if (rightOutputColumns == null || !rightOutputColumns.containsAll(rightJoinColumns)) {
+      List<String> rightInvariantColumns = DataSources.getInvariantColumns(right);
+      if (rightInvariantColumns == null || !rightInvariantColumns.containsAll(rightJoinColumns)) {
         return false;
       }
       List<String> leftOutputColumns = DataSources.getOutputColumns(left);
-      if (leftOutputColumns == null) {
-        return false;
-      }
-      Set<String> copy = Sets.newHashSet(leftOutputColumns);
-      copy.removeAll(leftJoinColumns);
-      if (!GuavaUtils.containsAny(outputColumns, copy)) {
+      if (leftOutputColumns != null && !GuavaUtils.containsAny(outputColumns, leftOutputColumns)) {
         return true;
       }
     }

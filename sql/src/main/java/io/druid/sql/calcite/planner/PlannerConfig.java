@@ -31,8 +31,6 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_APPROXIMATE_COUNT_DISTINCT = "useApproximateCountDistinct";
   public static final String CTX_KEY_USE_APPROXIMATE_TOPN = "useApproximateTopN";
   public static final String CTX_KEY_USE_JOIN = "useJoin";
-  public static final String CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN = "useTransitiveFilterOnjoin";
-  public static final String CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE = "useProjectJoinTranspose";
   public static final String CTX_KEY_USE_JOIN_COMMUTE = "useJoinCommute";
   public static final String CTX_KEY_USE_JOIN_REORDERING = "useJoinReordering";
   public static final String CTX_KEY_USE_JOIN_REORDERING_BUSH = "useJoinReorderingBush";
@@ -61,12 +59,6 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean joinEnabled = false;
-
-  @JsonProperty
-  private boolean transitiveFilterOnjoinEnabled = false;  // incomplete
-
-  @JsonProperty
-  private boolean projectJoinTransposeEnabled = false;
 
   @JsonProperty
   private boolean joinCommuteEnabled = false;
@@ -108,16 +100,6 @@ public class PlannerConfig
   public boolean isJoinEnabled()
   {
     return joinEnabled;
-  }
-
-  public boolean isTransitiveFilterOnjoinEnabled()
-  {
-    return isJoinEnabled() && transitiveFilterOnjoinEnabled;
-  }
-
-  public boolean isProjectJoinTransposeEnabled()
-  {
-    return isJoinEnabled() && projectJoinTransposeEnabled;
   }
 
   public boolean isJoinCommuteEnabled()
@@ -175,16 +157,6 @@ public class PlannerConfig
         CTX_KEY_USE_JOIN,
         isJoinEnabled()
     );
-    newConfig.transitiveFilterOnjoinEnabled = getContextBoolean(
-        context,
-        CTX_KEY_USE_TRANSITIVE_FILTER_ON_JOIN,
-        isTransitiveFilterOnjoinEnabled()
-    );
-    newConfig.projectJoinTransposeEnabled = getContextBoolean(
-        context,
-        CTX_KEY_USE_PROJECT_JOIN_TRANSPOSE,
-        isProjectJoinTransposeEnabled()
-    );
     newConfig.joinCommuteEnabled = getContextBoolean(
         context,
         CTX_KEY_USE_JOIN_COMMUTE,
@@ -240,8 +212,6 @@ public class PlannerConfig
            useApproximateCountDistinct == that.useApproximateCountDistinct &&
            useApproximateTopN == that.useApproximateTopN &&
            joinEnabled == that.joinEnabled &&
-           transitiveFilterOnjoinEnabled == that.transitiveFilterOnjoinEnabled &&
-           projectJoinTransposeEnabled == that.projectJoinTransposeEnabled &&
            joinCommuteEnabled == that.joinCommuteEnabled &&
            joinReorderingEnabled == that.joinReorderingEnabled &&
            joinReorderingBush == that.joinReorderingBush &&
@@ -261,8 +231,6 @@ public class PlannerConfig
         useApproximateCountDistinct,
         useApproximateTopN,
         joinEnabled,
-        transitiveFilterOnjoinEnabled,
-        projectJoinTransposeEnabled,
         joinCommuteEnabled,
         joinReorderingEnabled,
         joinReorderingBush,
@@ -282,8 +250,6 @@ public class PlannerConfig
            ", useApproximateCountDistinct=" + useApproximateCountDistinct +
            ", useApproximateTopN=" + useApproximateTopN +
            ", joinEnabled=" + joinEnabled +
-           ", transitiveFilterOnjoinEnabled=" + transitiveFilterOnjoinEnabled +
-           ", projectJoinTransposeEnabled=" + projectJoinTransposeEnabled +
            ", joinCommuteEnabled=" + joinCommuteEnabled +
            ", joinReorderingEnabled=" + joinReorderingEnabled +
            ", joinReorderingBush=" + joinReorderingBush +

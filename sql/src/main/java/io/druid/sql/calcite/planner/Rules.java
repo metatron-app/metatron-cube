@@ -22,6 +22,7 @@ package io.druid.sql.calcite.planner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.AggregateMergeRule;
 import io.druid.sql.calcite.rule.DruidJoinProjectRule;
@@ -222,14 +223,16 @@ public class Rules
     programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
-    if (config.isTransitiveFilterOnjoinEnabled()) {
+    if (config.isJoinEnabled()) {
       programs.add(createHepProgram(
           FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
       ));
+      programs.add(createHepProgram(
+          new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER))
+      );
     }
-    if (config.isProjectJoinTransposeEnabled()) {
-      programs.add(createHepProgram(ProjectJoinTransposeRule.INSTANCE));
-    }
+    programs.add(createHepProgram(ProjectMergeRule.INSTANCE));
+
     if (config.isJoinReorderingEnabled()) {
       programs.add(Programs.heuristicJoinOrder(Arrays.asList(), config.isJoinReorderingBush(), MIN_JOIN_REORDER));
     }
