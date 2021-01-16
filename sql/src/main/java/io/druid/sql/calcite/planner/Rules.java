@@ -31,6 +31,7 @@ import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
 import io.druid.sql.calcite.rule.DruidTableScanRule;
 import io.druid.sql.calcite.rule.DruidValuesRule;
+import io.druid.sql.calcite.rule.ExtractCommonFromDisjunction;
 import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
 import io.druid.sql.calcite.rule.SortCollapseRule;
 import org.apache.calcite.interpreter.Bindables;
@@ -222,6 +223,8 @@ public class Rules
     programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
+    programs.add(createHepProgram(ExtractCommonFromDisjunction.INSTANCE));
+
     if (config.isJoinEnabled()) {
       programs.add(createHepProgram(
           FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
@@ -230,7 +233,7 @@ public class Rules
           new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER))
       );
     }
-    programs.add(createHepProgram(ProjectMergeRule.INSTANCE));
+    programs.add(createHepProgram(ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE));
 
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
 
