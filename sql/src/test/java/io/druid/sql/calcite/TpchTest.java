@@ -1797,8 +1797,8 @@ public class TpchTest extends TpchTestHelper
         + "        AND L_SHIPMODE IN ('AIR', 'AIR REG')\n"
         + "        AND L_SHIPINSTRUCT = 'DELIVER IN PERSON'\n"
         + "    )",
-        "DruidOuterQueryRel(scanFilter=[OR(AND(=($4, 'Brand#32'), OR(=($5, 'SM CASE'), =($5, 'SM BOX'), =($5, 'SM PACK'), =($5, 'SM PKG')), >=($3, 7), <=($3, 17), <=($7, 5)), AND(=($4, 'Brand#35'), OR(=($5, 'MED BAG'), =($5, 'MED BOX'), =($5, 'MED PKG'), =($5, 'MED PACK')), >=($3, 15), <=($3, 25), <=($7, 10)), AND(=($4, 'Brand#24'), OR(=($5, 'LG CASE'), =($5, 'LG BOX'), =($5, 'LG PACK'), =($5, 'LG PKG')), >=($3, 26), <=($3, 36), <=($7, 15)))], scanProject=[*($1, -(1, $0))], REVENUE=[SUM($0)])\n"
-        + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[2])\n"
+        "DruidOuterQueryRel(scanFilter=[OR(AND(=($2, 'Brand#32'), OR(=($3, 'SM CASE'), =($3, 'SM BOX'), =($3, 'SM PACK'), =($3, 'SM PKG')), >=($4, 7), <=($4, 17), <=($5, 5)), AND(=($2, 'Brand#35'), OR(=($3, 'MED BAG'), =($3, 'MED BOX'), =($3, 'MED PKG'), =($3, 'MED PACK')), >=($4, 15), <=($4, 25), <=($5, 10)), AND(=($2, 'Brand#24'), OR(=($3, 'LG CASE'), =($3, 'LG BOX'), =($3, 'LG PACK'), =($3, 'LG PKG')), >=($4, 26), <=($4, 36), <=($5, 15)))], scanProject=[*($0, -(1, $1))], REVENUE=[SUM($0)])\n"
+        + "  DruidJoinRel(joinType=[INNER], leftKeys=[2], rightKeys=[2], outputColumns=[1, 0, 4, 5, 3, 7])\n"
         + "    DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(OR(=($13, 'AIR'), =($13, 'AIR REG')), =($12, 'DELIVER IN PERSON'))], scanProject=[$2, $3, $7, $8])\n"
         + "    DruidQueryRel(table=[druid.part], scanFilter=[>=($7, 1)], scanProject=[$0, $2, $5, $7])\n"
     );
@@ -2147,11 +2147,11 @@ public class TpchTest extends TpchTestHelper
         + "    CNTRYCODE\n"
         + " ORDER BY\n"
         + "    CNTRYCODE",
-        "DruidOuterQueryRel(scanFilter=[>($1, $2)], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
-        + "  DruidJoinRel(joinType=[INNER], outputColumns=[1, 2, 0])\n"
+        "DruidOuterQueryRel(scanFilter=[>($2, $0)], scanProject=[$1, $2, $0], group=[{0}], NUMCUST=[COUNT()], TOTACCTBAL=[SUM($1)], sort=[$0:ASC])\n"
+        + "  DruidJoinRel(joinType=[INNER])\n"
         + "    DruidQueryRel(table=[druid.customer], scanFilter=[AND(OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17')), >($0, 0.00:DECIMAL(3, 2)))], scanProject=[$0], AVG_ACCTBAL=[AVG($0)])\n"
-        + "    DruidOuterQueryRel(scanFilter=[IS NULL($0)], scanProject=[$3, $1])\n"
-        + "      DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1])\n"
+        + "    DruidOuterQueryRel(scanFilter=[IS NULL($2)], scanProject=[$0, $1])\n"
+        + "      DruidJoinRel(joinType=[RIGHT], leftKeys=[0], rightKeys=[1], outputColumns=[3, 1, 0])\n"
         + "        DruidQueryRel(table=[druid.orders], scanProject=[$2], group=[{0}])\n"
         + "        DruidQueryRel(table=[druid.customer], scanFilter=[OR(=(SUBSTR($7, 1, 2), '13'), =(SUBSTR($7, 1, 2), '31'), =(SUBSTR($7, 1, 2), '23'), =(SUBSTR($7, 1, 2), '29'), =(SUBSTR($7, 1, 2), '30'), =(SUBSTR($7, 1, 2), '18'), =(SUBSTR($7, 1, 2), '17'))], scanProject=[$0, $3, SUBSTR($7, 1, 2)])\n",
         new Object[]{"13", 5L, 37676.7D},

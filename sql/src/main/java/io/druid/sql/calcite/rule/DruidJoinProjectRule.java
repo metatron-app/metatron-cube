@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.google.common.primitives.Ints;
+import io.druid.collections.IntList;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidJoinRel;
 import io.druid.sql.calcite.rel.DruidOuterQueryRel;
@@ -77,21 +77,26 @@ public class DruidJoinProjectRule extends RelOptRule
     }
 
     final List<RexNode> childExps = project.getChildExps();
-    final int[] indices = Utils.collectInputRefs(childExps);
+    final IntList indices = Utils.collectInputRefs(childExps);
+    final int projectLen = indices.size();
     if (filter != null) {
       for (int x : Utils.collectInputRefs(Arrays.asList(filter.getCondition()))) {
-        if (!Ints.contains(indices, x)) {
-          return;
+        if (indices.indexOf(x) < 0) {
+          indices.add(x);
         }
       }
     }
+    if (indices.size() == join.getRowType().getFieldList().size()) {
+      return;
+    }
+    final int[] mapping = indices.array();
     final RexBuilder builder = join.getCluster().getRexBuilder();
-    final DruidRel newJoin = join.withOutputColumns(ImmutableIntList.of(indices));
+    final DruidRel newJoin = join.withOutputColumns(ImmutableIntList.of(mapping));
 
-    final int[] revert = Utils.revert(indices);
+    final int[] revert = Utils.revert(mapping);
 
     Project newProject = null;
-    if (!Utils.isAllInputRef(childExps)) {
+    if (projectLen != mapping.length || !Utils.isAllInputRef(childExps)) {
       List<RexNode> rewritten = Utils.rewrite(builder, childExps, revert);
       newProject = LogicalProject.create(newJoin, rewritten, project.getRowType());
     }

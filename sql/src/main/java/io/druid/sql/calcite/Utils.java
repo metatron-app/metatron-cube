@@ -123,7 +123,7 @@ public class Utils
     return true;
   }
 
-  public static int[] collectInputRefs(List<RexNode> nodes)
+  public static IntList collectInputRefs(List<RexNode> nodes)
   {
     final IntList indices = new IntList();
     for (RexNode node : nodes) {
@@ -140,7 +140,7 @@ public class Utils
         }
       });
     }
-    return indices.array();
+    return indices;
   }
 
   public static int[] revert(int[] indices)
