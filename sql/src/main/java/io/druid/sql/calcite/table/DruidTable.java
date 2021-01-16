@@ -40,6 +40,8 @@ import java.util.Objects;
 
 public class DruidTable implements TranslatableTable
 {
+  private final long timestamp;
+
   private final DataSource dataSource;
   private final RowSignature signature;
   private final Statistic statistic;
@@ -56,6 +58,12 @@ public class DruidTable implements TranslatableTable
     this.signature = Preconditions.checkNotNull(signature, "signature");
     this.statistic = Statistics.of(rowNum, ImmutableList.of());
     this.descriptors = descriptors;
+    this.timestamp = System.currentTimeMillis();
+  }
+
+  public long getTimestamp()
+  {
+    return timestamp;
   }
 
   public DataSource getDataSource()
@@ -142,26 +150,5 @@ public class DruidTable implements TranslatableTable
            ", descriptors=" + descriptors +
            ", rowCount=" + statistic.getRowCount() +
            '}';
-  }
-
-  public static class WithTimestamp extends DruidTable
-  {
-    private final long timestamp;
-
-    public WithTimestamp(
-        DataSource dataSource,
-        RowSignature signature,
-        Map<String, Map<String, String>> descriptors,
-        long rowNum
-    )
-    {
-      super(dataSource, signature, descriptors, rowNum);
-      this.timestamp = System.currentTimeMillis();
-    }
-
-    public long getTimestamp()
-    {
-      return timestamp;
-    }
   }
 }

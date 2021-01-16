@@ -208,9 +208,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   {
     testQuery(
         "INSERT INTO DIRECTORY '/__temporary' AS 'CSV' SELECT 1 + 1, dim1 FROM foo LIMIT 1",
-        ImmutableList.of(
-            new Object[]{true, 1, MASKED, 7L}
-        )
+        new Object[]{true, 1, MASKED, 7L}
     );
   }
 
@@ -656,7 +654,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testSelfJoinWithFallback() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT x.dim1, y.dim1, y.dim2\n"
         + "FROM\n"
         + "  druid.foo x INNER JOIN druid.foo y ON x.dim1 = y.dim2\n"
@@ -1400,7 +1398,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
 
     for (final String query : queries) {
-      assertQueryIsUnplannable(query);
+      assertQueryIsUnplannable(PLANNER_CONFIG_NO_JOIN, query);
     }
   }
 
@@ -1418,11 +1416,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     for (final String query : queries) {
       assertQueryIsUnplannable(PLANNER_CONFIG_NO_HLL, query);
     }
-  }
-
-  private void assertQueryIsUnplannable(final String sql)
-  {
-    assertQueryIsUnplannable(PLANNER_CONFIG_DEFAULT, sql);
   }
 
   private void assertQueryIsUnplannable(final PlannerConfig plannerConfig, final String sql)
@@ -1477,8 +1470,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   {
     testQuery(
         "SELECT COUNT(*), MAX(cnt) FROM druid.foo WHERE 1 = 0 GROUP BY dim1",
-        TypedDummyQuery.DUMMY,
-        ImmutableList.of()
+        TypedDummyQuery.DUMMY
     );
   }
 
@@ -3134,7 +3126,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .granularity(Granularities.DAY)
                         .aggregators(CountAggregatorFactory.of("a0"))
                         .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')"))
-                        .outputColumns("a0", "d0")
+                        .outputColumns("d0", "a0")
                         .build()
               )
               .aggregators(
@@ -3209,7 +3201,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     // Filters on top N values of some dimension by using an inner join.
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT t1.dim1, SUM(t1.cnt)\n"
                      + "FROM druid.foo t1\n"
                      + "  INNER JOIN (\n"
@@ -3305,7 +3297,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     // LEFT JOIN where the right-hand side can be ignored.
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT t1.dim1, SUM(t1.cnt)\n"
         + "FROM druid.foo t1\n"
         + "  LEFT JOIN (\n"
@@ -3358,7 +3350,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExactCountDistinctOfSemiJoinResult() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT COUNT(*)\n"
                      + "FROM (\n"
                      + "  SELECT DISTINCT dim2\n"
@@ -3412,7 +3404,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExactCountDistinctOfJoinResult() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT COUNT(*)\n"
                      + "FROM (\n"
                      + "  SELECT DISTINCT dim2\n"
@@ -3465,7 +3457,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExactCountDistinctOfJoinResult2() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT COUNT(*)\n"
                      + "FROM (\n"
                      + "  SELECT DISTINCT dim2\n"
@@ -3524,7 +3516,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "      DruidQueryRel(table=[druid.foo], scanFilter=[<>($2, '')], scanProject=[SUBSTRING($2, 1, 1)], group=[{0}])\n";
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "EXPLAIN PLAN FOR SELECT COUNT(*)\n"
         + "FROM (\n"
         + "  SELECT DISTINCT dim2\n"
@@ -4932,7 +4924,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                             + "WHERE dim1 = 'xxx' OR dim2 IN (SELECT dim1 FROM druid.foo WHERE dim1 LIKE '%bc')\n"
                             + "group by dim1, dim2 ORDER BY dim2";
 
-    assertQueryIsUnplannable(theQuery);
+    assertQueryIsUnplannable(PLANNER_CONFIG_NO_JOIN, theQuery);
   }
 
   @Test
@@ -4982,7 +4974,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         .build();
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         sql,
         query,
         new Object[]{T("2001-01-02"), 1L, "def", "abc"}
@@ -4995,7 +4987,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_SEMIJOIN,
         sql,
         query,
@@ -5045,7 +5037,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         .streaming();
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         sql,
         query,
         new Object[]{"def", "abc"},
@@ -5065,7 +5057,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_SEMIJOIN,
         sql,
         query,
@@ -5123,7 +5115,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         .streaming();
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         sql,
         query,
         new Object[]{"def", 1L}
@@ -5137,7 +5129,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_SEMIJOIN,
         sql,
         query,
@@ -5192,7 +5184,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         .build();
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         sql,
         query,
         new Object[]{1L, 1L}
@@ -5206,7 +5198,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
 
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_SEMIJOIN,
         sql,
         query,
@@ -5225,7 +5217,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testUsingSubqueryWithExtractionFns() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT dim2, COUNT(*) FROM druid.foo "
                      + "WHERE substring(dim2, 1, 1) IN (SELECT substring(dim1, 1, 1) FROM druid.foo WHERE dim1 <> '')"
                      + "group by dim2",
@@ -5335,9 +5327,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 CountAggregatorFactory.of("a0"),
                 GenericSumAggregatorFactory.ofDouble("a1", "m2")
             )
-            .postAggregators(EXPR_POST_AGG("p0", "(a1 / a0)"))
+            .postAggregators(EXPR_POST_AGG("s0", "(a1 / a0)"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("a0")))
-            .outputColumns("p0", "d0", "d1", "a1", "a0")
+            .outputColumns("s0", "d0", "d1", "a1", "a0")
             .build(),
         new Object[]{1.0, "", "a", 1.0},
         new Object[]{4.0, "1", "a", 4.0},
@@ -5659,7 +5651,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testJoin() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT foo.m1 X, foo2.dim2 Y FROM foo join foo2 on foo.__time = foo2.__time",
         newJoin()
             .dataSource("foo", newScan()
@@ -5691,7 +5683,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testJoinWithTimes() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
+        PLANNER_CONFIG_DEFAULT,
         "SELECT foo.__time,foo2.__time FROM foo join foo2 on foo.__time = foo2.__time limit 3",
         newScan()
             .dataSource(
@@ -5729,7 +5721,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testGbyOnJoin() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT sum(foo.m1) X, foo2.dim2 Y FROM foo join foo2 on foo.__time = foo2.__time group by foo2.dim2 limit 3",
         "DruidOuterQueryRel(group=[{3}], X=[SUM($1)], fetch=[3], sortProject=[$1, $0])\n"
         + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0])\n"

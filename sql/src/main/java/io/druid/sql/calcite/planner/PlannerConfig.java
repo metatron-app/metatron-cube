@@ -58,16 +58,7 @@ public class PlannerConfig
   private DateTimeZone sqlTimeZone = DateTimeZone.UTC;
 
   @JsonProperty
-  private boolean joinEnabled = false;
-
-  @JsonProperty
-  private boolean joinCommuteEnabled = false;
-
-  @JsonProperty
-  private boolean joinReorderingEnabled = false;
-
-  @JsonProperty
-  private boolean joinReorderingBush = false;
+  private boolean joinEnabled = true;
 
   @JsonProperty
   private boolean dumpPlan = false;
@@ -100,21 +91,6 @@ public class PlannerConfig
   public boolean isJoinEnabled()
   {
     return joinEnabled;
-  }
-
-  public boolean isJoinCommuteEnabled()
-  {
-    return isJoinEnabled() && joinCommuteEnabled;
-  }
-
-  public boolean isJoinReorderingEnabled()
-  {
-    return isJoinEnabled() && joinReorderingEnabled;
-  }
-
-  public boolean isJoinReorderingBush()
-  {
-    return joinReorderingBush;
   }
 
   public boolean isRequireTimeCondition()
@@ -157,21 +133,6 @@ public class PlannerConfig
         CTX_KEY_USE_JOIN,
         isJoinEnabled()
     );
-    newConfig.joinCommuteEnabled = getContextBoolean(
-        context,
-        CTX_KEY_USE_JOIN_COMMUTE,
-        isJoinCommuteEnabled()
-    );
-    newConfig.joinReorderingEnabled = getContextBoolean(
-        context,
-        CTX_KEY_USE_JOIN_REORDERING,
-        isJoinReorderingEnabled()
-    );
-    newConfig.joinReorderingBush = getContextBoolean(
-        context,
-        CTX_KEY_USE_JOIN_REORDERING_BUSH,
-        isJoinReorderingBush()
-    );
     newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
@@ -212,9 +173,6 @@ public class PlannerConfig
            useApproximateCountDistinct == that.useApproximateCountDistinct &&
            useApproximateTopN == that.useApproximateTopN &&
            joinEnabled == that.joinEnabled &&
-           joinCommuteEnabled == that.joinCommuteEnabled &&
-           joinReorderingEnabled == that.joinReorderingEnabled &&
-           joinReorderingBush == that.joinReorderingBush &&
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
@@ -231,9 +189,6 @@ public class PlannerConfig
         useApproximateCountDistinct,
         useApproximateTopN,
         joinEnabled,
-        joinCommuteEnabled,
-        joinReorderingEnabled,
-        joinReorderingBush,
         requireTimeCondition,
         dumpPlan,
         sqlTimeZone
@@ -250,9 +205,6 @@ public class PlannerConfig
            ", useApproximateCountDistinct=" + useApproximateCountDistinct +
            ", useApproximateTopN=" + useApproximateTopN +
            ", joinEnabled=" + joinEnabled +
-           ", joinCommuteEnabled=" + joinCommuteEnabled +
-           ", joinReorderingEnabled=" + joinReorderingEnabled +
-           ", joinReorderingBush=" + joinReorderingBush +
            ", requireTimeCondition=" + requireTimeCondition +
            ", dumpPlan=" + dumpPlan +
            ", sqlTimeZone=" + sqlTimeZone +

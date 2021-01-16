@@ -44,7 +44,7 @@ import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.server.coordination.DruidServerMetadata;
-import io.druid.sql.calcite.table.DruidTable.WithTimestamp;
+import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.view.DruidViewMacro;
 import io.druid.sql.calcite.view.ViewManager;
@@ -61,7 +61,7 @@ import java.util.function.BiFunction;
 
 @ManageLifecycle
 public class DruidSchema extends AbstractSchema
-    implements BiFunction<String, WithTimestamp, WithTimestamp>
+    implements BiFunction<String, DruidTable, DruidTable>
 {
   public static final String NAME = "druid";
   public static final long CACHE_VALID_MSEC = 300_000;   // 5 min
@@ -69,7 +69,7 @@ public class DruidSchema extends AbstractSchema
   private final QuerySegmentWalker segmentWalker;
   private final TimelineServerView serverView;
   private final ViewManager viewManager;
-  private final Map<String, WithTimestamp> cached;
+  private final Map<String, DruidTable> cached;
 
   @Inject
   public DruidSchema(
@@ -145,7 +145,7 @@ public class DruidSchema extends AbstractSchema
   }
 
   @Override
-  public WithTimestamp apply(String tableName, WithTimestamp prev)
+  public DruidTable apply(String tableName, DruidTable prev)
   {
     if (prev != null && prev.getTimestamp() + CACHE_VALID_MSEC > System.currentTimeMillis()) {
       return prev;
@@ -172,6 +172,6 @@ public class DruidSchema extends AbstractSchema
       }
       numRows += schema.getNumRows();
     }
-    return new WithTimestamp(TableDataSource.of(tableName), builder.sort().build(), descriptors, numRows);
+    return new DruidTable(TableDataSource.of(tableName), builder.sort().build(), descriptors, numRows);
   }
 }

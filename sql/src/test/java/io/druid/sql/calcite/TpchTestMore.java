@@ -57,7 +57,6 @@ public class TpchTestMore extends CalciteQueryTestHelper
   public void test3542_7() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         TpchTest.TPCH7,
         TpchTest.TPCH7_EXPLAIN,
         TpchTest.TPCH7_RESULT
@@ -78,7 +77,6 @@ public class TpchTestMore extends CalciteQueryTestHelper
   public void test3542_8() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         TpchTest.TPCH8,
         TpchTest.TPCH8_EXPLAIN,
         TpchTest.TPCH8_RESULT
@@ -102,7 +100,6 @@ public class TpchTestMore extends CalciteQueryTestHelper
   public void test3542_9() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         TpchTest.TPCH9,
         TpchTest.TPCH9_EXPLAIN,
         TpchTest.TPCH9_RESULT

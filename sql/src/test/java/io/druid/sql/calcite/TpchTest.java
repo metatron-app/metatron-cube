@@ -85,7 +85,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch1() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT\n"
         + "    L_RETURNFLAG,\n"
         + "    L_LINESTATUS,\n"
@@ -171,7 +170,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch2() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "WITH q2_min_ps_supplycost AS (\n"
         + "SELECT\n"
         + "    P_PARTKEY AS MIN_P_PARTKEY,\n"
@@ -227,11 +225,11 @@ public class TpchTest extends TpchTestHelper
         + "  DruidJoinRel(joinType=[INNER], leftKeys=[7, 1], rightKeys=[1, 0], outputColumns=[2, 5, 8, 1, 0, 3, 6, 4])\n"
         + "    DruidJoinRel(joinType=[INNER], leftKeys=[9], rightKeys=[0], outputColumns=[0, 1, 2, 3, 4, 5, 6, 7, 8])\n"
         + "      DruidJoinRel(joinType=[INNER], leftKeys=[6], rightKeys=[1], outputColumns=[0, 1, 2, 3, 4, 5, 7, 8, 9, 11])\n"
-        + "        DruidJoinRel(joinType=[INNER], leftKeys=[3], rightKeys=[6], outputColumns=[0, 1, 5, 6, 7, 8, 9, 10, 4])\n"
-        + "          DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0])\n"
-        + "            DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
+        + "        DruidJoinRel(joinType=[INNER], leftKeys=[7], rightKeys=[1], outputColumns=[10, 11, 0, 1, 2, 3, 4, 5, 9])\n"
+        + "          DruidJoinRel(joinType=[INNER], leftKeys=[6], rightKeys=[1])\n"
+        + "            DruidQueryRel(table=[druid.supplier], scanProject=[$0, $1, $2, $3, $4, $5, $6])\n"
         + "            DruidQueryRel(table=[druid.partsupp], scanFilter=[IS NOT NULL($2)], scanProject=[$2, $3, $4])\n"
-        + "          DruidQueryRel(table=[druid.supplier], scanProject=[$0, $1, $2, $3, $4, $5, $6])\n"
+        + "          DruidQueryRel(table=[druid.part], scanFilter=[AND(=($7, 37), LIKE($8, '%COPPER'), IS NOT NULL($5))], scanProject=[$3, $5])\n"
         + "        DruidQueryRel(table=[druid.nation], scanProject=[$1, $2, $3])\n"
         + "      DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
         + "    DruidOuterQueryRel(group=[{0}], MIN_PS_SUPPLYCOST=[MIN($1)])\n"
@@ -251,11 +249,11 @@ public class TpchTest extends TpchTestHelper
 
     if (broadcastJoin) {
       hook.verifyHooked(
-          "3UA1lBKWlnN7OPkrbcr9kg==",
-          "StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY]}",
+          "5y8xBvZO/+2WXiKj6PtBaA==",
           "StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY]}",
-          "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && BloomFilter{fieldNames=[PS_PARTKEY], groupingSets=Noop}), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=part, leftJoinColumns=[P_PARTKEY], rightAlias=partsupp, rightJoinColumns=[PS_PARTKEY]}, hashLeft=true, hashSignature={P_MFGR:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=part+partsupp, leftJoinColumns=[PS_SUPPKEY], rightAlias=supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_ACCTBAL:double, S_ADDRESS:dimension.string, S_COMMENT:string, S_NAME:dimension.string, S_NATIONKEY:dimension.string, S_PHONE:dimension.string, S_SUPPKEY:dimension.string}}]}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
-          "StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && BloomFilter{fieldNames=[PS_PARTKEY], groupingSets=Noop}), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=part, leftJoinColumns=[P_PARTKEY], rightAlias=partsupp, rightJoinColumns=[PS_PARTKEY]}, hashLeft=true, hashSignature={P_MFGR:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=part+partsupp, leftJoinColumns=[PS_SUPPKEY], rightAlias=supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_ACCTBAL:double, S_ADDRESS:dimension.string, S_COMMENT:string, S_NAME:dimension.string, S_NATIONKEY:dimension.string, S_PHONE:dimension.string, S_SUPPKEY:dimension.string}}]}",
+          "StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY]}",
+          "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && BloomFilter{fieldNames=[PS_PARTKEY], groupingSets=Noop}), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier, leftJoinColumns=[S_SUPPKEY], rightAlias=partsupp, rightJoinColumns=[PS_SUPPKEY]}, hashLeft=true, hashSignature={S_ACCTBAL:double, S_ADDRESS:dimension.string, S_COMMENT:string, S_NAME:dimension.string, S_NATIONKEY:dimension.string, S_PHONE:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier+partsupp, leftJoinColumns=[PS_PARTKEY], rightAlias=part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_MFGR:dimension.string, P_PARTKEY:dimension.string}}]}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
+          "StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && BloomFilter{fieldNames=[PS_PARTKEY], groupingSets=Noop}), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier, leftJoinColumns=[S_SUPPKEY], rightAlias=partsupp, rightJoinColumns=[PS_SUPPKEY]}, hashLeft=true, hashSignature={S_ACCTBAL:double, S_ADDRESS:dimension.string, S_COMMENT:string, S_NAME:dimension.string, S_NATIONKEY:dimension.string, S_PHONE:dimension.string, S_SUPPKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=supplier+partsupp, leftJoinColumns=[PS_PARTKEY], rightAlias=part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_MFGR:dimension.string, P_PARTKEY:dimension.string}}]}",
           "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}",
           "StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}",
           "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}",
@@ -267,12 +265,11 @@ public class TpchTest extends TpchTestHelper
       );
     } else if (bloomFilter) {
       hook.verifyHooked(
-          "Fau6j4sTDzdSK/zFqOYhtA==",
-          "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && BloomDimFilter.Factory{bloomSource=$view:part[P_PARTKEY]((P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL))), fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop, maxNumEntries=4}), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
-          "TimeseriesQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), aggregatorSpecs=[BloomFilterAggregatorFactory{name='$bloom', fieldNames=[P_PARTKEY], groupingSets=Noop, byRow=true, maxNumEntries=4}]}",
-          "StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}",
-          "StreamQuery{dataSource='partsupp', filter=(!(PS_PARTKEY==NULL) && BloomFilter{fields=[DefaultDimensionSpec{dimension='PS_PARTKEY', outputName='PS_PARTKEY'}], groupingSets=Noop}), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
+          "G0/lB2WS9+41q6AAR3nEAw==",
+          "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}, StreamQuery{dataSource='partsupp', filter=!(PS_PARTKEY==NULL), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
           "StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}",
+          "StreamQuery{dataSource='partsupp', filter=!(PS_PARTKEY==NULL), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
+          "StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}",
           "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}",
           "StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}",
           "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}",
@@ -284,11 +281,11 @@ public class TpchTest extends TpchTestHelper
       );
     } else {
       hook.verifyHooked(
-          "23wMNhLQjgERu2mvt6FcwQ==",
-          "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', filter=!(PS_PARTKEY==NULL), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
-          "StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}",
-          "StreamQuery{dataSource='partsupp', filter=!(PS_PARTKEY==NULL), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
+          "G0/lB2WS9+41q6AAR3nEAw==",
+          "StreamQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}, StreamQuery{dataSource='partsupp', filter=!(PS_PARTKEY==NULL), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}], timeColumnName=__time}', columns=[S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT], orderingSpecs=[OrderByColumnSpec{dimension='S_ACCTBAL', direction=descending}, OrderByColumnSpec{dimension='N_NAME', direction=ascending}, OrderByColumnSpec{dimension='S_NAME', direction=ascending}, OrderByColumnSpec{dimension='P_PARTKEY', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=100}}",
           "StreamQuery{dataSource='supplier', columns=[S_ACCTBAL, S_ADDRESS, S_COMMENT, S_NAME, S_NATIONKEY, S_PHONE, S_SUPPKEY], $hash=true}",
+          "StreamQuery{dataSource='partsupp', filter=!(PS_PARTKEY==NULL), columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
+          "StreamQuery{dataSource='part', filter=(P_SIZE=='37' && P_TYPE LIKE '%COPPER' && !(P_PARTKEY==NULL)), columns=[P_MFGR, P_PARTKEY], $hash=true}",
           "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY, N_REGIONKEY], $hash=true}",
           "StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}",
           "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='part', columns=[P_PARTKEY], $hash=true}, StreamQuery{dataSource='partsupp', columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}], timeColumnName=__time}, StreamQuery{dataSource='supplier', columns=[S_NATIONKEY, S_SUPPKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='nation', columns=[N_NATIONKEY, N_REGIONKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='region', filter=R_NAME=='EUROPE', columns=[R_REGIONKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='P_PARTKEY', outputName='d0'}], aggregatorSpecs=[GenericMinAggregatorFactory{name='a0', fieldName='PS_SUPPLYCOST', inputType='double'}], outputColumns=[d0, a0]}",
@@ -305,7 +302,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch3() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "select\n"
         + "    L_ORDERKEY,\n"
         + "    sum(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) as revenue,\n"
@@ -393,7 +389,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch4() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "select"
         + " O_ORDERPRIORITY, count(*) as order_count from orders as o"
         + " where O_ORDERDATE >= '1996-05-01' and O_ORDERDATE < '1996-08-01'"
@@ -443,7 +438,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch5() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT\n"
         + "    N_NAME,\n"
         + " SUM(L_EXTENDEDPRICE * (1 - L_DISCOUNT)) AS REVENUE\n"
@@ -516,7 +510,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch6() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT\n"
         + " SUM(L_EXTENDEDPRICE * L_DISCOUNT) AS REVENUE\n"
         + " FROM\n"
@@ -601,7 +594,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch7() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         TPCH7,
         TPCH7_EXPLAIN,
         TPCH7_RESULT
@@ -697,7 +689,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch8() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         TPCH8,
         TPCH8_EXPLAIN,
         TPCH8_RESULT
@@ -978,7 +969,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch9() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         TPCH9,
         TPCH9_EXPLAIN,
         TPCH9_RESULT
@@ -1025,7 +1015,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch10() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT\n"
         + "    C_CUSTKEY,\n"
         + "    C_NAME,\n"
@@ -1113,7 +1102,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch11() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT\n"
         + "  *\n"
         + " FROM (\n"
@@ -1343,7 +1331,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch12() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "select\n"
         + "    L_SHIPMODE,\n"
         + "    sum(case\n"
@@ -1401,7 +1388,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch13() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "select\n"
         + "    c_count,\n"
         + "    count(*) as custdist\n"
@@ -1464,7 +1450,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch14() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "select\n"
         + " 100.00 * sum(case\n"
         + "    when P_TYPE like 'PROMO%'\n"
@@ -1508,7 +1493,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch15() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "WITH revenue_cached AS (\n"
         + " SELECT\n"
         + "    L_SUPPKEY AS SUPPLIER_NO,\n"
@@ -1564,7 +1548,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch16() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "select\n"
         + "    P_BRAND,\n"
         + "    P_TYPE,\n"
@@ -1632,7 +1615,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch17() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "WITH Q17_PART AS (\n"
         + "  SELECT P_PARTKEY FROM part WHERE\n"
         + "  P_BRAND = 'Brand#31'\n"      // changed 23 to 31
@@ -1700,7 +1682,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch18() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "WITH q18_tmp_cached AS (\n"
         + "SELECT\n"
         + "    L_ORDERKEY,\n"
@@ -1780,7 +1761,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch19() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "SELECT\n"
         + "    SUM(L_EXTENDEDPRICE* (1 - L_DISCOUNT)) AS REVENUE\n"
         + " FROM\n"
@@ -1833,7 +1813,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch20() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "WITH TMP1 AS (\n"
         + "SELECT P_PARTKEY FROM part WHERE P_NAME LIKE 'forest%'\n"
         + "),\n"
@@ -1940,7 +1919,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch21() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "WITH LOCATION AS (\n"
         + " SELECT supplier.* FROM supplier, nation WHERE\n"
         + " S_NATIONKEY = N_NATIONKEY AND N_NAME = 'UNITED STATES'\n"   // changed 'SAUDI ARABIA' to 'UNITED STATES'
@@ -2097,7 +2075,6 @@ public class TpchTest extends TpchTestHelper
   public void tpch22() throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_JOIN_ENABLED,
         "WITH q22_customer_tmp_cached AS (\n"
         + " SELECT\n"
         + "    C_ACCTBAL,\n"

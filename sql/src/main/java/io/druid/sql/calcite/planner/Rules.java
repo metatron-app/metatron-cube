@@ -64,7 +64,6 @@ import org.apache.calcite.rel.rules.FilterMergeRule;
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 import org.apache.calcite.rel.rules.FilterTableScanRule;
 import org.apache.calcite.rel.rules.IntersectToDistinctRule;
-import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
 import org.apache.calcite.rel.rules.JoinPushThroughJoinRule;
 import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
@@ -233,9 +232,6 @@ public class Rules
     }
     programs.add(createHepProgram(ProjectMergeRule.INSTANCE));
 
-    if (config.isJoinReorderingEnabled()) {
-      programs.add(Programs.heuristicJoinOrder(Arrays.asList(), config.isJoinReorderingBush(), MIN_JOIN_REORDER));
-    }
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
 
     if (config.isJoinEnabled()) {
@@ -337,9 +333,6 @@ public class Rules
     PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
     if (plannerConfig.isJoinEnabled()) {
       rules.add(DruidJoinRule.instance());
-    }
-    if (plannerConfig.isJoinCommuteEnabled()) {
-      rules.add(JoinCommuteRule.INSTANCE);
     }
     rules.add(DruidRelToDruidRule.instance());
 

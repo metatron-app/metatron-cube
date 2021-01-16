@@ -110,6 +110,12 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected static final PlannerConfig PLANNER_CONFIG_DEFAULT = new PlannerConfig();
 
+  protected static final PlannerConfig PLANNER_CONFIG_NO_JOIN = new PlannerConfig()
+  {
+    @Override
+    public boolean isJoinEnabled() { return false;}
+  };
+
   protected static final PlannerConfig PLANNER_CONFIG_NO_TOPN = new PlannerConfig()
   {
     @Override
@@ -119,14 +125,14 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   protected static final PlannerConfig PLANNER_CONFIG_NO_HLL = new PlannerConfig()
   {
     @Override
+    public boolean isJoinEnabled() { return false;}
+
+    @Override
     public boolean isUseApproximateCountDistinct() { return false;}
   };
 
   protected static final PlannerConfig PLANNER_CONFIG_SINGLE_NESTING_ONLY = new PlannerConfig()
   {
-    @Override
-    public boolean isJoinEnabled() { return true;}
-
     @Override
     public int getMaxQueryCount() { return 2;}
   };
@@ -134,20 +140,14 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   protected static final PlannerConfig PLANNER_CONFIG_NO_SUBQUERIES = new PlannerConfig()
   {
     @Override
-    public int getMaxQueryCount() { return 1;}
-  };
+    public boolean isJoinEnabled() { return false;}
 
-  protected static final PlannerConfig PLANNER_CONFIG_JOIN_ENABLED = new PlannerConfig()
-  {
     @Override
-    public boolean isJoinEnabled() { return true;}
+    public int getMaxQueryCount() { return 1;}
   };
 
   protected static final PlannerConfig PLANNER_CONFIG_REQUIRE_TIME_CONDITION = new PlannerConfig()
   {
-    @Override
-    public boolean isJoinEnabled() { return true;}
-
     @Override
     public boolean isRequireTimeCondition() { return true;}
   };
@@ -177,7 +177,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected void assertForbidden(String sql, AuthenticationResult authenticationResult)
   {
-    assertForbidden(PLANNER_CONFIG_DEFAULT, sql, authenticationResult);
+    assertForbidden(PLANNER_CONFIG_NO_JOIN, sql, authenticationResult);
   }
 
   protected void assertForbidden(PlannerConfig plannerConfig, String sql, AuthenticationResult authenticationResult)
@@ -201,11 +201,6 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     }
   }
 
-  protected void testQuery(String sql, String expectedQuery, Object[]... expectedResults) throws Exception
-  {
-    testQuery(sql, TestHelper.JSON_MAPPER.readValue(expectedQuery, Query.class), expectedResults);
-  }
-
   protected void testQuery(String sql, Query expectedQuery, Object[]... expectedResults) throws Exception
   {
     testQuery(sql, expectedQuery, Arrays.asList(expectedResults));
@@ -216,15 +211,10 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     testQuery(sql, null, Arrays.asList(expectedResults));
   }
 
-  protected void testQuery(String sql, List<Object[]> expectedResults) throws Exception
-  {
-    testQuery(sql, null, expectedResults);
-  }
-
   protected void testQuery(String sql, Query expectedQuery, List<Object[]> expectedResults) throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_DEFAULT,
+        PLANNER_CONFIG_NO_JOIN,
         QUERY_CONTEXT_DEFAULT,
         sql,
         null,
@@ -233,15 +223,16 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     );
   }
 
-  protected void testQuery(PlannerConfig plannerConfig, String sql, Object[]... expectedResults) throws Exception
+  protected void testQuery(String sql, String expectedExplain, Object[]... expectedResults) throws Exception
   {
-    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, null, null, Arrays.asList(expectedResults));
-  }
-
-  protected void testQuery(PlannerConfig plannerConfig, String sql, String expectedExplain, Object[]... expectedResults)
-      throws Exception
-  {
-    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, expectedExplain, null, Arrays.asList(expectedResults));
+    testQuery(
+        PLANNER_CONFIG_DEFAULT,
+        QUERY_CONTEXT_DEFAULT,
+        sql,
+        expectedExplain,
+        null,
+        Arrays.asList(expectedResults)
+    );
   }
 
   protected void testQuery(PlannerConfig plannerConfig, String sql, Query expectedQuery, Object[]... expectedResults)
@@ -251,7 +242,6 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   }
 
   protected void testQuery(
-      PlannerConfig plannerConfig,
       String sql,
       String expectedExplain,
       Query expectedQuery,
@@ -260,7 +250,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       throws Exception
   {
     testQuery(
-        plannerConfig,
+        PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_DEFAULT,
         sql,
         expectedExplain,

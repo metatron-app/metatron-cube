@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DataSource;
@@ -607,7 +606,8 @@ public class PartialDruidQuery
   private static final double AGGR_PER_COLUMN = 0.1;
   private static final double AGGR_PROJECT_BASE = 0.8;
   private static final double AGGR_PROJECT_BASE_OUTER = 0.96;
-  private static final double EXPR_PER_COLUMN = 0.05;
+  private static final double REF_PER_COLUMN = 0.0001;
+  private static final double EXPR_PER_COLUMN = 0.04;
   private static final double WINDOW_MULTIPLIER = 3.0;
   private static final double SORT_MULTIPLIER = 2.0;
   private static final double LIMIT_MULTIPLIER = 0.5;
@@ -634,7 +634,7 @@ public class PartialDruidQuery
       List<RexNode> rexNodes = scanProject.getChildExps();
       double ratio = tableScan ? SCAN_PROJECT_BASE : SCAN_PROJECT_BASE_OUTER;
       base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
-      base *= (1 + EXPR_PER_COLUMN * Iterables.size(Iterables.filter(rexNodes, rex -> !Utils.isInputRef(rex))));
+      base *= 1 + rexEvalCost(rexNodes);
       numColumns = rexNodes.size();
     }
 
@@ -652,7 +652,7 @@ public class PartialDruidQuery
       List<RexNode> rexNodes = aggregateProject.getChildExps();
       double ratio = tableScan ? AGGR_PROJECT_BASE : AGGR_PROJECT_BASE_OUTER;
       base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
-      base *= (1 + EXPR_PER_COLUMN * Iterables.size(Iterables.filter(rexNodes, rex -> !Utils.isInputRef(rex))));
+      base *= 1 + rexEvalCost(rexNodes);
     }
 
     if (aggregateFilter != null) {
@@ -671,10 +671,19 @@ public class PartialDruidQuery
     }
 
     if (sortProject != null) {
-      base *= (1 + EXPR_PER_COLUMN * sortProject.getChildExps().size());
+      base *= 1 + rexEvalCost(sortProject.getChildExps());
     }
 
     return base;
+  }
+
+  private double rexEvalCost(List<RexNode> rexNodes)
+  {
+    double ratio = 0;
+    for (RexNode rex : rexNodes) {
+      ratio += Utils.isInputRef(rex) ? REF_PER_COLUMN : EXPR_PER_COLUMN;
+    }
+    return ratio;
   }
 
   @Override
