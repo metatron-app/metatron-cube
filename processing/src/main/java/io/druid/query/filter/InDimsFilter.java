@@ -55,9 +55,6 @@ public class InDimsFilter implements DimFilter.BestEffort
   {
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(dimensions), "dimensions can not be empty");
     Preconditions.checkArgument(dimensions.size() == values.size(), "number of dimensions and values is not match");
-    for (List<String> value : values) {
-
-    }
     Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(values), "values can not be empty");
     this.dimensions = dimensions;
     this.values = values;

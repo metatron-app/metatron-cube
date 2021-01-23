@@ -56,7 +56,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.filter.ValuesFilter;
+import io.druid.query.filter.SemiJoinFactory;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -351,17 +351,18 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
           List<String> rightColumns = array.estimatedOutputColumns();
           if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
+            boolean allowDuplication = JoinElement.allowDuplication(left, leftJoinColumns);
             int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
-            Supplier<List<Object[]>> fieldValues =
-                () -> Sequences.toList(Sequences.map(
-                    QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices)));
-            DataSource filtered = DataSources.applyFilterAndProjection(
-                left, ValuesFilter.fieldNames(leftJoinColumns, fieldValues), outputColumns
-            );
-            LOG.info("-- %s:%d (R) is merged into %s (L) as a filter", rightAlias, rightEstimated, leftAlias);
-            queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
-            if (leftEstimated >= 0) {
-              currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+            Sequence<Object[]> fieldValues =
+                Sequences.map(QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices));
+            DimFilter semijoin = SemiJoinFactory.from(leftJoinColumns, fieldValues, allowDuplication);
+            if (semijoin != null) {
+              DataSource filtered = DataSources.applyFilterAndProjection(left, semijoin, outputColumns);
+              LOG.info("-- %s:%d (R) is merged into %s (L) as filter on %s", rightAlias, rightEstimated, leftAlias, leftJoinColumns);
+              queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
+              if (leftEstimated >= 0) {
+                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+              }
             }
             continue;
           }
@@ -370,19 +371,20 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           List<String> leftColumns = array.estimatedOutputColumns();
           if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
+            boolean allowDuplication = JoinElement.allowDuplication(right, rightJoinColumns);
             int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
-            Supplier<List<Object[]>> fieldValues =
-                () -> Sequences.toList(Sequences.map(
-                    QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices)));
-            DataSource filtered = DataSources.applyFilterAndProjection(
-                right, ValuesFilter.fieldNames(rightJoinColumns, fieldValues), outputColumns
-            );
-            LOG.info("-- %s:%d (L) is merged into %s (R) as a filter", leftAlias, leftEstimated, rightAlias);
-            queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
-            if (rightEstimated >= 0) {
-              currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+            Sequence<Object[]> fieldValues =
+                Sequences.map(QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices));
+            DimFilter semijoin = SemiJoinFactory.from(rightJoinColumns, fieldValues, allowDuplication);
+            if (semijoin != null) {
+              DataSource filtered = DataSources.applyFilterAndProjection(right, semijoin, outputColumns);
+              LOG.info("-- %s:%d (L) is merged into %s (R) as filter on %s", leftAlias, leftEstimated, rightAlias, rightJoinColumns);
+              queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
+              if (rightEstimated >= 0) {
+                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+              }
+              continue;
             }
-            continue;
           }
         }
       }

@@ -21,10 +21,21 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 
+import java.util.Objects;
+
 /**
  */
 public class StringArray extends ObjectArray<String>
 {
+  public static StringArray of(Object[] array, String nullValue)
+  {
+    final String[] strings = new String[array.length];
+    for (int i = 0; i < array.length; i++) {
+      strings[i] = Objects.toString(array[i], nullValue);
+    }
+    return new StringArray(strings);
+  }
+
   public static StringArray of(String[] array)
   {
     return new StringArray(Preconditions.checkNotNull(array));

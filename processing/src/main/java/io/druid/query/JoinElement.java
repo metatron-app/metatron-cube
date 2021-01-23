@@ -25,9 +25,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.ArrayOutputSupport;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.select.StreamQuery;
@@ -265,11 +268,22 @@ public class JoinElement
     return false;
   }
 
+  public static boolean allowDuplication(DataSource dataSource, List<String> keys)
+  {
+    if (dataSource instanceof QueryDataSource) {
+      List<DimensionSpec> dimensions = BaseQuery.getDimensions(((QueryDataSource) dataSource).getQuery());
+      if (!dimensions.isEmpty() && DimensionSpecs.isAllDefault(dimensions)) {
+        return Sets.newHashSet(DimensionSpecs.toOutputNames(dimensions)).containsAll(keys);
+      }
+    }
+    return false;
+  }
+
   public boolean isLeftBroadcastable(DataSource left, DataSource right)
   {
     if (joinType.isRightDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
       List<String> columns = DataSources.getInvariantColumns(right);
-      if (columns.containsAll(rightJoinColumns)) {
+      if (columns != null && columns.containsAll(rightJoinColumns)) {
         return true;
       }
     }
@@ -280,7 +294,7 @@ public class JoinElement
   {
     if (joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
       List<String> columns = DataSources.getInvariantColumns(left);
-      if (columns.containsAll(leftJoinColumns)) {
+      if (columns != null && columns.containsAll(leftJoinColumns)) {
         return true;
       }
     }

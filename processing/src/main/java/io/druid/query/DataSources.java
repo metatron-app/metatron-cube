@@ -20,7 +20,6 @@
 package io.druid.query;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.FilterSupport;
@@ -161,7 +160,7 @@ public class DataSources
     } else if (query instanceof Query.ColumnsSupport) {
       return ((Query.ColumnsSupport<?>) query).getColumns();
     }
-    return ImmutableList.of();
+    return null;
   }
 
   public static List<String> getOutputColumns(DataSource dataSource)

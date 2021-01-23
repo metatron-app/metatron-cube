@@ -69,7 +69,7 @@ public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.L
     );
   }
 
-  private InDimFilter(String dimension, ExtractionFn extractionFn, List<String> values)
+  public InDimFilter(String dimension, ExtractionFn extractionFn, List<String> values)
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension can not be null");
     this.extractionFn = extractionFn;
