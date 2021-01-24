@@ -307,7 +307,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
     final RelOptCostFactory costFactory = planner.getCostFactory();
     final double lc = mq.getRowCount(query);

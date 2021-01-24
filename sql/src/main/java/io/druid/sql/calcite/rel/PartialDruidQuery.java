@@ -595,7 +595,6 @@ public class PartialDruidQuery
 
   // Factors used for computing cost (see computeSelfCost). These are intended to encourage pushing down filters
   // and limits through stacks of nested queries when possible.
-  private static final double COST_BASE = 1;
   private static final double TABLESCAN_PROJECT_BASE = 0.5;
   private static final double SCAN_PROJECT_BASE = 0.5;
   private static final double SCAN_PROJECT_BASE_OUTER = 0.9;
@@ -606,7 +605,7 @@ public class PartialDruidQuery
   private static final double AGGR_PER_COLUMN = 0.1;
   private static final double AGGR_PROJECT_BASE = 0.8;
   private static final double AGGR_PROJECT_BASE_OUTER = 0.96;
-  private static final double REF_PER_COLUMN = 0.0001;
+  private static final double REF_PER_COLUMN = 0.0002;
   private static final double EXPR_PER_COLUMN = 0.04;
   private static final double WINDOW_MULTIPLIER = 3.0;
   private static final double SORT_MULTIPLIER = 2.0;
@@ -615,7 +614,7 @@ public class PartialDruidQuery
 
   public double cost(DruidTable table)
   {
-    return cost(COST_BASE);
+    return cost(table.getStatistic().getRowCount());
   }
 
   public double cost(double base)
@@ -634,7 +633,7 @@ public class PartialDruidQuery
       List<RexNode> rexNodes = scanProject.getChildExps();
       double ratio = tableScan ? SCAN_PROJECT_BASE : SCAN_PROJECT_BASE_OUTER;
       base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
-      base *= 1 + rexEvalCost(rexNodes);
+      base *= 1 + rexEvalCost(rexNodes, 0);
       numColumns = rexNodes.size();
     }
 
@@ -652,7 +651,7 @@ public class PartialDruidQuery
       List<RexNode> rexNodes = aggregateProject.getChildExps();
       double ratio = tableScan ? AGGR_PROJECT_BASE : AGGR_PROJECT_BASE_OUTER;
       base *= ratio + (1 - ratio) * rexNodes.size() / numColumns;
-      base *= 1 + rexEvalCost(rexNodes);
+      base *= 1 + rexEvalCost(rexNodes, 0.01);
     }
 
     if (aggregateFilter != null) {
@@ -671,15 +670,15 @@ public class PartialDruidQuery
     }
 
     if (sortProject != null) {
-      base *= 1 + rexEvalCost(sortProject.getChildExps());
+      base *= 1 + rexEvalCost(sortProject.getChildExps(), 0);
     }
 
     return base;
   }
 
-  private double rexEvalCost(List<RexNode> rexNodes)
+  private double rexEvalCost(List<RexNode> rexNodes, double base)
   {
-    double ratio = 0;
+    double ratio = base;
     for (RexNode rex : rexNodes) {
       ratio += Utils.isInputRef(rex) ? REF_PER_COLUMN : EXPR_PER_COLUMN;
     }

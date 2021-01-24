@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
@@ -246,6 +247,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       }
     }
     return false;
+  }
+
+  @JsonIgnore
+  public RowSignature getSchema()
+  {
+    return schema;
   }
 
   public JoinQuery withSchema(RowSignature schema)

@@ -34,13 +34,19 @@ import java.util.Set;
  */
 public class Expressions
 {
-  public static <T extends Expression> T convertToCNF(T current, Expression.Factory<T> factory)
+  public static <T extends Expression> T convertToCNF(T start, Expression.Factory<T> factory)
   {
-    current = pushDownNot(current, factory);
-    current = flatten(current, factory);
-    current = convertToCNFInternal(current, factory);
-    current = flatten(current, factory);
-    return current;
+    T current = start;
+    try {
+      current = pushDownNot(current, factory);
+      current = flatten(current, factory);
+      current = convertToCNFInternal(current, factory);
+      current = flatten(current, factory);
+      return current;
+    }
+    catch (Exception e) {
+      return start;
+    }
   }
 
   // CNF conversion functions were adapted from Apache Hive, see:
@@ -105,10 +111,10 @@ public class Expressions
       // a list of leaves that weren't under AND expressions
       List<T> nonAndList = new ArrayList<T>();
       // a list of AND expressions that we need to distribute
-      List<T> andList = new ArrayList<T>();
+      List<AndExpression> andList = new ArrayList<AndExpression>();
       for (T child : ((OrExpression) current).<T>getChildren()) {
         if (child instanceof AndExpression) {
-          andList.add(child);
+          andList.add((AndExpression) child);
         } else if (child instanceof OrExpression) {
           // pull apart the kids of the OR expression
           nonAndList.addAll(((OrExpression) child).<T>getChildren());
@@ -172,12 +178,12 @@ public class Expressions
   // https://github.com/apache/hive/blob/branch-2.0/storage-api/src/java/org/apache/hadoop/hive/ql/io/sarg/SearchArgumentImpl.java
   private static <T extends Expression> void generateAllCombinations(
       List<T> result,
-      List<T> andList,
+      List<AndExpression> andList,
       List<T> nonAndList,
       Expression.Factory<T> factory
   )
   {
-    List<T> children = ((AndExpression) andList.get(0)).getChildren();
+    List<T> children = andList.get(0).getChildren();
     if (result.isEmpty()) {
       for (T child : children) {
         List<T> a = Lists.newArrayList(nonAndList);
@@ -201,10 +207,24 @@ public class Expressions
       }
     }
     if (andList.size() > 1) {
+      if (result.size() + checkCombination(andList) > CNF_COMBINATIONS_THRESHOLD) {
+        throw new RuntimeException();
+      }
       generateAllCombinations(
           result, andList.subList(1, andList.size()), nonAndList, factory
       );
     }
+  }
+
+  private static final int CNF_COMBINATIONS_THRESHOLD = 16;
+
+  private static int checkCombination(List<AndExpression> andList)
+  {
+    int numComb = 1;
+    for (AndExpression tree : andList) {
+      numComb *= tree.getChildren().size();
+    }
+    return numComb;
   }
 
   public static interface Visitor<T extends Expression, V>

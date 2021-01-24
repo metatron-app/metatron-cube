@@ -403,19 +403,20 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   )
   {
     List<Object[]> rows = results.rhs;
-    log.info("results..");
-    for (int i = 0; i < rows.size(); i++) {
-      log.info("#%d: %s", i, Arrays.toString(rows.get(i)));
-    }
     log.info("expected..");
     for (int i = 0; i < expectedResults.size(); i++) {
-      log.info("#%d: %s", i, Arrays.toString(expectedResults.get(i)));
+      log.info(Arrays.toString(expectedResults.get(i)));
+    }
+    log.info("result..");
+    for (int i = 0; i < rows.size(); i++) {
+      log.info(Arrays.toString(rows.get(i)));
     }
     if (expectedExplain != null) {
-      log.info("results..");
-      log.info(results.lhs);
-      log.info("expected..");
+      log.info("");
+      log.info("expected plan..");
       log.info(expectedExplain);
+      log.info("result plan..");
+      log.info(results.lhs);
       Assert.assertEquals(expectedExplain, results.lhs);
     }
 
@@ -448,7 +449,11 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         failed(f);
       }
     }
-    Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), rows.size());
+    try {
+      Assert.assertEquals(StringUtils.format("result count: %s", sql), expectedResults.size(), rows.size());
+    } catch (AssertionError f) {
+      failed(f);
+    }
 
     if (expectedQuery != null) {
       List<Query> recordedQueries = queryLogHook.getRecordedQueries();

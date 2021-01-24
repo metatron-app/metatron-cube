@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
@@ -39,6 +40,7 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 
 public abstract class DruidRel extends AbstractRelNode
@@ -78,6 +80,11 @@ public abstract class DruidRel extends AbstractRelNode
   public PartialDruidQuery getPartialDruidQuery()
   {
     return null;
+  }
+
+  public boolean hasFilter()
+  {
+    return false;
   }
 
   public RelNode getLeafRel()
@@ -129,7 +136,13 @@ public abstract class DruidRel extends AbstractRelNode
     return query == null ? Integer.MAX_VALUE : queryMaker.estimateCardinality(query.getQuery());
   }
 
-  public abstract RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq);
+  public abstract RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited);
+
+  @Override
+  public final RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
+  {
+    return computeSelfCost(planner, mq, Sets.newHashSet());
+  }
 
   /**
    * Convert this DruidRel to a DruidQuery. This may be an expensive operation. For example, DruidSemiJoin needs to

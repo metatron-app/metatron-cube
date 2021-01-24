@@ -22,6 +22,7 @@ package io.druid.sql.calcite.rel;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
@@ -32,7 +33,6 @@ import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
-import org.apache.calcite.plan.RelOptCostFactory;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
@@ -47,6 +47,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableIntList;
+import org.apache.calcite.util.Pair;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
@@ -345,15 +346,42 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
                 .itemIf("outputColumns", StringUtils.join(outputColumns, ", "), outputColumns != null);
   }
 
+  private static final double BLOOM_FILTER_REDUCTION = 0.4;
+
   @Override
-  public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
-    final RelOptCostFactory costFactory = planner.getCostFactory();
-    final double lc = mq.getRowCount(left);
-    final double rc = mq.getRowCount(right);
-    if (leftExpressions.isEmpty()) {
-      return costFactory.makeCost(COST_BASE + lc + rc, 0, 0).multiplyBy(10);
+    if (!visited.add(this)) {
+      return planner.getCostFactory().makeInfiniteCost();
     }
-    return costFactory.makeCost(COST_BASE + lc + rc, 0, 0).multiplyBy(2);
+    final Pair<DruidRel, RelOptCost> lm = Utils.getMinimumCost(left, planner, mq, Sets.newHashSet(visited));
+    if (lm.right.isInfinite()) {
+      return lm.right;
+    }
+    final Pair<DruidRel, RelOptCost> rm = Utils.getMinimumCost(right, planner, mq, visited);
+    if (rm.right.isInfinite()) {
+      return rm.right;
+    }
+    final double lc = lm.right.getRows();
+    final double rc = rm.right.getRows();
+
+    double estimate;
+    if (leftExpressions.isEmpty()) {
+      estimate = lc * rc;
+    } else {
+      // prefer larger difference
+      estimate = Math.min(Math.max(lc, rc), Math.min(lc, rc) * 4) * Math.pow(0.6, leftExpressions.size());
+      if (Utils.isLeftDriving(joinType) && lm.left.hasFilter() && rm.right instanceof DruidQueryRel ||
+          Utils.isRightDriving(joinType) && rm.left.hasFilter() && lm.right instanceof DruidQueryRel) {
+        estimate *= BLOOM_FILTER_REDUCTION;
+      }
+    }
+    if (lc > rc) {
+      estimate *= 0.999; // for deterministic plan
+    }
+//    if (Iterables.getFirst(visited, null) == this) {
+//      System.out.println(String.format("> %s + %s : %f + %f => %f", lm.left.getDataSourceNames(), rm.left.getDataSourceNames(), lc, rc, estimate));
+//    }
+    return planner.getCostFactory().makeCost(estimate, 0, 0);
   }
 }

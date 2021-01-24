@@ -3146,9 +3146,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           new FieldAccessPostAggregator(null, "_a2:count")
                       )
                   ),
-                  EXPR_POST_AGG("s0", "timestamp_extract('EPOCH',_a3,'UTC')")
+                  EXPR_POST_AGG("p0", "timestamp_extract('EPOCH',_a3,'UTC')")
               )
-              .outputColumns("_a0", "_a1", "_a2", "s0", "_a4")
+              .outputColumns("_a0", "_a1", "_a2", "p0", "_a4")
               .limit(1)
               .build(),
         new Object[]{1L, 1L, 1L, 978480000L, 6L}
@@ -3378,11 +3378,12 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                                   .build()
                               )
                               .element(JoinElement.inner("foo.v0 = foo$.d0"))
+                              .outputColumns("dim2")
                               .asArray(true)
                               .build()
                       )
-                      .dimensions(DefaultDimensionSpec.of("dim2", "_d0"))
-                      .outputColumns("_d0")
+                      .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                      .outputColumns("d0")
                       .build()
               )
               .aggregators(CountAggregatorFactory.of("a0"))
@@ -3391,10 +3392,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{2L}
     );
     hook.verifyHooked(
-        "JD5rEmT/cydBjsoxbKqthw==",
+        "C2KbVZACAhle36+u6mZtIQ==",
         "TimeseriesQuery{dataSource='foo', filter=!(dim1==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], outputColumns=[_d0]}', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], outputColumns=[_d0]}",
+        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], outputColumns=[d0]}', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], outputColumns=[d0]}",
         "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}",
         "GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}"
     );
@@ -3432,10 +3433,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                                   .build()
                               )
                               .element(JoinElement.inner("foo.v0 = foo$.d0"))
+                              .outputColumns("dim2")
                               .asArray(true)
                               .build())
-                      .dimensions(DefaultDimensionSpec.of("dim2", "_d0"))
-                      .outputColumns("_d0")
+                      .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
+                      .outputColumns("d0")
                       .build()
               )
               .aggregators(CountAggregatorFactory.of("a0"))
@@ -3444,10 +3446,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{2L}
     );
     hook.verifyHooked(
-        "JD5rEmT/cydBjsoxbKqthw==",
+        "C2KbVZACAhle36+u6mZtIQ==",
         "TimeseriesQuery{dataSource='foo', filter=!(dim1==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], outputColumns=[_d0]}', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], outputColumns=[_d0]}",
+        "TimeseriesQuery{dataSource='GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], outputColumns=[d0]}', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], outputColumns=[d0]}",
         "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}",
         "GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}"
     );
@@ -3511,7 +3513,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     String explanation =
         "DruidOuterQueryRel(EXPR$0=[COUNT()])\n"
         + "  DruidOuterQueryRel(group=[{0}])\n"
-        + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0])\n"
+        + "    DruidJoinRel(joinType=[INNER], leftKeys=[1], rightKeys=[0], outputColumns=[0])\n"
         + "      DruidQueryRel(table=[druid.foo], scanProject=[$3, SUBSTRING($3, 1, 1)])\n"
         + "      DruidQueryRel(table=[druid.foo], scanFilter=[<>($2, '')], scanProject=[SUBSTRING($2, 1, 1)], group=[{0}])\n";
 
@@ -5238,20 +5240,21 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .streaming()
                     )
                     .element(JoinElement.inner("foo.v0 = foo$.d0"))
+                    .outputColumns("dim2")
                     .asArray(true)
                     .build()
             )
-            .dimensions(DefaultDimensionSpec.of("dim2", "_d0"))
+            .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
             .aggregators(CountAggregatorFactory.of("a0"))
-            .outputColumns("_d0", "a0")
+            .outputColumns("d0", "a0")
             .build(),
         new Object[]{"a", 2L},
         new Object[]{"abc", 1L}
     );
     hook.verifyHooked(
-        "GBjv3kOWFQ/7We32Gy202w==",
+        "Z+L/3SNSTkDTdz4OJcI/yQ==",
         "TimeseriesQuery{dataSource='foo', filter=!(dim1==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='_d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[_d0, a0]}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}, GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[d0, a0]}",
         "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='substring(dim2, 0, 1)', outputName='v0'}]}",
         "GroupByQuery{dataSource='foo', dimensions=[ExtractionDimensionSpec{dimension='dim1', extractionFn=SubstringDimExtractionFn{index=0, end=1}, outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0], $hash=true}"
     );
@@ -5637,6 +5640,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                           .streaming()
                       )
                       .element(JoinElement.inner("foo.v0 = foo$.d0"))
+                      .outputColumns("dim2", "d0")
                       .asArray(true)
                       .build()
               )
@@ -5722,8 +5726,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   {
     testQuery(
         "SELECT sum(foo.m1) X, foo2.dim2 Y FROM foo join foo2 on foo.__time = foo2.__time group by foo2.dim2 limit 3",
-        "DruidOuterQueryRel(group=[{3}], X=[SUM($1)], fetch=[3], sortProject=[$1, $0])\n"
-        + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0])\n"
+        "DruidOuterQueryRel(group=[{0}], X=[SUM($1)], aggregateProject=[$1, $0], fetch=[3])\n"
+        + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[3, 1])\n"
         + "    DruidQueryRel(table=[druid.foo], scanProject=[$0, $4])\n"
         + "    DruidQueryRel(table=[druid.foo2], scanProject=[$0, $3])\n",
         newGroupBy()
@@ -5739,6 +5743,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .streaming()
                     )
                     .element(JoinElement.inner("foo.__time = foo2.__time"))
+                    .outputColumns("dim2", "m1")
                     .asArray(true)
                     .build()
             )

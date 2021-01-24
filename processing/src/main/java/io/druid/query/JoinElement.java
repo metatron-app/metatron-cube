@@ -241,6 +241,10 @@ public class JoinElement
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
+      if (left instanceof QueryDataSource
+          && ((QueryDataSource) left).getQuery().getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+        return false;   // todo apply projection to broadcast processor if possible
+      }
       List<String> leftInvariantColumns = DataSources.getInvariantColumns(left);
       if (leftInvariantColumns == null || !leftInvariantColumns.containsAll(leftJoinColumns)) {
         return false;
@@ -256,6 +260,10 @@ public class JoinElement
   public boolean isRightSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
+      if (right instanceof QueryDataSource
+          && ((QueryDataSource) right).getQuery().getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+        return false;   // todo apply projection to broadcast processor if possible
+      }
       List<String> rightInvariantColumns = DataSources.getInvariantColumns(right);
       if (rightInvariantColumns == null || !rightInvariantColumns.containsAll(rightJoinColumns)) {
         return false;

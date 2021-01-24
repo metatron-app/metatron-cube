@@ -80,14 +80,16 @@ public class DataSources
     }
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
+      final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
       if (query instanceof FilterSupport) {
-        return QueryDataSource.of(DimFilters.and((FilterSupport<?>) query, filter));
+        return QueryDataSource.of(DimFilters.and((FilterSupport<?>) query, filter), schema);
       }
       return QueryDataSource.of(
           Druids.newSelectQueryBuilder()
                 .dataSource(dataSource)
                 .filters(filter)
-                .streaming()
+                .streaming(),
+          schema
       );
     }
     throw new ISE("Not filter support %s", dataSource);
@@ -101,16 +103,20 @@ public class DataSources
     }
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
+      final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
       if (query instanceof StreamQuery && ((StreamQuery) query).isView()) {
         // special handling
         final StreamQuery stream = ((StreamQuery) query);
-        if (stream.getDataSource() instanceof TableDataSource) {
+        if (stream.getDataSource() instanceof TableDataSource && schema == null) {
           return ViewDataSource.of(getName(query), stream.getVirtualColumns(), stream.getFilter(), projection);
         }
-        return QueryDataSource.of(stream.withColumns(projection));
+        return QueryDataSource.of(stream.withColumns(projection), schema == null ? null : schema.retain(projection));
       }
       if (query instanceof Query.LastProjectionSupport) {
-        return QueryDataSource.of(((Query.LastProjectionSupport) query).withOutputColumns(projection));
+        return QueryDataSource.of(
+            ((Query.LastProjectionSupport) query).withOutputColumns(projection),
+            schema == null ? null : schema.retain(projection)
+        );
       }
       // todo: implement Query.LastProjectionSupport for JoinHolders
     }
@@ -166,6 +172,10 @@ public class DataSources
   public static List<String> getOutputColumns(DataSource dataSource)
   {
     if (dataSource instanceof QueryDataSource) {
+      RowSignature schema = ((QueryDataSource) dataSource).getSchema();
+      if (schema != null) {
+        return schema.getColumnNames();
+      }
       Query<?> query = ((QueryDataSource) dataSource).getQuery();
       return query.estimatedOutputColumns();
     } else if (dataSource instanceof ViewDataSource) {

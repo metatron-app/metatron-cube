@@ -34,6 +34,7 @@ import org.apache.calcite.rel.type.RelDataType;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 public class DruidValuesRel extends DruidRel
 {
@@ -66,7 +67,7 @@ public class DruidValuesRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
     return planner.getCostFactory().makeTinyCost();
   }

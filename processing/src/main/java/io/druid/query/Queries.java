@@ -433,9 +433,13 @@ public class Queries
   private static DataSource iterate(DataSource dataSource, Function<Query, Query> function)
   {
     if (dataSource instanceof QueryDataSource) {
-      Query source = ((QueryDataSource) dataSource).getQuery();
+      QueryDataSource querySource = (QueryDataSource) dataSource;
+      Query source = querySource.getQuery();
+      if (querySource.getSchema() == null && source instanceof JoinQuery) {
+        querySource.setSchema(((JoinQuery) source).getSchema());    // todo: generalize this
+      }
       Query converted = iterate(source, function);
-      return source == converted ? dataSource : QueryDataSource.of(converted);
+      return source == converted ? dataSource : QueryDataSource.of(converted, querySource.getSchema());
     } else if (dataSource instanceof ViewDataSource) {
       // later..
 //      StreamQuery source = ((ViewDataSource) dataSource).asStreamQuery(null);

@@ -36,9 +36,11 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.util.Pair;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Set;
 
 /**
  * DruidRel that uses a "query" dataSource.
@@ -86,6 +88,12 @@ public class DruidOuterQueryRel extends DruidRel
   public PartialDruidQuery getPartialDruidQuery()
   {
     return partialQuery;
+  }
+
+  @Override
+  public boolean hasFilter()
+  {
+    return partialQuery.getScanFilter() != null;
   }
 
   @Override
@@ -203,8 +211,20 @@ public class DruidOuterQueryRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
-    return planner.getCostFactory().makeCost(mq.getRowCount(sourceRel), 0, 0).multiplyBy(10);
+    if (!visited.add(this)) {
+      return planner.getCostFactory().makeInfiniteCost();
+    }
+    final Pair<DruidRel, RelOptCost> m = Utils.getMinimumCost(sourceRel, planner, mq, visited);
+    if (m.right.isInfinite()) {
+      return m.right;
+    }
+    final double count = m.right.getRows();
+    final double estimate = partialQuery.cost(count);
+//    if (Iterables.getFirst(visited, null) == this) {
+//      System.out.println(String.format("> %s : %f => %f", m.left.getDataSourceNames(), count, estimate));
+//    }
+    return planner.getCostFactory().makeCost(estimate, 0, 0);
   }
 }

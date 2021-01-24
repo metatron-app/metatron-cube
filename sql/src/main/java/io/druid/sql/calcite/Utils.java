@@ -20,6 +20,7 @@
 package io.druid.sql.calcite;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -29,11 +30,16 @@ import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.calcite.plan.Convention;
+import org.apache.calcite.plan.RelOptCost;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
@@ -205,9 +211,12 @@ public class Utils
     if (sourceRel instanceof RelSubset) {
       rel = ((RelSubset) sourceRel).getBest();
       if (rel == null) {
+        if (sourceRel.getConvention() != Convention.NONE) {
+          sourceRel = sourceRel.copy(sourceRel.getTraitSet().replace(Convention.NONE), ImmutableList.of());
+        }
         for (RelNode candidate : ((RelSubset) sourceRel).getRelList()) {
           if (clazz.isInstance(candidate)) {
-            return (T)candidate;
+            return (T) candidate;
           }
         }
       }
@@ -215,6 +224,44 @@ public class Utils
       rel = ((HepRelVertex) sourceRel).getCurrentRel();
     }
     return clazz.isInstance(rel) ? (T) rel : null;
+  }
+
+  public static Pair<DruidRel, RelOptCost> getMinimumCost(
+      RelNode inputRel,
+      RelOptPlanner planner,
+      RelMetadataQuery mq,
+      Set<RelNode> visited
+  )
+  {
+    RelNode rel = inputRel;
+    if (inputRel instanceof RelSubset) {
+      rel = ((RelSubset) inputRel).getBest();
+      if (rel == null) {
+        if (inputRel.getConvention() != Convention.NONE) {
+          inputRel = inputRel.copy(inputRel.getTraitSet().replace(Convention.NONE), ImmutableList.of());
+        }
+        DruidRel source = null;
+        RelOptCost minimum = null;
+        for (RelNode candidate : ((RelSubset) inputRel).getRelList()) {
+          if (candidate instanceof DruidRel) {
+            RelOptCost current = ((DruidRel) candidate).computeSelfCost(planner, mq, visited);
+            if (minimum == null || current.isLe(minimum)) {
+              source = (DruidRel) candidate;
+              minimum = current;
+            }
+          }
+        }
+        return Pair.of(source, minimum);
+      }
+    } else if (inputRel instanceof HepRelVertex) {
+      rel = ((HepRelVertex) inputRel).getCurrentRel();
+    }
+    if (rel instanceof DruidRel) {
+      final DruidRel source = (DruidRel) rel;
+      return Pair.of(source, source.computeSelfCost(planner, mq, visited));
+    } else {
+      return Pair.of(null, planner.getCostFactory().makeInfiniteCost());
+    }
   }
 
   // keep the same convention with calcite (see SqlValidatorUtil.addFields)
@@ -264,5 +311,15 @@ public class Utils
       indices.add(pair.left);
     }
     return Ints.toArray(indices);
+  }
+
+  public static boolean isLeftDriving(JoinRelType type)
+  {
+    return type == JoinRelType.INNER || type == JoinRelType.LEFT;
+  }
+
+  public static boolean isRightDriving(JoinRelType type)
+  {
+    return type == JoinRelType.INNER || type == JoinRelType.RIGHT;
   }
 }

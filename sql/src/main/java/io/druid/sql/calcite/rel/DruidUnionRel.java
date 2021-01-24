@@ -37,6 +37,7 @@ import org.apache.calcite.rel.type.RelDataType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
@@ -225,7 +226,7 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
     return planner.getCostFactory().makeCost(rels.stream().mapToDouble(mq::getRowCount).sum(), 0, 0);
   }

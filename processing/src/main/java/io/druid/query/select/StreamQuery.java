@@ -269,7 +269,10 @@ public class StreamQuery extends BaseQuery<Object[]>
   @JsonIgnore
   public boolean isView()
   {
-    return outputColumns == null && limitSpec.isNoop() && orderingSpecs.isEmpty();
+    return outputColumns == null
+           && limitSpec.isNoop()
+           && orderingSpecs.isEmpty()
+           && getContextValue(Query.LOCAL_POST_PROCESSING) == null;
   }
 
   @JsonIgnore

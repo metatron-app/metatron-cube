@@ -27,6 +27,7 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
@@ -35,6 +36,7 @@ import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.Nonnull;
 import java.util.List;
+import java.util.Set;
 
 /**
  * DruidRel that uses a "table" dataSource.
@@ -119,6 +121,12 @@ public class DruidQueryRel extends DruidRel
   }
 
   @Override
+  public boolean hasFilter()
+  {
+    return partialQuery.getScanFilter() != null;
+  }
+
+  @Override
   public DruidQueryRel withPartialQuery(final PartialDruidQuery newQueryBuilder)
   {
     return new DruidQueryRel(
@@ -156,8 +164,8 @@ public class DruidQueryRel extends DruidRel
   }
 
   @Override
-  public RelOptCost computeSelfCost(final RelOptPlanner planner, final RelMetadataQuery mq)
+  public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
-    return planner.getCostFactory().makeCost(partialQuery.cost(druidTable), 0, 0);
+    return planner.getCostFactory().makeCost(partialQuery.cost(druidTable), 1, 0);
   }
 }
