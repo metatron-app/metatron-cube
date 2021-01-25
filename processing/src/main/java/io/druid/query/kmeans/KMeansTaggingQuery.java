@@ -28,7 +28,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
@@ -355,8 +354,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
     }
     ObjectMapper mapper = segmentWalker.getObjectMapper();
 
-    Map<String, Object> postProcessors = Maps.newHashMap(getContext());
-    PostProcessingOperators.append(postProcessors, new ClassifyPostProcessor(tagColumn));
+    Map<String, Object> context = PostProcessingOperators.append(getContext(), new ClassifyPostProcessor(tagColumn));
     if (appendConvexHull) {
       Map<String, Object> convexHull = ImmutableMap.of(
           "type", "convexHull",
@@ -365,16 +363,9 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
           "geomColumn", geomColumn,
           "convexExpression", Strings.nullToEmpty(convexExpression)
       );
-      PostProcessingOperators.append(postProcessors, PostProcessingOperators.convert(mapper, convexHull));
+      context = PostProcessingOperators.append(context, PostProcessingOperators.convert(mapper, convexHull));
     }
-    return new UnionAllQuery(
-        null,
-        Arrays.asList(kMeansQuery, source),
-        false,
-        -1,
-        1,
-        postProcessors
-    );
+    return new UnionAllQuery(null, Arrays.asList(kMeansQuery, source), false, -1, 1, context);
   }
 
   @Override

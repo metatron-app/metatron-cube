@@ -367,7 +367,11 @@ public class QueryResource
   private Query readQuery(InputStream in, RequestContext context) throws IOException
   {
     ObjectMapper mapper = context.getInputMapper(false);
-    return QueryUtils.readPostProcessors(mapper.readValue(in, Query.class), mapper);
+    Query query = QueryUtils.readPostProcessors(mapper.readValue(in, Query.class), mapper);
+    if (query.getId() == null) {
+      query = QueryUtils.setQueryId(query, UUID.randomUUID().toString());
+    }
+    return query;
   }
 
   // clear previous query name if exists (should not)
@@ -392,7 +396,6 @@ public class QueryResource
 
   protected Query prepareQuery(Query query, RequestContext context) throws Exception
   {
-    query = QueryUtils.setQueryId(query, UUID.randomUUID().toString());
     return BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout());
   }
 
