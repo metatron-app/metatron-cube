@@ -342,7 +342,9 @@ public class HdfsStorageHandler implements StorageHandler
               index = newIndex();
             }
             final Object timestamp = in.get(timestampColumn);
-            if (timestamp instanceof DateTime) {
+            if (timestamp == null) {
+              index.add(new MapBasedRow(0L, in));
+            } else if (timestamp instanceof DateTime) {
               index.add(new MapBasedRow((DateTime) timestamp, in));
             } else if (timestamp instanceof Number) {
               index.add(new MapBasedRow(((Number) timestamp).longValue(), in));
