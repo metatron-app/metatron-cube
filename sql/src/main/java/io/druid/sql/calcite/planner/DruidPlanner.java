@@ -273,17 +273,19 @@ public class DruidPlanner implements Closeable, ForwardConstants
         ),
         Arrays.asList("success", "rowCount", "location", "length", "interval", "version")
     );
-    Map<String, Object> data = (Map<String, Object>) result.get("data");
-    DataSegment segment = (DataSegment) data.get("segment");
-    Object[] row = new Object[]{
-        true,
-        result.get("rowCount"),
-        data.get("location"),
-        data.get("length"),
-        String.valueOf(segment.getInterval()),
-        segment.getVersion()
-    };
-    return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(row)), dataType);
+    List<Object[]> segments = Lists.newArrayList();
+    for (Map<String, Object> data : (List<Map<String, Object>>) result.get("data")) {
+      DataSegment segment = (DataSegment) data.get("segment");
+      segments.add(new Object[]{
+          true,
+          segment.getNumRows(),
+          data.get("location"),
+          data.get("length"),
+          String.valueOf(segment.getInterval()),
+          segment.getVersion()
+      });
+    }
+    return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>simple(segments)), dataType);
   }
 
   private PlannerResult handleDescPath(SqlDescPath source)
