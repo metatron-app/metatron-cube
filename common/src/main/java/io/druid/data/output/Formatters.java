@@ -287,6 +287,7 @@ public class Formatters implements ForwardConstants
       return null;
     }
     boolean header = parseBoolean(context.get(WITH_HEADER), false);
+    boolean quote = parseBoolean(context.get(WITH_QUOTE), false);
     String nullValue = Objects.toString(context.get(NULL_VALUE), null);
     String charset = Objects.toString(context.get(CHARSET), null);
 
@@ -298,6 +299,7 @@ public class Formatters implements ForwardConstants
         columns,
         mappedColumns,
         header,
+        quote,
         charset
     );
   }

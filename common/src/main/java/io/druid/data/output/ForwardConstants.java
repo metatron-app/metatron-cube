@@ -59,6 +59,7 @@ public interface ForwardConstants
 
   // xsv
   String WITH_HEADER = "withHeader";
+  String WITH_QUOTE = "withQuote";
   String NULL_VALUE = "nullValue";
   String CHARSET = "charset";
 

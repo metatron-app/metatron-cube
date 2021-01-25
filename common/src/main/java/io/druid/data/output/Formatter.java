@@ -66,6 +66,7 @@ public interface Formatter
     private final String[] columns;
     private final String[] mappedColumns;
     private final boolean header;
+    private final boolean quote;
     private final String charset;
 
     private final ByteSink sink;
@@ -80,7 +81,7 @@ public interface Formatter
 
     public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator) throws IOException
     {
-      this(sink, mapper, separator, null, null, null, false, null);
+      this(sink, mapper, separator, null, null, null, false, false, null);
     }
 
     public XSVFormatter(
@@ -91,6 +92,7 @@ public interface Formatter
         String[] columns,
         String[] mappedColumns,
         boolean header,
+        boolean quote,
         String charset
     )
         throws IOException
@@ -103,6 +105,7 @@ public interface Formatter
       this.mapper = mapper;
       this.output = new CountingOutputStream(sink.openBufferedStream());
       this.header = header;
+      this.quote = quote;
       this.charset = charset == null ? StringUtils.UTF8_STRING : charset;
       this.matcher = PATTERN.matcher("");
       firstLine = true;
@@ -200,7 +203,7 @@ public interface Formatter
 
     private boolean needQuote(String string)
     {
-      return string.contains(separator) || string.indexOf(CR) >= 0 || string.indexOf(LF) >= 0;
+      return quote || string.contains(separator) || string.indexOf(CR) >= 0 || string.indexOf(LF) >= 0;
     }
   }
 
