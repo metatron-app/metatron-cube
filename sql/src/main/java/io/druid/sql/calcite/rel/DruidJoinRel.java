@@ -205,7 +205,6 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
         .outputColumns(outputProjection)
         .context(getPlannerContext().copyQueryContext())
         .withSchema(finalSignature)
-        .asArray(true)
         .build();
 
     return new DruidQuery()

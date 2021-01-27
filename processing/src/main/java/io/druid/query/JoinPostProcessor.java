@@ -76,13 +76,13 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   }
 
   @Override
-  public JoinPostProcessor withAsArray(boolean asArray)
+  public JoinPostProcessor withAsMap(boolean asMap)
   {
     return new JoinPostProcessor(
         config,
         Arrays.asList(elements),
         prefixAlias,
-        asArray,
+        asMap,
         outputAlias,
         outputColumns,
         maxOutputRow

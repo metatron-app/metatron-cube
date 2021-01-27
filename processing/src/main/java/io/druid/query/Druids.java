@@ -1227,7 +1227,7 @@ public class Druids
     private QuerySegmentSpec querySegmentSpec;
     private List<JoinElement> elements = Lists.newArrayList();
     private boolean prefixAlias;
-    private boolean asArray;
+    private boolean asMap;
     private String timeColumnName;
     private int limit;
     private int maxOutputRow;
@@ -1245,7 +1245,7 @@ public class Druids
           querySegmentSpec,
           validated,
           prefixAlias,
-          asArray,
+          asMap,
           timeColumnName,
           limit,
           maxOutputRow,
@@ -1348,9 +1348,9 @@ public class Druids
       return this;
     }
 
-    public JoinQueryBuilder asArray(boolean asArray)
+    public JoinQueryBuilder asMap(boolean asMap)
     {
-      this.asArray = asArray;
+      this.asMap = asMap;
       return this;
     }
 

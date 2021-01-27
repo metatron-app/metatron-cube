@@ -673,7 +673,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 .filters(NOT(SELECTOR("dim1", "")))
                 .streaming())
             .element(JoinElement.inner("foo.dim1 = foo$.dim2"))
-            .asArray(true)
             .build(),
         new Object[]{"abc", "def", "abc"}
     );
@@ -3234,7 +3233,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     )
                     .element(JoinElement.inner("foo.dim2 = foo$.d0"))
                     .outputColumns("dim1", "cnt")
-                    .asArray(true)
                     .build()
             )
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
@@ -3329,7 +3327,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     )
                     .element(JoinElement.of(JoinType.LO, "foo.dim2 = foo$.d0"))
                     .outputColumns("dim1", "cnt")
-                    .asArray(true)
                     .build()
             )
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
@@ -3379,7 +3376,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                               )
                               .element(JoinElement.inner("foo.v0 = foo$.d0"))
                               .outputColumns("dim2")
-                              .asArray(true)
                               .build()
                       )
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
@@ -3434,7 +3430,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                               )
                               .element(JoinElement.inner("foo.v0 = foo$.d0"))
                               .outputColumns("dim2")
-                              .asArray(true)
                               .build())
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
                       .outputColumns("d0")
@@ -3486,7 +3481,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                               )
                               .element(JoinElement.inner("foo.dim2 = foo$.d0"))
                               .outputColumns("dim2")
-                              .asArray(true)
                               .build()
                       )
                       .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
@@ -4901,7 +4895,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     )
                     .element(JoinElement.inner("foo.dim2 = foo$.d0"))
                     .outputColumns("dim1", "dim2")
-                    .asArray(true)
                     .build()
             )
             .dimensions(
@@ -4972,7 +4965,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         )
         .element(JoinElement.inner("foo.dim1 = foo$.d0 && foo.dim2 = foo$.d1"))
         .outputColumns("__time", "cnt", "dim1", "dim2")
-        .asArray(true)
         .build();
 
     testQuery(
@@ -5031,7 +5023,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 )
                 .element(JoinElement.inner("foo.dim2 = foo$.d0"))
                 .outputColumns("dim1", "dim2")
-                .asArray(true)
                 .build()
         )
         .columns("dim1", "dim2")
@@ -5107,7 +5098,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 )
                 .element(JoinElement.inner("foo.dim2 = foo$.d0"))
                 .outputColumns("dim1", "__time")
-                .asArray(true)
                 .build()
         )
         .virtualColumns(
@@ -5175,7 +5165,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 )
                 .element(JoinElement.inner("foo.dim2 = foo$.d0"))
                 .outputColumns("__time", "dim1")
-                .asArray(true)
                 .build()
         )
         .virtualColumns(EXPR_VC("d0:v", "timestamp_extract('MONTH',__time,'UTC')"))
@@ -5241,7 +5230,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     )
                     .element(JoinElement.inner("foo.v0 = foo$.d0"))
                     .outputColumns("dim2")
-                    .asArray(true)
                     .build()
             )
             .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
@@ -5641,7 +5629,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                       )
                       .element(JoinElement.inner("foo.v0 = foo$.d0"))
                       .outputColumns("dim2", "d0")
-                      .asArray(true)
                       .build()
               )
               .aggregators(CountAggregatorFactory.of("a0"))
@@ -5670,7 +5657,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             )
             .element(JoinElement.inner("foo.__time = foo2.__time"))
             .outputColumns("m1", "dim2")
-            .asArray(true)
             .build(),
         new Object[]{1.0, "en"},
         new Object[]{1.0, "ru"},
@@ -5703,7 +5689,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .streaming()
                     )
                     .element(JoinElement.inner("foo.__time = foo2.__time"))
-                    .asArray(true)
                     .build()
             )
             .columns("__time", "__time0")
@@ -5744,7 +5729,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     )
                     .element(JoinElement.inner("foo.__time = foo2.__time"))
                     .outputColumns("dim2", "m1")
-                    .asArray(true)
                     .build()
             )
             .dimensions(DefaultDimensionSpec.of("dim2", "d0"))

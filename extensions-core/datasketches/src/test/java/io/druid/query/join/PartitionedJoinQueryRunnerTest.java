@@ -129,6 +129,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTestHelper
         .dataSource(JOIN_DS_P, TableDataSource.of(JOIN_DS_P))
         .intervals(firstToThird)
         .element(JoinElement.inner(dataSource + ".quality = " + JOIN_DS_P + ".quality"))
+        .asMap(true)
         .build();
 
     String[] columns = new String[]{"__time", "quality", "market", "index", "quality_month", "value"};

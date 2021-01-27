@@ -59,14 +59,14 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
       @JsonProperty("hashLeft") boolean hashLeft,
       @JsonProperty("hashSignature") RowSignature hashSignature,
       @JsonProperty("prefixAlias") boolean prefixAlias,
-      @JsonProperty("asArray") boolean asArray,
+      @JsonProperty("asMap") boolean asMap,
       @JsonProperty("outputAlias") List<String> outputAlias,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("maxOutputRow") int maxOutputRow,
       @JsonProperty("values") byte[] values
   )
   {
-    super(config.getJoin(), prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow);
+    super(config.getJoin(), prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow);
     this.mapper = mapper;
     this.config = config;
     this.element = element;
@@ -76,7 +76,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
   }
 
   @Override
-  public BroadcastJoinProcessor withAsArray(boolean asArray)
+  public BroadcastJoinProcessor withAsMap(boolean asMap)
   {
     return new BroadcastJoinProcessor(
         mapper,
@@ -85,7 +85,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         hashLeft,
         hashSignature,
         prefixAlias,
-        asArray,
+        asMap,
         outputAlias,
         outputColumns,
         maxOutputRow,
@@ -247,7 +247,7 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
         hashLeft,
         hashSignature,
         prefixAlias,
-        asArray,
+        asMap,
         outputAlias,
         outputColumns,
         maxOutputRow,

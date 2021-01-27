@@ -148,6 +148,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         .intervals(firstToThird)
         .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
         .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .asMap(true)
         .build();
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};
@@ -280,6 +281,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         .intervals(firstToThird)
         .element(JoinElement.inner("X.market = Y.market"))
         .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .asMap(true)
         .build();
 
     String[] columns = new String[]{"__time", "market", "COUNT", "SUM", "market_month", "value"};
@@ -309,6 +311,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         .element(JoinElement.inner("X.market = Y.market"))
         .element(JoinElement.inner("Y.market = Z.market"))
         .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .asMap(true)
         .build();
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
@@ -364,6 +367,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         .intervals(firstToThird)
         .element(JoinElement.inner("A.market = B.market"))
         .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .asMap(true)
         .build();
 
     String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
@@ -407,6 +411,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
         .prefixAlias(true)
         .addContext(Query.STREAM_RAW_LOCAL_SPLIT_NUM, -1)
+        .asMap(true)
         .build();
 
     // select on join
@@ -506,6 +511,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         .intervals(firstToThird)
         .element(JoinElement.inner(dataSource + ".market = " + JOIN_DS + ".market"))
         .maxOutputRow(10)
+        .asMap(true)
         .build();
 
     runQuery(query);

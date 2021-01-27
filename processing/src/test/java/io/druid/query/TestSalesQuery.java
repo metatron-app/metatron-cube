@@ -470,6 +470,7 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         .element(JoinElement.inner("sales.Category = category_alias.Category"))
         .prefixAlias(true)
         .context(Query.HASHJOIN_THRESHOLD, 1)  // for ordering
+        .asMap(true)
         .build();
 
     Druids.SelectQueryBuilder builder = Druids

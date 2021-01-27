@@ -40,14 +40,14 @@ public abstract class CommonJoinProcessor extends JoinProcessor
     implements PostProcessingOperator, PostProcessingOperator.ReturnRowAs
 {
   protected final boolean prefixAlias;
-  protected final boolean asArray;
+  protected final boolean asMap;
   protected final List<String> outputAlias;
   protected final List<String> outputColumns;
 
   public CommonJoinProcessor(
       JoinQueryConfig config,
       boolean prefixAlias,
-      boolean asArray,
+      boolean asMap,
       List<String> outputAlias,
       List<String> outputColumns,
       int maxOutputRow
@@ -55,12 +55,12 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   {
     super(config, maxOutputRow);
     this.prefixAlias = prefixAlias;
-    this.asArray = asArray;
+    this.asMap = asMap;
     this.outputAlias = outputAlias;
     this.outputColumns = outputColumns;
   }
 
-  public abstract CommonJoinProcessor withAsArray(boolean asArray);
+  public abstract CommonJoinProcessor withAsMap(boolean asMap);
 
   @JsonProperty
   public boolean isPrefixAlias()
@@ -69,9 +69,9 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   }
 
   @JsonProperty
-  public boolean isAsArray()
+  public boolean isAsMap()
   {
-    return asArray;
+    return asMap;
   }
 
   @JsonProperty
@@ -97,7 +97,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   @Override
   public Class rowClass()
   {
-    return asArray ? Object[].class : Map.class;
+    return asMap ? Map.class : Object[].class;
   }
 
   protected List<String> concatColumnNames(List<List<String>> columnsList, List<String> aliases)
@@ -121,12 +121,14 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   protected Sequence projection(Iterator<Object[]> outputRows, List<String> outputAlias, boolean asRow)
   {
     final List<String> projectedNames = outputColumns == null ? outputAlias : outputColumns;
-    if (asArray) {
-      Iterator iterator = GuavaUtils.map(outputRows, LimitSpec.remap(outputAlias, projectedNames));
-      return Sequences.once(projectedNames, asRow ? GuavaUtils.map(iterator, CompactRow.WRAP) : iterator);
+    if (asMap) {
+      Iterator iterator = GuavaUtils.map(outputRows, toMap(outputAlias, projectedNames));
+      return Sequences.once(
+          projectedNames, asRow ? GuavaUtils.map(iterator, Rows.mapToRow(Column.TIME_COLUMN_NAME)) : iterator
+      );
     }
-    Iterator iterator = GuavaUtils.map(outputRows, toMap(outputAlias, projectedNames));
-    return Sequences.once(projectedNames, asRow ? GuavaUtils.map(iterator, Rows.mapToRow(Column.TIME_COLUMN_NAME)) : iterator);
+    Iterator iterator = GuavaUtils.map(outputRows, LimitSpec.remap(outputAlias, projectedNames));
+    return Sequences.once(projectedNames, asRow ? GuavaUtils.map(iterator, CompactRow.WRAP) : iterator);
   }
 
   private static Function<Object[], Map<String, Object>> toMap(List<String> inputColumns, List<String> outputColumns)

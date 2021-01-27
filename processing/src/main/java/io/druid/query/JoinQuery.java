@@ -76,7 +76,7 @@ import static io.druid.query.JoinType.RO;
 /**
  */
 @JsonTypeName("join")
-public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.RewritingQuery<Map<String, Object>>
+public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQuery<Object[]>
 {
   public static final String HASHING = "$hash";
   public static final String CARDINALITY = "$cardinality";
@@ -87,7 +87,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   private final List<JoinElement> elements;
   private final String timeColumnName;
   private final boolean prefixAlias;
-  private final boolean asArray;
+  private final boolean asMap;
   private final int limit;
   private final int maxOutputRow;
   private final List<String> outputAlias;
@@ -101,7 +101,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
-      @JsonProperty("asArray") boolean asArray,
+      @JsonProperty("asMap") boolean asMap,
       @JsonProperty("timeColumnName") String timeColumnName,
       @JsonProperty("limit") int limit,
       @JsonProperty("maxOutputRow") int maxOutputRow,
@@ -113,7 +113,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     super(UnionDataSource.of(JoinElement.getAliases(elements)), querySegmentSpec, false, context);
     this.dataSources = dataSources;
     this.prefixAlias = prefixAlias;
-    this.asArray = asArray;
+    this.asMap = asMap;
     this.timeColumnName = timeColumnName;
     this.elements = elements;
     this.limit = limit;
@@ -208,9 +208,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   }
 
   @JsonProperty
-  public boolean isAsArray()
+  public boolean isAsMap()
   {
-    return asArray;
+    return asMap;
   }
 
   public String getTimeColumnName()
@@ -270,7 +270,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getQuerySegmentSpec(),
         elements,
         prefixAlias,
-        asArray,
+        asMap,
         timeColumnName,
         limit,
         maxOutputRow,
@@ -281,13 +281,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
   }
 
   @Override
-  public Query<Map<String, Object>> withQuerySegmentSpec(QuerySegmentSpec spec)
+  public Query<Object[]> withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     throw new IllegalStateException();
   }
 
   @Override
-  public Query<Map<String, Object>> withDataSource(DataSource dataSource)
+  public Query<Object[]> withDataSource(DataSource dataSource)
   {
     throw new IllegalStateException();
   }
@@ -325,7 +325,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     final Map<String, Object> context = getContext();
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
-    final List<Query<Map<String, Object>>> queries = Lists.newArrayList();
+    final List<Query<Object[]>> queries = Lists.newArrayList();
 
     final ObjectMapper mapper = segmentWalker.getObjectMapper();
     for (int i = 0; i < elements.size(); i++) {
@@ -427,7 +427,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           }
           currentEstimation = rightEstimated;
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              mapper, config, element, true, signature, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow, bytes
+              mapper, config, element, true, signature, prefixAlias,
+              asMap, outputAlias, outputColumns, maxOutputRow, bytes
           );
           query1 = query1.withOverriddenContext(PostProcessingOperators.appendLocal(
               BaseQuery.copyContext(query1, CARDINALITY, rightEstimated), processor
@@ -455,7 +456,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
           }
           currentEstimation = leftEstimated;
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
-              mapper, config, element, false, signature, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow, bytes
+              mapper, config, element, false, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes
           );
           query0 = query0.withOverriddenContext(PostProcessingOperators.appendLocal(
               BaseQuery.copyContext(query0, CARDINALITY, leftEstimated), processor
@@ -561,7 +562,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
     return PostProcessingOperators.append(
         query.withSchema(signature),
-        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asArray, outputAlias, outputColumns, maxOutputRow)
+        new JoinPostProcessor(config.getJoin(), elements, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow)
     );
   }
 
@@ -641,7 +642,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getQuerySegmentSpec(),
         getElements(),
         prefixAlias,
-        asArray,
+        asMap,
         getTimeColumnName(),
         limit,
         maxOutputRow,
@@ -658,7 +659,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getQuerySegmentSpec(),
         elements,
         prefixAlias,
-        asArray,
+        asMap,
         timeColumnName,
         limit,
         maxOutputRow,
@@ -675,7 +676,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getQuerySegmentSpec(),
         elements,
         prefixAlias,
-        asArray,
+        asMap,
         timeColumnName,
         limit,
         maxOutputRow,
@@ -709,7 +710,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     if (prefixAlias != that.prefixAlias) {
       return false;
     }
-    if (asArray != that.asArray) {
+    if (asMap != that.asMap) {
       return false;
     }
     if (maxOutputRow != that.maxOutputRow) {
@@ -734,15 +735,15 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            "dataSources=" + dataSources +
            ", elements=" + elements +
            ", prefixAlias=" + prefixAlias +
-           ", asArray=" + asArray +
+           ", asMap=" + asMap +
            ", maxOutputRow=" + maxOutputRow +
            (outputColumns == null ? "" : ", outputColumns= " + outputColumns) +
            ", limit=" + limit +
            '}';
   }
 
-  public static class JoinHolder extends UnionAllQuery<Map<String, Object>>
-      implements ArrayOutputSupport<Map<String, Object>>, SchemaProvider
+  public static class JoinHolder extends UnionAllQuery<Object[]>
+      implements ArrayOutputSupport<Object[]>, SchemaProvider, LastProjectionSupport<Object[]>
   {
     private final String alias;   // just for debug
     private final List<String> outputAlias;
@@ -754,7 +755,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     public JoinHolder(
         String alias,
-        List<Query<Map<String, Object>>> queries,
+        List<Query<Object[]>> queries,
         String timeColumnName,
         List<String> outputAlias,
         List<String> outputColumns,
@@ -811,6 +812,26 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return this;
     }
 
+    @Override
+    public List<String> getOutputColumns()
+    {
+      return outputColumns;
+    }
+
+    @Override
+    public LastProjectionSupport<Object[]> withOutputColumns(List<String> outputColumns)
+    {
+      return new JoinHolder(
+          alias,
+          getQueries(),
+          timeColumnName,
+          outputAlias,
+          outputColumns,
+          getLimit(),
+          getContext()
+      ).withSchema(schema);
+    }
+
     protected CommonJoinProcessor getLastJoinProcessor()
     {
       PostProcessingOperator processor = getContextValue(Query.POST_PROCESSING);
@@ -826,7 +847,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     protected boolean isArrayOutput()
     {
-      return Preconditions.checkNotNull(getLastJoinProcessor(), "no join processor").isAsArray();
+      return !Preconditions.checkNotNull(getLastJoinProcessor(), "no join processor").isAsMap();
     }
 
     private static final IdentityFunction<PostProcessingOperator> AS_ARRAY = new IdentityFunction<PostProcessingOperator>()
@@ -836,8 +857,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       {
         if (input instanceof CommonJoinProcessor) {
           CommonJoinProcessor join = (CommonJoinProcessor) input;
-          if (!join.isAsArray()) {
-            input = join.withAsArray(true);
+          if (join.isAsMap()) {
+            input = join.withAsMap(false);
           }
         }
         return input;
@@ -855,8 +876,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         // best effort
         JoinPostProcessor proc = PostProcessingOperators.find(processor, JoinPostProcessor.class);
         JoinElement element = proc.getElements()[0];
-        Query<Map<String, Object>> query0 = getQueries().get(0);
-        Query<Map<String, Object>> query1 = getQueries().get(1);
+        Query<Object[]> query0 = getQueries().get(0);
+        Query<Object[]> query1 = getQueries().get(1);
         boolean hashing0 = query0.getContextBoolean(HASHING, false);
         boolean hashing1 = query1.getContextBoolean(HASHING, false);
         if (hashing0 && hashing1) {
@@ -933,8 +954,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 
     @Override
     protected JoinHolder newInstance(
-        Query<Map<String, Object>> query,
-        List<Query<Map<String, Object>>> queries,
+        Query<Object[]> query,
+        List<Query<Object[]>> queries,
         int parallism,
         Map<String, Object> context
     )
