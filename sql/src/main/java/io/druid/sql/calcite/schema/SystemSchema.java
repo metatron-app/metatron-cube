@@ -507,7 +507,28 @@ public class SystemSchema extends AbstractSchema
         @Override
         public Iterator<Object[]> iterator()
         {
-          throw new UnsupportedOperationException("Do not use iterator(), it cannot be closed.");
+          return new CloseableIterator<Object[]>()
+          {
+            private final Enumerator<Object[]> enumerator = enumerator();
+
+            @Override
+            public void close() throws IOException
+            {
+              enumerator.close();
+            }
+
+            @Override
+            public boolean hasNext()
+            {
+              return enumerator.moveNext();
+            }
+
+            @Override
+            public Object[] next()
+            {
+              return enumerator.current();
+            }
+          };
         }
 
         @Override
