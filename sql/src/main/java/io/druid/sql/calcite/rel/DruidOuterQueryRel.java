@@ -108,13 +108,6 @@ public class DruidOuterQueryRel extends DruidRel
     );
   }
 
-  @Override
-  public int getQueryCount()
-  {
-    final DruidRel druidRel = Utils.getDruidRel(sourceRel);
-    return 1 + (druidRel == null ? 0 : druidRel.getQueryCount());
-  }
-
   @Nullable
   @Override
   public DruidQuery makeDruidQuery(final boolean finalizeAggregations)

@@ -81,27 +81,9 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public int getQueryCount()
-  {
-    return rels.stream().mapToInt(rel -> ((DruidRel) rel).getQueryCount()).sum();
-  }
-
-  @Override
   public DruidUnionRel withPartialQuery(final PartialDruidQuery newQueryBuilder)
   {
     throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean isValidDruidQuery()
-  {
-    for (RelNode relNode : rels) {
-      final DruidRel leftRel = Utils.getDruidRel(relNode);
-      if (leftRel == null || !leftRel.isValidDruidQuery()) {
-        return false;
-      }
-    }
-    return true;
   }
 
   @Override

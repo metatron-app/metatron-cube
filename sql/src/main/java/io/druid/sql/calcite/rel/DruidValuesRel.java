@@ -55,12 +55,6 @@ public class DruidValuesRel extends DruidRel
   }
 
   @Override
-  public int getQueryCount()
-  {
-    return 0;
-  }
-
-  @Override
   public DruidValuesRel withPartialQuery(PartialDruidQuery newQueryBuilder)
   {
     return null;
@@ -70,12 +64,6 @@ public class DruidValuesRel extends DruidRel
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
     return planner.getCostFactory().makeTinyCost();
-  }
-
-  @Override
-  public boolean isValidDruidQuery()
-  {
-    return true;
   }
 
   @Override

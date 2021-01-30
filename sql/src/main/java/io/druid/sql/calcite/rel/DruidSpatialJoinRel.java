@@ -20,7 +20,6 @@
 package io.druid.sql.calcite.rel;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
@@ -235,14 +234,6 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
     datasourceNames.addAll(druidLeft.getDataSourceNames());
     datasourceNames.addAll(druidRight.getDataSourceNames());
     return new ArrayList<>(datasourceNames);
-  }
-
-  @Override
-  public int getQueryCount()
-  {
-    DruidRel leftRel = Preconditions.checkNotNull(Utils.getDruidRel(query));
-    DruidRel rightRel = Preconditions.checkNotNull(Utils.getDruidRel(boundary));
-    return leftRel.getQueryCount() + rightRel.getQueryCount();
   }
 
   @Override

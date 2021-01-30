@@ -109,10 +109,7 @@ public class DruidRules
               if (newDruidQuery.isScanOnly()) {
                 return newDruidQuery.getScan();   // prevents circular reference
               }
-              final DruidRel newDruidRel = druidRel.withPartialQuery(newDruidQuery);
-              if (newDruidRel.isValidDruidQuery()) {
-                return newDruidRel;
-              }
+              return druidRel.withPartialQuery(newDruidQuery);
             }
           }
           return null;
@@ -120,12 +117,9 @@ public class DruidRules
 
         private RelNode tryOuterRel(RelType otherRel, DruidRel druidRel)
         {
-          final PartialDruidQuery newDruidQuery = f.apply(PartialDruidQuery.create(druidRel.getLeafRel()), otherRel);
+          final PartialDruidQuery newDruidQuery = f.apply(PartialDruidQuery.create(druidRel), otherRel);
           if (newDruidQuery != null) {
-            final DruidRel newDruidRel = DruidOuterQueryRel.create(druidRel, newDruidQuery);
-            if (newDruidRel.isValidDruidQuery()) {
-              return newDruidRel;
-            }
+            return DruidOuterQueryRel.create(druidRel, newDruidQuery);
           }
           return null;
         }

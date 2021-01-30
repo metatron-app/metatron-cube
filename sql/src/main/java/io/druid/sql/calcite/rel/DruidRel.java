@@ -19,14 +19,12 @@
 
 package io.druid.sql.calcite.rel;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.Query;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -96,45 +94,15 @@ public abstract class DruidRel extends AbstractRelNode
     return partialQuery == null ? null : partialQuery.leafRel();
   }
 
-  public boolean canAccept(PartialDruidQuery.Operator operator)
-  {
-    PartialDruidQuery partialQuery = getPartialDruidQuery();
-    return partialQuery != null && partialQuery.canAccept(operator);
-  }
-
-  /**
-   * Return the number of Druid queries this rel involves, including sub-queries. Simple queries will return 1.
-   *
-   * @return number of nested queries
-   */
-  public abstract int getQueryCount();
-
   public final Sequence<Object[]> runQuery()
   {
     // runQuery doesn't need to finalize aggregations, because the fact that runQuery is happening suggests this
     // is the outermost query and it will actually get run as a native query. Druid's native query layer will
     // finalize aggregations for the outermost query even if we don't explicitly ask it to.
-    return getQueryMaker().prepareAndRun(toDruidQuery(false));
+    return queryMaker.prepareAndRun(toDruidQuery(false));
   }
 
   public abstract DruidRel withPartialQuery(PartialDruidQuery newQueryBuilder);
-
-  public boolean isValidDruidQuery()
-  {
-    try {
-      toDruidQueryForExplaining();
-      return true;
-    }
-    catch (Exception e) {
-      return false;
-    }
-  }
-
-  public double estimateNumRows()
-  {
-    final DruidQuery query = toDruidQuery(false);
-    return query == null ? Integer.MAX_VALUE : queryMaker.estimateCardinality(query.getQuery());
-  }
 
   public abstract RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited);
 
@@ -206,15 +174,4 @@ public abstract class DruidRel extends AbstractRelNode
    * Get a list of names of datasources read by this DruidRel
    */
   public abstract List<String> getDataSourceNames();
-
-  protected String toExplainString(DruidQuery druidQuery)
-  {
-    Query query = druidQuery.getQuery().withOverriddenContext(Query.QUERYID, null);
-    try {
-      return getObjectMapper().writeValueAsString(query);
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
 }

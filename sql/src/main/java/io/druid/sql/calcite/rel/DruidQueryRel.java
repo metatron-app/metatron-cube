@@ -78,7 +78,7 @@ public class DruidQueryRel extends DruidRel
         table,
         druidTable,
         queryMaker,
-        PartialDruidQuery.create(scanRel)
+        PartialDruidQuery.create(scanRel, queryMaker.getPlannerContext())
     );
   }
 
@@ -137,12 +137,6 @@ public class DruidQueryRel extends DruidRel
         getQueryMaker(),
         newQueryBuilder
     );
-  }
-
-  @Override
-  public int getQueryCount()
-  {
-    return 1;
   }
 
   @Override

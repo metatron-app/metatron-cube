@@ -48,6 +48,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
@@ -74,6 +75,8 @@ public class PartialDruidQuery
   private final Window window;
   private final Sort sort;
   private final Project sortProject;        // mapped to PostAggregator with Sort, 'OutputColumns' with other
+
+  private final PlannerContext context;
 
   public RexNode push(RexNode rexNode)
   {
@@ -176,7 +179,8 @@ public class PartialDruidQuery
       final Project aggregateProject,
       final Window window,
       final Sort sort,
-      final Project sortProject
+      final Project sortProject,
+      final PlannerContext context
   )
   {
     this.scan = Preconditions.checkNotNull(scan, "scan");
@@ -188,11 +192,28 @@ public class PartialDruidQuery
     this.window = window;
     this.sort = sort;
     this.sortProject = sortProject;
+    this.context = context;
   }
 
-  public static PartialDruidQuery create(final RelNode scanRel)
+  public static PartialDruidQuery create(RelNode scanRel, PlannerContext context)
   {
-    return new PartialDruidQuery(scanRel, null, null, null, null, null, null, null, null);
+    return new PartialDruidQuery(scanRel, null, null, null, null, null, null, null, null, context);
+  }
+
+  public static PartialDruidQuery create(DruidRel inner)
+  {
+    return new PartialDruidQuery(
+        inner.getLeafRel(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        inner.getPlannerContext()
+    );
   }
 
   public RelNode getScan()
@@ -276,7 +297,8 @@ public class PartialDruidQuery
             aggregateProject,
             window,
             sort,
-            sortProject
+            sortProject,
+            context
         );
       case AGGREGATE:
         return new PartialDruidQuery(
@@ -288,7 +310,8 @@ public class PartialDruidQuery
             aggregateProject,
             window,
             sort,
-            sortProject
+            sortProject,
+            context
         );
       default:
         return null;
@@ -330,7 +353,8 @@ public class PartialDruidQuery
             aggregateProject,
             window,
             sort,
-            sortProject
+            sortProject,
+            context
         );
       case AGGREGATE:
         return new PartialDruidQuery(
@@ -342,7 +366,8 @@ public class PartialDruidQuery
             mergeProject(newProject, aggregateProject),
             window,
             sort,
-            sortProject
+            sortProject,
+            context
         );
       case SELECT_SORT:
       case SELECT_WINDOW:
@@ -361,7 +386,8 @@ public class PartialDruidQuery
             aggregateProject,
             window,
             sort,
-            mergeProject(newProject, sortProject)
+            mergeProject(newProject, sortProject),
+            context
         );
       default:
         return null;
@@ -402,12 +428,20 @@ public class PartialDruidQuery
         aggregateProject,
         window,
         sort,
-        sortProject
+        sortProject,
+        context
     );
   }
 
   public PartialDruidQuery withAggregate(final Aggregate newAggregate)
   {
+    if (!context.getPlannerConfig().isUseApproximateCountDistinct()) {
+      for (AggregateCall call : newAggregate.getAggCallList()) {
+        if (call.getAggregation().kind == SqlKind.COUNT && call.isDistinct()) {
+          return null;
+        }
+      }
+    }
     switch (stage()) {
       case SELECT:
         return new PartialDruidQuery(
@@ -419,7 +453,8 @@ public class PartialDruidQuery
             aggregateProject,
             window,
             sort,
-            sortProject
+            sortProject,
+            context
         );
       default:
         return null;
@@ -440,7 +475,8 @@ public class PartialDruidQuery
             aggregateProject,
             newWindow,
             sort,
-            sortProject
+            sortProject,
+            context
         );
       default:
         return null;
@@ -466,7 +502,8 @@ public class PartialDruidQuery
             aggregateProject,
             window,
             newSort,
-            sortProject
+            sortProject,
+            context
         );
       default:
         return null;

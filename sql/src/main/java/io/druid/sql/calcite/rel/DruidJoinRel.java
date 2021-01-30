@@ -128,20 +128,6 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public boolean isValidDruidQuery()
-  {
-    final DruidRel leftRel = Utils.getDruidRel(left);
-    if (leftRel == null || !leftRel.isValidDruidQuery()) {
-      return false;
-    }
-    final DruidRel rightRel = Utils.getDruidRel(right);
-    if (rightRel == null || !rightRel.isValidDruidQuery()) {
-      return false;
-    }
-    return true;
-  }
-
-  @Override
   public DruidQuery toDruidQuery(boolean finalizeAggregations)
   {
     return withFinalize.get();
@@ -259,14 +245,6 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     datasourceNames.addAll(druidLeft.getDataSourceNames());
     datasourceNames.addAll(druidRight.getDataSourceNames());
     return new ArrayList<>(datasourceNames);
-  }
-
-  @Override
-  public int getQueryCount()
-  {
-    DruidRel leftRel = Preconditions.checkNotNull(Utils.getDruidRel(left));
-    DruidRel rightRel = Preconditions.checkNotNull(Utils.getDruidRel(right));
-    return leftRel.getQueryCount() + rightRel.getQueryCount();
   }
 
   @Override
