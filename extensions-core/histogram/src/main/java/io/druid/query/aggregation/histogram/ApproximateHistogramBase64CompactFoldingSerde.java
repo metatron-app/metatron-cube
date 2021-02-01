@@ -40,12 +40,6 @@ public class ApproximateHistogramBase64CompactFoldingSerde extends ApproximateHi
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<ApproximateCompactHistogram> extractedClass()
-      {
-        return ApproximateCompactHistogram.class;
-      }
-
-      @Override
       public ApproximateCompactHistogram extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);

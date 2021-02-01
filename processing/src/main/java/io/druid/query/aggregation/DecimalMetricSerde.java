@@ -89,11 +89,6 @@ public class DecimalMetricSerde implements ComplexMetricSerde
   {
     return new ComplexMetricExtractor()
     {
-      @Override
-      public Class<?> extractedClass()
-      {
-        return BigDecimal.class;
-      }
 
       @Override
       public Object extractValue(Row inputRow, String metricName)

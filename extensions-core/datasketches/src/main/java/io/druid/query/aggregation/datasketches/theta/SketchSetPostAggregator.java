@@ -59,7 +59,7 @@ public class SketchSetPostAggregator extends PostAggregator.Abstract
     this.name = name;
     this.fields = fields;
     this.func = ThetaOperations.Func.valueOf(func);
-    this.maxSketchSize = maxSize == null ? SketchAggregatorFactory.DEFAULT_MAX_SKETCH_SIZE : maxSize;
+    this.maxSketchSize = maxSize == null ? SketchMergeAggregatorFactory.DEFAULT_MAX_SKETCH_SIZE : maxSize;
     Util.checkIfPowerOf2(this.maxSketchSize, "size");
 
     if (fields.size() <= 1) {
@@ -80,7 +80,7 @@ public class SketchSetPostAggregator extends PostAggregator.Abstract
   @Override
   public Comparator<Sketch> getComparator()
   {
-    return SketchAggregatorFactory.COMPARATOR;
+    return SketchMergeAggregatorFactory.COMPARATOR;
   }
 
   @Override

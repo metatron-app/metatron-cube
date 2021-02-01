@@ -54,12 +54,6 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<?> extractedClass()
-      {
-        return String.class;
-      }
-
-      @Override
       public Object extractValue(Row inputRow, String metricName)
       {
         return Objects.toString(inputRow.getRaw(metricName), null);

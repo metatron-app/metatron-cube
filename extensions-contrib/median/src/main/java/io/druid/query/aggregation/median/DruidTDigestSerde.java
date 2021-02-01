@@ -46,12 +46,6 @@ public class DruidTDigestSerde implements ComplexMetricSerde
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<DruidTDigest> extractedClass()
-      {
-        return DruidTDigest.class;
-      }
-
-      @Override
       public DruidTDigest extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);

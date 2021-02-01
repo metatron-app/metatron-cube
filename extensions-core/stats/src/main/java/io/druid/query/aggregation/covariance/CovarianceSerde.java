@@ -20,9 +20,7 @@
 package io.druid.query.aggregation.covariance;
 
 import io.druid.common.guava.Comparators;
-import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
@@ -39,25 +37,6 @@ public class CovarianceSerde implements ComplexMetricSerde
   public String getTypeName()
   {
     return "covariance";
-  }
-
-  @Override
-  public ComplexMetricExtractor getExtractor()
-  {
-    return new ComplexMetricExtractor()
-    {
-      @Override
-      public Class<CovarianceAggregatorCollector> extractedClass()
-      {
-        return CovarianceAggregatorCollector.class;
-      }
-
-      @Override
-      public CovarianceAggregatorCollector extractValue(Row inputRow, String metricName)
-      {
-        return (CovarianceAggregatorCollector) inputRow.getRaw(metricName);
-      }
-    };
   }
 
   @Override

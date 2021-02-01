@@ -22,8 +22,8 @@ package io.druid.query;
 import io.druid.common.Intervals;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
-import io.druid.query.aggregation.datasketches.theta.SketchEstimatePostProcessor;
 import io.druid.query.aggregation.datasketches.theta.SketchMergeAggregatorFactory;
+import io.druid.query.aggregation.datasketches.theta.SketchEstimatePostProcessor;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
@@ -48,7 +48,7 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         .setDataSource("sales")
         .setInterval(Intervals.of("2011-01-01/2015-01-01"))
         .setDimensions(DefaultDimensionSpec.toSpec("Category"))
-        .setAggregatorSpecs(new SketchMergeAggregatorFactory("MEASURE_1", "City", 512, false, false, null))
+        .setAggregatorSpecs(new SketchMergeAggregatorFactory("MEASURE_1", "City", null, 512, false, false, null))
         .setGranularity(Granularities.ALL)
         .setLimitSpec(
             new LimitSpec(
@@ -87,7 +87,7 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         .setDataSource("sales")
         .setInterval(Intervals.of("2011-01-01/2015-01-01"))
         .setDimensions(DefaultDimensionSpec.toSpec("Category"))
-        .setAggregatorSpecs(new SketchMergeAggregatorFactory("MEASURE_1", "City", 512, true, false, null))
+        .setAggregatorSpecs(new SketchMergeAggregatorFactory("MEASURE_1", "City", null, 512, true, false, null))
         .setGranularity(Granularities.ALL)
         .setLimitSpec(
             new LimitSpec(
@@ -115,5 +115,42 @@ public class TestSalesQuery extends QueryRunnerTestHelper
     Iterable<Row> results = runQuery(query);
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void test3585()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource("sales")
+        .setDimensions(DefaultDimensionSpec.toSpec("Category"))
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .setAggregatorSpecs(new SketchMergeAggregatorFactory(
+            "customers_plus", "CustomerName", "ProfitRatio > 0", 512, true, false, null)
+        )
+        .addContext(QueryContextKeys.POST_PROCESSING, new SketchEstimatePostProcessor())
+        .build();
+
+    String[] columnNames = {"__time", "Category", "customers_plus"};
+    Object[][] objects = {
+        array("2011-01-01", "Furniture", 604.814693647826D),
+        array("2011-01-01", "Office Supplies", 802.4556116641818D),
+        array("2011-01-01", "Technology", 660.8105760501137D)
+    };
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+
+    query = query.withAggregatorSpecs(Arrays.asList(
+        new SketchMergeAggregatorFactory(
+            "customers_minus", "CustomerName", "ProfitRatio <= 0", 512, true, false, null)
+    ));
+    columnNames = new String[] {"__time", "Category", "customers_minus"};
+    objects = new Object[][] {
+        array("2011-01-01", "Furniture", 445.0D),
+        array("2011-01-01", "Office Supplies", 469.0D),
+        array("2011-01-01", "Technology", 204.0D)
+    };
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 }

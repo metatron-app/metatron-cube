@@ -20,18 +20,56 @@
 package io.druid.query.aggregation.datasketches.theta;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
+import com.yahoo.memory.Memory;
+import com.yahoo.sketches.Family;
+import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.common.KeyBuilder;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
+import io.druid.query.aggregation.Aggregators;
+import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.ValueMatcher;
+import io.druid.query.sketch.ThetaOperations;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
+import io.druid.segment.DimensionSelector;
+import io.druid.segment.ObjectColumnSelector;
 
-public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
+
+@JsonTypeName("thetaSketch")
+public class SketchMergeAggregatorFactory extends AggregatorFactory
 {
+  public static final int DEFAULT_MAX_SKETCH_SIZE = 16384;
+
+  public static final Comparator<Sketch> COMPARATOR = new Comparator<Sketch>()
+  {
+    @Override
+    public int compare(Sketch o, Sketch o1)
+    {
+      return Double.compare(o.getEstimate(), o1.getEstimate());
+    }
+  };
 
   private static final byte CACHE_TYPE_ID = 15;
 
+  private final String name;
+  private final String fieldName;
+  private final String predicate;
+  private final int size;
   private final boolean shouldFinalize;
   private final boolean isInputThetaSketch;
   private final Integer errorBoundsStdDev;
@@ -40,22 +78,151 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
   public SketchMergeAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("predicate") String predicate,
       @JsonProperty("size") Integer size,
       @JsonProperty("shouldFinalize") Boolean shouldFinalize,
       @JsonProperty("isInputThetaSketch") Boolean isInputThetaSketch,
       @JsonProperty("errorBoundsStdDev") Integer errorBoundsStdDev
   )
   {
-    super(name, fieldName, size, CACHE_TYPE_ID);
-    this.shouldFinalize = (shouldFinalize == null) ? true : shouldFinalize.booleanValue();
-    this.isInputThetaSketch = (isInputThetaSketch == null) ? false : isInputThetaSketch.booleanValue();
+    this.name = Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
+    this.fieldName = Preconditions.checkNotNull(fieldName, "Must have a valid, non-null fieldName");
+    this.predicate = predicate;
+    this.size = size == null ? DEFAULT_MAX_SKETCH_SIZE : size;
+    this.shouldFinalize = shouldFinalize == null || shouldFinalize.booleanValue();
+    this.isInputThetaSketch = isInputThetaSketch != null && isInputThetaSketch.booleanValue();
     this.errorBoundsStdDev = errorBoundsStdDev;
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public Aggregator factorize(ColumnSelectorFactory metricFactory)
+  {
+    ValueDesc type = metricFactory.resolve(fieldName);
+    if (type == null) {
+      return new EmptySketchAggregator();
+    }
+    ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
+    if (ValueDesc.isDimension(type)) {
+      DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
+      return Aggregators.wrap(matcher, SketchAggregator.create(selector, size));
+    }
+    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
+    return Aggregators.wrap(matcher, SketchAggregator.create(selector, size));
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
+  {
+    ValueDesc type = metricFactory.resolve(fieldName);
+    if (type == null) {
+      return new EmptySketchBufferAggregator();
+    }
+    ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
+    int maxIntermediateSize = getMaxIntermediateSize();
+    if (ValueDesc.isDimension(type)) {
+      DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
+      return Aggregators.wrap(matcher, SketchBufferAggregator.create(selector, size, maxIntermediateSize));
+    }
+    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
+    return Aggregators.wrap(matcher, SketchBufferAggregator.create(selector, size, maxIntermediateSize));
+  }
+
+  @Override
+  public Object deserialize(Object object)
+  {
+    return ThetaOperations.deserialize(object);
+  }
+
+  @Override
+  public Comparator<Sketch> getComparator()
+  {
+    return COMPARATOR;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public Combiner combiner()
+  {
+    return new Combiner()
+    {
+      @Override
+      public Object combine(Object lhs, Object rhs)
+      {
+        final Union union;
+        if (lhs instanceof Union) {
+          union = (Union) lhs;
+          updateUnion(union, rhs);
+        } else if (rhs instanceof Union) {
+          union = (Union) rhs;
+          updateUnion(union, lhs);
+        } else {
+          union = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
+          updateUnion(union, lhs);
+          updateUnion(union, rhs);
+        }
+        return union;
+      }
+    };
+  }
+
+  private void updateUnion(Union union, Object obj)
+  {
+    if (obj == null) {
+      return;
+    } else if (obj instanceof Memory) {
+      union.update((Memory) obj);
+    } else if (obj instanceof Sketch) {
+      union.update((Sketch) obj);
+    } else if (obj instanceof Union) {
+      union.update(((Union) obj).getResult(false, null));
+    } else {
+      throw new IAE("Object of type [%s] can not be unioned", obj.getClass().getName());
+    }
+  }
+
+  @Override
+  @JsonProperty
+  public String getName()
+  {
+    return name;
+  }
+
+  @JsonProperty
+  public String getFieldName()
+  {
+    return fieldName;
+  }
+
+  @JsonProperty
+  public String getPredicate()
+  {
+    return predicate;
+  }
+
+  @JsonProperty
+  public int getSize()
+  {
+    return size;
+  }
+
+  @Override
+  public int getMaxIntermediateSize()
+  {
+    return SetOperation.getMaxUnionBytes(size);
+  }
+
+  @Override
+  public List<String> requiredFields()
+  {
+    return Collections.singletonList(fieldName);
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new SketchMergeAggregatorFactory(name, name, size, shouldFinalize, false, errorBoundsStdDev);
+    return new SketchMergeAggregatorFactory(name, name, null, size, shouldFinalize, false, errorBoundsStdDev);
   }
 
   protected boolean isMergeable(AggregatorFactory other)
@@ -73,6 +240,7 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
     return new SketchMergeAggregatorFactory(
         name,
         name,
+        null,
         Math.max(size, castedOther.size),
         shouldFinalize,
         false,
@@ -93,6 +261,7 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public Integer getErrorBoundsStdDev()
   {
     return errorBoundsStdDev;
@@ -144,6 +313,14 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
   }
 
   @Override
+  public KeyBuilder getCacheKey(KeyBuilder builder)
+  {
+    return builder.append(CACHE_TYPE_ID)
+                  .append(fieldName)
+                  .append(size);
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (this == o) {
@@ -152,12 +329,21 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    if (!super.equals(o)) {
-      return false;
-    }
 
     SketchMergeAggregatorFactory that = (SketchMergeAggregatorFactory) o;
 
+    if (size != that.size) {
+      return false;
+    }
+    if (!name.equals(that.name)) {
+      return false;
+    }
+    if (!fieldName.equals(that.fieldName)) {
+      return false;
+    }
+    if (!Objects.equals(predicate, that.predicate)) {
+      return false;
+    }
     if (shouldFinalize != that.shouldFinalize) {
       return false;
     }
@@ -165,13 +351,15 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
       return false;
     }
     return isInputThetaSketch == that.isInputThetaSketch;
-
   }
 
   @Override
   public int hashCode()
   {
-    int result = super.hashCode();
+    int result = name.hashCode();
+    result = 31 * result + fieldName.hashCode();
+    result = 31 * result + Objects.hashCode(predicate);
+    result = 31 * result + size;
     result = 31 * result + (shouldFinalize ? 1 : 0);
     result = 31 * result + (isInputThetaSketch ? 1 : 0);
     result = 31 * result + (errorBoundsStdDev != null ? errorBoundsStdDev.hashCode() : 0);
@@ -182,8 +370,9 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
   public String toString()
   {
     return "SketchMergeAggregatorFactory{"
-           + "fieldName=" + fieldName
-           + ", name=" + name
+           + "name=" + name
+           + ", fieldName=" + fieldName
+           + (predicate == null ? "" : ", predicate=" + predicate)
            + ", size=" + size
            + ", shouldFinalize=" + shouldFinalize
            + ", isInputThetaSketch=" + isInputThetaSketch

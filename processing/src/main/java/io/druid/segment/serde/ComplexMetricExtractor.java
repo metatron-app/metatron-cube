@@ -28,19 +28,11 @@ public interface ComplexMetricExtractor
   ComplexMetricExtractor DUMMY = new ComplexMetricExtractor()
   {
     @Override
-    public Class<?> extractedClass()
-    {
-      return Object.class;
-    }
-
-    @Override
     public Object extractValue(Row inputRow, String metricName)
     {
       return inputRow.getRaw(metricName);
     }
   };
-
-  Class<?> extractedClass();
 
   Object extractValue(Row inputRow, String metricName);
 }

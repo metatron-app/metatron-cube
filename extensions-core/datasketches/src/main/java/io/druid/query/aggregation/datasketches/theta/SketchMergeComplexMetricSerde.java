@@ -29,7 +29,7 @@ import io.druid.segment.serde.ComplexMetricSerde;
 
 public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
 {
-  private SketchObjectStrategy strategy = new SketchObjectStrategy();
+  private final SketchObjectStrategy strategy = new SketchObjectStrategy();
 
   @Override
   public String getTypeName()
@@ -43,12 +43,6 @@ public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<?> extractedClass()
-      {
-        return Sketch.class;
-      }
-
-      @Override
       public Object extractValue(Row inputRow, String metricName)
       {
         final Object object = inputRow.getRaw(metricName);
@@ -61,9 +55,8 @@ public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ObjectStrategy<Sketch> getObjectStrategy()
+  public ObjectStrategy getObjectStrategy()
   {
     return strategy;
   }
-
 }

@@ -69,7 +69,7 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
         final Set<String> targetColumns = Sets.newHashSet();
         for (AggregatorFactory aggregator : BaseQuery.getAggregators(query)) {
           if (aggregator instanceof SketchMergeAggregatorFactory) {
-            if (!((SketchMergeAggregatorFactory)aggregator).getShouldFinalize()) {
+            if (!((SketchMergeAggregatorFactory) aggregator).getShouldFinalize()) {
               targetColumns.add(aggregator.getName());
             }
           }

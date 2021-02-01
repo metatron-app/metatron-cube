@@ -52,11 +52,6 @@ public class ApproximateHistogramFoldingSerde implements ComplexMetricSerde
   {
     return new ComplexMetricExtractor()
     {
-      @Override
-      public Class<ApproximateHistogram> extractedClass()
-      {
-        return ApproximateHistogram.class;
-      }
 
       @Override
       public ApproximateHistogram extractValue(Row inputRow, String metricName)

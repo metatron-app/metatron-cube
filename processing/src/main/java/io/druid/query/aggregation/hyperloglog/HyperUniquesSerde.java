@@ -58,12 +58,6 @@ public class HyperUniquesSerde extends ComplexMetricSerde.CompressionSupport
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<HyperLogLogCollector> extractedClass()
-      {
-        return HyperLogLogCollector.class;
-      }
-
-      @Override
       public HyperLogLogCollector extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);

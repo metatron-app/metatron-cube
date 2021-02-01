@@ -80,12 +80,6 @@ public class ArrayMetricSerde implements ComplexMetricSerde
       private final AbstractInputRow.Dummy dummy = new AbstractInputRow.Dummy();
 
       @Override
-      public Class<?> extractedClass()
-      {
-        return List.class;
-      }
-
-      @Override
       public Object extractValue(Row inputRow, String metricName)
       {
         Object raw = inputRow.getRaw(metricName);

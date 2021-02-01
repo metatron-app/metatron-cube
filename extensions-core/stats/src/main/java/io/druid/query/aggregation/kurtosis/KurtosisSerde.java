@@ -20,9 +20,7 @@
 package io.druid.query.aggregation.kurtosis;
 
 import io.druid.common.guava.Comparators;
-import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
@@ -39,25 +37,6 @@ public class KurtosisSerde implements ComplexMetricSerde
   public String getTypeName()
   {
     return "kurtosis";
-  }
-
-  @Override
-  public ComplexMetricExtractor getExtractor()
-  {
-    return new ComplexMetricExtractor()
-    {
-      @Override
-      public Class<KurtosisAggregatorCollector> extractedClass()
-      {
-        return KurtosisAggregatorCollector.class;
-      }
-
-      @Override
-      public KurtosisAggregatorCollector extractValue(Row inputRow, String metricName)
-      {
-        return (KurtosisAggregatorCollector) inputRow.getRaw(metricName);
-      }
-    };
   }
 
   @Override

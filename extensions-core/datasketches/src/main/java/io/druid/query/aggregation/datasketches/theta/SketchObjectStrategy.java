@@ -40,14 +40,14 @@ public class SketchObjectStrategy implements ObjectStrategy.CompareSupport
   {
     if (s1 instanceof Sketch) {
       if (s2 instanceof Sketch) {
-        return SketchAggregatorFactory.COMPARATOR.compare((Sketch) s1, (Sketch) s2);
+        return SketchMergeAggregatorFactory.COMPARATOR.compare((Sketch) s1, (Sketch) s2);
       } else {
         return -1;
       }
     }
     if (s1 instanceof Union) {
       if (s2 instanceof Union) {
-        return SketchAggregatorFactory.COMPARATOR.compare(((Union) s1).getResult(), ((Union) s2).getResult());
+        return SketchMergeAggregatorFactory.COMPARATOR.compare(((Union) s1).getResult(), ((Union) s2).getResult());
       } else {
         return -1;
       }

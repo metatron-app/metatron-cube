@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation.hll;
 
-import io.druid.data.input.Row;
 import io.druid.segment.serde.ComplexMetricExtractor;
 
 public class HllSketchBuildComplexMetricSerde extends HllSketchMergeComplexMetricSerde
@@ -27,19 +26,6 @@ public class HllSketchBuildComplexMetricSerde extends HllSketchMergeComplexMetri
   @Override
   public ComplexMetricExtractor getExtractor()
   {
-    return new ComplexMetricExtractor()
-    {
-      @Override
-      public Class<?> extractedClass()
-      {
-        return Object.class;
-      }
-
-      @Override
-      public Object extractValue(Row inputRow, String metricName)
-      {
-        return inputRow.getRaw(metricName);
-      }
-    };
+    return ComplexMetricExtractor.DUMMY;
   }
 }

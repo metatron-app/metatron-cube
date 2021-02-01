@@ -79,12 +79,6 @@ public class MetricRangeSerde implements ComplexMetricSerde
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<?> extractedClass()
-      {
-        return MetricRange.class;
-      }
-
-      @Override
       public MetricRange extractValue(Row inputRow, String metricName)
       {
         final Object rawValue = inputRow.getRaw(metricName);

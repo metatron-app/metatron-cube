@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation.datasketches.theta;
 
-import io.druid.data.input.Row;
 import io.druid.segment.serde.ComplexMetricExtractor;
 
 /**
@@ -29,20 +28,6 @@ public class SketchBuildComplexMetricSerde extends SketchMergeComplexMetricSerde
   @Override
   public ComplexMetricExtractor getExtractor()
   {
-    return new ComplexMetricExtractor()
-    {
-
-      @Override
-      public Class<?> extractedClass()
-      {
-        return Object.class;
-      }
-
-      @Override
-      public Object extractValue(Row inputRow, String metricName)
-      {
-        return inputRow.getRaw(metricName);
-      }
-    };
+    return ComplexMetricExtractor.DUMMY;
   }
 }

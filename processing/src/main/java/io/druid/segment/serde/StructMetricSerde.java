@@ -123,12 +123,6 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<?> extractedClass()
-      {
-        return Object[].class;
-      }
-
-      @Override
       public Object extractValue(Row inputRow, String metricName)
       {
         Object raw = inputRow.getRaw(metricName);

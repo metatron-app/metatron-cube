@@ -48,12 +48,6 @@ public class VarianceSerde implements ComplexMetricSerde
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<VarianceAggregatorCollector> extractedClass()
-      {
-        return VarianceAggregatorCollector.class;
-      }
-
-      @Override
       public VarianceAggregatorCollector extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);

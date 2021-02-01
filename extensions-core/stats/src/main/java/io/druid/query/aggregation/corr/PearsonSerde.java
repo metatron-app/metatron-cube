@@ -20,9 +20,7 @@
 package io.druid.query.aggregation.corr;
 
 import io.druid.common.guava.Comparators;
-import io.druid.data.input.Row;
 import io.druid.segment.data.ObjectStrategy;
-import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
@@ -39,25 +37,6 @@ public class PearsonSerde implements ComplexMetricSerde
   public String getTypeName()
   {
     return "pearson";
-  }
-
-  @Override
-  public ComplexMetricExtractor getExtractor()
-  {
-    return new ComplexMetricExtractor()
-    {
-      @Override
-      public Class<PearsonAggregatorCollector> extractedClass()
-      {
-        return PearsonAggregatorCollector.class;
-      }
-
-      @Override
-      public PearsonAggregatorCollector extractValue(Row inputRow, String metricName)
-      {
-        return (PearsonAggregatorCollector) inputRow.getRaw(metricName);
-      }
-    };
   }
 
   @Override

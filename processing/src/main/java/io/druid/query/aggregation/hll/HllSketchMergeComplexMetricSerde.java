@@ -48,12 +48,6 @@ public class HllSketchMergeComplexMetricSerde implements ComplexMetricSerde
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<?> extractedClass()
-      {
-        return HllSketch.class;
-      }
-
-      @Override
       public HllSketch extractValue(final Row inputRow, final String metricName)
       {
         final Object object = inputRow.getRaw(metricName);
