@@ -66,6 +66,6 @@ public class DruidValuesRule extends ConverterRule
           }
         }
     );
-    return new DruidValuesRel(rel.getCluster(), rel.getTraitSet(), rel, converted, maker);
+    return DruidValuesRel.of(rel, converted, null, maker);
   }
 }

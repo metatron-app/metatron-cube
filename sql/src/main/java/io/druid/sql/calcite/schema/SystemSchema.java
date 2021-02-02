@@ -296,22 +296,6 @@ public class SystemSchema extends AbstractSchema
         }
       });
       return Linq4j.asEnumerable(segments).where(t -> t != null);
-
-    }
-
-    private Iterator<Entry<DataSegment, SegmentMetadataHolder>> getAuthorizedAvailableSegments(
-        Iterator<Entry<DataSegment, SegmentMetadataHolder>> availableSegmentEntries,
-        DataContext root
-    )
-    {
-      return availableSegmentEntries;
-    }
-    private CloseableIterator<DataSegment> getAuthorizedPublishedSegments(
-        JsonParserIterator<DataSegment> it,
-        DataContext root
-    )
-    {
-      return wrap(it, it);
     }
   }
 

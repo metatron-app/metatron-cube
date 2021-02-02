@@ -40,7 +40,6 @@ import org.apache.calcite.rex.RexLiteral;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
-import java.util.function.Predicate;
 
 import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.AGGREGATE;
 import static io.druid.sql.calcite.rel.PartialDruidQuery.Operator.FILTER;
@@ -62,12 +61,7 @@ public class DruidRules
 
   static RelOptRuleOperand anyDruid()
   {
-    return ofDruidRel(druidRel -> true);
-  }
-
-  static RelOptRuleOperand ofDruidRel(Predicate<DruidRel> predicate)
-  {
-    return DruidRel.of(DruidRel.class, predicate);
+    return DruidRel.of(DruidRel.class, druidRel -> true);
   }
 
   private DruidRules()

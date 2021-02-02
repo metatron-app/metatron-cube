@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.table;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.data.TypeResolver;
@@ -52,6 +53,8 @@ import java.util.List;
  */
 public class RowSignature extends io.druid.query.RowSignature
 {
+  public static final RowSignature EMPTY = new RowSignature(ImmutableList.of(), ImmutableList.of());
+
   private RowSignature(List<String> columnNames, List<ValueDesc> columnTypes)
   {
     super(columnNames, columnTypes);

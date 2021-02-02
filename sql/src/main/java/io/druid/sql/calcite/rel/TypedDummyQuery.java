@@ -40,17 +40,17 @@ import java.util.Map;
 public class TypedDummyQuery extends DummyQuery<Object[]>
     implements Query.ArrayOutput, Query.RowOutputSupport<Object[]>, Query.SchemaProvider
 {
-  public static final TypedDummyQuery DUMMY = of(null, Arrays.<Object[]>asList());
+  public static final TypedDummyQuery DUMMY = of(null, RowSignature.EMPTY, Arrays.<Object[]>asList());
 
-  public static TypedDummyQuery of(RowSignature signature, Iterable<Object[]> sequence)
+  public static TypedDummyQuery of(String tableName, RowSignature signature, Iterable<Object[]> sequence)
   {
-    return of(signature, Sequences.simple(sequence));
+    return of(tableName, signature, Sequences.simple(signature.getColumnNames(), sequence));
   }
 
-  public static TypedDummyQuery of(RowSignature signature, Sequence<Object[]> sequence)
+  public static TypedDummyQuery of(String tableName, RowSignature signature, Sequence<Object[]> sequence)
   {
     return new TypedDummyQuery(
-        TableDataSource.of("<NOT-EXISTING>"),
+        TableDataSource.of(tableName == null ? "<NOT-EXISTING>" : tableName),
         null,
         false,
         signature,

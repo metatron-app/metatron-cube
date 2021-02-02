@@ -72,7 +72,7 @@ public class DruidOuterQueryRel extends DruidRel
   {
     return new DruidOuterQueryRel(
         sourceRel.getCluster(),
-        sourceRel.getTraitSet(),
+        sourceRel.getTraitSet().plus(partialQuery.getCollation()),
         sourceRel,
         partialQuery,
         sourceRel.getQueryMaker()

@@ -40,18 +40,26 @@ public class DruidValuesRel extends DruidRel
 {
   private final RelNode source;
   private final Iterable<Object[]> values;
+  private final String tableName;
 
-  public DruidValuesRel(
+  public static DruidValuesRel of(RelNode source, Iterable<Object[]> values, String tableName, QueryMaker queryMaker)
+  {
+    return new DruidValuesRel(source.getCluster(), source.getTraitSet(), source, values, tableName, queryMaker);
+  }
+
+  private DruidValuesRel(
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelNode source,
       Iterable<Object[]> values,
+      String tableName,
       QueryMaker queryMaker
   )
   {
     super(cluster, traitSet, queryMaker);
     this.source = source;
     this.values = values;
+    this.tableName = tableName;
   }
 
   @Override
@@ -76,7 +84,7 @@ public class DruidValuesRel extends DruidRel
   public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
     final RowSignature signature = RowSignature.from(source.getRowType());
-    final TypedDummyQuery query = TypedDummyQuery.of(signature, values)
+    final TypedDummyQuery query = TypedDummyQuery.of(tableName, signature, values)
                                                  .withOverriddenContext(getPlannerContext().copyQueryContext());
     return new DruidQuery()
     {
@@ -126,6 +134,7 @@ public class DruidValuesRel extends DruidRel
         getTraitSet().replace(DruidConvention.instance()),
         source,
         values,
+        tableName,
         getQueryMaker()
     );
   }
@@ -143,6 +152,7 @@ public class DruidValuesRel extends DruidRel
   public RelWriter explainTerms(RelWriter pw)
   {
     return super.explainTerms(pw)
-                .input("source", source);
+                .input("source", source)
+                .itemIf("table", tableName, tableName != null);
   }
 }

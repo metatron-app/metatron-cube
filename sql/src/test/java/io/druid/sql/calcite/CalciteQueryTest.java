@@ -428,13 +428,29 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   {
     final String explanation =
         "DruidOuterQueryRel(scanFilter=[AND(=($1, 'druid'), =($2, 'foo'))], scanProject=[$3, $7])\n"
-        + "  DruidValuesRel\n";
+        + "  DruidValuesRel(table=[INFORMATION_SCHEMA.COLUMNS])\n";
 
     testQuery(
         "EXPLAIN PLAN FOR\n"
         + "SELECT COLUMN_NAME, DATA_TYPE\n"
         + "FROM INFORMATION_SCHEMA.COLUMNS\n"
         + "WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME = 'foo'",
+        new Object[]{explanation}
+    );
+  }
+
+  @Test
+  public void testExplainInformationSchemaColumnsOrderBy() throws Exception
+  {
+    final String explanation =
+        "DruidOuterQueryRel(scanProject=[$3, $7], sort=[$0:ASC])\n"
+        + "  DruidValuesRel(table=[INFORMATION_SCHEMA.COLUMNS])\n";
+
+    testQuery(
+        "EXPLAIN PLAN FOR\n"
+        + "SELECT COLUMN_NAME, DATA_TYPE\n"
+        + "FROM INFORMATION_SCHEMA.COLUMNS\n"
+        + "ORDER BY COLUMN_NAME",
         new Object[]{explanation}
     );
   }
