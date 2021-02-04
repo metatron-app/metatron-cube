@@ -89,7 +89,7 @@ public class DimensionSpecs
   {
     List<Comparator> comparators = Lists.newArrayList();
     if (prependTime) {
-      comparators.add(GuavaUtils.noNullableNatural());
+      comparators.add(GuavaUtils.TIME_COMPARATOR);
     }
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       comparators.add(toComparator(dimensionSpec));

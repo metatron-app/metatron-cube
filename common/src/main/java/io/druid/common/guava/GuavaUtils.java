@@ -82,6 +82,9 @@ public class GuavaUtils
   @SuppressWarnings("unchecked")
   public static final Comparator NULL_FIRST_NATURAL = Comparators.NULL_FIRST(NO_NULLABLE_NATURAL);
 
+  public static final Comparator TIME_COMPARATOR =
+      (t1, t2) -> Long.compare(((Number) t1).longValue(), ((Number) t2).longValue());
+
   @SuppressWarnings("unchecked")
   public static <T> Comparator<T> noNullableNatural()
   {
