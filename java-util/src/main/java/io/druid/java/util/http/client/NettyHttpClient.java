@@ -198,7 +198,7 @@ public class NettyHttpClient implements HttpClient
                 }
 
                 response = handler.handleResponse(httpResponse);
-                if (response.isFinished()) {
+                if (!retVal.isDone() && (request.isEagerResponse() || response.isFinished())) {
                   retVal.set((Final) response.getObj());
                 }
 
@@ -220,7 +220,7 @@ public class NettyHttpClient implements HttpClient
                   finishRequest();
                 } else {
                   response = handler.handleChunk(response, httpChunk);
-                  if (response.isFinished() && !retVal.isDone()) {
+                  if (!retVal.isDone() && (request.isEagerResponse() || response.isFinished())) {
                     retVal.set((Final) response.getObj());
                   }
                 }

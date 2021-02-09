@@ -31,6 +31,7 @@ import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.server.QueryLifecycle;
+import io.druid.server.QueryManager;
 import io.druid.server.QueryStats;
 import io.druid.server.RequestLogLine;
 import io.druid.server.ServiceTypes;
@@ -90,6 +91,7 @@ public class SqlLifecycle
   private final RequestLogger requestLogger;
   private final DruidPlanner planner;
   private final PlannerContext plannerContext;
+  private final QueryManager queryManager;
   private final AuthorizerMapper authorizerMapper;
   private final long startMs;
   private final long startNs;
@@ -115,6 +117,7 @@ public class SqlLifecycle
     this.requestLogger = requestLogger;
     this.planner = planner;
     this.plannerContext = planner.getPlannerContext();
+    this.queryManager = plannerContext.getQueryManager();
     this.authorizerMapper = authorizerMapper;
     this.startMs = startMs;
     this.startNs = startNs;
@@ -200,19 +203,20 @@ public class SqlLifecycle
   {
     synchronized (lock) {
 
+      final String queryId = getQueryId();
       if (state == State.DONE) {
-        log.warn("Tried to emit logs and metrics twice for query[%s]!", getQueryId());
+        log.warn("Tried to emit logs and metrics twice for query[%s]!", queryId);
       }
 
       state = State.DONE;
 
-      final boolean success = e == null || plannerContext.isCancelled();
+      final boolean success = e == null || queryManager.isCancelled(queryId);
       final boolean interrupted = QueryLifecycle.isInterrupted(e);
 
       final long queryTimeNs = System.nanoTime() - startNs;
       try {
         ServiceMetricEvent.Builder metricBuilder = ServiceMetricEvent.builder();
-        metricBuilder.setDimension("id", getQueryId());
+        metricBuilder.setDimension("id", queryId);
         if (plannerResult != null) {
           metricBuilder.setDimension("dataSource", plannerResult.datasourceNames().toString());
         }
@@ -246,10 +250,11 @@ public class SqlLifecycle
             )
         );
         if (Objects.equals(ServiceTypes.BROKER, emitter.getType())) {
+          queryManager.clear(queryId);
           emitter.emit(
               new QueryEvent(
                   DateTimes.utc(startMs), Strings.nullToEmpty(remoteAddress),
-                  getQueryId(),
+                  queryId,
                   sql,
                   String.valueOf(success),
                   Long.valueOf(TimeUnit.NANOSECONDS.toMillis(queryTimeNs)),

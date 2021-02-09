@@ -124,11 +124,6 @@ public class PlannerContext
     return queryManager;
   }
 
-  public boolean isCancelled()
-  {
-    return queryManager.isCancelled(getQueryId());
-  }
-
   public String getQueryId()
   {
     return (String) queryContext.get(Query.QUERYID);

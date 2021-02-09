@@ -60,6 +60,8 @@ public interface QueryWatcher
 
   boolean isCancelled(String queryId);
 
+  void clear(String queryId);
+
   class Abstract implements QueryWatcher
   {
     @Override
@@ -84,6 +86,11 @@ public interface QueryWatcher
     public boolean isCancelled(String queryId)
     {
       return false;
+    }
+
+    @Override
+    public void clear(String queryId)
+    {
     }
   }
 }

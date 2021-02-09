@@ -57,6 +57,7 @@ import io.druid.server.security.Access;
 import io.druid.server.security.AuthorizationUtils;
 import io.druid.server.security.AuthorizerMapper;
 import io.druid.server.security.ForbiddenException;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.eclipse.jetty.io.EofException;
@@ -314,6 +315,7 @@ public class QueryResource
             os.close();
           }
           catch (Throwable t) {
+            IOUtils.closeQuietly(outputStream);
             if (QueryLifecycle.isEOF(t)) {
               // ignore.. todo: let's find better way to handle intentional disconnect
               lifecycle.emitLogsAndMetrics(toLoggingQuery(query), null, remote, os.getCount(), counter.intValue());

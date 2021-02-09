@@ -118,6 +118,7 @@ public class QueryRunnerHelper
       final Iterable<QueryRunner<T>> runners,
       final Execs.Semaphore semaphore,
       final Query<T> query,
+      final boolean materialze,
       final Map<String, Object> responseContext
   )
   {
@@ -133,7 +134,11 @@ public class QueryRunnerHelper
               @Override
               public Sequence<T> call() throws Exception
               {
-                return Sequences.materialize(Sequences.withBaggage(callable.call(), semaphore));
+                Sequence<T> sequence = Sequences.withBaggage(callable.call(), semaphore);
+                if (materialze) {
+                  sequence = Sequences.materialize(sequence);
+                }
+                return sequence;
               }
             };
           }

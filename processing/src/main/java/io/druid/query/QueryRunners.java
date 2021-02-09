@@ -242,7 +242,7 @@ public class QueryRunners
         final int priority = BaseQuery.getContextPriority(query, 0);
         final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(parallelism, runners.size()));
         final Iterable<Callable<Sequence<T>>> works = QueryRunnerHelper.asCallable(
-            runners, semaphore, query, responseContext
+            runners, semaphore, query, ordering != null, responseContext
         );
         final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(executor, works, semaphore, priority);
         final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(futures);
@@ -254,12 +254,13 @@ public class QueryRunners
           final ListenableFuture<Sequence<T>> first = futures.get(0);
           final List<ListenableFuture<Sequence<T>>> others = futures.subList(1, futures.size());
           final Sequence<T> sequence = waitForCompletion(query, first, watcher, resource);
-          return sequence == null ? Sequences.empty(columns) :
-                 Sequences.concat(sequence, Sequences.concat(
-                     Iterables.transform(others, FutureSequence.toSequence(sequence.columns()))));
+          return sequence == null ? Sequences.withBaggage(Sequences.empty(columns), resource) :
+                 Sequences.withBaggage(Sequences.concat(sequence, Sequences.concat(
+                     Iterables.transform(others, FutureSequence.toSequence(sequence.columns())))), resource);
         }
         final List<Sequence<T>> sequences = waitForCompletion(query, future, watcher, resource);
-        return sequences == null ? Sequences.empty(columns) : QueryUtils.mergeSort(columns, ordering, sequences);
+        return sequences == null ? Sequences.withBaggage(Sequences.empty(columns), resource) :
+               Sequences.withBaggage(QueryUtils.mergeSort(columns, ordering, sequences), resource);
       }
     };
   }

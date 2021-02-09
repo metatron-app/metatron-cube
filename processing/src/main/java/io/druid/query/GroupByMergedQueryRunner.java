@@ -31,7 +31,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.input.Row;
-
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryHelper;
@@ -125,24 +124,15 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
         )
     );
 
-    QueryRunners.waitForCompletion(
-        query,
-        future,
-        queryWatcher,
-        new Closeable()
-        {
-          @Override
-          public void close() throws IOException
-          {
-            semaphore.destroy();
-            mergeIndex.close();
-            Execs.cancelQuietly(future);
-          }
-        }
-    );
+    Closeable resource = () -> {
+      semaphore.destroy();
+      mergeIndex.close();
+      Execs.cancelQuietly(future);
+    };
+    QueryRunners.waitForCompletion(query, future, queryWatcher, resource);
 
     boolean compact = !BaseQuery.isLocalFinalizingQuery(query);
-    return Sequences.withBaggage(mergeIndex.toMergeStream(compact), new AsyncCloser(mergeIndex, executor));
+    return Sequences.withBaggage(mergeIndex.toMergeStream(compact), new AsyncCloser(resource, executor));
   }
 
   private static class AsyncCloser implements Closeable

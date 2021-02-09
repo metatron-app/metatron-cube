@@ -26,8 +26,8 @@ import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
-import io.druid.common.guava.BaseSequence;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.concurrent.Execs;
 import io.druid.java.util.common.logger.Logger;
@@ -54,6 +54,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.ws.rs.core.MediaType;
+import java.io.Closeable;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
@@ -153,7 +154,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
     final long start = System.currentTimeMillis();
     final ChannelResource<InputStream> future = httpClient.go(
-        new Request(HttpMethod.POST, hostURL)
+        new Request(HttpMethod.POST, hostURL, true)
             .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType)
             .setContent(content),
         handler
@@ -165,34 +166,22 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
     openConnections.getAndIncrement();
 
-    StopWatch watch = queryWatcher.registerQuery(query, Execs.tag(future, host), handler);
-
-    Sequence<T> sequence = new BaseSequence<>(
-        query.estimatedOutputColumns(),
-        new BaseSequence.IteratorMaker<T, JsonParserIterator<T>>()
-        {
-          @Override
-          public JsonParserIterator<T> make()
-          {
-            return new JsonParserIterator.FromCallable<T>(mapper, typeRef, hostURL, type, () -> watch.wainOn(future));
-          }
-
-          @Override
-          public void cleanup(JsonParserIterator<T> parser)
-          {
-            IOUtils.closeQuietly(handler);
-            openConnections.getAndDecrement();
-            queryWatcher.unregisterResource(query, handler);
-            if (!parser.close()) {
-              if (watch.isExpired()) {
-                cancelRemote(query);
-              }
-              IOUtils.closeQuietly(future);
-            }
-          }
+    final StopWatch watch = new StopWatch(queryWatcher.remainingTime(query.getId()));
+    final JsonParserIterator<T> iterator = new JsonParserIterator.FromCallable<T>(mapper, typeRef, hostURL, type, () -> watch.wainOn(future));
+    final Closeable resource = () -> {
+      IOUtils.closeQuietly(handler);
+      openConnections.getAndDecrement();
+      queryWatcher.unregisterResource(query, handler);
+      if (!iterator.close()) {
+        if (watch.isExpired()) {
+          cancelRemote(query);
         }
-    );
+        IOUtils.closeQuietly(future);
+      }
+    };
+    queryWatcher.registerQuery(query, Execs.tag(future, host), resource);
 
+    Sequence<T> sequence = Sequences.withBaggage(Sequences.once(query.estimatedOutputColumns(), iterator), resource);
     // bySegment queries are de-serialized after caching results in order to
     // avoid the cost of de-serializing and then re-serializing again when adding to cache
     if (!isBySegment) {

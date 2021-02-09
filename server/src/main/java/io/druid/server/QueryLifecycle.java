@@ -296,6 +296,7 @@ public class  QueryLifecycle
           )
       );
       if (Objects.equals(ServiceTypes.BROKER, emitter.getType())) {
+        queryManager.clear(query.getId());
         emitter.emit(
             new QueryEvent(
                 DateTimes.utc(startMs),

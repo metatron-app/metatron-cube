@@ -112,7 +112,7 @@ public class StreamHandlerFactory
       response(requestStartTimeNs, responseStartTimeNs = System.nanoTime());
 
       HttpResponseStatus status = response.getStatus();
-      if (!disableLog) {
+      if (!disableLog && log.isDebugEnabled()) {
         log.debug(
             "Initial response from url[%s] for [%s][%s:%s] with status[%s] in %,d msec",
             host, query.getId(), query.getType(), query.getDataSource(),
@@ -238,7 +238,7 @@ public class StreamHandlerFactory
     {
       long stopTimeNs = System.nanoTime();
       long nodeTimeNs = stopTimeNs - requestStartTimeNs;
-      if (!disableLog) {
+      if (!disableLog && log.isDebugEnabled()) {
         log.debug(
             "Completed [%s][%s:%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
             query.getId(), query.getType(), query.getDataSource(),
@@ -269,9 +269,10 @@ public class StreamHandlerFactory
       };
       // Don't wait for lock in case the lock had something to do with the error
       synchronized (done) {
-        done.set(true);
+        if (done.compareAndSet(false, true)) {
+          queue.offer(thrower);
+        }
         done.notifyAll();
-        queue.offer(thrower);
       }
     }
 

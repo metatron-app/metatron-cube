@@ -42,6 +42,8 @@ public class Request
 
   private final HttpMethod method;
   private final URL url;
+  private final boolean eagerResponse;
+
   private final Multimap<String, String> headers = Multimaps.newListMultimap(
       Maps.<String, Collection<String>>newHashMap(),
       new Supplier<List<String>>() {
@@ -54,13 +56,16 @@ public class Request
 
   private ChannelBuffer content;
 
-  public Request(
-      HttpMethod method,
-      URL url
-  )
+  public Request(HttpMethod method, URL url)
+  {
+    this(method, url, false);
+  }
+
+  public Request(HttpMethod method, URL url, boolean eagerResponse)
   {
     this.method = method;
     this.url = url;
+    this.eagerResponse = eagerResponse;
   }
 
   public HttpMethod getMethod()
@@ -71,6 +76,11 @@ public class Request
   public URL getUrl()
   {
     return url;
+  }
+
+  public boolean isEagerResponse()
+  {
+    return eagerResponse;
   }
 
   public Multimap<String, String> getHeaders()
@@ -89,8 +99,8 @@ public class Request
   }
 
   public Request copy() {
-    Request retVal = new Request(method, url);
-    retVal.headers.putAll(this.headers);
+    Request retVal = new Request(method, url, eagerResponse);
+    retVal.headers.putAll(headers);
     retVal.content = content == null ? null : content.copy();
     return retVal;
   }

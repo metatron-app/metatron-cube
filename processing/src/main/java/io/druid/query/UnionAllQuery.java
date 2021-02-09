@@ -45,7 +45,6 @@ import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Interval;
 
-import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -425,17 +424,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
           Sequence<Pair<Query<T>, Sequence<T>>> sequence = Sequences.simple(
               GuavaUtils.zip(ready, Lists.transform(futures, FutureSequence.<T>toSequence()))
           );
-          return Sequences.withBaggage(
-              sequence,
-              new Closeable()
-              {
-                @Override
-                public void close()
-                {
-                  semaphore.destroy();
-                }
-              }
-          );
+          return Sequences.withBaggage(sequence, () -> semaphore.destroy());
         }
       };
     }

@@ -112,6 +112,15 @@ public class QueryManager implements QueryWatcher, Runnable
   }
 
   @Override
+  public void clear(String queryId)
+  {
+    QueryStatus status = queries.get(queryId);
+    if (status != null) {
+      status.done();
+    }
+  }
+
+  @Override
   public StopWatch registerQuery(final Query query, final ListenableFuture future, final Closeable resource)
   {
     final String id = query.getId();
@@ -309,7 +318,14 @@ public class QueryManager implements QueryWatcher, Runnable
         return true;
       }
       canceled = true;
-      end = System.currentTimeMillis();
+      return done();
+    }
+
+    private synchronized boolean done()
+    {
+      if (!canceled && end < 0) {
+        end = System.currentTimeMillis();
+      }
       boolean success = true;
       for (Map.Entry<ListenableFuture, Timer> entry : pendings.entrySet()) {
         final ListenableFuture future = entry.getKey();
