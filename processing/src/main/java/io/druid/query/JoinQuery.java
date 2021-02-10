@@ -415,7 +415,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query0, segmentWalker));
           LOG.info("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
-          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
+          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
           if (query0.hasFilters() && query1 instanceof FilterSupport && !element.isCrossJoin() && leftEstimated > 0) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(
@@ -444,7 +444,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query1, segmentWalker));
           LOG.info("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
-          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature));
+          byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
           if (query1.hasFilters() && query0 instanceof FilterSupport && !element.isCrossJoin() && rightEstimated > 0) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(

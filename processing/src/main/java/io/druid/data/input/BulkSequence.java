@@ -40,14 +40,14 @@ import java.util.List;
  */
 public class BulkSequence extends YieldingSequenceBase<BulkRow>
 {
-  public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, RowSignature schema)
+  public static Sequence<BulkRow> fromRow(Sequence<Row> sequence, RowSignature schema, int limit)
   {
-    return fromArray(Sequences.map(sequence, CompactRow.UNWRAP), schema);
+    return fromArray(Sequences.map(sequence, CompactRow.UNWRAP), schema, limit);
   }
 
-  public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema)
+  public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema, int limit)
   {
-    return new BulkSequence(sequence, schema);
+    return new BulkSequence(sequence, schema, limit < 0 ? DEFAULT_PAGE_SIZE : limit);
   }
 
   private static final int DEFAULT_PAGE_SIZE = 1024 << 2;
@@ -58,14 +58,9 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
   private final Object[] page;
   private final int max;
 
-  public BulkSequence(Sequence<Object[]> sequence, RowSignature schema)
+  BulkSequence(Sequence<Object[]> sequence, RowSignature schema, int max)
   {
-    this(sequence, schema, DEFAULT_PAGE_SIZE);
-  }
-
-  public BulkSequence(Sequence<Object[]> sequence, RowSignature schema, final int max)
-  {
-    Preconditions.checkArgument(max < 0xffff);
+    Preconditions.checkArgument(max > 0 && max < 0xffff);
     this.max = max;
     this.sequence = sequence;
     this.schema = schema;

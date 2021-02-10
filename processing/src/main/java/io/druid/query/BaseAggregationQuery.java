@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -184,6 +185,12 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   public LateralViewSpec getLateralView()
   {
     return lateralView;
+  }
+
+  @JsonIgnore
+  public int getSimpleLimit()
+  {
+    return limitSpec.isSimpleLimiter() ? limitSpec.getLimit() : -1;
   }
 
   public GroupingSetSpec getGroupingSets()

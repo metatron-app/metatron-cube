@@ -113,7 +113,7 @@ public class StreamQueryToolChest extends QueryToolChest<Object[], StreamQuery>
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BulkSequence.fromArray(sequence, Queries.relaySchema(query, segmentWalker));
+      return BulkSequence.fromArray(sequence, Queries.relaySchema(query, segmentWalker), query.getSimpleLimit());
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

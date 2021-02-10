@@ -153,7 +153,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   {
     // see CCC.prepareQuery()
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return BulkSequence.fromRow(sequence, Queries.relaySchema(query, segmentWalker));
+      return BulkSequence.fromRow(sequence, Queries.relaySchema(query, segmentWalker), query.getSimpleLimit());
     }
     return super.serializeSequence(query, sequence, segmentWalker);
   }

@@ -146,6 +146,9 @@ public class DruidDefaultSerializersModule extends SimpleModule
               while (!yielder.isDone()) {
                 final Object o = yielder.get();
                 jgen.writeObject(o);
+                if (o instanceof BulkRow) {
+                  jgen.flush();
+                }
                 yielder = yielder.next(null);
               }
               jgen.writeEndArray();
