@@ -39,22 +39,17 @@ import org.apache.calcite.util.ImmutableIntList;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Predicate;
 
 public class DruidJoinProjectRule extends RelOptRule
 {
-  private static final Predicate<DruidRel> HAS_PROJECTION = druidRel ->
-      druidRel.getPartialDruidQuery().getScanProject() != null;
-
-  // todo: can merge projects
-  private static final Predicate<DruidRel> HAS_NO_PROJECTION = druidRel ->
-      ((DruidJoinRel) druidRel).getOutputColumns() == null;
-
   public static final DruidJoinProjectRule INSTANCE = new DruidJoinProjectRule();
 
   private DruidJoinProjectRule()
   {
-    super(DruidRel.of(DruidOuterQueryRel.class, HAS_PROJECTION, DruidRel.of(DruidJoinRel.class, HAS_NO_PROJECTION)));
+    super(DruidRel.of(
+        DruidOuterQueryRel.class, r -> r.getPartialDruidQuery().getScanProject() != null,
+        DruidRel.of(DruidJoinRel.class, r -> r.getOutputColumns() == null))
+    );
   }
 
   @Override

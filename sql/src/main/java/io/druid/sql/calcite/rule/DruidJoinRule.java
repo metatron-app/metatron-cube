@@ -69,12 +69,12 @@ public class DruidJoinRule extends RelOptRule
     final DruidRel left = call.rel(1);
     final DruidRel right = call.rel(2);
 
-    final RexBuilder rexBuilder = join.getCluster().getRexBuilder();
-    final RexNode condition = ExtractCommonFromDisjunction.extract(join.getCondition(), rexBuilder);
+    final RexNode condition = join.getCondition();
     final JoinInfo joinInfo = JoinInfo.of(join.getLeft(), join.getRight(), condition);
     if (joinInfo.isEqui()) {
       call.transformTo(DruidJoinRel.create(join, joinInfo, left, right));
     } else if (join.getJoinType() == JoinRelType.INNER) {
+      RexBuilder rexBuilder = join.getCluster().getRexBuilder();
       RelNode transformed = trySpatialJoin(left, right, condition, rexBuilder);
       if (transformed == null) {
         DruidJoinRel joinRel = DruidJoinRel.create(join, joinInfo, left, right);

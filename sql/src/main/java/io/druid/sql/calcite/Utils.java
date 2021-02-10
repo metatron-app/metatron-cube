@@ -46,6 +46,7 @@ import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
+import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -197,6 +198,11 @@ public class Utils
   {
     Preconditions.checkArgument(!operands.isEmpty());
     return operands.size() == 1 ? operands.get(0) : builder.makeCall(SqlStdOperatorTable.OR, operands);
+  }
+
+  public static RexNode extractCommon(RexNode condition, RexBuilder builder)
+  {
+    return Utils.isOr(condition) ? RexUtil.pullFactors(builder, condition) : condition;
   }
 
   public static DruidRel getDruidRel(RelNode sourceRel)

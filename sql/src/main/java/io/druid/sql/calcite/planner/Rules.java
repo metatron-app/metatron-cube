@@ -31,7 +31,7 @@ import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
 import io.druid.sql.calcite.rule.DruidTableScanRule;
 import io.druid.sql.calcite.rule.DruidValuesRule;
-import io.druid.sql.calcite.rule.ExtractCommonFromDisjunction;
+import io.druid.sql.calcite.rule.PreFilteringRule;
 import io.druid.sql.calcite.rule.ProjectAggregatePruneUnusedCallRule;
 import io.druid.sql.calcite.rule.SortCollapseRule;
 import org.apache.calcite.interpreter.Bindables;
@@ -223,7 +223,7 @@ public class Rules
     programs.add(Programs.subQuery(DefaultRelMetadataProvider.INSTANCE));
     programs.add(DecorrelateAndTrimFieldsProgram.INSTANCE);
 
-    programs.add(createHepProgram(ExtractCommonFromDisjunction.INSTANCE));
+    programs.add(createHepProgram(PreFilteringRule.instance()));
 
     if (config.isJoinEnabled()) {
       programs.add(createHepProgram(

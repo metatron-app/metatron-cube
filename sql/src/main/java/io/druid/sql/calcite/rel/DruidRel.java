@@ -45,16 +45,16 @@ public abstract class DruidRel extends AbstractRelNode
 {
   static final Logger LOG = new Logger(DruidRel.class);
 
-  public static <T extends DruidRel> RelOptRuleOperand of(Class<T> relClass, Predicate<DruidRel> predicate)
+  public static <T extends RelNode> RelOptRuleOperand of(Class<T> clazz, Predicate<T> predicate)
   {
-    return RelOptRule.operandJ(relClass, null, predicate, RelOptRule.any());
+    return RelOptRule.operandJ(clazz, null, predicate, RelOptRule.any());
   }
 
-  public static <T extends DruidRel> RelOptRuleOperand of(
-      Class<T> relClass, Predicate<DruidRel> predicate, RelOptRuleOperand first, RelOptRuleOperand... rest
+  public static <T extends RelNode> RelOptRuleOperand of(
+      Class<T> clazz, Predicate<T> predicate, RelOptRuleOperand first, RelOptRuleOperand... rest
   )
   {
-    return RelOptRule.operandJ(relClass, null, predicate, first, rest);
+    return RelOptRule.operandJ(clazz, null, predicate, first, rest);
   }
 
   static final double COST_BASE = 1.0;
