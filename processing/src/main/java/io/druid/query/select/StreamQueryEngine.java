@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import io.druid.cache.Cache;
@@ -39,7 +40,7 @@ import io.druid.query.QueryRunnerHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.groupby.orderby.TopNSorter;
+import io.druid.query.groupby.orderby.OrderedPriorityQueueItems;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.segment.ColumnSelectors;
@@ -53,10 +54,11 @@ import io.druid.segment.StorageAdapter;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.apache.commons.lang.mutable.MutableInt;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -104,7 +106,6 @@ public class StreamQueryEngine
                                          query.getContextBoolean(Query.STREAM_USE_RAW_UTF8, config.getSelect().isUseRawUTF8());
       private final String[] columns = query.getColumns().toArray(new String[0]);
       private final String concatString = query.getConcatString();
-      private final int limit = orderings.isEmpty() ? query.getSimpleLimit() : -1;
 
       @Override
       public Sequence<Object[]> apply(final Cursor cursor)
@@ -139,6 +140,7 @@ public class StreamQueryEngine
         }
 
         if (!orderings.isEmpty() && orderingColumnSet.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings)) {
+          // optimize order by dimensions only
           final IntComparator[] comparators = new IntComparator[orderingColumns.size()];
           for (int i = 0; i < comparators.length; i++) {
             if (orderings.get(i).getDirection() == Direction.DESCENDING) {
@@ -147,36 +149,36 @@ public class StreamQueryEngine
               comparators[i] = (l, r) -> Integer.compare(l, r);
             }
           }
-          final int[] indices = GuavaUtils.indexOf(orderingColumns, query.getColumns());
-          final List<int[]> keys = Lists.newArrayList();
+
+          final Comparator<int[]> comparator = toComparator(comparators);
+          final int limit = query.getSimpleLimit();
+          final Queue<int[]> keys = limit > 0
+                                    ? MinMaxPriorityQueue.orderedBy(comparator).maximumSize(limit).create()
+                                    : new PriorityQueue<>(comparator);
+          final int[] indices = GuavaUtils.indexOf(query.getColumns(), orderingColumns, true);
           final List<Object[]> values = Lists.newArrayList();
-          for (int x = 0; !cursor.isDone(); x++) {
-            final int[] key = new int[comparators.length + 1];
-            final Object[] value = new Object[selectors.length];
-            for (int i = 0; i < selectors.length; i++) {
-              if (indices[i] >= 0) {
-                key[indices[i]] = dimSelectors[i].getRow().get(0);
-              }
-              value[i] = selectors[i] == null ? null : selectors[i].get();
+          while (!cursor.isDone()) {
+            final int[] key = new int[indices.length + 1];
+            for (int i = 0; i < indices.length; i++) {
+              key[i] = dimSelectors[indices[i]].getRow().get(0);
             }
-            key[comparators.length] = x;
-            keys.add(key);
-            values.add(value);
+            if (keys.offer(key)) {
+              key[indices.length] = values.size();
+              final Object[] value = new Object[selectors.length];
+              for (int i = 0; i < selectors.length; i++) {
+                value[i] = selectors[i] == null ? null : selectors[i].get();
+              }
+              values.add(value);
+            }
             cursor.advance();
           }
-
-          final Iterator<int[]> sorted;
-          if (limit <= 0 || keys.size() < limit) {
-            Collections.sort(keys, toComparator(comparators));
-            sorted = keys.iterator();
-          } else {
-            sorted = TopNSorter.topN(toComparator(comparators), keys, limit);
-          }
+          final Iterator<int[]> sorted = new OrderedPriorityQueueItems<int[]>(keys);
           return Sequences.once(
               query.getColumns(), Iterators.transform(sorted, key -> values.get(key[comparators.length]))
           );
         }
 
+        final int limit = orderings.isEmpty() ? query.getSimpleLimit() : -1;
         Sequence<Object[]> sequence = Sequences.simple(
             query.getColumns(),
             new Iterable<Object[]>()

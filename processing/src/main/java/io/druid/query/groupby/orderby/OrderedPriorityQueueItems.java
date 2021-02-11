@@ -19,18 +19,17 @@
 
 package io.druid.query.groupby.orderby;
 
-import com.google.common.collect.MinMaxPriorityQueue;
-
 import java.util.Iterator;
+import java.util.Queue;
 
 /**
  * Utility class that supports iterating a priority queue in sorted order.
  */
 public class OrderedPriorityQueueItems<T> implements Iterator<T>
 {
-  private MinMaxPriorityQueue<T> rows;
+  private final Queue<T> rows;
 
-  public OrderedPriorityQueueItems(MinMaxPriorityQueue<T> rows)
+  public OrderedPriorityQueueItems(Queue<T> rows)
   {
     this.rows = rows;
   }
