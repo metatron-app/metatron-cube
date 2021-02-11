@@ -102,7 +102,7 @@ public class AsyncQueryRunnerTest
     AsyncQueryRunner asyncRunner = new AsyncQueryRunner<>(baseRunner, executor,
         new QueryWatcher.Abstract() {
           @Override
-          public StopWatch registerQuery(Query query, ListenableFuture future, Closeable resource)
+          public StopWatch register(Query query, ListenableFuture future, Closeable resource)
           {
             return new StopWatch(1L);
           }
@@ -132,7 +132,7 @@ public class AsyncQueryRunnerTest
     };
 
     QueryWatcher mock = EasyMock.createMock(QueryWatcher.class);
-    mock.registerQuery(EasyMock.eq(query), EasyMock.anyObject(ListenableFuture.class));
+    mock.register(EasyMock.eq(query), EasyMock.anyObject(ListenableFuture.class));
     EasyMock.expectLastCall().andReturn(new StopWatch(60000));
     EasyMock.replay(mock);
 

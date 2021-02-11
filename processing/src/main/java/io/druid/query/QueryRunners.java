@@ -272,7 +272,7 @@ public class QueryRunners
       final Closeable closeOnFailure
   )
   {
-    final StopWatch watch = queryWatcher.registerQuery(query, future);
+    final StopWatch watch = queryWatcher.register(query, future);
     try {
       return watch.wainOn(future);
     }

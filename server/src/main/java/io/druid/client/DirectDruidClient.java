@@ -171,7 +171,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     final Closeable resource = () -> {
       IOUtils.closeQuietly(handler);
       openConnections.getAndDecrement();
-      queryWatcher.unregisterResource(query, handler);
+      queryWatcher.unregister(query, handler);
       if (!iterator.close()) {
         if (watch.isExpired()) {
           cancelRemote(query);
@@ -179,7 +179,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
         IOUtils.closeQuietly(future);
       }
     };
-    queryWatcher.registerQuery(query, Execs.tag(future, host), resource);
+    queryWatcher.register(query, Execs.tag(future, host), resource);
 
     Sequence<T> sequence = Sequences.withBaggage(Sequences.once(query.estimatedOutputColumns(), iterator), resource);
     // bySegment queries are de-serialized after caching results in order to

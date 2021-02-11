@@ -136,7 +136,7 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
                 )
             );
 
-            StopWatch watch = queryWatcher.registerQuery(query, futures);
+            StopWatch watch = queryWatcher.register(query, futures);
             try {
               return mergeResults(query, watch.wainOn(futures)).iterator();
             }

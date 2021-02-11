@@ -155,7 +155,7 @@ public class QueryResource
     if (!authResult.isAllowed()) {
       throw new ForbiddenException(authResult.toString());
     }
-    queryManager.cancelQuery(queryId);
+    queryManager.cancel(queryId);
     return Response.status(Response.Status.ACCEPTED).build();
   }
 
@@ -262,7 +262,7 @@ public class QueryResource
           }
         }
       };
-      queryManager.registerQuery(query, future);
+      queryManager.register(query, future);
 
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
       final Map<String, Object> responseContext = new ConcurrentHashMap<>();

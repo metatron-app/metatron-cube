@@ -57,7 +57,7 @@ public class AsyncQueryRunner<T> implements QueryRunner<T>
         return baseRunner.run(query, responseContext);
       }
     });
-    final StopWatch watch = queryWatcher.registerQuery(query, future);
+    final StopWatch watch = queryWatcher.register(query, future);
     return Sequences.lazy(() -> QueryInterruptedException.wrap(() -> watch.wainOn(future)));
   }
 }

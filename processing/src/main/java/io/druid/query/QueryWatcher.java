@@ -37,9 +37,9 @@ import java.io.Closeable;
  */
 public interface QueryWatcher
 {
-  default StopWatch registerQuery(Query query, ListenableFuture future)
+  default StopWatch register(Query query, ListenableFuture future)
   {
-    return registerQuery(query, future, null);
+    return register(query, future, null);
   }
 
   /**
@@ -50,47 +50,44 @@ public interface QueryWatcher
    * @param query  a query, which may be a subset of a larger query, as long as the underlying queryId is unchanged
    * @param future the future holding the execution status of the query
    */
-  StopWatch registerQuery(Query query, ListenableFuture future, Closeable resource);
+  StopWatch register(Query query, ListenableFuture future, Closeable resource);
 
-  void unregisterResource(Query query, Closeable resource);
+  void unregister(Query query, Closeable resource);
 
   long remainingTime(String queryId);
 
-  boolean cancelQuery(String queryId);
+  void cancel(String queryId);
+
+  void finished(String queryId);
 
   boolean isCancelled(String queryId);
 
-  void clear(String queryId);
+  boolean isTimedOut(String queryId);
 
   class Abstract implements QueryWatcher
   {
     @Override
-    public StopWatch registerQuery(Query query, ListenableFuture future, Closeable resource)
+    public StopWatch register(Query query, ListenableFuture future, Closeable resource)
     {
       return new StopWatch(60_000L);
     }
 
     @Override
-    public void unregisterResource(Query query, Closeable resource) {}
+    public void unregister(Query query, Closeable resource) {}
 
     @Override
     public long remainingTime(String queryId) { return 60_000L;}
 
     @Override
-    public boolean cancelQuery(String queryId)
-    {
-      return false;
-    }
+    public void cancel(String queryId) {}
 
     @Override
-    public boolean isCancelled(String queryId)
-    {
-      return false;
-    }
+    public void finished(String queryId) {}
 
     @Override
-    public void clear(String queryId)
-    {
-    }
+    public boolean isCancelled(String queryId) { return false;}
+
+    @Override
+    public boolean isTimedOut(String queryId) { return false;}
   }
 }

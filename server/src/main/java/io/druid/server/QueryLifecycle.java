@@ -241,7 +241,7 @@ public class  QueryLifecycle
     state = State.DONE;
 
     final boolean success = e == null || queryManager.isCancelled(query.getId());
-    final boolean interrupted = isInterrupted(e);
+    final boolean interrupted = !success && (queryManager.isTimedOut(query.getId()) || isInterrupted(e));
 
     if (success) {
       log.debug("[%s] success", query.getId());
@@ -296,7 +296,7 @@ public class  QueryLifecycle
           )
       );
       if (Objects.equals(ServiceTypes.BROKER, emitter.getType())) {
-        queryManager.clear(query.getId());
+        queryManager.finished(query.getId());
         emitter.emit(
             new QueryEvent(
                 DateTimes.utc(startMs),

@@ -202,7 +202,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
                           }
                         }
                     );
-                    final StopWatch watch = queryWatcher.registerQuery(query, future);
+                    final StopWatch watch = queryWatcher.register(query, future);
                     try {
                       return watch.wainOn(future);
                     }

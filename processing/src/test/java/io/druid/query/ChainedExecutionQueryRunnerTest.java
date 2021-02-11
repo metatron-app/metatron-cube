@@ -86,7 +86,7 @@ public class ChainedExecutionQueryRunnerTest
 
     Capture<ListenableFuture> capturedFuture = EasyMock.newCapture();
     QueryWatcher watcher = EasyMock.createStrictMock(QueryWatcher.class);
-    watcher.registerQuery(
+    watcher.register(
         EasyMock.<Query>anyObject(),
         EasyMock.and(EasyMock.<ListenableFuture>anyObject(), EasyMock.capture(capturedFuture))
     );
@@ -213,7 +213,7 @@ public class ChainedExecutionQueryRunnerTest
 
     Capture<ListenableFuture> capturedFuture = new Capture<>();
     QueryWatcher watcher = EasyMock.createStrictMock(QueryWatcher.class);
-    watcher.registerQuery(
+    watcher.register(
         EasyMock.<Query>anyObject(),
         EasyMock.and(EasyMock.<ListenableFuture>anyObject(), EasyMock.capture(capturedFuture))
     );

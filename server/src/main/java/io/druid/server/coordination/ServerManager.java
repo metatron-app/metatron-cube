@@ -511,7 +511,7 @@ public class ServerManager implements ForwardingSegmentWalker
       {
         // stop streaming if canceled
         final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture<>(), "split-runner");
-        queryManager.registerQuery(resolved, future);
+        queryManager.register(resolved, future);
         return Sequences.withBaggage(
             Sequences.interruptible(future, Sequences.concat(
                 resolved.estimatedOutputColumns(),

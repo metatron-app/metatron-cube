@@ -171,9 +171,9 @@ public class EmbeddedBroker extends ServerRunnable
       return query.run(segmentWalker, context);
     }
 
-    public boolean cancelQuery(String queryId)
+    public void cancelQuery(String queryId)
     {
-      return queryManager.cancelQuery(queryId);
+      queryManager.cancel(queryId);
     }
 
     @Override

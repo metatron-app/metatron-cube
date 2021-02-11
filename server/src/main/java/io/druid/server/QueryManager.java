@@ -55,7 +55,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 
 public class QueryManager implements QueryWatcher, Runnable
 {
@@ -89,13 +88,12 @@ public class QueryManager implements QueryWatcher, Runnable
   }
 
   @Override
-  public boolean cancelQuery(String queryId)
+  public void cancel(String queryId)
   {
     QueryStatus status = queries.get(queryId);
     if (status != null) {
-      return status.cancel();
+      status.cancel();
     }
-    return true;
   }
 
   @Override
@@ -105,23 +103,30 @@ public class QueryManager implements QueryWatcher, Runnable
       return false;
     }
     QueryStatus status = queries.get(queryId);
-    if (status != null) {
-      return status.canceled;
-    }
-    return false;
+    return status != null && status.isCancelled();
   }
 
   @Override
-  public void clear(String queryId)
+  public boolean isTimedOut(String queryId)
   {
+    if (queryId == null) {
+      return false;
+    }
     QueryStatus status = queries.get(queryId);
+    return status != null && status.remaining() <= 0;
+  }
+
+  @Override
+  public void finished(String queryId)
+  {
+    QueryStatus status = queries.remove(queryId);
     if (status != null) {
-      status.done();
+      status.finished();
     }
   }
 
   @Override
-  public StopWatch registerQuery(final Query query, final ListenableFuture future, final Closeable resource)
+  public StopWatch register(final Query query, final ListenableFuture future, final Closeable resource)
   {
     final String id = query.getId();
     final List<String> dataSources = query.getDataSource().getNames();
@@ -130,35 +135,15 @@ public class QueryManager implements QueryWatcher, Runnable
       return new StopWatch(maxQueryTimeout);
     }
     final QueryStatus status = queries.computeIfAbsent(
-        id, new Function<String, QueryStatus>()
-        {
-          @Override
-          public QueryStatus apply(String id)
-          {
-            return new QueryStatus(query.getType(), dataSources, BaseQuery.getTimeout(query, maxQueryTimeout));
-          }
-        }
+        id, k -> new QueryStatus(query.getType(), dataSources, BaseQuery.getTimeout(query, maxQueryTimeout))
     );
     final long remaining = status.start(future, resource);
-    future.addListener(
-        new Runnable()
-        {
-          @Override
-          public void run()
-          {
-            if (!status.isCancelled() && status.end(future)) {
-              // query completed
-              status.log();
-            }
-          }
-        },
-        executor
-    );
+    future.addListener(() -> status.end(future), executor);
     return new StopWatch(remaining);
   }
 
   @Override
-  public void unregisterResource(Query query, Closeable resource)
+  public void unregister(Query query, Closeable resource)
   {
     if (query.getId() == null) {
       LOG.warn("Query id for %s is null.. fix that", query.getType());
@@ -280,13 +265,13 @@ public class QueryManager implements QueryWatcher, Runnable
 
     private synchronized boolean isFinished()
     {
-      return canceled || end > 0 && pendings.isEmpty();
+      return end > 0;
     }
 
     private synchronized long start(ListenableFuture future, Closeable resource)
     {
       final long remaining = remaining();
-      if (canceled || remaining <= 0) {
+      if (canceled || end > 0 || remaining <= 0) {
         Execs.cancelQuietly(future);
         IOUtils.closeQuietly(resource);
         throw QueryInterruptedException.wrapIfNeeded(canceled ? new CancellationException() : new TimeoutException());
@@ -298,50 +283,44 @@ public class QueryManager implements QueryWatcher, Runnable
       return remaining;
     }
 
-    private synchronized boolean end(ListenableFuture future)
+    private synchronized void end(ListenableFuture future)
     {
-      final Timer timer = pendings.remove(future);
-      if (timer != null) {
-        timer.end();
+      // check for prevent concurrent modification exception
+      if (!isFinished()) {
+        pendings.remove(future);
       }
-      // this is possible because druid registers queries before fire to historical nodes
-      if (!canceled && end < 0 && pendings.isEmpty()) {
-        end = System.currentTimeMillis();
-        return true;
-      }
-      return false;
     }
 
-    private synchronized boolean cancel()
+    private synchronized void cancel()
     {
-      if (canceled) {
-        return true;
+      if (!isFinished()) {
+        canceled = true;
+        end = System.currentTimeMillis();
+        clear();
       }
-      canceled = true;
-      return done();
     }
 
-    private synchronized boolean done()
+    private synchronized void finished()
     {
-      if (!canceled && end < 0) {
+      if (!isFinished()) {
         end = System.currentTimeMillis();
+        clear();
       }
-      boolean success = true;
-      for (Map.Entry<ListenableFuture, Timer> entry : pendings.entrySet()) {
-        final ListenableFuture future = entry.getKey();
-        final Timer timer = entry.getValue();
-        success = success & Execs.cancelQuietly(future);  // cancel all
-        if (timer != null) {
-          timer.end();
-        }
-      }
-      pendings.clear();
+    }
 
+    private void clear()
+    {
       for (Closeable closeable : resources) {
         IOUtils.closeQuietly(closeable);
       }
       resources.clear();
-      return success;
+      for (ListenableFuture future : pendings.keySet()) {
+        Execs.cancelQuietly(future);    // induces end() call
+      }
+      if (!pendings.isEmpty()) {
+        log(Lists.newArrayList(Iterables.filter(pendings.values(), Predicates.notNull())));
+      }
+      pendings.clear();
     }
 
     private synchronized long remaining()
@@ -360,39 +339,31 @@ public class QueryManager implements QueryWatcher, Runnable
       return !isFinished() && start + timeout < current;
     }
 
-    public synchronized void log()
+    private synchronized void log(List<Timer> pendings)
     {
       if (pendings.isEmpty()) {
         return;
       }
-      List<Timer> filtered = ImmutableList.copyOf(
-          Iterables.filter(pendings.values(), timer -> timer != null && timer.elapsed >= 0)
-      );
-      pendings.clear();
-      if (filtered.isEmpty()) {
-        return;
-      }
-      Collections.sort(filtered);
-      if (filtered.get(0).elapsed < LOG_THRESHOLD_MSEC) {
-        // skip for trivial queries (meta queries, etc.)
-        return;
-      }
+      Collections.sort(pendings);
+      long current = System.currentTimeMillis();
       long total = 0;
       int counter = 0;
-      for (Timer timer : filtered) {
-        if (timer.elapsed >= 0) {
-          total += timer.elapsed;
-          counter++;
-        }
+      for (Timer timer : pendings) {
+        total += timer.end(current);
+        counter++;
+      }
+      if (pendings.get(0).elapsed < LOG_THRESHOLD_MSEC) {
+        // skip for trivial queries (meta queries, etc.)
+        return;
       }
       final long mean = total / counter;
       final double threshold = Math.max(LOG_THRESHOLD_MSEC / 2, mean * 1.5);
 
       List<Timer> log = ImmutableList.copyOf(
-          Iterables.limit(Iterables.filter(filtered, input -> input.elapsed > threshold), 8)
+          Iterables.limit(Iterables.filter(pendings, input -> input.elapsed > threshold), 8)
       );
       if (log.isEmpty()) {
-        log = Arrays.asList(filtered.get(0));
+        log = Arrays.asList(pendings.get(0));
       }
 
       LOG.info("%d item(s) averaging %,d msec.. mostly from %s", counter, mean, log);
@@ -449,15 +420,15 @@ public class QueryManager implements QueryWatcher, Runnable
 
     private Timer(String tag) {this.tag = tag;}
 
-    private void end()
+    private long end(long current)
     {
-      elapsed = System.currentTimeMillis() - start;
+      return elapsed = current - start;
     }
 
     @Override
     public int compareTo(Timer o)
     {
-      return -Long.compare(elapsed, o.elapsed);  // descending
+      return Long.compare(start, o.start);
     }
 
     @Override

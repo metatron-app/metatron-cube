@@ -211,7 +211,7 @@ public class SqlLifecycle
       state = State.DONE;
 
       final boolean success = e == null || queryManager.isCancelled(queryId);
-      final boolean interrupted = QueryLifecycle.isInterrupted(e);
+      final boolean interrupted = !success && (queryManager.isTimedOut(queryId) || QueryLifecycle.isInterrupted(e));
 
       final long queryTimeNs = System.nanoTime() - startNs;
       try {
@@ -250,7 +250,7 @@ public class SqlLifecycle
             )
         );
         if (Objects.equals(ServiceTypes.BROKER, emitter.getType())) {
-          queryManager.clear(queryId);
+          queryManager.finished(queryId);
           emitter.emit(
               new QueryEvent(
                   DateTimes.utc(startMs), Strings.nullToEmpty(remoteAddress),

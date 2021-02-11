@@ -351,7 +351,7 @@ public class BrokerQueryResource extends QueryResource
               }
             }
         );
-        queryManager.registerQuery(query, new ProgressingFuture(future, sequence));
+        queryManager.register(query, new ProgressingFuture(future, sequence));
         return context.ok(ImmutableMap.of("queryId", query.getId(), "broker", node.getHostAndPort()));
       } else {
         List result = Sequences.toList(QueryRunners.run(query, runner));

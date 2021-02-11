@@ -172,7 +172,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
       public Sequence<Object[]> get()
       {
         Execs.SettableFuture future = new Execs.SettableFuture<Object>();
-        plannerContext.getQueryManager().registerQuery(query, future);
+        plannerContext.getQueryManager().register(query, future);
         Sequence<Object[]> sequence = queryMaker.runQuery(druidQuery, query);
         if (!root.isRefTrivial()) {
           // Add a mapping on top to accommodate root.fields.

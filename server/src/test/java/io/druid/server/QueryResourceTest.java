@@ -411,7 +411,7 @@ public class QueryResourceTest
         }
     );
 
-    queryManager.registerQuery(query, future);
+    queryManager.register(query, future);
     startAwaitLatch.await();
 
     Executors.newSingleThreadExecutor().submit(
@@ -542,7 +542,7 @@ public class QueryResourceTest
         }
     );
 
-    queryManager.registerQuery(query, future);
+    queryManager.register(query, future);
     startAwaitLatch.await();
 
     Executors.newSingleThreadExecutor().submit(
