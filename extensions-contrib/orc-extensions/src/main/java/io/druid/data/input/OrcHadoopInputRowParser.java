@@ -36,6 +36,7 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
+import io.druid.data.output.ForwardConstants;
 import io.druid.indexer.hadoop.HadoopAwareParser;
 import io.druid.indexer.hadoop.HadoopInputContext;
 import io.druid.java.util.common.logger.Logger;
@@ -194,6 +195,11 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
       return staticInspector;
     }
     if (typeString != null) {
+      return staticInspector = initStaticInspector(typeString);
+    }
+    final String typeString = context.getConfiguration().get(ForwardConstants.TYPE_STRING);
+    if (!io.druid.common.utils.StringUtils.isNullOrEmpty(typeString)) {
+      LOG.info("using typeString %s from context !!!", typeString);
       return staticInspector = initStaticInspector(typeString);
     }
     final InputSplit split = context.getInputSplit();

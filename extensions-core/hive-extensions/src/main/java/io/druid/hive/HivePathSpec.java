@@ -26,8 +26,10 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.input.parquet.HiveParquetInputFormat;
+import io.druid.data.output.ForwardConstants;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.path.HadoopPathSpec;
 import io.druid.indexer.path.PathSpec;
@@ -60,6 +62,7 @@ public class HivePathSpec implements PathSpec.Resolving
   private final String metastoreUri;
   private final List<Map<String, String>> partialPartitionList;
   private final String extractPartitionRegex;
+  private final boolean useHiveType;
   private final String splitSize;
   private final Map<String, Object> properties;
 
@@ -70,9 +73,10 @@ public class HivePathSpec implements PathSpec.Resolving
       @JsonProperty("partialPartitions") Map<String, String> partialPartitions,
       @JsonProperty("partialPartitionList") List<Map<String, String>> partialPartitionList,
       @JsonProperty("extractPartitionRegex") String extractPartitionRegex,
+      @JsonProperty("useHiveType") boolean useHiveType,
       @JsonProperty("splitSize") String splitSize,
       @JsonProperty("properties") Map<String, Object> properties
-  ) throws Exception
+  )
   {
     this.source = Preconditions.checkNotNull(source, "'source' cannot be null");
     this.metastoreUri = Preconditions.checkNotNull(metastoreUri, "'metastoreUri' cannot be null");
@@ -81,6 +85,7 @@ public class HivePathSpec implements PathSpec.Resolving
                                 Arrays.asList(partialPartitions) :
                                 partialPartitionList;
     this.extractPartitionRegex = extractPartitionRegex;
+    this.useHiveType = useHiveType;
     this.splitSize = splitSize;
     this.properties = properties;
   }
@@ -109,6 +114,12 @@ public class HivePathSpec implements PathSpec.Resolving
   public String getExtractPartitionRegex()
   {
     return extractPartitionRegex;
+  }
+
+  @JsonProperty
+  public boolean isUseHiveType()
+  {
+    return useHiveType;
   }
 
   @JsonProperty
@@ -158,10 +169,22 @@ public class HivePathSpec implements PathSpec.Resolving
           table.getSerializationLib(),
           table.getDataLocation()
       );
-      List<FieldSchema> schema = table.getCols();
-      if (table.isPartitioned()) {
-        schema = Lists.newArrayList(schema);
-        schema.removeAll(table.getPartitionKeys());
+      Map<String, Object> props = properties == null ? Maps.<String, Object>newHashMap() : properties;
+      if (useHiveType) {
+        // hack.. rewrite parser spec with serde?
+        List<FieldSchema> schema = table.getCols();
+        if (table.isPartitioned()) {
+          schema = Lists.newArrayList(schema);
+          schema.removeAll(table.getPartitionKeys());
+        }
+        StringBuilder builder = new StringBuilder("struct<");
+        for (FieldSchema field : schema) {
+          if (builder.length() > 7) {
+            builder.append(',');
+          }
+          builder.append(field.getName()).append(':').append(field.getType());
+        }
+        props.put(ForwardConstants.TYPE_STRING, builder.append('>').toString());
       }
 
       Class inputFormat = table.getInputFormatClass();
@@ -228,7 +251,7 @@ public class HivePathSpec implements PathSpec.Resolving
           false,
           table.isPartitioned(),
           extractPartitionRegex,
-          properties
+          props
       );
     }
     catch (Exception ex) {
