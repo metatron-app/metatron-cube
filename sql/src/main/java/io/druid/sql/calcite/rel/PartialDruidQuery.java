@@ -663,7 +663,7 @@ public class PartialDruidQuery
     }
 
     if (scanFilter != null) {
-      base *= tableScan ? SCAN_FILTER_BASE : SCAN_FILTER_BASE_OUTER;
+      base = Utils.estimateFilteredRow(scanFilter.getCondition(), base);
     }
 
     if (scanProject != null) {
@@ -692,7 +692,7 @@ public class PartialDruidQuery
     }
 
     if (aggregateFilter != null) {
-      base *= HAVING_MULTIPLIER;
+      base = Utils.estimateFilteredRow(aggregateFilter.getCondition(), base);
     }
 
     if (window != null) {

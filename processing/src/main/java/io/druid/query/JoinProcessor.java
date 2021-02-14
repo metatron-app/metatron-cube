@@ -39,6 +39,7 @@ import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.Query.OrderingSupport;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -496,6 +497,7 @@ public class JoinProcessor
     final int[] indices;
     final PeekingIterator<Object[]> rows;
     final Map<JoinKey, Object> hashed;
+    final MutableInt counter = new MutableInt();
 
     Iterator<Map.Entry<JoinKey, Object>> iterator;  // hash iterator
     List<Object[]> partition;
@@ -514,7 +516,7 @@ public class JoinProcessor
       this.joinColumns = joinColumns;
       this.collations = Suppliers.ofInstance(Arrays.asList(OrderByColumnSpec.ascending(joinColumns)));
       this.indices = indices;
-      this.rows = GuavaUtils.peekingIterator(rows.iterator());
+      this.rows = GuavaUtils.peekingIterator(rows.iterator(), counter);
       this.hashed = null;
       this.estimatedNumRows = rows.size();
       LOG.info("-- %s = sorted (%s:%s)(numRows=%d)", alias, joinColumns, columns, rows.size());
@@ -535,7 +537,7 @@ public class JoinProcessor
       this.joinColumns = joinColumns;
       this.collations = collations == null ? NO_COLLATION : collations;
       this.indices = indices;
-      this.rows = GuavaUtils.peekingIterator(rows);
+      this.rows = GuavaUtils.peekingIterator(rows, counter);
       this.hashed = null;
       this.estimatedNumRows = estimatedNumRows;
       LOG.info("-- %s = stream (%s:%s)(estimated=%d)", alias, joinColumns, columns, estimatedNumRows);
@@ -557,6 +559,7 @@ public class JoinProcessor
       this.rows = Iterators.peekingIterator(Collections.emptyIterator());
       this.hashed = hash(iterator, indices);
       this.estimatedNumRows = hashed.size();
+      counter.setValue(hashed.size());
       LOG.info("-- %s = hashed (%s:%s)(group=%d)", alias, joinColumns, columns, hashed.size());
     }
 
@@ -681,7 +684,7 @@ public class JoinProcessor
     {
       return alias + "." + joinColumns +
              (isHashed() ? "(hashed:" : isSorted() ? "(sorted-stream:" : "(stream:") +
-             (estimatedNumRows > 0 ? estimatedNumRows : "?") + ")";
+             (counter.intValue() > 0 ? counter : estimatedNumRows > 0 ? estimatedNumRows : "?") + ")";
     }
   }
 

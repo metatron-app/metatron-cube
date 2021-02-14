@@ -23,6 +23,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.query.CombinedDataSource;
+import io.druid.query.DataSource;
 import io.druid.query.Druids;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
@@ -50,8 +52,6 @@ import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
 import org.apache.commons.lang.StringUtils;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -119,12 +119,6 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
   public ImmutableIntList getOutputColumns()
   {
     return outputColumns;
-  }
-
-  @Override
-  public DruidJoinRel withPartialQuery(PartialDruidQuery newQueryBuilder)
-  {
-    throw new UnsupportedOperationException("withPartialQuery");
   }
 
   @Override
@@ -237,14 +231,9 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public List<String> getDataSourceNames()
+  public DataSource getDataSource()
   {
-    final DruidRel druidLeft = Utils.getDruidRel(left);
-    final DruidRel druidRight = Utils.getDruidRel(right);
-    Set<String> datasourceNames = new LinkedHashSet<>();
-    datasourceNames.addAll(druidLeft.getDataSourceNames());
-    datasourceNames.addAll(druidRight.getDataSourceNames());
-    return new ArrayList<>(datasourceNames);
+    return CombinedDataSource.of(Utils.getDruidRel(left).getDataSource(), Utils.getDruidRel(right).getDataSource());
   }
 
   @Override
@@ -323,7 +312,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
                 .itemIf("outputColumns", StringUtils.join(outputColumns, ", "), outputColumns != null);
   }
 
-  private static final double BLOOM_FILTER_REDUCTION = 0.4;
+  private static final double BLOOM_FILTER_REDUCTION = 0.8;
 
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
@@ -339,17 +328,23 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     if (rm.right.isInfinite()) {
       return rm.right;
     }
-    final double lc = lm.right.getRows();
-    final double rc = rm.right.getRows();
+    final double lc = lm.right.getRows() + 1;
+    final double rc = rm.right.getRows() + 1;
 
     double estimate;
     if (leftExpressions.isEmpty()) {
       estimate = lc * rc;
+    } else if (joinType == JoinRelType.LEFT) {
+      estimate = lc;
+    } else if (joinType == JoinRelType.RIGHT) {
+      estimate = rc;
+    } else if (joinType == JoinRelType.FULL) {
+      estimate = lc + rc;
     } else {
       // prefer larger difference
       estimate = Math.min(Math.max(lc, rc), Math.min(lc, rc) * 4) * Math.pow(0.6, leftExpressions.size());
-      if (Utils.isLeftDriving(joinType) && lm.left.hasFilter() && rm.right instanceof DruidQueryRel ||
-          Utils.isRightDriving(joinType) && rm.left.hasFilter() && lm.right instanceof DruidQueryRel) {
+      if (lm.left.getFilter() != null && rm.right instanceof DruidQueryRel ||
+          rm.left.getFilter() != null && lm.right instanceof DruidQueryRel) {
         estimate *= BLOOM_FILTER_REDUCTION;
       }
     }
@@ -357,7 +352,7 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
       estimate *= 0.999; // for deterministic plan
     }
 //    if (Iterables.getFirst(visited, null) == this) {
-//      System.out.println(String.format("> %s + %s : %f + %f => %f", lm.left.getDataSourceNames(), rm.left.getDataSourceNames(), lc, rc, estimate));
+//      System.out.println(String.format("> %s + %s : %f + %f => %f", lm.left.getDataSource(), rm.left.getDataSource(), lc, rc, estimate));
 //    }
     return planner.getCostFactory().makeCost(estimate, 0, 0);
   }

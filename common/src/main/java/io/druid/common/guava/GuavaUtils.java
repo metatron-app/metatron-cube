@@ -40,6 +40,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
@@ -603,6 +604,47 @@ public class GuavaUtils
         @Override
         public T next()
         {
+          return peekingIterator.next();
+        }
+
+        @Override
+        public void remove()
+        {
+          peekingIterator.remove();
+        }
+
+        @Override
+        public boolean hasNext()
+        {
+          return peekingIterator.hasNext();
+        }
+      };
+    }
+    return peekingIterator;
+  }
+
+  public static <T> PeekingIterator<T> peekingIterator(final Iterator<? extends T> iterator, final MutableInt counter)
+  {
+    final PeekingIterator<T> peekingIterator = Iterators.peekingIterator(iterator);
+    if (iterator instanceof Closeable) {
+      return new CloseablePeekingIterator<T>()
+      {
+        @Override
+        public void close() throws IOException
+        {
+          ((Closeable) iterator).close();
+        }
+
+        @Override
+        public T peek()
+        {
+          return peekingIterator.peek();
+        }
+
+        @Override
+        public T next()
+        {
+          counter.increment();
           return peekingIterator.next();
         }
 

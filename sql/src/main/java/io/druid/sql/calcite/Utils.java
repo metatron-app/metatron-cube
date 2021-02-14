@@ -38,7 +38,7 @@ import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
-import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
@@ -319,13 +319,44 @@ public class Utils
     return Ints.toArray(indices);
   }
 
-  public static boolean isLeftDriving(JoinRelType type)
+  public static double estimateFilteredRow(Filter filter, double numRows)
   {
-    return type == JoinRelType.INNER || type == JoinRelType.LEFT;
+    return filter == null ? numRows : estimateFilteredRow(filter.getCondition(), numRows);
   }
 
-  public static boolean isRightDriving(JoinRelType type)
+  public static double estimateFilteredRow(RexNode condition, double numRows)
   {
-    return type == JoinRelType.INNER || type == JoinRelType.RIGHT;
+    final double estimate;
+    switch (condition.getKind()) {
+      case AND:
+        estimate = ((RexCall) condition).getOperands().stream()
+                                        .mapToDouble(op -> estimateFilteredRow(op, numRows)).min().orElse(-1);
+        break;
+      case OR:
+        estimate = ((RexCall) condition).getOperands().stream()
+                                        .mapToDouble(op -> estimateFilteredRow(op, numRows)).sum();
+        break;
+      case NOT:
+        estimate = numRows - estimateFilteredRow(((RexCall) condition).getOperands().get(0), numRows);
+        break;
+      case BETWEEN:
+        estimate = numRows * 0.4;
+        break;
+      case EQUALS:
+        estimate = numRows * 0.05;
+        break;
+      case NOT_EQUALS:
+        estimate = numRows * 0.95;
+        break;
+      case IS_NULL:
+        estimate = numRows * 0.01;
+        break;
+      case IS_NOT_NULL:
+        estimate = numRows * 0.99;
+        break;
+      default:
+        estimate = numRows * 0.8;
+    }
+    return estimate < 0 ? 0 : Math.min(numRows, estimate);
   }
 }

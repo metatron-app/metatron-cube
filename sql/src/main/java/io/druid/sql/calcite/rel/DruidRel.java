@@ -25,6 +25,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.DataSource;
 import io.druid.sql.calcite.planner.PlannerContext;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -34,10 +35,10 @@ import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
 import javax.annotation.Nullable;
-import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -80,9 +81,14 @@ public abstract class DruidRel extends AbstractRelNode
     return null;
   }
 
-  public boolean hasFilter()
+  public DruidRel withPartialQuery(PartialDruidQuery newQueryBuilder)
   {
-    return false;
+    throw new UnsupportedOperationException("withPartialQuery");
+  }
+
+  public Filter getFilter()
+  {
+    return null;
   }
 
   public RelNode getLeafRel()
@@ -101,8 +107,6 @@ public abstract class DruidRel extends AbstractRelNode
     // finalize aggregations for the outermost query even if we don't explicitly ask it to.
     return queryMaker.prepareAndRun(toDruidQuery(false));
   }
-
-  public abstract DruidRel withPartialQuery(PartialDruidQuery newQueryBuilder);
 
   public abstract RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited);
 
@@ -173,5 +177,5 @@ public abstract class DruidRel extends AbstractRelNode
   /**
    * Get a list of names of datasources read by this DruidRel
    */
-  public abstract List<String> getDataSourceNames();
+  public abstract DataSource getDataSource();
 }

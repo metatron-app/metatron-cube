@@ -21,6 +21,8 @@ package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.query.CombinedDataSource;
+import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.UnionAllQuery;
 import io.druid.sql.calcite.Utils;
@@ -78,12 +80,6 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
         new ArrayList<>(rels),
         limit
     );
-  }
-
-  @Override
-  public DruidUnionRel withPartialQuery(final PartialDruidQuery newQueryBuilder)
-  {
-    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -156,12 +152,11 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public List<String> getDataSourceNames()
+  public DataSource getDataSource()
   {
-    return rels.stream()
-               .flatMap(rel -> Utils.getDruidRel(rel).getDataSourceNames().stream())
-               .distinct()
-               .collect(Collectors.toList());
+    return new CombinedDataSource(
+        rels.stream().map(rel -> Utils.getDruidRel(rel).getDataSource()).collect(Collectors.toList())
+    );
   }
 
   @Override

@@ -19,8 +19,10 @@
 
 package io.druid.sql.calcite.rel;
 
-import io.druid.common.utils.StringUtils;
+import io.druid.query.CombinedDataSource;
+import io.druid.query.DataSource;
 import io.druid.query.Query;
+import io.druid.query.TableDataSource;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -28,12 +30,9 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Set;
 
 public class DruidValuesRel extends DruidRel
@@ -60,12 +59,6 @@ public class DruidValuesRel extends DruidRel
     this.source = source;
     this.values = values;
     this.tableName = tableName;
-  }
-
-  @Override
-  public DruidValuesRel withPartialQuery(PartialDruidQuery newQueryBuilder)
-  {
-    return null;
   }
 
   @Override
@@ -140,12 +133,9 @@ public class DruidValuesRel extends DruidRel
   }
 
   @Override
-  public List<String> getDataSourceNames()
+  public DataSource getDataSource()
   {
-    if (source instanceof TableScan) {
-      return Arrays.asList(StringUtils.concat(".", source.getTable().getQualifiedName()));
-    }
-    return Arrays.asList();
+    return tableName == null ? CombinedDataSource.of() : TableDataSource.of(tableName);
   }
 
   @Override

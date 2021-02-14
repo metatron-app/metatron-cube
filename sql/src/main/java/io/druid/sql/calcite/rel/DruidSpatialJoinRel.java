@@ -24,6 +24,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.CombinedDataSource;
+import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.segment.VirtualColumn;
 import io.druid.sql.calcite.Utils;
@@ -45,8 +47,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,7 +70,7 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
     }
     LOG.debug(
         "%s (%s) + %s (%s) : %s",
-        query.getDataSourceNames(), boundary.getDataSourceNames(),
+        query.getDataSource(), boundary.getDataSource(),
         queryOp,
         boundaryOp,
         flip
@@ -110,12 +110,6 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
     this.queryOp = queryOp;
     this.boundaryOp = boundaryOp;
     this.flip = flip;
-  }
-
-  @Override
-  public DruidSpatialJoinRel withPartialQuery(PartialDruidQuery newQueryBuilder)
-  {
-    throw new UnsupportedOperationException("withPartialQuery");
   }
 
   @Override
@@ -226,14 +220,9 @@ public class DruidSpatialJoinRel extends DruidRel implements DruidRel.LeafRel
   }
 
   @Override
-  public List<String> getDataSourceNames()
+  public DataSource getDataSource()
   {
-    final DruidRel druidLeft = Utils.getDruidRel(query);
-    final DruidRel druidRight = Utils.getDruidRel(boundary);
-    Set<String> datasourceNames = new LinkedHashSet<>();
-    datasourceNames.addAll(druidLeft.getDataSourceNames());
-    datasourceNames.addAll(druidRight.getDataSourceNames());
-    return new ArrayList<>(datasourceNames);
+    return CombinedDataSource.of(Utils.getDruidRel(query).getDataSource(), Utils.getDruidRel(boundary).getDataSource());
   }
 
   @Override

@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
+import io.druid.query.DataSource;
 import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCluster;
@@ -29,13 +30,13 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.commons.lang.StringUtils;
 
 import javax.annotation.Nonnull;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -109,21 +110,15 @@ public class DruidQueryRel extends DruidRel
   }
 
   @Override
-  public List<String> getDataSourceNames()
+  public DataSource getDataSource()
   {
-    return druidTable.getDataSource().getNames();
+    return druidTable.getDataSource();
   }
 
   @Override
   public PartialDruidQuery getPartialDruidQuery()
   {
     return partialQuery;
-  }
-
-  @Override
-  public boolean hasFilter()
-  {
-    return partialQuery.getScanFilter() != null;
   }
 
   @Override
@@ -137,6 +132,12 @@ public class DruidQueryRel extends DruidRel
         getQueryMaker(),
         newQueryBuilder
     );
+  }
+
+  @Override
+  public Filter getFilter()
+  {
+    return partialQuery.getScanFilter();
   }
 
   @Override

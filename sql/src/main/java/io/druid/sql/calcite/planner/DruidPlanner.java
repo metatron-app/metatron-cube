@@ -154,7 +154,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         root.rel
     );
 
-    final Set<String> datasourceNames = ImmutableSet.copyOf(druidRel.getDataSourceNames());
+    final Set<String> datasourceNames = ImmutableSet.copyOf(druidRel.getDataSource().getNames());
 
     if (source.getKind() == SqlKind.EXPLAIN) {
       return handleExplain(druidRel, (SqlExplain) source);

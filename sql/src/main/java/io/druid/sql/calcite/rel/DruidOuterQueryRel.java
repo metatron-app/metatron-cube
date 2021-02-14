@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.druid.common.utils.StringUtils;
+import io.druid.query.DataSource;
 import io.druid.query.QueryDataSource;
 import io.druid.query.TableDataSource;
 import io.druid.sql.calcite.Utils;
@@ -34,6 +35,7 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.Pair;
@@ -91,12 +93,6 @@ public class DruidOuterQueryRel extends DruidRel
   }
 
   @Override
-  public boolean hasFilter()
-  {
-    return partialQuery.getScanFilter() != null;
-  }
-
-  @Override
   public DruidOuterQueryRel withPartialQuery(final PartialDruidQuery newQueryBuilder)
   {
     return new DruidOuterQueryRel(
@@ -106,6 +102,12 @@ public class DruidOuterQueryRel extends DruidRel
         newQueryBuilder,
         getQueryMaker()
     );
+  }
+
+  @Override
+  public Filter getFilter()
+  {
+    return partialQuery.getScanFilter();
   }
 
   @Nullable
@@ -123,10 +125,9 @@ public class DruidOuterQueryRel extends DruidRel
       return null;
     }
 
-    final RowSignature sourceRowSignature = subQuery.getOutputRowSignature();
     return partialQuery.build(
         QueryDataSource.of(subQuery.getQuery()),
-        sourceRowSignature,
+        subQuery.getOutputRowSignature(),
         getPlannerContext(),
         getCluster().getRexBuilder(),
         finalizeAggregations
@@ -159,9 +160,9 @@ public class DruidOuterQueryRel extends DruidRel
   }
 
   @Override
-  public List<String> getDataSourceNames()
+  public DataSource getDataSource()
   {
-    return Utils.getDruidRel(sourceRel).getDataSourceNames();
+    return Utils.getDruidRel(sourceRel).getDataSource();
   }
 
   @Override
