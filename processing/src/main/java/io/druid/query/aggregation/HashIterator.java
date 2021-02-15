@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class HashIterator
+public class HashIterator<T extends HashCollector>
 {
   // aggregator can be shared by multi threads
   protected static final ThreadLocal<BytesOutputStream> BUFFERS = new ThreadLocal<BytesOutputStream>()
@@ -57,7 +57,7 @@ public class HashIterator
   protected final boolean byRow;
   protected final boolean needValue;
 
-  protected final Consumer<HashCollector> consumer;
+  protected final Consumer<T> consumer;
 
   public HashIterator(
       ValueMatcher predicate,
@@ -72,10 +72,10 @@ public class HashIterator
     this.groupings = groupings;
     this.byRow = byRow;
     this.needValue = needValue;
-    this.consumer = toConsumer();
+    this.consumer = toConsumer(selectorList);
   }
 
-  private Consumer<HashCollector> toConsumer()
+  protected Consumer<T> toConsumer(List<DimensionSelector> selectorList)
   {
     if (selectorList.isEmpty()) {
       return collector -> collector.collect(new Object[0], NULL_REF);

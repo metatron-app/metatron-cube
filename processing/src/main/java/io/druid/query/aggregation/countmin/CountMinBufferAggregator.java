@@ -28,7 +28,7 @@ import io.druid.segment.ObjectColumnSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class CountMinBufferAggregator extends HashBufferAggregator<CountMinSketch>
+public class CountMinBufferAggregator extends HashBufferAggregator.ScanSupport<CountMinSketch>
 {
   private final int width;
   private final int depth;
@@ -42,7 +42,7 @@ public class CountMinBufferAggregator extends HashBufferAggregator<CountMinSketc
       final int depth
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.width = width;
     this.depth = depth;
   }

@@ -46,5 +46,16 @@ public class Murmur3Test
         offset += length;
       }
     }
+    for (int i = 0; i < 10; i++) {
+      r.nextBytes(bytes);
+      direct.position(0);
+      direct.put(bytes);
+      for (int offset = 0, length = 3; offset + length < bytes.length; length = r.nextInt(80) + 1) {
+        final long[] expected = Murmur3.hash128(bytes, offset, length);
+        Assert.assertArrayEquals(expected, Murmur3.hash128(wrap, offset, length));
+        Assert.assertArrayEquals(expected, Murmur3.hash128(direct, offset, length));
+        offset += length;
+      }
+    }
   }
 }

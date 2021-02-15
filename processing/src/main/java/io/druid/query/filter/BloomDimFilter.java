@@ -176,7 +176,9 @@ public class BloomDimFilter implements LogProvider, BestEffort
         if (groupingSets != null) {
           grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
         }
-        final HashAggregator<BloomTest> aggregator = new HashAggregator<BloomTest>(selectors, grouping, false);
+        final HashAggregator<BloomTest> aggregator = new HashAggregator.ScanSupport<BloomTest>(
+            null, selectors, grouping, false
+        );
         return new ValueMatcher()
         {
           final BloomTest tester = new BloomTest(BloomKFilter.deserialize(bloomFilter));
@@ -197,7 +199,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
     return new BloomDimFilter(fieldNames, fields, groupingSets, StringUtils.EMPTY_BYTES);
   }
 
-  private static class BloomTest implements HashCollector
+  private static class BloomTest implements HashCollector.ScanSupport
   {
     private final BloomKFilter filter;
     private boolean status;
@@ -208,6 +210,12 @@ public class BloomDimFilter implements LogProvider, BestEffort
     public void collect(Object[] values, BytesRef bytes)
     {
       status = filter.test(bytes);
+    }
+
+    @Override
+    public void collect(DimensionSelector.Scannable scannable)
+    {
+      status = filter.test(scannable);
     }
   }
 

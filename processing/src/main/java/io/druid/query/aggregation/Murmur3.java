@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.google.common.primitives.Ints;
+import org.apache.commons.lang.mutable.MutableLong;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -197,6 +198,10 @@ public class Murmur3
     return hash;
   }
 
+  public static MutableLong hash64wrap(ByteBuffer data, int offset, int length) {
+    return new MutableLong(hash64(data, offset, length, DEFAULT_SEED));
+  }
+
   public static long hash64(ByteBuffer data, int offset, int length) {
     return hash64(data, offset, length, DEFAULT_SEED);
   }
@@ -207,9 +212,9 @@ public class Murmur3
     final byte[] b = new byte[8];
 
     // body
+    data.position(offset);
     for (int i = 0; i < nblocks; i++) {
       final int i8 = i << 3;
-      data.position(offset + i8);
       data.get(b);
       long k = ((long) b[0] & 0xff)
                | (((long) b[1] & 0xff) << 8)
@@ -231,7 +236,6 @@ public class Murmur3
     // tail
     long k1 = 0;
     int tailStart = nblocks << 3;
-    data.position(offset + tailStart);
     data.get(b, 0, length - tailStart);
     switch (length - tailStart) {
       case 7:
@@ -398,6 +402,131 @@ public class Murmur3
     h *= 0xc4ceb9fe1a85ec53L;
     h ^= (h >>> 33);
     return h;
+  }
+
+  public static long[] hash128(ByteBuffer data, int offset, int length) {
+    return hash128(data, offset, length, DEFAULT_SEED);
+  }
+
+  /**
+   * Murmur3 128-bit variant.
+   *
+   * @param b   - input byte array
+   * @param offset - the first element of array
+   * @param length - length of array
+   * @param seed   - seed. (default is 0)
+   * @return - hashcode (2 longs)
+   */
+  public static long[] hash128(ByteBuffer data, int offset, int length, int seed) {
+    long h1 = seed;
+    long h2 = seed;
+    final int nblocks = length >> 4;
+
+    final byte[] b = new byte[16];
+
+    // body
+    data.position(offset);
+    for (int i = 0; i < nblocks; i++) {
+      final int i16 = i << 4;
+      data.get(b);
+      long k1 = ((long) b[0] & 0xff)
+          | (((long) b[1] & 0xff) << 8)
+          | (((long) b[2] & 0xff) << 16)
+          | (((long) b[3] & 0xff) << 24)
+          | (((long) b[4] & 0xff) << 32)
+          | (((long) b[5] & 0xff) << 40)
+          | (((long) b[6] & 0xff) << 48)
+          | (((long) b[7] & 0xff) << 56);
+
+      long k2 = ((long) b[8] & 0xff)
+          | (((long) b[9] & 0xff) << 8)
+          | (((long) b[10] & 0xff) << 16)
+          | (((long) b[11] & 0xff) << 24)
+          | (((long) b[12] & 0xff) << 32)
+          | (((long) b[13] & 0xff) << 40)
+          | (((long) b[14] & 0xff) << 48)
+          | (((long) b[15] & 0xff) << 56);
+
+      // mix functions for k1
+      k1 *= C1;
+      k1 = Long.rotateLeft(k1, R1);
+      k1 *= C2;
+      h1 ^= k1;
+      h1 = Long.rotateLeft(h1, R2);
+      h1 += h2;
+      h1 = h1 * M + N1;
+
+      // mix functions for k2
+      k2 *= C2;
+      k2 = Long.rotateLeft(k2, R3);
+      k2 *= C1;
+      h2 ^= k2;
+      h2 = Long.rotateLeft(h2, R1);
+      h2 += h1;
+      h2 = h2 * M + N2;
+    }
+
+    // tail
+    long k1 = 0;
+    long k2 = 0;
+    int tailStart = nblocks << 4;
+    data.get(b, 0, length - tailStart);
+    switch (length - tailStart) {
+      case 15:
+        k2 ^= (long) (b[14] & 0xff) << 48;
+      case 14:
+        k2 ^= (long) (b[13] & 0xff) << 40;
+      case 13:
+        k2 ^= (long) (b[12] & 0xff) << 32;
+      case 12:
+        k2 ^= (long) (b[11] & 0xff) << 24;
+      case 11:
+        k2 ^= (long) (b[10] & 0xff) << 16;
+      case 10:
+        k2 ^= (long) (b[9] & 0xff) << 8;
+      case 9:
+        k2 ^= (long) (b[8] & 0xff);
+        k2 *= C2;
+        k2 = Long.rotateLeft(k2, R3);
+        k2 *= C1;
+        h2 ^= k2;
+
+      case 8:
+        k1 ^= (long) (b[7] & 0xff) << 56;
+      case 7:
+        k1 ^= (long) (b[6] & 0xff) << 48;
+      case 6:
+        k1 ^= (long) (b[5] & 0xff) << 40;
+      case 5:
+        k1 ^= (long) (b[4] & 0xff) << 32;
+      case 4:
+        k1 ^= (long) (b[3] & 0xff) << 24;
+      case 3:
+        k1 ^= (long) (b[2] & 0xff) << 16;
+      case 2:
+        k1 ^= (long) (b[1] & 0xff) << 8;
+      case 1:
+        k1 ^= (long) (b[0] & 0xff);
+        k1 *= C1;
+        k1 = Long.rotateLeft(k1, R1);
+        k1 *= C2;
+        h1 ^= k1;
+    }
+
+    // finalization
+    h1 ^= length;
+    h2 ^= length;
+
+    h1 += h2;
+    h2 += h1;
+
+    h1 = fmix64(h1);
+    h2 = fmix64(h2);
+
+    h1 += h2;
+    h2 += h1;
+
+    return new long[]{h1, h2};
   }
 
   public static String encode(final String query)

@@ -24,8 +24,9 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
 import java.util.List;
+import java.util.function.Consumer;
 
-public class HashAggregator<T extends HashCollector> extends HashIterator implements Aggregator<T>
+public class HashAggregator<T extends HashCollector> extends HashIterator<T> implements Aggregator<T>
 {
   public HashAggregator(
       ValueMatcher predicate,
@@ -61,5 +62,28 @@ public class HashAggregator<T extends HashCollector> extends HashIterator implem
   public final T get(T current)
   {
     return current;
+  }
+
+  public static class ScanSupport<T extends HashCollector.ScanSupport> extends HashAggregator<T>
+  {
+    public ScanSupport(
+        ValueMatcher predicate,
+        List<DimensionSelector> selectorList,
+        int[][] groupings,
+        boolean byRow
+    )
+    {
+      super(predicate, selectorList, groupings, byRow, false);
+    }
+
+    @Override
+    protected Consumer<T> toConsumer(List<DimensionSelector> selectorList)
+    {
+      if (selectorList.size() == 1 && selectorList.get(0) instanceof DimensionSelector.Scannable) {
+        final DimensionSelector.Scannable selector = (DimensionSelector.Scannable) selectorList.get(0);
+        return collector -> collector.collect(selector);
+      }
+      return super.toConsumer(selectorList);
+    }
   }
 }

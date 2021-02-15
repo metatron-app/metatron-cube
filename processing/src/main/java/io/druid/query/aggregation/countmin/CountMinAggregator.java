@@ -25,7 +25,7 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.List;
 
-public class CountMinAggregator extends HashAggregator<CountMinSketch>
+public class CountMinAggregator extends HashAggregator.ScanSupport<CountMinSketch>
 {
   private final int width;
   private final int depth;
@@ -39,7 +39,7 @@ public class CountMinAggregator extends HashAggregator<CountMinSketch>
       int depth
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.width = width;
     this.depth = depth;
   }

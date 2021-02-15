@@ -24,8 +24,9 @@ import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.function.Consumer;
 
-public abstract class HashBufferAggregator<T extends HashCollector> extends HashIterator implements BufferAggregator
+public abstract class HashBufferAggregator<T extends HashCollector> extends HashIterator<T> implements BufferAggregator
 {
   public HashBufferAggregator(
       ValueMatcher predicate,
@@ -52,4 +53,27 @@ public abstract class HashBufferAggregator<T extends HashCollector> extends Hash
   }
 
   protected abstract T toCollector(ByteBuffer buf, int position);
+
+  public static abstract class ScanSupport<T extends HashCollector.ScanSupport> extends HashBufferAggregator<T>
+  {
+    public ScanSupport(
+        ValueMatcher predicate,
+        List<DimensionSelector> selectorList,
+        int[][] groupings,
+        boolean byRow
+    )
+    {
+      super(predicate, selectorList, groupings, byRow, false);
+    }
+
+    @Override
+    protected Consumer<T> toConsumer(List<DimensionSelector> selectorList)
+    {
+      if (selectorList.size() == 1 && selectorList.get(0) instanceof DimensionSelector.Scannable) {
+        final DimensionSelector.Scannable selector = (DimensionSelector.Scannable) selectorList.get(0);
+        return collector -> collector.collect(selector);
+      }
+      return super.toConsumer(selectorList);
+    }
+  }
 }

@@ -26,7 +26,7 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.List;
 
-public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
+public class CardinalityAggregator extends HashAggregator.ScanSupport<HyperLogLogCollector>
 {
   private final int b;
 
@@ -38,14 +38,13 @@ public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
       int b
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.b = b;
   }
 
   public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    super(ValueMatcher.TRUE, selectorList, null, byRow, false);
-    this.b = CardinalityAggregatorFactory.DEFAULT_B_PARAM;
+    this(ValueMatcher.TRUE, selectorList, null, byRow, CardinalityAggregatorFactory.DEFAULT_B_PARAM);
   }
 
   @Override

@@ -31,6 +31,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.query.aggregation.Murmur3;
+import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -54,7 +55,7 @@ import java.util.Arrays;
  *
  * If you have multiple threads calling methods on this concurrently, I hope you manage to get correct behavior
  */
-public final class HyperLogLogCollector implements Comparable<HyperLogLogCollector>, HashCollector
+public final class HyperLogLogCollector implements Comparable<HyperLogLogCollector>, HashCollector.ScanSupport
 {
   public static final String HLL_TYPE_NAME = "hyperUnique";
   public static final ValueDesc HLL_TYPE = ValueDesc.of(HLL_TYPE_NAME, HyperLogLogCollector.class);
@@ -883,6 +884,12 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
   public void collect(Object[] values, BytesRef bytes)
   {
     add(Murmur3.hash128(bytes.bytes, 0, bytes.length));
+  }
+
+  @Override
+  public void collect(DimensionSelector.Scannable scannable)
+  {
+    add(scannable.<long[]>apply((buffer, offset, length) -> Murmur3.hash128(buffer, offset, length)));
   }
 
   public static int getUnsignedShort(ByteBuffer bb)

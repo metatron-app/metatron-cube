@@ -25,6 +25,7 @@ import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.query.aggregation.Murmur3;
+import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -58,7 +59,7 @@ import java.util.Arrays;
  *
  * This implementation has much lesser L1 data cache misses than {@link org.apache.hive.common.util.BloomFilter}.
  */
-public class BloomKFilter implements HashCollector
+public class BloomKFilter implements HashCollector.ScanSupport
 {
   public static final float DEFAULT_FPP = 0.05f;
   // Given a byte array consisting of a serialized BloomKFilter, gives the offset (from 0)
@@ -363,14 +364,36 @@ public class BloomKFilter implements HashCollector
     addHash(Murmur3.hash64(key.bytes, 0, key.length));
   }
 
-  public static void collect(ByteBuffer buffer, int position, BytesRef key)
+  @Override
+  public void collect(DimensionSelector.Scannable scannable)
   {
-    addHash(buffer, position, Murmur3.hash64(key.bytes, 0, key.length));
+    addHash(scannable.apply((buffer, offset, length) -> Murmur3.hash64wrap(buffer, offset, length)).longValue());
+  }
+
+  public static void collect(ByteBuffer collector, int position, BytesRef key)
+  {
+    addHash(collector, position, Murmur3.hash64(key.bytes, 0, key.length));
+  }
+
+  public static void collect(ByteBuffer collector, int position, DimensionSelector.Scannable scannable)
+  {
+    addHash(
+        collector,
+        position,
+        scannable.apply((buffer, offset, length) -> Murmur3.hash64wrap(buffer, offset, length)).longValue()
+    );
   }
 
   public boolean test(BytesRef key)
   {
     return testHash(Murmur3.hash64(key.bytes, 0, key.length));
+  }
+
+  public boolean test(DimensionSelector.Scannable scannable)
+  {
+    return testHash(
+        scannable.apply((buffer, offset, length) -> Murmur3.hash64wrap(buffer, offset, length)).longValue()
+    );
   }
 
   public boolean testHash(long hash64)

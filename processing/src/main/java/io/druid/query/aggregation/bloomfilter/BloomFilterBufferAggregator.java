@@ -28,7 +28,7 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilterBufferAggregator.Collector>
+public class BloomFilterBufferAggregator extends HashBufferAggregator.ScanSupport<BloomFilterBufferAggregator.Collector>
 {
   private final int maxNumEntries;
 
@@ -40,7 +40,7 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilte
       final int maxNumEntries
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.maxNumEntries = maxNumEntries;
   }
 
@@ -62,7 +62,7 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilte
     return BloomKFilter.deserialize(buf, position);
   }
 
-  static class Collector implements HashCollector
+  static class Collector implements HashCollector.ScanSupport
   {
     private final ByteBuffer byteBuffer;
     private final int position;
@@ -77,6 +77,12 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilte
     public void collect(Object[] values, BytesRef bytes)
     {
       BloomKFilter.collect(byteBuffer, position, bytes);
+    }
+
+    @Override
+    public void collect(DimensionSelector.Scannable scannable)
+    {
+      BloomKFilter.collect(byteBuffer, position, scannable);
     }
   }
 }

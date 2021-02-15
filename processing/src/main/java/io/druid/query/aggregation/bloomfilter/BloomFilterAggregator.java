@@ -34,7 +34,7 @@ import io.druid.segment.DimensionSelector;
 import java.util.Iterator;
 import java.util.List;
 
-public class BloomFilterAggregator extends HashAggregator<BloomKFilter>
+public class BloomFilterAggregator extends HashAggregator.ScanSupport<BloomKFilter>
 {
   public static BloomKFilter build(
       RowResolver resolver,
@@ -69,7 +69,7 @@ public class BloomFilterAggregator extends HashAggregator<BloomKFilter>
       long maxNumEntries
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.maxNumEntries = maxNumEntries;
   }
 

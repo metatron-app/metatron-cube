@@ -20,8 +20,14 @@
 package io.druid.query.aggregation;
 
 import io.druid.common.guava.BytesRef;
+import io.druid.segment.DimensionSelector;
 
 public interface HashCollector
 {
   void collect(Object[] values, BytesRef bytes);
+
+  interface ScanSupport extends HashCollector
+  {
+    void collect(DimensionSelector.Scannable scannable);
+  }
 }

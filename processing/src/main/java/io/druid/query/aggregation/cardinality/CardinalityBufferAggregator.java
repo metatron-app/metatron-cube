@@ -26,8 +26,9 @@ import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.function.Consumer;
 
-public class CardinalityBufferAggregator extends HashBufferAggregator<HyperLogLogCollector>
+public class CardinalityBufferAggregator extends HashBufferAggregator.ScanSupport<HyperLogLogCollector>
 {
   private final HyperLogLogCollector.Context context;
 
@@ -39,7 +40,7 @@ public class CardinalityBufferAggregator extends HashBufferAggregator<HyperLogLo
       int b
   )
   {
-    super(predicate, selectorList, groupings, byRow, false);
+    super(predicate, selectorList, groupings, byRow);
     this.context = HyperLogLogCollector.getContext(b);
   }
 

@@ -29,13 +29,14 @@ import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.query.aggregation.HashCollector;
 import io.druid.query.aggregation.Murmur3;
+import io.druid.segment.DimensionSelector;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
 import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.nio.ByteBuffer;
 
-public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
+public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector.ScanSupport
 {
   private final int w;
   private final int d;
@@ -67,6 +68,12 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
     // Lets split up 64-bit hashcode into two 32-bit hashcodes and employ the technique mentioned
     // in the above paper
     collect(Murmur3.hash64(key.bytes, 0, key.length));
+  }
+
+  @Override
+  public void collect(DimensionSelector.Scannable scannable)
+  {
+    collect(scannable.apply((buffer, offset, length) -> Murmur3.hash64wrap(buffer, offset, length)).longValue());
   }
 
   public void collect(long hash64)
