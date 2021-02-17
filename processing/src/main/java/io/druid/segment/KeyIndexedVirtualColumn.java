@@ -90,7 +90,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       return ValueDesc.STRING;
     }
     if (valueMetrics.contains(column)) {
-      return ValueDesc.elementOfArray(types.resolve(column), ValueDesc.UNKNOWN);
+      return types.resolve(column).subElement(ValueDesc.UNKNOWN);
     }
     if (outputName.equals(column)) {
       return types.resolve(keyDimension);
@@ -134,10 +134,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       if (selector == null) {
         return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
       }
-      final ValueDesc elementType = ValueDesc.elementOfArray(selector.type());
-      if (elementType == null) {
-        throw new IllegalArgumentException("target column '" + column + "' should be array type");
-      }
+      ValueDesc type = selector.type();
+      Preconditions.checkArgument(type.hasSubElement(), "cannot resolve element type");
+      final ValueDesc elementType = type.subElement();
 
       return new ObjectColumnSelector<Object>()
       {

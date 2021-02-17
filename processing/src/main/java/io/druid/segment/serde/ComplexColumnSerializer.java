@@ -148,7 +148,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   @Override
   public Builder buildDescriptor(ValueDesc desc, Builder builder)
   {
-    if (ValueDesc.isString(desc)) {
+    if (desc.isString()) {
       builder.setValueType(ValueDesc.STRING);
       builder.addSerde(new StringColumnPartSerde(this));
     } else {

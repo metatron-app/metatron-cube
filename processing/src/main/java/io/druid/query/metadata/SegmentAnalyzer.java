@@ -90,7 +90,7 @@ public class SegmentAnalyzer
       Column column = index == null ? null : index.getColumn(columnName);
 
       ColumnAnalysis analysis;
-      if (ValueDesc.isDimension(valueDesc)) {
+      if (valueDesc.isDimension()) {
         analysis = analyzeDimensionColumn(column, columnName, valueDesc, resolver, adapter, analysisTypes);
       } else {
         analysis = analyzeSimpleColumn(column, columnName, valueDesc, resolver, adapter, analysisTypes);
@@ -146,7 +146,7 @@ public class SegmentAnalyzer
         }
       }
     }
-    if (ValueDesc.isPrimitive(valueDesc) &&
+    if (valueDesc.isPrimitive() &&
         (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0)) {
       Object[] accumulated = accumulate(
           storageAdapter, resolver,

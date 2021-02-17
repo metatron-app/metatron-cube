@@ -103,7 +103,7 @@ public class SketchMergeAggregatorFactory extends AggregatorFactory
       return new EmptySketchAggregator();
     }
     ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
-    if (ValueDesc.isDimension(type)) {
+    if (type.isDimension()) {
       DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
       return Aggregators.wrap(matcher, SketchAggregator.create(selector, size));
     }
@@ -121,7 +121,7 @@ public class SketchMergeAggregatorFactory extends AggregatorFactory
     }
     ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
     int maxIntermediateSize = getMaxIntermediateSize();
-    if (ValueDesc.isDimension(type)) {
+    if (type.isDimension()) {
       DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
       return Aggregators.wrap(matcher, SketchBufferAggregator.create(selector, size, maxIntermediateSize));
     }

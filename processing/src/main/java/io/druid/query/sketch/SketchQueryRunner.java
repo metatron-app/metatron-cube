@@ -106,7 +106,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
       int index = 1;
       for (DimensionSpec dimensionSpec : dimensions) {
         ValueDesc majorType = majorTypes.get(dimensionSpec.getDimension());
-        if (majorType != null && !ValueDesc.isString(majorType)) {
+        if (majorType != null && !majorType.isString()) {
           LOG.info(
               "Skipping %s, which is expected to be %s type but %s type",
               dimensionSpec.getDimension(), majorType, ValueDesc.STRING_TYPE
@@ -136,7 +136,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
           continue;
         }
         ValueDesc majorType = majorTypes.get(spec.getDimension());
-        if (majorType != null && !ValueDesc.isString(majorType)) {
+        if (majorType != null && !majorType.isString()) {
           LOG.info(
               "Skipping %s, which is expected to be %s type but %s type",
               spec.getDimension(), majorType, ValueDesc.STRING_TYPE
@@ -211,7 +211,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
             continue;
           }
           ValueDesc majorType = majorTypes.get(dimension.getDimension());
-          if (majorType != null && !ValueDesc.isStringOrDimension(majorType)) {
+          if (majorType != null && !majorType.isStringOrDimension()) {
             LOG.info(
                 "Skipping %s, which is expected to be %s type but %s type",
                 dimension.getDimension(), majorType, ValueDesc.STRING_TYPE

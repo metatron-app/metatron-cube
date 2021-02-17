@@ -453,7 +453,7 @@ public class Evals
       case DATETIME:
         return eval.asDateTime();
     }
-    throw new IAE("not supported type %s", castTo);
+    return castTo.cast(eval.value());
   }
 
   static DateTime toDateTime(ExprEval arg, DateTimeFormatter formatter)

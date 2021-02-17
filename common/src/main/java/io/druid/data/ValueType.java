@@ -212,10 +212,10 @@ public enum ValueType
     }
 
     @Override
-    public Comparable cast(Object value)
+    public Object cast(Object value)
     {
       if (value instanceof DateTime) {
-        return (DateTime) value;
+        return value;
       } else if (value instanceof Number) {
         return new DateTime(((Number) value).longValue(), ISOChronology.getInstanceUTC());
       }
@@ -255,12 +255,12 @@ public enum ValueType
     return GuavaUtils.NULL_FIRST_NATURAL;
   }
 
-  public Comparable cast(Object value)
+  public Object cast(Object value)
   {
-    return (Comparable) classOfObject().cast(value);
+    return classOfObject().cast(value);
   }
 
-  public Comparable castIfPossible(Object value)
+  public Object castIfPossible(Object value)
   {
     try {
       return cast(value);

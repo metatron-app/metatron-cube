@@ -82,10 +82,8 @@ public class ObjectInspectors
         return oi;
       }
     }
-    if (type.isList()) {
-      String[] descriptions = Preconditions.checkNotNull(type.getDescription());
-      Preconditions.checkArgument(descriptions.length == 2);
-      return ObjectInspectorFactory.getStandardListObjectInspector(toObjectInspector(ValueDesc.of(descriptions[1])));
+    if (type.isArray()) {
+      return ObjectInspectorFactory.getStandardListObjectInspector(toObjectInspector(type.subElement()));
     }
     if (type.isStruct()) {
       String[] descriptions = Preconditions.checkNotNull(type.getDescription());
@@ -131,10 +129,8 @@ public class ObjectInspectors
         return info;
       }
     }
-    if (type.isList()) {
-      String[] descriptions = Preconditions.checkNotNull(type.getDescription());
-      Preconditions.checkArgument(descriptions.length == 2);
-      return TypeInfoFactory.getListTypeInfo(toTypeInfo(ValueDesc.of(descriptions[1])));
+    if (type.isArray()) {
+      return TypeInfoFactory.getListTypeInfo(toTypeInfo(type.subElement()));
     }
     if (type.isStruct()) {
       String[] descriptions = Preconditions.checkNotNull(type.getDescription());
@@ -223,8 +219,8 @@ public class ObjectInspectors
         }
         return defaultType;
       case LIST:
-        ValueDesc element = typeOf(((ListObjectInspector) inspector).getListElementObjectInspector(), null);
-        return element == null ? ValueDesc.LIST : ValueDesc.ofList(element);
+        ValueDesc element = typeOf(((ListObjectInspector) inspector).getListElementObjectInspector(), ValueDesc.UNKNOWN);
+        return element.isUnknown() ? ValueDesc.ARRAY : ValueDesc.ofArray(element);
       case STRUCT:
         StringBuilder elements = new StringBuilder();
         for (StructField field : ((StructObjectInspector) inspector).getAllStructFieldRefs()) {

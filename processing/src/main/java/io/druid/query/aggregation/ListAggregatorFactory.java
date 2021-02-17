@@ -67,7 +67,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   public ListAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("expression") String expression,
-      @JsonProperty("inputType") String inputType,
+      @JsonProperty("inputType") ValueDesc inputType,
       @JsonProperty("limit") int limit,
       @JsonProperty("dedup") boolean dedup,
       @JsonProperty("sort") boolean sort
@@ -75,18 +75,18 @@ public class ListAggregatorFactory extends AggregatorFactory
   {
     this.name = Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
     this.expression = Preconditions.checkNotNull(expression);
-    this.inputType = ValueDesc.of(Preconditions.checkNotNull(inputType));
+    this.inputType = Preconditions.checkNotNull(inputType);
     this.limit = limit;
     this.dedup = dedup;
     this.sort = sort;
-    if (ValueDesc.isArray(inputType)) {
-      elementType = ValueDesc.elementOfArray(inputType);
-      outputType = this.inputType;
+    if (inputType.isArray()) {
+      elementType = inputType.subElement(ValueDesc.UNKNOWN);
+      outputType = inputType;
     } else {
-      elementType = this.inputType;
+      elementType = inputType;
       outputType = ValueDesc.ofArray(inputType);
     }
-    Preconditions.checkArgument(ValueDesc.isPrimitive(elementType), "does not support complex type");
+    Preconditions.checkArgument(elementType.isPrimitive(), "does not support complex type");
   }
 
   private Collection<Object> createCollection()
@@ -106,7 +106,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    if (ValueDesc.isArray(inputType)) {
+    if (inputType.isArray()) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(expression);
       return new Aggregator.Estimable<Collection<Object>>()
@@ -218,7 +218,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    if (ValueDesc.isArray(inputType)) {
+    if (inputType.isArray()) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(expression);
       return new BufferAggregator()
@@ -319,7 +319,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     // takes array as input
-    return new ListAggregatorFactory(name, name, outputType.typeName(), limit, dedup, sort);
+    return new ListAggregatorFactory(name, name, outputType, limit, dedup, sort);
   }
 
   @Override

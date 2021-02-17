@@ -136,7 +136,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       return Aggregator.NULL;
     }
     final ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
-    if (ValueDesc.isDimension(columnType)) {
+    if (columnType.isDimension()) {
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
       if (selector instanceof SingleValued) {
         if (selector instanceof WithRawAccess) {
@@ -178,7 +178,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
         }
       });
     }
-    if (ValueDesc.isMultiValued(columnType)) {
+    if (columnType.isMultiValued()) {
       final ValueDesc elementType = columnType.subElement();
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
       return Aggregators.wrap(matcher, new BaseAggregator(elementType)
@@ -329,7 +329,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       return BufferAggregator.NULL;
     }
     final ValueMatcher matcher = ColumnSelectors.toMatcher(predicate, metricFactory);
-    if (ValueDesc.isDimension(columnType)) {
+    if (columnType.isDimension()) {
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
       return Aggregators.wrap(matcher, new BaseBufferAggregator(selector.type())
       {
@@ -348,7 +348,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
         }
       });
     }
-    if (ValueDesc.isMultiValued(columnType)) {
+    if (columnType.isMultiValued()) {
       final ValueDesc elementType = columnType.subElement();
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
       return Aggregators.wrap(matcher, new BaseBufferAggregator(elementType)

@@ -26,6 +26,7 @@ import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.IAE;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
@@ -124,8 +125,9 @@ public class StructVirtualColumn implements VirtualColumn
   public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
-      throw new UnsupportedOperationException(selector.type() + " cannot be used as a float");
+    final ValueDesc type = selector.type();
+    if (type.isMap() || type.isStruct() || type.isArray()) {
+      throw new IAE("%s cannot be used as a float", type);
     }
     return ColumnSelectors.asFloat(selector);
   }
@@ -134,8 +136,9 @@ public class StructVirtualColumn implements VirtualColumn
   public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
-      throw new UnsupportedOperationException(selector.type() + " cannot be used as a double");
+    final ValueDesc type = selector.type();
+    if (type.isMap() || type.isStruct() || type.isArray()) {
+      throw new IAE("%s cannot be used as a double", type);
     }
     return ColumnSelectors.asDouble(selector);
   }
@@ -144,8 +147,9 @@ public class StructVirtualColumn implements VirtualColumn
   public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
-      throw new UnsupportedOperationException(selector.type() + " cannot be used as a long");
+    final ValueDesc type = selector.type();
+    if (type.isMap() || type.isStruct() || type.isArray()) {
+      throw new IAE("%s cannot be used as a long", type);
     }
     return ColumnSelectors.asLong(selector);
   }
@@ -153,9 +157,10 @@ public class StructVirtualColumn implements VirtualColumn
   @Override
   public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
   {
-    ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
-      throw new UnsupportedOperationException(selector.type() + " cannot be used as a Dimension");
+    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    final ValueDesc type = selector.type();
+    if (type.isMap() || type.isStruct() || type.isArray()) {
+      throw new IAE("%s cannot be used as a dimension", type);
     }
     return VirtualColumns.toDimensionSelector(selector, extractionFn);
   }

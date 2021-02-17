@@ -84,7 +84,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory implemen
   protected ValueDesc toOutputType(ValueDesc inputType)
   {
     ValueDesc variance = ValueDesc.of("variance", VarianceAggregatorCollector.class);
-    return ValueDesc.isArray(inputType) ? ValueDesc.elementOfArray(variance) : variance;
+    return inputType.isArray() ? variance.subElement(ValueDesc.UNKNOWN) : variance;
   }
 
   @Override

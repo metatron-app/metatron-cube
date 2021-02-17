@@ -923,7 +923,7 @@ public abstract class IncrementalIndex implements Closeable
     @SuppressWarnings("unchecked")
     public int addValue(Comparable dimValue)
     {
-      return values.add(type.cast(dimValue));
+      return values.add((Comparable) type.cast(dimValue));
     }
   }
 

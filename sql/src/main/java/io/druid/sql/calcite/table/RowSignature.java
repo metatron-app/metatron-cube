@@ -142,7 +142,7 @@ public class RowSignature extends io.druid.query.RowSignature
   {
     Preconditions.checkNotNull(simpleExtraction, "simpleExtraction");
     if (simpleExtraction.getExtractionFn() != null
-        || ValueDesc.isStringOrDimension(resolve(simpleExtraction.getColumn()))) {
+        || resolve(simpleExtraction.getColumn(), ValueDesc.STRING).isStringOrDimension()) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
       return StringComparators.NUMERIC_NAME;
@@ -162,7 +162,7 @@ public class RowSignature extends io.druid.query.RowSignature
     for (int i = 0; i < columnNames.size(); i++) {
       String columnName = columnNames.get(i);
       ValueDesc columnType = columnTypes.get(i);
-      if (ValueDesc.isDimension(columnType)) {
+      if (columnType.isDimension()) {
         columnType = columnType.subElement();
       }
       RelDataType type;
@@ -207,7 +207,7 @@ public class RowSignature extends io.druid.query.RowSignature
         SqlTypeName typeName = SqlTypeName.OTHER;
         if (columnType.isMap()) {
           typeName = SqlTypeName.MAP;
-        } else if (columnType.isList() || columnType.isStruct()) {
+        } else if (columnType.isArray() || columnType.isStruct()) {
           typeName = SqlTypeName.ARRAY;
         }
         return Calcites.createSqlTypeWithNullability(typeFactory, typeName, true);

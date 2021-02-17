@@ -879,7 +879,7 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         .builder()
         .dataSource("sales")
         .setInterval(Intervals.of("2011-01-01/2015-01-01"))
-        .aggregators(new SetAggregatorFactory("set(Region)", "Region", "string", -1, true))
+        .aggregators(new SetAggregatorFactory("set(Region)", "Region", ValueDesc.STRING, -1, true))
         .postAggregators(new MathPostAggregator("count", "size(\"set(Region)\")"))
         .build();
     String[] columnNames = {"__time", "set(Region)", "count"};

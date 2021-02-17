@@ -336,7 +336,7 @@ public class ColumnSelectors
     if (type == null) {
       return nullObjectSelector(ValueDesc.STRING);
     }
-    if (ValueDesc.isDimension(type)) {
+    if (type.isDimension()) {
       return asMultiValued(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)));
     }
 
@@ -347,8 +347,8 @@ public class ColumnSelectors
     if (ValueDesc.isIndexedId(type)) {
       return asValued(selector);
     }
-    if (ValueDesc.isArray(type)) {
-      return asArray(selector, ValueDesc.subElementOf(type, ValueDesc.UNKNOWN));
+    if (type.isArray()) {
+      return asArray(selector, type.subElement(ValueDesc.UNKNOWN));
     }
     // toString, whatsoever
     return new ObjectColumnSelector()

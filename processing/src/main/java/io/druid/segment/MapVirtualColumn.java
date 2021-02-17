@@ -84,7 +84,7 @@ public class MapVirtualColumn implements VirtualColumn
     if (valueDimension != null) {
       return ValueDesc.STRING;
     }
-    return ValueDesc.elementOfArray(types.resolve(valueMetric), ValueDesc.UNKNOWN);
+    return types.resolve(valueMetric).subElement(ValueDesc.UNKNOWN);
   }
 
   @Override
@@ -190,10 +190,9 @@ public class MapVirtualColumn implements VirtualColumn
       };
     }
 
-    final ValueDesc elementType = ValueDesc.elementOfArray(valueSelector.type());
-    if (elementType == null) {
-      throw new IllegalArgumentException("target column '" + column + "' should be array type");
-    }
+    ValueDesc type = valueSelector.type();
+    Preconditions.checkArgument(type.hasSubElement(), "cannot resolve element type");
+    final ValueDesc elementType = type.subElement();
     final int keyId = keySelector.lookupId(column.substring(index + 1));
     if (keyId < 0) {
       return ColumnSelectors.nullObjectSelector(elementType);

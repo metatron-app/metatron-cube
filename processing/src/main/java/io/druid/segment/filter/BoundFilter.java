@@ -256,8 +256,8 @@ public class BoundFilter implements Filter
     String lower = Strings.emptyToNull(boundDimFilter.getLower());
     String upper = Strings.emptyToNull(boundDimFilter.getUpper());
 
-    Comparable lowerLimit = lower != null ? type.cast(boundDimFilter.getLower()) : null;
-    Comparable upperLimit = upper != null ? type.cast(boundDimFilter.getUpper()) : null;
+    Comparable lowerLimit = lower != null ? (Comparable) type.cast(boundDimFilter.getLower()) : null;
+    Comparable upperLimit = upper != null ? (Comparable) type.cast(boundDimFilter.getUpper()) : null;
 
     Comparator comparator = type == ValueType.STRING ? boundDimFilter.getComparator() : type.comparator();
     return asPredicate(lowerLimit, upperLimit, extractionFn, comparator);

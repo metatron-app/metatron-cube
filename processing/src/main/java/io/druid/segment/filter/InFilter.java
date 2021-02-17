@@ -109,7 +109,7 @@ public class InFilter implements Filter
       // should handle extract fn
       return BooleanValueMatcher.of(toPredicate(allowsNull, null).apply(null));
     }
-    if (ValueDesc.isDimension(type) && extractionFn == null) {
+    if (type.isDimension() && extractionFn == null) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
       final IntSet ids = new IntOpenHashSet();
       for (String value : values) {

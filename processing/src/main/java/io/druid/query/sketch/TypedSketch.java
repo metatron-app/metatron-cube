@@ -257,10 +257,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
         return stringsSerDe;
       default:
         if (type.isStruct()) {
-          String[] split = Preconditions.checkNotNull(
-              TypeUtils.splitDescriptiveType(type.typeName()),
-              "invalid description " + type
-          );
+          String[] split = Preconditions.checkNotNull(type.getDescription(), "invalid description %s", type);
           List<ValueType> fields = Lists.newArrayList();
           for (int i = 1; i < split.length; i++) {
             int index = split[i].indexOf(':');

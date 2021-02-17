@@ -29,15 +29,12 @@ import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
-import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
-
-
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;
@@ -111,21 +108,16 @@ public class GroupByQueryRunnerFactory
     List<ValueType> types = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       ValueDesc type = dimensionSpec.resolve(resolver);
-      if (ValueDesc.isMap(type)) {
-        String[] descriptiveType = TypeUtils.splitDescriptiveType(type.typeName());
+      if (type.isMap()) {
+        String[] descriptiveType = type.getDescription();
         if (descriptiveType == null) {
           throw new ISE("cannot resolve value type of map %s [%s]", type, dimensionSpec);
         }
         type = ValueDesc.of(descriptiveType[2]);
-        if (type.isDimension()) {
-          type = ValueDesc.of(ValueDesc.typeOfDimension(type));
-        } else if (type.isArray()) {
-          type = ValueDesc.elementOfArray(type);
-        }
       }
-      if (ValueDesc.isDimension(type)) {
-        types.add(ValueType.of(type.subElement().typeName()));
-      } else if (ValueDesc.isPrimitive(type)) {
+      if (type.isDimension() || type.isArray()) {
+        types.add(type.subElement().type());
+      } else if (type.isPrimitive()) {
         types.add(type.type());
       } else {
         throw new ISE("cannot group-by on non-primitive type %s [%s]", type, dimensionSpec);

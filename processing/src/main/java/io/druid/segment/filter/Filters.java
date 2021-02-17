@@ -185,20 +185,17 @@ public class Filters
     if (columnType == null) {
       return BooleanValueMatcher.of(predicate.apply(null));
     }
-    if (ValueDesc.isDimension(columnType)) {
+    if (columnType.isDimension()) {
       return Filters.toValueMatcher(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)), predicate);
     }
     return Filters.toValueMatcher(ColumnSelectors.toDimensionalSelector(factory, column), predicate);
   }
 
   @SuppressWarnings("unchecked")
-  public static ValueMatcher toValueMatcher(
-      final ObjectColumnSelector selector,
-      final Predicate predicate
-  )
+  public static ValueMatcher toValueMatcher(final ObjectColumnSelector selector, final Predicate predicate)
   {
     final ValueDesc type = selector.type();
-    if (ValueDesc.isPrimitive(type)) {
+    if (type.isPrimitive()) {
       return new ValueMatcher()
       {
         @Override
@@ -208,23 +205,35 @@ public class Filters
         }
       };
     }
-    if (ValueDesc.isArray(type) || ValueDesc.isMultiValued(type)) {
+    if (type.isArray() || type.isMultiValued()) {
       return new ValueMatcher()
       {
         @Override
         public boolean matches()
         {
           final Object object = selector.get();
-          if (object == null || !object.getClass().isArray()) {
+          if (object == null) {
             return predicate.apply(object);
           }
-          final int length = Array.getLength(object);
-          for (int i = 0; i < length; i++) {
-            if (predicate.apply(Array.get(object, i))) {
-              return true;
+          if (object instanceof List) {
+            final List list = (List) object;
+            for (int i = 0; i < list.size(); i++) {
+              if (predicate.apply(list.get(i))) {
+                return true;
+              }
             }
+            return false;
+          } else if (object.getClass().isArray()) {
+            final int length = Array.getLength(object);
+            for (int i = 0; i < length; i++) {
+              if (predicate.apply(Array.get(object, i))) {
+                return true;
+              }
+            }
+            return false;
+          } else {
+            return predicate.apply(object);
           }
-          return false;
         }
       };
     }
@@ -1027,7 +1036,7 @@ public class Filters
         if (constant != null) {
           return null;
         }
-        constant = type.cast(((Expression.ConstExpression) expr).get());
+        constant = (Comparable) type.cast(((Expression.ConstExpression) expr).get());
       }
     }
     return constant;
@@ -1038,15 +1047,17 @@ public class Filters
     List<Comparable> constants = Lists.newArrayList();
     for (Expression expr : children) {
       if (expr instanceof Expression.ConstExpression) {
-        constants.add(type.cast(((Expression.ConstExpression) expr).get()));
+        constants.add((Comparable) type.cast(((Expression.ConstExpression) expr).get()));
       }
     }
     return constants;
   }
 
+  private static final Filter.Factory FACTORY = new Filter.Factory();
+
   public static Filter convertToCNF(Filter current)
   {
-    return Expressions.convertToCNF(current, new Filter.Factory());
+    return Expressions.convertToCNF(current, FACTORY);
   }
 
   public static boolean isColumnWithoutBitmap(BitmapIndexSelector selector, String dimension)

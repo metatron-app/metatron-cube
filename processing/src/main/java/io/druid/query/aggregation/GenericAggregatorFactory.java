@@ -108,7 +108,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
 
   protected ValueDesc toOutputType(ValueDesc inputType)
   {
-    return ValueDesc.isArray(inputType) ? ValueDesc.elementOfArray(inputType) : inputType;
+    return inputType.isArray() ? inputType.subElement(ValueDesc.UNKNOWN) : inputType;
   }
 
   @Override
@@ -116,10 +116,10 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     Preconditions.checkNotNull(inputType, "input type is not resolved");
-    if (!ValueDesc.isArray(inputType)) {
+    if (!inputType.isArray()) {
       return factorize(metricFactory, inputType);
     }
-    final ValueDesc elementType = ValueDesc.elementOfArray(inputType);
+    final ValueDesc elementType = inputType.subElement(ValueDesc.UNKNOWN);
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);
 
@@ -146,10 +146,10 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
     Preconditions.checkNotNull(inputType, "input type is not resolved");
-    if (!ValueDesc.isArray(inputType)) {
+    if (!inputType.isArray()) {
       return factorizeBuffered(metricFactory, inputType);
     }
-    ValueDesc elementType = ValueDesc.elementOfArray(inputType);
+    ValueDesc elementType = inputType.subElement(ValueDesc.UNKNOWN);
     @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);

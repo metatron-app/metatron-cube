@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.data.ValueDesc;
 
 /**
  */
@@ -30,7 +31,7 @@ public class ListFoldingAggregatorFactory extends ListAggregatorFactory
   public ListFoldingAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("inputType") String inputType,
+      @JsonProperty("inputType") ValueDesc inputType,
       @JsonProperty("limit") int limit,
       @JsonProperty("dedup") boolean dedup,
       @JsonProperty("sort") boolean sort
@@ -39,7 +40,7 @@ public class ListFoldingAggregatorFactory extends ListAggregatorFactory
     super(
         name == null ? fieldName : name,
         fieldName == null ? name : fieldName,
-        inputType == null ? "array.string" : inputType.startsWith("array.") ? inputType : "array." + inputType,
+        inputType == null ? ValueDesc.STRING_ARRAY : inputType.isArray() ? inputType : ValueDesc.ofArray(inputType),
         limit,
         dedup,
         sort

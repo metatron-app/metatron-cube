@@ -75,7 +75,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.UUID;
 
 public class SystemSchema extends AbstractSchema
@@ -164,7 +163,7 @@ public class SystemSchema extends AbstractSchema
       .add("datasource", ValueDesc.STRING)
       .add("version", ValueDesc.STRING)
       .add("interval", ValueDesc.STRING)
-      .add("tasks", ValueDesc.ofList(ValueDesc.STRING))
+      .add("tasks", ValueDesc.ofArray(ValueDesc.STRING))
       .build();
 
   static final RowSignature FUNCTIONS_SIGNATURE = RowSignature

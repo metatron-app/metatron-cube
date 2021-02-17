@@ -663,9 +663,9 @@ public class ColumnSelectorFactories
         };
       }
 
-      final boolean dimension = ValueDesc.isDimension(type);
+      final boolean dimension = type.isDimension();
 
-      if (dimension || ValueDesc.isPrimitive(type) || !deserializeComplexMetrics) {
+      if (dimension || type.isPrimitive() || !deserializeComplexMetrics) {
         return new ObjectColumnSelector()
         {
           @Override

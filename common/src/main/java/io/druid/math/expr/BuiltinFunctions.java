@@ -24,6 +24,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
@@ -209,27 +210,27 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() == 1 && args.get(0).returns().isArray()) {
+      if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
         return new Child()
         {
           @Override
           public ValueDesc returns()
           {
-            return ValueDesc.LONG_ARRAY;
+            return ValueDesc.STRING_ARRAY;
           }
 
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
-            List<String> strings = Lists.newArrayList();
             ExprEval eval = Evals.eval(args.get(0), bindings);
             if (eval.isNull()) {
-              return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
+              return ExprEval.of(null, ValueDesc.STRING_ARRAY);
             }
+            List<String> strings = Lists.newArrayList();
             for (Object value : (List) eval.value()) {
               strings.add(Objects.toString(value, null));
             }
-            return ExprEval.of(strings, ValueDesc.DOUBLE_ARRAY);
+            return ExprEval.of(strings, ValueDesc.STRING_ARRAY);
           }
         };
       }
@@ -266,7 +267,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() == 1 && args.get(0).returns().isArray()) {
+      if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
         return new Child()
         {
           @Override
@@ -278,15 +279,15 @@ public interface BuiltinFunctions extends Function.Library
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
-            List<Long> longs = Lists.newArrayList();
             ExprEval eval = Evals.eval(args.get(0), bindings);
             if (eval.isNull()) {
-              return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
+              return ExprEval.of(null, ValueDesc.LONG_ARRAY);
             }
+            List<Long> longs = Lists.newArrayList();
             for (Object value : (List) eval.value()) {
               longs.add(Rows.parseLong(value, null));
             }
-            return ExprEval.of(longs, ValueDesc.DOUBLE_ARRAY);
+            return ExprEval.of(longs, ValueDesc.LONG_ARRAY);
           }
         };
       }
@@ -317,18 +318,18 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      if (args.size() == 1 && args.get(0).returns().isArray()) {
+      if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
         return new DoubleArrayChild()
         {
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
-            List<Double> doubles = Lists.newArrayList();
             ExprEval eval = Evals.eval(args.get(0), bindings);
             if (eval.isNull()) {
               return ExprEval.of(null, ValueDesc.DOUBLE_ARRAY);
             }
-            for (Object value : (List)eval.value()) {
+            List<Double> doubles = Lists.newArrayList();
+            for (Object value : (List) eval.value()) {
               doubles.add(Rows.parseDouble(value, null));
             }
             return ExprEval.of(doubles, ValueDesc.DOUBLE_ARRAY);
@@ -353,6 +354,46 @@ public interface BuiltinFunctions extends Function.Library
   @Function.Named("array")
   final class Array extends DoubleArray
   {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
+        ValueDesc type = args.get(0).returns();
+        return new Child()
+        {
+          public ValueDesc returns()
+          {
+            return type;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            return args.get(0).eval(bindings);
+          }
+        };
+      }
+      ValueDesc element = ValueDesc.toCommonType(Iterables.transform(args, arg -> arg.returns()), ValueDesc.UNKNOWN);
+      ValueDesc type = element.isUnknown() ? ValueDesc.ARRAY : ValueDesc.ofArray(element);
+      return new Child()
+      {
+        public ValueDesc returns()
+        {
+          return type;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          List values = Lists.newArrayList();
+          for (Expr arg : args) {
+            values.add(type.cast(Evals.evalValue(arg, bindings)));
+          }
+          return ExprEval.of(values, type);
+        }
+      };
+    }
   }
 
   @Function.Named("regex")
@@ -702,7 +743,7 @@ public interface BuiltinFunctions extends Function.Library
         return ExprEval.of(result.asLong(), ValueDesc.LONG);
       }
       if (result instanceof PyArray) {
-        return ExprEval.of(Arrays.asList(((PyArray) result).getArray()), ValueDesc.LIST);
+        return ExprEval.of(Arrays.asList(((PyArray) result).getArray()), ValueDesc.ARRAY);
       }
       if (result instanceof PyList) {
         PyList pyList = (PyList) result;
@@ -710,7 +751,7 @@ public interface BuiltinFunctions extends Function.Library
         for (int i = 0; i < pyList.size(); i++) {
           list.add(toExprEval(pyList.pyget(i)).value());
         }
-        return ExprEval.of(list, ValueDesc.LIST);
+        return ExprEval.of(list, ValueDesc.ARRAY);
       }
       if (result instanceof PyDictionary) {
         Map<PyObject, PyObject> internal = ((PyDictionary) result).getMap();

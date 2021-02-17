@@ -27,7 +27,6 @@ import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -73,8 +72,8 @@ public class ColumnExpanderTest
     {
       this.dimensions = dimensions;
       for (String dimension : dimensions) {
-        typesMap.put(dimension, ValueDesc.ofDimension(ValueType.STRING));
-        types.add(ValueDesc.ofDimension(ValueType.STRING));
+        typesMap.put(dimension, ValueDesc.DIM_STRING);
+        types.add(ValueDesc.DIM_STRING);
       }
       for (AggregatorFactory factory : aggregators) {
         typesMap.put(factory.getName(), factory.getOutputType());
@@ -131,7 +130,7 @@ public class ColumnExpanderTest
     {
       ValueDesc desc = typesMap.get(column);
       return desc == null ? null :
-             ValueDesc.isDimension(desc) ? ColumnCapabilities.of(ValueDesc.typeOfDimension(desc)) :
+             desc.isDimension() ? ColumnCapabilities.of(ValueDesc.typeOfDimension(desc)) :
              ColumnCapabilities.of(desc.type());
     }
 

@@ -215,7 +215,7 @@ public class FilteredAggregatorTest
           return ValueDesc.FLOAT;
         }
         if (columnName.equals("dim")) {
-          return ValueDesc.ofDimension(ValueType.STRING);
+          return ValueDesc.DIM_STRING;
         }
         return null;
       }

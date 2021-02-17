@@ -33,7 +33,6 @@ import io.druid.math.expr.Expr;
 import org.joda.time.Interval;
 
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
@@ -56,7 +55,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   // non primitives
   private static final String MAP_TYPE = "map";
-  private static final String LIST_TYPE = "list";
+  private static final String ARRAY_TYPE = "array";
   private static final String INDEXED_ID_TYPE = "indexed";
   private static final String UNKNOWN_TYPE = "unknown";
 
@@ -86,7 +85,7 @@ public class ValueDesc implements Serializable, Cacheable
     INTERNER.intern(BOOLEAN_TYPE);
     INTERNER.intern(DATETIME_TYPE);
     INTERNER.intern(MAP_TYPE);
-    INTERNER.intern(LIST_TYPE);
+    INTERNER.intern(ARRAY_TYPE);
     INTERNER.intern(INDEXED_ID_TYPE);
     INTERNER.intern(UNKNOWN_TYPE);
     INTERNER.intern(DECIMAL_TYPE);
@@ -107,7 +106,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   // internal types
   public static ValueDesc MAP = new ValueDesc(MAP_TYPE, Map.class);
-  public static ValueDesc LIST = new ValueDesc(LIST_TYPE, List.class);
+  public static ValueDesc ARRAY = new ValueDesc(ARRAY_TYPE, List.class);
   public static ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
 
   // from expression
@@ -134,29 +133,19 @@ public class ValueDesc implements Serializable, Cacheable
     return ofArray(valueType.getName());
   }
 
-  public static ValueDesc ofList(ValueDesc valueType)
-  {
-    return ofList(valueType.typeName);
-  }
-
   public static ValueDesc ofArray(String typeName)
   {
     return ValueDesc.of(ARRAY_PREFIX + typeName);
   }
 
-  public static ValueDesc ofDecimal(BigDecimal decimal)
-  {
-    return ValueDesc.of(String.format("%s(%d,%d)", DECIMAL_TYPE, decimal.precision(), decimal.scale()));
-  }
-
-  public static ValueDesc ofList(String element)
-  {
-    return ValueDesc.of(String.format("%s(%s)", LIST_TYPE, element), List.class);
-  }
-
   public static ValueDesc ofMap(ValueDesc key, ValueDesc value)
   {
     return ValueDesc.of(String.format("%s(%s,%s)", MAP_TYPE, key.typeName, value.typeName), Map.class);
+  }
+
+  public static ValueDesc ofDecimal(BigDecimal decimal)
+  {
+    return ValueDesc.of(String.format("%s(%d,%d)", DECIMAL_TYPE, decimal.precision(), decimal.scale()));
   }
 
   public static ValueDesc ofStruct(String elements)
@@ -210,11 +199,6 @@ public class ValueDesc implements Serializable, Cacheable
     return isPrefixed(valueType.typeName, OGC_GEOMETRY.typeName);
   }
 
-  public static boolean isArray(ValueDesc valueType)
-  {
-    return isArray(valueType.typeName);
-  }
-
   public static boolean isArray(String typeName)
   {
     return isPrefixed(typeName, ARRAY_PREFIX);
@@ -223,11 +207,6 @@ public class ValueDesc implements Serializable, Cacheable
   public static boolean isDimension(ValueDesc valueType)
   {
     return valueType != null && isDimension(valueType.typeName);
-  }
-
-  public static boolean isMultiValued(ValueDesc valueType)
-  {
-    return valueType != null && isPrefixed(valueType.typeName, MULTIVALUED_PREFIX);
   }
 
   public static boolean isDimension(String typeName)
@@ -250,60 +229,10 @@ public class ValueDesc implements Serializable, Cacheable
     return typeName != null && typeName.toLowerCase().startsWith(prefix);
   }
 
-  public static ValueDesc elementOfArray(ValueDesc valueType)
-  {
-    return valueType == null ? null : elementOfArray(valueType.typeName, null);
-  }
-
-  public static ValueDesc elementOfArray(String typeName)
-  {
-    return typeName == null ? null : elementOfArray(typeName, null);
-  }
-
-  public static ValueDesc elementOfArray(String typeName, ValueDesc defaultType)
-  {
-    String elementType = typeName == null ? null : subElementOf(typeName, ARRAY_PREFIX);
-    return elementType != null ? of(elementType) : defaultType;
-  }
-
-  public static ValueDesc elementOfArray(ValueDesc valueType, ValueDesc defaultType)
-  {
-    String elementType = valueType == null ? null : subElementOf(valueType.typeName, ARRAY_PREFIX);
-    return elementType != null ? of(elementType) : defaultType;
-  }
-
-  private static String subElementOf(String typeName, String prefix)
-  {
-    return isPrefixed(typeName, prefix) ? typeName.substring(prefix.length()) : null;
-  }
-
-  public static ValueDesc subElementOf(ValueDesc valueType, ValueDesc defaultType)
-  {
-    String typeName = valueType == null ? null : subElementOf(valueType.typeName);
-    return typeName == null ? defaultType : ValueDesc.of(typeName);
-  }
-
-  public static String headElementOf(String typeName)
-  {
-    int index = typeName.indexOf('.');
-    return index < 0 ? null : typeName.substring(0, index);
-  }
-
   public static String subElementOf(String typeName)
   {
     int index = typeName.indexOf('.');
     return index < 0 ? null : typeName.substring(index + 1);
-  }
-
-  public static ValueDesc subElementOf(ValueDesc valueType)
-  {
-    if (valueType != null) {
-      String elementType = subElementOf(valueType.typeName);
-      if (elementType != null) {
-        return ValueDesc.of(elementType);
-      }
-    }
-    return null;
   }
 
   public static ValueType typeOfDimension(ValueDesc valueType)
@@ -315,12 +244,6 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc assertPrimitive(ValueDesc valueDesc)
   {
     Preconditions.checkArgument(valueDesc.isPrimitive(), "should be primitive type but %s", valueDesc);
-    return valueDesc;
-  }
-
-  public static ValueDesc assertNumeric(ValueDesc valueDesc)
-  {
-    Preconditions.checkArgument(valueDesc.isNumeric(), "should be numeric type but %s", valueDesc);
     return valueDesc;
   }
 
@@ -392,8 +315,8 @@ public class ValueDesc implements Serializable, Cacheable
   // see DecimalMetricSerde
   private static ValueDesc commonDecimal(ValueDesc type1, ValueDesc type2)
   {
-    String[] desc1 = TypeUtils.splitDescriptiveType(type1.typeName);
-    String[] desc2 = TypeUtils.splitDescriptiveType(type2.typeName);
+    String[] desc1 = type1.getDescription();
+    String[] desc2 = type2.getDescription();
 
     int p1 = desc1.length > 1 ? Integer.valueOf(desc1[1]) : 18;
     int p2 = desc2.length > 1 ? Integer.valueOf(desc2[1]) : 18;
@@ -534,11 +457,16 @@ public class ValueDesc implements Serializable, Cacheable
 
   public ValueDesc subElement()
   {
+    return Preconditions.checkNotNull(subElement(null));
+  }
+
+  public ValueDesc subElement(ValueDesc defaultType)
+  {
     int index = typeName.indexOf('.');
     if (index > 0) {
       return ValueDesc.of(typeName.substring(index + 1));
     }
-    throw new IllegalStateException("does not have sub element");
+    return defaultType;
   }
 
   public boolean hasSubElement()
@@ -614,7 +542,7 @@ public class ValueDesc implements Serializable, Cacheable
       case DECIMAL_TYPE: return DECIMAL;
       case STRUCT_TYPE: return STRUCT;
       case MAP_TYPE: return MAP;
-      case LIST_TYPE: return LIST;
+      case ARRAY_TYPE: return ARRAY;
       case STRING_DIMENSION_TYPE: return DIM_STRING;
     }
     return new ValueDesc(typeName, clazz);
@@ -623,16 +551,6 @@ public class ValueDesc implements Serializable, Cacheable
   public static boolean isMap(ValueDesc type)
   {
     return type != null && type.isMap();
-  }
-
-  public static boolean isString(ValueDesc type)
-  {
-    return type != null && type.isString();
-  }
-
-  public static boolean isStringOrDimension(ValueDesc type)
-  {
-    return type != null && (type.type == ValueType.STRING || ValueDesc.isDimension(type));
   }
 
   public static boolean isPrimitive(ValueDesc type)
@@ -685,9 +603,9 @@ public class ValueDesc implements Serializable, Cacheable
     return STRING_DIMENSION_TYPE.equals(typeName) || isDimension(typeName);
   }
 
-  public boolean isArray()
+  public boolean isArrayOrStruct()
   {
-    return isArray(typeName);
+    return isArray() || isStruct();
   }
 
   public boolean isStringOrDimension()
@@ -720,19 +638,19 @@ public class ValueDesc implements Serializable, Cacheable
     return STRUCT_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(STRUCT_TYPE);
   }
 
-  public boolean isList()
+  public boolean isArray()
   {
-    return LIST_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(LIST_TYPE);
+    return ARRAY_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(ARRAY_TYPE);
+  }
+
+  public boolean isMultiValued()
+  {
+    return typeName.startsWith(MULTIVALUED_PREFIX);
   }
 
   public boolean isUnknown()
   {
     return UNKNOWN_TYPE.equals(typeName);
-  }
-
-  public boolean hasDescription()
-  {
-    return typeName.endsWith(")") && typeName.indexOf('(') > 0;
   }
 
   public String[] getDescription()
@@ -754,15 +672,12 @@ public class ValueDesc implements Serializable, Cacheable
       return type.classOfObject();
     }
     final String type = typeName.toLowerCase();
-    if (type.startsWith(STRUCT_TYPE) || type.startsWith(LIST_TYPE)) {
+    if (type.startsWith(STRUCT_TYPE) || type.startsWith(ARRAY_TYPE)) {
       return List.class;
     } else if (type.startsWith(MAP_TYPE)) {
       return Map.class;
     } else if (type.startsWith(DECIMAL_TYPE)) {
       return BigDecimal.class;
-    } else if (type.startsWith(ARRAY_PREFIX)) {
-      Class elementType = ValueDesc.of(subElementOf(type)).asClass();
-      return Array.newInstance(elementType, 0).getClass();
     }
     return Object.class;
   }

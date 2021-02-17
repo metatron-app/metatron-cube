@@ -118,10 +118,10 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
   {
     Preconditions.checkArgument(column.equals(outputName));
     ValueDesc valueDesc = dimensionSpec.resolve(Suppliers.ofInstance(types));
-    if (ValueDesc.isDimension(valueDesc)) {
+    if (valueDesc.isDimension()) {
       return ValueDesc.ofMultiValued(valueDesc.subElement());
     }
-    if (!ValueDesc.isMultiValued(valueDesc)) {
+    if (!valueDesc.isMultiValued()) {
       return ValueDesc.ofMultiValued(valueDesc);
     }
     return valueDesc;

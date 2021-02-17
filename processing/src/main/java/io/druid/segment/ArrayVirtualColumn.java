@@ -67,8 +67,8 @@ public class ArrayVirtualColumn implements VirtualColumn
       throw new IllegalArgumentException("expects index attached in " + column);
     }
     ValueDesc valueDesc = types.resolve(columnName);
-    if (ValueDesc.isArray(valueDesc)) {
-      return ValueDesc.subElementOf(valueDesc, ValueDesc.UNKNOWN);
+    if (valueDesc.isArray()) {
+      return valueDesc.subElement(ValueDesc.UNKNOWN);
     }
     return null;
   }
@@ -86,10 +86,10 @@ public class ArrayVirtualColumn implements VirtualColumn
       throw new IllegalArgumentException("expects index attached in " + column);
     }
     ValueDesc indexed = factory.resolve(columnName);
-    if (ValueDesc.isArray(indexed)) {
+    if (indexed.isArray()) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(columnName);
-      final ValueDesc elementType = ValueDesc.subElementOf(indexed, ValueDesc.UNKNOWN);
+      final ValueDesc elementType = indexed.subElement(ValueDesc.UNKNOWN);
       return new ObjectColumnSelector()
       {
         @Override
@@ -143,7 +143,7 @@ public class ArrayVirtualColumn implements VirtualColumn
   public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
   {
     ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector == null || !ValueDesc.isString(selector.type())) {
+    if (selector == null || !selector.type().isString()) {
       throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
     }
     return VirtualColumns.toDimensionSelector(selector, extractionFn);

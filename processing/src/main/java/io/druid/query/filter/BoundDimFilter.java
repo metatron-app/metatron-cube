@@ -164,8 +164,8 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
       }
       throw new IllegalStateException("cannot handle null for numeric types");
     }
-    final Comparable lower = hasLowerBound() ? type.cast(getLower()) : null;
-    final Comparable upper = hasUpperBound() ? type.cast(getUpper()) : null;
+    final Comparable lower = hasLowerBound() ? (Comparable) type.cast(getLower()) : null;
+    final Comparable upper = hasUpperBound() ? (Comparable) type.cast(getUpper()) : null;
     if (lower != null && upper != null) {
       if (withNot) {
         return Arrays.<Range>asList(

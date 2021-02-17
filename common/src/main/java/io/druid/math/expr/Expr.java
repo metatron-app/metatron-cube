@@ -345,7 +345,7 @@ final class IdentifierExpr implements Expr
   public IdentifierExpr(String value, ValueDesc type, int index)
   {
     this.value = value;
-    this.type = ValueDesc.isArray(type) ? ValueDesc.elementOfArray(type) : type;
+    this.type = type.isArray() ? type.subElement(ValueDesc.UNKNOWN) : type;
     this.index = index;
     this.indexed = true;
   }

@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.data.ValueDesc;
 
 /**
  */
@@ -28,7 +29,7 @@ public class SetAggregatorFactory extends ListAggregatorFactory
   public SetAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("expression") String expression,
-      @JsonProperty("inputType") String inputType,
+      @JsonProperty("inputType") ValueDesc inputType,
       @JsonProperty("limit") int limit,
       @JsonProperty("sort") boolean sort
   )

@@ -636,7 +636,7 @@ public class StringComparators
       return orderingSpecs.get(0).getComparator();
     }
     Preconditions.checkArgument(sourceType.isStruct(), "not supported type " + sourceType);
-    String[] parsed = Preconditions.checkNotNull(TypeUtils.splitDescriptiveType(sourceType.typeName()));
+    String[] parsed = Preconditions.checkNotNull(sourceType.getDescription());
     String[] elements = Arrays.copyOfRange(parsed, 1, parsed.length);
     Comparator[] comparators = new Comparator[elements.length];
     if (defaultOrdering) {

@@ -67,7 +67,7 @@ public class Comparators
         return GuavaUtils.NULL_FIRST_NATURAL;
     }
     if (valueDesc.isArray()) {
-      final Comparator element = toComparator(valueDesc.subElement());
+      final Comparator element = toComparator(valueDesc.subElement(null));
       return NULL_FIRST(
           (List<Object> o1, List<Object> o2) ->
           {

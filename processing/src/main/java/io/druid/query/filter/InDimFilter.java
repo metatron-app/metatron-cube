@@ -184,7 +184,7 @@ public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.L
     }
     List<Range> ranges = Lists.newArrayList();
     for (String value : values) {
-      ranges.add(Ranges.of(resolved.type().cast(value), "=="));
+      ranges.add(Ranges.of((Comparable) resolved.type().cast(value), "=="));
     }
     return ranges;
   }

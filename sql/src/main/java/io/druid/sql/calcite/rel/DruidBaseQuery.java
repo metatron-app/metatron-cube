@@ -534,7 +534,7 @@ public class DruidBaseQuery implements DruidQuery
       }
 
       final ValueDesc outputType = Calcites.getValueDescForRelDataType(rexNode);
-      if (!ValueDesc.isPrimitive(outputType)) {
+      if (!outputType.isPrimitive()) {
         // Can't group on unknown or COMPLEX types.
         throw new CannotBuildQueryException(aggregate, rexNode);
       }

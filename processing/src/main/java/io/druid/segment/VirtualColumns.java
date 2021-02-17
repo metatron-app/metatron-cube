@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.RowResolver;
@@ -56,7 +55,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   {
     ValueDesc type = dimension.resolve(Suppliers.ofInstance(resolver));
     if (type.isMap()) {
-      String[] descriptiveType = TypeUtils.splitDescriptiveType(type.typeName());
+      String[] descriptiveType = type.getDescription();
       if (descriptiveType == null) {
         throw new IAE("cannot resolve value type of map %s [%s]", type, dimension);
       }
@@ -149,7 +148,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       return new MimicDimension(ValueDesc.STRING, () -> extractionFn.apply(selector.get()));
     }
     final ValueDesc type = selector.type();
-    if (!ValueDesc.isPrimitive(type)) {
+    if (!type.isPrimitive()) {
       return new MimicDimension(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
     } else {
       return new MimicDimension(type, () -> (Comparable) selector.get());

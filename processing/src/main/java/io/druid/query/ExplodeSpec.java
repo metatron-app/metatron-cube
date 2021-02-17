@@ -178,10 +178,8 @@ public class ExplodeSpec implements LateralViewSpec, RowSignature.Evolving
     List<String> columnNames = Lists.newArrayList(schema.getColumnNames());
     List<ValueDesc> columnTypes = Lists.newArrayList(schema.getColumnTypes());
     ValueDesc type = schema.getColumnTypes().get(index);
-    if (type.isArray()) {
-      columnTypes.set(index, ValueDesc.elementOfArray(type));
-    } else if (type.isDimension()) {
-      columnTypes.set(index, ValueDesc.of(ValueDesc.typeOfDimension(type)));
+    if (type.isArray() || type.isDimension()) {
+      columnTypes.set(index, type.subElement(ValueDesc.UNKNOWN));
     }
     columnNames.set(index, alias);
     return RowSignature.of(columnNames, columnTypes);
