@@ -324,7 +324,7 @@ public class TimeseriesQuery extends BaseAggregationQuery
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
-        limitSpec,
+        limitSpec.isNoop() ? null : limitSpec,
         outputColumns,
         lateralView,
         getContext()

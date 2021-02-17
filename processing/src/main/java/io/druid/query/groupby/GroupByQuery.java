@@ -59,6 +59,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.SequenceCountingProcessor;
+import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -362,7 +363,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
-        limitSpec,
+        limitSpec.isNoop() ? null : limitSpec,
         getOutputColumns(),
         getLateralView(),
         getContext()
@@ -531,6 +532,9 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   private GroupByQuery tryPreOrdering()
   {
     GroupByQuery query = this;
+    if (!(query.getDataSource() instanceof TableDataSource)) {
+      return query;
+    }
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
     if (dimensionSpecs.isEmpty()) {
       return query;
@@ -597,7 +601,8 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
   private GroupByQuery tryRemoveOrdering()
   {
-    if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
+    if (getDataSource() instanceof TableDataSource &&
+        GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
         LimitSpecs.inGroupByOrdering(limitSpec.getColumns(), dimensions)) {
       return withLimitSpec(LimitSpecs.of(limitSpec.getLimit()));
     }
