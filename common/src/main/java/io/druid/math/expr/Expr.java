@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
 import io.druid.common.DateTimes;
+import io.druid.common.guava.DSuppliers.TypedSupplier;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
@@ -35,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -44,6 +46,11 @@ public interface Expr extends Expression
   ValueDesc returns();
 
   ExprEval eval(NumericBinding bindings);
+
+  interface BindingRewriter extends Expr
+  {
+    Expr rewrite(Map<String, TypedSupplier> suppliers);
+  }
 
   interface NumericBinding
   {
@@ -335,7 +342,7 @@ final class DecimalConst implements Constant
   }
 }
 
-final class IdentifierExpr implements Expr
+final class IdentifierExpr implements Expr.BindingRewriter
 {
   private final String value;
   private final ValueDesc type;
@@ -353,7 +360,7 @@ final class IdentifierExpr implements Expr
   public IdentifierExpr(String value, ValueDesc type)
   {
     this.value = value;
-    this.type = type;
+    this.type = type == null ? ValueDesc.UNKNOWN : type;
     this.index = -1;
     this.indexed = false;
   }
@@ -378,7 +385,11 @@ final class IdentifierExpr implements Expr
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    Object binding = bindings.get(value);
+    return _eval(bindings.get(value));
+  }
+
+  private ExprEval _eval(Object binding)
+  {
     if (indexed && binding != null) {
       if (binding instanceof List) {
         List list = (List) binding;
@@ -393,10 +404,20 @@ final class IdentifierExpr implements Expr
         binding = null;
       }
     }
-    if (type == null || type.isUnknown()) {
+    if (type.isUnknown()) {
       return ExprEval.bestEffortOf(binding);
     }
     return ExprEval.of(binding, type);
+  }
+
+  @Override
+  public Expr rewrite(Map<String, TypedSupplier> suppliers)
+  {
+    final TypedSupplier supplier = suppliers.get(value);
+    if (supplier == null) {
+      return Evals.nullExpr(type);
+    }
+    return Evals.asExpr(supplier.type(), () -> _eval(supplier.get()));
   }
 
   @Override

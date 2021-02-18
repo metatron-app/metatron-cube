@@ -68,10 +68,7 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
     this.event = event;
   }
 
-  public MapBasedRow(
-      long timestamp,
-      Map<String, Object> event
-  )
+  public MapBasedRow(long timestamp, Map<String, Object> event)
   {
     this(new DateTime(timestamp), event);
   }
@@ -122,6 +119,11 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
   public Object remove(String column)
   {
     return event.remove(column);
+  }
+
+  public MapBasedRow withDateTime(DateTime dateTime)
+  {
+    return new MapBasedRow(dateTime, event);
   }
 
   @Override

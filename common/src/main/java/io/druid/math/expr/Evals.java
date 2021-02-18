@@ -22,6 +22,8 @@ package io.druid.math.expr;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.druid.common.DateTimes;
@@ -603,19 +605,28 @@ public class Evals
     }
   }
 
-  // for binary operator not providing constructor of form <init>(String, Expr, Expr),
-  // you should create it explicitly in here
-  public static Expr binaryOp(BinaryOp binary, Expr left, Expr right)
+  public static Expr nullExpr(ValueDesc type)
   {
-    try {
-      return binary.getClass()
-                   .getDeclaredConstructor(String.class, Expr.class, Expr.class)
-                   .newInstance(binary.op(), left, right);
-    }
-    catch (Exception e) {
-      LOG.warn(e, "failed to rewrite expression " + binary);
-      return binary;  // best effort.. keep it working
-    }
+    ValueDesc desc = type.isUnknown() ? ValueDesc.STRING : type;
+    return asExpr(desc, Suppliers.memoize(() -> ExprEval.of(null, desc)));
+  }
+
+  public static Expr asExpr(ValueDesc desc, Supplier<ExprEval> value)
+  {
+    return new Expr()
+    {
+      @Override
+      public ValueDesc returns()
+      {
+        return desc;
+      }
+
+      @Override
+      public ExprEval eval(NumericBinding bindings)
+      {
+        return value.get();
+      }
+    };
   }
 
   public static boolean asBoolean(Number x)

@@ -105,24 +105,30 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   private Function<Row, Row> toPostAggregator(final T query)
   {
     final Granularity granularity = query.getGranularity();
-    final List<PostAggregator.Processor> postAggregators = PostAggregators.toProcessors(PostAggregators.decorate(
-        query.getPostAggregatorSpecs(),
-        query.getAggregatorSpecs()
-    ));
-    if (postAggregators.isEmpty() && granularity.isUTC()) {
+    final List<PostAggregator.Processor> postAggregators = PostAggregators.toProcessors(
+        PostAggregators.decorate(query.getPostAggregatorSpecs(), query.getAggregatorSpecs())
+    );
+    if (!postAggregators.isEmpty()) {
+      return row -> {
+        final Map<String, Object> event = ((MapBasedRow) row).getEvent();
+        final Map<String, Object> updatable = MapBasedRow.toUpdatable(event);
+
+        for (PostAggregator.Processor postAggregator : postAggregators) {
+          updatable.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), updatable));
+        }
+        final DateTime current = row.getTimestamp();
+        if (current == null || granularity.isUTC()) {
+          return event == updatable ? row : new MapBasedRow(current, updatable);
+        }
+        return new MapBasedRow(granularity.toDateTime(current.getMillis()), updatable);
+      };
+    }
+    if (granularity.isUTC()) {
       return GuavaUtils.identity("postAggr");
     }
     return row -> {
-      final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
-
-      for (PostAggregator.Processor postAggregator : postAggregators) {
-        newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
-      }
       final DateTime current = row.getTimestamp();
-      if (current == null || granularity.isUTC()) {
-        return new MapBasedRow(current, newMap);
-      }
-      return new MapBasedRow(granularity.toDateTime(current.getMillis()), newMap);
+      return current == null ? row : ((MapBasedRow) row).withDateTime(granularity.toDateTime(current.getMillis()));
     };
   }
 
@@ -317,9 +323,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
           {
             Map<String, Object> event = ((MapBasedRow) input).getEvent();
             if (timestampColumn != null) {
-              if (!MapBasedRow.supportInplaceUpdate(event)) {
-                event = Maps.newLinkedHashMap(event);
-              }
+              event = MapBasedRow.toUpdatable(event);
               event.put(timestampColumn, input.getTimestamp());
             }
             return event;

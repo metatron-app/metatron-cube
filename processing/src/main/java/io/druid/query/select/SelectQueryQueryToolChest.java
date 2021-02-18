@@ -460,9 +460,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
                           {
                             Map<String, Object> event = input.getEvent();
                             if (timestampColumn != null) {
-                              if (!MapBasedRow.supportInplaceUpdate(event)) {
-                                event = Maps.newLinkedHashMap(event);
-                              }
+                              event = MapBasedRow.toUpdatable(event);
                               event.put(timestampColumn, input.getTimestamp());
                             }
                             return event;

@@ -247,6 +247,12 @@ public class Parser
     return traverse(expr, new ExprVisitor()
     {
       @Override
+      public Expr visit(IdentifierExpr expr)
+      {
+        return expr.rewrite(values);
+      }
+
+      @Override
       public Expr visit(BinaryOp op, Expr left, Expr right)
       {
         if (op instanceof BooleanOp) {

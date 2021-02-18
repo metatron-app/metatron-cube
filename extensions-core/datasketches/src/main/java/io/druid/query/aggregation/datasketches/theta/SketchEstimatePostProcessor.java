@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
@@ -122,7 +121,7 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
                   List<Map<String, Object>> source = input.getValue().getValue();
                   List<Map<String, Object>> result = Lists.newArrayListWithExpectedSize(source.size());
                   for (Map<String, Object> row : source) {
-                    Map<String, Object> updatable = MapBasedRow.supportInplaceUpdate(row) ? row : Maps.newHashMap(row);
+                    Map<String, Object> updatable = MapBasedRow.toUpdatable(row);
                     Iterable<String> columns = complexColumns ? Lists.newArrayList(updatable.keySet()) : targetColumns;
                     for (String column : columns) {
                       Object value = updatable.get(column);
