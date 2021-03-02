@@ -530,6 +530,11 @@ public class Execs
     return new DirectExecutorService();
   }
 
+  public static boolean isDirectExecutor(ExecutorService executor)
+  {
+    return executor instanceof DirectExecutorService;
+  }
+
   public static <T> Future<T> excuteDirect(Callable<T> callable)
   {
     FutureTask<T> future = new FutureTask<>(callable);

@@ -84,9 +84,11 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
   {
+    final List<String> columns = query.estimatedInitialColumns();
     final int priority = BaseQuery.getContextPriority(query, 0);
 
     return new BaseSequence<T, Iterator<T>>(
+        columns,
         new BaseSequence.IteratorMaker<T, Iterator<T>>()
         {
           @Override

@@ -148,7 +148,8 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       LOG.debug("Querying [%s][%s:%s] to url[%s]", query.getId(), query.getType(), query.getDataSource(), hostURL);
     }
 
-    final byte[] content = serializeQuery(query);
+    final long remain = queryWatcher.remainingTime(query.getId());
+    final byte[] content = serializeQuery(query.withOverriddenContext(Query.TIMEOUT, remain));
     final int queueSize = ioConfig.getQueueSize();
     final StreamHandler handler = handlerFactory.create(query, content.length, host, queueSize, queryMetrics, context);
 
@@ -166,7 +167,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
     openConnections.getAndIncrement();
 
-    final StopWatch watch = new StopWatch(queryWatcher.remainingTime(query.getId()));
+    final StopWatch watch = new StopWatch(remain + elapsed);
     final JsonParserIterator<T> iterator = new JsonParserIterator.FromCallable<T>(mapper, typeRef, hostURL, type, () -> watch.wainOn(future));
     final Closeable resource = () -> {
       IOUtils.closeQuietly(handler);

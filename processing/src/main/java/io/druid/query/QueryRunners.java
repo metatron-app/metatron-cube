@@ -223,7 +223,7 @@ public class QueryRunners
     final Comparator<T> ordering = query.getMergeOrdering(columns);
     // used for limiting resource usage from heavy aggregators like CountMinSketch
     final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, MAX_QUERY_PARALLELISM);
-    if (parallelism < 1) {
+    if (parallelism < 1 || Execs.isDirectExecutor(executor)) {
       // no limit.. todo: deprecate this
       return new ChainedExecutionQueryRunner<T>(executor, watcher, runners)
       {
@@ -272,7 +272,7 @@ public class QueryRunners
       final Closeable closeOnFailure
   )
   {
-    final StopWatch watch = queryWatcher.register(query, future);
+    final StopWatch watch = queryWatcher.register(query, future, closeOnFailure);
     try {
       return watch.wainOn(future);
     }
