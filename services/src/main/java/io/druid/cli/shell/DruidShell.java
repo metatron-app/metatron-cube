@@ -79,6 +79,7 @@ import javax.ws.rs.core.MediaType;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -212,7 +213,7 @@ public class DruidShell extends CommonShell.WithUtils
       Cursor cursor = new Cursor(arguments);
       try {
         writer.println(DEFAULT_PROMPT + org.apache.commons.lang.StringUtils.join(arguments, " "));
-        handleCommand(coordinatorURL, overlordURL, brokerURLs, writer, cursor);
+        handleCommand(coordinatorURL, overlordURL, brokerURLs, null, writer, cursor);
       }
       finally {
         writer.flush();
@@ -608,7 +609,7 @@ public class DruidShell extends CommonShell.WithUtils
       }
       Cursor cursor = new Cursor(params);
       try {
-        handleCommand(coordinatorURL, overlordURL, brokerURLs, writer, cursor);
+        handleCommand(coordinatorURL, overlordURL, brokerURLs, reader, writer, cursor);
       }
       catch (ISE e) {
         LOG.info(e.toString());
@@ -651,6 +652,7 @@ public class DruidShell extends CommonShell.WithUtils
       Supplier<URL> coordinatorURL,
       Supplier<URL> overlordURL,
       Supplier<List<URL>> brokerURLs,
+      LineReader reader,
       PrintWriter writer,
       Cursor cursor
   )
@@ -1089,10 +1091,9 @@ public class DruidShell extends CommonShell.WithUtils
               return;
             case "-log":
               resource.append("log");
-              InputStream stream = stream(overlordURL.get(), resource.get());
+              BufferedReader log = new BufferedReader(new InputStreamReader(stream(overlordURL.get(), resource.get())));
               writer.println(PREFIX[0] + "............... dump");
-              BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-              for (String line; (line = reader.readLine()) != null;) {
+              for (String line; (line = log.readLine()) != null;) {
                 writer.println(line);
               }
               return;
@@ -1150,29 +1151,26 @@ public class DruidShell extends CommonShell.WithUtils
           writer.println("!! needs server address");
           return;
         }
-        resource.append("/druid/admin/jcmd");
-        URL url = new URL("http://" + cursor.next());
+        String server = cursor.next();
+        URL url = new URL("http://" + server);
         if (!cursor.hasMore()) {
-          writer.println("!! needs command");
+          if (reader == null) {
+            writer.println("!! needs command");
+            return;
+          }
+          final String prompt = String.format("jcmd(%s)> ", server);
+          while (true) {
+            String line = readLine(reader, prompt);
+            if (line == null || line.equals(";")) {
+              break;
+            }
+            cursor = new Cursor(reader.getParser().parse(line, 0).words());
+            handleJcmd(url, writer, cursor);
+          }
           return;
         }
-        String command = cursor.next();
-        resource.append(command);
-        while (cursor.hasMore()) {
-          resource.appendOption(cursor.next());
-        }
-        try {
-          if (command.equalsIgnoreCase("help")) {
-            for (Map.Entry<String, Object> entry : execute(() -> url, resource.get(), MAP).entrySet()) {
-              writer.println(PREFIX[0] + entry.getKey() + " = " + entry.getValue());
-            }
-          } else {
-            writer.println(execute(() -> url, resource.get(), CONTENTS));
-          }
-        }
-        catch (Exception e) {
-          writer.println(String.format("!! failed to run jcmd from %s by %s", url, e));
-        }
+        cursor.next();
+        handleJcmd(url, writer, cursor);
         break;
       }
       case "stack": {
@@ -1273,6 +1271,44 @@ public class DruidShell extends CommonShell.WithUtils
       }
       default:
         writer.println(PREFIX[0] + "invalid command " + cursor.command());
+    }
+  }
+
+  private void handleJcmd(URL url, PrintWriter writer, Cursor cursor)
+  {
+    Resource resource = new Resource();
+    resource.append("/druid/admin/jcmd");
+    String command = cursor.current();
+    resource.append(command);
+
+    String redirect = null;
+    while (cursor.hasMore()) {
+      final String param = cursor.next();
+      if (param.equals(">") && cursor.hasMore(1)) {
+        redirect = cursor.next();
+        break;
+      }
+      resource.appendOption(param);
+    }
+    try {
+      if (redirect != null) {
+        writer = new PrintWriter(new FileWriter(redirect));
+      }
+      if (command.equalsIgnoreCase("help")) {
+        for (Map.Entry<String, Object> entry : execute(() -> url, resource.get(), MAP).entrySet()) {
+          writer.println(PREFIX[0] + entry.getKey() + " = " + entry.getValue());
+        }
+      } else {
+        writer.println(execute(() -> url, resource.get(), CONTENTS));
+      }
+    }
+    catch (Exception e) {
+      writer.println(String.format("!! failed to run jcmd from %s by %s", url, e));
+    }
+    finally {
+      if (redirect != null) {
+        writer.close();
+      }
     }
   }
 
