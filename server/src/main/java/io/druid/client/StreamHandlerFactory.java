@@ -55,6 +55,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class StreamHandlerFactory
 {
+  private static final InputStream EOF = new ByteArrayInputStream(new byte[0]);
+
   protected final Logger log;
   protected final ObjectMapper mapper;
 
@@ -87,14 +89,7 @@ public class StreamHandlerFactory
       this.query = query;
       this.disableLog = query.getContextBoolean(Query.DISABLE_LOG, false);
       this.host = host;
-      this.queue = new LinkedBlockingDeque<InputStream>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize)
-      {
-        @Override
-        public void put(InputStream e) throws InterruptedException
-        {
-          if (!done.get()) { super.put(e); }
-        }
-      };
+      this.queue = new LinkedBlockingDeque<InputStream>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize);
     }
 
     @Override
@@ -145,7 +140,9 @@ public class StreamHandlerFactory
 
       try {
         handleHeader(response.headers());
-        queue.put(new ChannelBufferInputStream(response.getContent()));
+        if (!done.get()) {
+          queue.put(new ChannelBufferInputStream(response.getContent()));
+        }
       }
       catch (final IOException e) {
         log.error(e, "Error parsing response context from url [%s]", host);
@@ -175,16 +172,14 @@ public class StreamHandlerFactory
                 {
                   // Done is always true until the last stream has be put in the queue.
                   // Then the stream should be spouting good InputStreams.
-                  synchronized (done) {
-                    return !done.get() || !queue.isEmpty();
-                  }
+                  return !done.get() || !queue.isEmpty();
                 }
 
                 @Override
                 public InputStream nextElement()
                 {
                   try {
-                    return queue.take();
+                    return done.get() && queue.isEmpty() ? EOF : queue.take();
                   }
                   catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -208,7 +203,7 @@ public class StreamHandlerFactory
       try {
         throw mapper.readValue(contents, QueryInterruptedException.class);
       }
-      catch (IOException e) {
+      catch (Exception e) {
         // ignore
       }
       throw new IOException(new String(contents, Charsets.ISO_8859_1));
@@ -219,7 +214,7 @@ public class StreamHandlerFactory
     {
       final ChannelBuffer channelBuffer = chunk.getContent();
       final int bytes = channelBuffer.readableBytes();
-      if (bytes > 0) {
+      if (bytes > 0 && !done.get()) {
         try {
           queue.put(new ChannelBufferInputStream(channelBuffer));
         }
@@ -249,40 +244,35 @@ public class StreamHandlerFactory
         );
       }
       finished(responseStartTimeNs, stopTimeNs, byteCount.get());
-      synchronized (done) {
-        done.set(true);
-        done.notifyAll();
-        // An empty byte array is put at the end to give the SequenceInputStream.close() as something to close out
-        // after done is set to true, regardless of the rest of the stream's state.
-        queue.offer(new ByteArrayInputStream(new byte[0]));
-      }
+      close();
       return ClientResponse.<InputStream>finished(clientResponse.getObj());
     }
 
     @Override
     public void exceptionCaught(final ClientResponse<InputStream> clientResponse, final Throwable e)
     {
-      final InputStream thrower = new InputStream()
-      {
-        @Override
-        public int read() throws IOException { throw new IOException(e); }
-      };
-      // Don't wait for lock in case the lock had something to do with the error
-      synchronized (done) {
-        if (done.compareAndSet(false, true)) {
-          queue.offer(thrower);
-        }
-        done.notifyAll();
+      if (done.compareAndSet(false, true)) {
+        queue.clear();
+        queue.offer(new InputStream()
+        {
+          private final IOException ex = e instanceof IOException ? (IOException) e : new IOException(e);
+
+          @Override
+          public int read() throws IOException { throw ex; }
+
+          @Override
+          public int available() throws IOException { throw ex; }
+        });
       }
     }
 
     @Override
-    public void close() throws IOException
+    public void close()
     {
-      synchronized (done) {
-        done.set(true);
-        done.notifyAll();
-        queue.clear();
+      if (done.compareAndSet(false, true) && queue.isEmpty()) {
+        // An empty byte array is put at the end to give the SequenceInputStream.close() as something to close out
+        // after done is set to true, regardless of the rest of the stream's state.
+        queue.add(EOF);
       }
     }
   }

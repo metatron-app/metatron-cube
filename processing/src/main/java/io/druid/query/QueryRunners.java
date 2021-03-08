@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -44,6 +45,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
 public class QueryRunners
@@ -294,6 +296,19 @@ public class QueryRunners
     catch (ExecutionException e) {
       IOUtils.closeQuietly(closeOnFailure);
       throw Throwables.propagate(e.getCause());
+    }
+  }
+
+  public static <V> V getUnchecked(Future<V> future)
+  {
+    try {
+      return Futures.getUnchecked(future);
+    }
+    catch (UncheckedExecutionException e) {
+      if (e.getCause() instanceof RuntimeException) {
+        throw (RuntimeException) e.getCause();
+      }
+      throw e;
     }
   }
 

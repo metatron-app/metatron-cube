@@ -57,6 +57,7 @@ import io.druid.query.FilterableManagementQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
@@ -586,7 +587,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       final CacheAccessor cacheAccessor
   )
   {
-    List<Sequence<T>> sequences = GuavaUtils.transform(futures, future -> Futures.getUnchecked(future));
+    List<Sequence<T>> sequences = GuavaUtils.transform(futures, future -> QueryRunners.getUnchecked(future));
     Sequence<T> sequence = QueryUtils.mergeSort(columns, ordering, sequences);
     if (numCachedSegments > 0 && cacheAccessor != null && LOG.isDebugEnabled()) {
       sequence = Sequences.withBaggage(
