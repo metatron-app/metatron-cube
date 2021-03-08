@@ -170,7 +170,8 @@ public class SqlModule implements Module
     connectionProperties.setProperty("aaa", "bbb");   // avoid bug in protocol buf handler(empty property -> NPE)
 
 //    String sql = "select L_EXTENDEDPRICE/ 0 from lineitem limit 1";
-    String sql = "select * from lineitem limit 1000";
+//    String sql = "select * from lineitem limit 1000";
+    String sql = "select * from \"array_metric\" limit 1000";
     try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
       try (
           final Statement statement = connection.createStatement();
@@ -179,6 +180,13 @@ public class SqlModule implements Module
         ResultSetMetaData metaData = resultSet.getMetaData();
         int count = metaData.getColumnCount();
         StringBuilder b = new StringBuilder();
+        for (int i = 1; i <= count; i++) {
+          if (i > 1) {
+            b.append(',');
+          }
+          b.append(metaData.getColumnTypeName(i));
+        }
+        System.out.println(b.toString());
         int x = 0;
         while (resultSet.next() && x++ < 100) {
           b.setLength(0);

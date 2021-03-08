@@ -177,40 +177,49 @@ public class RowSignature extends io.druid.query.RowSignature
     return builder.build();
   }
 
-  private static RelDataType toRelDataType(RelDataTypeFactory typeFactory, ValueDesc columnType)
+  private static RelDataType toRelDataType(RelDataTypeFactory factory, ValueDesc columnType)
   {
     switch (columnType.type()) {
       case STRING:
         // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
-        return Calcites.createSqlTypeWithNullability(typeFactory, SqlTypeName.VARCHAR, true);
+        return Calcites.createSqlTypeWithNullability(factory, SqlTypeName.VARCHAR, true);
       case BOOLEAN:
-        return Calcites.createSqlType(typeFactory, SqlTypeName.BOOLEAN);
+        return Calcites.createSqlType(factory, SqlTypeName.BOOLEAN);
       case LONG:
-        return Calcites.createSqlType(typeFactory, SqlTypeName.BIGINT);
+        return Calcites.createSqlType(factory, SqlTypeName.BIGINT);
       case FLOAT:
-        return Calcites.createSqlType(typeFactory, SqlTypeName.FLOAT);
+        return Calcites.createSqlType(factory, SqlTypeName.FLOAT);
       case DOUBLE:
-        return Calcites.createSqlType(typeFactory, SqlTypeName.DOUBLE);
+        return Calcites.createSqlType(factory, SqlTypeName.DOUBLE);
       case COMPLEX:
-        final String[] description = columnType.getDescription();
-        if (columnType.isStruct() && description != null) {
+        if (columnType.isStruct()) {
+          final String[] description = columnType.getDescription();
+          if (description == null) {
+            throw new ISE("field type is missing for struct type");
+          }
           final List<String> fieldNames = Lists.newArrayList();
           final List<RelDataType> fieldTypes = Lists.newArrayList();
           for (int i = 1; i < description.length; i++) {
             int index = description[i].indexOf(':');
             fieldNames.add(description[i].substring(0, index));
-            fieldTypes.add(toRelDataType(typeFactory, ValueDesc.of(description[i].substring(index + 1))));
+            fieldTypes.add(toRelDataType(factory, ValueDesc.of(description[i].substring(index + 1))));
           }
-          return typeFactory.createStructType(StructKind.PEEK_FIELDS, fieldTypes, fieldNames);
+          return factory.createTypeWithNullability(
+              factory.createStructType(StructKind.PEEK_FIELDS, fieldTypes, fieldNames), true
+          );
+        } else if (columnType.isMap()) {
+          final String[] description = columnType.getDescription();
+          final RelDataType keyType = description != null ? toRelDataType(factory, ValueDesc.of(description[1]))
+                                                          : Calcites.createSqlType(factory, SqlTypeName.VARCHAR);
+          final RelDataType valueType = description != null ? toRelDataType(factory, ValueDesc.of(description[2]))
+                                                            : factory.createSqlType(SqlTypeName.ANY);
+          return factory.createTypeWithNullability(factory.createMapType(keyType, valueType), true);
+        } else if (columnType.isArray()) {
+          final RelDataType subType = columnType.hasSubElement() ? toRelDataType(factory, columnType.subElement())
+                                                                 : factory.createSqlType(SqlTypeName.ANY);
+          return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
         }
-        // Loses information about exactly what kind of complex column this is.
-        SqlTypeName typeName = SqlTypeName.OTHER;
-        if (columnType.isMap()) {
-          typeName = SqlTypeName.MAP;
-        } else if (columnType.isArray() || columnType.isStruct()) {
-          typeName = SqlTypeName.ARRAY;
-        }
-        return Calcites.createSqlTypeWithNullability(typeFactory, typeName, true);
+        return Calcites.createSqlTypeWithNullability(factory, SqlTypeName.OTHER, true);
       default:
         throw new ISE("valueType[%s] not translatable?", columnType);
     }

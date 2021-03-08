@@ -262,27 +262,23 @@ public class QueryMaker
   public static ColumnMetaData.Rep rep(final SqlTypeName sqlType)
   {
     if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
-      return ColumnMetaData.Rep.of(String.class);
+      return ColumnMetaData.Rep.STRING;
     } else if (sqlType == SqlTypeName.TIMESTAMP) {
-      return ColumnMetaData.Rep.of(Long.class);
+      return ColumnMetaData.Rep.LONG;
     } else if (sqlType == SqlTypeName.DATE) {
-      return ColumnMetaData.Rep.of(Integer.class);
+      return ColumnMetaData.Rep.INTEGER;
     } else if (sqlType == SqlTypeName.INTEGER) {
-      return ColumnMetaData.Rep.of(Integer.class);
+      return ColumnMetaData.Rep.INTEGER;
     } else if (sqlType == SqlTypeName.BIGINT) {
-      return ColumnMetaData.Rep.of(Long.class);
+      return ColumnMetaData.Rep.LONG;
     } else if (sqlType == SqlTypeName.FLOAT) {
-      return ColumnMetaData.Rep.of(Float.class);
+      return ColumnMetaData.Rep.FLOAT;
     } else if (sqlType == SqlTypeName.DOUBLE) {
-      return ColumnMetaData.Rep.of(Double.class);
-    } else if (sqlType == SqlTypeName.DECIMAL) {
-      return ColumnMetaData.Rep.of(BigDecimal.class);
+      return ColumnMetaData.Rep.DOUBLE;
     } else if (sqlType == SqlTypeName.BOOLEAN) {
-      return ColumnMetaData.Rep.of(Boolean.class);
-    } else if (sqlType == SqlTypeName.OTHER) {
-      return ColumnMetaData.Rep.of(Object.class);
+      return ColumnMetaData.Rep.BOOLEAN;
     } else {
-      throw new ISE("No rep for SQL type[%s]", sqlType);
+      return ColumnMetaData.Rep.OBJECT;
     }
   }
 
@@ -355,7 +351,7 @@ public class QueryMaker
         }
     }
     if (value instanceof HyperLogLogCollector) {
-      return value.getClass().getName();  // for test.. I'm lazy
+      return value.getClass().getName();  // for test.. I'm lazy (todo)
     } else {
       return value;   // return as-is... it seemed better than exception
     }

@@ -35,10 +35,12 @@ import io.druid.sql.SqlLifecycle;
 import io.druid.sql.calcite.planner.PlannerResult;
 import io.druid.sql.calcite.rel.QueryMaker;
 import org.apache.calcite.avatica.ColumnMetaData;
+import org.apache.calcite.avatica.ColumnMetaData.AvaticaType;
 import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.Meta.StatementHandle;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
@@ -117,19 +119,15 @@ public class DruidStatement implements Closeable
     this(connectionId, handle, lifecycle, () -> { }, -1);
   }
 
-  public static List<ColumnMetaData> createColumnMetaData(final RelDataType rowType)
+  private static List<ColumnMetaData> createColumnMetaData(final RelDataType rowType)
   {
     final List<ColumnMetaData> columns = new ArrayList<>();
-    List<RelDataTypeField> fieldList = rowType.getFieldList();
+    final List<RelDataTypeField> fieldList = rowType.getFieldList();
 
     for (int i = 0; i < fieldList.size(); i++) {
-      RelDataTypeField field = fieldList.get(i);
-      final ColumnMetaData.Rep rep = QueryMaker.rep(field.getType().getSqlTypeName());
-      final ColumnMetaData.ScalarType columnType = ColumnMetaData.scalar(
-          field.getType().getSqlTypeName().getJdbcOrdinal(),
-          field.getType().getSqlTypeName().getName(),
-          rep
-      );
+      final RelDataTypeField field = fieldList.get(i);
+      final RelDataType type = field.getType();
+      final AvaticaType columnType = toAvaticaType(type);
       columns.add(
           new ColumnMetaData(
               i, // ordinal
@@ -137,16 +135,16 @@ public class DruidStatement implements Closeable
               true, // case sensitive
               false, // searchable
               false, // currency
-              field.getType().isNullable()
+              type.isNullable()
               ? DatabaseMetaData.columnNullable
               : DatabaseMetaData.columnNoNulls, // nullable
               true, // signed
-              field.getType().getPrecision(), // display size
+              type.getPrecision(), // display size
               field.getName(), // label
               null, // column name
               null, // schema name
-              field.getType().getPrecision(), // precision
-              field.getType().getScale(), // scale
+              type.getPrecision(), // precision
+              type.getScale(), // scale
               null, // table name
               null, // catalog name
               columnType, // avatica type
@@ -159,6 +157,17 @@ public class DruidStatement implements Closeable
     }
 
     return columns;
+  }
+
+  private static AvaticaType toAvaticaType(RelDataType type)
+  {
+    final SqlTypeName sqlTypeName = type.getSqlTypeName();
+    if (sqlTypeName == SqlTypeName.ARRAY) {
+      return ColumnMetaData.array(
+          toAvaticaType(type.getComponentType()), sqlTypeName.getName(), ColumnMetaData.Rep.ARRAY
+      );
+    }
+    return ColumnMetaData.scalar(sqlTypeName.getJdbcOrdinal(), sqlTypeName.getName(), QueryMaker.rep(sqlTypeName));
   }
 
   public DruidStatement prepare()
