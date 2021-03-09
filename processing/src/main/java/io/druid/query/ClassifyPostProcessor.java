@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 
 import io.druid.java.util.common.logger.Logger;
@@ -35,7 +37,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 @JsonTypeName("classify")
-public class ClassifyPostProcessor implements PostProcessingOperator.UnionSupport
+public class ClassifyPostProcessor implements PostProcessingOperator.UnionSupport, RowSignature.Evolving
 {
   private static final Logger LOG = new Logger(ClassifyPostProcessor.class);
 
@@ -83,6 +85,18 @@ public class ClassifyPostProcessor implements PostProcessingOperator.UnionSuppor
         return Sequences.concat(tagged);
       }
     };
+  }
+
+  @Override
+  public List<String> evolve(List<String> schema)
+  {
+    return schema == null ? null : GuavaUtils.concat(schema, tagColumn);
+  }
+
+  @Override
+  public RowSignature evolve(Query query, RowSignature schema)
+  {
+    return schema == null ? null : schema.append(tagColumn, ValueDesc.LONG);
   }
 
   @Override

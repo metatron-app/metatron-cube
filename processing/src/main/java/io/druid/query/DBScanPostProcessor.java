@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterators;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
 import io.druid.query.kmeans.Centroid;
 import io.druid.query.kmeans.KMeansQuery;
 
@@ -34,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 @JsonTypeName("dbScan")
-public class DBScanPostProcessor extends PostProcessingOperator.Abstract
+public class DBScanPostProcessor extends PostProcessingOperator.Abstract implements RowSignature.Evolving
 {
   private final double eps;
   private final int minPts;
@@ -70,12 +72,13 @@ public class DBScanPostProcessor extends PostProcessingOperator.Abstract
       @Override
       public Sequence run(Query query, Map responseContext)
       {
-        List<Centroid> sequence;
+        Sequence sequence = runner.run(query, responseContext);
+        List<Centroid> centroids;
         if (query instanceof KMeansQuery) {
-          sequence = Sequences.toList(runner.run(query, responseContext));
+          centroids = Sequences.toList(sequence);
         } else {
-          sequence = Sequences.toList(Sequences.map(
-              runner.run(query, responseContext),
+          centroids = Sequences.toList(Sequences.map(
+              sequence,
               new Function<Object[], Centroid>()
               {
                 @Override
@@ -90,8 +93,9 @@ public class DBScanPostProcessor extends PostProcessingOperator.Abstract
               }
           ));
         }
-        return Sequences.once(Iterators.concat(Iterators.transform(
-            new DBScan(eps, minPts).cluster(sequence), new Function<List<Centroid>, Iterator<Object[]>>()
+        List<String> columns = GuavaUtils.concat(sequence.columns(), "tag");
+        return Sequences.once(columns, Iterators.concat(Iterators.transform(
+            new DBScan(eps, minPts).cluster(centroids), new Function<List<Centroid>, Iterator<Object[]>>()
             {
               private int index;
 
@@ -104,6 +108,18 @@ public class DBScanPostProcessor extends PostProcessingOperator.Abstract
         )));
       }
     };
+  }
+
+  @Override
+  public List<String> evolve(List<String> schema)
+  {
+    return schema == null ? null : GuavaUtils.concat(schema, "tag");
+  }
+
+  @Override
+  public RowSignature evolve(Query query, RowSignature schema)
+  {
+    return schema == null ? null : schema.append("tag", ValueDesc.LONG);
   }
 
   private static class Tag implements Function<Centroid, Object[]>

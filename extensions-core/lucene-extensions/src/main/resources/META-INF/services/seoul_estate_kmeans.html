@@ -28,6 +28,8 @@
           color = [160, 10, 160, alpha]
         } else if (group === 4) {
           color = [160, 160, 10, alpha]
+        } else if (group === 5) {
+          color = [120, 20, 120, alpha]
         } else {
           color = [10, 160, 160, alpha]
         }
@@ -73,6 +75,7 @@
            };
            xhr.open('POST', 'http://localhost:8082/druid/v2/geojson');
            xhr.setRequestHeader('Content-type', 'application/json');
+           // kemans
            var query =
                '{' +
                '  "queryType": "kmeans.tagging"\,' +
@@ -93,6 +96,31 @@
                '    "intervals": [ "2001-01-01/2019-01-01" ]\,' +
                '    "columns": [ "gu"\, "idx"\, "py"\, "amt"\, "gis.lat"\, "gis.lon"\, "geom"]' +
                '  }' +
+               '}';
+
+           // dbscan
+           var query =
+               '{' +
+               '   "queryType": "select.stream"\,' +
+               '   "dataSource": {' +
+               '     "type": "query"\, ' +
+               '     "query": { ' +
+               '       "queryType": "select.stream"\, ' +
+               '       "dataSource": "estate"\, ' +
+               '       "filter": { "type": "expr"\, "expression": "amt > 1000" }\, ' +
+               '       "intervals": [ "2001-01-01/2019-01-01" ]\, ' +
+               '       "columns": [ "gis.lat"\, "gis.lon" ]\, ' +
+               '       "context": { "postProcessing": { "type": "dbScan"\, "eps": 0.009\, "minPts": 10 } } ' +
+               '     } ' +
+               '    }\, ' +
+               '    "virtualColumns": [ ' +
+               '     { ' +
+               '       "type": "expression"\, ' +
+               '       "expression": "geom_transform(geom_fromlatlon(gis.lat\, gis.lon), 4326, 3857)"\, ' +
+               '       "outputName": "geom" ' +
+               '     } ' +
+               '   ]\, ' +
+               '   "columns": [ "geom"\, "tag" ] ' +
                '}';
            console.log('inspection_source fire!! ---> ' + query);
            xhr.send(query);
