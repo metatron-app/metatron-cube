@@ -244,14 +244,8 @@ public class Parser
       final Map<String, WithRawAccess> rawAccessible
   )
   {
-    return traverse(expr, new ExprVisitor()
+    Expr optimized = traverse(expr, new ExprVisitor()
     {
-      @Override
-      public Expr visit(IdentifierExpr expr)
-      {
-        return expr.rewrite(values);
-      }
-
       @Override
       public Expr visit(BinaryOp op, Expr left, Expr right)
       {
@@ -300,6 +294,14 @@ public class Parser
           }
         }
         return op;
+      }
+    });
+    return traverse(optimized, new ExprVisitor()
+    {
+      @Override
+      public Expr visit(IdentifierExpr expr)
+      {
+        return expr.rewrite(values);
       }
     });
   }
