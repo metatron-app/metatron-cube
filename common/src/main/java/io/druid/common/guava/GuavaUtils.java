@@ -420,7 +420,7 @@ public class GuavaUtils
     return ints;
   }
 
-  public static int[] intsFromTo(int end)
+  public static int[] intsTo(int end)
   {
     return intsFromTo(0, end);
   }
@@ -432,6 +432,16 @@ public class GuavaUtils
       ints[i] = start + i;
     }
     return ints;
+  }
+
+  public static boolean isIdenticalIndex(int[] indices)
+  {
+    for (int i = 0; i < indices.length; i++) {
+      if (i != indices[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static double[] castDouble(long[] longs)
@@ -558,7 +568,7 @@ public class GuavaUtils
 
   public static Function<Object[], Object[]> mapper(final int[] indices)
   {
-    if (Arrays.equals(indices, intsFromTo(indices.length))) {
+    if (isIdenticalIndex(indices)) {
       return Functions.identity();
     }
     return new Function<Object[], Object[]>()

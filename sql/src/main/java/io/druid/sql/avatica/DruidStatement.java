@@ -33,7 +33,6 @@ import io.druid.server.security.Access;
 import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycle;
 import io.druid.sql.calcite.planner.PlannerResult;
-import io.druid.sql.calcite.rel.QueryMaker;
 import org.apache.calcite.avatica.ColumnMetaData;
 import org.apache.calcite.avatica.ColumnMetaData.AvaticaType;
 import org.apache.calcite.avatica.Meta;
@@ -167,7 +166,30 @@ public class DruidStatement implements Closeable
           toAvaticaType(type.getComponentType()), sqlTypeName.getName(), ColumnMetaData.Rep.ARRAY
       );
     }
-    return ColumnMetaData.scalar(sqlTypeName.getJdbcOrdinal(), sqlTypeName.getName(), QueryMaker.rep(sqlTypeName));
+    return ColumnMetaData.scalar(sqlTypeName.getJdbcOrdinal(), sqlTypeName.getName(), rep(sqlTypeName));
+  }
+
+  private static ColumnMetaData.Rep rep(final SqlTypeName sqlType)
+  {
+    if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
+      return ColumnMetaData.Rep.STRING;
+    } else if (sqlType == SqlTypeName.TIMESTAMP) {
+      return ColumnMetaData.Rep.LONG;
+    } else if (sqlType == SqlTypeName.DATE) {
+      return ColumnMetaData.Rep.INTEGER;
+    } else if (sqlType == SqlTypeName.INTEGER) {
+      return ColumnMetaData.Rep.INTEGER;
+    } else if (sqlType == SqlTypeName.BIGINT) {
+      return ColumnMetaData.Rep.LONG;
+    } else if (sqlType == SqlTypeName.FLOAT) {
+      return ColumnMetaData.Rep.FLOAT;
+    } else if (sqlType == SqlTypeName.DOUBLE) {
+      return ColumnMetaData.Rep.DOUBLE;
+    } else if (sqlType == SqlTypeName.BOOLEAN) {
+      return ColumnMetaData.Rep.BOOLEAN;
+    } else {
+      return ColumnMetaData.Rep.OBJECT;
+    }
   }
 
   public DruidStatement prepare()

@@ -22,6 +22,7 @@ package io.druid.sql.calcite.planner;
 import com.google.common.base.Preconditions;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
+import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -232,6 +233,40 @@ public class Calcites
     }
 
     return typeFactory.createTypeWithNullability(dataType, nullable);
+  }
+
+  public static Long coerceToTimestamp(final Object value, final DateTimeZone timeZone)
+  {
+    if (value == null) {
+      return null;
+    }
+    DateTime dateTime = null;
+    if (value instanceof DateTime) {
+      dateTime = (DateTime) value;
+    } else if (value instanceof Number) {
+      final long timestamp = ((Number) value).longValue();
+      if (timeZone == DateTimeZone.UTC) {
+        return timestamp;
+      }
+      dateTime = DateTimes.utc(timestamp);
+    } else if (value instanceof String) {
+      final Long timestamp = Longs.tryParse((String) value);
+      if (timestamp != null) {
+        if (timeZone == DateTimeZone.UTC) {
+          return timestamp;
+        }
+        dateTime = DateTimes.utc(timestamp);
+      }
+    }
+    if (dateTime == null) {
+      try {
+        dateTime = new DateTime(value);
+      }
+      catch (Exception e) {
+        return null;
+      }
+    }
+    return jodaToCalciteTimestamp(dateTime, timeZone);
   }
 
   /**
