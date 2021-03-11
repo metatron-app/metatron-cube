@@ -173,6 +173,7 @@ public class TestIndex
     addCategoryAliasIndex();
     addEstateIndex();
     addTpch();
+    addSsb();
   }
 
   public static synchronized IncrementalIndex getIncrementalTestIndex()
@@ -239,6 +240,15 @@ public class TestIndex
     addIndex("partsupp", "partsupp_schema.json", "partsupp.tbl", true);
     addIndex("region", "region_schema.json", "region.tbl", true);
     addIndex("supplier", "supplier_schema.json", "supplier.tbl", true);
+  }
+
+  private static void addSsb()
+  {
+    addIndex("ssb_lineorder", "ssb_lineorder_schema.json", "ssb_lineorder.tbl", true);
+    addIndex("ssb_part", "ssb_part_schema.json", "ssb_part.tbl", true);
+    addIndex("ssb_customer", "ssb_customer_schema.json", "ssb_customer.tbl", true);
+    addIndex("ssb_date", "ssb_date_schema.json", "ssb_date.tbl", true);
+    addIndex("ssb_supplier", "ssb_supplier_schema.json", "ssb_supplier.tbl", true);
   }
 
   private static synchronized void addIndex(

@@ -1,0 +1,25 @@
+{
+  "data": "1|Customer#000000001|j5JsirBM9P|MOROCCO  3|MOROCCO|AFRICA|25-464-151-3439|BUILDING|",
+  "parser" : {
+    "format" : "tsv", "delimiter":"|"
+  },
+  "columns":[
+    "C_CUSTKEY", "C_NAME", "C_ADDRESS", "C_CITY", "C_NATION", "C_REGION", "C_PHONE", "C_MKTSEGMENT"
+  ],
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "C_CUSTKEY", "C_NAME", "C_ADDRESS", "C_CITY", "C_NATION", "C_REGION", "C_PHONE", "C_MKTSEGMENT"
+    ]
+  },
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "allowNullForNumbers": true,
+    "bitmap": { "type": "roaring" }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "data": "1|lace spring|MFGR#1|MFGR#11|MFGR#1121|goldenrod|PROMO BURNISHED COPPER|7|JUMBO PKG|",
+  "parser" : {
+    "format" : "tsv", "delimiter":"|"
+  },
+  "columns":[
+    "P_PARTKEY", "P_NAME", "P_MFGR", "P_CATEGORY", "P_BRAND1", "P_COLOR", "P_TYPE", "P_SIZE", "P_CONTAINER"
+  ],
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "P_PARTKEY", "P_NAME", "P_MFGR", "P_CATEGORY", "P_BRAND1", "P_COLOR", "P_TYPE", "P_CONTAINER"
+    ]
+  },
+  "metricsSpec":[
+    {"name": "P_SIZE", "typeName": "long"}
+  ],
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "allowNullForNumbers": true,
+    "bitmap": { "type": "roaring" }
+  }
+}

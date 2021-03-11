@@ -1,0 +1,21 @@
+{
+  "data": "1|Supplier#000000001|sdrGnXCDRcfriBvY0KL,i|PERU     7|PERU|AMERICA|27-989-741-2988|",
+  "parser" : {
+    "format" : "tsv", "delimiter":"|"
+  },
+  "columns":[
+    "S_SUPPKEY", "S_NAME", "S_ADDRESS", "S_CITY", "S_NATION", "S_REGION", "S_PHONE"
+  ],
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "S_SUPPKEY", "S_NAME", "S_ADDRESS", "S_CITY", "S_NATION", "S_REGION", "S_PHONE"
+    ]
+  },
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false
+}
