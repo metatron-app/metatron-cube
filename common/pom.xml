@@ -28,7 +28,7 @@
     <parent>
         <groupId>app.metatron</groupId>
         <artifactId>druid</artifactId>
-        <version>3.4.0-SNAPSHOT</version>
+        <version>2021.1</version>
     </parent>
 
     <dependencies>
