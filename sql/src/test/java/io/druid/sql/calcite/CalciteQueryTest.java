@@ -177,19 +177,19 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   {
     testQuery(
         "DESC foo",
-        new Object[]{"__time", "TIMESTAMP", "NO", ""},
-        new Object[]{"cnt", "BIGINT", "NO", ""},
-        new Object[]{"dim1", "VARCHAR", "YES", ""},
-        new Object[]{"dim2", "VARCHAR", "YES", ""},
-        new Object[]{"m1", "DOUBLE", "NO", ""},
-        new Object[]{"m2", "DOUBLE", "NO", ""},
-        new Object[]{"unique_dim1", "OTHER", "YES", ""}
+        new Object[]{"__time", "TIMESTAMP", "TIMESTAMP(3) NOT NULL", "NO", ""},
+        new Object[]{"cnt", "BIGINT", "BIGINT NOT NULL", "NO", ""},
+        new Object[]{"dim1", "VARCHAR", "VARCHAR", "YES", ""},
+        new Object[]{"dim2", "VARCHAR", "VARCHAR", "YES", ""},
+        new Object[]{"m1", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
+        new Object[]{"m2", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
+        new Object[]{"unique_dim1", "OTHER", "OTHER", "YES", ""}
     );
     testQuery(
         "DESCRIBE foo2 '%1'",
-        new Object[]{"dim1", "VARCHAR", "YES", ""},
-        new Object[]{"m1", "DOUBLE", "NO", ""},
-        new Object[]{"unique_dim1", "OTHER", "YES", ""}
+        new Object[]{"dim1", "VARCHAR", "VARCHAR", "YES", ""},
+        new Object[]{"m1", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
+        new Object[]{"unique_dim1", "OTHER", "OTHER", "YES", ""}
     );
   }
 

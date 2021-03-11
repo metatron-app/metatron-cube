@@ -103,6 +103,7 @@ public class InformationSchema extends AbstractSchema
   public static final String COLUMN_DEFAULT = "COLUMN_DEFAULT";
   public static final String IS_NULLABLE = "IS_NULLABLE";
   public static final String DATA_TYPE = "DATA_TYPE";
+  public static final String DATA_TYPE_EXTENDED = "DATA_TYPE_EXTENDED";
   public static final String CHARACTER_MAXIMUM_LENGTH = "CHARACTER_MAXIMUM_LENGTH";
   public static final String CHARACTER_OCTET_LENGTH = "CHARACTER_OCTET_LENGTH";
   public static final String NUMERIC_PRECISION = "NUMERIC_PRECISION";
@@ -152,6 +153,7 @@ public class InformationSchema extends AbstractSchema
       .add(COLUMN_DEFAULT, ValueDesc.STRING)
       .add(IS_NULLABLE, ValueDesc.STRING)
       .add(DATA_TYPE, ValueDesc.STRING)
+      .add(DATA_TYPE_EXTENDED, ValueDesc.STRING)
       .add(CHARACTER_MAXIMUM_LENGTH, ValueDesc.STRING)
       .add(CHARACTER_OCTET_LENGTH, ValueDesc.STRING)
       .add(NUMERIC_PRECISION, ValueDesc.STRING)
@@ -481,6 +483,7 @@ public class InformationSchema extends AbstractSchema
                       "", // COLUMN_DEFAULT
                       type.isNullable() ? "YES" : "NO", // IS_NULLABLE
                       type.getSqlTypeName().toString(), // DATA_TYPE
+                      type.getFullTypeString(), // DATA_TYPE_EXTENDED
                       null, // CHARACTER_MAXIMUM_LENGTH
                       null, // CHARACTER_OCTET_LENGTH
                       isNumeric ? String.valueOf(type.getPrecision()) : null, // NUMERIC_PRECISION
@@ -513,6 +516,7 @@ public class InformationSchema extends AbstractSchema
             private final List<String> rowOrder = SERVERS_SIGNATURE.getColumnNames();
 
             @Override
+            @SuppressWarnings("unchecked")
             public Iterable<Object[]> apply(Map<String, Object> input)
             {
               List<Object[]> values = Lists.newArrayList();
