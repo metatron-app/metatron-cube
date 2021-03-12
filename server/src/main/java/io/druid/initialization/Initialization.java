@@ -403,6 +403,7 @@ public class Initialization
       File directory = getHadoopDependencyFilesToLoad(config);
       hadoop = new NamedURLCloassLoader("hadoop-client-" + directory.getName(), toURLs(directory, false), parent);
       loadersMap.put(INTERNAL_HADOOP_CLIENT, hadoop);
+      log.info("Using hadoop in %s", directory.getPath());
     }
     return hadoop;
   }

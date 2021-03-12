@@ -48,8 +48,8 @@ import io.druid.data.output.Formatter;
 import io.druid.data.output.Formatters;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-import io.druid.indexer.JobHelper;
 import io.druid.indexer.hadoop.HadoopInputUtils;
+import io.druid.indexer.path.PathUtil;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Intervals;
@@ -533,7 +533,7 @@ public class HdfsStorageHandler implements StorageHandler
 
           moveTo(tempPath, finalPath);
 
-          final Map<String, Object> loadSpec = JobHelper.makeLoadSpec(finalPath.toUri());
+          final Map<String, Object> loadSpec = PathUtil.makeLoadSpec(finalPath.toUri());
           return new DataSegment(
               dataSource,
               interval,

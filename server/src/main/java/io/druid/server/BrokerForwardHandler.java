@@ -95,7 +95,7 @@ public class BrokerForwardHandler extends ForwardHandler
       context = Maps.newLinkedHashMap(context);
       context.put("broker", node.getHostAndPort());
       context.put(Query.QUERYID, query.getId());
-      context.putIfAbsent(DATASOURCE, "___temporary_" + new DateTime());
+      context.computeIfAbsent(DATASOURCE, k -> String.format("___temporary_%s", DateTime.now()));
       if (PropUtils.parseBoolean(context, TEMPORARY, true) && !PropUtils.parseBoolean(context, OVERWRITE, false)) {
         brokerServerView.addLocalDataSource(PropUtils.parseString(context, DATASOURCE));
       }

@@ -76,7 +76,7 @@ public class ExtensionsConfig
            "searchCurrentClassloader=" + searchCurrentClassloader +
            ", directory='" + directory + '\'' +
            ", hadoopDependenciesDir='" + hadoopDependenciesDir + '\'' +
-           ", hadoopContainerDruidClasspath='" + hadoopContainerDruidClasspath + '\'' +
+           (hadoopContainerDruidClasspath == null ? "" : ", hadoopContainerDruidClasspath='" + hadoopContainerDruidClasspath + '\'') +
            ", loadList=" + loadList +
            '}';
   }

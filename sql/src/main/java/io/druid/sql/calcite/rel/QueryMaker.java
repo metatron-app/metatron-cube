@@ -34,6 +34,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.DummyQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -152,6 +153,9 @@ public class QueryMaker
   @SuppressWarnings("unchecked")
   private Sequence<Object[]> coerce(DruidQuery druidQuery, Query schema, Sequence sequence)
   {
+    if (schema instanceof DummyQuery) {
+      return sequence;
+    }
     Class<?> clazz = PostProcessingOperators.returns(schema);
     if (Row.class == clazz) {
       return executeRow(druidQuery, sequence);
@@ -184,8 +188,8 @@ public class QueryMaker
     final List<RelDataTypeField> fields = druidQuery.getOutputRowType().getFieldList();
 
     final int[] indices = fields.stream().mapToInt(field -> field.getIndex()).toArray();
-    final Function[] coercer = fields.stream().map(field -> coerce(field.getType())).toArray(len -> new Function[len]);
     final String[] outputNames = IntStream.of(indices).mapToObj(x -> columnNames.get(x)).toArray(len -> new String[len]);
+    final Function[] coercer = coerce(fields);
 
     return Sequences.map(
         sequence,
@@ -206,8 +210,8 @@ public class QueryMaker
     final List<RelDataTypeField> fields = druidQuery.getOutputRowType().getFieldList();
 
     final int[] indices = fields.stream().mapToInt(field -> field.getIndex()).toArray();
-    final Function[] coercer = fields.stream().map(field -> coerce(field.getType())).toArray(len -> new Function[len]);
     final String[] outputNames = IntStream.of(indices).mapToObj(x -> columnNames.get(x)).toArray(len -> new String[len]);
+    final Function[] coercer = coerce(fields);
 
     return Sequences.explode(
         sequence,
@@ -228,7 +232,7 @@ public class QueryMaker
   {
     final List<RelDataTypeField> fields = druidQuery.getOutputRowType().getFieldList();
     final int[] indices = fields.stream().mapToInt(field -> field.getIndex()).toArray();
-    final Function[] coercer = fields.stream().map(field -> coerce(field.getType())).toArray(len -> new Function[len]);
+    final Function[] coercer = coerce(fields);
     if (GuavaUtils.isIdenticalIndex(indices)) {
       return Sequences.map(
           sequence,
@@ -250,6 +254,11 @@ public class QueryMaker
           return retVal;
         }
     );
+  }
+
+  public Function[] coerce(List<RelDataTypeField> fields)
+  {
+    return fields.stream().map(field -> coerce(field.getType())).toArray(len -> new Function[len]);
   }
 
   private Function<Object, Object> coerce(final RelDataType dataType)

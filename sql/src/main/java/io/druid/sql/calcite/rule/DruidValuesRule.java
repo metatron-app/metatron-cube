@@ -55,12 +55,14 @@ public class DruidValuesRule extends ConverterRule
         ((LogicalValues) rel).tuples,
         new Function<List<RexLiteral>, Object[]>()
         {
+          private final Function[] coercer = maker.coerce(rel.getRowType().getFieldList());
+
           @Override
           public Object[] apply(List<RexLiteral> input)
           {
             final Object[] array = new Object[input.size()];
             for (int i = 0; i < array.length; i++) {
-              array[i] = input.get(i).getValue();
+              array[i] = coercer[i].apply(input.get(i).getValue());
             }
             return array;
           }

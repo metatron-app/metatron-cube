@@ -73,6 +73,7 @@ public class StreamQuery extends BaseQuery<Object[]>
     Query.RewritingQuery<Object[]>,
     Query.LimitSupport<Object[]>,
     Query.RowOutputSupport<Object[]>,
+    Query.MapOutputSupport<Object[]>,
     Query.LastProjectionSupport<Object[]>,
     Query.ArrayOutput
 {

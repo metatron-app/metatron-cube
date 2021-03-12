@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
@@ -29,6 +30,7 @@ import io.druid.data.input.Row;
 import java.util.Arrays;
 import java.util.Map;
 
+@JsonTypeName("sequenceCount")
 public class SequenceCountingProcessor extends PostProcessingOperator.ReturnsRow implements PostProcessingOperator.Local
 {
   public static SequenceCountingProcessor INSTANCE = new SequenceCountingProcessor();

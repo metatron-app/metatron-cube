@@ -31,7 +31,7 @@ import java.util.Map;
  */
 @SuppressWarnings("unchecked")
 @JsonTypeName("dummy")
-public class DummyQuery<T> extends BaseQuery<T>
+public class DummyQuery<T> extends BaseQuery<T> implements QueryRunner<T>
 {
   protected final Sequence<T> sequence;
 
@@ -101,6 +101,16 @@ public class DummyQuery<T> extends BaseQuery<T>
 
   @Override
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> responseContext)
+  {
+    QueryRunner<T> runner = this;
+    if (walker instanceof ForwardingSegmentWalker) {
+      runner = ((ForwardingSegmentWalker) walker).handle(this, runner);
+    }
+    return runner.run(this, responseContext);
+  }
+
+  @Override
+  public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
   {
     return sequence;
   }

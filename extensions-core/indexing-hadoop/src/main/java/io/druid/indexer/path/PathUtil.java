@@ -19,9 +19,11 @@
 
 package io.druid.indexer.path;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.java.util.common.IAE;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -33,9 +35,43 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class PathUtil
 {
+  // TODO: Make this a part of Pushers or Pullers
+  public static Map<String, Object> makeLoadSpec(URI indexOutURI)
+  {
+    switch (indexOutURI.getScheme()) {
+      case "hdfs":
+      case "viewfs":
+      case "wasb":
+      case "wasbs":
+      case "abfs":
+      case "abfss":
+      case "gs":
+        // use hdfs puller, whatever the scheme is
+        return ImmutableMap.<String, Object>of(
+            "type", "hdfs",
+            "path", indexOutURI.toString()
+        );
+      case "s3":
+      case "s3n":
+        return ImmutableMap.<String, Object>of(
+            "type", "s3_zip",
+            "bucket", indexOutURI.getHost(),
+            "key", indexOutURI.getPath().substring(1) // remove the leading "/"
+        );
+      case "file":
+        return ImmutableMap.<String, Object>of(
+            "type", "local",
+            "path", indexOutURI.getPath()
+        );
+      default:
+        throw new IAE("Unknown file system scheme [%s]", indexOutURI.getScheme());
+    }
+  }
+
   public static List<String> resolve(Path basePath, List<String> paths, boolean recursive) throws IOException
   {
     List<String> resolved = Lists.newArrayList();

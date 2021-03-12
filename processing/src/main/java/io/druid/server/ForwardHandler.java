@@ -166,6 +166,9 @@ public class ForwardHandler implements ForwardConstants
           // already converted to map
           return sequence;
         }
+        if (query instanceof Query.MapOutputSupport) {
+          return ((Query.MapOutputSupport) query).asMap(sequence);
+        }
         // union-all does not have toolchest. delegate it to inner query
         Query<T> representative = BaseQuery.getRepresentative(query);
         String timestampColumn = PropUtils.parseString(context, ForwardConstants.TIMESTAMP_COLUMN);

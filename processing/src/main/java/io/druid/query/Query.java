@@ -254,6 +254,11 @@ public interface Query<T> extends QueryContextKeys
     Sequence<Row> asRow(Sequence<T> sequence);
   }
 
+  interface MapOutputSupport<T> extends Query<T>
+  {
+    Sequence<Map<String, Object>> asMap(Sequence<T> sequence);
+  }
+
   interface RowOutput extends RowOutputSupport<Row>
   {
     default Sequence<Row> asRow(Sequence<Row> sequence) { return sequence; }

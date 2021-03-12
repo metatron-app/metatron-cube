@@ -24,8 +24,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
+import io.druid.indexer.path.PathUtil;
 import io.druid.indexer.updater.HadoopDruidConverterConfig;
 import io.druid.java.util.common.FileUtils;
 import io.druid.java.util.common.IAE;
@@ -409,7 +409,7 @@ public class JobHelper
     final Path finalIndexZipFilePath = new Path(segmentBasePath, "index.zip");
     final URI indexOutURI = finalIndexZipFilePath.toUri();
 
-    final Map<String, Object> loadSpec = makeLoadSpec(indexOutURI);
+    final Map<String, Object> loadSpec = PathUtil.makeLoadSpec(indexOutURI);
     final DataSegment finalSegment = segmentTemplate
         .withLoadSpec(loadSpec)
         .withSize(size.get())
@@ -431,39 +431,6 @@ public class JobHelper
         progressable
     );
     return finalSegment;
-  }
-
-  // TODO: Make this a part of Pushers or Pullers
-  public static Map<String, Object> makeLoadSpec(URI indexOutURI)
-  {
-    switch (indexOutURI.getScheme()) {
-      case "hdfs":
-      case "viewfs":
-      case "wasb":
-      case "wasbs":
-      case "abfs":
-      case "abfss":
-      case "gs":
-        // use hdfs puller, whatever the scheme is
-        return ImmutableMap.<String, Object>of(
-            "type", "hdfs",
-            "path", indexOutURI.toString()
-        );
-      case "s3":
-      case "s3n":
-        return ImmutableMap.<String, Object>of(
-            "type", "s3_zip",
-            "bucket", indexOutURI.getHost(),
-            "key", indexOutURI.getPath().substring(1) // remove the leading "/"
-        );
-      case "file":
-        return ImmutableMap.<String, Object>of(
-            "type", "local",
-            "path", indexOutURI.getPath()
-        );
-      default:
-        throw new IAE("Unknown file system scheme [%s]", indexOutURI.getScheme());
-    }
   }
 
   public static void writeSegmentDescriptor(

@@ -19,12 +19,14 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 
 import java.util.Map;
 
+@JsonTypeName("elementMap")
 public class ElementMapProcessor extends PostProcessingOperator.Abstract implements PostProcessingOperator.Local
 {
   private final Function function;

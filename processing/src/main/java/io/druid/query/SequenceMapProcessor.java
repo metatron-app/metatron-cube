@@ -19,11 +19,13 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import io.druid.common.guava.Sequence;
 
 import java.util.Map;
 
+@JsonTypeName("sequenceMap")
 public class SequenceMapProcessor extends PostProcessingOperator.Abstract implements PostProcessingOperator.Local
 {
   private final Function<Sequence, Sequence> function;
@@ -48,6 +50,7 @@ public class SequenceMapProcessor extends PostProcessingOperator.Abstract implem
     };
   }
 
+  @JsonTypeName("asArray")
   public static class AsArray extends SequenceMapProcessor implements ReturnRowAs
   {
     public AsArray(Function function)

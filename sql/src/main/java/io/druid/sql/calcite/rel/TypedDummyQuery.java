@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 public class TypedDummyQuery extends DummyQuery<Object[]>
-    implements Query.ArrayOutput, Query.RowOutputSupport<Object[]>, Query.SchemaProvider
+    implements Query.ArrayOutput, Query.RowOutputSupport<Object[]>, Query.MapOutputSupport<Object[]>, Query.SchemaProvider
 {
   public static final TypedDummyQuery DUMMY = of(null, RowSignature.EMPTY, Arrays.<Object[]>asList());
 
@@ -134,6 +134,25 @@ public class TypedDummyQuery extends DummyQuery<Object[]>
           converted.put(columnNames.get(i), input[i]);
         }
         return new MapBasedRow(0, converted);
+      }
+    });
+  }
+
+  @Override
+  public Sequence<Map<String, Object>> asMap(Sequence<Object[]> sequence)
+  {
+    return Sequences.map(sequence, new Function<Object[], Map<String, Object>>()
+    {
+      final List<String> columnNames = signature.getColumnNames();
+
+      @Override
+      public Map<String, Object> apply(Object[] input)
+      {
+        final Map<String, Object> converted = Maps.newLinkedHashMap();
+        for (int i = 0; i < columnNames.size(); i++) {
+          converted.put(columnNames.get(i), input[i]);
+        }
+        return converted;
       }
     });
   }
