@@ -257,16 +257,29 @@ SqlCreate SqlCreateType(Span s, boolean replace) :
 SqlCreate SqlCreateTable(Span s, boolean replace) :
 {
     boolean isTemporary = false;
-    final boolean ifNotExists;
-    final SqlIdentifier id;
+    boolean ifNotExists;
+    SqlNode table;
+    SqlNodeList columnList = null;
     SqlNode query;
 }
 {
     [ <TEMPORARY> { isTemporary = true; } ]
-    <TABLE> ifNotExists = IfNotExistsOpt() id = CompoundIdentifier()
+    <TABLE> ifNotExists = IfNotExistsOpt() table = CompoundIdentifier()
+    [
+        LOOKAHEAD(2)
+        { final Pair<SqlNodeList, SqlNodeList> p; }
+        p = ParenthesizedCompoundIdentifierList() {
+            if (p.right.size() > 0) {
+                table = extend(table, p.right);
+            }
+            if (p.left.size() > 0) {
+                columnList = p.left;
+            }
+        }
+    ]
     <AS> query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateTable(s.end(this), replace, isTemporary, ifNotExists, id, query);
+        return new SqlCreateTable(s.end(this), replace, isTemporary, ifNotExists, table, columnList, query);
     }
 }
 

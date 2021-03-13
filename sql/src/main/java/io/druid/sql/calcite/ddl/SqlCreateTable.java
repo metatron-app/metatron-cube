@@ -18,9 +18,9 @@
 package io.druid.sql.calcite.ddl;
 
 import org.apache.calcite.sql.SqlCreate;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
@@ -37,8 +37,9 @@ public class SqlCreateTable extends SqlCreate
 {
   private static final SqlOperator OPERATOR = new SqlSpecialOperator("CREATE TABLE", SqlKind.CREATE_TABLE);
 
-  private final SqlIdentifier name;
   private final boolean isTemporary;
+  private final SqlNode table;
+  private final SqlNodeList columnList;
   private final SqlNode query;
 
   /**
@@ -49,19 +50,16 @@ public class SqlCreateTable extends SqlCreate
       boolean replace,
       boolean isTemporary,
       boolean ifNotExists,
-      SqlIdentifier name,
+      SqlNode table,
+      SqlNodeList columnList,
       SqlNode query
   )
   {
     super(OPERATOR, pos, replace, ifNotExists);
     this.isTemporary = isTemporary;
-    this.name = Objects.requireNonNull(name);
+    this.table = Objects.requireNonNull(table);
+    this.columnList = columnList;
     this.query = Objects.requireNonNull(query);
-  }
-
-  public SqlIdentifier getName()
-  {
-    return name;
   }
 
   public boolean isTemporary()
@@ -74,6 +72,16 @@ public class SqlCreateTable extends SqlCreate
     return ifNotExists;
   }
 
+  public SqlNode getTable()
+  {
+    return table;
+  }
+
+  public SqlNodeList getColumnList()
+  {
+    return columnList;
+  }
+
   public SqlNode getQuery()
   {
     return query;
@@ -81,7 +89,7 @@ public class SqlCreateTable extends SqlCreate
 
   public List<SqlNode> getOperandList()
   {
-    return ImmutableNullableList.of(name, query);
+    return ImmutableNullableList.of(table, columnList, query);
   }
 
   @Override
@@ -92,11 +100,12 @@ public class SqlCreateTable extends SqlCreate
     if (ifNotExists) {
       writer.keyword("IF NOT EXISTS");
     }
-    name.unparse(writer, leftPrec, rightPrec);
-    if (query != null) {
-      writer.keyword("AS");
-      writer.newlineAndIndent();
-      query.unparse(writer, 0, 0);
+    table.unparse(writer, leftPrec, rightPrec);
+    if (columnList != null) {
+      columnList.unparse(writer, leftPrec, rightPrec);
     }
+    writer.keyword("AS");
+    writer.newlineAndIndent();
+    query.unparse(writer, 0, 0);
   }
 }

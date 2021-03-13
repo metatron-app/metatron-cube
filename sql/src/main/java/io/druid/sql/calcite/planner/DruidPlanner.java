@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -68,9 +69,14 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlExplain;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.Planner;
@@ -233,13 +239,34 @@ public class DruidPlanner implements Closeable, ForwardConstants
   )
   {
     boolean temporary = source.isTemporary();
-    String dataSource = source.getName().toString();
-
+    SqlNode table = source.getTable();
+    String dataSource;
+    if (table instanceof SqlIdentifier) {
+      dataSource = table.toString();
+    } else if (table instanceof SqlCall && ((SqlCall) table).getOperator() == SqlStdOperatorTable.EXTEND) {
+      List<SqlNode> operands = ((SqlCall) table).getOperandList();
+      dataSource = operands.get(0).toString();
+      SqlNodeList extend = (SqlNodeList) operands.get(1);
+      if (extend != null) {
+        // todo
+        List<SqlNode> elements = extend.getList();
+        for (int i = 0; i < elements.size(); i += 2) {
+          String column = elements.get(i).toString();
+          SqlIdentifier typeName = ((SqlDataTypeSpec) elements.get(i + 1)).getTypeNameSpec().getTypeName();
+//          typeMap.put(column, Utils.TYPE_FACTORY.createType(typeName.toString()));
+        }
+      }
+    } else {
+      throw new IAE("unsupported type %s", table);
+    }
     DruidQuery druidQuery = druidRel.toDruidQuery(false);
 
     RowSignature rowSignature = druidQuery.getOutputRowSignature();
     Map<String, String> mapping = ImmutableMap.of();
-    if (!Iterables.elementsEqual(rowSignature.getColumnNames(), mappedColumns)) {
+    if (source.getColumnList() != null) {
+      List<String> columns = GuavaUtils.transform(source.getColumnList().getList(), Functions.toStringFunction());
+      mapping = GuavaUtils.zipAsMap(rowSignature.getColumnNames(), columns);
+    } else if (!Iterables.elementsEqual(rowSignature.getColumnNames(), mappedColumns)) {
       mapping = GuavaUtils.zipAsMap(rowSignature.getColumnNames(), mappedColumns);
     }
     IncrementalIndexSchema schema = IncrementalIndexSchema.from(rowSignature, mapping);
