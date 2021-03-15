@@ -15,6 +15,8 @@
 
 grammar Expr;
 
+start : expr EOF;
+
 expr : ('-'|'!') expr                                 # unaryOpExpr
      |<assoc=right> expr '^' expr                     # powOpExpr
      | expr ('*'|'/'|'%') expr                        # mulDivModuloExpr
