@@ -267,10 +267,21 @@ public class QueryResource
       final QueryToolChest toolChest = warehouse.getToolChest(prepared);
       final Map<String, Object> responseContext = new ConcurrentHashMap<>();
 
+      OutputDecorator decorator = null;
+      if (context.request.getAttribute(GET_FEATURE) != null) {
+        decorator = jsonMapper.convertValue(BaseQuery.removeDecoratorContext(prepared), OutputDecorator.class);
+      }
+
       Sequence<?> sequence = lifecycle.execute(prepared, responseContext);
+      if (decorator != null) {
+        sequence = decorator.prepare(prepared, sequence);
+      }
       if (toolChest != null) {
         sequence = toolChest.serializeSequence(prepared, sequence, segmentWalker);
       }
+      final ObjectWriter jsonWriter = context.getOutputWriter(
+          prepared.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false), decorator
+      );
 
       final MutableInt counter = new MutableInt();
       final Yielder yielder = Sequences.withBaggage(sequence, future).toYielder(
@@ -287,14 +298,6 @@ public class QueryResource
               return in;
             }
           }
-      );
-
-      OutputDecorator decorator = null;
-      if (context.request.getAttribute(GET_FEATURE) != null) {
-        decorator = jsonMapper.convertValue(BaseQuery.removeDecoratorContext(prepared), OutputDecorator.class);
-      }
-      final ObjectWriter jsonWriter = context.getOutputWriter(
-          prepared.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false), decorator
       );
 
       final StreamingOutput output = new StreamingOutput()

@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import io.druid.common.guava.Sequence;
+import io.druid.query.Query;
 
 import java.io.IOException;
 
@@ -32,6 +34,12 @@ import java.io.IOException;
 })
 public interface OutputDecorator<T>
 {
+  @SuppressWarnings("unchecked")
+  default Sequence<T> prepare(Query query, Sequence sequence)
+  {
+    return sequence;
+  }
+
   void start(JsonGenerator jgen, SerializerProvider provider) throws IOException;
 
   void serialize(JsonGenerator jgen, SerializerProvider provider, T object) throws IOException;

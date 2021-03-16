@@ -47,10 +47,11 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
 
   public static Sequence<BulkRow> fromArray(Sequence<Object[]> sequence, RowSignature schema, int limit)
   {
-    return new BulkSequence(sequence, schema, limit < 0 ? DEFAULT_PAGE_SIZE : limit);
+    return new BulkSequence(sequence, schema, limit <= 0 ? DEFAULT_PAGE_SIZE : Math.min(MAX_PAGE_SIZE, limit));
   }
 
-  private static final int DEFAULT_PAGE_SIZE = 1024 << 2;
+  private static final int DEFAULT_PAGE_SIZE = 1024 << 1;
+  private static final int MAX_PAGE_SIZE = 1024 << 3;
 
   private final Sequence<Object[]> sequence;
   private final RowSignature schema;

@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 @JsonTypeName("dbScan")
-public class DBScanPostProcessor extends PostProcessingOperator.Abstract implements RowSignature.Evolving
+public class DBScanPostProcessor extends PostProcessingOperator.ReturnsArray implements RowSignature.Evolving
 {
   private final double eps;
   private final int minPts;

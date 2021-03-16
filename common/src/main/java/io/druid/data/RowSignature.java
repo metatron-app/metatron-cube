@@ -72,12 +72,12 @@ public interface RowSignature extends TypeResolver
 
   default List<String> getDimensionNames()
   {
-    return columnName(type -> type.isDimension());
+    return columnName(type -> type != null && type.isDimension());
   }
 
   default List<String> getMetricNames()
   {
-    return columnName(type -> !type.isDimension());
+    return columnName(type -> type == null || !type.isDimension());
   }
 
   default List<String> columnName(Predicate<ValueDesc> predicate)

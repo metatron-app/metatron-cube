@@ -33,6 +33,7 @@ import io.druid.query.GeometryDeserializer;
 import io.druid.query.GeometrySerializer;
 import io.druid.query.H3Functions;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.GeomCollectPointAggregatorFactory;
 import io.druid.query.aggregation.GeomConvexHullPostProcessor;
 import io.druid.query.aggregation.GeomUnionAggregatorFactory;
 import io.druid.query.filter.LuceneLatLonPolygonFilter;
@@ -67,6 +68,7 @@ public class LuceneExtensionModule implements DruidModule
             .registerSubtypes(GeoJsonFormatter.class)
             .registerSubtypes(GeoBoundaryFilterQuery.class)
             .registerSubtypes(GeomUnionAggregatorFactory.class)
+            .registerSubtypes(GeomCollectPointAggregatorFactory.class)
             .registerSubtypes(GeomConvexHullPostProcessor.class)
             .addSerializer(Geometry.class, new GeometrySerializer())
             .addDeserializer(Geometry.class, new GeometryDeserializer())
@@ -83,6 +85,9 @@ public class LuceneExtensionModule implements DruidModule
     SqlBindings.addDimFilterConversion(binder, LuceneShapeFilterConversion.of("ST_OVERLAPS", SpatialOperations.OVERLAPS));
     SqlBindings.addAggregator(binder, AggregatorFactory.bundleSQL(
         new GeomUnionAggregatorFactory("<name>", "<columnName>"))
+    );
+    SqlBindings.addAggregator(binder, AggregatorFactory.bundleSQL(
+        new GeomCollectPointAggregatorFactory("<name>", "<columnName>"))
     );
   }
 }

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="stylesheet" href="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/css/ol.css" type="text/css">
+    <style>
+      .map {
+        height: 700px;
+        width: 100%;
+      }
+    </style>
+    <script src="https://cdn.rawgit.com/openlayers/openlayers.github.io/master/en/v5.1.3/build/ol.js"></script>
+    <title>OpenLayers example</title>
+  </head>
+  <body>
+    <div id="map" class="map"></div>
+    <script type="text/javascript">
+      var colors = new Map();
+      function computeIfAbsent(keyName, valueFunc) {
+        var value = colors.get(keyName);
+        if (value !== undefined)
+            return value;
+
+        var newValue = valueFunc(keyName);
+        if (newValue !== undefined)
+            colors.set(keyName, newValue);
+
+        return newValue;
+      }
+      function getRandomColor() {
+        var letters = '0123456789ABCDEF';
+        var color = '#';
+        for (var i = 0; i < 6; i++ ) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      }
+
+      estate_style = function (feature, resolution) {
+        return new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 0.85,
+            fill: new ol.style.Fill({color: getRandomColor()})
+          })
+        });
+      };
+
+      var WKT = new ol.format.WKT();
+      var estate_source = new ol.source.Vector({
+        format: new ol.format.GeoJSON(),
+        loader: function(extent, resolution, projection) {
+           var proj = projection.getCode();
+           // var url = 'https://ahocevar.com/geoserver/wfs?service=WFS&' +
+           //     'version=1.1.0&request=GetFeature&typename=osm:water_areas&' +
+           //     'outputFormat=application/json&srsname=' + proj + '&' +
+           //     'bbox=' + extent.join(',') + ',' + proj;
+           var xhr = new XMLHttpRequest();
+           xhr.onerror = function() { estate_source.removeLoadedExtent(extent); };
+           xhr.onload = function() {
+             if (xhr.status === 200) {
+               // console.log('inspection_source ---> ' + xhr.responseText);
+               var features = estate_source.getFormat().readFeatures(xhr.responseText);
+               // features.forEach(function (f) {
+                    // console.log(f.getGeometry().getCoordinates()); // features are parsed correctly
+                // });
+               estate_source.addFeatures(features);
+             } else {
+               xhr.onerror();
+             }
+           };
+           var url = 'http://localhost:8082/druid/v2/geojson';
+           xhr.open('POST', url);
+           xhr.setRequestHeader('Content-type', 'application/json');
+           var extentWKT = WKT.writeGeometry(ol.geom.Polygon.fromExtent(extent), {
+                dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'
+           });
+           var query =
+               '{' +
+               '   "queryType": "groupBy"\,' +
+               '   "dataSource": {' +
+               '     "type": "query"\, ' +
+               '     "query": { ' +
+               '       "queryType": "select.stream"\, ' +
+               '       "dataSource": "property_inspect"\, ' +
+               '       "columns": [ "gis.lat"\, "gis.lon" ]\, ' +
+               '       "limitSpec": { "limit": 40000 }\,' +
+               '       "context": { "postProcessing": { "type": "dbScan"\, "eps": 0.275\, "minPts": 10 } } ' +
+               '     } ' +
+               '   }\, ' +
+               '   "dimensions": ["tag"]\, ' +
+               '   "virtualColumns": [ ' +
+               '     { ' +
+               '       "type": "expression"\, ' +
+               '       "expression": "geom_transform(geom_fromlatlon(gis.lat\, gis.lon), 4326, 3857)"\, ' +
+               '       "outputName": "geom" ' +
+               '     }' +
+               '   ]\, ' +
+               '   "aggregations": [ {"type": "geom_collect_point"\, "name": "points"\, "columnName": "geom"} ]\, ' +
+               '   "outputColumns": [ "points" ] ' +
+               '}';
+           console.log('inspection_source fire!! ---> ' + query);
+           xhr.send(query);
+        }
+      });
+
+      var estate = new ol.layer.Vector({
+        source: estate_source,
+        style: estate_style
+      });
+
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+          new ol.layer.Tile({source: new ol.source.OSM()}),
+          estate
+        ],
+        view: new ol.View({
+          center: ol.proj.fromLonLat([-96.267173, 38.180101]),
+          zoom: 5.0
+        })
+        // view: new ol.View({
+        //   center: ol.proj.fromLonLat([126.988400, 37.565482]),
+        //   zoom: 11.4
+        // })
+      });
+    </script>
+  </body>
+</html>

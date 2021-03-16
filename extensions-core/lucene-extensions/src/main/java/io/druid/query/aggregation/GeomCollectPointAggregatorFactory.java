@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
@@ -34,21 +35,23 @@ import io.druid.query.GeometryDeserializer;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.MultiPoint;
+import org.locationtech.jts.geom.Point;
 
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-@JsonTypeName("geom_union")
-public class GeomUnionAggregatorFactory extends AggregatorFactory implements AggregatorFactory.SQLSupport
+@JsonTypeName("geom_collect_point")
+public class GeomCollectPointAggregatorFactory extends AggregatorFactory implements AggregatorFactory.SQLSupport
 {
-  private static final byte[] CACHE_TYPE_ID = new byte[]{0x7F, 0x10, 0x01};
+  private static final byte[] CACHE_TYPE_ID = new byte[]{0x7F, 0x10, 0x02};
 
   private final String name;
   private final String columnName;
 
   @JsonCreator
-  public GeomUnionAggregatorFactory(
+  public GeomCollectPointAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("columnName") String columnName
   )
@@ -75,7 +78,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
   {
     String columnName = Iterables.getOnlyElement(fieldNames, null);
     if (columnName != null) {
-      return new GeomUnionAggregatorFactory(name, columnName);
+      return new GeomCollectPointAggregatorFactory(name, columnName);
     }
     return null;
   }
@@ -86,19 +89,36 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
     final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(columnName);
     return new Aggregator.Simple()
     {
+      private List<Point> collect(Geometry geometry, List<Point> collect)
+      {
+        if (geometry instanceof Point) {
+          collect.add((Point) geometry);
+        } else if (geometry instanceof MultiPoint) {
+          final int size = geometry.getNumGeometries();
+          for (int i = 0; i < size; i++) {
+            collect.add((Point) geometry.getGeometryN(i));
+          }
+        }
+        return collect;
+      }
+
       @Override
+      @SuppressWarnings("unchecked")
       public Object aggregate(Object current)
       {
         final Geometry geom = GeomUtils.toGeometry(selector.get());
-        if (geom == null) {
-          return current;
-        }
-        if (current == null) {
-          current = geom;
-        } else {
-          current = ((Geometry) current).union(geom);
+        if (geom != null) {
+          return collect(geom, current == null ? Lists.newArrayList() : (List) current);
         }
         return current;
+      }
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public MultiPoint get(Object current)
+      {
+        List<Point> points = (List) current;
+        return new MultiPoint(points.toArray(new Point[0]), GeomUtils.GEOM_FACTORY);
       }
     };
   }
@@ -124,8 +144,8 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
       @Override
       public Object combine(Object param1, Object param2)
       {
-        Geometry geom1 = GeomUtils.toGeometry(param1);
-        Geometry geom2 = GeomUtils.toGeometry(param2);
+        MultiPoint geom1 = (MultiPoint) param1;
+        MultiPoint geom2 = (MultiPoint) param2;
         if (geom1 == null) {
           return geom2;
         } else if (geom2 == null) {
@@ -139,7 +159,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new GeomUnionAggregatorFactory(name, name);
+    return new GeomCollectPointAggregatorFactory(name, name);
   }
 
   @Override
@@ -174,7 +194,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public int getMaxIntermediateSize()
   {
-    return Integer.BYTES * 2;
+    return -1;
   }
 
   @Override
@@ -187,7 +207,7 @@ public class GeomUnionAggregatorFactory extends AggregatorFactory implements Agg
   @Override
   public String toString()
   {
-    return "GeomUnionAggregatorFactory{" +
+    return "GeomCollectPointAggregatorFactory{" +
            "name='" + name + '\'' +
            ", columnName='" + columnName + '\'' +
            '}';

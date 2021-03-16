@@ -25,10 +25,11 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.google.common.base.Preconditions;
+import io.druid.common.guava.Sequence;
 import io.druid.java.util.common.IAE;
 import io.druid.query.GeometryDeserializer;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
-import io.druid.query.QueryToolChest;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -45,7 +46,7 @@ import java.text.NumberFormat;
 import java.util.List;
 
 @JsonTypeName("geojson")
-public class GeoJsonDecorator implements SelectiveDecorator<Object[]>
+public class GeoJsonDecorator implements OutputDecorator<Object[]>
 {
   private final NumberFormat nf = LegacyShapeWriter.makeNumberFormat(6);
 
@@ -63,9 +64,16 @@ public class GeoJsonDecorator implements SelectiveDecorator<Object[]>
   }
 
   @Override
-  public boolean accepts(Query query, QueryToolChest toolChest)
+  @SuppressWarnings("unchecked")
+  public Sequence<Object[]> prepare(Query query, Sequence sequence)
   {
-    return query instanceof Query.ArrayOutputSupport && query.estimatedOutputColumns() != null;
+    if (PostProcessingOperators.returns(query) == Object[].class) {
+      return sequence;
+    }
+    if (query instanceof Query.ArrayOutputSupport) {
+      return ((Query.ArrayOutputSupport) query).array(sequence);
+    }
+    return sequence;  // should not throw exception here
   }
 
   @Override

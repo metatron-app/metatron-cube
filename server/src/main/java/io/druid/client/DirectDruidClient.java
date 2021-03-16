@@ -26,6 +26,7 @@ import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
@@ -182,7 +183,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     };
     queryWatcher.register(query, Execs.tag(future, host), resource);
 
-    Sequence<T> sequence = Sequences.withBaggage(Sequences.once(query.estimatedOutputColumns(), iterator), resource);
+    Sequence<T> sequence = Sequences.once(query.estimatedOutputColumns(), GuavaUtils.withResource(iterator, resource));
     // bySegment queries are de-serialized after caching results in order to
     // avoid the cost of de-serializing and then re-serializing again when adding to cache
     if (!isBySegment) {
