@@ -78,7 +78,6 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   private final String host;
   private final String type;
   private final URL hostURL;
-  private final BrokerIOConfig ioConfig;
   private final ExecutorService backgroundExecutorService;
 
   private final AtomicInteger openConnections;
@@ -107,13 +106,12 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     this.host = host;
     this.type = type;
     this.hostURL = StringUtils.toURL(String.format("http://%s/druid/v2/", host));
-    this.ioConfig = ioConfig;
     this.backgroundExecutorService = backgroundExecutorService;
     this.contentType = objectMapper.getFactory() instanceof SmileFactory
                        ? SmileMediaTypes.APPLICATION_JACKSON_SMILE
                        : MediaType.APPLICATION_JSON;
     this.openConnections = new AtomicInteger();
-    this.handlerFactory = new StreamHandlerFactory.WithEmitter(LOG, emitter, objectMapper);
+    this.handlerFactory = new StreamHandlerFactory.WithEmitter(host, ioConfig, emitter, objectMapper);
   }
 
   public int getNumOpenConnections()
@@ -150,9 +148,10 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     }
 
     final long remain = queryWatcher.remainingTime(query.getId());
-    final byte[] content = serializeQuery(query.withOverriddenContext(Query.TIMEOUT, remain));
-    final int queueSize = ioConfig.getQueueSize();
-    final StreamHandler handler = handlerFactory.create(query, content.length, host, queueSize, queryMetrics, context);
+    final byte[] content = serializeQuery(query, remain);
+
+    final StopWatch watch = new StopWatch(remain);
+    final StreamHandler handler = handlerFactory.create(query, content.length, watch, queryMetrics, context);
 
     final long start = System.currentTimeMillis();
     final ChannelResource<InputStream> future = httpClient.go(
@@ -168,18 +167,17 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
     openConnections.getAndIncrement();
 
-    final StopWatch watch = new StopWatch(remain + elapsed);
-    final JsonParserIterator<T> iterator = new JsonParserIterator.FromCallable<T>(mapper, typeRef, hostURL, type, () -> watch.wainOn(future));
+    final JsonParserIterator<T> iterator = new JsonParserIterator<T>(mapper, typeRef, hostURL, type, () -> watch.wainOn(future));
     final Closeable resource = () -> {
-      IOUtils.closeQuietly(handler);
       openConnections.getAndDecrement();
       queryWatcher.unregister(query, handler);
       if (!iterator.close()) {
         if (watch.isExpired()) {
           cancelRemote(query);
         }
-        IOUtils.closeQuietly(future);
       }
+      IOUtils.closeQuietly(future);
+      IOUtils.closeQuietly(handler);
     };
     queryWatcher.register(query, Execs.tag(future, host), resource);
 
@@ -193,9 +191,8 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     return sequence;
   }
 
-  private byte[] serializeQuery(Query<T> query)
+  private byte[] serializeQuery(Query<T> query, long remain)
   {
-    final long remain = queryWatcher.remainingTime(query.getId());
     if (remain <= 0) {
       throw new QueryInterruptedException(new TimeoutException());
     }

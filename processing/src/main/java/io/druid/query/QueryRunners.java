@@ -26,7 +26,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -299,16 +298,13 @@ public class QueryRunners
     }
   }
 
-  public static <V> V getUnchecked(Future<V> future)
+  public static <V> V waitOn(Future<V> future, StopWatch watch)
   {
     try {
-      return Futures.getUnchecked(future);
+      return watch.wainOn(future);
     }
-    catch (UncheckedExecutionException e) {
-      if (e.getCause() instanceof RuntimeException) {
-        throw (RuntimeException) e.getCause();
-      }
-      throw e;
+    catch (Exception e) {
+      throw QueryInterruptedException.wrapIfNeeded(e);
     }
   }
 

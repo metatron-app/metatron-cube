@@ -23,12 +23,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.ResourceLimitExceededException;
 import io.druid.common.utils.ExceptionUtils;
 import io.druid.server.DruidNode;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -255,5 +258,16 @@ public class QueryInterruptedException extends RuntimeException
   public static List<String> stackTrace(Throwable e)
   {
     return ExceptionUtils.stackTrace(e, Sets.<Throwable>newHashSet(), Lists.<String>newArrayList(), "");
+  }
+
+  public static IOException read(byte[] contents, ObjectMapper mapper) throws IOException
+  {
+    try {
+      throw mapper.readValue(contents, QueryInterruptedException.class);
+    }
+    catch (Exception e) {
+      // ignore
+    }
+    throw new IOException(new String(contents, Charsets.ISO_8859_1));
   }
 }

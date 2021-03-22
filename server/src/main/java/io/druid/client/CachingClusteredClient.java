@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
@@ -61,6 +62,7 @@ import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
+import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.MetricManipulatorFns;
@@ -75,6 +77,7 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
+import io.druid.utils.StopWatch;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceInstance;
@@ -89,7 +92,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.ToIntFunction;
@@ -103,6 +105,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   private final ServiceDiscovery<String> discovery;
   private final QueryToolChestWarehouse warehouse;
   private final TimelineServerView serverView;
+  private final QueryWatcher queryWatcher;
   private final Cache cache;
   private final ObjectMapper objectMapper;
   private final QueryConfig queryConfig;
@@ -115,6 +118,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       ServiceDiscovery<String> discovery,
       QueryToolChestWarehouse warehouse,
       TimelineServerView serverView,
+      QueryWatcher queryWatcher,
       Cache cache,
       @Smile ObjectMapper objectMapper,
       @Processing ExecutorService executorService,
@@ -126,6 +130,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     this.discovery = discovery;
     this.warehouse = warehouse;
     this.serverView = serverView;
+    this.queryWatcher = queryWatcher;
     this.cache = cache;
     this.objectMapper = objectMapper;
     this.queryConfig = queryConfig;
@@ -377,23 +382,26 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         ToIntFunction counter = toolChest.numRows(prepared);
         CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(counter, strategy.pullFromCache());
 
-        List<Future<Sequence>> sequencesByInterval = Lists.newArrayList();
+        List<ListenableFuture<Sequence>> sequencesByInterval = Lists.newArrayList();
         if (cacheAccessor != null && !cachedResults.isEmpty()) {
           addSequencesFromCache(sequencesByInterval, cacheAccessor);
         }
         addSequencesFromServer(sequencesByInterval);
 
-        return mergeCachedAndUncachedSequences(
-            ordering,
-            columns,
-            toolChest,
-            sequencesByInterval,
-            cachedResults.size(),
-            cacheAccessor
-        );
+        Sequence<T> sequence = mergeCachedAndUncachedSequences(prepared, ordering, columns, sequencesByInterval);
+        if (cachedResults.size() > 0 && cacheAccessor != null && LOG.isDebugEnabled()) {
+          sequence = Sequences.withBaggage(
+              sequence,
+              () -> LOG.debug(
+                  "Deserialized %,d rows from %,d cached segments, took %,d msec",
+                  cacheAccessor.rows(), cachedResults.size(), cacheAccessor.time()
+              )
+          );
+        }
+        return sequence;
       }
 
-      private void addSequencesFromCache(List<Future<Sequence>> listOfSequences, CacheAccessor cacheAccessor)
+      private void addSequencesFromCache(List<ListenableFuture<Sequence>> listOfSequences, CacheAccessor cacheAccessor)
       {
         final TypeReference<Object> cacheObjectClazz = strategy.getCacheObjectClazz();
         for (Pair<Interval, byte[]> cachedResultPair : cachedResults) {
@@ -428,7 +436,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         }
       }
 
-      private void addSequencesFromServer(List<Future<Sequence>> listOfSequences)
+      private void addSequencesFromServer(List<ListenableFuture<Sequence>> listOfSequences)
       {
         final Function<T, T> deserializer = toolChest.makePreComputeManipulatorFn(
             prepared, MetricManipulatorFns.deserializing()
@@ -579,26 +587,18 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   }
 
   protected Sequence<T> mergeCachedAndUncachedSequences(
+      final Query<T> query,
       final Comparator<T> ordering,
       final List<String> columns,
-      final QueryToolChest<T, Query<T>> toolChest,
-      final List<Future<Sequence>> futures,
-      final int numCachedSegments,
-      final CacheAccessor cacheAccessor
+      final List<ListenableFuture<Sequence>> futures
   )
   {
-    List<Sequence<T>> sequences = GuavaUtils.transform(futures, future -> QueryRunners.getUnchecked(future));
-    Sequence<T> sequence = QueryUtils.mergeSort(columns, ordering, sequences);
-    if (numCachedSegments > 0 && cacheAccessor != null && LOG.isDebugEnabled()) {
-      sequence = Sequences.withBaggage(
-          sequence,
-          () -> LOG.debug(
-              "Deserialized %,d rows from %,d cached segments, took %,d msec",
-              cacheAccessor.rows(), numCachedSegments, cacheAccessor.time()
-          )
-      );
+    StopWatch watch = queryWatcher.register(query, Futures.allAsList(futures));
+    if (ordering != null) {
+      List<Sequence<T>> sequences = GuavaUtils.transform(futures, future -> QueryRunners.waitOn(future, watch));
+      return QueryUtils.mergeSort(columns, ordering, sequences);
     }
-    return sequence;
+    return Sequences.concat(columns, Iterables.transform(futures, future -> QueryRunners.waitOn(future, watch)));
   }
 
   private static class CacheAccessor<T> extends Pair<AtomicLong, AtomicInteger> implements Function<Object, T>

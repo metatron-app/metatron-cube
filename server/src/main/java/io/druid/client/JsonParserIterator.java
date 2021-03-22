@@ -19,7 +19,6 @@
 
 package io.druid.client;
 
-import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
@@ -40,16 +39,22 @@ import java.util.concurrent.TimeoutException;
 
 /**
  */
-public abstract class JsonParserIterator<T> implements Iterator<T>
+public class JsonParserIterator<T> implements Iterator<T>
 {
+  private final URL url;
+  private final String type;
+  private final Callable<InputStream> callable;
   private final ObjectMapper mapper;
   private final JavaType typeRef;
 
   private JsonParser jp;
   private ObjectCodec objectCodec;
 
-  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef)
+  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef, URL url, String type, Callable<InputStream> callable)
   {
+    this.url = url;
+    this.type = type;
+    this.callable = callable;
     this.mapper = mapper;
     this.typeRef = typeRef;
   }
@@ -86,7 +91,7 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
   {
     if (jp == null) {
       try {
-        jp = createParser(mapper.getFactory());
+        jp = mapper.getFactory().createParser(callable.call());
         final JsonToken nextToken = jp.nextToken();
         if (nextToken == JsonToken.START_OBJECT) {
           throw jp.getCodec().readValue(jp, QueryInterruptedException.class);
@@ -108,9 +113,20 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     }
   }
 
-  protected abstract JsonParser createParser(JsonFactory factory) throws Exception;
-
-  protected abstract RuntimeException handleException(Throwable ex);
+  private RuntimeException handleException(final Throwable t)
+  {
+    for (Throwable ex = t; ex != null; ex = ex.getCause()) {
+      if (ex instanceof TimeoutException ||
+          ex instanceof InterruptedException ||
+          ex instanceof QueryInterruptedException ||
+          ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
+          ex instanceof CancellationException) {
+        // todo should retry to other replica if exists?
+        throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
+      }
+    }
+    throw new RE(t, "Failure getting results from[%s] because of [%s]", url, t.getMessage());
+  }
 
   public boolean close()
   {
@@ -118,48 +134,5 @@ public abstract class JsonParserIterator<T> implements Iterator<T>
     boolean normalClose = jp != null && jp.isClosed();
     CloseQuietly.close(jp);
     return normalClose;
-  }
-
-  public static class FromCallable<T> extends JsonParserIterator<T>
-  {
-    private final URL url;
-    private final String type;
-    private final Callable<InputStream> callable;
-
-    public FromCallable(
-        ObjectMapper mapper,
-        JavaType typeRef,
-        URL url,
-        String type,
-        Callable<InputStream> callable
-    )
-    {
-      super(mapper, typeRef);
-      this.url = url;
-      this.type = type;
-      this.callable = callable;
-    }
-
-    @Override
-    protected final RuntimeException handleException(final Throwable t)
-    {
-      for (Throwable ex = t; ex != null; ex = ex.getCause()) {
-        if (ex instanceof TimeoutException ||
-            ex instanceof InterruptedException ||
-            ex instanceof QueryInterruptedException ||
-            ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
-            ex instanceof CancellationException) {
-          // todo should retry to other replica if exists?
-          throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
-        }
-      }
-      throw new RE(t, "Failure getting results from[%s] because of [%s]", url, t.getMessage());
-    }
-
-    @Override
-    protected final JsonParser createParser(JsonFactory factory) throws Exception
-    {
-      return factory.createParser(callable.call());
-    }
   }
 }

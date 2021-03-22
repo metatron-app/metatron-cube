@@ -600,16 +600,8 @@ public class SystemSchema extends AbstractSchema
         request,
         responseHandler
     );
-    final JavaType typeRef = jsonMapper.getTypeFactory().constructType(new TypeReference<TaskStatusPlus>()
-    {
-    });
-    return new JsonParserIterator.FromCallable<>(
-        jsonMapper,
-        typeRef,
-        request.getUrl(),
-        "",
-        () -> future.get()
-    );
+    final JavaType typeRef = jsonMapper.getTypeFactory().constructType(new TypeReference<TaskStatusPlus>() {});
+    return new JsonParserIterator<>(jsonMapper, typeRef, request.getUrl(), "", () -> future.get());
   }
 
   private static <T> CloseableIterator<T> wrap(Iterator<T> iterator, JsonParserIterator<T> it)

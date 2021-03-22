@@ -19,6 +19,7 @@
 
 package io.druid.utils;
 
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -42,8 +43,31 @@ public class StopWatch
     return future.get(remaining, TimeUnit.MILLISECONDS);
   }
 
+  public <T> boolean enqueue(BlockingQueue<T> queue, T element) throws TimeoutException, InterruptedException
+  {
+    long remaining = timeout - System.currentTimeMillis();
+    for (; remaining > 0; remaining = timeout - System.currentTimeMillis()) {
+      if (queue.offer(element, remaining, TimeUnit.MILLISECONDS)) {
+        return true;
+      }
+    }
+    throw new TimeoutException();
+  }
+
+  public <T> T dequeue(BlockingQueue<T> queue) throws TimeoutException, InterruptedException
+  {
+    long remaining = timeout - System.currentTimeMillis();
+    for (; remaining > 0; remaining = timeout - System.currentTimeMillis()) {
+      T poll = queue.poll(remaining, TimeUnit.MILLISECONDS);
+      if (poll != null) {
+        return poll;
+      }
+    }
+    throw new TimeoutException();
+  }
+
   public boolean isExpired()
   {
-    return timeout < System.currentTimeMillis();
+    return timeout <= System.currentTimeMillis();
   }
 }

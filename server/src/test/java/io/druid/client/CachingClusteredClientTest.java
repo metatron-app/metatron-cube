@@ -68,6 +68,7 @@ import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MapQueryToolChestWarehouse;
+import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -900,15 +901,10 @@ public class CachingClusteredClientTest
             new DateTime("2011-01-09T01"), "a", 50, 4985, "b", 50, 4984, "c", 50, 4983
         ),
         client.mergeCachedAndUncachedSequences(
+            query,
             query.getMergeOrdering(null),
             query.estimatedOutputColumns(),
-            new TopNQueryQueryToolChest(
-                new TopNQueryConfig(),
-                TestHelper.testTopNQueryEngine()
-            ),
-            sequences,
-            -1,
-            null
+            sequences
         )
     );
   }
@@ -2098,6 +2094,7 @@ public class CachingClusteredClientTest
           {
           }
         },
+        NoopQueryWatcher.instance(),
         cache,
         jsonMapper,
         backgroundExecutorService,

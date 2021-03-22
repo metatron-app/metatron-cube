@@ -30,6 +30,7 @@ import io.druid.concurrent.Execs;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Druids;
+import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -234,6 +235,7 @@ public class CachingClusteredClientFunctionalityTest {
           {
           }
         },
+        NoopQueryWatcher.instance(),
         cache,
         CachingClusteredClientTest.jsonMapper,
         backgroundExecutorService,

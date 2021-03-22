@@ -696,12 +696,12 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
                                    .addContext(toMapProcessor)
                                    .streaming();
         int threshold = configuration.getInt(CONF_DRUID_STREAM_THRESHOLD, DEFAULT_STREAM_THRESHOLD);
-        streamHandler = new StreamHandlerFactory(logger, mapper).create(
+        streamHandler = new StreamHandlerFactory(mapper).create(
             query, request.getUrl(), threshold
         );
         final ListenableFuture<InputStream> future = submitQuery(query, streamHandler);
         final long timeout = configuration.getLong(CONF_DRUID_QUERY_TIMEOUT, DEFAULT_QUERY_TIMEOUT);
-        events = new JsonParserIterator.FromCallable<Map<String, Object>>(
+        events = new JsonParserIterator<Map<String, Object>>(
             mapper,
             mapper.getTypeFactory().constructType(
                 new TypeReference<Map<String, Object>>()

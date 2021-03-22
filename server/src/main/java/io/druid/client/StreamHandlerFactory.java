@@ -20,7 +20,6 @@
 package io.druid.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import io.druid.common.utils.StringUtils;
 import io.druid.jackson.ObjectMappers;
@@ -30,6 +29,7 @@ import io.druid.java.util.http.client.response.ClientResponse;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryMetrics;
+import io.druid.utils.StopWatch;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 import org.jboss.netty.handler.codec.http.HttpChunk;
@@ -55,20 +55,19 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class StreamHandlerFactory
 {
-  private static final InputStream EOF = new ByteArrayInputStream(new byte[0]);
+  private static final Logger LOG = new Logger(StreamHandlerFactory.class);
+  private static final InputStream EMPTY = new ByteArrayInputStream(new byte[0]);
 
-  protected final Logger log;
   protected final ObjectMapper mapper;
 
-  public StreamHandlerFactory(Logger log, ObjectMapper mapper)
+  public StreamHandlerFactory(ObjectMapper mapper)
   {
-    this.log = log;
     this.mapper = mapper;
   }
 
-  public StreamHandler create(final Query query, final URL url, final int queueSize)
+  public StreamHandler create(Query query, URL url, int queueSize)
   {
-    return new BaseHandler(query, String.format("%s:%s", url.getHost(), url.getPort()), queueSize);
+    return new BaseHandler(query, url.getHost() + ":" + url.getPort(), queueSize, new StopWatch(60_000));
   }
 
   private class BaseHandler implements StreamHandler
@@ -76,6 +75,7 @@ public class StreamHandlerFactory
     private final Query query;
     private final boolean disableLog;
     private final String host;
+    private final StopWatch watch;
 
     private final long requestStartTimeNs = System.nanoTime();
     private long responseStartTimeNs;
@@ -84,12 +84,13 @@ public class StreamHandlerFactory
     private final AtomicLong byteCount = new AtomicLong(0);
     private final AtomicBoolean done = new AtomicBoolean(false);
 
-    private BaseHandler(Query query, String host, int queueSize)
+    private BaseHandler(Query query, String host, int queueSize, StopWatch watch)
     {
       this.query = query;
       this.disableLog = query.getContextBoolean(Query.DISABLE_LOG, false);
       this.host = host;
       this.queue = new LinkedBlockingDeque<InputStream>(queueSize <= 0 ? Integer.MAX_VALUE : queueSize);
+      this.watch = watch;
     }
 
     @Override
@@ -107,8 +108,8 @@ public class StreamHandlerFactory
       response(requestStartTimeNs, responseStartTimeNs = System.nanoTime());
 
       HttpResponseStatus status = response.getStatus();
-      if (!disableLog && log.isDebugEnabled()) {
-        log.debug(
+      if (!disableLog && LOG.isDebugEnabled()) {
+        LOG.debug(
             "Initial response from url[%s] for [%s][%s:%s] with status[%s] in %,d msec",
             host, query.getId(), query.getType(), query.getDataSource(),
             status, TimeUnit.NANOSECONDS.toMillis(responseStartTimeNs - requestStartTimeNs)
@@ -126,13 +127,13 @@ public class StreamHandlerFactory
               @Override
               public int read() throws IOException
               {
-                throw toException(binary);
+                throw QueryInterruptedException.read(binary, mapper);
               }
 
               @Override
               public int available() throws IOException
               {
-                throw toException(binary);
+                throw QueryInterruptedException.read(binary, mapper);
               }
             }
         );
@@ -140,12 +141,10 @@ public class StreamHandlerFactory
 
       try {
         handleHeader(response.headers());
-        if (!done.get()) {
-          queue.put(new ChannelBufferInputStream(response.getContent()));
-        }
+        enqueue(response.getContent());
       }
       catch (final IOException e) {
-        log.error(e, "Error parsing response context from url [%s]", host);
+        LOG.error(e, "Error parsing response context from url [%s]", host);
         return ClientResponse.<InputStream>finished(
             new InputStream()
             {
@@ -157,12 +156,6 @@ public class StreamHandlerFactory
             }
         );
       }
-      catch (InterruptedException e) {
-        log.error(e, "Queue appending interrupted");
-        Thread.currentThread().interrupt();
-        throw Throwables.propagate(e);
-      }
-      byteCount.addAndGet(response.getContent().readableBytes());
       return ClientResponse.<InputStream>finished(
           new SequenceInputStream(
               new Enumeration<InputStream>()
@@ -178,13 +171,7 @@ public class StreamHandlerFactory
                 @Override
                 public InputStream nextElement()
                 {
-                  try {
-                    return done.get() && queue.isEmpty() ? EOF : queue.take();
-                  }
-                  catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw Throwables.propagate(e);
-                  }
+                  return done.get() && queue.isEmpty() ? EMPTY : dequeue();
                 }
               }
           )
@@ -192,38 +179,52 @@ public class StreamHandlerFactory
             @Override
             public void close() throws IOException
             {
+              BaseHandler.this.close();
               queue.clear();  // nothing to close in ChannelBufferInputStream
             }
           }
       );
     }
 
-    private IOException toException(byte[] contents) throws IOException
+    private static final long POLLING_INTERVAL = 3_000;
+
+    private void enqueue(ChannelBuffer contents)
     {
+      final InputStream stream = new ChannelBufferInputStream(contents);
       try {
-        throw mapper.readValue(contents, QueryInterruptedException.class);
+        if (!done.get() && watch.enqueue(queue, stream)) {
+          byteCount.addAndGet(contents.readableBytes());
+        }
+      }
+      catch (InterruptedException e) {
+        LOG.error(e, "Enqueue interrupted");
+        Thread.currentThread().interrupt();
+        throw Throwables.propagate(e);
       }
       catch (Exception e) {
-        // ignore
+        throw QueryInterruptedException.wrapIfNeeded(e);
       }
-      throw new IOException(new String(contents, Charsets.ISO_8859_1));
+    }
+
+    private InputStream dequeue()
+    {
+      try {
+        return watch.dequeue(queue);
+      }
+      catch (InterruptedException e) {
+        LOG.error(e, "Dequeue interrupted");
+        Thread.currentThread().interrupt();
+        throw Throwables.propagate(e);
+      } catch (Exception e) {
+        throw QueryInterruptedException.wrapIfNeeded(e);
+      }
     }
 
     @Override
     public ClientResponse<InputStream> handleChunk(ClientResponse<InputStream> clientResponse, HttpChunk chunk)
     {
-      final ChannelBuffer channelBuffer = chunk.getContent();
-      final int bytes = channelBuffer.readableBytes();
-      if (bytes > 0 && !done.get()) {
-        try {
-          queue.put(new ChannelBufferInputStream(channelBuffer));
-        }
-        catch (InterruptedException e) {
-          log.error(e, "Unable to put finalizing input stream into Sequence queue for url [%s]", host);
-          Thread.currentThread().interrupt();
-          throw Throwables.propagate(e);
-        }
-        byteCount.addAndGet(bytes);
+      if (chunk.getContent().readableBytes() > 0) {
+        enqueue(chunk.getContent());
       }
       return clientResponse;
     }
@@ -231,19 +232,20 @@ public class StreamHandlerFactory
     @Override
     public ClientResponse<InputStream> done(ClientResponse<InputStream> clientResponse)
     {
-      long stopTimeNs = System.nanoTime();
-      long nodeTimeNs = stopTimeNs - requestStartTimeNs;
-      if (!disableLog && log.isDebugEnabled()) {
-        log.debug(
+      final long stopTimeNs = System.nanoTime();
+      final long nodeTimeNs = stopTimeNs - requestStartTimeNs;
+      final long bytes = byteCount.get();
+      if (!disableLog && LOG.isDebugEnabled()) {
+        LOG.debug(
             "Completed [%s][%s:%s] request to url[%s] with %,d bytes in %,d msec [%s/s].",
             query.getId(), query.getType(), query.getDataSource(),
             host,
-            byteCount.get(),
+            bytes,
             TimeUnit.NANOSECONDS.toMillis(nodeTimeNs),
-            StringUtils.toKMGT(byteCount.get() * 1000 / Math.max(1, TimeUnit.NANOSECONDS.toMillis(nodeTimeNs)))
+            StringUtils.toKMGT(bytes * 1000 / Math.max(1, TimeUnit.NANOSECONDS.toMillis(nodeTimeNs)))
         );
       }
-      finished(responseStartTimeNs, stopTimeNs, byteCount.get());
+      finished(responseStartTimeNs, stopTimeNs, bytes);
       close();
       return ClientResponse.<InputStream>finished(clientResponse.getObj());
     }
@@ -269,10 +271,10 @@ public class StreamHandlerFactory
     @Override
     public void close()
     {
-      if (done.compareAndSet(false, true) && queue.isEmpty()) {
+      if (done.compareAndSet(false, true)) {
         // An empty byte array is put at the end to give the SequenceInputStream.close() as something to close out
         // after done is set to true, regardless of the rest of the stream's state.
-        queue.add(EOF);
+        queue.offer(EMPTY);
       }
     }
   }
@@ -281,31 +283,34 @@ public class StreamHandlerFactory
 
   public static class WithEmitter extends StreamHandlerFactory
   {
+    private final String host;
+    private final BrokerIOConfig config;
     private final ServiceEmitter emitter;
 
-    public WithEmitter(Logger log, ServiceEmitter emitter, ObjectMapper mapper)
+    public WithEmitter(String host, BrokerIOConfig config, ServiceEmitter emitter, ObjectMapper mapper)
     {
-      super(log, mapper);
+      super(mapper);
+      this.host = host;
+      this.config = config;
       this.emitter = emitter;
     }
 
     public StreamHandler create(
         final Query query,
         final int content,
-        final String host,
-        final int queueSize,
+        final StopWatch watch,
         final QueryMetrics queryMetrics,
         final Map<String, Object> context
     )
     {
-      return new BaseHandler(query, host, queueSize)
+      return new BaseHandler(query, host, config.getQueueSize(), watch)
       {
         @Override
         public void writeCompleted(long writeStart)
         {
           final long elapsed = System.currentTimeMillis() - writeStart;
           if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
-            log.info(
+            LOG.info(
                 "Took %,d msec to write query[%s:%s] (%d bytes) to [%s]",
                 elapsed, query.getType(), query.getId(), content, host
             );
