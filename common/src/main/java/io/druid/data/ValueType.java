@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
@@ -100,6 +101,12 @@ public enum ValueType
     }
 
     @Override
+    public Comparator numericComparator()
+    {
+      return Comparators.NULL_FIRST((n1, n2) -> Float.compare(((Number) n1).floatValue(), ((Number) n2).floatValue()));
+    }
+
+    @Override
     public int lengthOfBinary()
     {
       return Float.SIZE;
@@ -131,6 +138,12 @@ public enum ValueType
     }
 
     @Override
+    public Comparator numericComparator()
+    {
+      return Comparators.NULL_FIRST((n1, n2) -> Long.compare(((Number) n1).longValue(), ((Number) n2).longValue()));
+    }
+
+    @Override
     public int lengthOfBinary()
     {
       return Long.SIZE;
@@ -159,6 +172,12 @@ public enum ValueType
     public Comparable castIfPossible(Object value)
     {
       return Rows.parseDoubleIfPossible(value);
+    }
+
+    @Override
+    public Comparator numericComparator()
+    {
+      return Comparators.NULL_FIRST((n1, n2) -> Double.compare(((Number) n1).doubleValue(), ((Number) n2).doubleValue()));
     }
 
     @Override
@@ -253,6 +272,11 @@ public enum ValueType
   public Comparator comparator()
   {
     return GuavaUtils.NULL_FIRST_NATURAL;
+  }
+
+  public Comparator numericComparator()
+  {
+    return comparator();
   }
 
   public Object cast(Object value)
