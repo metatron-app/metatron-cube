@@ -98,7 +98,7 @@ public class QueryConfig
   public int getQueryParallelism(Query<?> query)
   {
     final int systemMax = maxQueryParallelism;
-    final int userMax = query.getContextInt(Query.MAX_QUERY_PARALLELISM, 4);
+    final int userMax = query.getContextInt(Query.MAX_QUERY_PARALLELISM, QueryRunners.MAX_QUERY_PARALLELISM);
     return Math.min(systemMax, userMax);
   }
 

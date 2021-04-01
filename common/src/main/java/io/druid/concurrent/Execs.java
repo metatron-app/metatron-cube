@@ -36,13 +36,13 @@ import io.druid.common.guava.DirectExecutorService;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.utils.Runnables;
+import io.druid.utils.StopWatch;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -276,7 +276,12 @@ public class Execs
 
     public ExecutorQueue(int parallelism)
     {
-      semaphore = new Semaphore(parallelism);
+      this(new Semaphore(parallelism));
+    }
+
+    public ExecutorQueue(Semaphore semaphore)
+    {
+      this.semaphore = semaphore;
       closer = () -> semaphore.close();
     }
 
@@ -315,6 +320,23 @@ public class Execs
       log.debug("> acquiring %s", name);
       try {
         semaphore.acquire();
+      }
+      catch (Exception e) {
+        return future.setException(e);
+      }
+      log.debug("< acquired %s", name);
+      return !future.isCancelled();
+    }
+
+    public boolean acquire(WaitingFuture future, StopWatch watch)
+    {
+      log.debug("> acquiring %s", name);
+      try {
+        if (watch != null) {
+          watch.acquire(semaphore);
+        } else {
+          semaphore.acquire();
+        }
       }
       catch (Exception e) {
         return future.setException(e);
@@ -372,12 +394,23 @@ public class Execs
       final int priority
   )
   {
+    return execute(executor, works, semaphore, null, priority);
+  }
+
+  public static <V> List<ListenableFuture<V>> execute(
+      final ExecutorService executor,
+      final Iterable<Callable<V>> works,
+      final Semaphore semaphore,
+      final StopWatch watch,
+      final int priority
+  )
+  {
     final int parallelism = semaphore.availablePermits();
     Preconditions.checkArgument(parallelism > 0, "Invalid parallelism %d", parallelism);
     log.debug("Executing with parallelism : %d", parallelism);
     // must be materialized first
     final List<WaitingFuture<V>> futures = GuavaUtils.transform(works, WaitingFuture.<V>toWaiter());
-    final Queue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);
+    final BlockingQueue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);
     try {
       for (int i = 0; i < parallelism; i++) {
         executor.submit(
@@ -393,7 +426,7 @@ public class Execs
               public void run()
               {
                 for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
-                  if (!semaphore.acquire(work) || !work.execute()) {
+                  if (!semaphore.acquire(work, watch) || !work.execute()) {
                     log.debug("Something wrong.. aborting");  // can be normal process
                     break;
                   }

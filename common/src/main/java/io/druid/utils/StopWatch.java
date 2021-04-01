@@ -22,6 +22,7 @@ package io.druid.utils;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -36,7 +37,7 @@ public class StopWatch
 
   public <T> T wainOn(Future<T> future) throws TimeoutException, ExecutionException, InterruptedException
   {
-    final long remaining = timeout - System.currentTimeMillis();
+    final long remaining = remaining();
     if (remaining <= 0) {
       throw new TimeoutException();
     }
@@ -45,8 +46,7 @@ public class StopWatch
 
   public <T> boolean enqueue(BlockingQueue<T> queue, T element) throws TimeoutException, InterruptedException
   {
-    long remaining = timeout - System.currentTimeMillis();
-    for (; remaining > 0; remaining = timeout - System.currentTimeMillis()) {
+    for (long remaining = remaining(); remaining > 0; remaining = remaining()) {
       if (queue.offer(element, remaining, TimeUnit.MILLISECONDS)) {
         return true;
       }
@@ -56,8 +56,7 @@ public class StopWatch
 
   public <T> T dequeue(BlockingQueue<T> queue) throws TimeoutException, InterruptedException
   {
-    long remaining = timeout - System.currentTimeMillis();
-    for (; remaining > 0; remaining = timeout - System.currentTimeMillis()) {
+    for (long remaining = remaining(); remaining > 0; remaining = remaining()) {
       T poll = queue.poll(remaining, TimeUnit.MILLISECONDS);
       if (poll != null) {
         return poll;
@@ -66,8 +65,23 @@ public class StopWatch
     throw new TimeoutException();
   }
 
+  public boolean acquire(Semaphore semaphore) throws TimeoutException, InterruptedException
+  {
+    for (long remaining = remaining(); remaining > 0; remaining = remaining()) {
+      if (semaphore.tryAcquire(remaining, TimeUnit.MILLISECONDS)) {
+        return true;
+      }
+    }
+    throw new TimeoutException();
+  }
+
+  public long remaining()
+  {
+    return timeout - System.currentTimeMillis();
+  }
+
   public boolean isExpired()
   {
-    return timeout <= System.currentTimeMillis();
+    return remaining() <= 0;
   }
 }

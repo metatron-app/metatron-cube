@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -88,61 +87,36 @@ public class QueryRunnerHelper
     );
   }
 
-  public static <T> Iterable<Callable<Sequence<T>>> asCallable(
-      final Iterable<QueryRunner<T>> runners,
+  public static <T> Callable<Sequence<T>> asCallable(
+      final QueryRunner<T> runner,
       final Query<T> query,
       final Map<String, Object> responseContext
   )
   {
-    return Iterables.transform(
-        runners,
-        new Function<QueryRunner<T>, Callable<Sequence<T>>>()
-        {
-          @Override
-          public Callable<Sequence<T>> apply(final QueryRunner<T> runner)
-          {
-            return new PrioritizedCallable.Background<Sequence<T>>()
-            {
-              @Override
-              public Sequence<T> call()
-              {
-                return runner.run(query, responseContext);
-              }
-            };
-          }
-        }
-    );
+    return new PrioritizedCallable.Background<Sequence<T>>()
+    {
+      @Override
+      public Sequence<T> call()
+      {
+        return runner.run(query, responseContext);
+      }
+    };
   }
 
-  public static <T> Iterable<Callable<Sequence<T>>> asCallable(
-      final Iterable<QueryRunner<T>> runners,
-      final Execs.Semaphore semaphore,
+  public static <T> Callable<Sequence<T>> asCallable(
+      final QueryRunner<T> runner,
       final Query<T> query,
-      final boolean materialze,
-      final Map<String, Object> responseContext
+      final Map<String, Object> responseContext,
+      final Execs.Semaphore semaphore
   )
   {
-    return Iterables.transform(
-        asCallable(runners, query, responseContext),
-        new Function<Callable<Sequence<T>>, Callable<Sequence<T>>>()
-        {
-          @Override
-          public Callable<Sequence<T>> apply(final Callable<Sequence<T>> callable)
-          {
-            return new PrioritizedCallable.Background<Sequence<T>>()
-            {
-              @Override
-              public Sequence<T> call() throws Exception
-              {
-                Sequence<T> sequence = Sequences.withBaggage(callable.call(), semaphore);
-                if (materialze) {
-                  sequence = Sequences.materialize(sequence);
-                }
-                return sequence;
-              }
-            };
-          }
-        }
-    );
+    return new PrioritizedCallable.Background<Sequence<T>>()
+    {
+      @Override
+      public Sequence<T> call() throws Exception
+      {
+        return Sequences.materialize(Sequences.withBaggage(runner.run(query, responseContext), semaphore));
+      }
+    };
   }
 }

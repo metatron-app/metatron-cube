@@ -26,7 +26,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.druid.common.guava.FutureSequence;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -49,7 +48,7 @@ import java.util.concurrent.TimeoutException;
 
 public class QueryRunners
 {
-  public static final int MAX_QUERY_PARALLELISM = 4;
+  public static final int MAX_QUERY_PARALLELISM = 4;  // todo: use QueryConfig.maxQueryParallelism instead
 
   private static final Logger LOG = new Logger(QueryRunners.class);
 
@@ -223,7 +222,7 @@ public class QueryRunners
     final List<String> columns = query.estimatedInitialColumns();
     final Comparator<T> ordering = query.getMergeOrdering(columns);
     // used for limiting resource usage from heavy aggregators like CountMinSketch
-    final int parallelism = query.getContextInt(Query.MAX_QUERY_PARALLELISM, MAX_QUERY_PARALLELISM);
+    final int parallelism = Math.min(runners.size(), watcher.getQueryConfig().getQueryParallelism(query));
     if (parallelism < 1 || Execs.isDirectExecutor(executor)) {
       // no limit.. todo: deprecate this
       return new ChainedExecutionQueryRunner<T>(executor, watcher, runners)
@@ -235,30 +234,44 @@ public class QueryRunners
         }
       };
     }
+    final int priority = BaseQuery.getContextPriority(query, 0);
+    final Execs.Semaphore semaphore = new Execs.Semaphore(parallelism);
+    if (ordering == null) {
+      return new QueryRunner<T>()
+      {
+        @Override
+        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+        {
+          final Execs.ExecutorQueue<Sequence<T>> queue = new Execs.ExecutorQueue<>(semaphore);
+          for (QueryRunner<T> runner : runners) {
+            queue.add(QueryRunnerHelper.asCallable(runner, query, responseContext));
+          }
+          final List<ListenableFuture<Sequence<T>>> futures = queue.execute(executor, priority);
+          final Closeable resource = () -> {
+            queue.close();
+            Execs.cancelQuietly(Futures.allAsList(futures));
+          };
+          final StopWatch watch = watcher.register(query, Futures.allAsList(futures), resource);
+          return Sequences.concat(columns, Iterables.transform(futures, future -> QueryRunners.waitOn(future, watch)));
+        }
+      };
+    }
     return new QueryRunner<T>()
     {
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
-        final int priority = BaseQuery.getContextPriority(query, 0);
-        final Execs.Semaphore semaphore = new Execs.Semaphore(Math.min(parallelism, runners.size()));
-        final Iterable<Callable<Sequence<T>>> works = QueryRunnerHelper.asCallable(
-            runners, semaphore, query, ordering != null, responseContext
+        final Iterable<Callable<Sequence<T>>> works = Iterables.transform(
+            runners, runner -> QueryRunnerHelper.asCallable(runner, query, responseContext, semaphore)
         );
-        final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(executor, works, semaphore, priority);
-        final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(futures);
+        final StopWatch watch = new StopWatch(watcher.remainingTime(query.getId()));
+        final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
+            Execs.execute(executor, works, semaphore, watch, priority)
+        );
         final Closeable resource = () -> {
           semaphore.destroy();
           Execs.cancelQuietly(future);
         };
-        if (ordering == null) {
-          final ListenableFuture<Sequence<T>> first = futures.get(0);
-          final List<ListenableFuture<Sequence<T>>> others = futures.subList(1, futures.size());
-          final Sequence<T> sequence = waitForCompletion(query, first, watcher, resource);
-          return sequence == null ? Sequences.withBaggage(Sequences.empty(columns), resource) :
-                 Sequences.withBaggage(Sequences.concat(sequence, Sequences.concat(
-                     Iterables.transform(others, FutureSequence.toSequence(sequence.columns())))), resource);
-        }
         final List<Sequence<T>> sequences = waitForCompletion(query, future, watcher, resource);
         return sequences == null ? Sequences.withBaggage(Sequences.empty(columns), resource) :
                Sequences.withBaggage(QueryUtils.mergeSort(columns, ordering, sequences), resource);

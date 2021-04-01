@@ -63,7 +63,7 @@ public class QueryManager implements QueryWatcher, Runnable
   private static final long DEFAULT_EXPIRE = 180_000;   // 3 min
   private static final long LOG_THRESHOLD_MSEC = 200;
 
-  private final long maxQueryTimeout;
+  private final QueryConfig config;
   private final Map<String, QueryStatus> queries = Maps.newConcurrentMap();
   private final ListeningExecutorService executor = Execs.newDirectExecutorService();
 
@@ -76,7 +76,13 @@ public class QueryManager implements QueryWatcher, Runnable
   @Inject
   public QueryManager(QueryConfig config)
   {
-    this.maxQueryTimeout = config.getMaxQueryTimeout();
+    this.config = config;
+  }
+
+  @Override
+  public QueryConfig getQueryConfig()
+  {
+    return config;
   }
 
   public void start(long intervalSec)
@@ -132,10 +138,10 @@ public class QueryManager implements QueryWatcher, Runnable
     final List<String> dataSources = query.getDataSource().getNames();
     if (id == null) {
       LOG.warn("Query id for %s%s is null.. fix that", query.getType(), dataSources);
-      return new StopWatch(maxQueryTimeout);
+      return new StopWatch(config.getMaxQueryTimeout());
     }
     final QueryStatus status = queries.computeIfAbsent(
-        id, k -> new QueryStatus(query.getType(), dataSources, BaseQuery.getTimeout(query, maxQueryTimeout))
+        id, k -> new QueryStatus(query.getType(), dataSources, BaseQuery.getTimeout(query, config.getMaxQueryTimeout()))
     );
     final long remaining = status.start(future, resource);
     future.addListener(() -> status.end(future), executor);
@@ -159,10 +165,10 @@ public class QueryManager implements QueryWatcher, Runnable
   public long remainingTime(String queryId)
   {
     if (queryId == null) {
-      return maxQueryTimeout;  // bug
+      return config.getMaxQueryTimeout();  // bug
     }
     final QueryStatus status = queries.get(queryId);  // some internal queries?
-    return status == null ? maxQueryTimeout : status.remaining();
+    return status == null ? config.getMaxQueryTimeout() : status.remaining();
   }
 
   public List<String> getQueryDatasources(final String queryId)

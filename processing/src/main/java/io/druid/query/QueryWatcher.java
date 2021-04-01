@@ -64,8 +64,12 @@ public interface QueryWatcher
 
   boolean isTimedOut(String queryId);
 
+  QueryConfig getQueryConfig();
+
   class Abstract implements QueryWatcher
   {
+    private static final QueryConfig DUMMY = new QueryConfig();
+
     @Override
     public StopWatch register(Query query, ListenableFuture future, Closeable resource)
     {
@@ -89,5 +93,11 @@ public interface QueryWatcher
 
     @Override
     public boolean isTimedOut(String queryId) { return false;}
+
+    @Override
+    public QueryConfig getQueryConfig()
+    {
+      return DUMMY;
+    }
   }
 }
