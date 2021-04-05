@@ -21,7 +21,6 @@ package io.druid.sql.calcite.schema;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
@@ -49,6 +48,7 @@ import io.druid.query.QueryRunners;
 import io.druid.query.jmx.JMXQuery;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.BytesAccumulatingResponseHandler;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.OperatorKey;
 import io.druid.sql.calcite.table.RowSignature;
@@ -60,6 +60,8 @@ import org.apache.calcite.linq4j.Enumerator;
 import org.apache.calcite.linq4j.Linq4j;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.schema.FilterableTable;
 import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.schema.impl.AbstractSchema;
@@ -104,6 +106,7 @@ public class SystemSchema extends AbstractSchema
       .add("is_published", ValueDesc.LONG)
       .add("is_available", ValueDesc.LONG)
       .add("is_realtime", ValueDesc.LONG)
+      .add("servers", ValueDesc.STRING_ARRAY)
       .build();
 
   static final RowSignature SERVERS_SIGNATURE = RowSignature
@@ -163,7 +166,7 @@ public class SystemSchema extends AbstractSchema
       .add("datasource", ValueDesc.STRING)
       .add("version", ValueDesc.STRING)
       .add("interval", ValueDesc.STRING)
-      .add("tasks", ValueDesc.ofArray(ValueDesc.STRING))
+      .add("tasks", ValueDesc.STRING_ARRAY)
       .build();
 
   static final RowSignature FUNCTIONS_SIGNATURE = RowSignature
@@ -225,7 +228,7 @@ public class SystemSchema extends AbstractSchema
     return tableMap;
   }
 
-  static class SegmentsTable extends AbstractTable implements ScannableTable
+  static class SegmentsTable extends AbstractTable implements FilterableTable
   {
     private final TimelineServerView serverView;
     private final ObjectMapper jsonMapper;
@@ -249,52 +252,50 @@ public class SystemSchema extends AbstractSchema
     }
 
     @Override
-    public Enumerable<Object[]> scan(DataContext root)
+    public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
     {
-      Iterable<ServerSelector> selectors = Iterables.concat(Iterables.transform(
-          serverView.getDataSources(),
-          new Function<String, Iterable<ServerSelector>>()
-          {
-            @Override
-            public Iterable<ServerSelector> apply(String dataSource)
-            {
-              return serverView.getSelectors(dataSource);
-            }
-          }
-      ));
-      Iterable<Object[]> segments = Iterables.transform(selectors, new Function<ServerSelector, Object[]>()
-      {
-        @Override
-        public Object[] apply(ServerSelector input)
-        {
-          final DataSegment segment = input.getSegment();
-          if (segment == null) {
-            return null;
-          }
-          final List<DruidServerMetadata> candidates = input.getCandidates();
-          long isRealtime = 0;
-          long isPublished = 0;
-          for (DruidServerMetadata server : candidates) {
-            isRealtime += server.isAssignable() ? 0 : 1;
-            isPublished += server.isHistorical() ? 1 : 0;
-          }
-          return new Object[]{
-              segment.getIdentifier(),
-              segment.getDataSource(),
-              segment.getInterval().getStart().toString(),
-              segment.getInterval().getEnd().toString(),
-              segment.getSize(),
-              segment.getVersion(),
-              Long.valueOf(segment.getShardSpecWithDefault().getPartitionNum()),
-              candidates.size(),
-              segment.getNumRows(),
-              isPublished,
-              1,
-              isRealtime
-          };
-        }
-      });
-      return Linq4j.asEnumerable(segments).where(t -> t != null);
+      Object extracted = Utils.extractEq(1, filters); // SEGMENTS_SIGNATURE.indexOf("datasource")
+      Iterable<ServerSelector> selectors;
+      if (extracted != null) {
+        selectors = serverView.getSelectors(String.valueOf(extracted));
+      } else {
+        selectors = Iterables.concat(
+            Iterables.transform(serverView.getDataSources(), dataSource -> serverView.getSelectors(dataSource))
+        );
+      }
+      return Linq4j.asEnumerable(Iterables.transform(selectors, selector -> toRow(selector))).where(t -> t != null);
+    }
+
+    private Object[] toRow(ServerSelector input)
+    {
+      final DataSegment segment = input.getSegment();
+      if (segment == null) {
+        return null;
+      }
+      final List<DruidServerMetadata> candidates = input.getCandidates();
+      long isRealtime = 0;
+      long isPublished = 0;
+      List<String> servers = Lists.newArrayList();
+      for (DruidServerMetadata server : candidates) {
+        isRealtime += server.isAssignable() ? 0 : 1;
+        isPublished += server.isHistorical() ? 1 : 0;
+        servers.add(server.getName() + "(" + server.getType() + ")");
+      }
+      return new Object[]{
+          segment.getIdentifier(),
+          segment.getDataSource(),
+          segment.getInterval().getStart().toString(),
+          segment.getInterval().getEnd().toString(),
+          segment.getSize(),
+          segment.getVersion(),
+          Long.valueOf(segment.getShardSpecWithDefault().getPartitionNum()),
+          candidates.size(),
+          segment.getNumRows(),
+          isPublished,
+          1,
+          isRealtime,
+          servers
+      };
     }
   }
 

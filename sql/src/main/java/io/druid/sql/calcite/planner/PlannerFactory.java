@@ -24,8 +24,8 @@ import com.google.inject.Inject;
 import io.druid.guice.annotations.Json;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
-import io.druid.server.QueryManager;
 import io.druid.server.QueryLifecycleFactory;
+import io.druid.server.QueryManager;
 import io.druid.server.security.AuthenticationResult;
 import io.druid.server.security.AuthorizerMapper;
 import io.druid.sql.calcite.rel.QueryMaker;
@@ -99,10 +99,14 @@ public class PlannerFactory
     this.jsonMapper = jsonMapper;
   }
 
-  public DruidPlanner createPlanner(final Map<String, Object> queryContext, AuthenticationResult authenticationResult)
+  public PlannerContext createContext()
   {
-    final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema, segmentWalker, systemSchema);
-    final PlannerContext plannerContext = PlannerContext.create(
+    return createContext(null, null);
+  }
+
+  public PlannerContext createContext(Map<String, Object> queryContext, AuthenticationResult authenticationResult)
+  {
+    return PlannerContext.create(
         queryManager,
         operatorTable,
         plannerConfig,
@@ -110,6 +114,12 @@ public class PlannerFactory
         queryContext,
         authenticationResult
     );
+  }
+
+  public DruidPlanner createPlanner(Map<String, Object> queryContext, AuthenticationResult authenticationResult)
+  {
+    final PlannerContext plannerContext = createContext(queryContext, authenticationResult);
+    final SchemaPlus rootSchema = Calcites.createRootSchema(druidSchema, segmentWalker, systemSchema);
     final QueryMaker queryMaker = new QueryMaker(queryLifecycleFactory, segmentWalker, plannerContext, queryConfig);
     final SqlToRelConverter.Config sqlToRelConverterConfig = SqlToRelConverter
         .configBuilder()

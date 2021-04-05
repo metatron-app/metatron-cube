@@ -57,6 +57,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.logging.log4j.util.Strings;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import java.math.BigDecimal;
 import java.util.Calendar;
@@ -258,10 +259,17 @@ public class QueryMaker
 
   public Function[] coerce(List<RelDataTypeField> fields)
   {
-    return fields.stream().map(field -> coerce(field.getType())).toArray(len -> new Function[len]);
+    return fields.stream().map(
+        field -> coerce(field.getType(), plannerContext.getTimeZone())).toArray(len -> new Function[len]
+    );
   }
 
-  private Function<Object, Object> coerce(final RelDataType dataType)
+  public static Object coerece(Object literal, RelDataType dataType)
+  {
+    return coerce(dataType, DateTimeZone.getDefault()).apply(literal);
+  }
+
+  private static Function<Object, Object> coerce(final RelDataType dataType, final DateTimeZone timeZone)
   {
     final SqlTypeName sqlType = dataType.getSqlTypeName();
     if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
@@ -286,9 +294,9 @@ public class QueryMaker
 
     switch (sqlType) {
       case TIMESTAMP:
-        return value -> Calcites.coerceToTimestamp(value, plannerContext.getTimeZone());
+        return value -> Calcites.coerceToTimestamp(value, timeZone);
       case DATE:
-        return value -> Calcites.jodaToCalciteDate(coerceDateTime(value), plannerContext.getTimeZone());
+        return value -> Calcites.jodaToCalciteDate(coerceDateTime(value), timeZone);
       case INTEGER:
         return value -> value instanceof Number ? ((Number) value).intValue() : null;
       case BIGINT:

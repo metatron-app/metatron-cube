@@ -124,9 +124,7 @@ public class RowSignature extends io.druid.query.RowSignature
 
   public static Builder builderFrom(RowSignature signature)
   {
-    Builder builder = new Builder();
-    Iterables.addAll(builder.columnTypeList, signature.columnAndTypes());
-    return builder;
+    return new Builder(signature);
   }
 
   /**
@@ -238,6 +236,11 @@ public class RowSignature extends io.druid.query.RowSignature
     private Builder()
     {
       this.columnTypeList = new ArrayList<>();
+    }
+
+    private Builder(RowSignature signature)
+    {
+      this.columnTypeList = Lists.newArrayList(signature.columnAndTypes());
     }
 
     public Builder add(String columnName, ValueDesc columnType)

@@ -125,9 +125,11 @@ public class QueryManager implements QueryWatcher, Runnable
   @Override
   public void finished(String queryId)
   {
-    QueryStatus status = queries.remove(queryId);
-    if (status != null) {
-      status.finished();
+    if (queryId != null) {
+      QueryStatus status = queries.remove(queryId);
+      if (status != null) {
+        status.finished();
+      }
     }
   }
 

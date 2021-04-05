@@ -28,6 +28,7 @@ import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.rel.DruidRel;
+import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.Convention;
@@ -44,6 +45,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
@@ -58,6 +60,8 @@ import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -65,6 +69,15 @@ public class Utils
 {
   public static final JavaTypeFactoryImpl TYPE_FACTORY = new JavaTypeFactoryImpl();
   public static final RowSignature EMPTY_ROW_SIGNATURE = RowSignature.builder().build();
+
+  public static final Set<SqlKind> COMPARISON = EnumSet.of(
+      SqlKind.EQUALS,
+      SqlKind.GREATER_THAN_OR_EQUAL,
+      SqlKind.LESS_THAN_OR_EQUAL,
+      SqlKind.GREATER_THAN,
+      SqlKind.LESS_THAN,
+      SqlKind.NOT_EQUALS
+  );
 
   public static SqlIdentifier zero(String name)
   {
@@ -358,5 +371,34 @@ public class Utils
         estimate = numRows * 0.8;
     }
     return estimate < 0 ? 0 : Math.min(numRows, estimate);
+  }
+
+  public static List<RexNode> decomposeOnAnd(RexNode rexNode)
+  {
+    return rexNode.getKind() == SqlKind.AND ? ((RexCall) rexNode).getOperands() : Arrays.asList(rexNode);
+  }
+
+  public static Object extractEq(int ref, List<RexNode> filters)
+  {
+    final Iterator<RexNode> iterator = filters.iterator();
+    while (iterator.hasNext()) {
+      RexNode node = iterator.next();
+      if (node.getKind() == SqlKind.EQUALS) {
+        RexNode op1 = ((RexCall) node).getOperands().get(0);
+        RexNode op2 = ((RexCall) node).getOperands().get(1);
+        if (op1.getKind() == SqlKind.INPUT_REF && op2.getKind() == SqlKind.LITERAL) {
+          if (ref == ((RexInputRef) op1).getIndex()) {
+            iterator.remove();
+            return QueryMaker.coerece(RexLiteral.value(op2), op2.getType());
+          }
+        } else if (op2.getKind() == SqlKind.INPUT_REF && op1.getKind() == SqlKind.LITERAL) {
+          if (ref == ((RexInputRef) op2).getIndex()) {
+            iterator.remove();
+            return QueryMaker.coerece(RexLiteral.value(op1), op1.getType());
+          }
+        }
+      }
+    }
+    return null;
   }
 }

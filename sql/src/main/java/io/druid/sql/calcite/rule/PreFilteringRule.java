@@ -27,6 +27,7 @@ import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidRel;
 import org.apache.calcite.plan.RelOptPredicateList;
 import org.apache.calcite.plan.RelOptRule;
@@ -48,7 +49,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Util;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -60,15 +60,6 @@ public class PreFilteringRule extends RelOptRule
   {
     return new PreFilteringRule();
   }
-
-  private static final Set<SqlKind> COMPARISON = EnumSet.of(
-      SqlKind.EQUALS,
-      SqlKind.GREATER_THAN_OR_EQUAL,
-      SqlKind.LESS_THAN_OR_EQUAL,
-      SqlKind.GREATER_THAN,
-      SqlKind.LESS_THAN,
-      SqlKind.NOT_EQUALS
-  );
 
   private final Set<RelNode> visited;
 
@@ -212,7 +203,7 @@ public class PreFilteringRule extends RelOptRule
         }
         RexCall conjCall = (RexCall) conjunction;
         RexNode ref;
-        if (COMPARISON.contains(conjCall.getOperator().getKind())) {
+        if (Utils.COMPARISON.contains(conjCall.getOperator().getKind())) {
           if (conjCall.operands.get(0) instanceof RexInputRef
               && conjCall.operands.get(1) instanceof RexLiteral) {
             ref = conjCall.operands.get(0);

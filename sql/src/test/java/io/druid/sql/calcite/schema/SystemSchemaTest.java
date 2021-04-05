@@ -313,7 +313,7 @@ public class SystemSchemaTest extends CalciteTestBase
     final RelDataType rowType = segmentsTable.getRowType(new JavaTypeFactoryImpl());
     final List<RelDataTypeField> fields = rowType.getFieldList();
 
-    Assert.assertEquals(12, fields.size());
+    Assert.assertEquals(13, fields.size());
 
     final SystemSchema.TasksTable tasksTable = (SystemSchema.TasksTable) schema.getTableMap().get("tasks");
     final RelDataType sysRowType = tasksTable.getRowType(new JavaTypeFactoryImpl());
@@ -442,7 +442,7 @@ public class SystemSchemaTest extends CalciteTestBase
         return CalciteTests.SUPER_USER_AUTH_RESULT;
       }
     };
-    Enumerable<Object[]> rows = segmentsTable.scan(dataContext);
+    Enumerable<Object[]> rows = segmentsTable.scan(dataContext, ImmutableList.of());
     Enumerator<Object[]> enumerator = rows.enumerator();
 
     Assert.assertEquals(true, enumerator.moveNext());

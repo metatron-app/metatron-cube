@@ -68,6 +68,6 @@ public class DruidValuesRule extends ConverterRule
           }
         }
     );
-    return DruidValuesRel.of(rel, converted, null, maker);
+    return DruidValuesRel.of(rel, converted, maker);
   }
 }

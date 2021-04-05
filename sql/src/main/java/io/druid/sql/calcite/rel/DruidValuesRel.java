@@ -30,8 +30,10 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.Set;
 
@@ -41,9 +43,27 @@ public class DruidValuesRel extends DruidRel
   private final Iterable<Object[]> values;
   private final String tableName;
 
-  public static DruidValuesRel of(RelNode source, Iterable<Object[]> values, String tableName, QueryMaker queryMaker)
+  public static DruidValuesRel of(LogicalTableScan source, Iterable<Object[]> values, QueryMaker queryMaker) {
+    return new DruidValuesRel(
+        source.getCluster(),
+        source.getTraitSet(),
+        source,
+        values,
+        StringUtils.join(source.getTable().getQualifiedName(), '.'),
+        queryMaker
+    );
+  }
+
+  public static DruidValuesRel of(RelNode source, Iterable<Object[]> values, QueryMaker queryMaker)
   {
-    return new DruidValuesRel(source.getCluster(), source.getTraitSet(), source, values, tableName, queryMaker);
+    return new DruidValuesRel(
+        source.getCluster(),
+        source.getTraitSet(),
+        source,
+        values,
+        null,
+        queryMaker
+    );
   }
 
   private DruidValuesRel(
@@ -64,7 +84,7 @@ public class DruidValuesRel extends DruidRel
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
-    return planner.getCostFactory().makeTinyCost();
+    return planner.getCostFactory().makeCost(0.000001, 0, 0);   // should be less than scan + filter
   }
 
   @Override

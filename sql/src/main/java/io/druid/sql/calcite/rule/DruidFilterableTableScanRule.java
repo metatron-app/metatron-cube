@@ -19,52 +19,57 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.google.common.collect.ImmutableList;
-import io.druid.sql.calcite.rel.DruidQueryRel;
+import com.google.common.collect.Lists;
+import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.DruidValuesRel;
 import io.druid.sql.calcite.rel.QueryMaker;
-import io.druid.sql.calcite.table.DruidTable;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptTable;
+import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.FilterableTable;
-import org.apache.calcite.schema.ScannableTable;
+import org.apache.calcite.tools.RelBuilder;
 
-public class DruidTableScanRule extends RelOptRule
+import java.util.List;
+
+public class DruidFilterableTableScanRule extends RelOptRule
 {
   private final QueryMaker queryMaker;
 
-  public DruidTableScanRule(final QueryMaker queryMaker)
+  public DruidFilterableTableScanRule(final QueryMaker queryMaker)
   {
-    super(operand(LogicalTableScan.class, any()));
+    super(
+        operand(
+            LogicalFilter.class,
+            some(
+                DruidRel.of(
+                    LogicalTableScan.class,
+                    scan -> scan.getTable().unwrap(FilterableTable.class) != null
+                )
+            )
+        )
+    );
     this.queryMaker = queryMaker;
   }
 
   @Override
   public void onMatch(final RelOptRuleCall call)
   {
-    final LogicalTableScan scan = call.rel(0);
+    final LogicalFilter filter = call.rel(0);
+    final LogicalTableScan scan = call.rel(1);
+
     final RelOptTable table = scan.getTable();
-    final DruidTable druidTable = table.unwrap(DruidTable.class);
-    if (druidTable != null) {
-      call.transformTo(
-          DruidQueryRel.fullScan(scan, table, druidTable, queryMaker)
-      );
-    } else {
-      final ScannableTable scannable = table.unwrap(ScannableTable.class);
-      if (scannable != null) {
-        call.transformTo(
-            DruidValuesRel.of(scan, scannable.scan(null), queryMaker)
-        );
-      } else {
-        final FilterableTable filterable = table.unwrap(FilterableTable.class);
-        if (filterable != null) {
-          call.transformTo(
-              DruidValuesRel.of(scan, filterable.scan(null, ImmutableList.of()), queryMaker)
-          );
-        }
-      }
+    final List<RexNode> filters = Lists.newArrayList(Utils.decomposeOnAnd(filter.getCondition()));
+    final DruidValuesRel valuesRel = DruidValuesRel.of(
+        scan, table.unwrap(FilterableTable.class).scan(null, filters), queryMaker
+    );
+    final RelBuilder relBuilder = call.builder().push(valuesRel);
+    if (!filters.isEmpty()) {
+      relBuilder.filter(filters.toArray(new RexNode[0]));
     }
+    call.transformTo(relBuilder.build());
   }
 }
