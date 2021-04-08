@@ -172,7 +172,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
         List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
         List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
-        int[][] grouping = new int[][]{};
+        int[][] grouping = GroupingSetSpec.EMPTY_INDEX;
         if (groupingSets != null) {
           grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
         }

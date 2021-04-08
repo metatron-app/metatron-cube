@@ -19,9 +19,8 @@
 
 package io.druid.segment.data;
 
+import io.druid.common.guava.BufferRef;
 import io.druid.segment.Tools;
-
-import java.nio.ByteBuffer;
 
 // common interface of non-compressed(GenericIndexed) and compressed dictionary
 public interface Dictionary<T> extends Indexed.Closeable<T>
@@ -32,7 +31,7 @@ public interface Dictionary<T> extends Indexed.Closeable<T>
 
   byte[] getAsRaw(int index);
 
-  ByteBuffer getAsBuffer(int index);
+  BufferRef getAsRef(int index);
 
   <R> R apply(int index, Tools.Function<R> function);
 

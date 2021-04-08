@@ -624,18 +624,20 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
       for (int i = HEADER_NUM_BYTES; i < context.NUM_BYTES_FOR_DENSE_STORAGE; i++) {
         final byte v = array[offset + i];
         if (v != 0) {
-          writeShort(output, x, i);
-          output[x + Short.BYTES] = v;
-          x += SPARSE_BUCKET_SIZE;
+          // same as writeShort() but seemed not inlined
+          output[x++] = (byte) (i >>> Byte.SIZE & 0xff);
+          output[x++] = (byte) (i & 0xff);
+          output[x++] = v;
         }
       }
     } else {
       for (int i = HEADER_NUM_BYTES; i < context.NUM_BYTES_FOR_DENSE_STORAGE; i++) {
         final byte v = storageBuffer.get(i);
         if (v != 0) {
-          writeShort(output, x, i);
-          output[x + Short.BYTES] = v;
-          x += SPARSE_BUCKET_SIZE;
+          // same as writeShort() but seemed not inlined
+          output[x++] = (byte) (i >>> Byte.SIZE & 0xff);
+          output[x++] = (byte) (i & 0xff);
+          output[x++] = v;
         }
       }
     }
@@ -889,7 +891,7 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
   @Override
   public void collect(DimensionSelector.Scannable scannable)
   {
-    add(scannable.<long[]>apply((buffer, offset, length) -> Murmur3.hash128(buffer, offset, length)));
+    add(scannable.<long[]>apply((ix, buffer, offset, length) -> Murmur3.hash128(buffer, offset, length)));
   }
 
   public static int getUnsignedShort(ByteBuffer bb)

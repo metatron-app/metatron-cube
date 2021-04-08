@@ -30,6 +30,6 @@ public interface Tools
 
   public interface Function<T>
   {
-    T apply(ByteBuffer buffer, int offset, int length);
+    T apply(int number, ByteBuffer buffer, int offset, int length);
   }
 }

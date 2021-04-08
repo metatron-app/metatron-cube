@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.cache.Cache;
 import io.druid.common.Intervals;
+import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -65,7 +66,6 @@ import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.function.IntFunction;
 
@@ -863,9 +863,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public ByteBuffer getAsBuffer()
+                            public BufferRef getAsRef()
                             {
-                              return dictionary.getAsBuffer(columnVals.getSingleValueRow(cursorOffset.getOffset()));
+                              return dictionary.getAsRef(columnVals.getSingleValueRow(cursorOffset.getOffset()));
                             }
                           };
                         }

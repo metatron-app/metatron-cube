@@ -310,17 +310,17 @@ public class Parser
   {
     switch (op) {
       case "<":
-        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) < 0);
+        return x -> ExprEval.of(left.getAsRef().compareTo(right.getAsRef()) < 0);
       case "<=":
-        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) <= 0);
+        return x -> ExprEval.of(left.getAsRef().compareTo(right.getAsRef()) <= 0);
       case ">":
-        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) > 0);
+        return x -> ExprEval.of(left.getAsRef().compareTo(right.getAsRef()) > 0);
       case ">=":
-        return x -> ExprEval.of(left.getAsBuffer().compareTo(right.getAsBuffer()) >= 0);
+        return x -> ExprEval.of(left.getAsRef().compareTo(right.getAsRef()) >= 0);
       case "==":
-        return x -> ExprEval.of(left.getAsBuffer().equals(right.getAsBuffer()));
+        return x -> ExprEval.of(left.getAsRef().equals(right.getAsRef()));
       case "!=":
-        return x -> ExprEval.of(!left.getAsBuffer().equals(right.getAsBuffer()));
+        return x -> ExprEval.of(!left.getAsRef().equals(right.getAsRef()));
     }
     return null;
   }

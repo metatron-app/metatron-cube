@@ -84,13 +84,13 @@ public class CountMinAggregatorFactory extends HashAggregatorFactory
   {
     if (combine) {
       return Aggregators.asAggregator(
-          combiner(), columnFactory.<CountMinSketch>makeObjectColumnSelector(Iterables.getOnlyElement(fieldNames))
+          combiner(), columnFactory.makeObjectColumnSelector(Iterables.getOnlyElement(fieldNames))
       );
     }
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
     List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
-    int[][] grouping = new int[][]{};
+    int[][] grouping = GroupingSetSpec.EMPTY_INDEX;
     if (groupingSets != null) {
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }
@@ -104,13 +104,13 @@ public class CountMinAggregatorFactory extends HashAggregatorFactory
   {
     if (combine) {
       return CountMinBufferAggregator.combiner(
-          columnFactory.<CountMinSketch>makeObjectColumnSelector(Iterables.getOnlyElement(fieldNames)), width, depth
+          columnFactory.makeObjectColumnSelector(Iterables.getOnlyElement(fieldNames)), width, depth
       );
     }
     List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
     List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);
 
-    int[][] grouping = new int[][]{};
+    int[][] grouping = GroupingSetSpec.EMPTY_INDEX;
     if (groupingSets != null) {
       grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
     }

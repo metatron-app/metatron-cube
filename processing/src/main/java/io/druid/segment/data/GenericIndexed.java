@@ -20,6 +20,7 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
+import io.druid.common.guava.BufferRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
@@ -155,9 +156,9 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   @Override
-  public ByteBuffer getAsBuffer(int index)
+  public BufferRef getAsRef(int index)
   {
-    return bufferIndexed.getAsBuffer(index);
+    return bufferIndexed.getAsRef(index);
   }
 
   @Override
@@ -331,7 +332,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         startOffset = 4;
         endOffset = copyBuffer.getInt(indexOffset);
       } else {
-        copyBuffer.position(indexOffset + ((index - 1) * 4));
+        copyBuffer.position(indexOffset + (index - 1) * 4);
         startOffset = copyBuffer.getInt() + 4;
         endOffset = copyBuffer.getInt();
       }
@@ -345,23 +346,20 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return array;
     }
 
-    public final ByteBuffer getAsBuffer(final int index)
+    public final BufferRef getAsRef(final int index)
     {
-      final ByteBuffer copyBuffer = bufferForRead();
       final int startOffset;
       final int endOffset;
 
       if (index == 0) {
         startOffset = 4;
-        endOffset = copyBuffer.getInt(indexOffset);
+        endOffset = theBuffer.getInt(indexOffset);
       } else {
-        copyBuffer.position(indexOffset + ((index - 1) * 4));
-        startOffset = copyBuffer.getInt() + 4;
-        endOffset = copyBuffer.getInt();
+        final int offset = indexOffset + (index - 1) * 4;
+        startOffset = theBuffer.getInt(offset) + 4;
+        endOffset = theBuffer.getInt(offset + Integer.BYTES);
       }
-      copyBuffer.limit(valuesOffset + endOffset);
-      copyBuffer.position(valuesOffset + startOffset);
-      return copyBuffer.slice();
+      return BufferRef.of(theBuffer, valuesOffset + startOffset, valuesOffset + endOffset);
     }
 
     public final <R> R apply(final int index, final Tools.Function<R> function)
@@ -374,11 +372,11 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         startOffset = 4;
         endOffset = copyBuffer.getInt(indexOffset);
       } else {
-        copyBuffer.position(indexOffset + ((index - 1) * 4));
-        startOffset = copyBuffer.getInt() + 4;
-        endOffset = copyBuffer.getInt();
+        final int offset = indexOffset + (index - 1) * 4;
+        startOffset = copyBuffer.getInt(offset) + 4;
+        endOffset = copyBuffer.getInt(offset + Integer.BYTES);
       }
-      return function.apply(copyBuffer, valuesOffset + startOffset, endOffset - startOffset);
+      return function.apply(index, copyBuffer, valuesOffset + startOffset, endOffset - startOffset);
     }
 
     public final int copyTo(final int index, final BytesOutputStream output)

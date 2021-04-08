@@ -24,7 +24,6 @@ import io.druid.data.ValueDesc;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -70,7 +69,7 @@ public class DSuppliers
   {
     byte[] getRaw();
 
-    ByteBuffer getAsBuffer();
+    BufferRef getAsRef();
   }
 
   public static <T> Supplier<T> of(final AtomicReference<T> ref)

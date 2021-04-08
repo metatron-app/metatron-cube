@@ -684,7 +684,7 @@ public class Queries
     ItemsUnion union = null;
     for (Segment segment : segments) {
       union = segment.asStorageAdapter(true).makeCursors(query, cache).accumulate(union, (current, cursor) -> {
-        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(4096, comparator);
+        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(4096, GuavaUtils.noNullableNatural());
         DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
         ItemsSketch.rand.setSeed(0);
         if (selector instanceof DimensionSelector.Scannable) {
