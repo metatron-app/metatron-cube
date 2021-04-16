@@ -177,18 +177,16 @@ public class Expressions
         } else if (SqlTypeFamily.INTERVAL_DAY_TIME == sqlTypeName.getFamily()) {
           // Calcite represents DAY-TIME intervals in milliseconds.
           final long milliseconds = ((Number) value).longValue();
-          return DruidExpression.fromExpression(DruidExpression.numberLiteral(milliseconds));
+          return DruidExpression.numberLiteral(milliseconds);
         } else if (SqlTypeFamily.INTERVAL_YEAR_MONTH == sqlTypeName.getFamily()) {
           // Calcite represents YEAR-MONTH intervals in months.
           final long months = ((Number) value).longValue();
-          return DruidExpression.fromExpression(DruidExpression.numberLiteral(months));
+          return DruidExpression.numberLiteral(months);
         } else if (SqlTypeName.STRING_TYPES.contains(sqlTypeName)) {
           return DruidExpression.fromExpression(DruidExpression.stringLiteral(RexLiteral.stringValue(rexNode)));
         } else if (SqlTypeName.TIMESTAMP == sqlTypeName || SqlTypeName.DATE == sqlTypeName) {
-          return DruidExpression.fromExpression(
-              DruidExpression.numberLiteral(
-                  Calcites.calciteDateTimeLiteralToJoda(rexNode, plannerContext.getTimeZone()).getMillis()
-              )
+          return DruidExpression.numberLiteral(
+              Calcites.calciteDateTimeLiteralToJoda(rexNode, plannerContext.getTimeZone()).getMillis()
           );
         } else if (SqlTypeName.BOOLEAN == sqlTypeName) {
           return DruidExpression.fromExpression(String.valueOf(RexLiteral.booleanValue(rexNode)));

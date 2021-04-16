@@ -25,7 +25,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -34,7 +33,6 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.Pair;
-
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.BySegmentResultValueClass;
@@ -112,6 +110,11 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   public <T> QueryRunner<T> handle(Query<T> query, QueryRunner<T> baseRunner)
   {
     return handler.wrapForward(query, baseRunner);
+  }
+
+  public ForwardHandler getForwardHandler()
+  {
+    return handler;
   }
 
   private static class PopulatingMap
@@ -202,7 +205,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         new DruidNode("test", "test", 0),
         objectMapper,
         asWarehouse(queryConfig, conglomerate),
-        ImmutableMap.<String, StorageHandler>of("file", new LocalStorageHandler(objectMapper)),
+        GuavaUtils.mutableMap("file", new LocalStorageHandler(objectMapper)),
         this
     );
     this.hook = hook;

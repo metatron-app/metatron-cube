@@ -513,7 +513,7 @@ public class PartialDruidQuery
   private boolean supports(Project project)
   {
     for (RexNode rexNode : project.getProjects()) {
-      if (rexNode instanceof RexOver || rexNode instanceof RexSubQuery) {
+      if (rexNode instanceof RexSubQuery || RexOver.containsOver(project.getProjects(), null)) {
         return false;
       }
     }

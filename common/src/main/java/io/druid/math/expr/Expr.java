@@ -69,6 +69,7 @@ public interface Expr extends Expression
     ExprEval evaluate(int index, Expr expr);
     Iterable<Object> iterator(Expr expr);
     Iterable<Object> iterator(int startRel, int endRel, Expr expr);
+    int size(int startRel, int endRel);
     int size();
     int index();
     boolean hasMore();

@@ -62,6 +62,7 @@ import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.VirtualColumn;
@@ -438,8 +439,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     for (int i = 0; i < compareTo; i++) {
       final Object[] expected = expectedResults.get(i);
       final Object[] actual = rows.get(i);
-      final int masked = Arrays.asList(expected).indexOf(MASKED);
-      if (masked >= 0) {
+      for (final int masked : GuavaUtils.indicesOf(Arrays.asList(expected), MASKED)) {
         expected[masked] = actual[masked] = null;
       }
       try {
@@ -631,6 +631,11 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   protected static GroupByQuery.Builder newGroupBy()
   {
     return GroupByQuery.builder();
+  }
+
+  protected static TimeseriesQuery.Builder newTimeseries()
+  {
+    return TimeseriesQuery.builder();
   }
 
   protected static Druids.JoinQueryBuilder newJoin()

@@ -48,6 +48,7 @@ import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.load.LoadQuery;
 import io.druid.segment.IndexSpec;
+import io.druid.segment.column.Column;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
@@ -271,15 +272,23 @@ public class DruidPlanner implements Closeable, ForwardConstants
     }
     IncrementalIndexSchema schema = IncrementalIndexSchema.from(rowSignature, mapping);
 
-    Map<String, Object> context = Maps.newHashMap();
-    context.put(Query.FORWARD_URL, LOCAL_TEMP_URL);
-    context.put(Query.FORWARD_CONTEXT, GuavaUtils.mutableMap(
+    Map<String, Object> forwardContext = GuavaUtils.mutableMap(
         FORMAT, INDEX_FORMAT,
         DATASOURCE, dataSource,
         REGISTER_TABLE, true,
         TEMPORARY, temporary,
         SCHEMA, schema
-    ));
+    );
+    // extract timestamp column
+    for (Map.Entry<String, String> entry : mapping.entrySet()) {
+      if (entry.getValue().equals(Column.TIME_COLUMN_NAME)) {
+        forwardContext.put(TIMESTAMP_COLUMN, entry.getKey());
+        break;
+      }
+    }
+    Map<String, Object> context = ImmutableMap.of(
+        Query.FORWARD_URL, LOCAL_TEMP_URL, Query.FORWARD_CONTEXT, forwardContext
+    );
     Query<Map<String, Object>> query = queryMaker.prepareQuery(
         druidQuery.getQuery().withOverriddenContext(context)
     );

@@ -88,6 +88,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   private static final Logger log = new Logger(CalciteQueryTest.class);
 
   private static final String LOS_ANGELES = "America/Los_Angeles";
+  private static final DateTimeZone LOS_ANGELES_DTZ = DateTimeZone.forID(LOS_ANGELES);
 
   private static final Map<String, Object> QUERY_CONTEXT_DONT_SKIP_EMPTY_BUCKETS = ImmutableMap.<String, Object>of(
       PlannerContext.CTX_SQL_CURRENT_TIMESTAMP, "2000-01-01T00:00:00Z",
@@ -4353,7 +4354,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "ORDER BY gran",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.months(1), null, DateTimeZone.forID(LOS_ANGELES)))
+              .granularity(PeriodGranularity.of(Period.months(1), LOS_ANGELES_DTZ))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(
                   EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
@@ -4488,7 +4489,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "ORDER BY gran",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.months(1), null, DateTimeZone.forID(LOS_ANGELES)))
+              .granularity(PeriodGranularity.of(Period.months(1), LOS_ANGELES_DTZ))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(
                   EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
@@ -4517,7 +4518,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "ORDER BY gran",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.months(1), null, DateTimeZone.forID(LOS_ANGELES)))
+              .granularity(PeriodGranularity.of(Period.months(1), LOS_ANGELES_DTZ))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(
                   EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','America/Los_Angeles')")
@@ -4554,7 +4555,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
               .intervals(QSS(Intervals.of("2000/2000-01-02")))
-              .granularity(new PeriodGranularity(Period.hours(1), null, DateTimeZone.UTC))
+              .granularity(PeriodGranularity.of(Period.hours(1)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'PT1H','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
@@ -4601,7 +4602,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "ORDER BY dt",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.days(1), null, DateTimeZone.UTC))
+              .granularity(PeriodGranularity.of(Period.days(1)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
@@ -4628,7 +4629,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "ORDER BY dt",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.months(3), null, DateTimeZone.UTC))
+              .granularity(PeriodGranularity.of(Period.months(3)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P3M','','UTC')"))
               .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
@@ -4688,6 +4689,78 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   }
 
   @Test
+  public void testComplexWindow() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_NO_TOPN,
+        "SELECT T, S FROM ("
+        + "  SELECT T, sum(S) over W as S, count(S) over W as C FROM ("
+        + "    SELECT TIME_FLOOR(__time, 'P6M') as T, sum(Profit) as S FROM sales GROUP BY TIME_FLOOR(__time, 'P6M')"
+        + "  ) WINDOW W as (ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)"
+        + ") WHERE C = 2",
+        newScan()
+            .dataSource(
+                newTimeseries()
+                    .dataSource("sales")
+                    .granularity(PeriodGranularity.of(Period.months(6)))
+                    .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "Profit"))
+                    .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P6M','','UTC')"))
+                    .limitSpec(
+                        LimitSpec.of(WindowingSpec.expressions("\"w0$o0\" = $COUNT(a0,-1,0)","\"w0$o1\" = $SUM0(a0,-1,0)"))
+                                 .withAlias(ImmutableMap.of("d0", "T" ,"a0", "S"))
+                    )
+                    .outputColumns("T","S","w0$o0","w0$o1")
+                    .build()
+            )
+            .virtualColumns(EXPR_VC("v0", "case((\"w0$o0\" > 0),\"w0$o1\",'')"))
+            .filters(SELECTOR("w0$o0", "2"))
+            .columns("T","v0")
+            .streaming(),
+        new Object[]{T("2011-07-01"), 49520.0},
+        new Object[]{T("2012-01-01"), 55981.0},
+        new Object[]{T("2012-07-01"), 61606.0},
+        new Object[]{T("2013-01-01"), 67674.0},
+        new Object[]{T("2013-07-01"), 81721.0},
+        new Object[]{T("2014-01-01"), 93134.0},
+        new Object[]{T("2014-07-01"), 93500.0}
+    );
+
+    testQuery(
+        PLANNER_CONFIG_NO_TOPN,
+        "SELECT T, S FROM ("
+        + "  SELECT T, sum(S) over W as S, count(S) over W as C FROM ("
+        + "    SELECT TIME_CEIL(__time, 'P6M') as T, sum(Profit) as S FROM sales GROUP BY TIME_CEIL(__time, 'P6M')"
+        + "  ) WINDOW W as (ROWS BETWEEN 1 PRECEDING AND CURRENT ROW)"
+        + ") WHERE C = 2",
+        newScan()
+            .dataSource(
+                newTimeseries()
+                    .dataSource("sales")
+                    .granularity(PeriodGranularity.of(Period.months(6)))
+                    .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "Profit"))
+                    .postAggregators(EXPR_POST_AGG("d0", "timestamp_ceil(__time,'P6M','','UTC')"))
+                    .limitSpec(
+                        LimitSpec.of(WindowingSpec.expressions("\"w0$o0\" = $COUNT(a0,-1,0)","\"w0$o1\" = $SUM0(a0,-1,0)"))
+                                 .withAlias(ImmutableMap.of("d0", "T" ,"a0", "S"))
+                    )
+                    .outputColumns("T","S","w0$o0","w0$o1")
+                    .build()
+            )
+            .virtualColumns(EXPR_VC("v0", "case((\"w0$o0\" > 0),\"w0$o1\",'')"))
+            .filters(SELECTOR("w0$o0", "2"))
+            .columns("T","v0")
+            .streaming(),
+        new Object[]{T("2012-01-01"), 49520.0},
+        new Object[]{T("2012-07-01"), 55981.0},
+        new Object[]{T("2013-01-01"), 61606.0},
+        new Object[]{T("2013-07-01"), 67674.0},
+        new Object[]{T("2014-01-01"), 81721.0},
+        new Object[]{T("2014-07-01"), 93134.0},
+        new Object[]{T("2015-01-01"), 93500.0}
+    );
+  }
+
+  @Test
   public void testGroupByExtractYear() throws Exception
   {
     testQuery(
@@ -4743,7 +4816,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "GROUP BY EXTRACT(YEAR FROM FLOOR(__time TO YEAR))",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.parse("P1Y"), null, DateTimeZone.UTC))
+              .granularity(PeriodGranularity.of(Period.years(1)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .postAggregators(
                   EXPR_POST_AGG("d0", "timestamp_extract('YEAR',timestamp_floor(__time,'P1Y','','UTC'),'UTC')")
@@ -4767,9 +4840,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "GROUP BY EXTRACT(YEAR FROM FLOOR(__time TO YEAR))",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(
-                  new PeriodGranularity(Period.parse("P1Y"), null, DateTimeZone.forID("America/Los_Angeles"))
-              )
+              .granularity(PeriodGranularity.of(Period.years(1), LOS_ANGELES_DTZ))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .postAggregators(
                   EXPR_POST_AGG(
@@ -4800,7 +4871,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "LIMIT 1",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.parse("P1M"), null, DateTimeZone.UTC))
+              .granularity(PeriodGranularity.of(Period.months(1)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(1, OrderByColumnSpec.asc("d0")))
@@ -4823,7 +4894,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "LIMIT 1",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.parse("P1M"), null, DateTimeZone.UTC))
+              .granularity(PeriodGranularity.of(Period.months(1)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(1))
@@ -4847,7 +4918,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "LIMIT 1",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .granularity(new PeriodGranularity(Period.parse("P1M"), null, DateTimeZone.UTC))
+              .granularity(PeriodGranularity.of(Period.months(1)))
               .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
               .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1M','','UTC')"))
               .limitSpec(LimitSpec.of(1, OrderByColumnSpec.asc("d0")))

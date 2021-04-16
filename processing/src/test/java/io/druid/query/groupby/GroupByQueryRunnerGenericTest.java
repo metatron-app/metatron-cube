@@ -452,7 +452,9 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     results = runQuery(query, false);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    LimitSpec limitSpec = new LimitSpec(OrderByColumnSpec.descending("idx"), 5, OrderedLimitSpec.of(2), null, null);
+    LimitSpec limitSpec = new LimitSpec(
+        OrderByColumnSpec.descending("idx"), 5, OrderedLimitSpec.of(2), null, null, null
+    );
     expectedResults = createExpectedRows(
         columnNames,
         array("1970-01-01T00:00:00.000Z", "mezzanine", 279L, 217586L),
@@ -5388,7 +5390,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
                     PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
-                             .withPartitionExpressions(PartitionExpression.of("_ = $sum(_)"))
+                             .withPartitionExpressions(PartitionExpression.of("_ = $sum0(_)"))
                 )
             )
         )
@@ -6109,7 +6111,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                             PivotColumnSpec.ofExpression("market"),
                             PivotColumnSpec.ofExpression("quality")
                         ), "index"
-                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum(_)")
+                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum0(_)")
                     ).withAppendValueColumn(true)
                 )
             )
@@ -6157,7 +6159,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                             PivotColumnSpec.ofExpression("market"),
                             PivotColumnSpec.ofExpression("quality")
                         ), "index"
-                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum(_)")
+                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum0(_)")
                     ).withAppendValueColumn(true).withNullValue("X")
                 )
             )

@@ -55,7 +55,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
 {
   public static WindowingSpec expressions(String... expressions)
   {
-    return new WindowingSpec(null, null, true, Arrays.asList(expressions), null, null);
+    return new WindowingSpec(null, null, false, Arrays.asList(expressions), null, null);
   }
 
   private final List<String> partitionColumns;

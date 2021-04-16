@@ -88,6 +88,11 @@ public class ForwardHandler implements ForwardConstants
     return scheme.equals("null") ? StorageHandler.NULL : handlerMap.get(scheme);
   }
 
+  public Map<String, StorageHandler> getHandlerMap()
+  {
+    return handlerMap;
+  }
+
   @SuppressWarnings("unchecked")
   public <T> QueryRunner<T> wrapForward(final Query<T> query, final QueryRunner<T> baseRunner)
   {

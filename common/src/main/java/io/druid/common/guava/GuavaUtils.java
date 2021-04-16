@@ -33,6 +33,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
+import io.druid.collections.IntList;
 import io.druid.common.IntTagged;
 import io.druid.common.Progressing;
 import io.druid.concurrent.PrioritizedCallable;
@@ -392,6 +393,20 @@ public class GuavaUtils
       indices[i] = x;
     }
     return indices;
+  }
+
+  public static int[] indicesOf(List list, Object indexing)
+  {
+    final IntList indices = new IntList();
+    for (int i = 0; !list.isEmpty(); i++) {
+      int x = list.indexOf(indexing);
+      if (x < 0) {
+        break;
+      }
+      indices.add(i += x);
+      list = list.subList(x + 1, list.size());
+    }
+    return indices.array();
   }
 
   public static <T> Pair<List<T>, List<T>> partition(Iterable<T> iterable, Predicate<T> predicate)

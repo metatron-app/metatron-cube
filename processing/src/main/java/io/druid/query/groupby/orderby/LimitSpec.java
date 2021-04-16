@@ -29,16 +29,18 @@ import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.select.StreamQuery;
@@ -47,6 +49,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = LimitSpec.class)
 @JsonSubTypes(value = {
@@ -107,8 +110,9 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
   private final OrderedLimitSpec segmentLimit;
   private final OrderedLimitSpec nodeLimit;
   private final List<WindowingSpec> windowingSpecs;
+  private final Map<String, String> alias;
 
-  private final Supplier<RowResolver> resolver;
+  private final Supplier<? extends TypeResolver> resolver;
 
   @JsonCreator
   public LimitSpec(
@@ -116,40 +120,43 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
       @JsonProperty("limit") Integer limit,
       @JsonProperty("segmentLimit") OrderedLimitSpec segmentLimit,
       @JsonProperty("nodeLimit") OrderedLimitSpec nodeLimit,
-      @JsonProperty("windowingSpecs") List<WindowingSpec> windowingSpecs
+      @JsonProperty("windowingSpecs") List<WindowingSpec> windowingSpecs,
+      @JsonProperty("alias") Map<String, String> alias
   )
   {
-    this(columns, limit, segmentLimit, nodeLimit, windowingSpecs, null);
+    this(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, null);
   }
 
   public LimitSpec(List<OrderByColumnSpec> columns, Integer limit, List<WindowingSpec> windowingSpecs)
   {
-    this(columns, limit, null, null, windowingSpecs);
+    this(columns, limit, null, null, windowingSpecs, null);
   }
 
   public LimitSpec(List<OrderByColumnSpec> columns, Integer limit)
   {
-    this(columns, limit, null, null, null);
+    this(columns, limit, null, null, null, null);
   }
 
   public LimitSpec(List<WindowingSpec> windowingSpecs)
   {
-    this(null, null, null, null, windowingSpecs);
+    this(null, null, null, null, windowingSpecs, null);
   }
 
-  private LimitSpec(
+  public LimitSpec(
       List<OrderByColumnSpec> columns,
       Integer limit,
       OrderedLimitSpec segmentLimit,
       OrderedLimitSpec nodeLimit,
       List<WindowingSpec> windowingSpecs,
-      Supplier<RowResolver> resolver
+      Map<String, String> alias,
+      Supplier<? extends TypeResolver> resolver
   )
   {
     super(columns, limit);
     this.segmentLimit = segmentLimit;
     this.nodeLimit = nodeLimit;
     this.windowingSpecs = windowingSpecs == null ? ImmutableList.<WindowingSpec>of() : windowingSpecs;
+    this.alias = alias == null ? ImmutableMap.of() : alias;
     this.resolver = resolver;
   }
 
@@ -174,9 +181,21 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     return windowingSpecs;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> getAlias()
+  {
+    return alias;
+  }
+
+  public boolean hasResolver()
+  {
+    return resolver != null;
+  }
+
   public LimitSpec withLimit(int limit)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, resolver);
   }
 
   public LimitSpec withWindowing(WindowingSpec... windowingSpecs)
@@ -186,13 +205,13 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
 
   public LimitSpec withWindowing(List<WindowingSpec> windowingSpecs)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, resolver);
   }
 
   @Override
   public LimitSpec withOrderingSpec(List<OrderByColumnSpec> columns)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, resolver);
   }
 
   public LimitSpec withNoLocalProcessing()
@@ -206,36 +225,42 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
         segmentLimit == null ? null : segmentLimit.withOrderingIfNotExists(columns),
         nodeLimit == null ? null : nodeLimit.withOrderingIfNotExists(columns),
         null,
+        null,
         null
     );
   }
 
   public LimitSpec withNoLimiting()
   {
-    return new LimitSpec(columns, null, null, null, windowingSpecs, resolver);
+    return new LimitSpec(columns, null, null, null, windowingSpecs, alias, resolver);
   }
 
-  public LimitSpec withResolver(Supplier<RowResolver> resolver)
+  public LimitSpec withAlias(Map<String, String> alias)
   {
-    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, resolver);
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, resolver);
+  }
+
+  public LimitSpec withResolver(Supplier<? extends TypeResolver> resolver)
+  {
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, resolver);
   }
 
   public Function<Sequence<Row>, Sequence<Row>> build(Query.AggregationsSupport<?> query, boolean sortOnTimeForLimit)
   {
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
-      return sequenceLimiter(limit);
+      return wrapAlias(sequenceLimiter(limit));
     }
     final OrderingProcessor source = OrderingProcessor.from(query);
     if (windowingSpecs.isEmpty()) {
-      return source.toRowLimitFn(columns, sortOnTimeForLimit, limit);
+      return wrapAlias(source.toRowLimitFn(columns, sortOnTimeForLimit, limit));
     }
     final RowSignature resolver = Queries.bestEffortOf(query, true);
     final WindowingProcessor processor = new WindowingProcessor(source, resolver, windowingSpecs);
     final Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, LimitSpec.<Row>toList());
     if (columns.isEmpty()) {
-      return GuavaUtils.sequence(processed, LimitSpec.<Row>listLimiter(limit));
+      return wrapAlias(GuavaUtils.sequence(processed, LimitSpec.<Row>listLimiter(limit)));
     }
-    return GuavaUtils.sequence(processed, new Function<List<Row>, Sequence<Row>>()
+    return wrapAlias(GuavaUtils.sequence(processed, new Function<List<Row>, Sequence<Row>>()
     {
       @Override
       public Sequence<Row> apply(List<Row> input)
@@ -246,6 +271,29 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
         }
         Collections.sort(input, ordering);
         return Sequences.simple(input);
+      }
+    }));
+  }
+
+  private Function<Sequence<Row>, Sequence<Row>> wrapAlias(Function<Sequence<Row>, Sequence<Row>> function)
+  {
+    if (GuavaUtils.isNullOrEmpty(alias)) {
+      return function;
+    }
+    return GuavaUtils.sequence(function, new Function<Sequence<Row>, Sequence<Row>>()
+    {
+      private final List<Map.Entry<String, String>> entries = ImmutableList.copyOf(alias.entrySet());
+
+      @Override
+      public Sequence<Row> apply(Sequence<Row> input)
+      {
+        return Sequences.map(input, row -> {
+          final Row.Updatable updatable = Rows.toUpdatable(row);
+          for (Map.Entry<String, String> entry : entries) {
+            updatable.set(entry.getValue(), updatable.getRaw(entry.getKey()));
+          }
+          return updatable;
+        });
       }
     });
   }
@@ -456,6 +504,9 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     if (!windowingSpecs.equals(limitSpec.windowingSpecs)) {
       return false;
     }
+    if (!alias.equals(limitSpec.alias)) {
+      return false;
+    }
 
     return true;
   }
@@ -467,6 +518,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     result = 31 * result + (segmentLimit != null ? segmentLimit.hashCode() : 0);
     result = 31 * result + (nodeLimit != null ? nodeLimit.hashCode() : 0);
     result = 31 * result + windowingSpecs.hashCode();
+    result = 31 * result + alias.hashCode();
     return result;
   }
 
@@ -479,6 +531,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
            (segmentLimit == null ? "" : ", segmentLimit=" + segmentLimit) +
            (nodeLimit == null ? "" : ", nodeLimit=" + nodeLimit) +
            (windowingSpecs.isEmpty() ? "" : ", windowingSpecs=" + windowingSpecs) +
+           (alias.isEmpty() ? "" : ", alias=" + alias) +
            '}';
   }
 }

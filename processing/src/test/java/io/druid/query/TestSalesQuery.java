@@ -371,7 +371,7 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         array("2011-01-01", "19711", 13L, 0.0, 5572.0),
         array("2011-01-01", "90049", 66L, 4.5, 5353.0)
     );
-    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(10), null, null);
+    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(10), null, null, null);
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
@@ -389,7 +389,7 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         array("2011-01-01", "55407", 21L, 0.0, 6645.0),
         array("2011-01-01", "48205", 12L, 0.1, 6506.0)
     );
-    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, null, OrderedLimitSpec.of(10), null);
+    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, null, OrderedLimitSpec.of(10), null, null);
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
@@ -407,7 +407,9 @@ public class TestSalesQuery extends GroupByQueryRunnerTestHelper
         array("2011-01-01", "98103", 118L, 6.4, 6105.0),
         array("2011-01-01", "94122", 157L, 11.350000000000003, 5968.0)
     );
-    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(15), OrderedLimitSpec.of(15), null);
+    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(15), OrderedLimitSpec.of(15), null,
+                              null
+    );
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

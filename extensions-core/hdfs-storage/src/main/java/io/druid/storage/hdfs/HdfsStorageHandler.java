@@ -51,7 +51,6 @@ import io.druid.granularity.Granularity;
 import io.druid.indexer.hadoop.HadoopInputUtils;
 import io.druid.indexer.path.PathUtil;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryResult;
@@ -342,15 +341,17 @@ public class HdfsStorageHandler implements StorageHandler
               index = newIndex();
             }
             final Object timestamp = in.get(timestampColumn);
+            final MapBasedRow row;
             if (timestamp == null) {
-              index.add(new MapBasedRow(0L, in));
+              row = new MapBasedRow(0L, in);
             } else if (timestamp instanceof DateTime) {
-              index.add(new MapBasedRow((DateTime) timestamp, in));
+              row = new MapBasedRow((DateTime) timestamp, in);
             } else if (timestamp instanceof Number) {
-              index.add(new MapBasedRow(((Number) timestamp).longValue(), in));
+              row = new MapBasedRow(((Number) timestamp).longValue(), in);
             } else {
-              throw new ISE("null or invalid type timestamp column [%s] value [%s]", timestampColumn, timestamp);
+              row = new MapBasedRow(new DateTime(timestamp), in);
             }
+            index.add(row);
           }
           catch (Exception e) {
             throw Throwables.propagate(e);

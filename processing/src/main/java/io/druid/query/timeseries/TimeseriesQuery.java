@@ -52,6 +52,11 @@ import java.util.Map;
 @JsonTypeName("timeseries")
 public class TimeseriesQuery extends BaseAggregationQuery
 {
+  public static Builder builder()
+  {
+    return new Builder();
+  }
+
   @JsonCreator
   public TimeseriesQuery(
       @JsonProperty("dataSource") DataSource dataSource,

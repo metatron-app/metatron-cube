@@ -81,12 +81,7 @@ public class SubstringOperatorConversion implements SqlOperatorConversion
 
     return input.map(
         simpleExtraction -> simpleExtraction.cascade(new SubstringDimExtractionFn(index, length < 0 ? null : length)),
-        expression -> StringUtils.format(
-            "substring(%s, %s, %s)",
-            expression,
-            DruidExpression.numberLiteral(index),
-            DruidExpression.numberLiteral(length)
-        )
+        expression -> StringUtils.format("substring(%s, %s, %s)", expression, index, length)
     );
   }
 }

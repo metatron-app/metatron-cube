@@ -5792,7 +5792,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
                     PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
-                             .withPartitionExpressions(PartitionExpression.of("_ = $sum(_)"))
+                             .withPartitionExpressions(PartitionExpression.of("_ = $sum0(_)"))
                 )
             )
         )
@@ -6291,7 +6291,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                             PivotColumnSpec.ofExpression("market"),
                             PivotColumnSpec.ofExpression("quality")
                         ), "index"
-                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum(_)")
+                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum0(_)")
                     ).withAppendValueColumn(true)
                 )
             )
@@ -6339,7 +6339,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                             PivotColumnSpec.ofExpression("market"),
                             PivotColumnSpec.ofExpression("quality")
                         ), "index"
-                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum(_)")
+                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum0(_)")
                     ).withAppendValueColumn(true).withNullValue("X")
                 )
             )

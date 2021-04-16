@@ -19,30 +19,35 @@
 
 package io.druid.sql.calcite.rel;
 
+import com.google.common.base.Suppliers;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.sql.calcite.table.RowSignature;
 
 import java.util.List;
+import java.util.Map;
 
 public class Limiting
 {
   private final List<WindowingSpec> windowingSpecs;
   private final List<OrderByColumnSpec> columns;
   private final int limit;
+  private final Map<String, String> alias;
   private final RowSignature outputRowSignature;
 
   public Limiting(
       List<WindowingSpec> windowingSpecs,
       List<OrderByColumnSpec> columns,
       Integer limit,
+      Map<String, String> alias,
       RowSignature outputRowSignature
   )
   {
     this.windowingSpecs = windowingSpecs;
     this.columns = columns;
     this.limit = limit != null ? limit : -1;
+    this.alias = alias;
     this.outputRowSignature = outputRowSignature;
   }
 
@@ -63,6 +68,6 @@ public class Limiting
 
   public LimitSpec getLimitSpec()
   {
-    return new LimitSpec(columns, limit, windowingSpecs);
+    return new LimitSpec(columns, limit, null, null, windowingSpecs, alias, Suppliers.ofInstance(outputRowSignature));
   }
 }

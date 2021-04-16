@@ -60,6 +60,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>app.metatron</groupId>
+            <artifactId>druid-sql</artifactId>
+            <version>${project.parent.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>app.metatron.extensions</groupId>
             <artifactId>druid-indexing-hadoop</artifactId>
             <version>${project.parent.version}</version>
@@ -89,9 +95,28 @@
           <scope>test</scope>
         </dependency>
         <dependency>
+          <groupId>org.easymock</groupId>
+          <artifactId>easymock</artifactId>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
           <groupId>app.metatron</groupId>
           <artifactId>druid-server</artifactId>
           <version>${project.parent.version}</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>app.metatron</groupId>
+          <artifactId>druid-processing</artifactId>
+          <version>${project.parent.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>app.metatron</groupId>
+          <artifactId>druid-sql</artifactId>
+          <version>${project.parent.version}</version>
+          <type>test-jar</type>
           <scope>test</scope>
         </dependency>
         <dependency>

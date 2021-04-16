@@ -2746,7 +2746,7 @@ public interface BuiltinFunctions extends Function.Library
       }
 
       @Override
-      public final ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+      public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
       {
         if (window != null) {
           init();
@@ -3022,8 +3022,43 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("$count")
+  class RunningCount extends WindowSupport implements Factory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new WindowSupportFunction(args, context)
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return ExprEval.of(window == null ? context.size() : context.size(window[0], window[1]));
+        }
+
+        @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.LONG;
+        }
+
+        @Override
+        protected void invoke(Object current, WindowContext context)
+        {
+          throw new ISE("invoke");
+        }
+
+        @Override
+        protected ExprEval current(WindowContext context)
+        {
+          throw new ISE("current");
+        }
+      };
+    }
+  }
+
   @Function.Named("$sum")
-  class RunningSum extends WindowSupport implements Factory
+  class RunningSum extends RunningSum0
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
@@ -3031,12 +3066,59 @@ public interface BuiltinFunctions extends Function.Library
       return new RunningSumFunction(args, context);
     }
 
-    class RunningSumFunction extends WindowSupportFunction
+    class RunningSumFunction extends RunningSum0Function
+    {
+      int counter;
+
+      protected RunningSumFunction(List<Expr> args, WindowContext context)
+      {
+        super(args, context);
+      }
+
+      @Override
+      public ValueDesc returns()
+      {
+        return fieldType.type() == ValueType.LONG ? ValueDesc.LONG : ValueDesc.DOUBLE;
+      }
+
+      @Override
+      protected void init()
+      {
+        counter = 0;
+        super.init();
+      }
+
+      protected void invoke(Object current, WindowContext context)
+      {
+        counter++;
+        if (current != null) {
+          super.invoke(current, context);
+        }
+      }
+
+      @Override
+      protected ExprEval current(WindowContext context)
+      {
+        return counter == 0 ? ExprEval.of(null, fieldType) : super.current(context);
+      }
+    }
+  }
+
+  @Function.Named("$sum0")
+  class RunningSum0 extends WindowSupport implements Factory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new RunningSum0Function(args, context);
+    }
+
+    class RunningSum0Function extends WindowSupportFunction
     {
       private long longSum;
       private double doubleSum;
 
-      protected RunningSumFunction(List<Expr> args, WindowContext context)
+      protected RunningSum0Function(List<Expr> args, WindowContext context)
       {
         super(args, context);
       }
@@ -3309,8 +3391,6 @@ public interface BuiltinFunctions extends Function.Library
 
     class RunningMeanFunction extends RunningSumFunction
     {
-      private int count;
-
       protected RunningMeanFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
@@ -3322,25 +3402,10 @@ public interface BuiltinFunctions extends Function.Library
         return ValueDesc.DOUBLE;
       }
 
-      public void init()
-      {
-        super.init();
-        count = 0;
-      }
-
-      @Override
-      protected void invoke(Object current, WindowContext context)
-      {
-        super.invoke(current, context);
-        if (current != null) {
-          count++;
-        }
-      }
-
       @Override
       protected ExprEval current(WindowContext context)
       {
-        return ExprEval.of(count == 0 ? null : super.current(context).asDouble() / count, ValueDesc.DOUBLE);
+        return ExprEval.of(counter == 0 ? null : super.current(context).asDouble() / counter, ValueDesc.DOUBLE);
       }
     }
   }

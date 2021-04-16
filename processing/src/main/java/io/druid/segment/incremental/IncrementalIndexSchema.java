@@ -68,12 +68,17 @@ public class IncrementalIndexSchema
       String outputName = mapping.getOrDefault(dimension, dimension);
       dimensionSchemas.add(DimensionSchema.of(outputName, dimension, ValueType.STRING));
     }
+    boolean stringAsDimension = dimensionSchemas.isEmpty();
     List<AggregatorFactory> merics = Lists.newArrayList();
     for (Pair<String, ValueDesc> pair : signature.metricAndTypes()) {
       String metricName = pair.lhs;
-      if (!metricName.equals(Column.TIME_COLUMN_NAME)) {
-        String outputName = mapping.getOrDefault(metricName, metricName);
-        merics.add(new RelayAggregatorFactory(outputName, metricName, pair.rhs.typeName()));
+      String outputName = mapping.getOrDefault(metricName, metricName);
+      if (!outputName.equals(Column.TIME_COLUMN_NAME)) {
+        if (stringAsDimension && pair.rhs.isString()) {
+          dimensionSchemas.add(DimensionSchema.of(outputName, metricName, ValueType.STRING));
+        } else {
+          merics.add(new RelayAggregatorFactory(outputName, metricName, pair.rhs.typeName()));
+        }
       }
     }
     return new IncrementalIndexSchema.Builder()

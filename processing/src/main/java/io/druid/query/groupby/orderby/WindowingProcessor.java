@@ -24,9 +24,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.query.ordering.Accessor;
@@ -54,7 +54,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     this.context = WindowContext.newInstance(schema.getColumnNames(), GuavaUtils.asMap(schema.columnAndTypes()));
   }
 
-  public WindowingProcessor(StreamQuery query, RowResolver resolver, List<WindowingSpec> windowingSpecs)
+  public WindowingProcessor(StreamQuery query, TypeResolver resolver, List<WindowingSpec> windowingSpecs)
   {
     Map<String, ValueDesc> typeMap = Maps.newHashMap();
     Map<String, Comparator> comparatorMap = Maps.newHashMap();

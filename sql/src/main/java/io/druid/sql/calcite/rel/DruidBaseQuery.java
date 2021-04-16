@@ -57,6 +57,7 @@ import io.druid.query.topn.NumericTopNMetricSpec;
 import io.druid.query.topn.TopNMetricSpec;
 import io.druid.query.topn.TopNQuery;
 import io.druid.segment.VirtualColumn;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.DimensionExpression;
@@ -363,10 +364,34 @@ public class DruidBaseQuery implements DruidQuery
             throw new UnsupportedOperationException("not supports " + orderKey.getDirection());
         }
       }
+      int startIx;
+      if (group.lowerBound.isCurrentRow()) {
+        startIx = 0;
+      } else if (group.lowerBound.isUnbounded()) {
+        startIx = Integer.MIN_VALUE;
+      } else {
+        startIx = ((Number) RexLiteral.value(window.getConstants().get(
+            Utils.getInputRef(group.lowerBound.getOffset()) - rowOrdering.size()
+        ))).intValue();
+      }
+      int endIx;
+      if (group.upperBound.isCurrentRow()) {
+        endIx = 0;
+      } else if (group.upperBound.isUnbounded()) {
+        endIx = Integer.MAX_VALUE;
+      } else {
+        endIx = ((Number) RexLiteral.value(window.getConstants().get(
+            Utils.getInputRef(group.upperBound.getOffset()) - rowOrdering.size()
+        ))).intValue();
+      }
       for (AggregateCall aggCall : group.getAggregateCalls(window)) {
         final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
             plannerContext, sourceRowSignature, aggCall, null
         );
+        if (startIx != Integer.MIN_VALUE && endIx != Integer.MAX_VALUE) {
+          arguments.add(DruidExpression.numberLiteral(-startIx));
+          arguments.add(DruidExpression.numberLiteral(endIx));
+        }
         final String functionName = aggCall.getAggregation().getName();
         final String expression = DruidExpression.functionCall(
             !functionName.startsWith("$") ? "$" + functionName : functionName, arguments    // hack
@@ -645,10 +670,19 @@ public class DruidBaseQuery implements DruidQuery
         windowingSpecs.add(windowing.asSpec());
       }
       outputRowSignature = GuavaUtils.lastOf(windowings).getOutputRowSignature();
+      // window only appends aggregate rows (see LogicalWindow.create)
     }
 
+    List<String> inputColumns = inputRowSignature.getColumnNames();
+    List<String> outputColumns = outputRowSignature.getColumnNames();
+    Map<String, String> alias = Maps.newHashMap();
+    for (int i = 0; i < inputColumns.size(); i++) {
+      if (!inputColumns.get(i).equals(outputColumns.get(i))) {
+        alias.put(inputColumns.get(i), outputColumns.get(i));
+      }
+    }
     if (sort == null) {
-      return new Limiting(windowingSpecs, null, -1, outputRowSignature);
+      return new Limiting(windowingSpecs, null, -1, alias, outputRowSignature);
     }
 
     final Integer limit = sort.fetch != null ? RexLiteral.intValue(sort.fetch) : null;
@@ -660,7 +694,7 @@ public class DruidBaseQuery implements DruidQuery
 
     // Extract orderBy column specs.
     final List<OrderByColumnSpec> orderings = asOrderingSpec(sort, inputRowSignature);
-    return new Limiting(windowingSpecs, orderings, limit, outputRowSignature);
+    return new Limiting(windowingSpecs, orderings, limit, alias, outputRowSignature);
   }
 
   private static List<OrderByColumnSpec> asOrderingSpec(Sort sort, RowSignature rowSignature)
@@ -823,7 +857,7 @@ public class DruidBaseQuery implements DruidQuery
         // Timeseries only applies if the single dimension is granular __time.
         return null;
       }
-      if (limiting != null && !limiting.getColumns().isEmpty()) {
+      if (limiting != null && !GuavaUtils.isNullOrEmpty(limiting.getColumns())) {
         List<OrderByColumnSpec> columns = limiting.getColumns();
         // We're ok if the first order by is time (since every time value is distinct, the rest of the columns
         // wouldn't matter anyway).

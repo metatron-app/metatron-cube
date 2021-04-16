@@ -249,6 +249,16 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
   }
 
   @Override
+  public int size(int startRel, int endRel)
+  {
+    if (startRel > endRel) {
+      return Math.min(length, index + startRel) - Math.max(0, index + endRel)  + 1;
+    } else {
+      return Math.min(length, index + endRel) - Math.max(0, index + startRel)  + 1;
+    }
+  }
+
+  @Override
   public int size()
   {
     return length;

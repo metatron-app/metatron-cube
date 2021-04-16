@@ -50,6 +50,11 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
     return new PeriodGranularity(period, null, null);
   }
 
+  public static PeriodGranularity of(Period period, DateTimeZone tz)
+  {
+    return new PeriodGranularity(period, null, tz);
+  }
+
   private final Period period;
   private final Chronology chronology;
   private final long origin;

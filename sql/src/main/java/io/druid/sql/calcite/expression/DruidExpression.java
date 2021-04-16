@@ -79,9 +79,9 @@ public class DruidExpression
     return fromExpression(functionCall(functionName, args));
   }
 
-  public static String numberLiteral(final long n)
+  public static DruidExpression numberLiteral(final long n)
   {
-    return String.valueOf(n);
+    return DruidExpression.fromExpression(String.valueOf(n));
   }
 
   public static String numberLiteral(final double n)
