@@ -20,23 +20,39 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.expression.OperatorConversions;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlFunction;
+import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.calcite.sql.type.SqlTypeName;
 
-public class CeilOperatorConversion extends GranularConversion
+public class TimeCeilOperatorConversion extends TimeGranularConversion
 {
+  private static final SqlFunction SQL_FUNCTION = OperatorConversions
+      .operatorBuilder("TIME_CEIL")
+      .operandTypes(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.CHARACTER, SqlTypeFamily.TIMESTAMP, SqlTypeFamily.CHARACTER)
+      .requiredOperands(2)
+      .returnType(SqlTypeName.TIMESTAMP)
+      .functionCategory(SqlFunctionCategory.TIMEDATE)
+      .build();
+
   @Override
   public SqlOperator calciteOperator()
   {
-    return SqlStdOperatorTable.CEIL;
+    return SQL_FUNCTION;
   }
 
   @Override
-  public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
+  public DruidExpression toDruidExpression(
+      final PlannerContext plannerContext,
+      final RowSignature rowSignature,
+      final RexNode rexNode
+  )
   {
-    return toDruidExpression("ceil", "timestamp_ceil", plannerContext, rowSignature, rexNode);
+    return toDruidExpression("timestamp_ceil", plannerContext, rowSignature, rexNode);
   }
 }

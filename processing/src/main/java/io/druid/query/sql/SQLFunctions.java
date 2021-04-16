@@ -20,15 +20,14 @@
 package io.druid.query.sql;
 
 import com.google.common.base.Preconditions;
-import io.druid.java.util.common.IAE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.DateTimeFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -49,8 +48,7 @@ import java.util.List;
  */
 public interface SQLFunctions extends Function.Library
 {
-  @Function.Named("timestamp_ceil")
-  class TimestampCeilExprMacro extends NamedFactory.LongType
+  abstract class TimestampGranExprMacro extends NamedFactory.LongType
   {
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
@@ -61,15 +59,54 @@ public interface SQLFunctions extends Function.Library
       if (!Evals.isAllConstants(args.subList(1, args.size()))) {
         throw new IAE("granularity should be constant value", name());
       }
-      final Granularity granularity = ExprUtils.toPeriodGranularity(args, 1);
+      final Expr timeParam = args.get(0);
+      final PeriodGranularity granularity = ExprUtils.toPeriodGranularity(args, 1);
+      if (Evals.isIdentifier(timeParam) && Row.TIME_COLUMN_NAME.equals(Evals.getIdentifier(timeParam))) {
+        return new HoldingChild<PeriodGranularity>(granularity)
+        {
+          @Override
+          public ValueDesc returns()
+          {
+            return ValueDesc.LONG;
+          }
+
+          @Override
+          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            return TimestampGranExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
+          }
+        };
+      }
       return new LongChild()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(granularity.bucketEnd(DateTimes.utc(args.get(0).eval(bindings).asLong())).getMillis());
+          return TimestampGranExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
         }
       };
+    }
+
+    protected abstract ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity);
+  }
+
+  @Function.Named("timestamp_floor")
+  class TimestampFloorExprMacro extends TimestampGranExprMacro
+  {
+    @Override
+    protected ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity)
+    {
+      return ExprEval.of(granularity.bucketStart(DateTimes.utc(timeParam.asLong())).getMillis());
+    }
+  }
+
+  @Function.Named("timestamp_ceil")
+  class TimestampCeilExprMacro extends TimestampGranExprMacro
+  {
+    @Override
+    protected ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity)
+    {
+      return ExprEval.of(granularity.bucketEnd(DateTimes.utc(timeParam.asLong())).getMillis());
     }
   }
 
@@ -106,52 +143,6 @@ public interface SQLFunctions extends Function.Library
         }
       }
       return function;
-    }
-  }
-
-  @Function.Named("timestamp_floor")
-  class TimestampFloorExprMacro extends NamedFactory.LongType
-  {
-    @Override
-    public Function create(final List<Expr> args, TypeResolver context)
-    {
-      if (args.size() < 2 || args.size() > 4) {
-        throw new IAE("Function[%s] must have 2 to 4 arguments", name());
-      }
-      if (!Evals.isAllConstants(args.subList(1, args.size()))) {
-        throw new IAE("granularity should be constant value", name());
-      }
-      final Expr timeParam = args.get(0);
-      final PeriodGranularity granularity = ExprUtils.toPeriodGranularity(args, 1);
-      if (Evals.isIdentifier(timeParam) && Row.TIME_COLUMN_NAME.equals(Evals.getIdentifier(timeParam))) {
-        return new HoldingChild<PeriodGranularity>(granularity)
-        {
-          @Override
-          public ValueDesc returns()
-          {
-            return ValueDesc.LONG;
-          }
-
-          @Override
-          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-          {
-            return TimestampFloorExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
-          }
-        };
-      }
-      return new LongChild()
-      {
-        @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          return TimestampFloorExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
-        }
-      };
-    }
-
-    private ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity)
-    {
-      return ExprEval.of(granularity.bucketStart(DateTimes.utc(timeParam.asLong())).getMillis());
     }
   }
 

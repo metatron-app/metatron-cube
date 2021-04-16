@@ -761,6 +761,23 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{T("2000-01-01"), 3L},
         new Object[]{T("2001-01-01"), 3L}
     );
+
+    testQuery(
+        "SELECT\n"
+        + "CEIL(__time TO MONTH) AS __time,\n"
+        + "COUNT(*)\n"
+        + "FROM druid.foo\n"
+        + "GROUP BY CEIL(__time TO MONTH)",
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource(CalciteTests.DATASOURCE1)
+              .granularity(Granularities.MONTH)
+              .aggregators(CountAggregatorFactory.of("a0"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_ceil(__time,'P1M','','UTC')"))
+              .outputColumns("d0", "a0")
+              .build(),
+        new Object[]{T("2000-02-01"), 3L},
+        new Object[]{T("2001-02-01"), 3L}
+    );
   }
 
   @Test
@@ -2698,6 +2715,38 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .build(),
         new Object[]{T("1970-01-01"), 6L}
     );
+
+    testQuery(
+        "SELECT\n"
+        + "  CEIL(MILLIS_TO_TIMESTAMP(cnt) TO YEAR),\n"
+        + "  COUNT(*)\n"
+        + "FROM\n"
+        + "  druid.foo\n"
+        + "WHERE\n"
+        + "  MILLIS_TO_TIMESTAMP(cnt) >= TIMESTAMP '1970-01-01 00:00:00'\n"
+        + "  AND MILLIS_TO_TIMESTAMP(cnt) < TIMESTAMP '1970-01-02 00:00:00'\n"
+        + "GROUP BY\n"
+        + "  CEIL(MILLIS_TO_TIMESTAMP(cnt) TO YEAR)",
+        newGroupBy()
+            .dataSource(CalciteTests.DATASOURCE1)
+            .filters(
+                BOUND(
+                    "cnt",
+                    String.valueOf(DateTimes.of("1970-01-01").getMillis()),
+                    String.valueOf(DateTimes.of("1970-01-02").getMillis()),
+                    false,
+                    true,
+                    null,
+                    StringComparators.NUMERIC_NAME
+                )
+            )
+            .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
+            .virtualColumns(EXPR_VC("d0:v", "timestamp_ceil(cnt,'P1Y','','UTC')"))
+            .aggregators(CountAggregatorFactory.of("a0"))
+            .outputColumns("d0", "a0")
+            .build(),
+        new Object[]{T("1971-01-01"), 6L}
+    );
   }
 
   @Test
@@ -4390,6 +4439,25 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{3L, T("2000-01-01")},
         new Object[]{3L, T("2001-01-01")}
     );
+
+    testQuery(
+        "SELECT SUM(cnt), gran FROM (\n"
+        + "  SELECT TIME_CEIL(__time, 'P1M') AS gran,\n"
+        + "  cnt FROM druid.foo\n"
+        + ") AS x\n"
+        + "GROUP BY gran\n"
+        + "ORDER BY gran",
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource(CalciteTests.DATASOURCE1)
+              .granularity(Granularities.MONTH)
+              .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+              .addPostAggregator(EXPR_POST_AGG("d0", "timestamp_ceil(__time,'P1M','','UTC')"))
+              .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
+              .outputColumns("a0", "d0")
+              .build(),
+        new Object[]{3L, T("2000-02-01")},
+        new Object[]{3L, T("2001-02-01")}
+    );
   }
 
   @Test
@@ -4416,6 +4484,29 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{2L, T("2000-01-01")},
         new Object[]{1L, T("2000-12-01")},
         new Object[]{2L, T("2001-01-01")}
+    );
+
+    testQuery(
+        "SELECT SUM(cnt), gran FROM (\n"
+        + "  SELECT TIME_CEIL(TIME_SHIFT(__time, 'P1D', -1), 'P1M') AS gran,\n"
+        + "  cnt FROM druid.foo\n"
+        + ") AS x\n"
+        + "GROUP BY gran\n"
+        + "ORDER BY gran",
+        newGroupBy()
+            .dataSource(CalciteTests.DATASOURCE1)
+            .virtualColumns(
+                EXPR_VC("d0:v", "timestamp_ceil(timestamp_shift(__time,'P1D',-1),'P1M','','UTC')")
+            )
+            .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
+            .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+            .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
+            .outputColumns("a0", "d0")
+            .build(),
+        new Object[]{1L, T("2000-01-01")},
+        new Object[]{2L, T("2000-02-01")},
+        new Object[]{1L, T("2001-01-01")},
+        new Object[]{2L, T("2001-02-01")}
     );
   }
 

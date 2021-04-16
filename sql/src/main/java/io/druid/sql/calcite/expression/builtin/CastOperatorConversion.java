@@ -124,7 +124,7 @@ public class CastOperatorConversion implements SqlOperatorConversion
 
       if (toType == SqlTypeName.DATE) {
         // Floor to day when casting to DATE.
-        return TimeFloorOperatorConversion.applyTimestampFloor(
+        return TimeFloorOperatorConversion.applyTimeFloor(
             typeCastExpression,
             new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone()),
             rowSignature
@@ -153,7 +153,7 @@ public class CastOperatorConversion implements SqlOperatorConversion
     );
 
     if (toType == SqlTypeName.DATE) {
-      return TimeFloorOperatorConversion.applyTimestampFloor(
+      return TimeFloorOperatorConversion.applyTimeFloor(
           timestampExpression,
           new PeriodGranularity(Period.days(1), null, plannerContext.getTimeZone()),
           signature

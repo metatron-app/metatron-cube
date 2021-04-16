@@ -19,22 +19,14 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import io.druid.common.utils.StringUtils;
-import io.druid.granularity.PeriodGranularity;
-import org.apache.calcite.avatica.util.TimeUnitRange;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
+import io.druid.sql.calcite.expression.DruidExpression;
+import io.druid.sql.calcite.planner.PlannerContext;
+import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.Expressions;
-import io.druid.sql.calcite.expression.SqlOperatorConversion;
-import io.druid.sql.calcite.expression.TimeUnits;
-import io.druid.sql.calcite.planner.PlannerContext;
-import io.druid.sql.calcite.table.RowSignature;
 
-public class FloorOperatorConversion implements SqlOperatorConversion
+public class FloorOperatorConversion extends GranularConversion
 {
   @Override
   public SqlOperator calciteOperator()
@@ -43,40 +35,8 @@ public class FloorOperatorConversion implements SqlOperatorConversion
   }
 
   @Override
-  public DruidExpression toDruidExpression(
-      final PlannerContext plannerContext,
-      final RowSignature rowSignature,
-      final RexNode rexNode
-  )
+  public DruidExpression toDruidExpression(PlannerContext plannerContext, RowSignature rowSignature, RexNode rexNode)
   {
-    final RexCall call = (RexCall) rexNode;
-    final RexNode arg = call.getOperands().get(0);
-    final DruidExpression druidExpression = Expressions.toDruidExpression(
-        plannerContext,
-        rowSignature,
-        arg
-    );
-    if (druidExpression == null) {
-      return null;
-    } else if (call.getOperands().size() == 1) {
-      // FLOOR(expr)
-      return druidExpression.map(
-          simpleExtraction -> null, // BucketExtractionFn could do this, but it's lame since it returns strings.
-          expression -> StringUtils.format("floor(%s)", expression)
-      );
-    } else if (call.getOperands().size() == 2) {
-      // FLOOR(expr TO timeUnit)
-      final RexLiteral flag = (RexLiteral) call.getOperands().get(1);
-      final TimeUnitRange timeUnit = (TimeUnitRange) flag.getValue();
-      final PeriodGranularity granularity = TimeUnits.toQueryGranularity(timeUnit, plannerContext.getTimeZone());
-      if (granularity == null) {
-        return null;
-      }
-
-      return TimeFloorOperatorConversion.applyTimestampFloor(druidExpression, granularity, rowSignature);
-    } else {
-      // FLOOR with 3 arguments?
-      return null;
-    }
+    return toDruidExpression("floor", "timestamp_floor", plannerContext, rowSignature, rexNode);
   }
 }
