@@ -731,7 +731,9 @@ public class QueryRunnerTestHelper
   )
   {
     return new BySegmentQueryRunner<T>(
-        segmentId, segment.getInterval().getStart(),
+        factory.getToolchest(),
+        segmentId,
+        segment.getInterval().getStart(),
         new QueryRunner<T>()
         {
           @Override
@@ -761,7 +763,9 @@ public class QueryRunnerTestHelper
   {
     final UnionQueryRunner<T> baseRunner = new UnionQueryRunner<>(
         new BySegmentQueryRunner<T>(
-            segmentId, adapter.getInterval().getStart(),
+            factory.getToolchest(),
+            segmentId,
+            adapter.getInterval().getStart(),
             factory.createRunner(adapter, null)
         )
     );
@@ -847,7 +851,7 @@ public class QueryRunnerTestHelper
         Query<T> prepared = query.toLocalQuery();
         Function manipulatorFn = toolChest.makePreComputeManipulatorFn(prepared, MetricManipulatorFns.deserializing());
         if (BaseQuery.isBySegment(prepared)) {
-          manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
+          manipulatorFn = BySegmentResultValue.applyAll(manipulatorFn);
         }
         return Sequences.map(runner.run(prepared, responseContext), manipulatorFn);
       }

@@ -21,7 +21,6 @@ package io.druid.client;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
@@ -39,7 +38,6 @@ import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BaseQuery;
-import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryMetrics;
@@ -47,7 +45,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
-import io.druid.query.Result;
 import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
@@ -127,18 +124,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                                 ? customMapper
                                 : objectMapper;
 
-    final boolean isBySegment = BaseQuery.isBySegment(query);
-    final TypeFactory typeFactory = objectMapper.getTypeFactory();
-    final JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference(query));
-
-    final JavaType typeRef;
-    if (isBySegment) {
-      typeRef = typeFactory.constructParametricType(
-          Result.class, typeFactory.constructParametricType(BySegmentResultValueClass.class, baseType)
-      );
-    } else {
-      typeRef = baseType;
-    }
+    final JavaType typeRef = toolChest.getResultTypeReference(query, objectMapper.getTypeFactory());
 
     final QueryMetrics<?> queryMetrics = toolChest.makeMetrics(query);
     queryMetrics.server(host);
@@ -184,7 +170,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     Sequence<T> sequence = Sequences.once(query.estimatedOutputColumns(), GuavaUtils.withResource(iterator, resource));
     // bySegment queries are de-serialized after caching results in order to
     // avoid the cost of de-serializing and then re-serializing again when adding to cache
-    if (!isBySegment) {
+    if (!BaseQuery.isBySegment(query)) {
       sequence = toolChest.deserializeSequence(query, sequence);
     }
 

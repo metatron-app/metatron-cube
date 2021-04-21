@@ -403,6 +403,7 @@ public class RealtimePlumber implements Plumber
                                                 );
                                               }
                                               return new BySegmentQueryRunner<T>(
+                                                  toolchest,
                                                   segment.lhs.getIdentifier(),
                                                   segment.lhs.getInterval().getStart(),
                                                   baseRunner

@@ -453,8 +453,7 @@ public class AggregationTestHelper
           Yielder yielder = Yielders.each(sequence);
           String resultStr = mapper.writer().writeValueAsString(yielder);
 
-          TypeFactory typeFactory = mapper.getTypeFactory();
-          JavaType baseType = typeFactory.constructType(toolChest.getResultTypeReference(resolved));
+          JavaType baseType = toolChest.getResultTypeReference(resolved, mapper.getTypeFactory());
 
           // in broker
           List resultRows = Lists.transform(

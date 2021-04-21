@@ -21,6 +21,7 @@ package io.druid.query.search;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.collect.Lists;
 import io.druid.query.search.search.SearchHit;
 
 import java.util.Iterator;
@@ -60,6 +61,11 @@ public class SearchResultValue implements Iterable<SearchHit>
   public boolean isEmpty()
   {
     return value.isEmpty();
+  }
+
+  public SearchResultValue limit(int limit)
+  {
+    return value.size() <= limit ? this : new SearchResultValue(Lists.newArrayList(value.subList(0, limit)));
   }
 
   @Override

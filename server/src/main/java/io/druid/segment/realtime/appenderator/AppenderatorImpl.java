@@ -521,6 +521,7 @@ public class AppenderatorImpl implements Appenderator
                             return new SpecificSegmentQueryRunner<>(
                                 withPerSinkMetrics(
                                     new BySegmentQueryRunner<>(
+                                        toolchest,
                                         sinkSegmentIdentifier,
                                         descriptor.getInterval().getStart(),
                                         factory.mergeRunners(

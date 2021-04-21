@@ -294,7 +294,7 @@ public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTestHelper
     ObjectMapper mapper = new DefaultObjectMapper();
     byte[] serialized = mapper.writeValueAsBytes(result.get(0));
     Object[] deserialized = toolChest.makePreComputeManipulatorFn(query, null).apply(
-        mapper.<Object[]>readValue(serialized, toolChest.getResultTypeReference(null))
+        mapper.<Object[]>readValue(serialized, toolChest.getResultTypeReference(null, mapper.getTypeFactory()))
     );
     Assert.assertNotNull("never", deserialized);
     TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) deserialized[3];

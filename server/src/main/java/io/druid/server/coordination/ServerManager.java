@@ -544,6 +544,7 @@ public class ServerManager implements ForwardingSegmentWalker
                     emitter,
                     toolChest,
                     new BySegmentQueryRunner<T>(
+                        toolChest,
                         adapter.getIdentifier(),
                         adapter.getInterval().getStart(),
                         new CachingQueryRunner<T>(

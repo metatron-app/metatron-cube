@@ -25,6 +25,7 @@ import com.google.common.base.Function;
 import org.joda.time.DateTime;
 
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  */
@@ -84,6 +85,11 @@ public class Result<T> implements Comparable<Result<T>>
     return value;
   }
 
+  public Result<T> withValue(T value)
+  {
+    return new Result<>(timestamp, value);
+  }
+
   @Override
   public boolean equals(Object o)
   {
@@ -99,7 +105,7 @@ public class Result<T> implements Comparable<Result<T>>
     if (timestamp != null ? !(timestamp.isEqual(result.timestamp) && timestamp.getZone().getOffset(timestamp) == result.timestamp.getZone().getOffset(result.timestamp)) : result.timestamp != null) {
       return false;
     }
-    if (value != null ? !value.equals(result.value) : result.value != null) {
+    if (!Objects.equals(value, result.value)) {
       return false;
     }
 
@@ -109,9 +115,7 @@ public class Result<T> implements Comparable<Result<T>>
   @Override
   public int hashCode()
   {
-    int result = timestamp != null ? timestamp.hashCode() : 0;
-    result = 31 * result + (value != null ? value.hashCode() : 0);
-    return result;
+    return Objects.hash(timestamp, value);
   }
 
   @Override

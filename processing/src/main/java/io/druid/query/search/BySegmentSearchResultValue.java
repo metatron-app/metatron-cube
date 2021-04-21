@@ -20,18 +20,15 @@
 package io.druid.query.search;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonValue;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.Result;
-import io.druid.query.search.search.SearchHit;
 import org.joda.time.Interval;
 
 import java.util.List;
 
 /**
  */
-public class BySegmentSearchResultValue extends SearchResultValue
-    implements BySegmentResultValue<Result<SearchResultValue>>
+public class BySegmentSearchResultValue implements BySegmentResultValue<Result<SearchResultValue>>
 {
   private final List<Result<SearchResultValue>> results;
   private final String segmentId;
@@ -43,18 +40,9 @@ public class BySegmentSearchResultValue extends SearchResultValue
       @JsonProperty("interval") Interval interval
   )
   {
-    super(null);
-
     this.results = results;
     this.segmentId = segmentId;
     this.interval = interval;
-  }
-
-  @Override
-  @JsonValue(false)
-  public List<SearchHit> getValue()
-  {
-    throw new UnsupportedOperationException();
   }
 
   @Override
@@ -76,6 +64,12 @@ public class BySegmentSearchResultValue extends SearchResultValue
   public Interval getInterval()
   {
     return interval;
+  }
+
+  @Override
+  public BySegmentSearchResultValue withResult(List<Result<SearchResultValue>> result)
+  {
+    return new BySegmentSearchResultValue(result, getSegmentId(), getInterval());
   }
 
   @Override

@@ -29,39 +29,35 @@ import java.util.Map;
  */
 public class BySegmentQueryRunner<T> implements QueryRunner<T>
 {
+  private final QueryToolChest toolChest;
   private final String segmentIdentifier;
   private final DateTime timestamp;
-  private final QueryRunner<T> base;
+  private final QueryRunner<T> runner;
 
   public BySegmentQueryRunner(
+      QueryToolChest toolChest,
       String segmentIdentifier,
       DateTime timestamp,
-      QueryRunner<T> base
+      QueryRunner<T> runner
   )
   {
+    this.toolChest = toolChest;
     this.segmentIdentifier = segmentIdentifier;
     this.timestamp = timestamp;
-    this.base = base;
+    this.runner = runner;
   }
 
   @Override
   @SuppressWarnings("unchecked")
-  public Sequence<T> run(final Query<T> query, Map<String, Object> responseContext)
+  public Sequence run(final Query<T> query, Map<String, Object> responseContext)
   {
+    final Sequence<T> sequence = runner.run(query, responseContext);
     if (BaseQuery.isBySegment(query)) {
-      final Sequence<T> sequence = base.run(query, responseContext);
       return Sequences.of(
           sequence.columns(),
-          (T) new Result<BySegmentResultValueClass<T>>(
-              timestamp,
-              new BySegmentResultValueClass<T>(
-                  Sequences.toList(sequence),
-                  segmentIdentifier,
-                  query.getIntervals().get(0)
-              )
-          )
+          new Result<BySegmentResultValue<T>>(timestamp, toolChest.bySegment(query, sequence, segmentIdentifier))
       );
     }
-    return base.run(query, responseContext);
+    return sequence;
   }
 }

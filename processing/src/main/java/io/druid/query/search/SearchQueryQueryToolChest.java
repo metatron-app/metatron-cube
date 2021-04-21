@@ -20,19 +20,21 @@
 package io.druid.query.search;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.IdentityFunction;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseQuery;
-import io.druid.query.BySegmentResultValueClass;
+import io.druid.query.BySegmentResultValue;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;
@@ -128,6 +130,9 @@ public class SearchQueryQueryToolChest
           Query<Result<SearchResultValue>> input, Map<String, Object> responseContext
       )
       {
+        if (BaseQuery.isBySegment(input)) {
+          return runner.run(input, responseContext);
+        }
         SearchQuery query = (SearchQuery) input;
         Sequence<Result<SearchResultValue>> sequence = runner.run(query, responseContext);
         final Comparator<SearchHit> mergeComparator = query.getSort().getResultComparator();
@@ -190,6 +195,25 @@ public class SearchQueryQueryToolChest
   }
 
   @Override
+  public JavaType getResultTypeReference(SearchQuery query, TypeFactory factory)
+  {
+    if (query != null && BaseQuery.isBySegment(query)) {
+      return factory.constructParametricType(Result.class, BySegmentSearchResultValue.class);
+    }
+    return factory.constructType(SearchResultValue.class);
+  }
+
+  @Override
+  public BySegmentSearchResultValue bySegment(
+      SearchQuery query,
+      Sequence<Result<SearchResultValue>> sequence,
+      String segmentId
+  )
+  {
+    return new BySegmentSearchResultValue(Sequences.toList(sequence), segmentId, query.getIntervals().get(0));
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public ToIntFunction numRows(SearchQuery query)
   {
@@ -200,7 +224,7 @@ public class SearchQueryQueryToolChest
         public int applyAsInt(Object bySegment)
         {
           int counter = 0;
-          for (Object value : BySegmentResultValueClass.unwrap(bySegment)) {
+          for (Object value : BySegmentResultValue.unwrap(bySegment)) {
             counter += ((Result<SearchResultValue>) value).getValue().size();
           }
           return counter;
@@ -325,6 +349,7 @@ public class SearchQueryQueryToolChest
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Sequence<Result<SearchResultValue>> run(
         Query<Result<SearchResultValue>> input,
         Map<String, Object> responseContext
@@ -340,58 +365,25 @@ public class SearchQueryQueryToolChest
         return runner.run(query, responseContext);
       }
 
-      final boolean isBySegment = BaseQuery.isBySegment(query);
+      final Sequence sequence = runner.run(query.withLimit(maxSearchLimit), responseContext);
+
+      if (BaseQuery.isBySegment(query)) {
+        return Sequences.map(sequence, new IdentityFunction<Result<BySegmentResultValue>>()
+        {
+          @Override
+          public Result<BySegmentResultValue> apply(Result<BySegmentResultValue> input)
+          {
+            BySegmentResultValue<Result<SearchResultValue>> value = input.getValue();
+            return input.withValue(
+                value.withTransform(result -> result.withValue(result.getValue().limit(maxSearchLimit)))
+            );
+          }
+        });
+      }
 
       return Sequences.map(
-          runner.run(query.withLimit(maxSearchLimit), responseContext),
-          new Function<Result<SearchResultValue>, Result<SearchResultValue>>()
-          {
-            @Override
-            public Result<SearchResultValue> apply(Result<SearchResultValue> input)
-            {
-              if (isBySegment) {
-                BySegmentSearchResultValue value = (BySegmentSearchResultValue) input.getValue();
-
-                return new Result<SearchResultValue>(
-                    input.getTimestamp(),
-                    new BySegmentSearchResultValue(
-                        Lists.transform(
-                            value.getResults(),
-                            new Function<Result<SearchResultValue>, Result<SearchResultValue>>()
-                            {
-                              @Override
-                              public Result<SearchResultValue> apply(@Nullable Result<SearchResultValue> input)
-                              {
-                                return new Result<SearchResultValue>(
-                                    input.getTimestamp(),
-                                    new SearchResultValue(
-                                        Lists.newArrayList(
-                                            Iterables.limit(
-                                                input.getValue(),
-                                                maxSearchLimit
-                                            )
-                                        )
-                                    )
-                                );
-                              }
-                            }
-                        ),
-                        value.getSegmentId(),
-                        value.getInterval()
-                    )
-                );
-              }
-
-              return new Result<SearchResultValue>(
-                  input.getTimestamp(),
-                  new SearchResultValue(
-                      Lists.<SearchHit>newArrayList(
-                          Iterables.limit(input.getValue(), maxSearchLimit)
-                      )
-                  )
-              );
-            }
-          }
+          (Sequence<Result<SearchResultValue>>) sequence,
+          result -> result.withValue(result.getValue().limit(maxSearchLimit))
       );
     }
   }

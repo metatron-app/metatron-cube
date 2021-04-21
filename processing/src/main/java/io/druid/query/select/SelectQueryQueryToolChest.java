@@ -35,7 +35,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.BaseQuery;
-import io.druid.query.BySegmentResultValueClass;
+import io.druid.query.BySegmentResultValue;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
@@ -263,7 +263,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         public int applyAsInt(Object bySegment)
         {
           int counter = 0;
-          for (Object value : BySegmentResultValueClass.unwrap(bySegment)) {
+          for (Object value : BySegmentResultValue.unwrap(bySegment)) {
             counter += ((Result<SelectResultValue>) value).getValue().size();
           }
           return counter;

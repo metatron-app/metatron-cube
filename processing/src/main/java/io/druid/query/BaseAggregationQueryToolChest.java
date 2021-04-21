@@ -70,7 +70,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
         if (BaseQuery.isBrokerSide(aggregation)) {
           Sequence<Row> sequence = runner.run(aggregation, responseContext);
           if (BaseQuery.isBySegment(aggregation)) {
-            Function function = BySegmentResultValueClass.applyAll(
+            Function function = BySegmentResultValue.applyAll(
                 Functions.compose(toPostAggregator(aggregation), aggregation.compactToMap(sequence.columns())));
             return Sequences.map(sequence, function);
           }

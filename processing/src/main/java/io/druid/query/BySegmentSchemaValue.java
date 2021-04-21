@@ -17,42 +17,44 @@
  * under the License.
  */
 
-package io.druid.query.topn;
+package io.druid.query;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.query.BySegmentResultValue;
-import io.druid.query.Result;
+import com.google.common.collect.Iterables;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
-/**
- */
-public class BySegmentTopNResultValue implements BySegmentResultValue<Result<TopNResultValue>>
+public class BySegmentSchemaValue implements BySegmentResultValue<Schema>
 {
-  private final List<Result<TopNResultValue>> results;
+  private final Schema schema;    // by segment, per se
   private final String segmentId;
   private final Interval interval;
 
-  @JsonCreator
-  public BySegmentTopNResultValue(
-      @JsonProperty("results") List<Result<TopNResultValue>> results,
+  public BySegmentSchemaValue(
+      @JsonProperty("results") Schema schema,
       @JsonProperty("segment") String segmentId,
       @JsonProperty("interval") Interval interval
   )
   {
-    this.results = results;
+    this.schema = schema;
     this.segmentId = segmentId;
     this.interval = interval;
   }
 
   @Override
-  @JsonProperty("results")
-  public List<Result<TopNResultValue>> getResults()
+  @JsonIgnore
+  public List<Schema> getResults()
   {
-    return results;
+    return Arrays.asList(schema);
+  }
+
+  @JsonProperty("results")
+  public Schema getSchema()
+  {
+    return schema;
   }
 
   @Override
@@ -70,39 +72,18 @@ public class BySegmentTopNResultValue implements BySegmentResultValue<Result<Top
   }
 
   @Override
-  public BySegmentTopNResultValue withResult(List<Result<TopNResultValue>> result)
+  public BySegmentResultValue<Schema> withResult(List<Schema> result)
   {
-    return new BySegmentTopNResultValue(result, getSegmentId(), getInterval());
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    BySegmentTopNResultValue maps = (BySegmentTopNResultValue) o;
-    return Objects.equals(results, maps.results) &&
-           Objects.equals(segmentId, maps.segmentId) &&
-           Objects.equals(interval, maps.interval);
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(results, segmentId, interval);
+    return new BySegmentSchemaValue(Iterables.getOnlyElement(result), segmentId, interval);
   }
 
   @Override
   public String toString()
   {
-    return "BySegmentTopNResultValue{" +
-           "results=" + results +
+    return "BySegmentSchemaValue{" +
+           "results=" + schema +
            ", segmentId='" + segmentId + '\'' +
-           ", interval='" + interval.toString() + '\'' +
+           (interval == null ? ""  : ", interval='" + interval.toString() + '\'') +
            '}';
   }
 }

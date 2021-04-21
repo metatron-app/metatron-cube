@@ -51,7 +51,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseQuery;
-import io.druid.query.BySegmentResultValueClass;
+import io.druid.query.BySegmentResultValue;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DataSources;
 import io.druid.query.FilterableManagementQuery;
@@ -441,7 +441,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         final Function<T, T> deserializer = toolChest.makePreComputeManipulatorFn(
             prepared, MetricManipulatorFns.deserializing()
         );
-        final Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> populator = bySegmentPopulator(
+        final Function<Result<BySegmentResultValue<T>>, Sequence<T>> populator = bySegmentPopulator(
             columns, deserializer, strategy, cachePopulatorMap
         );
         final int parallelism = queryConfig.getQueryParallelism(prepared);
@@ -464,7 +464,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             queue.add(() -> runner.run(running, responseContext));
           } else if (!populateCache) {
             queue.add(() -> Sequences.map(
-                runner.run(running, responseContext), BySegmentResultValueClass.applyAll(deserializer))
+                runner.run(running, responseContext), BySegmentResultValue.applyAll(deserializer))
             );
           } else if (!explicitBySegment) {
             queue.add(() -> QueryUtils.mergeSort(
@@ -473,13 +473,11 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           } else {
             queue.add(() -> Sequences.map(
                 runner.run(running, responseContext),
-                (Result<BySegmentResultValueClass<T>> input) -> {
-                  final BySegmentResultValueClass value = input.getValue();
-                  return new Result<BySegmentResultValueClass<T>>(
+                (Result<BySegmentResultValue<T>> input) -> {
+                  final BySegmentResultValue value = input.getValue();
+                  return new Result<BySegmentResultValue<T>>(
                       input.getTimestamp(),
-                      new BySegmentResultValueClass<T>(
-                          Sequences.toList(populator.apply(input)), value.getSegmentId(), value.getInterval()
-                      )
+                      toolChest.bySegment(running, populator.apply(input), value.getSegmentId())
                   );
                 }
             ));
@@ -491,7 +489,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     }.get();
   }
 
-  private Function<Result<BySegmentResultValueClass<T>>, Sequence<T>> bySegmentPopulator(
+  private Function<Result<BySegmentResultValue<T>>, Sequence<T>> bySegmentPopulator(
       List<String> columns,
       Function<T, T> deserializer,
       CacheStrategy strategy,
@@ -502,13 +500,13 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       return null;
     }
     final Function<T, Object> prepareForCache = strategy.prepareForCache();
-    return new Function<Result<BySegmentResultValueClass<T>>, Sequence<T>>()
+    return new Function<Result<BySegmentResultValue<T>>, Sequence<T>>()
     {
       // Acctually do something with the results
       @Override
-      public Sequence<T> apply(Result<BySegmentResultValueClass<T>> input)
+      public Sequence<T> apply(Result<BySegmentResultValue<T>> input)
       {
-        final BySegmentResultValueClass<T> value = input.getValue();
+        final BySegmentResultValue<T> value = input.getValue();
         final CachePopulator cachePopulator = cachePopulatorMap.get(
             ObjectArray.of(value.getSegmentId(), value.getInterval())
         );

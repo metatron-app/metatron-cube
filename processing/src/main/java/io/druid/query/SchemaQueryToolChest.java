@@ -20,11 +20,16 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.inject.Inject;
-import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.nary.BinaryFn;
 
 import java.util.Comparator;
+import java.util.List;
 
 /**
  */
@@ -78,6 +83,27 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
   public QueryMetrics<? super SchemaQuery> makeMetrics(SchemaQuery query)
   {
     return metricsFactory.makeMetrics(query);
+  }
+
+  @Override
+  public JavaType getResultTypeReference(SchemaQuery query, TypeFactory factory)
+  {
+    if (query != null && BaseQuery.isBySegment(query)) {
+      return factory.constructParametricType(Result.class, BySegmentSchemaValue.class);
+    }
+    return factory.constructType(getResultTypeReference(query));
+  }
+
+  @Override
+  public BySegmentResultValue<Schema> bySegment(SchemaQuery query, Sequence<Schema> sequence, String segmentId)
+  {
+    // realtime node can return multiple schemas for single segment range.. fxxx
+    List<Schema> schemas = Sequences.toList(sequence);
+    Schema schema = schemas.get(0);
+    for (int i = 1; i < schemas.size(); i++) {
+      schema = schema.merge(schemas.get(i));
+    }
+    return new BySegmentSchemaValue(schema, segmentId, query.getIntervals().get(0));
   }
 
   @Override

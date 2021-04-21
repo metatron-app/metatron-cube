@@ -34,7 +34,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.js.JavaScriptConfig;
-import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
@@ -505,14 +504,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     String segmentId = mmapedSplit ?
                        dataSource + "_2011-03-01T00:00:00.000Z_2011-05-01T00:00:00.000Z_0" :
                        dataSource + "_2011-01-12T00:00:00.000Z_2011-05-01T00:00:00.000Z_0";
-    List<Result<BySegmentResultValueClass>> expected = Arrays.asList(
-        new Result<BySegmentResultValueClass>(
+    List<Result<BySegmentTopNResultValue>> expected = Arrays.asList(
+        new Result<BySegmentTopNResultValue>(
             timestamp,
-            new BySegmentResultValueClass<>(expectedResults, segmentId, new Interval("2011-04-01/2011-04-03"))
+            new BySegmentTopNResultValue(expectedResults, segmentId, new Interval("2011-04-01/2011-04-03"))
         )
     );
     Query bySegmentQuery = query.withOverriddenContext("bySegment", true);
-    List<Result<BySegmentResultValueClass>> bySegment = Sequences.toList(
+    List<Result<BySegmentTopNResultValue>> bySegment = Sequences.toList(
         bySegmentQuery.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap())
     );
     TestHelper.assertExpectedResults(expected, bySegment);
@@ -2875,10 +2874,10 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         )
     );
 
-    List<Result<BySegmentResultValueClass>> expectedResults = Collections.singletonList(
-        new Result<BySegmentResultValueClass>(
+    List<Result<BySegmentTopNResultValue>> expectedResults = Collections.singletonList(
+        new Result<BySegmentTopNResultValue>(
             new DateTime("2011-01-12T00:00:00.000Z"),
-            new BySegmentResultValueClass<>(
+            new BySegmentTopNResultValue(
                 Arrays.asList(
                     new Result<TopNResultValue>(
                         new DateTime("2011-01-12T00:00:00.000Z"),

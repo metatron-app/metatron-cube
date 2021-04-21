@@ -19,7 +19,7 @@
 
 package io.druid.client;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -510,7 +510,8 @@ public class BrokerServerView implements TimelineServerView
       if (server.equals(node)) {
         return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, smileMapper);
       }
-      final TypeReference<T> reference = conglomerate.findFactory(query).getToolchest().getResultTypeReference(query);
+      final QueryToolChest<T, Query<T>> toolchest = conglomerate.findFactory(query).getToolchest();
+      final JavaType reference = toolchest.getResultTypeReference(query, smileMapper.getTypeFactory());
       final String prefix = ServiceTypes.TYPE_TO_RESOURCE.getOrDefault(server.getType(), server.getType());
       final String resource = String.format("druid/%s/v1/%s", prefix, query.getType());
       return new QueryRunner<T>()
@@ -534,7 +535,7 @@ public class BrokerServerView implements TimelineServerView
     return toRunner(query, queryableServer.getLocalTimelineView());
   }
 
-  private <T> T execute(DruidServer server, String resource, TypeReference<T> resultType) throws Exception
+  private <T> T execute(DruidServer server, String resource, JavaType resultType) throws Exception
   {
     URL url = new URL(String.format("http://%s/%s", server.getHost(), resource));
     Request request = new Request(HttpMethod.GET, url);
@@ -664,9 +665,10 @@ public class BrokerServerView implements TimelineServerView
                 emitter,
                 toolChest,
                 new BySegmentQueryRunner<T>(
+                    toolChest,
                     adapter.getIdentifier(),
                     adapter.getInterval().getStart(),
-                        new MetricsEmittingQueryRunner<T>(
+                    new MetricsEmittingQueryRunner<T>(
                             emitter,
                             toolChest,
                             new ReferenceCountingSegmentQueryRunner<T>(

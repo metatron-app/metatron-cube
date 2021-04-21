@@ -20,10 +20,11 @@
 package io.druid.query.topn;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -37,7 +38,6 @@ import io.druid.granularity.Granularity;
 import io.druid.java.util.common.ISE;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
-import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -122,7 +122,7 @@ public class TopNQueryQueryToolChest
         TopNQuery topN = (TopNQuery) query;
         Sequence<Result<TopNResultValue>> sequence = runner.run(topN, responseContext);
         if (BaseQuery.isBySegment(topN)) {
-          Function function = BySegmentResultValueClass.applyAll(toPostAggregator(topN));
+          Function function = BySegmentResultValue.applyAll(toPostAggregator(topN));
           return Sequences.map(sequence, function);
         }
         TopNBinaryFn topNBinaryFn = new TopNBinaryFn(
@@ -249,6 +249,25 @@ public class TopNQueryQueryToolChest
   }
 
   @Override
+  public JavaType getResultTypeReference(TopNQuery query, TypeFactory factory)
+  {
+    if (query != null && BaseQuery.isBySegment(query)) {
+      return factory.constructParametricType(Result.class, BySegmentTopNResultValue.class);
+    }
+    return factory.constructType(getResultTypeReference(query));
+  }
+
+  @Override
+  public BySegmentTopNResultValue bySegment(
+      TopNQuery query,
+      Sequence<Result<TopNResultValue>> sequence,
+      String segmentId
+  )
+  {
+    return new BySegmentTopNResultValue(Sequences.toList(sequence), segmentId, query.getIntervals().get(0));
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public ToIntFunction numRows(TopNQuery query)
   {
@@ -259,7 +278,7 @@ public class TopNQueryQueryToolChest
         public int applyAsInt(Object bySegment)
         {
           int counter = 0;
-          for (Object value : BySegmentResultValueClass.unwrap(bySegment)) {
+          for (Object value : BySegmentResultValue.unwrap(bySegment)) {
             counter += ((Result<TopNResultValue>) value).getValue().size();
           }
           return counter;
@@ -408,6 +427,7 @@ public class TopNQueryQueryToolChest
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Sequence<Result<TopNResultValue>> run(
         Query<Result<TopNResultValue>> input,
         Map<String, Object> responseContext
@@ -422,63 +442,27 @@ public class TopNQueryQueryToolChest
       if (query.getThreshold() > minTopNThreshold) {
         return runner.run(query, responseContext);
       }
+      final int threshold = query.getThreshold();
 
-      final boolean isBySegment = BaseQuery.isBySegment(query);
+      final Sequence sequence = runner.run(query.withThreshold(minTopNThreshold), responseContext);
+
+      if (BaseQuery.isBySegment(query)) {
+        return Sequences.map(sequence, new IdentityFunction<Result<BySegmentResultValue>>()
+        {
+          @Override
+          public Result<BySegmentResultValue> apply(Result<BySegmentResultValue> input)
+          {
+            BySegmentResultValue<Result<TopNResultValue>> value = input.getValue();
+            return input.withValue(
+                value.withTransform(result -> result.withValue(result.getValue().limit(threshold)))
+            );
+          }
+        });
+      }
 
       return Sequences.map(
-          runner.run(query.withThreshold(minTopNThreshold), responseContext),
-          new Function<Result<TopNResultValue>, Result<TopNResultValue>>()
-          {
-            @Override
-            public Result<TopNResultValue> apply(Result<TopNResultValue> input)
-            {
-              if (isBySegment) {
-                BySegmentResultValue<Result<TopNResultValue>> value = (BySegmentResultValue<Result<TopNResultValue>>) input
-                    .getValue();
-
-                return new Result<TopNResultValue>(
-                    input.getTimestamp(),
-                    new BySegmentTopNResultValue(
-                        Lists.transform(
-                            value.getResults(),
-                            new Function<Result<TopNResultValue>, Result<TopNResultValue>>()
-                            {
-                              @Override
-                              public Result<TopNResultValue> apply(Result<TopNResultValue> input)
-                              {
-                                return new Result<>(
-                                    input.getTimestamp(),
-                                    new TopNResultValue(
-                                        Lists.newArrayList(
-                                            Iterables.limit(
-                                                input.getValue(),
-                                                query.getThreshold()
-                                            )
-                                        )
-                                    )
-                                );
-                              }
-                            }
-                        ),
-                        value.getSegmentId(),
-                        value.getInterval()
-                    )
-                );
-              }
-
-              return new Result<>(
-                  input.getTimestamp(),
-                  new TopNResultValue(
-                      Lists.newArrayList(
-                          Iterables.limit(
-                              input.getValue(),
-                              query.getThreshold()
-                          )
-                      )
-                  )
-              );
-            }
-          }
+          (Sequence<Result<TopNResultValue>>) sequence,
+          result -> result.withValue(result.getValue().limit(threshold))
       );
     }
   }

@@ -19,6 +19,9 @@
 
 package io.druid.query;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
+import io.druid.common.guava.IdentityFunction;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -27,9 +30,37 @@ import java.util.List;
  */
 public interface BySegmentResultValue<T>
 {
-  public List<T> getResults();
+  static <T> Function<Result<BySegmentResultValue<T>>, Result<BySegmentResultValue<T>>> applyAll(final Function<T, T> function)
+  {
+    return new IdentityFunction<Result<BySegmentResultValue<T>>>()
+    {
+      @Override
+      public Result<BySegmentResultValue<T>> apply(Result<BySegmentResultValue<T>> input)
+      {
+        return input.withValue(input.getValue().withTransform(function));
+      }
+    };
+  }
 
-  public String getSegmentId();
+  @SuppressWarnings("unchecked")
+  static <T> List<T> unwrap(Object input)
+  {
+    return ((Result<BySegmentResultValue<T>>) input).getValue().getResults();
+  }
 
-  public Interval getInterval();
+  List<T> getResults();
+
+  String getSegmentId();
+
+  Interval getInterval();
+
+  default BySegmentResultValue<T> withTransform(Function<T, T> function)
+  {
+    return withResult(Lists.transform(getResults(), function));
+  }
+
+  default BySegmentResultValue<T> withResult(List<T> result)
+  {
+    return new BySegmentResultValueClass<T>(result, getSegmentId(), getInterval());
+  }
 }

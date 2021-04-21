@@ -21,6 +21,7 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.collect.Lists;
 
 import java.util.Iterator;
 import java.util.List;
@@ -53,6 +54,11 @@ public class TopNResultValue implements Iterable<Map<String, Object>>
   public int size()
   {
     return value.size();
+  }
+
+  public TopNResultValue limit(int limit)
+  {
+    return value.size() <= limit ? this : new TopNResultValue(Lists.newArrayList(value.subList(0, limit)));
   }
 
   @Override

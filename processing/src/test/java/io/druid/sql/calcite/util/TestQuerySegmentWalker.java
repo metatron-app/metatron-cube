@@ -35,7 +35,7 @@ import io.druid.concurrent.Execs;
 import io.druid.data.Pair;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
-import io.druid.query.BySegmentResultValueClass;
+import io.druid.query.BySegmentResultValue;
 import io.druid.query.ConveyQuery;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.ForwardingSegmentWalker;
@@ -502,7 +502,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
         Function manipulatorFn = toolChest.makePreComputeManipulatorFn(query, MetricManipulatorFns.deserializing());
         if (BaseQuery.isBySegment(query)) {
-          manipulatorFn = BySegmentResultValueClass.applyAll(manipulatorFn);
+          manipulatorFn = BySegmentResultValue.applyAll(manipulatorFn);
         }
         return Sequences.map(runner.run(query, responseContext), manipulatorFn);
       }
@@ -566,7 +566,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
           {
             return new SpecificSegmentQueryRunner<T>(
                 new BySegmentQueryRunner<T>(
-                    segment.getIdentifier(),
+                    toolChest, segment.getIdentifier(),
                     segment.getInterval().getStart(),
                     factory.createRunner(segment, optimizer)
                 ),

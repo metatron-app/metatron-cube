@@ -68,7 +68,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
 
     Function finalizerFn = toolChest.makePostComputeManipulatorFn(query, manipulator);
     if (BaseQuery.isBySegment(query)) {
-      finalizerFn = BySegmentResultValueClass.applyAll(finalizerFn);
+      finalizerFn = BySegmentResultValue.applyAll(finalizerFn);
     }
     return Sequences.map(baseRunner.run(query, responseContext), finalizerFn);
   }

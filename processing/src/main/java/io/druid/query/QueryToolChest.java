@@ -20,6 +20,8 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import io.druid.common.guava.GuavaUtils;
@@ -44,7 +46,6 @@ import io.druid.timeline.LogicalSegment;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
@@ -172,7 +173,31 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @return A TypeReference to indicate to Jackson what type of data will exist for this query
    * @param query
    */
-  public abstract TypeReference<ResultType> getResultTypeReference(@Nullable QueryType query);
+  public JavaType getResultTypeReference(QueryType query, TypeFactory factory)
+  {
+    JavaType baseType = factory.constructType(getResultTypeReference(query));
+    if (query != null && BaseQuery.isBySegment(query)) {
+      return factory.constructParametricType(
+          Result.class, factory.constructParametricType(BySegmentResultValueClass.class, baseType)
+      );
+    }
+    return baseType;
+  }
+
+  protected abstract TypeReference<ResultType> getResultTypeReference(QueryType query);
+
+  public BySegmentResultValue<ResultType> bySegment(
+      QueryType query,
+      Sequence<ResultType> sequence,
+      String segmentId
+  )
+  {
+    return new BySegmentResultValueClass<ResultType>(
+        Sequences.toList(sequence),
+        segmentId,
+        query.getIntervals().get(0)
+    );
+  }
 
   @SuppressWarnings("unchecked")
   public static QueryMetrics getQueryMetrics(Query query, QueryToolChest toolChest)
