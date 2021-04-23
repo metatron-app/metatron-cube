@@ -4852,6 +4852,52 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   }
 
   @Test
+  public void testNewWindowFunctions() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_NO_TOPN,
+        "SELECT T, P, M, S, K FROM ("
+        + "  SELECT T, P, median(P) over W as M, skewness(P) over W as S, kurtosis(P) over W as K, count(P) over W as C FROM ("
+        + "    SELECT TIME_FLOOR(__time, 'P3M') as T, sum(Profit) as P FROM sales GROUP BY TIME_FLOOR(__time, 'P3M')"
+        + "  ) WINDOW W as (ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)"
+        + ") WHERE C = 4",
+        newScan()
+            .dataSource(
+                newTimeseries()
+                    .dataSource("sales")
+                    .granularity(PeriodGranularity.of(Period.months(3)))
+                    .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "Profit"))
+                    .postAggregators(EXPR_POST_AGG("d0", "timestamp_floor(__time,'P3M','','UTC')"))
+                    .limitSpec(
+                        LimitSpec.of(WindowingSpec.expressions("\"w0$o0\" = $MEDIAN(a0,-3,0)",
+                                                               "\"w0$o1\" = $SKEWNESS(a0,-3,0)",
+                                                               "\"w0$o2\" = $KURTOSIS(a0,-3,0)",
+                                                               "\"w0$o3\" = $COUNT(a0,-3,0)"))
+                                 .withAlias(ImmutableMap.of("d0", "T", "a0", "P"))
+                    )
+                    .outputColumns("T", "P", "w0$o0", "w0$o1", "w0$o2", "w0$o3")
+                    .build()
+            )
+            .filters(SELECTOR("w0$o3", "4"))
+            .columns("T", "P", "w0$o0", "w0$o1", "w0$o2")
+            .streaming(),
+        new Object[]{T("2011-10-01"), 21726.0, 12793.0, 0.3062170421340279, 1.3226140238360753},
+        new Object[]{T("2012-01-01"), 9271.0, 12793.0, 1.5967039869308326, 2.7559559816102874},
+        new Object[]{T("2012-04-01"), 12191.0, 12793.0, 1.4952958011263764, 2.7622644591004146},
+        new Object[]{T("2012-07-01"), 16848.0, 16848.0, 0.401755397139793, -1.501216843045509},
+        new Object[]{T("2012-10-01"), 23296.0, 16848.0, 0.6739338133537466, -0.6383966096697862},
+        new Object[]{T("2013-01-01"), 11453.0, 16848.0, 1.045305387409049, -0.1885411396699738},
+        new Object[]{T("2013-04-01"), 16077.0, 16848.0, 0.5501507194929038, 1.5488704410249594},
+        new Object[]{T("2013-07-01"), 16153.0, 16153.0, 0.755644349565603, 1.8195994163140956},
+        new Object[]{T("2013-10-01"), 38038.0, 16153.0, 1.7905670243406804, 3.4292297531370752},
+        new Object[]{T("2014-01-01"), 21774.0, 21774.0, 1.6367879443194426, 2.519639080416271},
+        new Object[]{T("2014-04-01"), 17169.0, 21774.0, 1.6757180527207403, 2.726705834534635},
+        new Object[]{T("2014-07-01"), 26899.0, 26899.0, 0.9252130623297218, 0.648594442385228},
+        new Object[]{T("2014-10-01"), 27658.0, 26899.0, -0.6871980063130506, -1.986840042055673}
+    );
+  }
+
+  @Test
   public void testGroupByExtractYear() throws Exception
   {
     testQuery(

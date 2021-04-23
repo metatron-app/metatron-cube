@@ -22,10 +22,12 @@ package io.druid.data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.Pair;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -103,5 +105,14 @@ public interface RowSignature extends TypeResolver
       s.append(pair.lhs).append(':').append(ValueDesc.toTypeString(pair.rhs));
     }
     return s.toString();
+  }
+
+  default Map<String, ValueDesc> asTypeMap()
+  {
+    final Map<String, ValueDesc> map = Maps.newHashMap();
+    for (Pair<String, ValueDesc> pair : columnAndTypes()) {
+      map.put(pair.lhs, pair.rhs);
+    }
+    return map;
   }
 }

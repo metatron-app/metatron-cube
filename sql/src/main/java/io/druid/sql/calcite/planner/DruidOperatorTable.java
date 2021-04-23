@@ -31,11 +31,11 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
+import io.druid.math.expr.WindowFunctions;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators.RELAY_TYPE;
@@ -317,7 +317,7 @@ public class DruidOperatorTable implements SqlOperatorTable
               }
             }
             TypeResolver resolver;
-            if (factory instanceof BuiltinFunctions.WindowFunctionFactory) {
+            if (factory instanceof WindowFunctions.Factory) {
               resolver = WindowContext.newInstance(Lists.newArrayList(binding.keySet()), binding);
             } else {
               resolver = Parser.withTypeMap(binding);
@@ -333,7 +333,7 @@ public class DruidOperatorTable implements SqlOperatorTable
 
       String name = factory.name().toUpperCase();
       SqlOperator operator;
-      if (factory instanceof BuiltinFunctions.WindowFunctionFactory) {
+      if (factory instanceof WindowFunctions.Factory) {
         operator = new DummyAggregatorFunction(name, retType);
       } else {
         operator = new DummySqlFunction(name, retType);
@@ -443,6 +443,13 @@ public class DruidOperatorTable implements SqlOperatorTable
 
     if (operatorList.isEmpty()) {
       STD.lookupOperatorOverloads(opName, category, syntax, operatorList, sqlNameMatcher);
+    }
+    if (operatorList.isEmpty()) {
+      final OperatorKey windowKey = OperatorKey.of("$" + opName.getSimple(), syntax);
+      final SqlOperatorConversion windowConversion = operatorConversions.get(windowKey);
+      if (windowConversion != null) {
+        operatorList.add(windowConversion.calciteOperator());
+      }
     }
   }
 

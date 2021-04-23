@@ -29,6 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
+import io.druid.data.RowSignature;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -61,6 +62,11 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
       return ValueDesc.UNKNOWN;
     }
   };
+
+  public static WindowContext newInstance(RowSignature signature)
+  {
+    return new WindowContext(ImmutableList.of(), signature.asTypeMap());
+  }
 
   public static WindowContext newInstance(List<String> columns, Map<String, ValueDesc> expectedTypes)
   {

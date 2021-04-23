@@ -59,6 +59,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
   public static final ExprEval NULL_DOUBLE = ExprEval.of(null, ValueDesc.DOUBLE);
   public static final ExprEval NULL_LONG = ExprEval.of(null, ValueDesc.LONG);
   public static final ExprEval NULL_DATETIME = ExprEval.of(null, ValueDesc.DATETIME);
+  public static final ExprEval NULL_MAP = ExprEval.of(null, ValueDesc.MAP);
 
   public static ExprEval bestEffortOf(Object val)
   {

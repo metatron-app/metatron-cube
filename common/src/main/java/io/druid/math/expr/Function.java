@@ -70,6 +70,24 @@ public interface Function
   interface FixedTyped
   {
     ValueDesc returns();
+
+    interface LongType extends FixedTyped
+    {
+      @Override
+      default ValueDesc returns()
+      {
+        return ValueDesc.LONG;
+      }
+    }
+
+    interface DoubleType extends FixedTyped
+    {
+      @Override
+      default ValueDesc returns()
+      {
+        return ValueDesc.DOUBLE;
+      }
+    }
   }
 
   abstract class NamedEntity

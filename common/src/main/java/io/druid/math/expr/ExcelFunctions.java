@@ -200,7 +200,7 @@ public interface ExcelFunctions extends Function.Library
 
   // npv(double[] cfs, double discountRate)
   @Function.Named("$npv")
-  class ExcelNPV extends BuiltinFunctions.WindowFunctionFactory
+  class ExcelNPV extends WindowFunctions.Factory
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, Expr.WindowContext context)
@@ -245,7 +245,7 @@ public interface ExcelFunctions extends Function.Library
 
   // irr(double[] income) = irr(double[] income, 0.1D)
   @Function.Named("$irr")
-  class ExcelIRR extends BuiltinFunctions.WindowFunctionFactory
+  class ExcelIRR extends WindowFunctions.Factory
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, Expr.WindowContext context)
@@ -287,7 +287,7 @@ public interface ExcelFunctions extends Function.Library
 
   // mirr(double[] in, double financeRate, double reinvestRate)
   @Function.Named("$mirr")
-  class ExcelMIRR extends BuiltinFunctions.WindowFunctionFactory
+  class ExcelMIRR extends WindowFunctions.Factory
   {
     @Override
     protected WindowFunction newInstance(List<Expr> args, Expr.WindowContext context)

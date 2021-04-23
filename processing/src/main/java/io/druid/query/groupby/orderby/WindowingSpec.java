@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -205,14 +204,9 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
         return context.with(partitionKey, partition)
-                      .evaluate(Iterables.transform(expressions, new Function<String, Frame>()
-                      {
-                        @Override
-                        public Frame apply(String expression)
-                        {
-                          return Frame.of(Evals.splitAssign(expression, context));
-                        }
-                      }));
+                      .evaluate(Iterables.transform(
+                          expressions, expression -> Frame.of(Evals.splitAssign(expression, context)))
+                      );
       }
     };
     if (flattenSpec != null) {
@@ -314,10 +308,11 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
     if (schema == null || pivotSpec != null || flattenSpec != null) {
       return null;
     }
+    WindowContext context = WindowContext.newInstance(schema);
     List<String> names = Lists.newArrayList(schema.getColumnNames());
     List<ValueDesc> types = Lists.newArrayList(schema.getColumnTypes());
     for (String expression : expressions) {
-      Frame frame = Frame.of(Evals.splitAssign(Parser.parse(expression, WindowContext.UNKNOWN)));
+      Frame frame = Frame.of(Evals.splitAssign(Parser.parse(expression, context)));
       int index = names.indexOf(frame.getOutputName());
       if (index < 0) {
         names.add(frame.getOutputName());

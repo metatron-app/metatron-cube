@@ -36,7 +36,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.math.expr.BuiltinFunctions.WindowFunctionFactory;
 import io.druid.math.expr.antlr.ExprLexer;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -65,6 +64,7 @@ public class Parser
 
   static {
     register(BuiltinFunctions.class);
+    register(WindowFunctions.class);
     register(PredicateFunctions.class);
     register(DateTimeFunctions.class);
     register(ExcelFunctions.class);
@@ -76,6 +76,7 @@ public class Parser
       return;
     }
     final boolean builtInLibrary = parent == BuiltinFunctions.class ||
+                                   parent == WindowFunctions.class ||
                                    parent == PredicateFunctions.class ||
                                    parent == DateTimeFunctions.class ||
                                    parent == ExcelFunctions.class;
@@ -100,6 +101,7 @@ public class Parser
   {
     final Class parent = factory.getClass().getEnclosingClass();
     return parent == BuiltinFunctions.class ||
+           parent == WindowFunctions.class ||
            parent == PredicateFunctions.class ||
            parent == DateTimeFunctions.class ||
            parent == ExcelFunctions.class;
@@ -620,8 +622,8 @@ public class Parser
       init(binary.right());
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
-      if (functionExpr.function instanceof WindowFunctionFactory.WindowFunction) {
-        ((WindowFunctionFactory.WindowFunction) functionExpr.function).init();
+      if (functionExpr.function instanceof WindowFunctions.Factory.WindowFunction) {
+        ((WindowFunctions.Factory.WindowFunction) functionExpr.function).init();
       } else {
         for (Expr child : functionExpr.args) {
           init(child);
