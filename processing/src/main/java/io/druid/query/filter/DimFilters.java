@@ -45,6 +45,7 @@ import io.druid.query.ViewDataSource;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.bitmap.WrappedBitSetBitmap;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -453,7 +454,10 @@ public class DimFilters
   {
     if (bitmap1.isEmpty() || bitmap2.isEmpty()) {
       return bitmap1;
+    } else if (factory instanceof RoaringBitmapFactory) {
+      return ((RoaringBitmapFactory) factory).difference(bitmap1, bitmap2, length);
     } else {
+      // A - B = A n ~B
       return intersection(factory, bitmap1, complement(factory, bitmap2, length));
     }
   }

@@ -92,6 +92,11 @@ public class IntIterators
     {
       bitSet.set(from, to + 1);   // exclusive
     }
+
+    public void andNot(BitSet bitSet)
+    {
+      bitSet.clear(from, to + 1);
+    }
   }
 
   public static class FromArray extends Abstract

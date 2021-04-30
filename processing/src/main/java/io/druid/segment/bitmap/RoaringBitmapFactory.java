@@ -33,6 +33,7 @@ import org.roaringbitmap.buffer.RoaringUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Iterator;
 
@@ -137,6 +138,15 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   public ImmutableBitmap intersection(Iterable<ImmutableBitmap> b)
   {
     return super.intersection(Iterables.transform(b, bitmap -> unwrapLazy(bitmap)));
+  }
+
+  // basically for bound filter.. a contains b
+  public ImmutableBitmap difference(ImmutableBitmap a, ImmutableBitmap b, int length)
+  {
+    if (a instanceof LazyImmutableBitmap) {
+      return ((LazyImmutableBitmap) a).andNot(b);
+    }
+    return intersection(Arrays.asList(a, complement(b, length)));
   }
 
   @Override
@@ -294,20 +304,30 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
 
   public static LazyImmutableBitmap from(final BitSet bitSet)
   {
-    return new LazyImmutableBitmap(bitSet.cardinality())
-    {
-      @Override
-      public IntIterator iterator()
-      {
-        return WrappedBitSetBitmap.iterator(bitSet);
-      }
+    return new LazyFromBitSet(bitSet);
+  }
 
-      @Override
-      public void union(BitSet target)
-      {
-        target.or(bitSet);
-      }
-    };
+  private static class LazyFromBitSet extends LazyImmutableBitmap
+  {
+    private final BitSet bitSet;
+
+    public LazyFromBitSet(BitSet bitSet)
+    {
+      super(bitSet.cardinality());
+      this.bitSet = bitSet;
+    }
+
+    @Override
+    public IntIterator iterator()
+    {
+      return WrappedBitSetBitmap.iterator(bitSet);
+    }
+
+    @Override
+    public ImmutableBitmap andNot(ImmutableBitmap otherBitmap)
+    {
+      return _andNot((BitSet) bitSet.clone(), otherBitmap);
+    }
   }
 
   private static abstract class LazyImmutableBitmap implements ImmutableBitmap
@@ -379,6 +399,28 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
           target.set(iterator.next());
         }
       }
+    }
+
+    public ImmutableBitmap andNot(ImmutableBitmap otherBitmap)
+    {
+      return _andNot(copyTo(this, new BitSet()), otherBitmap);
+    }
+
+    protected LazyImmutableBitmap _andNot(BitSet copy, ImmutableBitmap otherBitmap)
+    {
+      if (otherBitmap instanceof LazyFromBitSet) {
+        copy.andNot(((LazyFromBitSet) otherBitmap).bitSet);
+      } else {
+        final IntIterator iterator = otherBitmap.iterator();
+        if (iterator instanceof IntIterators.Range) {
+          ((IntIterators.Range) iterator).andNot(copy);
+        } else {
+          while (iterator.hasNext()) {
+            copy.clear(iterator.next());
+          }
+        }
+      }
+      return from(copy);
     }
   }
 }
