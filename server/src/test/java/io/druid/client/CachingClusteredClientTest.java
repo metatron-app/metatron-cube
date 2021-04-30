@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -31,8 +30,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.ForwardingListeningExecutorService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -59,6 +56,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.guava.MergeIterable;
 import io.druid.java.util.common.guava.nary.TrinaryFn;
@@ -80,6 +78,7 @@ import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.common.utils.Murmur3;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -1208,8 +1207,6 @@ public class CachingClusteredClientTest
                                                            .add(new HyperUniquesAggregatorFactory("uniques", "uniques"))
                                                            .build();
 
-    final HashFunction hashFn = Hashing.murmur3_128();
-
     BaseAggregationQuery.Builder<GroupByQuery> builder = new GroupByQuery.Builder()
         .setDataSource(DATA_SOURCE)
         .setQuerySegmentSpec(SEG_SPEC)
@@ -1221,8 +1218,8 @@ public class CachingClusteredClientTest
         .setContext(CONTEXT);
 
     final HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
-    collector.add(hashFn.hashString("abc123", Charsets.UTF_8).asBytes());
-    collector.add(hashFn.hashString("123abc", Charsets.UTF_8).asBytes());
+    collector.add(Murmur3.hash128(StringUtils.toUtf8("abc123")));
+    collector.add(Murmur3.hash128(StringUtils.toUtf8("123abc")));
 
     testQueryCaching(
         client,

@@ -29,8 +29,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
+import io.druid.common.utils.Murmur3;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
 
@@ -39,7 +38,6 @@ import java.util.List;
 
 public class HashBasedNumberedShardSpec extends NumberedShardSpec
 {
-  private static final HashFunction hashFunction = Hashing.murmur3_32();
   private static final List<String> DEFAULT_PARTITION_DIMENSIONS = ImmutableList.of();
 
   private final ObjectMapper jsonMapper;
@@ -75,7 +73,7 @@ public class HashBasedNumberedShardSpec extends NumberedShardSpec
   {
     final List<Object> groupKey = getGroupKey(timestamp, inputRow);
     try {
-      return hashFunction.hashBytes(jsonMapper.writeValueAsBytes(groupKey)).asInt();
+      return Murmur3.hash32(jsonMapper.writeValueAsBytes(groupKey));
     }
     catch (JsonProcessingException e) {
       throw Throwables.propagate(e);

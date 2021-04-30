@@ -24,13 +24,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.UnsignedBytes;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.HashCollector;
-import io.druid.query.aggregation.Murmur3;
 import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;

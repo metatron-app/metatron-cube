@@ -33,13 +33,10 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.collections.Stats;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.Murmur3;
 import io.druid.data.ParserInitializationFail;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.Committer;
@@ -57,6 +54,8 @@ import io.druid.indexing.common.actions.SegmentAppendingAction;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.common.index.YeOldePlumberSchool;
 import io.druid.initialization.Initialization;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.segment.IndexSpec;
@@ -92,8 +91,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class IndexTask extends AbstractFixedIntervalTask
 {
   private static final Logger log = new Logger(IndexTask.class);
-
-  private static HashFunction hashFunction = Hashing.murmur3_128();
 
   /**
    * Should we index this inputRow? Decision is based on our interval and shardSpec.
@@ -345,9 +342,7 @@ public class IndexTask extends AbstractFixedIntervalTask
               queryGranularity.bucketStart(inputRow.getTimestampFromEpoch()),
               inputRow
           );
-          collector.add(
-              hashFunction.hashBytes(jsonMapper.writeValueAsBytes(groupKey)).asBytes()
-          );
+          collector.add(Murmur3.hash128(jsonMapper.writeValueAsBytes(groupKey)));
         }
         totalRows++;
       }

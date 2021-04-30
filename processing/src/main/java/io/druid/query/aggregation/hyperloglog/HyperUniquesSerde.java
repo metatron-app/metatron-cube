@@ -19,8 +19,7 @@
 
 package io.druid.query.aggregation.hyperloglog;
 
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
+import io.druid.common.utils.Murmur3;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.StringUtils;
 import io.druid.segment.data.ObjectStrategy;
@@ -34,18 +33,6 @@ import java.util.List;
  */
 public class HyperUniquesSerde extends ComplexMetricSerde.CompressionSupport
 {
-  private final HashFunction hashFn;
-
-  public HyperUniquesSerde()
-  {
-    this(Hashing.murmur3_128());
-  }
-
-  public HyperUniquesSerde(HashFunction hashFn)
-  {
-    this.hashFn = hashFn;
-  }
-
   @Override
   public String getTypeName()
   {
@@ -73,9 +60,7 @@ public class HyperUniquesSerde extends ComplexMetricSerde.CompressionSupport
           }
 
           for (String dimensionValue : dimValues) {
-            collector.add(
-                hashFn.hashBytes(StringUtils.toUtf8(dimensionValue)).asBytes()
-            );
+            collector.add(Murmur3.hash128(StringUtils.toUtf8(dimensionValue)));
           }
           return collector;
         }

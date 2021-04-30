@@ -20,9 +20,10 @@
 package io.druid.query.aggregation.hyperloglog;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
+import com.google.common.primitives.Bytes;
+import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.Murmur3;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -34,8 +35,6 @@ import java.util.Random;
  */
 public class HyperUniqueFinalizingPostAggregatorTest
 {
-  private final HashFunction fn = Hashing.murmur3_128();
-
   @Test
   public void testCompute() throws Exception
   {
@@ -44,13 +43,12 @@ public class HyperUniqueFinalizingPostAggregatorTest
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
 
     for (int i = 0; i < 100; ++i) {
-      byte[] hashedVal = fn.hashLong(random.nextLong()).asBytes();
-      collector.add(hashedVal);
+      collector.add(Murmur3.hash128(Bytes.concat(Longs.toByteArray(random.nextLong()), new byte[8])));
     }
 
     DateTime timestamp = DateTimes.nowUtc();
     double cardinality = (Double) postAggregator.compute(timestamp, ImmutableMap.<String, Object>of("uniques", collector));
 
-    Assert.assertTrue(cardinality == 99.37233005831612);
+    Assert.assertEquals(99.37233005831612, cardinality, 0.0001d);
   }
 }

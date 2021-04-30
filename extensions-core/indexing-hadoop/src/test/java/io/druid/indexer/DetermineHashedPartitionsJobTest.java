@@ -61,8 +61,7 @@ public class DetermineHashedPartitionsJobTest
     Arrays.fill(second, 1);
     int[] third = new int[6];
     Arrays.fill(third, 13);
-    third[2] = 12;
-    third[5] = 11;
+    third[4] = 12;
 
     return Arrays.asList(
         new Object[][]{

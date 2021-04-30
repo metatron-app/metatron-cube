@@ -25,8 +25,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -275,8 +273,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
   public static class IndexGeneratorMapper extends HadoopDruidIndexerMapper<BytesWritable, BytesWritable>
   {
-    private static final HashFunction hashFunction = Hashing.murmur3_128();
-
     private List<String> partitionDimensions;
     private InputRowSerde serde;
 
@@ -313,9 +309,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
       final long timestampFromEpoch = inputRow.getTimestampFromEpoch();
       final long truncatedTimestamp = granularitySpec.getQueryGranularity().bucketStart(timestampFromEpoch);
-      final byte[] hashedDimensions = Rows.toGroupHash(
-          hashFunction.newHasher(), truncatedTimestamp, inputRow, partitionDimensions
-      ).asBytes();
+      final long[] dimensionHash128 = Rows.hash128(truncatedTimestamp, inputRow, partitionDimensions);
 
       // type SegmentInputRow serves as a marker that these InputRow instances have already been combined
       // and they contain the columns as they show up in the segment after ingestion, not what you would see in raw
@@ -325,9 +319,10 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       BytesWritable key = new SortableBytes(
           bucket.get().toGroupKey(),
           // sort rows by truncated timestamp and hashed dimensions to help reduce spilling on the reducer side
-          ByteBuffer.allocate(Long.BYTES + hashedDimensions.length + Long.BYTES)
+          ByteBuffer.allocate(Long.BYTES + Long.BYTES * 2 + Long.BYTES)
                     .putLong(truncatedTimestamp)
-                    .put(hashedDimensions)
+                    .putLong(dimensionHash128[0])
+                    .putLong(dimensionHash128[1])
                     .putLong(timestampFromEpoch)
                     .array()
       ).toBytesWritable();

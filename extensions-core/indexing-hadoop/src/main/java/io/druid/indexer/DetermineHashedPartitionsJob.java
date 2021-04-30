@@ -25,14 +25,13 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import com.google.common.io.Closeables;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
+import io.druid.common.utils.Murmur3;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.timeline.partition.HashBasedNumberedShardSpec;
@@ -211,7 +210,6 @@ public class DetermineHashedPartitionsJob implements Jobby
 
   public static class DetermineCardinalityMapper extends HadoopDruidIndexerMapper<LongWritable, BytesWritable>
   {
-    private static HashFunction hashFunction = Hashing.murmur3_128();
     private Granularity rollupGranularity = null;
     private Map<Interval, HyperLogLogCollector> hyperLogLogs;
     private boolean determineIntervals;
@@ -266,10 +264,7 @@ public class DetermineHashedPartitionsJob implements Jobby
         interval = maybeInterval.get();
       }
       hyperLogLogs.get(interval)
-                  .add(
-                      hashFunction.hashBytes(HadoopDruidIndexerConfig.JSON_MAPPER.writeValueAsBytes(groupKey))
-                                  .asBytes()
-                  );
+                  .add(Murmur3.hash128(HadoopDruidIndexerConfig.JSON_MAPPER.writeValueAsBytes(groupKey)));
     }
 
     @Override

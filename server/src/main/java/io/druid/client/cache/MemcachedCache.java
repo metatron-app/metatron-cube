@@ -19,7 +19,6 @@
 
 package io.druid.client.cache;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -29,13 +28,13 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import io.druid.cache.Cache;
 import io.druid.cache.CacheStats;
 import io.druid.collections.LoadBalancingPool;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
+import io.druid.common.utils.Murmur3;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
@@ -78,18 +77,10 @@ public class MemcachedCache implements Cache
 
   final static HashAlgorithm MURMUR3_128 = new HashAlgorithm()
   {
-    final HashFunction fn = Hashing.murmur3_128();
-
     @Override
     public long hash(String k)
     {
-      return fn.hashString(k, Charsets.UTF_8).asLong();
-    }
-
-    @Override
-    public String toString()
-    {
-      return fn.toString();
+      return Murmur3.hash64(StringUtils.nullableToUtf8(k));
     }
   };
 

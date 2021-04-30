@@ -33,6 +33,7 @@ import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.BytesRef;
+import io.druid.common.utils.Murmur3;
 import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
@@ -44,7 +45,6 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.HashAggregator;
 import io.druid.query.aggregation.HashCollector;
-import io.druid.query.aggregation.Murmur3;
 import io.druid.query.aggregation.bloomfilter.BloomFilterAggregatorFactory;
 import io.druid.query.aggregation.bloomfilter.BloomKFilter;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
@@ -65,7 +65,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import static io.druid.query.filter.DimFilter.*;
+import static io.druid.query.filter.DimFilter.BestEffort;
+import static io.druid.query.filter.DimFilter.LogProvider;
 
 /**
  */

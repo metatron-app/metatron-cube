@@ -23,8 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.Hasher;
+import io.druid.common.utils.Murmur3;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import org.joda.time.DateTime;
@@ -231,15 +230,16 @@ public class Rows extends io.druid.data.Rows
     );
   }
 
-  public static HashCode toGroupHash(Hasher hasher, long timeStamp, InputRow inputRow, List<String> partitionDimensions)
+  public static long[] hash128(long timeStamp, InputRow inputRow, List<String> partitionDimensions)
   {
-    hasher.putLong(timeStamp);
+    BytesOutputStream buffer = new BytesOutputStream();
+    buffer.writeLong(timeStamp);
     for (final String dim : partitionDimensions) {
       Object value = inputRow.getRaw(dim);
       if (value != null) {
-        hasher.putBytes(StringUtils.toUtf8(String.valueOf(value)));
+        buffer.write(StringUtils.toUtf8(String.valueOf(value)));
       }
     }
-    return hasher.hash();
+    return Murmur3.hash128(buffer.unwrap(), 0, buffer.size());
   }
 }

@@ -17,9 +17,11 @@
  * under the License.
  */
 
-package io.druid.query.aggregation;
+package io.druid.common.utils;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import org.apache.commons.lang.mutable.MutableLong;
 
 import java.io.UnsupportedEncodingException;
@@ -263,6 +265,11 @@ public class Murmur3
     hash = fmix64(hash);
 
     return hash;
+  }
+
+  @VisibleForTesting
+  public static long[] hash128(long x) {
+    return hash128(Longs.toByteArray(x), 0, Long.BYTES, 0);
   }
 
   /**

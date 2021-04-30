@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.common.utils.Murmur3;
 import org.junit.Assert;
 import org.junit.Test;
 
