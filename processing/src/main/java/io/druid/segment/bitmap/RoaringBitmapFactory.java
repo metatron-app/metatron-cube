@@ -257,28 +257,27 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   @Override
   public ImmutableBitmap mapImmutableBitmap(ByteBuffer bbf)
   {
-    final ByteBuffer buffer = bbf.order(ByteOrder.LITTLE_ENDIAN);
-    final int cookie = buffer.getInt(buffer.position()) & 0xFFFF;
+    final int position = bbf.position();
+    final int magic = bbf.order(ByteOrder.LITTLE_ENDIAN).getInt(position);
+    final int cookie = magic & 0xFFFF;
     if (cookie == RANGE_COOKIE) {
-      final ByteBuffer bigEndian = buffer.asReadOnlyBuffer().order(ByteOrder.BIG_ENDIAN);
-      bigEndian.getInt();   // skip
-      final int from = VLongUtils.readUnsignedVarInt(bigEndian);
-      final int to = from + VLongUtils.readUnsignedVarInt(bigEndian);
+      bbf.position(position + 4);   // skip
+      final int from = VLongUtils.readUnsignedVarInt(bbf);
+      final int to = from + VLongUtils.readUnsignedVarInt(bbf);
       return from(to - from + 1, new IntIterators.Range(from, to));
     } else if (cookie == SMALL_COOKIE) {
-      final ByteBuffer readOnly = buffer.asReadOnlyBuffer().order(ByteOrder.LITTLE_ENDIAN); // order is not propagated
-      final int size = readOnly.getInt() >>> 16;
+      bbf.position(position + 4);   // skip
+      final int size = magic >>> 16;
       if (size == 0) {
         return makeEmptyImmutableBitmap();
       }
-      final ByteBuffer bigEndian = readOnly.order(ByteOrder.BIG_ENDIAN);
       final int[] indices = new int[size];
       for (int i = 0; i < indices.length; i++) {
-        indices[i] = (i == 0 ? 0 : indices[i - 1]) + VLongUtils.readUnsignedVarInt(bigEndian);
+        indices[i] = (i == 0 ? 0 : indices[i - 1]) + VLongUtils.readUnsignedVarInt(bbf);
       }
       return from(size, new IntIterators.FromArray(indices));
     }
-    return super.mapImmutableBitmap(bbf);
+    return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(bbf));
   }
 
   private static ImmutableBitmap unwrapLazy(ImmutableBitmap bitmap)
