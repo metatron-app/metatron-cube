@@ -653,7 +653,7 @@ public class IndexMergerV9 extends IndexMerger
               continue;
             }
             if (rowNumConversions != null) {
-              convertedInverteds.add(new IntIterators.Mapped(bitmap.iterator(), rowNumConversions[j]));
+              convertedInverteds.add(IntIterators.map(bitmap.iterator(), rowNumConversions[j]));
             } else {
               convertedInverteds.add(bitmap.iterator());
             }

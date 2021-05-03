@@ -26,12 +26,13 @@ import it.unimi.dsi.fastutil.PriorityQueue;
 import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.roaringbitmap.IntIterator;
 
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
-import java.util.NoSuchElementException;
 
-public class IntIterators
+// values should be >= 0 and sorted (all for handling bitmap iterator)
+public final class IntIterators
 {
   public static abstract class Abstract implements IntIterator
   {
@@ -42,7 +43,7 @@ public class IntIterators
     }
   }
 
-  public static IntIterator EMPTY = new Abstract()
+  public static final IntIterator EMPTY = new Abstract()
   {
     @Override
     public boolean hasNext()
@@ -53,11 +54,63 @@ public class IntIterators
     @Override
     public int next()
     {
-      throw new NoSuchElementException();
+      return -1;
     }
   };
 
-  public static class Range implements IntIterator
+  public static IntIterator from(int[] array)
+  {
+    return new IntIterators.FromArray(array);
+  }
+
+  public static IntIterator sort(IntIterator... iterators)
+  {
+    return sort(Arrays.asList(iterators));
+  }
+
+  public static IntIterator sort(List<IntIterator> iterators)
+  {
+    return iterators.size() == 0
+           ? EMPTY
+           : iterators.size() == 1 ? iterators.get(0) : new IntIterators.Sorted(iterators);
+  }
+
+  public static IntIterator and(IntIterator... iterators)
+  {
+    return and(Arrays.asList(iterators));
+  }
+
+  public static IntIterator and(List<IntIterator> iterators)
+  {
+    return iterators.size() == 0 ? EMPTY : iterators.size() == 1 ? iterators.get(0) : new IntIterators.AND(iterators);
+  }
+
+  public static IntIterator or(IntIterator... iterators)
+  {
+    return or(Arrays.asList(iterators));
+  }
+
+  public static IntIterator or(List<IntIterator> iterators)
+  {
+    return iterators.size() == 0 ? EMPTY : iterators.size() == 1 ? iterators.get(0) : new IntIterators.OR(iterators);
+  }
+
+  public static IntIterator not(IntIterator iterator, int limit)
+  {
+    return new IntIterators.NOT(iterator, limit);
+  }
+
+  public static IntIterator diff(IntIterator iterator, IntIterator except)
+  {
+    return new IntIterators.DIFF(iterator, except);
+  }
+
+  public static IntIterator map(IntIterator iterator, int[] mapping)
+  {
+    return new IntIterators.Mapped(iterator, mapping);
+  }
+
+  public static final class Range implements IntIterator
   {
     private final int from;
     private final int to;
@@ -99,7 +152,7 @@ public class IntIterators
     }
   }
 
-  public static class FromArray extends Abstract
+  public static final class FromArray extends Abstract
   {
     private int index;
     private final int[] array;
@@ -134,7 +187,7 @@ public class IntIterators
     }
   }
 
-  public static class UpTo extends Abstract
+  private static final class UpTo extends Abstract
   {
     private final int limit;
 
@@ -147,13 +200,11 @@ public class IntIterators
     {
       return index < limit;
     }
+
     @Override
     public int next()
     {
-      if (index >= limit) {
-        throw new NoSuchElementException();
-      }
-      return index++;
+      return index >= limit ? -1 : index++;
     }
 
   }
@@ -167,7 +218,7 @@ public class IntIterators
     return list.array();
   }
 
-  public static class Peekable extends Abstract
+  private static final class Peekable extends Abstract
   {
     private final IntIterator iterator;
     private boolean hasPeeked;
@@ -178,6 +229,9 @@ public class IntIterators
     public int peek()
     {
       if (!hasPeeked) {
+        if (!iterator.hasNext()) {
+          return -1;
+        }
         peekedElement = iterator.next();
         hasPeeked = true;
       }
@@ -194,15 +248,14 @@ public class IntIterators
     public int next()
     {
       if (!hasPeeked) {
-        return iterator.next();
+        return iterator.hasNext() ? iterator.next() : -1;
       }
       hasPeeked = false;
       return peekedElement;
     }
   }
 
-  // values should be sorted
-  public static class Sorted extends IntIterators.Abstract
+  private static final class Sorted extends IntIterators.Abstract
   {
     final PriorityQueue<Peekable> pQueue;
 
@@ -247,14 +300,13 @@ public class IntIterators
     }
   }
 
-  // values should be >= 0 and sorted (for bitmap)
-  public static class OR extends NextFirst
+  private static final class OR extends NextFirst
   {
     private final Peekable iterator;
 
     public OR(List<IntIterator> iterators)
     {
-      this.iterator = new Peekable(new Sorted(iterators));
+      this.iterator = new Peekable(sort(iterators));
       this.next = findNext(-1);
     }
 
@@ -267,8 +319,7 @@ public class IntIterators
     }
   }
 
-  // values should be >= 0 and sorted (for bitmap)
-  public static class AND extends NextFirst
+  private static final class AND extends NextFirst
   {
     private static final int EOF = Integer.MIN_VALUE;
 
@@ -329,8 +380,7 @@ public class IntIterators
     }
   }
 
-  // values should be >= 0 and sorted (for bitmap)
-  public static class NOT extends NextFirst
+  private static final class NOT extends NextFirst
   {
     private final IntIterator iterator;
     private final int limit;
@@ -353,6 +403,34 @@ public class IntIterators
         next++;
       }
       return next < limit ? next : -1;
+    }
+  }
+
+  private static final class DIFF extends NextFirst
+  {
+    private final IntIterator iterator;
+    private final Peekable other;
+
+    public DIFF(IntIterator iterator, IntIterator other)
+    {
+      this.iterator = iterator;
+      this.other = new Peekable(other);
+      this.next = findNext(-1);
+    }
+
+    @Override
+    public int findNext(int current)
+    {
+      while (iterator.hasNext()) {
+        final int index = iterator.next();
+        while (index > other.peek() && other.hasNext()) {
+          other.next();
+        }
+        if (index != other.peek()) {
+          return index;
+        }
+      }
+      return -1;
     }
   }
 
@@ -405,7 +483,7 @@ public class IntIterators
     protected abstract int findNext(int current);
   }
 
-  public static class Mapped extends Delegated
+  private static final class Mapped extends Delegated
   {
     private final int[] conversion;
 

@@ -212,10 +212,15 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (bitmap instanceof LazyImmutableBitmap) {
       ((LazyImmutableBitmap) bitmap).union(bitSet);
     } else {
-      final IntIterator iterator = bitmap.iterator();
-      while (iterator.hasNext()) {
-        bitSet.set(iterator.next());
-      }
+      copyTo(bitmap.iterator(), bitSet);
+    }
+    return bitSet;
+  }
+
+  private static BitSet copyTo(final IntIterator iterator, final BitSet bitSet)
+  {
+    while (iterator.hasNext()) {
+      bitSet.set(iterator.next());
     }
     return bitSet;
   }
@@ -275,7 +280,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       for (int i = 0; i < indices.length; i++) {
         indices[i] = (i == 0 ? 0 : indices[i - 1]) + VLongUtils.readUnsignedVarInt(bbf);
       }
-      return from(size, new IntIterators.FromArray(indices));
+      return from(size, IntIterators.from(indices));
     }
     return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(bbf));
   }
@@ -394,15 +399,16 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       if (iterator instanceof IntIterators.Range) {
         ((IntIterators.Range) iterator).union(target);
       } else {
-        while (iterator.hasNext()) {
-          target.set(iterator.next());
-        }
+        copyTo(iterator, target);
       }
     }
 
     public ImmutableBitmap andNot(ImmutableBitmap otherBitmap)
     {
-      return _andNot(copyTo(this, new BitSet()), otherBitmap);
+      if (otherBitmap instanceof LazyFromBitSet) {
+        return _andNot(copyTo(iterator(), new BitSet()), otherBitmap);
+      }
+      return from(copyTo(IntIterators.diff(iterator(), otherBitmap.iterator()), new BitSet()));
     }
 
     protected LazyImmutableBitmap _andNot(BitSet copy, ImmutableBitmap otherBitmap)

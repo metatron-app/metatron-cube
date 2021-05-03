@@ -69,9 +69,10 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   @Override
   public void write(final int b)
   {
-    ensureCapacity(count + 1);
-    buf[count] = (byte) b;
-    count += 1;
+    final int x = count;
+    ensureCapacity(x + 1);
+    buf[x] = (byte) b;
+    count += Byte.BYTES;
   }
 
   @Override
@@ -112,9 +113,12 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   @Override
   public void writeChar(final int v)
   {
-    ensureCapacity(count + Character.BYTES);
-    buf[count++] = (byte) (v >>> 8);
-    buf[count++] = (byte) v;
+    final int x = count;
+    ensureCapacity(x + Character.BYTES);
+    final byte[] b = buf;
+    b[x] = (byte) (v >>> 8);
+    b[x + 1] = (byte) v;
+    count += Character.BYTES;
   }
 
   @Override
@@ -141,33 +145,42 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   @Override
   public void writeInt(final int v)
   {
-    ensureCapacity(count + Integer.BYTES);
-    buf[count++] = (byte) (v >>> 24);
-    buf[count++] = (byte) (v >>> 16);
-    buf[count++] = (byte) (v >>> 8);
-    buf[count++] = (byte) v;
+    final int x = count;
+    ensureCapacity(x + Integer.BYTES);
+    final byte[] b = buf;
+    b[x] = (byte) (v >>> 24);
+    b[x + 1] = (byte) (v >>> 16);
+    b[x + 2] = (byte) (v >>> 8);
+    b[x + 3] = (byte) v;
+    count += Integer.BYTES;
   }
 
   @Override
   public void writeLong(final long v)
   {
-    ensureCapacity(count + Long.BYTES);
-    buf[count++] = (byte) (v >>> 56);
-    buf[count++] = (byte) (v >>> 48);
-    buf[count++] = (byte) (v >>> 40);
-    buf[count++] = (byte) (v >>> 32);
-    buf[count++] = (byte) (v >>> 24);
-    buf[count++] = (byte) (v >>> 16);
-    buf[count++] = (byte) (v >>> 8);
-    buf[count++] = (byte) v;
+    final int x = count;
+    ensureCapacity(x + Long.BYTES);
+    final byte[] b = buf;
+    b[x] = (byte) (v >>> 56);
+    b[x + 1] = (byte) (v >>> 48);
+    b[x + 2] = (byte) (v >>> 40);
+    b[x + 3] = (byte) (v >>> 32);
+    b[x + 4] = (byte) (v >>> 24);
+    b[x + 5] = (byte) (v >>> 16);
+    b[x + 6] = (byte) (v >>> 8);
+    b[x + 7] = (byte) v;
+    count += Long.BYTES;
   }
 
   @Override
   public void writeShort(int v)
   {
-    ensureCapacity(count + Short.BYTES);
-    buf[count++] = (byte) (v >>> 8);
-    buf[count++] = (byte) v;
+    final int x = count;
+    ensureCapacity(x + Short.BYTES);
+    final byte[] b = buf;
+    b[x] = (byte) (v >>> 8);
+    b[x + 1] = (byte) v;
+    count += Short.BYTES;
   }
 
   @Override

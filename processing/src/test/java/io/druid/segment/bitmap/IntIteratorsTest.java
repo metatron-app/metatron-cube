@@ -23,74 +23,104 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.roaringbitmap.IntIterator;
 
-import java.util.Arrays;
-
 public class IntIteratorsTest
 {
+  private final int[] source = {1, 8, 3, 6, 5, 4, 7, 2, 9, 0};
+  private final int[] source0 = {};
+  private final int[] source1 = {1, 2, 7, 9};
+  private final int[] source2 = {1, 3, 7};
+  private final int[] source3 = {1, 2, 5, 7, 8, 9};
+
   @Test
   public void testBasic()
   {
-    final int[] source = {1, 8, 3, 6, 5, 4, 7, 2, 9, 0};
-    IntIterator basic = new IntIterators.FromArray(source);
-    Assert.assertArrayEquals(source, IntIterators.toArray(basic));
+    Assert.assertArrayEquals(source, IntIterators.toArray(IntIterators.from(source)));
 
-    final int[] source0 = {};
-    final int[] source1 = {1, 2, 7, 9};
-    final int[] source2 = {1, 3, 7};
-    final int[] source3 = {1, 2, 5, 7, 8, 9};
-    final IntIterator sorted = new IntIterators.Sorted(Arrays.asList(
-        new IntIterators.FromArray(source0),
-        new IntIterators.FromArray(source1),
-        new IntIterators.FromArray(source2),
-        new IntIterators.FromArray(source3)
-    ));
+    final IntIterator sorted = IntIterators.sort(
+        IntIterators.from(source0),
+        IntIterators.from(source1),
+        IntIterators.from(source2),
+        IntIterators.from(source3)
+    );
     Assert.assertArrayEquals(new int[]{1, 1, 1, 2, 2, 3, 5, 7, 7, 7, 8, 9, 9}, IntIterators.toArray(sorted));
 
-    final IntIterator or = new IntIterators.OR(Arrays.asList(
-        new IntIterators.FromArray(source0),
-        new IntIterators.FromArray(source1),
-        new IntIterators.FromArray(source2),
-        new IntIterators.FromArray(source3)
-    ));
+    Assert.assertArrayEquals(source0, IntIterators.toArray(IntIterators.or(IntIterators.from(source0))));
+    Assert.assertArrayEquals(source1, IntIterators.toArray(IntIterators.or(IntIterators.from(source1))));
+    Assert.assertArrayEquals(source2, IntIterators.toArray(IntIterators.or(IntIterators.from(source2))));
+    Assert.assertArrayEquals(source3, IntIterators.toArray(IntIterators.or(IntIterators.from(source3))));
+
+    final IntIterator or = IntIterators.or(
+        IntIterators.from(source0),
+        IntIterators.from(source1),
+        IntIterators.from(source2),
+        IntIterators.from(source3)
+    );
     Assert.assertArrayEquals(new int[]{1, 2, 3, 5, 7, 8, 9}, IntIterators.toArray(or));
 
-    final IntIterator and0 = new IntIterators.AND(Arrays.asList(
-        new IntIterators.FromArray(source0),
-        new IntIterators.FromArray(source2),
-        new IntIterators.FromArray(source3)
-    ));
+    Assert.assertArrayEquals(source0, IntIterators.toArray(IntIterators.and(IntIterators.from(source0))));
+    Assert.assertArrayEquals(source1, IntIterators.toArray(IntIterators.and(IntIterators.from(source1))));
+    Assert.assertArrayEquals(source2, IntIterators.toArray(IntIterators.and(IntIterators.from(source2))));
+    Assert.assertArrayEquals(source3, IntIterators.toArray(IntIterators.and(IntIterators.from(source3))));
+
+    final IntIterator and0 = IntIterators.and(
+        IntIterators.from(source0),
+        IntIterators.from(source2),
+        IntIterators.from(source3)
+    );
     Assert.assertArrayEquals(new int[]{}, IntIterators.toArray(and0));
 
-    final IntIterator and = new IntIterators.AND(Arrays.asList(
-        new IntIterators.FromArray(source1),
-        new IntIterators.FromArray(source2),
-        new IntIterators.FromArray(source3)
-    ));
+    final IntIterator and = IntIterators.and(
+        IntIterators.from(source1),
+        IntIterators.from(source2),
+        IntIterators.from(source3)
+    );
     Assert.assertArrayEquals(new int[]{1, 7}, IntIterators.toArray(and));
 
-    final IntIterators.NOT not0 = new IntIterators.NOT(new IntIterators.FromArray(source0), 10);
-    final IntIterators.NOT not1 = new IntIterators.NOT(new IntIterators.FromArray(source1), 10);
-    final IntIterators.NOT not2 = new IntIterators.NOT(new IntIterators.FromArray(source2), 10);
-    final IntIterators.NOT not3 = new IntIterators.NOT(new IntIterators.FromArray(source3), 10);
+    final IntIterator not0 = IntIterators.not(IntIterators.from(source0), 10);
+    final IntIterator not1 = IntIterators.not(IntIterators.from(source1), 10);
+    final IntIterator not2 = IntIterators.not(IntIterators.from(source2), 10);
+    final IntIterator not3 = IntIterators.not(IntIterators.from(source3), 10);
 
     Assert.assertArrayEquals(new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, IntIterators.toArray(not0));
     Assert.assertArrayEquals(new int[]{0, 3, 4, 5, 6, 8}, IntIterators.toArray(not1));
     Assert.assertArrayEquals(new int[]{0, 2, 4, 5, 6, 8, 9}, IntIterators.toArray(not2));
     Assert.assertArrayEquals(new int[]{0, 3, 4, 6}, IntIterators.toArray(not3));
 
-    final IntIterator not_or = new IntIterators.NOT(new IntIterators.OR(Arrays.asList(
-        new IntIterators.FromArray(source0),
-        new IntIterators.FromArray(source1),
-        new IntIterators.FromArray(source2),
-        new IntIterators.FromArray(source3)
-    )), 10);
+    final IntIterator not_or = IntIterators.not(IntIterators.or(
+        IntIterators.from(source0),
+        IntIterators.from(source1),
+        IntIterators.from(source2),
+        IntIterators.from(source3)
+    ), 10);
     Assert.assertArrayEquals(new int[]{0, 4, 6}, IntIterators.toArray(not_or));
 
-    final IntIterator not_and = new IntIterators.NOT(new IntIterators.AND(Arrays.asList(
-        new IntIterators.FromArray(source1),
-        new IntIterators.FromArray(source2),
-        new IntIterators.FromArray(source3)
-    )), 10);
+    final IntIterator not_and = IntIterators.not(IntIterators.and(
+        IntIterators.from(source1),
+        IntIterators.from(source2),
+        IntIterators.from(source3)
+    ), 10);
     Assert.assertArrayEquals(new int[]{0, 2, 3, 4, 5, 6, 8, 9}, IntIterators.toArray(not_and));
+  }
+
+  @Test
+  public void testDiff()
+  {
+    Assert.assertArrayEquals(source1, IntIterators.toArray(
+        IntIterators.diff(IntIterators.from(source1), IntIterators.from(source0))
+    ));
+    Assert.assertArrayEquals(new int[0], IntIterators.toArray(
+        IntIterators.diff(IntIterators.from(source1), IntIterators.from(source1))
+    ));
+    Assert.assertArrayEquals(new int[0], IntIterators.toArray(
+        IntIterators.diff(IntIterators.from(source0), IntIterators.from(source1))
+    ));
+
+    // A and not B
+    Assert.assertArrayEquals(new int[]{2, 5, 8, 9}, IntIterators.toArray(
+        IntIterators.and(IntIterators.from(source3), IntIterators.not(IntIterators.from(source2), 10))
+    ));
+    Assert.assertArrayEquals(new int[]{2, 5, 8, 9}, IntIterators.toArray(
+        IntIterators.diff(IntIterators.from(source3), IntIterators.from(source2))
+    ));
   }
 }

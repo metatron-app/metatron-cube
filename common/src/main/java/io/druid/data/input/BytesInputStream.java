@@ -111,8 +111,10 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
   @Override
   public short readShort()
   {
-    final int ch1 = bytes[pos] & 0xff;
-    final int ch2 = bytes[pos + 1] & 0xff;
+    final int x = pos;
+    final byte[] b = bytes;
+    final int ch1 = b[x] & 0xff;
+    final int ch2 = b[x + 1] & 0xff;
     pos += Short.BYTES;
     return (short) ((ch1 << 8) + ch2);
   }
@@ -120,8 +122,10 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
   @Override
   public int readUnsignedShort()
   {
-    final int ch1 = bytes[pos] & 0xff;
-    final int ch2 = bytes[pos + 1] & 0xff;
+    final int x = pos;
+    final byte[] b = bytes;
+    final int ch1 = b[x] & 0xff;
+    final int ch2 = b[x + 1] & 0xff;
     pos += Short.BYTES;
     return (ch1 << 8) + ch2;
   }
@@ -129,8 +133,10 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
   @Override
   public char readChar()
   {
-    final int ch1 = bytes[pos] & 0xff;
-    final int ch2 = bytes[pos + 1] & 0xff;
+    final int x = pos;
+    final byte[] b = bytes;
+    final int ch1 = b[x] & 0xff;
+    final int ch2 = b[x + 1] & 0xff;
     pos += Character.BYTES;
     return (char) ((ch1 << 8) + ch2);
   }
@@ -138,10 +144,12 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
   @Override
   public int readInt()
   {
-    final int ch1 = bytes[pos] & 0xff;
-    final int ch2 = bytes[pos + 1] & 0xff;
-    final int ch3 = bytes[pos + 2] & 0xff;
-    final int ch4 = bytes[pos + 3] & 0xff;
+    final int x = pos;
+    final byte[] b = bytes;
+    final int ch1 = b[x] & 0xff;
+    final int ch2 = b[x + 1] & 0xff;
+    final int ch3 = b[x + 2] & 0xff;
+    final int ch4 = b[x + 3] & 0xff;
     pos += Integer.BYTES;
     return (ch1 << 24) + (ch2 << 16) + (ch3 << 8) + ch4;
   }
@@ -149,14 +157,16 @@ public final class BytesInputStream extends InputStream implements ByteArrayData
   @Override
   public long readLong()
   {
-    final long ch1 = bytes[pos] & 0xff;
-    final long ch2 = bytes[pos + 1] & 0xff;
-    final long ch3 = bytes[pos + 2] & 0xff;
-    final long ch4 = bytes[pos + 3] & 0xff;
-    final long ch5 = bytes[pos + 4] & 0xff;
-    final int ch6 = bytes[pos + 5] & 0xff;
-    final int ch7 = bytes[pos + 6] & 0xff;
-    final int ch8 = bytes[pos + 7] & 0xff;
+    final int x = pos;
+    final byte[] b = bytes;
+    final long ch1 = b[x] & 0xff;
+    final long ch2 = b[x + 1] & 0xff;
+    final long ch3 = b[x + 2] & 0xff;
+    final long ch4 = b[x + 3] & 0xff;
+    final long ch5 = b[x + 4] & 0xff;
+    final int ch6 = b[x + 5] & 0xff;
+    final int ch7 = b[x + 6] & 0xff;
+    final int ch8 = b[x + 7] & 0xff;
     pos += Long.BYTES;
     return (ch1 << 56) + (ch2 << 48) + (ch3 << 40) + (ch4 << 32) + (ch5 << 24) + (ch6 << 16) + (ch7 << 8) + ch8;
   }

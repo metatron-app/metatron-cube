@@ -904,7 +904,7 @@ public class IndexMerger
                 continue;
               }
               if (rowNumConversions != null) {
-                convertedInverteds.add(new IntIterators.Mapped(bitmap.iterator(), rowNumConversions[j]));
+                convertedInverteds.add(IntIterators.map(bitmap.iterator(), rowNumConversions[j]));
               } else {
                 convertedInverteds.add(bitmap.iterator());
               }
@@ -1516,15 +1516,7 @@ public class IndexMerger
 
   static MutableBitmap toBitmap(final List<IntIterator> intIterators, final MutableBitmap bitmap)
   {
-    if (intIterators.isEmpty()) {
-      return bitmap;
-    }
-    final IntIterator iterator;
-    if (intIterators.size() == 1) {
-      iterator = intIterators.get(0);
-    } else {
-      iterator = new IntIterators.OR(intIterators);
-    }
+    final IntIterator iterator = IntIterators.or(intIterators);
     while (iterator.hasNext()) {
       bitmap.add(iterator.next());
     }
