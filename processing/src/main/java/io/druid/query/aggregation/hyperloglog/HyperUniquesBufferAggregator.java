@@ -57,7 +57,7 @@ public class HyperUniquesBufferAggregator implements BufferAggregator
     if (predicate.matches()) {
       final HyperLogLogCollector collector = (HyperLogLogCollector) selector.get();
       if (collector != null) {
-        HyperLogLogCollector.from(buf, position).fold(collector);
+        HyperLogLogCollector.from(context, buf, position).fold(collector);
       }
     }
   }
@@ -65,6 +65,6 @@ public class HyperUniquesBufferAggregator implements BufferAggregator
   @Override
   public Object get(ByteBuffer buf, int position)
   {
-    return HyperLogLogCollector.copy(buf, position);
+    return HyperLogLogCollector.copy(context, buf, position);
   }
 }

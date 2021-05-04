@@ -204,9 +204,8 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
     return new HyperLogLogCollector(buffer);
   }
 
-  public static HyperLogLogCollector from(ByteBuffer buffer, int position)
+  public static HyperLogLogCollector from(Context context, ByteBuffer buffer, int position)
   {
-    Context context = getContext(buffer.get(position) + VERSION_TO_B);
     buffer.limit(position + context.NUM_BYTES_FOR_DENSE_STORAGE);
     buffer.position(position);
     ByteBuffer slice = buffer.slice();
@@ -214,10 +213,10 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
     return new HyperLogLogCollector(context, slice);
   }
 
-  public static HyperLogLogCollector copy(ByteBuffer buf, int position)
+  public static HyperLogLogCollector copy(Context context, ByteBuffer buf, int position)
   {
-    final HyperLogLogCollector collector = HyperLogLogCollector.from(buf, position);
-    return HyperLogLogCollector.from(ByteBuffer.wrap(collector.toByteArray()));
+    final HyperLogLogCollector collector = HyperLogLogCollector.from(context, buf, position);
+    return new HyperLogLogCollector(context, ByteBuffer.wrap(collector.toByteArray()));
   }
 
   public static Context getContext(int b)
@@ -350,9 +349,6 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
 
   private HyperLogLogCollector(Context context, ByteBuffer byteBuffer)
   {
-    if (byteBuffer.position() != 0) {
-      byteBuffer = byteBuffer.slice();
-    }
     this.context = context;
     this.storageBuffer = byteBuffer;
   }
