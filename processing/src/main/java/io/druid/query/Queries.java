@@ -79,6 +79,7 @@ import io.druid.query.sketch.SketchOp;
 import io.druid.query.sketch.SketchQuantilesPostAggregator;
 import io.druid.query.sketch.TypedSketch;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.HistogramQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
@@ -573,21 +574,19 @@ public class Queries
 
   public static long estimateCardinality(GroupByQuery query, QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    query = query.withOverriddenContext(BaseQuery.copyContextForMeta(query));
-    Query<Row> sequence = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
+    Map<String, Object> override = BaseQuery.copyContextForMeta(query);
+    override.put(Query.FORCE_PARALLEL_MERGE, true);   // force parallel execution
+    query = query.withOverriddenContext(override);
+    Query<Row> metaQuery = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
 
-    return QueryRunners.run(sequence, segmentWalker).accumulate(new MutableLong(), new Accumulator<MutableLong, Row>()
+    return QueryRunners.run(metaQuery, segmentWalker).accumulate(new MutableLong(), (cardinality, row) ->
     {
-      @Override
-      public MutableLong accumulate(MutableLong accumulated, Row in)
-      {
-        if (in instanceof CompactRow) {
-          accumulated.add(Rows.parseLong(((CompactRow)in).getValues()[1]));
-        } else {
-          accumulated.add(in.getLongMetric("cardinality"));
-        }
-        return accumulated;
+      if (row instanceof CompactRow) {
+        cardinality.add(Rows.parseLong(((CompactRow) row).getValues()[1]));
+      } else {
+        cardinality.add(row.getLongMetric("cardinality"));
       }
+      return cardinality;
     }).longValue();
   }
 
@@ -657,12 +656,18 @@ public class Queries
                                    .addContext(Query.BROKER_SIDE, true)   // hack
                                    .build();
 
+    boolean allQueryable = allQueryableIndex(segments);
+    Comparator comparator = orderingSpec == null ? GuavaUtils.noNullableNatural() : orderingSpec.getComparator();
+
     Object[] histogram = null;
-    if (type.isDimension() && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM && allQueryableIndex(segments)) {
-      histogram = makeColumnHistogramOn(segments, column, orderingSpec, query.withQuerySegmentSpec(null), cache);
+    if (type.isDimension() && allQueryable && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM) {
+      histogram = makeColumnHistogramOn(segments, column, comparator, query.withQuerySegmentSpec(null), cache);
     }
     if (histogram == null && segments.size() == 1) {
       histogram = makeColumnHistogramOn(segments.get(0), query.withQuerySegmentSpec(null), cache);
+    }
+    if (histogram == null && type.isDimension() && allQueryable && segmentWalker != null) {
+      histogram = makeColumnHistogramOn(query.toHistogramQuery(column, comparator), segmentWalker);
     }
     if (histogram == null && segmentWalker != null) {
       Row result = Sequences.only(QueryRunners.run(query, segmentWalker), null);
@@ -675,12 +680,11 @@ public class Queries
   private static Object[] makeColumnHistogramOn(
       List<Segment> segments,
       DimensionSpec dimensionSpec,
-      OrderingSpec orderingSpec,
+      Comparator comparator,
       TimeseriesQuery query,
       Cache cache
   )
   {
-    final Comparator comparator = orderingSpec == null ? GuavaUtils.noNullableNatural() : orderingSpec.getComparator();
     ItemsUnion union = null;
     for (Segment segment : segments) {
       union = segment.asStorageAdapter(true).makeCursors(query, cache).accumulate(union, (current, cursor) -> {
@@ -717,7 +721,7 @@ public class Queries
     if (union != null) {
       PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
       return (Object[]) postAggregator.processor().compute(
-          DateTime.now(), GuavaUtils.mutableMap("SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
+          DateTime.now(), GuavaUtils.mutableMap("$SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
       );
     }
     return null;
@@ -730,6 +734,26 @@ public class Queries
     if (row != null) {
       PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
       return (Object[]) postAggregator.processor().compute(row.getTimestamp(), ((MapBasedRow) row).getEvent());
+    }
+    return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Object[] makeColumnHistogramOn(HistogramQuery query, QuerySegmentWalker segmentWalker)
+  {
+    ItemsUnion union = QueryRunners.run(query, segmentWalker).accumulate(null, (current, row) -> {
+      ItemsSketch instance = (ItemsSketch) row.get("$SKETCH");
+      if (current == null) {
+        return ItemsUnion.getInstance(instance);
+      }
+      current.update(instance);
+      return current;
+    });
+    if (union != null) {
+      PostAggregator.Processor processor = query.getPostAggregator().processor();
+      return (Object[]) processor.compute(
+          DateTime.now(), GuavaUtils.mutableMap("$SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
+      );
     }
     return null;
   }
@@ -747,11 +771,11 @@ public class Queries
     return true;
   }
 
-  private static class ArrayItemConverter extends ArrayOfItemsSerDe
+  public static class ArrayItemConverter extends ArrayOfItemsSerDe
   {
     private final DimensionSelector selector;
 
-    private ArrayItemConverter(DimensionSelector selector) {this.selector = selector;}
+    public ArrayItemConverter(DimensionSelector selector) {this.selector = selector;}
 
     @Override
     public byte[] serializeToByteArray(Object[] items)

@@ -50,6 +50,8 @@ import io.druid.query.sketch.SketchQuery;
 import io.druid.query.sketch.SketchQueryRunnerFactory;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryQueryRunnerFactory;
+import io.druid.query.timeseries.HistogramQuery;
+import io.druid.query.timeseries.HistogramQueryRunnerFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
 import io.druid.query.topn.TopNQuery;
@@ -79,6 +81,7 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
                   .put(FindNearestQuery.class, FindNearestQueryRunnerFactory.class)
                   .put(SketchQuery.class, SketchQueryRunnerFactory.class)
                   .put(FrequencyQuery.class, FrequencyQueryRunnerFactory.class)
+                  .put(HistogramQuery.class, HistogramQueryRunnerFactory.class)
                   .build();
 
   @Override

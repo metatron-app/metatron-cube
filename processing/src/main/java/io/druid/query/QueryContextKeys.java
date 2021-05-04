@@ -79,6 +79,7 @@ public interface QueryContextKeys
 
   // generic
   String MAX_RESULTS = "maxResults";
+  String FORCE_PARALLEL_MERGE = "forceParallelMerge";
   String MAX_QUERY_PARALLELISM = "maxQueryParallelism";
 
   // cache

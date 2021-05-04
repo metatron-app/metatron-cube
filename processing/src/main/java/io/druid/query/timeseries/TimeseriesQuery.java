@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -380,6 +381,21 @@ public class TimeseriesQuery extends BaseAggregationQuery
   public Comparator<Row> getMergeOrdering(List<String> columns)
   {
     return Granularities.ALL.equals(granularity) ? null : super.getMergeOrdering(columns);
+  }
+
+  public HistogramQuery toHistogramQuery(DimensionSpec dimensionSpec, Comparator comparator)
+  {
+    return new HistogramQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getFilter(),
+        getVirtualColumns(),
+        dimensionSpec,
+        comparator,
+        Iterables.getOnlyElement(postAggregatorSpecs),
+        getContext()
+    );
   }
 
   public static class Builder extends BaseAggregationQuery.Builder<TimeseriesQuery>

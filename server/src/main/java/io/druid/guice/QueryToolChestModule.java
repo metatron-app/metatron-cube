@@ -21,21 +21,23 @@ package io.druid.guice;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.multibindings.MapBinder;
-import io.druid.query.JoinQueryConfig;
-import com.google.inject.Key;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;
+import io.druid.query.JoinQueryConfig;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.SchemaQuery;
+import io.druid.query.SchemaQueryToolChest;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceQueryQueryToolChest;
-import io.druid.query.frequency.FrequencyQueryConfig;
 import io.druid.query.frequency.FrequencyQuery;
+import io.druid.query.frequency.FrequencyQueryConfig;
 import io.druid.query.frequency.FrequencyQueryToolChest;
 import io.druid.query.groupby.DefaultGroupByQueryMetricsFactory;
 import io.druid.query.groupby.GroupByQuery;
@@ -50,8 +52,6 @@ import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQueryConfig;
-import io.druid.query.SchemaQuery;
-import io.druid.query.SchemaQueryToolChest;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectForwardQueryToolChest;
 import io.druid.query.select.SelectMetaQuery;
@@ -66,6 +66,8 @@ import io.druid.query.sketch.SketchQueryQueryToolChest;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryQueryQueryToolChest;
 import io.druid.query.timeseries.DefaultTimeseriesQueryMetricsFactory;
+import io.druid.query.timeseries.HistogramQuery;
+import io.druid.query.timeseries.HistogramQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryMetricsFactory;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
@@ -103,6 +105,7 @@ public class QueryToolChestModule implements Module
                   .put(FindNearestQuery.class, FindNearestQueryToolChest.class)
                   .put(SketchQuery.class, SketchQueryQueryToolChest.class)
                   .put(FrequencyQuery.class, FrequencyQueryToolChest.class)
+                  .put(HistogramQuery.class, HistogramQueryToolChest.class)
                   .build();
 
   @Override

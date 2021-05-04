@@ -236,7 +236,7 @@ public class QueryRunners
     }
     final int priority = BaseQuery.getContextPriority(query, 0);
     final Execs.Semaphore semaphore = new Execs.Semaphore(parallelism);
-    if (ordering == null) {
+    if (ordering == null && !query.getContextBoolean(Query.FORCE_PARALLEL_MERGE, false)) {
       return new QueryRunner<T>()
       {
         @Override
