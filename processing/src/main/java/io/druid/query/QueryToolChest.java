@@ -470,7 +470,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
   }
 
-  private static final ToIntFunction ROW_COUNTER = v -> {return 1;};
+  private static final ToIntFunction ROW_COUNTER = v -> 1;
 
   @SuppressWarnings("unchecked")
   public static ToIntFunction numRows(Query query, QueryToolChest toolChest)

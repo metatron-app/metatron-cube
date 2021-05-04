@@ -23,6 +23,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 
+import java.util.function.ToIntFunction;
+
 /**
 */
 public interface CacheStrategy<T, CacheType, QueryType extends Query<T>>
@@ -57,6 +59,11 @@ public interface CacheStrategy<T, CacheType, QueryType extends Query<T>>
    * @return A function that does the inverse of the operation that the function prepareForCache returns
    */
   Function<CacheType, T> pullFromCache();
+
+  default ToIntFunction<T> numRows(QueryType query)
+  {
+    return row -> 1;
+  }
 
   abstract class Identitcal<T, QueryType extends Query<T>> implements CacheStrategy<T, T, QueryType>
   {

@@ -20,6 +20,7 @@
 package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.Result;
@@ -67,6 +68,12 @@ public class BySegmentTopNResultValue implements BySegmentResultValue<Result<Top
   public Interval getInterval()
   {
     return interval;
+  }
+
+  @JsonIgnore
+  public int countAll()
+  {
+    return results.stream().mapToInt(r -> r.getValue().size()).sum();
   }
 
   @Override

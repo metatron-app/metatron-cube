@@ -218,30 +218,9 @@ public class SearchQueryQueryToolChest
   public ToIntFunction numRows(SearchQuery query)
   {
     if (BaseQuery.isBySegment(query)) {
-      return new ToIntFunction()
-      {
-        @Override
-        public int applyAsInt(Object bySegment)
-        {
-          int counter = 0;
-          for (Object value : BySegmentResultValue.unwrap(bySegment)) {
-            counter += ((Result<SearchResultValue>) value).getValue().size();
-          }
-          return counter;
-        }
-      };
+      return v -> ((Result<BySegmentSearchResultValue>) v).getValue().countAll();
     }
-    return new ToIntFunction()
-    {
-      @Override
-      public int applyAsInt(Object value)
-      {
-        if (value instanceof Result) {
-          return ((Result<SearchResultValue>) value).getValue().size();
-        }
-        return 1;
-      }
-    };
+    return v -> v instanceof Result ? ((Result<SearchResultValue>) v).getValue().size() : 1;
   }
 
   @Override
@@ -324,6 +303,12 @@ public class SearchQueryQueryToolChest
             );
           }
         };
+      }
+
+      @Override
+      public ToIntFunction<Result<SearchResultValue>> numRows(SearchQuery query)
+      {
+        return row -> row.getValue().size();
       }
     };
   }

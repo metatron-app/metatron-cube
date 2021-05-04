@@ -168,14 +168,7 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   public ToIntFunction numRows(T query)
   {
     if (query.getContextBoolean(Query.USE_BULK_ROW, false)) {
-      return new ToIntFunction()
-      {
-        @Override
-        public int applyAsInt(Object value)
-        {
-          return ((BulkRow) value).count();
-        }
-      };
+      return v -> ((BulkRow) v).count();
     }
     return super.numRows(query);
   }

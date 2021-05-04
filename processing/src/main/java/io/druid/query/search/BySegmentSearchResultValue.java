@@ -19,6 +19,7 @@
 
 package io.druid.query.search;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.Result;
@@ -64,6 +65,12 @@ public class BySegmentSearchResultValue implements BySegmentResultValue<Result<S
   public Interval getInterval()
   {
     return interval;
+  }
+
+  @JsonIgnore
+  public int countAll()
+  {
+    return results.stream().mapToInt(r -> r.getValue().size()).sum();
   }
 
   @Override

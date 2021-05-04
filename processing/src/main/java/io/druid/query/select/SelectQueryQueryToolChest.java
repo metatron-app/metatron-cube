@@ -257,30 +257,15 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   public ToIntFunction numRows(SelectQuery query)
   {
     if (BaseQuery.isBySegment(query)) {
-      return new ToIntFunction()
-      {
-        @Override
-        public int applyAsInt(Object bySegment)
-        {
-          int counter = 0;
-          for (Object value : BySegmentResultValue.unwrap(bySegment)) {
-            counter += ((Result<SelectResultValue>) value).getValue().size();
-          }
-          return counter;
+      return v -> {
+        int counter = 0;
+        for (Object value : BySegmentResultValue.unwrap(v)) {
+          counter += ((Result<SelectResultValue>) value).getValue().size();
         }
+        return counter;
       };
     }
-    return new ToIntFunction()
-    {
-      @Override
-      public int applyAsInt(Object value)
-      {
-        if (value instanceof Result) {
-          return ((Result<SelectResultValue>) value).getValue().size();
-        }
-        return 1;
-      }
-    };
+    return v -> v instanceof Result ? ((Result<SelectResultValue>) v).getValue().size() : 1;
   }
 
   @Override

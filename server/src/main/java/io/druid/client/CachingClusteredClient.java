@@ -379,8 +379,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       @Override
       public Sequence<T> get()
       {
-        ToIntFunction counter = toolChest.numRows(prepared);
-        CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(counter, strategy.pullFromCache());
+        CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(strategy, prepared);
 
         List<ListenableFuture<Sequence>> sequencesByInterval = Lists.newArrayList();
         if (cacheAccessor != null && !cachedResults.isEmpty()) {
@@ -604,11 +603,11 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     private final ToIntFunction counter;
     private final Function<Object, T> pullFromCacheFunction;
 
-    public CacheAccessor(ToIntFunction counter, Function<Object, T> pullFromCacheFunction)
+    public CacheAccessor(CacheStrategy<T, Object, Query<T>> strategy, Query<T> query)
     {
       super(new AtomicLong(), new AtomicInteger());
-      this.counter = counter;
-      this.pullFromCacheFunction = pullFromCacheFunction;
+      this.counter = strategy.numRows(query);
+      this.pullFromCacheFunction = strategy.pullFromCache();
     }
 
     public void addTime(long time)

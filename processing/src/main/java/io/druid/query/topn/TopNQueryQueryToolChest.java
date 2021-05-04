@@ -272,30 +272,9 @@ public class TopNQueryQueryToolChest
   public ToIntFunction numRows(TopNQuery query)
   {
     if (BaseQuery.isBySegment(query)) {
-      return new ToIntFunction()
-      {
-        @Override
-        public int applyAsInt(Object bySegment)
-        {
-          int counter = 0;
-          for (Object value : BySegmentResultValue.unwrap(bySegment)) {
-            counter += ((Result<TopNResultValue>) value).getValue().size();
-          }
-          return counter;
-        }
-      };
+      return v -> ((Result<BySegmentTopNResultValue>) v).getValue().countAll();
     }
-    return new ToIntFunction()
-    {
-      @Override
-      public int applyAsInt(Object value)
-      {
-        if (value instanceof Result) {
-          return ((Result<TopNResultValue>) value).getValue().size();
-        }
-        return 1;
-      }
-    };
+    return v -> v instanceof Result ? ((Result<TopNResultValue>) v).getValue().size() : 1;
   }
 
   @Override
@@ -402,6 +381,12 @@ public class TopNQueryQueryToolChest
             return new Result<>(timestamp, new TopNResultValue(retVal));
           }
         };
+      }
+
+      @Override
+      public ToIntFunction<Result<TopNResultValue>> numRows(TopNQuery query)
+      {
+        return row -> row.getValue().size();
       }
     };
   }
