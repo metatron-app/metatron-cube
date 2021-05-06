@@ -424,7 +424,7 @@ public class CalciteTests
     try {
       return new DruidOperatorTable(ImmutableSet.of(), bundles, extractionOperators, ImmutableSet.of());
     }
-    catch (Exception e) {
+    catch (Throwable e) {
       throw Throwables.propagate(e);
     }
   }

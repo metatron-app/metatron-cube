@@ -63,6 +63,7 @@ import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.ArrayConstructorOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CastOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CeilOperatorConversion;
@@ -70,11 +71,21 @@ import io.druid.sql.calcite.expression.builtin.ConcatOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.ExtractOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.FloorOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.LPadOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LTrimOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.LeftOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.LikeOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.MillisToTimestampOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.RPadOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.RTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.RegexpExtractOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.RegexpLikeOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.ReinterpretOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.RepeatOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.RightOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.RoundOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.SizeOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.StringFormatOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.StrposOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.SubstringOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.TextcatOperatorConversion;
@@ -214,6 +225,17 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new LTrimOperatorConversion())
           .add(new RTrimOperatorConversion())
           .add(new AliasedOperatorConversion(new TruncateOperatorConversion(), "TRUNC"))
+          .add(new ArrayConstructorOperatorConversion())
+          .add(new LeftOperatorConversion())
+          .add(new LikeOperatorConversion())
+          .add(new LPadOperatorConversion())
+          .add(new RegexpLikeOperatorConversion())
+          .add(new RepeatOperatorConversion())
+          .add(new RightOperatorConversion())
+          .add(new RoundOperatorConversion())
+          .add(new RPadOperatorConversion())
+          .add(new SizeOperatorConversion())
+          .add(new StringFormatOperatorConversion())
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.

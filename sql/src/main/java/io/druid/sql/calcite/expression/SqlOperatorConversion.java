@@ -19,10 +19,10 @@
 
 package io.druid.sql.calcite.expression;
 
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlOperator;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlOperator;
 
 public interface SqlOperatorConversion
 {

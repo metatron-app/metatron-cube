@@ -27,16 +27,15 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableIntList;
 
@@ -167,60 +166,12 @@ public class RowSignature extends io.druid.query.RowSignature
       if (Row.TIME_COLUMN_NAME.equals(columnName)) {
         type = Calcites.createSqlType(typeFactory, SqlTypeName.TIMESTAMP);
       } else {
-        type = toRelDataType(typeFactory, columnType);
+        type = Utils.asRelDataType(typeFactory, columnType);
       }
       builder.add(columnName, type);
     }
 
     return builder.build();
-  }
-
-  private static RelDataType toRelDataType(RelDataTypeFactory factory, ValueDesc columnType)
-  {
-    switch (columnType.type()) {
-      case STRING:
-        // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
-        return Calcites.createSqlTypeWithNullability(factory, SqlTypeName.VARCHAR, true);
-      case BOOLEAN:
-        return Calcites.createSqlType(factory, SqlTypeName.BOOLEAN);
-      case LONG:
-        return Calcites.createSqlType(factory, SqlTypeName.BIGINT);
-      case FLOAT:
-        return Calcites.createSqlType(factory, SqlTypeName.FLOAT);
-      case DOUBLE:
-        return Calcites.createSqlType(factory, SqlTypeName.DOUBLE);
-      case COMPLEX:
-        if (columnType.isStruct()) {
-          final String[] description = columnType.getDescription();
-          if (description == null) {
-            throw new ISE("field type is missing for struct type");
-          }
-          final List<String> fieldNames = Lists.newArrayList();
-          final List<RelDataType> fieldTypes = Lists.newArrayList();
-          for (int i = 1; i < description.length; i++) {
-            int index = description[i].indexOf(':');
-            fieldNames.add(description[i].substring(0, index));
-            fieldTypes.add(toRelDataType(factory, ValueDesc.of(description[i].substring(index + 1))));
-          }
-          return factory.createTypeWithNullability(
-              factory.createStructType(StructKind.PEEK_FIELDS, fieldTypes, fieldNames), true
-          );
-        } else if (columnType.isMap()) {
-          final String[] description = columnType.getDescription();
-          final RelDataType keyType = description != null ? toRelDataType(factory, ValueDesc.of(description[1]))
-                                                          : Calcites.createSqlType(factory, SqlTypeName.VARCHAR);
-          final RelDataType valueType = description != null ? toRelDataType(factory, ValueDesc.of(description[2]))
-                                                            : factory.createSqlType(SqlTypeName.ANY);
-          return factory.createTypeWithNullability(factory.createMapType(keyType, valueType), true);
-        } else if (columnType.isArray()) {
-          final RelDataType subType = columnType.hasSubElement() ? toRelDataType(factory, columnType.subElement())
-                                                                 : factory.createSqlType(SqlTypeName.ANY);
-          return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
-        }
-        return Calcites.createSqlTypeWithNullability(factory, SqlTypeName.OTHER, true);
-      default:
-        throw new ISE("valueType[%s] not translatable?", columnType);
-    }
   }
 
   public RowSignature replaceColumnNames(List<String> newColumnNames)

@@ -192,6 +192,16 @@ public class Calcites
     }
   }
 
+  public static RelDataType createSqlTypeWithNullability(RelDataTypeFactory typeFactory, Class javaType)
+  {
+    return typeFactory.createTypeWithNullability(typeFactory.createJavaType(javaType), true);
+  }
+
+  public static RelDataType createSqlType(RelDataTypeFactory typeFactory, Class javaType)
+  {
+    return typeFactory.createJavaType(javaType);
+  }
+
   /**
    * Like RelDataTypeFactory.createSqlType, but creates types that align best with how Druid represents them.
    */

@@ -130,9 +130,7 @@ public class ModuleBuiltinFunctions implements Function.Library
     @Override
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
     {
-      if (exprs.size() != 2 && exprs.size() != 3) {
-        throw new IAE("function 'lookup' needs two or three generic arguments");
-      }
+      twoOrThree(exprs);
       Map<String, Object> parameter = super.parameterize(exprs, namedParam);
 
       String name = Evals.getConstantString(exprs.get(0));

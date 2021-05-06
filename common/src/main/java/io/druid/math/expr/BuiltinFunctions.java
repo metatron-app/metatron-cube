@@ -183,7 +183,7 @@ public interface BuiltinFunctions extends Function.Library
           if (value.getClass().isArray()) {
             return ExprEval.of(java.lang.reflect.Array.getLength(value));
           }
-          throw new IAE("parameter is not a collection");
+          return ExprEval.of(1);
         }
       };
     }
@@ -402,8 +402,11 @@ public interface BuiltinFunctions extends Function.Library
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          Matcher m = matcher.reset(Evals.evalString(args.get(0), bindings));
-          return ExprEval.of(m.find() ? matcher.group(index) : null);
+          final String target = Evals.evalString(args.get(0), bindings);
+          if (target != null && matcher.reset(target).find()) {
+            return ExprEval.of(matcher.group(index));
+          }
+          return ExprEval.NULL_STRING;
         }
       };
     }
@@ -1971,6 +1974,38 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("repeat")
+  final class RepeatFunc extends NamedFactory.StringType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      exactTwo(args);
+      return new StringChild()
+      {
+        private final StringBuilder builder = new StringBuilder();
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          final String string = Evals.getConstantString(args.get(0));
+          if (io.druid.common.utils.StringUtils.isNullOrEmpty(string)) {
+            return ExprEval.of(string);
+          }
+          final int repeat = Evals.getConstantInt(args.get(1));
+          if (repeat <= 1) {
+            return repeat < 1 ? ExprEval.NULL_STRING : ExprEval.of(string);
+          }
+          builder.setLength(0);
+          for (int i = 0; i < repeat; i++) {
+            builder.append(string);
+          }
+          return ExprEval.of(builder.toString());
+        }
+      };
+    }
+  }
+
   @Function.Named("lpad")
   final class LPadFunc extends NamedFactory.StringType
   {
@@ -2362,22 +2397,51 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  static final ExprEval NOT_EXISTS = ExprEval.of(-1);
+
   @Function.Named("indexOf")
   final class IndexOfFunc extends NamedFactory.LongType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public LongChild create(List<Expr> args, TypeResolver resolver)
     {
-      exactTwo(args);
+      twoOrThree(args);
+      final int startIx = args.size() == 3 ? Evals.getConstantInt(args.get(2)) : 0;
+      if (args.get(0).returns().isArrayOrStruct()) {
+        return new LongChild()
+        {
+          @Override
+          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          {
+            final List input = (List) Evals.evalValue(args.get(0), bindings);
+            if (input == null) {
+              return NOT_EXISTS;
+            }
+            final Object find = Evals.evalValue(args.get(0), bindings);
+            if (startIx > 0) {
+              final int index = input.subList(startIx, input.size()).indexOf(find);
+              return index < 0 ? NOT_EXISTS : ExprEval.of(index + startIx);
+            }
+            final int index = input.indexOf(find);
+            return index < 0 ? NOT_EXISTS : ExprEval.of(index);
+          }
+        };
+      }
       return new LongChild()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
-          String input = args.get(0).eval(bindings).asString();
-          String find = args.get(1).eval(bindings).asString();
-
-          return ExprEval.of(Strings.isNullOrEmpty(input) || Strings.isNullOrEmpty(find) ? -1 : input.indexOf(find));
+          final String input = Evals.evalString(args.get(0), bindings);
+          if (input == null) {
+            return NOT_EXISTS;
+          }
+          final String find = Evals.evalString(args.get(1), bindings);
+          if (find == null) {
+            return NOT_EXISTS;
+          }
+          final int index = startIx > 0 ? input.indexOf(find, startIx) : input.indexOf(find);
+          return index < 0 ? NOT_EXISTS : ExprEval.of(index);
         }
       };
     }

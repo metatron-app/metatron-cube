@@ -154,6 +154,36 @@ public interface PredicateFunctions extends Function.Library
     }
   }
 
+  @Function.Named("regexp_like")
+  final class RegexpLike extends NamedFactory.StringType
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      atLeastTwo(args);
+      int flag = 0;
+      for (Expr expr : args.subList(2, args.size())) {
+        String param = Evals.getConstantString(expr);
+        if (!"i".equals(param)) {
+          throw new IAE("Not supported matching param %s", param);    // todo
+        }
+        flag |= Pattern.CASE_INSENSITIVE;
+      }
+      final String pattern = Evals.getConstantString(args.get(1));
+      final Matcher matcher = Pattern.compile(pattern, flag).matcher("");
+
+      return new StringChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          final String target = Evals.evalString(args.get(0), bindings);
+          return ExprEval.of(target != null && matcher.reset(target).find());
+        }
+      };
+    }
+  }
+
   @Function.Named("in")
   final class InFunc extends NamedFactory.BooleanType
   {
