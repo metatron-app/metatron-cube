@@ -24,6 +24,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.DimensionExpression;
@@ -40,18 +41,21 @@ public class Grouping
 {
   private final List<DimensionExpression> dimensions;
   private final List<Aggregation> aggregations;
+  private final GroupingSetSpec groupingSets;
   private final HavingSpec havingFilter;
   private final RowSignature outputRowSignature;
 
   private Grouping(
       final List<DimensionExpression> dimensions,
       final List<Aggregation> aggregations,
+      final GroupingSetSpec groupingSets,
       final HavingSpec havingFilter,
       final RowSignature outputRowSignature
   )
   {
     this.dimensions = ImmutableList.copyOf(dimensions);
     this.aggregations = ImmutableList.copyOf(aggregations);
+    this.groupingSets = groupingSets;
     this.havingFilter = havingFilter;
     this.outputRowSignature = outputRowSignature;
 
@@ -85,11 +89,12 @@ public class Grouping
   public static Grouping create(
       final List<DimensionExpression> dimensions,
       final List<Aggregation> aggregations,
+      final GroupingSetSpec groupingSets,
       final HavingSpec havingFilter,
       final RowSignature outputRowSignature
   )
   {
-    return new Grouping(dimensions, aggregations, havingFilter, outputRowSignature);
+    return new Grouping(dimensions, aggregations, groupingSets, havingFilter, outputRowSignature);
   }
 
   public List<DimensionExpression> getDimensions()
@@ -100,6 +105,11 @@ public class Grouping
   public List<Aggregation> getAggregations()
   {
     return aggregations;
+  }
+
+  public GroupingSetSpec getGroupingSets()
+  {
+    return groupingSets;
   }
 
   @Nullable

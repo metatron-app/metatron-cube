@@ -29,10 +29,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import io.druid.collections.IntList;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
 
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 
 /**
@@ -52,9 +54,13 @@ public interface GroupingSetSpec extends Cacheable
     public String toString() { return "Noop";}
   };
 
+  GroupingSetSpec ROLLUP = new GroupingSetSpec.Rollup();
+
+  GroupingSetSpec CUBE = new GroupingSetSpec.Cube();
+
   int[][] EMPTY_INDEX = new int[][]{};
 
-  void validate(List<String> dimensions);
+  default void validate(List<String> dimensions) {}
 
   int[][] getGroupings(List<String> dimensions);
 
@@ -337,15 +343,10 @@ public interface GroupingSetSpec extends Cacheable
   @JsonTypeName("rollup")
   public static class Rollup implements GroupingSetSpec
   {
-    @JsonCreator
-    public Rollup() {}
-
-    @Override
-    public void validate(List<String> dimensions) {}
-
     @Override
     public int[][] getGroupings(List<String> dimensions)
     {
+      // length + 1 : {0, 1, 2}, {0, 1}, {0}, {}
       final int length = dimensions.size();
       int[][] groups = new int[length + 1][];
       for (int i = 0; i < length; i++) {
@@ -367,7 +368,7 @@ public interface GroupingSetSpec extends Cacheable
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)
     {
-      return builder.append("-");
+      return builder.append("->");
     }
 
     @Override
@@ -380,6 +381,52 @@ public interface GroupingSetSpec extends Cacheable
     public String toString()
     {
       return "Rollup{}";
+    }
+  }
+
+  @JsonTypeName("cube")
+  public static class Cube implements GroupingSetSpec
+  {
+    @Override
+    public int[][] getGroupings(List<String> dimensions)
+    {
+      // 2 ^ dims.length : {0, 1, 2}, {0, 1}, {0, 2}, {1, 2} {0}, {1}, {2}, {}
+      int length = dimensions.size();
+      int[][] groups = new int[(int) Math.pow(2, length)][];
+      IntList ints = new IntList();
+      for (int i = groups.length - 1; i >= 0; i--) {
+        BitSet set = BitSet.valueOf(new long[]{i});
+        for (int x = set.nextSetBit(0); x >= 0; x = set.nextSetBit(x + 1)) {
+          ints.add(x);
+        }
+        groups[i] = ints.array();
+        ints.clear();
+      }
+      return groups;
+    }
+
+    @Override
+    public boolean isEmpty()
+    {
+      return false;
+    }
+
+    @Override
+    public KeyBuilder getCacheKey(KeyBuilder builder)
+    {
+      return builder.append("x>");
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      return o instanceof Cube;
+    }
+
+    @Override
+    public String toString()
+    {
+      return "Cube{}";
     }
   }
 }

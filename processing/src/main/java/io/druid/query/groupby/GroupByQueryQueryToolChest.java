@@ -129,8 +129,9 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
             Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
             config.getGroupBy().getMaxStreamSubQueryPage()
         );
+        final int[][] grouping = groupBy.getGroupings();
         final Query<I> innerQuery = ((QueryDataSource) groupBy.getDataSource()).getQuery();
-        if (maxPage < 1 || !QueryUtils.coveredBy(innerQuery, groupBy)) {
+        if (maxPage < 1 || (grouping != null && grouping.length > 0) || !QueryUtils.coveredBy(innerQuery, groupBy)) {
           return super.run(groupBy, responseContext);
         }
         // this is about using less heap, not about performance

@@ -32,6 +32,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
@@ -44,6 +45,7 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -68,6 +70,8 @@ import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.rule.GroupByRules;
 import io.druid.sql.calcite.table.RowSignature;
+import it.unimi.dsi.fastutil.ints.Int2IntMap;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.core.Aggregate;
@@ -263,8 +267,6 @@ public class DruidBaseQuery implements DruidQuery
   )
   {
     final Aggregate aggregate = partialQuery.getAggregate();
-    final Project aggregateProject = partialQuery.getAggregateProject();
-
     if (aggregate == null) {
       return null;
     }
@@ -279,6 +281,7 @@ public class DruidBaseQuery implements DruidQuery
         finalizeAggregations
     );
 
+    final GroupingSetSpec grouping = getGroupingSetSpec(aggregate);
     inputRowSignature = RowSignature.from(
         ImmutableList.copyOf(
             Iterators.concat(
@@ -292,8 +295,9 @@ public class DruidBaseQuery implements DruidQuery
 
     final HavingSpec havingFilter = computeHavingFilter(partialQuery, inputRowSignature, plannerContext);
 
+    final Project aggregateProject = partialQuery.getAggregateProject();
     if (aggregateProject == null) {
-      return Grouping.create(dimensions, aggregations, havingFilter, inputRowSignature);
+      return Grouping.create(dimensions, aggregations, grouping, havingFilter, inputRowSignature);
     } else {
       final RowSignature rowSignature = inputRowSignature;
       final ProjectRowOrderAndPostAggregations projectRowOrderAndPostAggregations = computePostAggregations(
@@ -326,10 +330,41 @@ public class DruidBaseQuery implements DruidQuery
       return Grouping.create(
           dimensions,
           aggregations,
+          grouping,
           havingFilter,
           outputRowSignature
       );
     }
+  }
+
+  private static GroupingSetSpec getGroupingSetSpec(Aggregate aggregate)
+  {
+    switch (aggregate.getGroupType()) {
+      case SIMPLE:
+        return GroupingSetSpec.EMPTY;
+      case ROLLUP:
+        return GroupingSetSpec.ROLLUP;
+      case CUBE:
+        return GroupingSetSpec.CUBE;
+    }
+    ImmutableBitSet groupBySet = aggregate.getGroupSet();
+    Int2IntMap mapping = new Int2IntOpenHashMap();
+    for (int x = groupBySet.nextSetBit(0); x >= 0; x = groupBySet.nextSetBit(x + 1)) {
+      mapping.put(x, mapping.size());
+    }
+    List<List<Integer>> groups = Lists.newArrayList();
+    for (ImmutableBitSet groupSet : aggregate.getGroupSets()) {
+      List<Integer> indices = Lists.newArrayList();
+      for (int x = groupSet.nextSetBit(0); x >= 0; x = groupSet.nextSetBit(x + 1)) {
+        int index = mapping.getOrDefault(x, -1);
+        if (index < 0) {
+          throw new IAE("invalid index %d in %s ", x, groupBySet);
+        }
+        indices.add(index);
+      }
+      groups.add(indices);
+    }
+    return new GroupingSetSpec.Indices(groups);
   }
 
   @Nullable
@@ -1011,9 +1046,6 @@ public class DruidBaseQuery implements DruidQuery
         postAggregators.add(postAggregator);
       }
     }
-    if (granularity == null) {
-      granularity = Granularities.ALL;
-    }
 
     return new GroupByQuery(
         dataSource,
@@ -1021,7 +1053,7 @@ public class DruidBaseQuery implements DruidQuery
         filtration.getDimFilter(),
         granularity,
         dimensionSpecs,
-        null,
+        grouping.getGroupingSets(),
         getVirtualColumns(true),
         grouping.getAggregatorFactories(),
         postAggregators,

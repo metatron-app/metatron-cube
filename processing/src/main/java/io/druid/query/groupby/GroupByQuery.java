@@ -765,7 +765,9 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
 
   public int[][] getGroupings()
   {
-    return groupingSets == null ? new int[0][0] : groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensions));
+    return groupingSets == null
+           ? GroupingSetSpec.EMPTY_INDEX
+           : groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensions));
   }
 
   public static class Builder extends BaseAggregationQuery.Builder<GroupByQuery>
