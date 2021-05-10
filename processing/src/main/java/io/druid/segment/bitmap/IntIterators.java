@@ -43,6 +43,11 @@ public final class IntIterators
     }
   }
 
+  public static interface MaxAware extends IntIterator
+  {
+    int max();
+  }
+
   public static final IntIterator EMPTY = new Abstract()
   {
     @Override
@@ -110,7 +115,7 @@ public final class IntIterators
     return new IntIterators.Mapped(iterator, mapping);
   }
 
-  public static final class Range implements IntIterator
+  public static final class Range implements MaxAware
   {
     private final int from;
     private final int to;
@@ -150,9 +155,15 @@ public final class IntIterators
     {
       bitSet.clear(from, to + 1);
     }
+
+    @Override
+    public int max()
+    {
+      return to;
+    }
   }
 
-  public static final class FromArray extends Abstract
+  public static final class FromArray extends Abstract implements MaxAware
   {
     private int index;
     private final int[] array;
@@ -184,6 +195,12 @@ public final class IntIterators
     public IntIterator clone()
     {
       return new FromArray(array, index);
+    }
+
+    @Override
+    public int max()
+    {
+      return array[array.length - 1];
     }
   }
 

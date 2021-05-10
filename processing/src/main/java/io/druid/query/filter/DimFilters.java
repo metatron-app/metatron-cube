@@ -457,8 +457,7 @@ public class DimFilters
     } else if (factory instanceof RoaringBitmapFactory) {
       return ((RoaringBitmapFactory) factory).difference(bitmap1, bitmap2, length);
     } else {
-      // A - B = A n ~B
-      return intersection(factory, bitmap1, complement(factory, bitmap2, length));
+      return bitmap1.difference(bitmap2);
     }
   }
 
@@ -472,7 +471,7 @@ public class DimFilters
     } else if (bitmap instanceof WrappedBitSetBitmap) {
       return ((WrappedBitSetBitmap) bitmap).bitset().previousSetBit(limit);
     } else if (bitmap instanceof WrappedConciseBitmap) {
-//      return ((WrappedConciseBitmap)bitmap).getBitmap().last();
+//      return ((WrappedConciseBitmap) bitmap).getBitmap().last();
     }
     return limit;
   }

@@ -39,6 +39,7 @@ import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import io.druid.segment.SegmentMissingException;
 import io.druid.segment.StorageAdapter;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
@@ -115,12 +116,16 @@ public class TimeseriesQueryEngine
                 @SuppressWarnings("unchecked")
                 public Row next()
                 {
+                  final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
                   while (!cursor.isDone()) {
                     Aggregators.aggregate(values, aggregators);
                     cursor.advance();
                   }
-                  final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());
-                  return flushRow(DateTimes.utc(timestamp), values, aggregators);
+                  if (compact) {
+                    return asCompact(timestamp, values, aggregators);
+                  } else {
+                    return asMap(DateTimes.utc(timestamp), values, aggregators);
+                  }
                 }
               };
             }
@@ -169,25 +174,36 @@ public class TimeseriesQueryEngine
         });
       }
 
-      @SuppressWarnings("unchecked")
-      private Row flushRow(final DateTime current, final Object[] values, final Aggregator[] aggregators)
+      private Row flushRow(DateTime current, Object[] values, Aggregator[] aggregators)
       {
         if (compact) {
-          final Object[] array = new Object[values.length + 1];
-          array[0] = current.getMillis();
-          for (int i = 0; i < aggregators.length; i++) {
-            array[i + 1] = aggregators[i].get(values[i]);
-          }
-          Arrays.fill(values, null);
-          return new CompactRow(array);
+          return asCompact(current.getMillis(), values, aggregators);
         } else {
-          final Map<String, Object> event = Maps.newLinkedHashMap();
-          for (int i = 0; i < values.length; i++) {
-            event.put(aggregatorNames[i], aggregators[i].get(values[i]));
-          }
-          Arrays.fill(values, null);
-          return new MapBasedRow(current, event);
+          return asMap(current, values, aggregators);
         }
+      }
+
+      @SuppressWarnings("unchecked")
+      private Row asCompact(final long timestamp, final Object[] values, final Aggregator[] aggregators)
+      {
+        final Object[] array = new Object[values.length + 1];
+        array[0] = new MutableLong(timestamp);
+        for (int i = 0; i < aggregators.length; i++) {
+          array[i + 1] = aggregators[i].get(values[i]);
+        }
+        Arrays.fill(values, null);
+        return new CompactRow(array);
+      }
+
+      @SuppressWarnings("unchecked")
+      private Row asMap(final DateTime timestamp, final Object[] values, final Aggregator[] aggregators)
+      {
+        final Map<String, Object> event = Maps.newLinkedHashMap();
+        for (int i = 0; i < aggregators.length; i++) {
+          event.put(aggregatorNames[i], aggregators[i].get(values[i]));
+        }
+        Arrays.fill(values, null);
+        return new MapBasedRow(timestamp, event);
       }
     };
   }

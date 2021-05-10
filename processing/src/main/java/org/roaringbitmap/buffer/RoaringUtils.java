@@ -40,6 +40,11 @@ public class RoaringUtils
     return bitmap.highLowContainer.size();
   }
 
+  public static MappeableContainerPointer getContainerPointer(ImmutableRoaringBitmap bitmap)
+  {
+    return bitmap.highLowContainer.getContainerPointer();
+  }
+
   public static void addContainer(MutableRoaringArray array, short key, BitSet values)
   {
     addContainer(array, key, values, values.cardinality());

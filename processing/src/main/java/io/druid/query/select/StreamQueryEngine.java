@@ -24,7 +24,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MinMaxPriorityQueue;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import io.druid.cache.Cache;
 import io.druid.common.guava.GuavaUtils;
@@ -59,7 +58,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
@@ -111,35 +109,37 @@ public class StreamQueryEngine
       public Sequence<Object[]> apply(final Cursor cursor)
       {
         final List<String> orderingColumns = Lists.newArrayList(Iterables.transform(orderings, o -> o.getDimension()));
-        final Set<String> orderingColumnSet = Sets.newHashSet(orderingColumns);
         int index = 0;
+        boolean optimizeOrdering = !orderingColumns.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings);
         final DimensionSelector[] dimSelectors = new DimensionSelector[columns.length];
         final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.length];
         for (String column : columns) {
-          boolean orderingColumn = orderingColumnSet.contains(column);
           if (cursor.resolve(column, ValueDesc.UNKNOWN).isDimension()) {
             final DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
             if (selector instanceof SingleValued) {
               if (selector.withSortedDictionary()) {
-                orderingColumnSet.remove(column);
                 dimSelectors[index] = selector;
               }
               if (useRawUTF8 && selector instanceof WithRawAccess) {
-                selectors[index++] = ColumnSelectors.asRawAccess((WithRawAccess) selector);
+                selectors[index] = ColumnSelectors.asRawAccess((WithRawAccess) selector);
               } else {
-                selectors[index++] = ColumnSelectors.asSingleValued((SingleValued) selector);
+                selectors[index] = ColumnSelectors.asSingleValued((SingleValued) selector);
               }
             } else if (concatString != null) {
-              selectors[index++] = ColumnSelectors.asConcatValued(selector, concatString);
+              selectors[index] = ColumnSelectors.asConcatValued(selector, concatString);
             } else {
-              selectors[index++] = ColumnSelectors.asMultiValued(selector);
+              selectors[index] = ColumnSelectors.asMultiValued(selector);
             }
           } else {
-            selectors[index++] = cursor.makeObjectColumnSelector(column);
+            selectors[index] = cursor.makeObjectColumnSelector(column);
           }
+          if (orderingColumns.contains(column)) {
+            optimizeOrdering &= dimSelectors[index] != null;
+          }
+          index++;
         }
 
-        if (!orderings.isEmpty() && orderingColumnSet.isEmpty() && OrderingSpec.isAllNaturalOrdering(orderings)) {
+        if (optimizeOrdering) {
           // optimize order by dimensions only
           final IntComparator[] comparators = new IntComparator[orderingColumns.size()];
           for (int i = 0; i < comparators.length; i++) {

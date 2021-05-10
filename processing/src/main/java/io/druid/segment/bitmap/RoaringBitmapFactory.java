@@ -33,7 +33,6 @@ import org.roaringbitmap.buffer.RoaringUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Iterator;
 
@@ -124,7 +123,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (!iterator.hasNext()) {
       return first;
     }
-    final BitSet bitSet = copyTo(first, new BitSet());
+    final BitSet bitSet = convert(first);
     while (iterator.hasNext()) {
       copyTo(iterator.next(), bitSet);
     }
@@ -144,9 +143,9 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   public ImmutableBitmap difference(ImmutableBitmap a, ImmutableBitmap b, int length)
   {
     if (a instanceof LazyImmutableBitmap) {
-      return ((LazyImmutableBitmap) a).andNot(b);
+      return a.difference(b);
     }
-    return intersection(Arrays.asList(a, complement(b, length)));
+    return unwrapLazy(a).difference(unwrapLazy(b));
   }
 
   @Override
@@ -178,7 +177,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (!iterator.hasNext()) {
       return first;
     }
-    final BitSet bitSet = copyTo(first, new BitSet());
+    final BitSet bitSet = convert(first);
     while (iterator.hasNext() && !bitSet.isEmpty()) {
       final ImmutableBitmap bitmap = iterator.next();
       if (bitmap.isEmpty()) {
@@ -207,10 +206,29 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     return finalize(bitSet);
   }
 
+  private static BitSet convert(final ImmutableBitmap bitmap)
+  {
+    if (bitmap instanceof LazyFromBitSet) {
+      return (BitSet) ((LazyFromBitSet) bitmap).bitSet.clone();
+    }
+    return convert(bitmap.iterator());
+  }
+
+  private static BitSet convert(final IntIterator iterator)
+  {
+    final BitSet bitSet;
+    if (iterator instanceof IntIterators.MaxAware) {
+      bitSet = new BitSet(((IntIterators.MaxAware) iterator).max());
+    } else {
+      bitSet = new BitSet();
+    }
+    return copyTo(iterator, bitSet);
+  }
+
   private static BitSet copyTo(final ImmutableBitmap bitmap, final BitSet bitSet)
   {
     if (bitmap instanceof LazyImmutableBitmap) {
-      ((LazyImmutableBitmap) bitmap).union(bitSet);
+      ((LazyImmutableBitmap) bitmap).orWith(bitSet);
     } else {
       copyTo(bitmap.iterator(), bitSet);
     }
@@ -328,9 +346,15 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     }
 
     @Override
-    public ImmutableBitmap andNot(ImmutableBitmap otherBitmap)
+    public ImmutableBitmap difference(ImmutableBitmap otherBitmap)
     {
-      return _andNot((BitSet) bitSet.clone(), otherBitmap);
+      return _difference((BitSet) bitSet.clone(), otherBitmap);
+    }
+
+    @Override
+    public void orWith(BitSet target)
+    {
+      target.or(bitSet);
     }
   }
 
@@ -390,10 +414,13 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     @Override
     public ImmutableBitmap difference(ImmutableBitmap otherBitmap)
     {
-      return materializer.get().difference(otherBitmap);
+      if (otherBitmap instanceof LazyFromBitSet) {
+        return _difference(convert(iterator()), otherBitmap);
+      }
+      return from(convert(IntIterators.diff(iterator(), otherBitmap.iterator())));
     }
 
-    public void union(BitSet target)
+    public void orWith(BitSet target)
     {
       final IntIterator iterator = iterator();
       if (iterator instanceof IntIterators.Range) {
@@ -403,15 +430,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       }
     }
 
-    public ImmutableBitmap andNot(ImmutableBitmap otherBitmap)
-    {
-      if (otherBitmap instanceof LazyFromBitSet) {
-        return _andNot(copyTo(iterator(), new BitSet()), otherBitmap);
-      }
-      return from(copyTo(IntIterators.diff(iterator(), otherBitmap.iterator()), new BitSet()));
-    }
-
-    protected LazyImmutableBitmap _andNot(BitSet copy, ImmutableBitmap otherBitmap)
+    protected final LazyImmutableBitmap _difference(BitSet copy, ImmutableBitmap otherBitmap)
     {
       if (otherBitmap instanceof LazyFromBitSet) {
         copy.andNot(((LazyFromBitSet) otherBitmap).bitSet);
