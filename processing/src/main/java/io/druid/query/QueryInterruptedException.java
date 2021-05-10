@@ -262,12 +262,13 @@ public class QueryInterruptedException extends RuntimeException
 
   public static IOException read(byte[] contents, ObjectMapper mapper) throws IOException
   {
+    QueryInterruptedException qie;
     try {
-      throw mapper.readValue(contents, QueryInterruptedException.class);
+      qie = mapper.readValue(contents, QueryInterruptedException.class);
     }
     catch (Exception e) {
-      // ignore
+      throw new IOException(new String(contents, Charsets.ISO_8859_1));
     }
-    throw new IOException(new String(contents, Charsets.ISO_8859_1));
+    throw qie;
   }
 }
