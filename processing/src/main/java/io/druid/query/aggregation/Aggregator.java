@@ -38,7 +38,7 @@ public interface Aggregator<T>
 
   Object get(T current);
 
-  default void close() {}
+  default void clear(boolean close) {}
 
   interface Simple<T> extends Aggregator<T>
   {

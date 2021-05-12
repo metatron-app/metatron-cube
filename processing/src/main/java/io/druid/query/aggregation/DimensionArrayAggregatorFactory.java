@@ -113,10 +113,10 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       }
 
       @Override
-      public void close()
+      public void clear(boolean close)
       {
         for (Aggregator aggregator : aggregators) {
-          aggregator.close();
+          aggregator.clear(close);
         }
       }
 
@@ -169,10 +169,10 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       }
 
       @Override
-      public void close()
+      public void clear(boolean close)
       {
         for (BufferAggregator aggregator : aggregators) {
-          aggregator.close();
+          aggregator.clear(close);
         }
       }
 

@@ -511,7 +511,7 @@ public class GroupByQueryEngine
       {
         nextIndex = endPosition = maxPosition = 0;
         for (BufferAggregator agg : aggregators) {
-          agg.close();    // todo: is this reuseable?
+          agg.clear(unprocessedKeys == null);
         }
         Arrays.fill(metricValues, null);
         positions.clear();

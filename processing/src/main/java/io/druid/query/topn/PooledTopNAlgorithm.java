@@ -498,7 +498,7 @@ public class PooledTopNAlgorithm
   {
     super.closeAggregators(params, bufferAggregators);
     for (BufferAggregator agg : bufferAggregators) {
-      agg.close();
+      agg.clear(true);    // I don't care topN query
     }
   }
 

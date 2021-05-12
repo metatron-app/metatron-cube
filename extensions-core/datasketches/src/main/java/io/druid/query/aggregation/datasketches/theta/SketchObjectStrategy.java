@@ -87,7 +87,7 @@ public class SketchObjectStrategy implements ObjectStrategy.CompareSupport
       return EMPTY_SKETCH;
     }
 
-    return Memory.wrap(buffer, ByteOrder.LITTLE_ENDIAN).region(buffer.position(), numBytes);
+    return Memory.wrap(buffer, ByteOrder.nativeOrder()).region(buffer.position(), numBytes);
   }
 
   @Override

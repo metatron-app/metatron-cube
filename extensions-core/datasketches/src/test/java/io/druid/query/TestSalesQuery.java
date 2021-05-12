@@ -32,6 +32,7 @@ import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import org.junit.Test;
 
@@ -152,5 +153,43 @@ public class TestSalesQuery extends QueryRunnerTestHelper
     };
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+  }
+
+  @Test
+  public void testSketchOnVC()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .intervals(Intervals.of("2011-01-01/2015-01-01"))
+        .virtualColumns(new ExprVirtualColumn(
+            "case(Category=='Office Supplies', 'O',Category=='Furniture', 'F',Category=='Technology', 'T', Category)", "vc"
+        ))
+        .dimensions(DefaultDimensionSpec.toSpec("vc"))
+        .aggregators(
+            new SketchMergeAggregatorFactory("MEASURE_1", "City", null, 32768, true, false, null)
+        )
+        .limitSpec(
+            LimitSpec.of(
+                new WindowingSpec(
+                    Arrays.asList("vc"), null, null,
+                    PivotSpec.tabular(Arrays.<PivotColumnSpec>asList(), "MEASURE_1")
+                             .withPartitionExpressions("#_ = $sum(_)", "concat(_, '.percent') = case (#_ == 0, 0.0, cast(_, 'double') / #_ * 100)")
+                             .withAppendValueColumn(true)
+                )
+            )
+        )
+        .addContext(QueryContextKeys.POST_PROCESSING, new SketchEstimatePostProcessor())
+        .build();
+
+    String[] columnNames = {"__time", "vc", "MEASURE_1.percent", "MEASURE_1"};
+    Object[][] objects = {
+        array("2011-01-01T00:00:00.000Z", "F", 30.96828046744574, 371.0),
+        array("2011-01-01T00:00:00.000Z", "O", 40.40066777963272, 484.0),
+        array("2011-01-01T00:00:00.000Z", "T", 28.63105175292154, 343.0)
+    };
+    Iterable<Row> results = runQuery(query);
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

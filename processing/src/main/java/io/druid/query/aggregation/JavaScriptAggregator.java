@@ -62,8 +62,10 @@ public class JavaScriptAggregator implements Aggregator<MutableDouble>
   }
 
   @Override
-  public void close()
+  public void clear(boolean close)
   {
-    script.close();
+    if (close) {
+      script.close();
+    }
   }
 }

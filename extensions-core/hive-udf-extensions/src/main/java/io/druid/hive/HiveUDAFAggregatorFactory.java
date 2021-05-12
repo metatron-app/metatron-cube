@@ -243,7 +243,7 @@ public class HiveUDAFAggregatorFactory extends AggregatorFactory.TypeResolving
       }
 
       @Override
-      public void close()
+      public void clear(boolean close)
       {
         try {
           prepared.close();

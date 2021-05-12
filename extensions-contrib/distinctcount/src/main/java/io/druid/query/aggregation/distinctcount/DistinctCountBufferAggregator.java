@@ -82,7 +82,7 @@ public class DistinctCountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void close()
+  public void clear(boolean close)
   {
     mutableBitmapCollection.clear();
   }

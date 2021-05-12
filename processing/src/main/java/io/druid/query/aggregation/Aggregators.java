@@ -69,7 +69,7 @@ public class Aggregators
   public static void close(Aggregator[] aggregators)
   {
     for (int i = 0; i < aggregators.length; i++) {
-      aggregators[i].close();
+      aggregators[i].clear(true);
     }
   }
 
@@ -96,9 +96,9 @@ public class Aggregators
     }
 
     @Override
-    public void close()
+    public void clear(boolean close)
     {
-      delegate.close();
+      delegate.clear(close);
     }
   }
 
@@ -130,9 +130,9 @@ public class Aggregators
     }
 
     @Override
-    public void close()
+    public void clear(boolean close)
     {
-      delegate.close();
+      delegate.clear(close);
     }
   }
 
@@ -342,10 +342,10 @@ public class Aggregators
     }
 
     @Override
-    public void close()
+    public void clear(boolean close)
     {
       mapping.clear();
-      aggregator.close();
+      aggregator.clear(close);
     }
   }
 
@@ -471,9 +471,9 @@ public class Aggregators
     }
 
     @Override
-    public void close()
+    public void clear(boolean close)
     {
-      delegate.close();
+      delegate.clear(close);
     }
   }
 
@@ -509,10 +509,9 @@ public class Aggregators
     }
 
     @Override
-    public void close()
+    public void clear(boolean close)
     {
-      delegate.close();
+      delegate.clear(close);
     }
   }
-
 }

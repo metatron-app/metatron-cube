@@ -33,7 +33,6 @@ import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsUnion;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
-import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.Pair;
@@ -66,7 +65,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 
   public static Object readPart(ByteBuffer buffer, SketchOp sketchOp, ValueDesc type)
   {
-    return deserialize(sketchOp, Memory.wrap(buffer.slice(), ByteOrder.LITTLE_ENDIAN), type, type.comparator());
+    return deserialize(sketchOp, Memory.wrap(buffer.slice(), ByteOrder.nativeOrder()), type, type.comparator());
   }
 
   public static TypedSketch deserialize(SketchOp sketchOp, Object value, Comparator comparator)
@@ -78,7 +77,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
                         ? (ByteBuffer) value
                         : ByteBuffer.wrap(ThetaOperations.asBytes(value));
     ValueDesc type = TypedSketch.typeFromBytes(buffer);
-    Memory memory = Memory.wrap(buffer.slice(), ByteOrder.LITTLE_ENDIAN);
+    Memory memory = Memory.wrap(buffer.slice(), ByteOrder.nativeOrder());
     return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));
   }
 

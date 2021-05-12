@@ -57,9 +57,11 @@ public class JavaScriptBufferAggregator implements BufferAggregator
     return buf.getDouble(position);
   }
 
-
   @Override
-  public void close() {
-    script.close();
+  public void clear(boolean close)
+  {
+    if (close) {
+      script.close();
+    }
   }
 }

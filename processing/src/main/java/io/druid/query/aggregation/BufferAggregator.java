@@ -73,8 +73,9 @@ public interface BufferAggregator
 
   /**
    * Release any resources used by the aggregator
+   * @param close
    */
-  default void close() {}
+  default void clear(boolean close) {}
 
   abstract class NullSupport implements BufferAggregator
   {
