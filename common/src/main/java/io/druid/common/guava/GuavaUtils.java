@@ -312,6 +312,11 @@ public class GuavaUtils
     return concat(Arrays.asList(element), list2);
   }
 
+  public static <T> List<T> concat(T element1, Iterable<T> list2, T element2)
+  {
+    return Lists.newArrayList(Iterables.concat(Arrays.asList(element1), list2, Arrays.asList(element2)));
+  }
+
   public static <T> List<T> concat(T element, Iterable<T> list2)
   {
     return concat(element, Lists.newArrayList(list2));

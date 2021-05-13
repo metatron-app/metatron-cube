@@ -564,6 +564,39 @@ public class Evals
     return Pair.of(assign.assignee, assign.assigned);
   }
 
+  public static Pair<Expr, Object> splitSimpleEq(Expr expr)
+  {
+    if (expr instanceof BinEqExpr) {
+      List<Expr> children = ((BinEqExpr) expr).getChildren();
+      Expr left = children.get(0);
+      Expr right = children.get(1);
+      if (!Evals.isConstant(left) && Evals.isConstant(right)) {
+        return Pair.of(left, Evals.getConstant(right));
+      } else if (!Evals.isConstant(right) && Evals.isConstant(left)) {
+        return Pair.of(right, Evals.getConstant(left));
+      }
+    }
+    return null;
+  }
+
+  public static Function asFunction(final FunctionEval eval, final ValueDesc type)
+  {
+    return new Function()
+    {
+      @Override
+      public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval.evaluate(args, bindings), type);
+      }
+
+      @Override
+      public ValueDesc returns()
+      {
+        return type;
+      }
+    };
+  }
+
   public static ExprEval toAssigneeEval(final Expr assignee)
   {
     return toAssigneeEval(assignee, ImmutableMap.<String, Object>of());

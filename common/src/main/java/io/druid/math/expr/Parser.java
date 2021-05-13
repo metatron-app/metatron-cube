@@ -31,6 +31,7 @@ import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.DSuppliers.TypedSupplier;
 import io.druid.common.guava.DSuppliers.WithRawAccess;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
@@ -240,13 +241,91 @@ public class Parser
     return found;
   }
 
+  private static final Object NOT_EXISTS = new Object();
+
+  public static Expr optimizeFunction(final Expr expr)
+  {
+    return traverse(expr, new ExprVisitor()
+    {
+      @Override
+      public Expr visit(FunctionExpr expr, List<Expr> children)
+      {
+        if ("case".equals(expr.op())) {
+          Expr param = null;
+          final Map<Object, Object> mapping = Maps.newHashMap();
+          final int size = children.size();
+          for (int i = 0; i < size - 1; i += 2) {
+            if (!Evals.isConstant(children.get(i + 1))) {
+              return expr;
+            }
+            Pair<Expr, Object> split = Evals.splitSimpleEq(children.get(i));
+            if (split == null || (param != null && !param.equals(split.lhs))) {
+              return expr;
+            }
+            param = split.lhs;
+            mapping.put(split.rhs, Evals.getConstant(children.get(i + 1)));
+          }
+          final FunctionEval func;
+          final List<Expr> params;
+          if (size % 2 == 1) {
+            final Expr defaultExpr = children.get(size - 1);
+            if (Evals.isConstant(defaultExpr)) {
+              Object constant = Evals.getConstant(defaultExpr);
+              func = (args, binding) -> mapping.getOrDefault(Evals.evalValue(args.get(0), binding), constant);
+            } else {
+              func = (args, binding) -> {
+                Object mapped = mapping.getOrDefault(Evals.evalValue(args.get(0), binding), NOT_EXISTS);
+                return mapped == NOT_EXISTS ? Evals.evalValue(args.get(1), binding) : mapped;
+              };
+            }
+            params = Arrays.asList(param, defaultExpr);
+          } else {
+            func = (args, binding) -> mapping.get(Evals.evalValue(args.get(0), binding));
+            params = Arrays.asList(param);
+          }
+          return new FunctionExpr(exprs -> Evals.asFunction(func, expr.returns()), "__map", params);
+        } else if ("switch".equals(expr.op())) {
+          final Expr param = children.get(0);
+          final Map<Object, Object> mapping = Maps.newHashMap();
+          final int size = children.size();
+          for (int i = 1; i < size - 1; i += 2) {
+            if (!Evals.isConstant(children.get(i)) || !Evals.isConstant(children.get(i + 1))) {
+              return expr;
+            }
+            mapping.put(Evals.getConstant(children.get(i)), Evals.getConstant(children.get(i + 1)));
+          }
+          final FunctionEval func;
+          final List<Expr> params;
+          if (size % 2 == 0) {
+            final Expr defaultExpr = children.get(size - 1);
+            if (Evals.isConstant(defaultExpr)) {
+              Object constant = Evals.getConstant(defaultExpr);
+              func = (args, binding) -> mapping.getOrDefault(Evals.evalValue(args.get(0), binding), constant);
+            } else {
+              func = (args, binding) -> {
+                Object mapped = mapping.getOrDefault(Evals.evalValue(args.get(0), binding), NOT_EXISTS);
+                return mapped == NOT_EXISTS ? Evals.evalValue(args.get(1), binding) : mapped;
+              };
+            }
+            params = Arrays.asList(param, defaultExpr);
+          } else {
+            func = (args, binding) -> mapping.get(Evals.evalValue(args.get(0), binding));
+            params = Arrays.asList(param);
+          }
+          return new FunctionExpr(exprs -> Evals.asFunction(func, expr.returns()), "__map", params);
+        }
+        return expr;
+      }
+    });
+  }
+
   public static Expr optimize(
       final Expr expr,
       final Map<String, TypedSupplier> values,
       final Map<String, WithRawAccess> rawAccessible
   )
   {
-    Expr optimized = traverse(expr, new ExprVisitor()
+    Expr optimized = traverse(optimizeFunction(expr), new ExprVisitor()
     {
       @Override
       public Expr visit(BinaryOp op, Expr left, Expr right)
@@ -439,19 +518,6 @@ public class Parser
       return visitor.visit(function, params);
     }
     return visitor.visit(expr);
-  }
-
-  public static Expr rewrite(Expr expr, final TypeResolver resolver, final Map<String, String> mapping)
-  {
-    return traverse(expr, new ExprVisitor()
-    {
-      @Override
-      public Expr visit(IdentifierExpr expr)
-      {
-        final String mapped = mapping.get(expr.identifier());
-        return mapped == null ? expr : Evals.identifierExpr(mapped, resolver.resolve(mapped));
-      }
-    });
   }
 
   // for trivial case

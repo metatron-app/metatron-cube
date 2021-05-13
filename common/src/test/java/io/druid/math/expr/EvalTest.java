@@ -1483,4 +1483,25 @@ public class EvalTest
     Assert.assertEquals(2, evalDouble("\"x\"[1]", bindings), 0.00001);
     Assert.assertEquals(3, evalDouble("\"x\"[2]", bindings), 0.00001);
   }
+
+  @Test
+  public void testFunctionOptimize()
+  {
+    Expr caseFn = Parser.parse("case(Category=='Office Supplies', 'O',Category=='Furniture', 'F',Category=='Technology', 'T', Category)");
+    validate(caseFn, "(case [(Category == Office Supplies), O, (Category == Furniture), F, (Category == Technology), T, Category])");
+    validate(Parser.optimizeFunction(caseFn), "(__map [Category, Category])");
+
+    Expr switchFn = Parser.parse("switch(Category, 'Office Supplies', 'O','Furniture', 'F', 'Technology', 'T', Category)");
+    validate(switchFn, "(switch [Category, Office Supplies, O, Furniture, F, Technology, T, Category])");
+    validate(Parser.optimizeFunction(switchFn), "(__map [Category, Category])");
+  }
+
+  private void validate(Expr parsed, String expected)
+  {
+    Assert.assertEquals(expected, parsed.toString());
+    Assert.assertEquals("O", Evals.evalString(parsed, Parser.withMap(ImmutableMap.of("Category", "Office Supplies"))));
+    Assert.assertEquals("F", Evals.evalString(parsed, Parser.withMap(ImmutableMap.of("Category", "Furniture"))));
+    Assert.assertEquals("T", Evals.evalString(parsed, Parser.withMap(ImmutableMap.of("Category", "Technology"))));
+    Assert.assertEquals("Other", Evals.evalString(parsed, Parser.withMap(ImmutableMap.of("Category", "Other"))));
+  }
 }
