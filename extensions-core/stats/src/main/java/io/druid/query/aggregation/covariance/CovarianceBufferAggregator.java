@@ -43,22 +43,22 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(final ByteBuffer buf, final int position)
+  public void init(final ByteBuffer buf, int position0, final int position1)
   {
-    buf.putLong(position + COUNT_OFFSET, 0)
-       .putDouble(position + XAVG_OFFSET, 0)
-       .putDouble(position + YAVG_OFFSET, 0)
-       .putDouble(position + COVAR_OFFSET, 0);
+    buf.putLong(position1 + COUNT_OFFSET, 0)
+       .putDouble(position1 + XAVG_OFFSET, 0)
+       .putDouble(position1 + YAVG_OFFSET, 0)
+       .putDouble(position1 + COVAR_OFFSET, 0);
   }
 
   @Override
-  public Object get(final ByteBuffer buf, final int position)
+  public Object get(final ByteBuffer buf, int position0, final int position1)
   {
     CovarianceAggregatorCollector holder = new CovarianceAggregatorCollector();
-    holder.count = buf.getLong(position + COUNT_OFFSET);
-    holder.xavg = buf.getDouble(position + XAVG_OFFSET);
-    holder.yavg = buf.getDouble(position + YAVG_OFFSET);
-    holder.covar = buf.getDouble(position + COVAR_OFFSET);
+    holder.count = buf.getLong(position1 + COUNT_OFFSET);
+    holder.xavg = buf.getDouble(position1 + XAVG_OFFSET);
+    holder.yavg = buf.getDouble(position1 + YAVG_OFFSET);
+    holder.covar = buf.getDouble(position1 + COVAR_OFFSET);
     return holder;
   }
 
@@ -75,7 +75,7 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
     return new CovarianceBufferAggregator(name)
     {
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
         if (predicate.matches()) {
           final Double v1 = selector1.get();
@@ -83,10 +83,10 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
           if (v1 == null || v2 == null) {
             return;
           }
-          long count = buf.getLong(position + COUNT_OFFSET);
-          double xavg = buf.getDouble(position + XAVG_OFFSET);
-          double yavg = buf.getDouble(position + YAVG_OFFSET);
-          double covar = buf.getDouble(position + COVAR_OFFSET);
+          long count = buf.getLong(position1 + COUNT_OFFSET);
+          double xavg = buf.getDouble(position1 + XAVG_OFFSET);
+          double yavg = buf.getDouble(position1 + YAVG_OFFSET);
+          double covar = buf.getDouble(position1 + COVAR_OFFSET);
 
           final double vx = v1;
           final double vy = v2;
@@ -99,10 +99,10 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
             covar += deltaX * (vy - yavg);
           }
 
-          buf.putLong(position + COUNT_OFFSET, count)
-             .putDouble(position + XAVG_OFFSET, xavg)
-             .putDouble(position + YAVG_OFFSET, yavg)
-             .putDouble(position + COVAR_OFFSET, covar);
+          buf.putLong(position1 + COUNT_OFFSET, count)
+             .putDouble(position1 + XAVG_OFFSET, xavg)
+             .putDouble(position1 + YAVG_OFFSET, yavg)
+             .putDouble(position1 + COVAR_OFFSET, covar);
         }
       }
     };
@@ -116,7 +116,7 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
     return new CovarianceBufferAggregator(name)
     {
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
         if (predicate.matches()) {
           final CovarianceAggregatorCollector holder = (CovarianceAggregatorCollector) selector.get();
@@ -124,17 +124,17 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
             return;
           }
 
-          final long nA = buf.getLong(position + COUNT_OFFSET);
+          final long nA = buf.getLong(position1 + COUNT_OFFSET);
           if (nA == 0) {
-            buf.putLong(position + COUNT_OFFSET, holder.count)
-               .putDouble(position + XAVG_OFFSET, holder.xavg)
-               .putDouble(position + YAVG_OFFSET, holder.yavg)
-               .putDouble(position + COVAR_OFFSET, holder.covar);
+            buf.putLong(position1 + COUNT_OFFSET, holder.count)
+               .putDouble(position1 + XAVG_OFFSET, holder.xavg)
+               .putDouble(position1 + YAVG_OFFSET, holder.yavg)
+               .putDouble(position1 + COVAR_OFFSET, holder.covar);
           } else {
             // Merge the two partials
-            double xavgA = buf.getDouble(position + XAVG_OFFSET);
-            double yavgA = buf.getDouble(position + YAVG_OFFSET);
-            double covarA = buf.getDouble(position + COVAR_OFFSET);
+            double xavgA = buf.getDouble(position1 + XAVG_OFFSET);
+            double yavgA = buf.getDouble(position1 + YAVG_OFFSET);
+            double covarA = buf.getDouble(position1 + COVAR_OFFSET);
 
             final double xavgB = holder.xavg;
             final double yavgB = holder.yavg;
@@ -143,10 +143,11 @@ public abstract class CovarianceBufferAggregator implements BufferAggregator
             final long nB = holder.count;
             final long nSum = nA + nB;
 
-            buf.putLong(position + COUNT_OFFSET, nSum)
-               .putDouble(position + XAVG_OFFSET, (xavgA * nA + xavgB * nB) / nSum)
-               .putDouble(position + XAVG_OFFSET, (yavgA * nA + yavgB * nB) / nSum)
-               .putDouble(position + XAVG_OFFSET,
+            buf.putLong(position1 + COUNT_OFFSET, nSum)
+               .putDouble(position1 + XAVG_OFFSET, (xavgA * nA + xavgB * nB) / nSum)
+               .putDouble(position1 + XAVG_OFFSET, (yavgA * nA + yavgB * nB) / nSum)
+               .putDouble(
+                   position1 + XAVG_OFFSET,
                           covarA + covarB + (xavgA - xavgB) * (yavgA - yavgB) * ((double) (nA * nB) / nSum)
                );
           }

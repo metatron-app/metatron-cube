@@ -226,16 +226,16 @@ public class ListAggregatorFactory extends AggregatorFactory
         private final List<Collection<Object>> lists = Lists.newArrayList();
 
         @Override
-        public void init(ByteBuffer buf, int position)
+        public void init(ByteBuffer buf, int position0, int position1)
         {
-          buf.putInt(position, lists.size());
+          buf.putInt(position1, lists.size());
           lists.add(createCollection());
         }
 
         @Override
-        public void aggregate(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
-          Collection<Object> list = lists.get(buf.getInt(position));
+          Collection<Object> list = lists.get(buf.getInt(position1));
           list.addAll(selector.get());
           if (limit > 0 && list.size() > limit) {
             throw new IllegalStateException("Exceeding limit " + limit);
@@ -243,9 +243,9 @@ public class ListAggregatorFactory extends AggregatorFactory
         }
 
         @Override
-        public Object get(ByteBuffer buf, int position)
+        public Object get(ByteBuffer buf, int position0, int position1)
         {
-          Collection<Object> collection = lists.get(buf.getInt(position));
+          Collection<Object> collection = lists.get(buf.getInt(position1));
           return finalizeCollection(collection);
         }
       };
@@ -256,16 +256,16 @@ public class ListAggregatorFactory extends AggregatorFactory
       private final List<Collection<Object>> lists = Lists.newArrayList();
 
       @Override
-      public void init(ByteBuffer buf, int position)
+      public void init(ByteBuffer buf, int position0, int position1)
       {
-        buf.putInt(position, lists.size());
+        buf.putInt(position1, lists.size());
         lists.add(createCollection());
       }
 
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        Collection<Object> list = lists.get(buf.getInt(position));
+        Collection<Object> list = lists.get(buf.getInt(position1));
         list.add(Evals.castToValue(selector.get(), elementType));
         if (limit > 0 && list.size() > limit) {
           throw new IllegalStateException("Exceeding limit " + limit);
@@ -273,9 +273,9 @@ public class ListAggregatorFactory extends AggregatorFactory
       }
 
       @Override
-      public Object get(ByteBuffer buf, int position)
+      public Object get(ByteBuffer buf, int position0, int position1)
       {
-        Collection<Object> collection = lists.get(buf.getInt(position));
+        Collection<Object> collection = lists.get(buf.getInt(position1));
         return finalizeCollection(collection);
       }
     };

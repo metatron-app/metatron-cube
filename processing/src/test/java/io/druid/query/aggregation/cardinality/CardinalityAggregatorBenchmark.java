@@ -97,13 +97,13 @@ public class CardinalityAggregatorBenchmark extends SimpleBenchmark
     pos = 10;
     buf.limit(pos + maxSize);
 
-    agg.init(buf, pos);
+    agg.init(buf, 0, pos);
   }
 
   public Object timeBufferAggregate(int reps) throws Exception
   {
     for (int i = 0; i < reps; ++i) {
-      agg.aggregate(buf, pos);
+      agg.aggregate(buf, 0, pos);
 
       for (final DimensionSelector selector : selectorList) {
         if (i % (MAX - 1) == 0) {
@@ -113,7 +113,7 @@ public class CardinalityAggregatorBenchmark extends SimpleBenchmark
         }
       }
     }
-    return agg.get(buf, pos);
+    return agg.get(buf, 0, pos);
   }
 
 

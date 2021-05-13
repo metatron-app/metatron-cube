@@ -51,15 +51,15 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator.ScanSuppor
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    BloomKFilter.init(buf, position, maxNumEntries);
+    BloomKFilter.init(buf, position1, maxNumEntries);
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return BloomKFilter.deserialize(buf, position);
+    return BloomKFilter.deserialize(buf, position1);
   }
 
   static class Collector implements HashCollector.ScanSupport

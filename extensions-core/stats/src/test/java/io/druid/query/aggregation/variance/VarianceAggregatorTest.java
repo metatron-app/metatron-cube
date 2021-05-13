@@ -110,17 +110,17 @@ public class VarianceAggregatorTest
     );
 
     ByteBuffer buffer = ByteBuffer.wrap(new byte[aggFactory.getMaxIntermediateSize()]);
-    agg.init(buffer, 0);
+    agg.init(buffer, 0, 0);
 
-    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 0, 0d, 0d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0, 0), 0, 0d, 0d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 1, 1.1d, 0d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0, 0), 1, 1.1d, 0d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 2, 3.8d, 1.28d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0, 0), 2, 3.8d, 1.28d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 3, 7.3d, 2.9866d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0, 0), 3, 7.3d, 2.9866d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 4, 8.6d, 3.95d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0, 0), 4, 8.6d, 3.95d);
   }
 
   @Test
@@ -161,7 +161,7 @@ public class VarianceAggregatorTest
       int position
   )
   {
-    agg.aggregate(buff, position);
+    agg.aggregate(buff, 0, position);
     selector.increment();
   }
 }

@@ -45,10 +45,10 @@ public abstract class HashBufferAggregator<T extends HashCollector> extends Hash
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
-      consumer.accept(toCollector(buf, position));
+      consumer.accept(toCollector(buf, position1));
     }
   }
 

@@ -427,36 +427,36 @@ public class PooledTopNAlgorithm
       positions[dimIndex] = currentPosition.getAndIncrement() * numBytesPerRecord;
       final int pos = positions[dimIndex];
       for (int j = 0; j < aggSize; ++j) {
-        theAggregators[j].init(resultsBuf, pos + aggregatorOffsets[j]);
+        theAggregators[j].init(resultsBuf, 0, pos + aggregatorOffsets[j]);
       }
     }
     final int position = positions[dimIndex];
 
     switch(aggExtra) {
       case 7:
-        theAggregators[6].aggregate(resultsBuf, position + aggregatorOffsets[6]);
+        theAggregators[6].aggregate(resultsBuf, 0, position + aggregatorOffsets[6]);
       case 6:
-        theAggregators[5].aggregate(resultsBuf, position + aggregatorOffsets[5]);
+        theAggregators[5].aggregate(resultsBuf, 0, position + aggregatorOffsets[5]);
       case 5:
-        theAggregators[4].aggregate(resultsBuf, position + aggregatorOffsets[4]);
+        theAggregators[4].aggregate(resultsBuf, 0, position + aggregatorOffsets[4]);
       case 4:
-        theAggregators[3].aggregate(resultsBuf, position + aggregatorOffsets[3]);
+        theAggregators[3].aggregate(resultsBuf, 0, position + aggregatorOffsets[3]);
       case 3:
-        theAggregators[2].aggregate(resultsBuf, position + aggregatorOffsets[2]);
+        theAggregators[2].aggregate(resultsBuf, 0, position + aggregatorOffsets[2]);
       case 2:
-        theAggregators[1].aggregate(resultsBuf, position + aggregatorOffsets[1]);
+        theAggregators[1].aggregate(resultsBuf, 0, position + aggregatorOffsets[1]);
       case 1:
-        theAggregators[0].aggregate(resultsBuf, position + aggregatorOffsets[0]);
+        theAggregators[0].aggregate(resultsBuf, 0, position + aggregatorOffsets[0]);
     }
     for (int j = aggExtra; j < aggSize; j += AGG_UNROLL_COUNT) {
-      theAggregators[j].aggregate(resultsBuf, position + aggregatorOffsets[j]);
-      theAggregators[j+1].aggregate(resultsBuf, position + aggregatorOffsets[j+1]);
-      theAggregators[j+2].aggregate(resultsBuf, position + aggregatorOffsets[j+2]);
-      theAggregators[j+3].aggregate(resultsBuf, position + aggregatorOffsets[j+3]);
-      theAggregators[j+4].aggregate(resultsBuf, position + aggregatorOffsets[j+4]);
-      theAggregators[j+5].aggregate(resultsBuf, position + aggregatorOffsets[j+5]);
-      theAggregators[j+6].aggregate(resultsBuf, position + aggregatorOffsets[j+6]);
-      theAggregators[j+7].aggregate(resultsBuf, position + aggregatorOffsets[j+7]);
+      theAggregators[j].aggregate(resultsBuf, 0, position + aggregatorOffsets[j]);
+      theAggregators[j+1].aggregate(resultsBuf, 0, position + aggregatorOffsets[j + 1]);
+      theAggregators[j+2].aggregate(resultsBuf, 0, position + aggregatorOffsets[j + 2]);
+      theAggregators[j+3].aggregate(resultsBuf, 0, position + aggregatorOffsets[j + 3]);
+      theAggregators[j+4].aggregate(resultsBuf, 0, position + aggregatorOffsets[j + 4]);
+      theAggregators[j+5].aggregate(resultsBuf, 0, position + aggregatorOffsets[j + 5]);
+      theAggregators[j+6].aggregate(resultsBuf, 0, position + aggregatorOffsets[j + 6]);
+      theAggregators[j+7].aggregate(resultsBuf, 0, position + aggregatorOffsets[j + 7]);
     }
   }
 
@@ -477,7 +477,7 @@ public class PooledTopNAlgorithm
       if (position >= 0) {
         Object[] vals = new Object[theAggregators.length];
         for (int j = 0; j < theAggregators.length; j++) {
-          vals[j] = theAggregators[j].get(resultsBuf, position);
+          vals[j] = theAggregators[j].get(resultsBuf, 0, position);
           position += aggregatorSizes[j];
         }
 

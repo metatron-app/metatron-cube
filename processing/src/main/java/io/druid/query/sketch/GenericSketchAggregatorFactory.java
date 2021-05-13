@@ -295,18 +295,18 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
         private final List<TypedSketch> sketches = Lists.newArrayList();
 
         @Override
-        public void init(ByteBuffer buf, int position)
+        public void init(ByteBuffer buf, int position0, int position1)
         {
-          buf.putInt(position, sketches.size());
+          buf.putInt(position1, sketches.size());
           sketches.add(null);
         }
 
         @Override
-        public void aggregate(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final TypedSketch sketch = (TypedSketch) selector.get();
           if (sketch != null) {
-            final int index = buf.getInt(position);
+            final int index = buf.getInt(position1);
             TypedSketch union = sketches.get(index);
             if (union == null) {
               sketches.set(index, union = handler.newUnion(sketchParam, inputType, sourceComparator()));
@@ -316,9 +316,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
         }
 
         @Override
-        public Object get(ByteBuffer buf, int position)
+        public Object get(ByteBuffer buf, int position0, int position1)
         {
-          final TypedSketch sketch = sketches.get(buf.getInt(position));
+          final TypedSketch sketch = sketches.get(buf.getInt(position1));
           return sketch == null ? null : handler.toSketch(sketch);
         }
       };
@@ -334,15 +334,15 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       return Aggregators.wrap(matcher, new BaseBufferAggregator(selector.type())
       {
         @Override
-        public void aggregate(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final IndexedInts row = selector.getRow();
           final int size = row.size();
           if (size == 1) {
-            updateWithValue(buf, position, selector.lookupName(row.get(0)));
+            updateWithValue(buf, position1, selector.lookupName(row.get(0)));
           } else if (size > 1) {
             for (int i = 0; i < size; i++) {
-              updateWithValue(buf, position, selector.lookupName(row.get(i)));
+              updateWithValue(buf, position1, selector.lookupName(row.get(i)));
             }
           }
         }
@@ -354,7 +354,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       return Aggregators.wrap(matcher, new BaseBufferAggregator(elementType)
       {
         @Override
-        public void aggregate(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           Object value = selector.get();
           if (value == null) {
@@ -363,10 +363,10 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
           if (value.getClass().isArray()) {
             int size = Array.getLength(value);
             for (int i = 0; i < size; i++) {
-              updateWithValue(buf, position, Array.get(value, i));
+              updateWithValue(buf, position1, Array.get(value, i));
             }
           } else {
-            updateWithValue(buf, position, value);
+            updateWithValue(buf, position1, value);
           }
         }
       });
@@ -376,9 +376,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
-        updateWithValue(buf, position, selector.get());
+        updateWithValue(buf, position1, selector.get());
       }
     });
   }
@@ -400,9 +400,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     }
 
     @Override
-    public void init(ByteBuffer buf, int position)
+    public void init(ByteBuffer buf, int position0, int position1)
     {
-      buf.putInt(position, sketches.size());
+      buf.putInt(position1, sketches.size());
       sketches.add(handler.newUnion(sketchParam, inputType, sourceComparator()));
     }
 
@@ -417,9 +417,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
     }
 
     @Override
-    public Object get(ByteBuffer buf, int position)
+    public Object get(ByteBuffer buf, int position0, int position1)
     {
-      return handler.toSketch(sketches.get(buf.getInt(position)));
+      return handler.toSketch(sketches.get(buf.getInt(position1)));
     }
   }
 

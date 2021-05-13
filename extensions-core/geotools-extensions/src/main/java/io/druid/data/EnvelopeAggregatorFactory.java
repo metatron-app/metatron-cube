@@ -107,58 +107,58 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
       return new BufferAggregator()
       {
         @Override
-        public void init(ByteBuffer buf, int position)
+        public void init(ByteBuffer buf, int position0, int position1)
         {
-          buf.putDouble(position + MIN_X, 1);
-          buf.putDouble(position + MAX_X, 0);
+          buf.putDouble(position1 + MIN_X, 1);
+          buf.putDouble(position1 + MAX_X, 0);
         }
 
         @Override
-        public void aggregate(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Geometry geometry = GeoToolsUtils.toGeometry(selector.get());
           if (geometry == null) {
             return;
           }
           final Envelope envelope = geometry.getEnvelopeInternal();
-          final double minX = buf.getDouble(position + MIN_X);
-          final double maxX = buf.getDouble(position + MAX_X);
+          final double minX = buf.getDouble(position1 + MIN_X);
+          final double maxX = buf.getDouble(position1 + MAX_X);
           if (minX > maxX) {
-            buf.putDouble(position + MIN_X, envelope.getMinX());
-            buf.putDouble(position + MAX_X, envelope.getMaxX());
-            buf.putDouble(position + MIN_Y, envelope.getMinY());
-            buf.putDouble(position + MAX_Y, envelope.getMaxY());
+            buf.putDouble(position1 + MIN_X, envelope.getMinX());
+            buf.putDouble(position1 + MAX_X, envelope.getMaxX());
+            buf.putDouble(position1 + MIN_Y, envelope.getMinY());
+            buf.putDouble(position1 + MAX_Y, envelope.getMaxY());
           } else {
             if (envelope.getMinX() < minX) {
-              buf.putDouble(position + MIN_X, envelope.getMinX());
+              buf.putDouble(position1 + MIN_X, envelope.getMinX());
             }
             if (envelope.getMaxX() > maxX) {
-              buf.putDouble(position + MAX_X, envelope.getMaxX());
+              buf.putDouble(position1 + MAX_X, envelope.getMaxX());
             }
-            final double minY = buf.getDouble(position + MIN_Y);
-            final double maxY = buf.getDouble(position + MAX_Y);
+            final double minY = buf.getDouble(position1 + MIN_Y);
+            final double maxY = buf.getDouble(position1 + MAX_Y);
             if (envelope.getMinY() < minY) {
-              buf.putDouble(position + MIN_Y, envelope.getMinY());
+              buf.putDouble(position1 + MIN_Y, envelope.getMinY());
             }
             if (envelope.getMaxY() > maxY) {
-              buf.putDouble(position + MAX_Y, envelope.getMaxY());
+              buf.putDouble(position1 + MAX_Y, envelope.getMaxY());
             }
           }
         }
 
         @Override
-        public Object get(ByteBuffer buf, int position)
+        public Object get(ByteBuffer buf, int position0, int position1)
         {
-          final double minX = buf.getDouble(position + MIN_X);
-          final double maxX = buf.getDouble(position + MAX_X);
+          final double minX = buf.getDouble(position1 + MIN_X);
+          final double maxX = buf.getDouble(position1 + MAX_X);
           if (minX > maxX) {
             return null;
           }
           return new double[]{
               minX,
               maxX,
-              buf.getDouble(position + MIN_Y),
-              buf.getDouble(position + MAX_Y)
+              buf.getDouble(position1 + MIN_Y),
+              buf.getDouble(position1 + MAX_Y)
           };
         }
       };
@@ -262,51 +262,51 @@ public class EnvelopeAggregatorFactory extends AggregatorFactory
         return new BufferAggregator()
         {
           @Override
-          public void init(ByteBuffer buf, int position)
+          public void init(ByteBuffer buf, int position0, int position1)
           {
-            buf.putDouble(position + MIN_X, 1);
-            buf.putDouble(position + MAX_X, 0);
+            buf.putDouble(position1 + MIN_X, 1);
+            buf.putDouble(position1 + MAX_X, 0);
           }
 
           @Override
-          public void aggregate(ByteBuffer buf, int position)
+          public void aggregate(ByteBuffer buf, int position0, int position1)
           {
             final double[] coordinates = ((double[]) selector.get());
-            final double minX = buf.getDouble(position + MIN_X);
-            final double maxX = buf.getDouble(position + MAX_X);
+            final double minX = buf.getDouble(position1 + MIN_X);
+            final double maxX = buf.getDouble(position1 + MAX_X);
             if (minX > maxX) {
-              buf.putDouble(position + MIN_X, coordinates[0]);
-              buf.putDouble(position + MAX_X, coordinates[1]);
-              buf.putDouble(position + MIN_Y, coordinates[2]);
-              buf.putDouble(position + MAX_Y, coordinates[3]);
+              buf.putDouble(position1 + MIN_X, coordinates[0]);
+              buf.putDouble(position1 + MAX_X, coordinates[1]);
+              buf.putDouble(position1 + MIN_Y, coordinates[2]);
+              buf.putDouble(position1 + MAX_Y, coordinates[3]);
             } else {
               if (coordinates[0] < minX) {
-                buf.putDouble(position + MIN_X, coordinates[0]);
+                buf.putDouble(position1 + MIN_X, coordinates[0]);
               }
               if (coordinates[1] > maxX) {
-                buf.putDouble(position + MAX_X, coordinates[1]);
+                buf.putDouble(position1 + MAX_X, coordinates[1]);
               }
-              final double minY = buf.getDouble(position + MIN_Y);
-              final double maxY = buf.getDouble(position + MAX_Y);
+              final double minY = buf.getDouble(position1 + MIN_Y);
+              final double maxY = buf.getDouble(position1 + MAX_Y);
               if (coordinates[2] < minY) {
-                buf.putDouble(position + MIN_Y, coordinates[2]);
+                buf.putDouble(position1 + MIN_Y, coordinates[2]);
               }
               if (coordinates[3] < minY) {
-                buf.putDouble(position + MAX_Y, coordinates[3]);
+                buf.putDouble(position1 + MAX_Y, coordinates[3]);
               }
             }
           }
 
           @Override
-          public Object get(ByteBuffer buf, int position)
+          public Object get(ByteBuffer buf, int position0, int position1)
           {
-            final double minX = buf.getDouble(position + MIN_X);
-            final double maxX = buf.getDouble(position + MAX_X);
+            final double minX = buf.getDouble(position1 + MIN_X);
+            final double maxX = buf.getDouble(position1 + MAX_X);
             if (minX > maxX) {
               return null;
             }
-            final double minY = buf.getDouble(position + MIN_Y);
-            final double maxY = buf.getDouble(position + MAX_Y);
+            final double minY = buf.getDouble(position1 + MIN_Y);
+            final double maxY = buf.getDouble(position1 + MAX_Y);
             return new double[]{minX, maxX, minY, maxY};
           }
         };

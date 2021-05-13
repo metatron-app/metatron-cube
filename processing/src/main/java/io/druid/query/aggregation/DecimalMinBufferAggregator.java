@@ -39,13 +39,13 @@ public abstract class DecimalMinBufferAggregator extends DecimalBufferAggregator
       return new DecimalMinBufferAggregator(metric)
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final BigDecimal decimal = selector.get();
           if (decimal != null) {
-            final BigDecimal current = read(buf, position);
+            final BigDecimal current = read(buf, position1);
             if (current == null || decimal.compareTo(current) < 0) {
-              write(buf, position, decimal);
+              write(buf, position1, decimal);
             }
           }
         }
@@ -54,13 +54,13 @@ public abstract class DecimalMinBufferAggregator extends DecimalBufferAggregator
       return new DecimalMinBufferAggregator(metric)
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final BigDecimal decimal = selector.get();
           if (decimal != null) {
-            final BigDecimal current = read(buf, position);
+            final BigDecimal current = read(buf, position1);
             if (current == null || decimal.compareTo(current) < 0) {
-              write(buf, position, decimal);
+              write(buf, position1, decimal);
             }
           }
         }

@@ -31,17 +31,17 @@ public class EmptyDistinctCountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
     return 0L;
   }

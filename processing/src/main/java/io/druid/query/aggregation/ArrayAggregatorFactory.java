@@ -172,34 +172,34 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       private final byte[] clear = new byte[delegate.getMaxIntermediateSize()];
 
       @Override
-      public void init(ByteBuffer buf, int position)
+      public void init(ByteBuffer buf, int position0, int position1)
       {
-        buf.position(position);
+        buf.position(position1);
         for (int i = 0; i < limit; i++) {
           buf.put(clear);
         }
       }
 
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
         final List value = selector.get();
         if (value != null && !value.isEmpty()) {
           holder.set(value);
-          for (BufferAggregator aggregator : getAggregators(buf, position, value.size())) {
-            aggregator.aggregate(buf, position);
-            position += delegate.getMaxIntermediateSize();
+          for (BufferAggregator aggregator : getAggregators(buf, position0, position1, value.size())) {
+            aggregator.aggregate(buf, position0, position1);
+            position1 += delegate.getMaxIntermediateSize();
           }
         }
       }
 
       @Override
-      public Object get(ByteBuffer buf, int position)
+      public Object get(ByteBuffer buf, int position0, int position1)
       {
         List<Object> result = Lists.newArrayListWithCapacity(aggregators.size());
         for (BufferAggregator aggregator : aggregators) {
-          result.add(aggregator.get(buf, position));
-          position += delegate.getMaxIntermediateSize();
+          result.add(aggregator.get(buf, position0, position1));
+          position1 += delegate.getMaxIntermediateSize();
         }
         return result;
       }
@@ -212,13 +212,13 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
         }
       }
 
-      private List<BufferAggregator> getAggregators(ByteBuffer buf, int position, int size)
+      private List<BufferAggregator> getAggregators(ByteBuffer buf, int position0, int position1, int size)
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
           BufferAggregator factorize = delegate.factorizeBuffered(new FixedArrayIndexed(i, memoized, elementType));
-          factorize.init(buf, position);
-          position += delegate.getMaxIntermediateSize();
+          factorize.init(buf, position0, position1);
+          position1 += delegate.getMaxIntermediateSize();
           aggregators.add(factorize);
         }
         return aggregators;

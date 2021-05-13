@@ -49,9 +49,9 @@ public class CardinalityBufferAggregator extends HashBufferAggregator.ScanSuppor
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     buf.put(context.EMPTY_BYTES);
   }
 
@@ -62,8 +62,8 @@ public class CardinalityBufferAggregator extends HashBufferAggregator.ScanSuppor
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return HyperLogLogCollector.copy(context, buf, position);
+    return HyperLogLogCollector.copy(context, buf, position1);
   }
 }

@@ -55,20 +55,20 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
       ApproximateHistogram h = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
-      buf.position(position);
+      buf.position(position1);
       // use dense storage for aggregation
       h.toBytesDense(buf);
     }
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
 
     ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(buf);
     h0.setLowerLimit(lowerLimit);
@@ -76,13 +76,13 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
     ApproximateHistogramHolder hNext = selector.get();
     h0.foldFast(hNext, tmpBufferP, tmpBufferB);
 
-    buf.position(position);
+    buf.position(position1);
     h0.toBytesDense(buf);
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return new ApproximateHistogram().fromBytesDense((ByteBuffer) buf.position(position));
+    return new ApproximateHistogram().fromBytesDense((ByteBuffer) buf.position(position1));
   }
 }

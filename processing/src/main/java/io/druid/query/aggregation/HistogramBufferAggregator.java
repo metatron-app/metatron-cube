@@ -40,26 +40,26 @@ public class HistogramBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
 
     final long[] bins = new long[breaks.length + 1];
     buf.asLongBuffer().put(bins);
-    buf.putFloat(position + minOffset, Float.MAX_VALUE);
-    buf.putFloat(position + maxOffset, Float.MIN_VALUE);
+    buf.putFloat(position1 + minOffset, Float.MAX_VALUE);
+    buf.putFloat(position1 + maxOffset, Float.MIN_VALUE);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     final Float v = selector.get();
     if (v == null) {
       return;
     }
     final float value = v;
-    final int minPos = position + minOffset;
-    final int maxPos = position + maxOffset;
+    final int minPos = position1 + minOffset;
+    final int maxPos = position1 + maxOffset;
 
     if(value < buf.getFloat(minPos)) buf.putFloat(minPos, value);
     if(value > buf.getFloat(maxPos)) buf.putFloat(maxPos, value);
@@ -67,20 +67,20 @@ public class HistogramBufferAggregator implements BufferAggregator
     int index = Arrays.binarySearch(breaks, value);
     index = (index >= 0) ? index : -(index + 1);
 
-    final int offset = position + (index * Long.BYTES);
+    final int offset = position1 + (index * Long.BYTES);
     final long count = buf.getLong(offset);
     buf.putLong(offset, count + 1);
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
     final long[] bins = new long[breaks.length + 1];
-    buf.position(position);
+    buf.position(position1);
     buf.asLongBuffer().get(bins);
 
-    float min = buf.getFloat(position + minOffset);
-    float max = buf.getFloat(position + maxOffset);
+    float min = buf.getFloat(position1 + minOffset);
+    float max = buf.getFloat(position1 + maxOffset);
     return new Histogram(breaks, bins, min, max);
   }
 }

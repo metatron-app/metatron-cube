@@ -21,7 +21,6 @@ package io.druid.query.aggregation;
 
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.IntArray;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory.Combiner;
 import io.druid.query.filter.ValueMatcher;
@@ -112,21 +111,21 @@ public class Aggregators
     }
 
     @Override
-    public void init(ByteBuffer buf, int position)
+    public void init(ByteBuffer buf, int position0, int position1)
     {
-      delegate.init(buf, position);
+      delegate.init(buf, position0, position1);
     }
 
     @Override
-    public void aggregate(ByteBuffer buf, int position)
+    public void aggregate(ByteBuffer buf, int position0, int position1)
     {
-      delegate.aggregate(buf, position);
+      delegate.aggregate(buf, position0, position1);
     }
 
     @Override
-    public Object get(ByteBuffer buf, int position)
+    public Object get(ByteBuffer buf, int position0, int position1)
     {
-      return delegate.get(buf, position);
+      return delegate.get(buf, position0, position1);
     }
 
     @Override
@@ -302,32 +301,76 @@ public class Aggregators
     return new RelayBufferAggregator(relayAggregator(factory, column, type));
   }
 
+  public static class BufferMapping<T>
+  {
+    protected final Map<Key, T> mapping = Maps.newHashMap();
+
+    protected final Key toKey(int position0, int position1)
+    {
+      return new Key(position0, position1);
+    }
+
+    protected final T get(int position0, int position1)
+    {
+      return mapping.get(toKey(position0, position1));
+    }
+
+    protected final T put(int position0, int position1, T value)
+    {
+      return mapping.put(toKey(position0, position1), value);
+    }
+
+    protected final T remove(int position0, int position1)
+    {
+      return mapping.remove(toKey(position0, position1));
+    }
+
+    protected static final class Key
+    {
+      private final int position0;
+      private final int position1;
+
+      public Key(int position0, int position1)
+      {
+        this.position0 = position0;
+        this.position1 = position1;
+      }
+
+      @Override
+      public int hashCode()
+      {
+        return 31 * position0 + position1;
+      }
+
+      @Override
+      public boolean equals(Object obj)
+      {
+        Key other = (Key) obj;
+        return position0 == other.position0 && position1 == other.position1;
+      }
+    }
+  }
+
   @SuppressWarnings("unchecked")
-  public static class RelayBufferAggregator implements BufferAggregator
+  public static class RelayBufferAggregator extends BufferMapping implements BufferAggregator
   {
     private final Aggregator aggregator;
-    private final Map<IntArray, Object> mapping = Maps.newHashMap();
 
     public RelayBufferAggregator(Aggregator aggregator)
     {
       this.aggregator = aggregator;
     }
 
-    private IntArray toKey(ByteBuffer buf, int position)
+    @Override
+    public void init(ByteBuffer buf, int position0, int position1)
     {
-      return new IntArray(new int[]{System.identityHashCode(buf), position});
+      remove(position0, position1);
     }
 
     @Override
-    public void init(ByteBuffer buf, int position)
+    public void aggregate(ByteBuffer buf, int position0, int position1)
     {
-      mapping.remove(toKey(buf, position));
-    }
-
-    @Override
-    public void aggregate(ByteBuffer buf, int position)
-    {
-      final IntArray key = toKey(buf, position);
+      final Key key = toKey(position0, position1);
       final Object current = mapping.get(key);
       final Object updated = aggregator.aggregate(current);
       if (current != updated) {
@@ -336,9 +379,9 @@ public class Aggregators
     }
 
     @Override
-    public Object get(ByteBuffer buf, int position)
+    public Object get(ByteBuffer buf, int position0, int position1)
     {
-      return aggregator.get(mapping.get(toKey(buf, position)));
+      return aggregator.get(get(position0, position1));
     }
 
     @Override
@@ -489,23 +532,23 @@ public class Aggregators
     }
 
     @Override
-    public void init(ByteBuffer buf, int position)
+    public void init(ByteBuffer buf, int position0, int position1)
     {
-      delegate.init(buf, position);
+      delegate.init(buf, position0, position1);
     }
 
     @Override
-    public void aggregate(ByteBuffer buf, int position)
+    public void aggregate(ByteBuffer buf, int position0, int position1)
     {
       if (matcher.matches()) {
-        delegate.aggregate(buf, position);
+        delegate.aggregate(buf, position0, position1);
       }
     }
 
     @Override
-    public Object get(ByteBuffer buf, int position)
+    public Object get(ByteBuffer buf, int position0, int position1)
     {
-      return delegate.get(buf, position);
+      return delegate.get(buf, position0, position1);
     }
 
     @Override

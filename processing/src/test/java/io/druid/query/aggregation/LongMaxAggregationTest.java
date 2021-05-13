@@ -74,14 +74,14 @@ public class LongMaxAggregationTest
     LongMaxBufferAggregator agg = (LongMaxBufferAggregator)longMaxAggFactory.factorizeBuffered(colSelectorFactory);
 
     ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Long.BYTES]);
-    agg.init(buffer, 0);
+    agg.init(buffer, 0, 0);
 
     aggregate(selector, agg, buffer, 0);
     aggregate(selector, agg, buffer, 0);
     aggregate(selector, agg, buffer, 0);
     aggregate(selector, agg, buffer, 0);
 
-    Assert.assertEquals(values[2], ((Long) agg.get(buffer, 0)).longValue());
+    Assert.assertEquals(values[2], ((Long) agg.get(buffer, 0, 0)).longValue());
   }
 
   @Test
@@ -112,7 +112,7 @@ public class LongMaxAggregationTest
 
   private void aggregate(TestLongColumnSelector selector, LongMaxBufferAggregator agg, ByteBuffer buff, int position)
   {
-    agg.aggregate(buff, position);
+    agg.aggregate(buff, 0, position);
     selector.increment();
   }
 }

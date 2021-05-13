@@ -96,7 +96,7 @@ public class HistogramAggregatorTest
 
   private void aggregateBuffer(TestFloatColumnSelector selector, BufferAggregator agg, ByteBuffer buf, int position)
   {
-    agg.aggregate(buf, position);
+    agg.aggregate(buf, 0, position);
     selector.increment();
   }
 
@@ -121,46 +121,46 @@ public class HistogramAggregatorTest
     ByteBuffer buf = ByteBuffer.allocateDirect(factory.getMaxIntermediateSize());
     int position = 0;
 
-    agg.init(buf, position);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 0, 0}, ((Histogram) agg.get(buf, position)).bins);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 0, 0}, ((Histogram) agg.get(buf, position)).bins);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 0, 0}, ((Histogram) agg.get(buf, position)).bins);
+    agg.init(buf, 0, position);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 0, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 0, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 0, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 0, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
-    Assert.assertArrayEquals(new long[]{0, 0, 0, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 0, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 0, 1, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 1, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 0, 2, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 0, 2, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 1, 2, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 1, 2, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 2, 2, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 2, 2, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 3, 2, 1, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 3, 2, 1, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 3, 2, 2, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 3, 2, 2, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 3, 2, 3, 1, 0}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 3, 2, 3, 1, 0}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{0, 3, 2, 3, 1, 1}, ((Histogram) agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{0, 3, 2, 3, 1, 1}, ((Histogram) agg.get(buf, 0, position)).bins);
 
     aggregateBuffer(selector, agg, buf, position);
-    Assert.assertArrayEquals(new long[]{1,3,2,3,1,1}, ((Histogram)agg.get(buf, position)).bins);
+    Assert.assertArrayEquals(new long[]{1,3,2,3,1,1}, ((Histogram)agg.get(buf, 0, position)).bins);
   }
 }

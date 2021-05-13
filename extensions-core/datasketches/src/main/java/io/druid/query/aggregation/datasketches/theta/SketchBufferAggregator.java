@@ -19,26 +19,28 @@
 
 package io.druid.query.aggregation.datasketches.theta;
 
+import com.google.common.collect.Lists;
 import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
+import com.yahoo.sketches.theta.SetOperationBuilder;
 import com.yahoo.sketches.theta.Union;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedInts;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.List;
 
-public abstract class SketchBufferAggregator implements BufferAggregator
+public abstract class SketchBufferAggregator extends Aggregators.BufferMapping<Union> implements BufferAggregator
 {
   private final int nomEntries;
   private final int maxIntermediateSize;
 
-  private final Int2ObjectMap<Union> unions = new Int2ObjectOpenHashMap<>(); //position in BB -> Union Object
+  private final List<WritableMemory> nms = Lists.newArrayList();
 
   public SketchBufferAggregator(int nomEntries, int maxIntermediateSize)
   {
@@ -47,33 +49,41 @@ public abstract class SketchBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    WritableMemory mem = WritableMemory.wrap(buf, ByteOrder.nativeOrder()).writableRegion(position, maxIntermediateSize);
-    unions.put(position, (Union) SetOperation.builder().setNominalEntries(nomEntries).build(Family.UNION, mem));
+    SetOperationBuilder builder = SetOperation.builder().setNominalEntries(nomEntries);
+    WritableMemory mem = asMemory(buf, position0).writableRegion(position1, maxIntermediateSize);
+    put(position0, position1, (Union) builder.build(Family.UNION, mem));
+  }
+
+  private WritableMemory asMemory(ByteBuffer buf, int position0)
+  {
+    WritableMemory nm = position0 < nms.size() ? nms.get(position0) : null;
+    if (nm == null) {
+      for (int i = nms.size(); i <= position0; i++) {
+        nms.add(null);
+      }
+      nms.set(position0, nm = WritableMemory.wrap(buf, ByteOrder.nativeOrder()));
+    }
+    return nm;
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
     //in the code below, I am returning SetOp.getResult(true, null)
     //"true" returns an ordered sketch but slower to compute than unordered sketch.
     //however, advantage of ordered sketch is that they are faster to "union" later
     //given that results from the aggregator will be combined further, it is better
     //to return the ordered sketch here
-    return getUnion(position).getResult(true, null);
-  }
-
-  //Note that this is not threadsafe and I don't think it needs to be
-  protected final Union getUnion(int position)
-  {
-    return unions.get(position);
+    return get(position0, position1).getResult(true, null);
   }
 
   @Override
   public void clear(boolean close)
   {
-    unions.clear();
+    nms.clear();
+    mapping.clear();
   }
 
   public static SketchBufferAggregator create(DimensionSelector selector, int nomEntries, int maxIntermediateSize)
@@ -84,15 +94,15 @@ public abstract class SketchBufferAggregator implements BufferAggregator
         final DimensionSelector.WithRawAccess rawAccess = (DimensionSelector.WithRawAccess) selector;
 
         @Override
-        public void aggregate(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final IndexedInts indexed = rawAccess.getRow();
           final int length = indexed.size();
           if (length == 1) {
-            Union union = getUnion(position);
+            Union union = get(position0, position1);
             union.update(rawAccess.lookupRaw(indexed.get(0)));
           } else if (length > 1) {
-            Union union = getUnion(position);
+            Union union = get(position0, position1);
             for (int i = 0; i < length; i++) {
               union.update(rawAccess.lookupRaw(indexed.get(i)));
             }
@@ -103,15 +113,15 @@ public abstract class SketchBufferAggregator implements BufferAggregator
       return new SketchBufferAggregator(nomEntries, maxIntermediateSize)
       {
         @Override
-        public void aggregate(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final IndexedInts indexed = selector.getRow();
           final int length = indexed.size();
           if (length == 1) {
-            Union union = getUnion(position);
+            Union union = get(position0, position1);
             union.update((String) selector.lookupName(indexed.get(0)));
           } else if (length > 1) {
-            Union union = getUnion(position);
+            Union union = get(position0, position1);
             for (int i = 0; i < length; i++) {
               union.update((String) selector.lookupName(indexed.get(i)));
             }
@@ -126,15 +136,12 @@ public abstract class SketchBufferAggregator implements BufferAggregator
     return new SketchBufferAggregator(nomEntries, maxIntermediateSize)
     {
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
         Object update = selector.get();
-        if (update == null) {
-          return;
+        if (update != null) {
+          SketchAggregator.updateUnion(get(position0, position1), update);
         }
-
-        Union union = getUnion(position);
-        SketchAggregator.updateUnion(union, update);
       }
     };
   }

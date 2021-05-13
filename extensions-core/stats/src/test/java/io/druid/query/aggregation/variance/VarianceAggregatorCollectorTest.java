@@ -125,20 +125,20 @@ public class VarianceAggregatorCollectorTest
           valueHandOver.v = f;
           int index = random.nextInt(mergeOn);
           holders1.get(index).add(f);
-          holders2.get(index).lhs.aggregate(holders2.get(index).rhs, 0);
+          holders2.get(index).lhs.aggregate(holders2.get(index).rhs, 0, 0);
         }
         VarianceAggregatorCollector holder1 = holders1.get(0);
         for (int i = 1; i < mergeOn; i++) {
-          holder1 = (VarianceAggregatorCollector) VarianceAggregatorCollector.combineValues(holder1, holders1.get(i));
+          holder1 = VarianceAggregatorCollector.combineValues(holder1, holders1.get(i));
         }
         ObjectHandOver collectHandOver = new ObjectHandOver();
         ByteBuffer buffer = ByteBuffer.allocate(VarianceAggregatorCollector.getMaxIntermediateSize());
         BufferAggregator merger = VarianceBufferAggregator.create("xxx", collectHandOver, ValueMatcher.TRUE);
         for (int i = 0; i < mergeOn; i++) {
-          collectHandOver.v = holders2.get(i).lhs.get(holders2.get(i).rhs, 0);
-          merger.aggregate(buffer, 0);
+          collectHandOver.v = holders2.get(i).lhs.get(holders2.get(i).rhs, 0, 0);
+          merger.aggregate(buffer, 0, 0);
         }
-        VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) merger.get(buffer, 0);
+        VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) merger.get(buffer, 0, 0);
         Assert.assertEquals(holder2.getVariance(true), variance_pop, 0.01);
         Assert.assertEquals(holder2.getVariance(false), variance_sample, 0.01);
       }

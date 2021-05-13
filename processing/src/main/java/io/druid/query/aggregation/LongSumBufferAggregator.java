@@ -26,18 +26,18 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public abstract class LongSumBufferAggregator extends BufferAggregator.NullSupport
+public abstract class LongSumBufferAggregator implements BufferAggregator
 {
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.putLong(position, 0);
+    buf.putLong(position1, 0);
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return buf.getLong(position);
+    return buf.getLong(position1);
   }
 
   public static LongSumBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
@@ -46,11 +46,11 @@ public abstract class LongSumBufferAggregator extends BufferAggregator.NullSuppo
       return new LongSumBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Long current = selector.get();
           if (current != null) {
-            _aggregate(buf, position, current);
+            _aggregate(buf, position1, current);
           }
         }
       };
@@ -58,12 +58,12 @@ public abstract class LongSumBufferAggregator extends BufferAggregator.NullSuppo
       return new LongSumBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Long current = selector.get();
             if (current != null) {
-              _aggregate(buf, position, current);
+              _aggregate(buf, position1, current);
             }
           }
         }

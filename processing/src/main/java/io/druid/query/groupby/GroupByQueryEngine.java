@@ -297,7 +297,7 @@ public class GroupByQueryEngine
           final int position0 = array[0];
           final int position1 = array[1];
           for (int x = 0; x < aggregators.length; x++) {
-            row[i++] = aggregators[x].get(metricValues[position0], position1 + increments[x]);
+            row[i++] = aggregators[x].get(metricValues[position0], position0, position1 + increments[x]);
           }
 
           return row;
@@ -321,7 +321,7 @@ public class GroupByQueryEngine
           final int position0 = array[0];
           final int position1 = array[1];
           for (int i = 0; i < aggregators.length; i++) {
-            metrics[i] = aggregators[i].get(metricValues[position0], position1 + increments[i]);
+            metrics[i] = aggregators[i].get(metricValues[position0], position0, position1 + increments[i]);
           }
           return new Rowboat(timestamp.longValue(), dims, metrics, -1);
         }
@@ -456,7 +456,7 @@ public class GroupByQueryEngine
         final int position0 = position.array[0];
         final int position1 = position.array[1];
         for (int i = 0; i < aggregators.length; i++) {
-          aggregators[i].aggregate(metricValues[position0], position1 + increments[i]);
+          aggregators[i].aggregate(metricValues[position0], position0, position1 + increments[i]);
         }
         return null;
       }
@@ -471,7 +471,7 @@ public class GroupByQueryEngine
         final int position0 = assigned[0];
         final int position1 = assigned[1];
         for (int i = 0; i < aggregators.length; i++) {
-          aggregators[i].init(metricValues[position0], position1 + increments[i]);
+          aggregators[i].init(metricValues[position0], position0, position1 + increments[i]);
         }
         ordering.add(array);
         return array;

@@ -56,36 +56,36 @@ public class CountMinBufferAggregator extends HashBufferAggregator.ScanSupport<C
     return new BufferAggregator()
     {
       @Override
-      public void init(ByteBuffer buf, int position)
+      public void init(ByteBuffer buf, int position0, int position1)
       {
-        buf.position(position);
+        buf.position(position1);
         buf.putInt(width);
         buf.putInt(depth);
       }
 
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
         final CountMinSketch other = selector.get();
         if (other != null) {
-          CountMinSketch collector = CountMinSketch.fromBytes(buf, position).merge(other);
-          buf.position(position);
+          CountMinSketch collector = CountMinSketch.fromBytes(buf, position1).merge(other);
+          buf.position(position1);
           buf.put(collector.toBytes());
         }
       }
 
       @Override
-      public Object get(ByteBuffer buf, int position)
+      public Object get(ByteBuffer buf, int position0, int position1)
       {
-        return CountMinSketch.fromBytes(buf, position);
+        return CountMinSketch.fromBytes(buf, position1);
       }
     };
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     buf.putInt(width);
     buf.putInt(depth);
   }
@@ -97,8 +97,8 @@ public class CountMinBufferAggregator extends HashBufferAggregator.ScanSupport<C
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return CountMinSketch.fromBytes(buf, position);
+    return CountMinSketch.fromBytes(buf, position1);
   }
 }

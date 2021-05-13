@@ -63,9 +63,9 @@ public abstract class DecimalBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    position(buf, position).put((byte) 0);
+    position(buf, position1).put((byte) 0);
   }
 
   private ByteBuffer position(ByteBuffer buf, int position)
@@ -74,8 +74,8 @@ public abstract class DecimalBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public BigDecimal get(ByteBuffer buf, int position)
+  public BigDecimal get(ByteBuffer buf, int position0, int position1)
   {
-    return read(buf, position);
+    return read(buf, position1);
   }
 }

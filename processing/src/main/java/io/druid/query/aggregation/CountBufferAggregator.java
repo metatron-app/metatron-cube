@@ -35,22 +35,22 @@ public class CountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.putLong(position, 0L);
+    buf.putLong(position1, 0L);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
-      buf.putLong(position, buf.getLong(position) + 1);
+      buf.putLong(position1, buf.getLong(position1) + 1);
     }
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return buf.getLong(position);
+    return buf.getLong(position1);
   }
 }

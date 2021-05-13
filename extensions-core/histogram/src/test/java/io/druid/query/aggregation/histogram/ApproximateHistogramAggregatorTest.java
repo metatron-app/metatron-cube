@@ -31,7 +31,7 @@ public class ApproximateHistogramAggregatorTest
 {
   private void aggregateBuffer(TestFloatColumnSelector selector, BufferAggregator agg, ByteBuffer buf, int position)
   {
-    agg.aggregate(buf, position);
+    agg.aggregate(buf, 0, position);
     selector.increment();
   }
 
@@ -53,12 +53,12 @@ public class ApproximateHistogramAggregatorTest
     ByteBuffer buf = ByteBuffer.allocate(factory.getMaxIntermediateSize());
     int position = 0;
 
-    agg.init(buf, position);
+    agg.init(buf, 0, position);
     for (int i = 0; i < values.length; i++) {
       aggregateBuffer(selector, agg, buf, position);
     }
 
-    ApproximateHistogram h = ((ApproximateHistogram) agg.get(buf, position));
+    ApproximateHistogram h = ((ApproximateHistogram) agg.get(buf, 0, position));
 
     Assert.assertArrayEquals(
         "final bin positions don't match expected positions",

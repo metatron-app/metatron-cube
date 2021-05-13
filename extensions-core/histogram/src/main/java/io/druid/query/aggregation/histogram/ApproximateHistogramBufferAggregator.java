@@ -49,9 +49,9 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     buf.putInt(resolution);
     buf.putInt(0); //initial binCount
     for (int i = 0; i < resolution; ++i) {
@@ -68,25 +68,25 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
       final Float value = selector.get();
       if (value != null) {
-        buf.position(position);
+        buf.position(position1);
         ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(buf);
         h0.offer(value);
 
-        buf.position(position);
+        buf.position(position1);
         h0.toBytesDense(buf);
       }
     }
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     return new ApproximateHistogram().fromBytes(buf);
   }
 }

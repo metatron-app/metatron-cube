@@ -39,27 +39,27 @@ public class DruidTDigestBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position) {
-    buf.position(position);
+  public void init(ByteBuffer buf, int position0, int position1) {
+    buf.position(position1);
 
     DruidTDigest digest = new DruidTDigest(compression);
     digest.asBytes(buf);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position) {
-    buf.position(position);
+  public void aggregate(ByteBuffer buf, int position0, int position1) {
+    buf.position(position1);
 
     DruidTDigest digest = DruidTDigest.fromBytes(buf);
     digest.add(selector.get());
 
-    buf.position(position);
+    buf.position(position1);
     digest.asBytes(buf);
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position) {
-    buf.position(position);
+  public Object get(ByteBuffer buf, int position0, int position1) {
+    buf.position(position1);
     return DruidTDigest.fromBytes(buf);
   }
 }

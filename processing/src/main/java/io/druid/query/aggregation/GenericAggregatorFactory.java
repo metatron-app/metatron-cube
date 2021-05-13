@@ -157,12 +157,12 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     return new Aggregators.DelegatedBufferAggregator(factorizeBuffered(factory, elementType))
     {
       @Override
-      public final void aggregate(ByteBuffer buf, int position)
+      public final void aggregate(ByteBuffer buf, int position0, int position1)
       {
         List values = selector.get();
         for (int i = 0; i < values.size(); i++) {
           factory.setIndex(i);
-          super.aggregate(buf, position);
+          super.aggregate(buf, position0, position1);
         }
       }
     };

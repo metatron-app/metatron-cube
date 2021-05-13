@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.primitives.Doubles;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.lang.mutable.MutableDouble;
@@ -75,14 +74,14 @@ public class DoubleMaxAggregationTest
     DoubleMaxBufferAggregator agg = (DoubleMaxBufferAggregator) doubleMaxAggFactory.factorizeBuffered(colSelectorFactory);
 
     ByteBuffer buffer = ByteBuffer.wrap(new byte[Byte.BYTES + Double.BYTES]);
-    agg.init(buffer, 0);
+    agg.init(buffer, 0, 0);
 
     aggregate(selector, agg, buffer, 0);
     aggregate(selector, agg, buffer, 0);
     aggregate(selector, agg, buffer, 0);
     aggregate(selector, agg, buffer, 0);
 
-    Assert.assertEquals(values[2], ((Double) agg.get(buffer, 0)).doubleValue(), 0.0001);
+    Assert.assertEquals(values[2], ((Double) agg.get(buffer, 0, 0)).doubleValue(), 0.0001);
   }
 
   @Test
@@ -113,7 +112,7 @@ public class DoubleMaxAggregationTest
 
   private void aggregate(TestFloatColumnSelector selector, DoubleMaxBufferAggregator agg, ByteBuffer buff, int position)
   {
-    agg.aggregate(buff, position);
+    agg.aggregate(buff, 0, position);
     selector.increment();
   }
 }

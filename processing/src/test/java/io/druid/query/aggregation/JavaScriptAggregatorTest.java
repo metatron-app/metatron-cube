@@ -134,7 +134,7 @@ public class JavaScriptAggregatorTest
       ByteBuffer buf, int position
   )
   {
-    agg.aggregate(buf, position);
+    agg.aggregate(buf, 0, position);
     selector1.increment();
     selector2.increment();
   }
@@ -207,24 +207,24 @@ public class JavaScriptAggregatorTest
 
     ByteBuffer buf = ByteBuffer.allocateDirect(32);
     final int position = 4;
-    agg.init(buf, position);
+    agg.init(buf, 0, position);
 
     double val = 10.;
-    Assert.assertEquals(val, agg.get(buf, position));
-    Assert.assertEquals(val, agg.get(buf, position));
-    Assert.assertEquals(val, agg.get(buf, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
     aggregateBuffer(selector1, selector2, agg, buf, position);
 
     val += Math.log(42.12f) * 2f;
-    Assert.assertEquals(val, agg.get(buf, position));
-    Assert.assertEquals(val, agg.get(buf, position));
-    Assert.assertEquals(val, agg.get(buf, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
 
     aggregateBuffer(selector1, selector2, agg, buf, position);
     val += Math.log(9f) * 3f;
-    Assert.assertEquals(val, agg.get(buf, position));
-    Assert.assertEquals(val, agg.get(buf, position));
-    Assert.assertEquals(val, agg.get(buf, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
+    Assert.assertEquals(val, agg.get(buf, 0, position));
   }
 
   @Test

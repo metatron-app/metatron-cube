@@ -39,15 +39,15 @@ public abstract class DecimalSumBufferAggregator extends DecimalBufferAggregator
       return new DecimalSumBufferAggregator(metric)
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final BigDecimal decimal = selector.get();
           if (decimal != null) {
-            final BigDecimal current = read(buf, position);
+            final BigDecimal current = read(buf, position1);
             if (current == null) {
-              write(buf, position, decimal);
+              write(buf, position1, decimal);
             } else {
-              write(buf, position, current.add(decimal));
+              write(buf, position1, current.add(decimal));
             }
           }
         }
@@ -56,16 +56,16 @@ public abstract class DecimalSumBufferAggregator extends DecimalBufferAggregator
       return new DecimalSumBufferAggregator(metric)
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final BigDecimal decimal = selector.get();
             if (decimal != null) {
-              final BigDecimal current = read(buf, position);
+              final BigDecimal current = read(buf, position1);
               if (current == null) {
-                write(buf, position, decimal);
+                write(buf, position1, decimal);
               } else {
-                write(buf, position, current.add(decimal));
+                write(buf, position1, current.add(decimal));
               }
             }
           }

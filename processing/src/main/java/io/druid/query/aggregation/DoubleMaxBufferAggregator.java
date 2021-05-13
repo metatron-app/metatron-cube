@@ -30,9 +30,9 @@ import java.nio.ByteBuffer;
 public abstract class DoubleMaxBufferAggregator extends BufferAggregator.NullSupport
 {
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return isNull(buf, position) ? null : buf.getDouble(Byte.BYTES + position);
+    return isNull(buf, position1) ? null : buf.getDouble(Byte.BYTES + position1);
   }
 
   public static DoubleMaxBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -41,11 +41,11 @@ public abstract class DoubleMaxBufferAggregator extends BufferAggregator.NullSup
       return new DoubleMaxBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Float current = selector.get();
           if (current != null) {
-            _aggregate(buf, position, current);
+            _aggregate(buf, position1, current);
           }
         }
       };
@@ -53,12 +53,12 @@ public abstract class DoubleMaxBufferAggregator extends BufferAggregator.NullSup
       return new DoubleMaxBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Float current = selector.get();
             if (current != null) {
-              _aggregate(buf, position, current);
+              _aggregate(buf, position1, current);
             }
           }
         }
@@ -72,11 +72,11 @@ public abstract class DoubleMaxBufferAggregator extends BufferAggregator.NullSup
       return new DoubleMaxBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Double current = selector.get();
           if (current != null) {
-            _aggregate(buf, position, current);
+            _aggregate(buf, position1, current);
           }
         }
       };
@@ -84,12 +84,12 @@ public abstract class DoubleMaxBufferAggregator extends BufferAggregator.NullSup
       return new DoubleMaxBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Double current = selector.get();
             if (current != null) {
-              _aggregate(buf, position, current);
+              _aggregate(buf, position1, current);
             }
           }
         }

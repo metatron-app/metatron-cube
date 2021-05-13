@@ -143,27 +143,27 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       private final List<BufferAggregator> aggregators = Lists.newArrayList();
 
       @Override
-      public void init(ByteBuffer buf, int position)
+      public void init(ByteBuffer buf, int position0, int position1)
       {
       }
 
       @Override
-      public void aggregate(ByteBuffer buf, int position)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
         IndexedInts dims = selector.getRow();
-        for (BufferAggregator aggregator : getAggregators(buf, position, dims.size())) {
-          aggregator.aggregate(buf, position);
-          position += delegate.getMaxIntermediateSize();
+        for (BufferAggregator aggregator : getAggregators(buf, position0, position1, dims.size())) {
+          aggregator.aggregate(buf, position0, position1);
+          position1 += delegate.getMaxIntermediateSize();
         }
       }
 
       @Override
-      public Object get(ByteBuffer buf, int position)
+      public Object get(ByteBuffer buf, int position0, int position1)
       {
         List<Object> result = Lists.newArrayListWithExpectedSize(aggregators.size());
         for (BufferAggregator aggregator : aggregators) {
-          result.add(aggregator.get(buf, position));
-          position += delegate.getMaxIntermediateSize();
+          result.add(aggregator.get(buf, position0, position1));
+          position1 += delegate.getMaxIntermediateSize();
         }
         return result;
       }
@@ -176,13 +176,13 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         }
       }
 
-      private List<BufferAggregator> getAggregators(ByteBuffer buf, int position, int size)
+      private List<BufferAggregator> getAggregators(ByteBuffer buf, int position0, int position1, int size)
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
           BufferAggregator factorize = delegate.factorizeBuffered(new DimensionArrayColumnSelectorFactory(i, selector));
-          factorize.init(buf, position);
-          position += delegate.getMaxIntermediateSize();
+          factorize.init(buf, position0, position1);
+          position1 += delegate.getMaxIntermediateSize();
           aggregators.add(factorize);
         }
         return aggregators;

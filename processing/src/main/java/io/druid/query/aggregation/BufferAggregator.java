@@ -41,9 +41,10 @@ public interface BufferAggregator
    * This method must not exceed the number of bytes returned by {@link AggregatorFactory#getMaxIntermediateSize()}
    * in the corresponding {@link AggregatorFactory}
    * @param buf byte buffer to initialize
-   * @param position offset within the byte buffer for initialization
+   * @param position0
+   * @param position1 offset within the byte buffer for initialization
    */
-  void init(ByteBuffer buf, int position);
+  void init(ByteBuffer buf, int position0, int position1);
 
   /**
    * Aggregates metric values into the given aggregate byte representation
@@ -52,11 +53,11 @@ public interface BufferAggregator
    * aggregate the next element of data and write the updated aggregate value back into the buffer.
    *
    * <b>Implementations must not change the position, limit or mark of the given buffer</b>
-   *
-   * @param buf byte buffer storing the byte array representation of the aggregate
-   * @param position offset within the byte buffer at which the current aggregate value is stored
+   *  @param buf byte buffer storing the byte array representation of the aggregate
+   * @param position0
+   * @param position1 offset within the byte buffer at which the current aggregate value is stored
    */
-  void aggregate(ByteBuffer buf, int position);
+  void aggregate(ByteBuffer buf, int position0, int position1);
 
   /**
    * Returns the intermediate object representation of the given aggregate.
@@ -66,10 +67,11 @@ public interface BufferAggregator
    * <b>Implementations must not change the position, limit or mark of the given buffer</b>
    *
    * @param buf byte buffer storing the byte array representation of the aggregate
-   * @param position offset within the byte buffer at which the aggregate value is stored
+   * @param position0
+   * @param position1 offset within the byte buffer at which the aggregate value is stored
    * @return the Object representation of the aggregate
    */
-  Object get(ByteBuffer buf, int position);
+  Object get(ByteBuffer buf, int position0, int position1);
 
   /**
    * Release any resources used by the aggregator
@@ -83,9 +85,9 @@ public interface BufferAggregator
     protected static final byte NOT_NULL = 0x01;
 
     @Override
-    public void init(ByteBuffer buf, int position)
+    public void init(ByteBuffer buf, int position0, int position1)
     {
-      buf.put(position, NULL);
+      buf.put(position1, NULL);
     }
 
     protected static boolean isNull(ByteBuffer buf, int position)
@@ -97,17 +99,17 @@ public interface BufferAggregator
   BufferAggregator NULL = new BufferAggregator()
   {
     @Override
-    public void init(ByteBuffer buf, int position)
+    public void init(ByteBuffer buf, int position0, int position1)
     {
     }
 
     @Override
-    public void aggregate(ByteBuffer buf, int position)
+    public void aggregate(ByteBuffer buf, int position0, int position1)
     {
     }
 
     @Override
-    public Object get(ByteBuffer buf, int position)
+    public Object get(ByteBuffer buf, int position0, int position1)
     {
       return null;
     }

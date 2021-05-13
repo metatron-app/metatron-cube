@@ -230,7 +230,7 @@ public class CardinalityAggregatorTest
       int pos
   )
   {
-    agg.aggregate(buf, pos);
+    agg.aggregate(buf, 0, pos);
 
     for (DimensionSelector selector : selectorList) {
       ((TestDimensionSelector) selector).increment();
@@ -336,12 +336,12 @@ public class CardinalityAggregatorTest
     int pos = 10;
     buf.limit(pos + maxSize);
 
-    agg.init(buf, pos);
+    agg.init(buf, 0, pos);
 
     for (int i = 0; i < values1.size(); ++i) {
       bufferAggregate(selectorList, agg, buf, pos);
     }
-    Assert.assertEquals(9.0, (Double) rowAggregatorFactory.finalizeComputation(agg.get(buf, pos)), 0.05);
+    Assert.assertEquals(9.0, (Double) rowAggregatorFactory.finalizeComputation(agg.get(buf, 0, pos)), 0.05);
   }
 
   @Test
@@ -357,12 +357,12 @@ public class CardinalityAggregatorTest
     int pos = 10;
     buf.limit(pos + maxSize);
 
-    agg.init(buf, pos);
+    agg.init(buf, 0, pos);
 
     for (int i = 0; i < values1.size(); ++i) {
       bufferAggregate(selectorList, agg, buf, pos);
     }
-    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg.get(buf, pos)), 0.05);
+    Assert.assertEquals(7.0, (Double) valueAggregatorFactory.finalizeComputation(agg.get(buf, 0, pos)), 0.05);
   }
 
   @Test

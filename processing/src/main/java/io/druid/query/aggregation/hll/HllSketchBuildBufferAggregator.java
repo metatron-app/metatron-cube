@@ -54,24 +54,24 @@ public class HllSketchBuildBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(final ByteBuffer buf, final int position)
+  public void init(final ByteBuffer buf, int position0, final int position1)
   {
-    new HllSketch(lgK, tgtHllType, asWritableMemory(buf, position));
+    new HllSketch(lgK, tgtHllType, asWritableMemory(buf, position1));
   }
 
   @Override
-  public void aggregate(final ByteBuffer buf, final int position)
+  public void aggregate(final ByteBuffer buf, int position0, final int position1)
   {
     final Object value = selector.get();
     if (value != null) {
-      HllSketchBuildAggregator.updateSketch(toSketch(buf, position), value);
+      HllSketchBuildAggregator.updateSketch(toSketch(buf, position1), value);
     }
   }
 
   @Override
-  public Object get(final ByteBuffer buf, final int position)
+  public Object get(final ByteBuffer buf, int position0, final int position1)
   {
-    return toSketch(buf, position);
+    return toSketch(buf, position1);
   }
 
   private HllSketch toSketch(final ByteBuffer buf, final int position)

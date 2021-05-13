@@ -40,21 +40,21 @@ public class JavaScriptBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.putDouble(position, script.reset());
+    buf.putDouble(position1, script.reset());
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
-    buf.putDouble(position, script.aggregate(buf.getDouble(position), selectorList));
+    buf.putDouble(position1, script.aggregate(buf.getDouble(position1), selectorList));
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return buf.getDouble(position);
+    return buf.getDouble(position1);
   }
 
   @Override

@@ -38,27 +38,27 @@ public class AverageBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.putLong(position, 0L);
-    buf.putDouble(position + Long.BYTES, 0D);
+    buf.putLong(position1, 0L);
+    buf.putDouble(position1 + Long.BYTES, 0D);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
       final Double v = selector.get();
       if (v != null) {
-        buf.putLong(position, buf.getLong(position) + 1);
-        buf.putDouble(position + Long.BYTES, buf.getDouble(position + Long.BYTES) + v);
+        buf.putLong(position1, buf.getLong(position1) + 1);
+        buf.putDouble(position1 + Long.BYTES, buf.getDouble(position1 + Long.BYTES) + v);
       }
     }
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return new long[]{buf.getLong(position), Double.doubleToLongBits(buf.getDouble(position + Long.BYTES))};
+    return new long[]{buf.getLong(position1), Double.doubleToLongBits(buf.getDouble(position1 + Long.BYTES))};
   }
 }

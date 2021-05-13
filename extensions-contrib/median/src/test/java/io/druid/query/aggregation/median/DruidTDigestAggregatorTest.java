@@ -38,7 +38,7 @@ public class DruidTDigestAggregatorTest {
 
   private void aggregateBuffer(TestObjectColumnSelector selector, BufferAggregator aggregator, ByteBuffer buf, int position)
   {
-    aggregator.aggregate(buf, position);
+    aggregator.aggregate(buf, 0, position);
     selector.increment();
   }
 
@@ -87,12 +87,12 @@ public class DruidTDigestAggregatorTest {
     ByteBuffer buf = ByteBuffer.allocate(factory.getMaxIntermediateSize());
     int position = 0;
 
-    agg.init(buf, position);
+    agg.init(buf, 0, position);
     for (int i = 0; i < values.length; i++) {
       aggregateBuffer(selector, agg, buf, position);
     }
 
-    DruidTDigest digest = ((DruidTDigest) agg.get(buf, position));
+    DruidTDigest digest = ((DruidTDigest) agg.get(buf, 0, position));
 
     Assert.assertEquals(
         "median don't match expected value", 21.0, digest.median(), 0

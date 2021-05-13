@@ -45,26 +45,26 @@ public class HyperUniquesBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     buf.put(context.EMPTY_BYTES);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
       final HyperLogLogCollector collector = (HyperLogLogCollector) selector.get();
       if (collector != null) {
-        HyperLogLogCollector.from(context, buf, position).fold(collector);
+        HyperLogLogCollector.from(context, buf, position1).fold(collector);
       }
     }
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return HyperLogLogCollector.copy(context, buf, position);
+    return HyperLogLogCollector.copy(context, buf, position1);
   }
 }

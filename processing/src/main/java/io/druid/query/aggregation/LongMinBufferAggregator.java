@@ -29,9 +29,9 @@ import java.nio.ByteBuffer;
 public abstract class LongMinBufferAggregator extends BufferAggregator.NullSupport
 {
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return isNull(buf, position) ? null : buf.getLong(Byte.BYTES + position);
+    return isNull(buf, position1) ? null : buf.getLong(Byte.BYTES + position1);
   }
 
   public static LongMinBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
@@ -40,11 +40,11 @@ public abstract class LongMinBufferAggregator extends BufferAggregator.NullSuppo
       return new LongMinBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Long current = selector.get();
           if (current != null) {
-            _aggregate(buf, position, current);
+            _aggregate(buf, position1, current);
           }
         }
       };
@@ -52,12 +52,12 @@ public abstract class LongMinBufferAggregator extends BufferAggregator.NullSuppo
       return new LongMinBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Long current = selector.get();
             if (current != null) {
-              _aggregate(buf, position, current);
+              _aggregate(buf, position1, current);
             }
           }
         }

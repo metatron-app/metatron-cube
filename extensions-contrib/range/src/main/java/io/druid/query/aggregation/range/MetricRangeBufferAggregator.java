@@ -36,28 +36,28 @@ public class MetricRangeBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     buf.putDouble(Double.POSITIVE_INFINITY);
     buf.putDouble(Double.NEGATIVE_INFINITY);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     MetricRange metricRange = new MetricRange(buf.getDouble(), buf.getDouble());
     metricRange.add(selector.get());
 
-    buf.position(position);
+    buf.position(position1);
     metricRange.fill(buf);
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     return MetricRange.fromBytes(buf);
   }
 }

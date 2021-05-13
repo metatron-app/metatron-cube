@@ -36,29 +36,29 @@ public class MetricAreaBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     buf.putDouble(0);
     buf.putInt(0);
     buf.putDouble(Double.POSITIVE_INFINITY);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     MetricArea metricArea = MetricArea.fromBytes(buf);
     metricArea.add(selector.get());
 
-    buf.position(position);
+    buf.position(position1);
     metricArea.fill(buf);
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    buf.position(position);
+    buf.position(position1);
     return MetricArea.fromBytes(buf);
   }
 }

@@ -46,22 +46,22 @@ public class DistinctCountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.putLong(position, 0L);
+    buf.putLong(position1, 0L);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     if (predicate.matches()) {
-      MutableBitmap mutableBitmap = getMutableBitmap(buf, position);
+      MutableBitmap mutableBitmap = getMutableBitmap(buf, position1);
       final IndexedInts row = selector.getRow();
       final int length = row.size();
       for (int i = 0; i < length; i++) {
         mutableBitmap.add(row.get(i));
       }
-      buf.putLong(position, mutableBitmap.size());
+      buf.putLong(position1, mutableBitmap.size());
     }
   }
 
@@ -76,9 +76,9 @@ public class DistinctCountBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return buf.getLong(position);
+    return buf.getLong(position1);
   }
 
   @Override

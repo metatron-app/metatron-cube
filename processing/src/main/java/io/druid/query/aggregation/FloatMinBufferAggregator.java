@@ -29,9 +29,9 @@ import java.nio.ByteBuffer;
 public abstract class FloatMinBufferAggregator extends BufferAggregator.NullSupport
 {
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return isNull(buf, position) ? null : buf.getFloat(Byte.BYTES + position);
+    return isNull(buf, position1) ? null : buf.getFloat(Byte.BYTES + position1);
   }
 
   public static FloatMinBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
@@ -40,11 +40,11 @@ public abstract class FloatMinBufferAggregator extends BufferAggregator.NullSupp
       return new FloatMinBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Float current = selector.get();
           if (current != null) {
-            _aggregate(buf, position, current);
+            _aggregate(buf, position1, current);
           }
         }
       };
@@ -52,12 +52,12 @@ public abstract class FloatMinBufferAggregator extends BufferAggregator.NullSupp
       return new FloatMinBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position)
+        public final void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Float current = selector.get();
             if (current != null) {
-              _aggregate(buf, position, current);
+              _aggregate(buf, position1, current);
             }
           }
         }

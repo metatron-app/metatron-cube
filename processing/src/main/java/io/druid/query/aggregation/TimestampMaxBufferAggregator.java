@@ -38,24 +38,24 @@ public class TimestampMaxBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(ByteBuffer buf, int position)
+  public void init(ByteBuffer buf, int position0, int position1)
   {
-    buf.putLong(position, Long.MIN_VALUE);
+    buf.putLong(position1, Long.MIN_VALUE);
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
+  public void aggregate(ByteBuffer buf, int position0, int position1)
   {
     Long newTime = convertLong();
     if (newTime != null) {
-      buf.putLong(position, Math.max(buf.getLong(position), newTime));
+      buf.putLong(position1, Math.max(buf.getLong(position1), newTime));
     }
   }
 
   @Override
-  public Object get(ByteBuffer buf, int position)
+  public Object get(ByteBuffer buf, int position0, int position1)
   {
-    return buf.getLong(position);
+    return buf.getLong(position1);
   }
 
   public Long getLong(ByteBuffer buf, int position)

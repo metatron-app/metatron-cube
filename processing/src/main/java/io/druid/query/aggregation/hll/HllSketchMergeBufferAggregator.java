@@ -55,27 +55,27 @@ public class HllSketchMergeBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void init(final ByteBuffer buf, final int position)
+  public void init(final ByteBuffer buf, int position0, final int position1)
   {
     // Not necessary to keep the constructed object since it is cheap to reconstruct by wrapping the memory.
     // The objects are not cached as in BuildBufferAggregator since they never exceed the max size and never move.
     // So it is easier to reconstruct them by wrapping memory then to keep position-to-object mappings. 
-    new Union(lgK, asWritableMemory(buf, position));
+    new Union(lgK, asWritableMemory(buf, position1));
   }
 
   @Override
-  public void aggregate(final ByteBuffer buf, final int position)
+  public void aggregate(final ByteBuffer buf, int position0, final int position1)
   {
     final HllSketch sketch = selector.get();
     if (sketch != null) {
-      toUnion(buf, position).update(sketch);
+      toUnion(buf, position1).update(sketch);
     }
   }
 
   @Override
-  public Object get(final ByteBuffer buf, final int position)
+  public Object get(final ByteBuffer buf, int position0, final int position1)
   {
-    return toUnion(buf, position).getResult(tgtHllType);
+    return toUnion(buf, position1).getResult(tgtHllType);
   }
 
   private Union toUnion(final ByteBuffer buf, final int position)
