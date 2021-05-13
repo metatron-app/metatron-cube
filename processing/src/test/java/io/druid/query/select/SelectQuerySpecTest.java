@@ -20,6 +20,7 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TableDataSource;
@@ -68,7 +69,7 @@ public class SelectQuerySpecTest
         new LegacySegmentSpec(new Interval("2011-01-12/2011-01-14")),
         true,
         null,
-        QueryRunnerTestHelper.allGran,
+        Granularities.ALL,
         DefaultDimensionSpec.toSpec(Arrays.<String>asList("market", "quality")),
         Arrays.<String>asList("index"),
         null,

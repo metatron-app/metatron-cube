@@ -349,7 +349,7 @@ public class AppenderatorImpl implements Appenderator
   }
 
   @Override
-  public ObjectMapper getObjectMapper()
+  public ObjectMapper getMapper()
   {
     return objectMapper;
   }

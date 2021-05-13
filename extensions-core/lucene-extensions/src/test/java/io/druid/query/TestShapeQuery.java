@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -28,37 +29,47 @@ import io.druid.query.filter.LuceneLatLonPolygonFilter;
 import io.druid.query.filter.LuceneShapeFilter;
 import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.segment.ExprVirtualColumn;
-import io.druid.segment.TestIndex;
+import io.druid.segment.TestHelper;
 import io.druid.segment.lucene.ShapeFormat;
 import io.druid.segment.lucene.ShapeIndexingStrategy;
 import io.druid.segment.lucene.SpatialOperations;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
-public class TestShapeQuery extends QueryRunnerTestHelper
+public class TestShapeQuery extends TestHelper
 {
+  private static final TestQuerySegmentWalker segmentWalker;
+
   static {
     Parser.register(GeomFunctions.class);
 
     ObjectMapper mapper = new DefaultObjectMapper();
     mapper.registerSubtypes(ShapeIndexingStrategy.class);
-    TestIndex.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", mapper);
-    TestIndex.addIndex("seoul_roads_incremental", "seoul_roads_schema.json", "seoul_roads.tsv", mapper, false);
-    TestIndex.addIndex("world_border", "world_schema.json", "world.csv", mapper);
+
+    TestQuerySegmentWalker walker = estateWalker.duplicate().withObjectMapper(mapper);
+    walker.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", true);
+    walker.addIndex("seoul_roads_incremental", "seoul_roads_schema.json", "seoul_roads.tsv", false);
+    walker.addIndex("world_border", "world_schema.json", "world.csv", true);
+
+    // for toMap post processor
+    mapper.setInjectableValues(
+        new InjectableValues.Std()
+            .addValue(QueryToolChestWarehouse.class, segmentWalker = walker));
   }
 
   @Test
   public void testSchema()
   {
-    Schema schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("seoul_roads")));
+    Schema schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("seoul_roads"), segmentWalker));
     Assert.assertEquals("[__time, id, name, geom]", schema.getColumnNames().toString());
     Assert.assertEquals("[long, dimension.string, dimension.string, string]", schema.getColumnTypes().toString());
     Assert.assertEquals("{geom={geom=shape(format=WKT)}}", schema.getDescriptors().toString());
 
-    schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("world_border")));
+    schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("world_border"), segmentWalker));
     Assert.assertEquals(
         "[__time, CODE, CNTRY_NAME, CURR_TYPE, CURR_CODE, FIPS, POP_CNTRY, WKT]", schema.getColumnNames().toString()
     );
@@ -91,7 +102,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)", null},
         new Object[]{"방배로", "LINESTRING (126.987022 37.498256, 127.001858 37.475122)", null}
     );
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     Float score = incremental ? null : 1.0f;
 
@@ -109,7 +120,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"테헤란로", "LINESTRING (127.027648 37.497879, 127.066436 37.509842)", score},
         new Object[]{"방배로", "LINESTRING (126.987022 37.498256, 127.001858 37.475122)", score}
     );
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
@@ -123,7 +134,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", score},
         new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)", score}
     );
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
@@ -136,7 +147,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         columns,
         new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", score}
     );
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
@@ -145,7 +156,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))",
         "score"
     ));
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     builder.filters(new LuceneShapeFilter(
         "geom",
@@ -154,7 +165,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "POLYGON ((127.017827 37.484505, 127.017827 37.521752, 127.034182 37.521752, 127.034182 37.484505, 127.017827 37.484505))",
         "score"
     ));
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     builder.filters(new LuceneSpatialFilter(
         "geom",
@@ -168,7 +179,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"강남대로", "LINESTRING (127.034182 37.484505, 127.021399 37.511051, 127.017827 37.521752)", score},
         new Object[]{"서초대로", "LINESTRING (127.007656 37.491764, 127.027648 37.497879)", score}
     );
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
   }
 
   @Test
@@ -202,7 +213,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))",
         null
     ));
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     builder.filters(new LuceneShapeFilter(
         "gis.coord",
@@ -211,7 +222,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "POLYGON ((127.011136 37.494466, 127.024620 37.494036, 127.026753 37.502427, 127.011136 37.494466))",
         null
     ));
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
 
     builder.virtualColumns(new ExprVirtualColumn("geom_toGeoJson(geom_fromLatLon(gis.lat, gis.lon))", "point"));
     expected = createExpectedMaps(
@@ -224,7 +235,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         new Object[]{"서초동 1315 진흥", "{\"type\":\"Point\",\"coordinates\":[127.023676,37.49706]}"},
         new Object[]{"서초동 1315 진흥", "{\"type\":\"Point\",\"coordinates\":[127.023676,37.49706]}"}
     );
-    Assert.assertEquals(expected, runQuery(builder.streaming()));
+    Assert.assertEquals(expected, runQuery(builder.streaming(), segmentWalker));
   }
 
   @Test
@@ -236,7 +247,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         .columns(columns)
         .addContext(Query.POST_PROCESSING, ImmutableMap.of("type", "toMap", "timestampColumn", "__time"));
 
-    int all = runQuery(builder.streaming()).size();
+    int all = runQuery(builder.streaming(), segmentWalker).size();
 
     builder.filters(new LuceneSpatialFilter(
         "WKT.shape",
@@ -245,7 +256,7 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "MULTIPOINT ((-180.0 -90.0), (180.0 90.0))",
         null
     ));
-    Assert.assertEquals(all, runQuery(builder.streaming()).size());
+    Assert.assertEquals(all, runQuery(builder.streaming(), segmentWalker).size());
 
     builder.filters(new LuceneSpatialFilter(
         "WKT.shape",
@@ -254,6 +265,6 @@ public class TestShapeQuery extends QueryRunnerTestHelper
         "MULTIPOINT ((180.0 -90.0), (-180.0 90.0))",
         null
     ));
-    Assert.assertEquals(all, runQuery(builder.streaming()).size());
+    Assert.assertEquals(all, runQuery(builder.streaming(), segmentWalker).size());
   }
 }

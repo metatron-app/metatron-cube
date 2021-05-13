@@ -20,6 +20,7 @@
 package io.druid.query.search;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
 import io.druid.query.Query;
@@ -40,7 +41,7 @@ public class SearchQueryTest
   {
     Query query = Druids.newSearchQueryBuilder()
                         .dataSource(QueryRunnerTestHelper.dataSource)
-                        .granularity(QueryRunnerTestHelper.allGran)
+                        .granularity(Granularities.ALL)
                         .intervals(QueryRunnerTestHelper.fullOnInterval)
                         .query("a")
                         .build();
@@ -56,7 +57,7 @@ public class SearchQueryTest
   {
     Query query1 = Druids.newSearchQueryBuilder()
                          .dataSource(QueryRunnerTestHelper.dataSource)
-                         .granularity(QueryRunnerTestHelper.allGran)
+                         .granularity(Granularities.ALL)
                          .intervals(QueryRunnerTestHelper.fullOnInterval)
                          .dimensions(
                              new DefaultDimensionSpec(
@@ -68,7 +69,7 @@ public class SearchQueryTest
                          .build();
     Query query2 = Druids.newSearchQueryBuilder()
                          .dataSource(QueryRunnerTestHelper.dataSource)
-                         .granularity(QueryRunnerTestHelper.allGran)
+                         .granularity(Granularities.ALL)
                          .intervals(QueryRunnerTestHelper.fullOnInterval)
                          .dimensions(
                              new DefaultDimensionSpec(
@@ -87,7 +88,7 @@ public class SearchQueryTest
   {
     Query query = Druids.newSearchQueryBuilder()
                         .dataSource(QueryRunnerTestHelper.dataSource)
-                        .granularity(QueryRunnerTestHelper.allGran)
+                        .granularity(Granularities.ALL)
                         .intervals(QueryRunnerTestHelper.fullOnInterval)
                         .dimensions(new LegacyDimensionSpec(QueryRunnerTestHelper.qualityDimension))
                         .query("a")

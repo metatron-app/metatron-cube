@@ -102,7 +102,7 @@ public class QueryResourceTest
     }
 
     @Override
-    public ObjectMapper getObjectMapper()
+    public ObjectMapper getMapper()
     {
       return jsonMapper;
     }

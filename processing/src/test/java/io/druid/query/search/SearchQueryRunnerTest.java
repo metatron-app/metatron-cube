@@ -22,6 +22,7 @@ package io.druid.query.search;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Parser;
 import io.druid.query.Druids;
@@ -100,7 +101,7 @@ public class SearchQueryRunnerTest
   {
     SearchQuery searchQuery = Druids.newSearchQueryBuilder()
                                     .dataSource(dataSource)
-                                    .granularity(QueryRunnerTestHelper.allGran)
+                                    .granularity(Granularities.ALL)
                                     .intervals(QueryRunnerTestHelper.fullOnInterval)
                                     .query("a")
                                     .build();
@@ -123,7 +124,7 @@ public class SearchQueryRunnerTest
   {
     SearchQuery searchQuery = Druids.newSearchQueryBuilder()
                                     .dataSource(dataSource)
-                                    .granularity(QueryRunnerTestHelper.allGran)
+                                    .granularity(Granularities.ALL)
                                     .intervals(QueryRunnerTestHelper.fullOnInterval)
                                     .dimensions(
                                         Arrays.asList(
@@ -147,7 +148,7 @@ public class SearchQueryRunnerTest
   {
     SearchQuery searchQuery = Druids.newSearchQueryBuilder()
                                     .dataSource(dataSource)
-                                    .granularity(QueryRunnerTestHelper.allGran)
+                                    .granularity(Granularities.ALL)
                                     .intervals(QueryRunnerTestHelper.fullOnInterval)
                                     .dimensions(
                                         Arrays.asList(
@@ -172,7 +173,7 @@ public class SearchQueryRunnerTest
   {
     SearchQuery searchQuery = Druids.newSearchQueryBuilder()
                                     .dataSource(dataSource)
-                                    .granularity(QueryRunnerTestHelper.allGran)
+                                    .granularity(Granularities.ALL)
                                     .intervals(QueryRunnerTestHelper.fullOnInterval)
                                     .query(new FragmentSearchQuerySpec(Arrays.asList("auto", "ve")))
                                     .build();
@@ -196,7 +197,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .dimensions("quality")
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .query("a")
@@ -214,7 +215,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .dimensions("market")
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .query("a")
@@ -237,7 +238,7 @@ public class SearchQueryRunnerTest
     Druids.SearchQueryBuilder builder =
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .dimensions(
                   Arrays.asList(
                       QueryRunnerTestHelper.qualityDimension,
@@ -295,7 +296,7 @@ public class SearchQueryRunnerTest
     final Druids.SearchQueryBuilder builder =
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .query("a")
               .sortSpec(new LexicographicSearchSortSpec(Arrays.asList("$count:desc", "$value:desc")))
@@ -332,7 +333,7 @@ public class SearchQueryRunnerTest
               .dataSource(dataSource)
               .filters(new MathExprFilter("index > 100 && index < 200"))
               .virtualColumns(new ExprVirtualColumn("concat(market, '_', quality)", "VC"))
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .dimensions("VC")
               .sortSpec(new LexicographicSearchSortSpec(Arrays.asList("$count:desc", "$value:desc")))
@@ -361,7 +362,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .dimensions(
                   Arrays.asList(
                       QueryRunnerTestHelper.placementishDimension,
@@ -393,7 +394,7 @@ public class SearchQueryRunnerTest
 
     SearchQuery query = Druids.newSearchQueryBuilder()
                               .dataSource(dataSource)
-                              .granularity(QueryRunnerTestHelper.allGran)
+                              .granularity(Granularities.ALL)
                               .filters(
                                   new SelectorDimFilter(
                                       QueryRunnerTestHelper.qualityDimension,
@@ -425,7 +426,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .filters(
                   new AndDimFilter(
                       Arrays.<DimFilter>asList(
@@ -448,7 +449,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .filters(QueryRunnerTestHelper.marketDimension, "total_market")
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .dimensions(QueryRunnerTestHelper.marketDimension)
@@ -478,7 +479,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .filters(filter)
               .dimensions(QueryRunnerTestHelper.qualityDimension)
               .intervals(QueryRunnerTestHelper.fullOnInterval)
@@ -508,7 +509,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .dimensions(QueryRunnerTestHelper.qualityDimension)
               .filters(filter)
               .intervals(QueryRunnerTestHelper.fullOnInterval)
@@ -526,7 +527,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .query("abcd123")
               .build(),
@@ -553,7 +554,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .filters(filter)
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .query("a")
@@ -571,7 +572,7 @@ public class SearchQueryRunnerTest
     checkSearchQuery(
         Druids.newSearchQueryBuilder()
               .dataSource(dataSource)
-              .granularity(QueryRunnerTestHelper.allGran)
+              .granularity(Granularities.ALL)
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .dimensions("does_not_exist")
               .query("a")

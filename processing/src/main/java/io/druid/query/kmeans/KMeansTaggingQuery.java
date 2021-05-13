@@ -352,7 +352,7 @@ public class KMeansTaggingQuery extends BaseQuery<Object[]>
     if (source instanceof RewritingQuery) {
       source = ((RewritingQuery) source).rewriteQuery(segmentWalker, queryConfig);
     }
-    ObjectMapper mapper = segmentWalker.getObjectMapper();
+    ObjectMapper mapper = segmentWalker.getMapper();
 
     Map<String, Object> context = PostProcessingOperators.append(getContext(), new ClassifyPostProcessor(tagColumn));
     if (appendConvexHull) {

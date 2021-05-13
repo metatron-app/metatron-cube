@@ -52,7 +52,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.metadata.metadata.NoneColumnIncluderator;
+import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.segment.ExprVirtualColumn;
@@ -136,7 +136,7 @@ public class QueryUtils
         query.getDataSource(),
         query.getQuerySegmentSpec(),
         null,
-        new NoneColumnIncluderator(),
+        ColumnIncluderator.NONE,
         null,
         false,
         EnumSet.of(AnalysisType.INTERVAL),

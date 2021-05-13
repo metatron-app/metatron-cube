@@ -21,12 +21,14 @@ package io.druid.query.select;
 
 import com.google.common.io.CharSource;
 import io.druid.common.utils.Sequences;
-import io.druid.query.DefaultGenericQueryMetricsFactory;
+import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import org.junit.Assert;
@@ -37,14 +39,7 @@ import java.util.List;
 
 public class SelectQueryConcatTest
 {
-  private final SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
-      new SelectQueryQueryToolChest(
-          null, DefaultGenericQueryMetricsFactory.instance()
-      ),
-      new SelectQueryEngine(),
-      new SelectQueryConfig(),
-      QueryRunnerTestHelper.NOOP_QUERYWATCHER
-  );
+  QueryRunnerFactory<Result<SelectResultValue>, SelectQuery> factory = TestHelper.factoryFor(SelectQuery.class);
 
   private final CharSource input = CharSource.wrap(
       "2011-01-12T00:00:00.000Z\tspot\tAutoMotive\tPREFERRED\ta\u0001preferred\t100.000000\n" +
@@ -61,7 +56,7 @@ public class SelectQueryConcatTest
   {
     return Druids.newSelectQueryBuilder()
         .dataSource(QueryRunnerTestHelper.dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .pagingSpec(PagingSpec.newSpec(5));
   }

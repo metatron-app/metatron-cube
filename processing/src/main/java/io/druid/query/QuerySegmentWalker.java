@@ -39,7 +39,7 @@ public interface QuerySegmentWalker
     }
 
     @Override
-    public ObjectMapper getObjectMapper()
+    public ObjectMapper getMapper()
     {
       return new DefaultObjectMapper();
     }
@@ -59,7 +59,7 @@ public interface QuerySegmentWalker
 
   ExecutorService getExecutor();
 
-  ObjectMapper getObjectMapper();
+  ObjectMapper getMapper();
 
   /**
    * Gets the Queryable for a given interval, the Queryable returned can be any version(s) or partitionNumber(s)

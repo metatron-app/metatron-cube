@@ -140,7 +140,7 @@ public class ServerManagerTest
         new QueryRunnerFactoryConglomerate()
         {
           @Override
-          public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(QueryType query)
+          public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
           {
             return (QueryRunnerFactory) factory;
           }

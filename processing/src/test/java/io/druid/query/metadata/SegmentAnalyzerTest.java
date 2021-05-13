@@ -23,7 +23,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.LegacyDataSource;
 import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
@@ -32,6 +31,7 @@ import io.druid.query.spec.QuerySegmentSpecs;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.junit.Assert;
 import org.junit.Test;
@@ -175,10 +175,7 @@ public class SegmentAnalyzerTest
   private List<SegmentAnalysis> getSegmentAnalysises(Segment index, EnumSet<SegmentMetadataQuery.AnalysisType> analyses)
   {
     final QueryRunner<SegmentAnalysis> runner = QueryRunnerTestHelper.makeQueryRunner(
-        (QueryRunnerFactory) new SegmentMetadataQueryRunnerFactory(
-            new SegmentMetadataQueryQueryToolChest(new SegmentMetadataQueryConfig()),
-            QueryRunnerTestHelper.NOOP_QUERYWATCHER
-        ), index
+        TestHelper.factoryFor(SegmentMetadataQuery.class), index
     );
 
     final SegmentMetadataQuery query = new SegmentMetadataQuery(

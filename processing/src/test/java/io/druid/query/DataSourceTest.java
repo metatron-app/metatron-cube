@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -74,7 +75,7 @@ public class DataSourceTest
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     String dataSourceJSON = "{\"type\":\"query\", \"query\":" + jsonMapper.writeValueAsString(query) + "}";

@@ -288,7 +288,7 @@ public class ServerManager implements ForwardingSegmentWalker
   }
 
   @Override
-  public ObjectMapper getObjectMapper()
+  public ObjectMapper getMapper()
   {
     return objectMapper;
   }

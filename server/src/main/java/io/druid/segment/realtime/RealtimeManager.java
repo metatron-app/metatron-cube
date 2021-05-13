@@ -179,7 +179,7 @@ public class RealtimeManager implements ForwardingSegmentWalker
   }
 
   @Override
-  public ObjectMapper getObjectMapper()
+  public ObjectMapper getMapper()
   {
     return objectMapper;
   }

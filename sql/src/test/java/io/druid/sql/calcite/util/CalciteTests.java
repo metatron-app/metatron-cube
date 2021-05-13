@@ -55,7 +55,6 @@ import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -205,7 +204,7 @@ public class CalciteTests
                 @Override
                 public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
                 {
-                  return QueryRunnerTestHelper.CONGLOMERATE.findFactory(query).getToolchest();
+                  return TestHelper.CONGLOMERATE.findFactory(query).getToolchest();
                 }
               }
           );
@@ -300,7 +299,7 @@ public class CalciteTests
           @Override
           public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
           {
-            final QueryRunnerFactory<T, QueryType> factory = QueryRunnerTestHelper.CONGLOMERATE.findFactory(query);
+            final QueryRunnerFactory<T, QueryType> factory = TestHelper.CONGLOMERATE.findFactory(query);
             return factory == null ? null : factory.getToolchest();
           }
         },
@@ -320,13 +319,6 @@ public class CalciteTests
         new ServiceEmitter("dummy", "dummy", new NoopEmitter()),
         new NoopRequestLogger(),
         null
-    );
-  }
-
-  public static TestQuerySegmentWalker newSegmentWalker()
-  {
-    return new TestQuerySegmentWalker(
-        QueryRunnerTestHelper.CONGLOMERATE, QueryRunnerTestHelper.QUERY_CONFIG
     );
   }
 

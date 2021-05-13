@@ -60,7 +60,6 @@ public interface InputRowParser<T>
    * Parse an input into an {@link InputRow}. Return null if this input should be thrown away, or throws
    * {@code ParseException} if the input is unparseable.
    */
-  @Deprecated
   @Nullable
   default InputRow parse(T input)
   {

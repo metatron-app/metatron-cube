@@ -41,7 +41,7 @@ import java.util.Map;
 public class SummaryQueryTest extends SketchQueryRunnerTestHelper
 {
   static {
-    segmentWalker.getObjectMapper().registerSubtypes(
+    segmentWalker.getMapper().registerSubtypes(
         SummaryPostProcessor.class, SketchEstimatePostProcessor.class
     );
   }

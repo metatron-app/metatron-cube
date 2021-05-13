@@ -29,16 +29,18 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.TestHelper;
-import io.druid.segment.TestIndex;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class TestDecimalQuery extends QueryRunnerTestHelper
+public class TestDecimalQuery extends TestHelper
 {
+  private static final TestQuerySegmentWalker segmentWalker = newWalker();
+
   static {
-    TestIndex.addIndex(
+    segmentWalker.addIndex(
         "decimal",
         Arrays.asList("time", "dim", "m"),
         Arrays.asList("yyyy-MM-dd", "dimension", "decimal(32, 10)"),
@@ -74,7 +76,7 @@ public class TestDecimalQuery extends QueryRunnerTestHelper
     Iterable<Row> results;
     List<Row> expectedResults;
 
-    results = runQuery(query);
+    results = runQuery(query, segmentWalker);
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
@@ -98,7 +100,7 @@ public class TestDecimalQuery extends QueryRunnerTestHelper
     Iterable<Row> results;
     List<Row> expectedResults;
 
-    results = runQuery(query);
+    results = runQuery(query, segmentWalker);
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

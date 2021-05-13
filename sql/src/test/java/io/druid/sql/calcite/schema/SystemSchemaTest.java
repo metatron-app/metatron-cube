@@ -41,7 +41,6 @@ import io.druid.java.util.http.client.HttpClient;
 import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.io.AppendableByteArrayInputStream;
 import io.druid.java.util.http.client.response.FullResponseHolder;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -181,11 +180,11 @@ public class SystemSchemaTest extends CalciteTestBase
                                               .rows(ROWS2)
                                               .buildMMappedIndex();
 
-    walker = CalciteTests.newSegmentWalker()
-        .add(segment1, index1)
-        .add(segment2, index2)
-        .add(segment2, index2)
-        .add(segment3, index2);
+    walker = TestHelper.newWalker()
+                       .add(segment1, index1)
+                       .add(segment2, index2)
+                       .add(segment2, index2)
+                       .add(segment3, index2);
 
     druidSchema = new DruidSchema(
         walker,
@@ -263,7 +262,7 @@ public class SystemSchemaTest extends CalciteTestBase
   private final ObjectMapper objectMapper = new DefaultObjectMapper();
   private final DirectDruidClient client1 = new DirectDruidClient(
       walker,
-      QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+      TestHelper.NOOP_QUERYWATCHER,
       objectMapper,
       objectMapper,
       httpClient,
@@ -276,7 +275,7 @@ public class SystemSchemaTest extends CalciteTestBase
 
   private final DirectDruidClient client2 = new DirectDruidClient(
       walker,
-      QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+      TestHelper.NOOP_QUERYWATCHER,
       objectMapper,
       objectMapper,
       httpClient,

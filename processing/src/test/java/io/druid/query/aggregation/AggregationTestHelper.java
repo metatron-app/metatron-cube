@@ -26,7 +26,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -46,15 +45,14 @@ import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryRunners;
 import io.druid.query.QueryToolChest;
+import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
@@ -62,10 +60,8 @@ import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
 import io.druid.query.search.search.SearchQueryConfig;
-import io.druid.query.select.SelectQueryConfig;
-import io.druid.query.select.SelectQueryEngine;
-import io.druid.query.select.SelectQueryQueryToolChest;
-import io.druid.query.select.SelectQueryRunnerFactory;
+import io.druid.query.select.SelectQuery;
+import io.druid.query.select.SelectResultValue;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexSpec;
@@ -138,9 +134,7 @@ public class AggregationTestHelper
     StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
-    GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
-        config, engine, pool
-    );
+    GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(config, engine, pool);
     GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
         NoopQueryWatcher.instance(),
@@ -164,23 +158,14 @@ public class AggregationTestHelper
     );
   }
 
-  public static final AggregationTestHelper createSelectQueryAggregationTestHelper(
+  public static AggregationTestHelper createSelectQueryAggregationTestHelper(
       List<? extends Module> jsonModulesToRegister,
       TemporaryFolder tempFolder
   )
   {
     ObjectMapper mapper = new DefaultObjectMapper();
 
-    SelectQueryQueryToolChest toolchest = new SelectQueryQueryToolChest(
-        null, DefaultGenericQueryMetricsFactory.instance()
-    );
-
-    SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
-        toolchest,
-        new SelectQueryEngine(),
-        new SelectQueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
-    );
+    QueryRunnerFactory<Result<SelectResultValue>, SelectQuery> factory = TestHelper.factoryFor(SelectQuery.class);
 
     IndexIO indexIO = new IndexIO(
         mapper
@@ -190,7 +175,7 @@ public class AggregationTestHelper
         mapper,
         new IndexMerger(mapper, indexIO),
         indexIO,
-        toolchest,
+        factory.getToolchest(),
         factory,
         tempFolder,
         jsonModulesToRegister
@@ -212,7 +197,7 @@ public class AggregationTestHelper
         new SearchQueryQueryToolChest(
             new SearchQueryConfig()
         ),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
 
     return new AggregationTestHelper(

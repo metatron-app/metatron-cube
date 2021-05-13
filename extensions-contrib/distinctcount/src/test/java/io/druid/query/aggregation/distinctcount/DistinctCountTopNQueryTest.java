@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
@@ -82,7 +83,7 @@ public class DistinctCountTopNQueryTest
     );
 
     TopNQuery query = new TopNQueryBuilder().dataSource(QueryRunnerTestHelper.dataSource)
-                          .granularity(QueryRunnerTestHelper.allGran)
+                          .granularity(Granularities.ALL)
                           .intervals(QueryRunnerTestHelper.fullOnInterval)
                           .dimension(client_type)
                           .metric("UV")

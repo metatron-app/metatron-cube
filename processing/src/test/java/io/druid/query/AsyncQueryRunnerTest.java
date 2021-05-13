@@ -27,6 +27,7 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.segment.TestHelper;
 import io.druid.utils.StopWatch;
 import org.easymock.EasyMock;
 import org.junit.Assert;
@@ -75,8 +76,7 @@ public class AsyncQueryRunnerTest
       }
     };
     
-    AsyncQueryRunner asyncRunner = new AsyncQueryRunner<>(baseRunner, executor,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER);
+    AsyncQueryRunner asyncRunner = new AsyncQueryRunner<>(baseRunner, executor, TestHelper.NOOP_QUERYWATCHER);
     
     Sequence lazy = asyncRunner.run(query, Collections.EMPTY_MAP);
     latch.countDown();

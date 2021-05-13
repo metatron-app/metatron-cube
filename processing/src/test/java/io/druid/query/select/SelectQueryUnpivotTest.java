@@ -26,10 +26,11 @@ import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
@@ -39,6 +40,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -71,15 +73,7 @@ public class SelectQueryUnpivotTest
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    SelectQueryQueryToolChest toolChest = new SelectQueryQueryToolChest(
-        null, DefaultGenericQueryMetricsFactory.instance()
-    );
-    SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
-        toolChest,
-        new SelectQueryEngine(),
-        new SelectQueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
-    );
+    QueryRunnerFactory<Result<SelectResultValue>, SelectQuery> factory = TestHelper.factoryFor(SelectQuery.class);
 
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(new DateTime("2011-04-01T00:00:00.000Z").getMillis())
@@ -110,7 +104,7 @@ public class SelectQueryUnpivotTest
     CharSource v_401 = CharSource.wrap(StringUtils.join(V_0401, "\n"));
 
     IncrementalIndex index1 = TestIndex.loadIncrementalIndex(index, v_401, parser);
-    QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
+    QueryableIndex index2 = TestHelper.persistRealtimeAndLoadMMapped(index1);
 
     return transformToConstructionFeeder(
         Arrays.asList(
@@ -142,7 +136,7 @@ public class SelectQueryUnpivotTest
                   )
               )
               .intervals(QueryRunnerTestHelper.fullOnInterval)
-              .granularity(QueryRunnerTestHelper.dayGran)
+              .granularity(Granularities.DAY)
               .pagingSpec(PagingSpec.newSpec(1000))
               .lateralViewSpec(
                   new UnpivotSpec(

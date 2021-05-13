@@ -20,19 +20,36 @@
 package io.druid.sql.calcite.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.CharSource;
+import com.google.common.io.CharStreams;
+import com.google.common.io.Resources;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.Pair;
+import io.druid.data.ValueDesc;
+import io.druid.data.input.InputRow;
+import io.druid.data.input.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
+import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.InputRowParser;
+import io.druid.granularity.Granularities;
+import io.druid.granularity.Granularity;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.BySegmentResultValue;
@@ -57,7 +74,9 @@ import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.StorageHandler;
 import io.druid.query.UnionAllQuery;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulatorFns;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -67,7 +86,9 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestLoadSpec;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.server.DruidNode;
 import io.druid.server.ForwardHandler;
 import io.druid.timeline.DataSegment;
@@ -75,10 +96,15 @@ import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.Reader;
+import java.net.URL;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -90,7 +116,9 @@ import java.util.function.Consumer;
  */
 public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToolChestWarehouse
 {
-  private final ObjectMapper objectMapper;
+  private static final Logger LOG = new Logger(TestQuerySegmentWalker.class);
+
+  private final ObjectMapper mapper;
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ExecutorService executor;
   private final QueryConfig queryConfig;
@@ -99,6 +127,159 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private final ForwardHandler handler;
 
   private final Consumer<Query<?>> hook;
+
+  public synchronized void addIndex(
+      final String ds,
+      final String schemaFile,
+      final String sourceFile,
+      final boolean mmapped
+  )
+  {
+    TestLoadSpec schema = loadJson(schemaFile, TestLoadSpec.class, mapper);
+    load(ds, schema, () -> asCharSource(sourceFile), mmapped);
+  }
+
+  public synchronized void addIndex(
+      final String ds,
+      final List<String> columns,
+      final List<String> types,
+      final Granularity segmentGran,
+      final String source
+  )
+  {
+    int timeIx = columns.indexOf("time");
+    String timeFormat = types.get(timeIx);
+    TimestampSpec spec = new DefaultTimestampSpec("time", timeFormat, DateTimes.nowUtc());
+
+    int dimIx = types.lastIndexOf("dimension");
+    List<String> dimensions = Lists.newArrayList();
+    for (int i = 0; i < dimIx + 1; i++) {
+      if (i != timeIx) {
+        dimensions.add(columns.get(i));
+      }
+    }
+    DimensionsSpec dimensionsSpec = DimensionsSpec.ofStringDimensions(dimensions);
+
+    List<AggregatorFactory> metrics = Lists.newArrayList();
+    for (int i = dimIx + 1; i < columns.size(); i++) {
+      if (i != timeIx) {
+        metrics.add(new RelayAggregatorFactory(columns.get(i), ValueDesc.of(types.get(i))));
+      }
+    }
+    TestLoadSpec schema = new TestLoadSpec(
+        0,
+        Granularities.DAY,
+        segmentGran,
+        ImmutableMap.<String, Object>of("format", "csv"),
+        columns,
+        spec,
+        dimensionsSpec,
+        metrics.toArray(new AggregatorFactory[0]),
+        null, null, false, false, true, null
+    );
+    load(ds, schema, () -> CharSource.wrap(source), true);
+  }
+
+  private void load(
+      final String ds,
+      final TestLoadSpec schema,
+      final Supplier<CharSource> source,
+      final boolean mmapped
+  )
+  {
+    addPopulator(
+        ds,
+        new Supplier<List<Pair<DataSegment, Segment>>>()
+        {
+          @Override
+          public List<Pair<DataSegment, Segment>> get()
+          {
+            final Granularity granularity = schema.getSegmentGran();
+            final InputRowParser parser = schema.getParser(mapper, false);
+
+            final List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
+            final CharSource charSource = source.get();
+            try (Reader reader = charSource.openStream()) {
+              final Iterator<InputRow> rows = readRows(reader, parser);
+              final Map<Long, IncrementalIndex> indices = Maps.newHashMap();
+              while (rows.hasNext()) {
+                InputRow inputRow = rows.next();
+                DateTime dateTime = granularity.bucketStart(inputRow.getTimestamp());
+                IncrementalIndex index = indices.computeIfAbsent(
+                    dateTime.getMillis(),
+                    new java.util.function.Function<Long, IncrementalIndex>()
+                    {
+                      @Override
+                      public IncrementalIndex apply(Long aLong)
+                      {
+                        return new OnheapIncrementalIndex(schema, true, 100000);
+                      }
+                    }
+                );
+                index.add(inputRow);
+              }
+              for (Map.Entry<Long, IncrementalIndex> entry : indices.entrySet()) {
+                Interval interval = new Interval(entry.getKey(), granularity.bucketEnd(entry.getKey()));
+                DataSegment segmentSpec = new DataSegment(
+                    ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
+                );
+                String identifier = segmentSpec.getIdentifier();
+                Segment segment = mmapped ? new QueryableIndexSegment(
+                    identifier, TestHelper.persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec())) :
+                                  new IncrementalIndexSegment(entry.getValue(), identifier);
+                segments.add(Pair.of(segmentSpec, segment));
+              }
+            }
+            catch (Exception e) {
+              throw Throwables.propagate(e);
+            }
+            return segments;
+          }
+        }
+    );
+  }
+
+  private static <T> T loadJson(String resource, Class<T> reference, ObjectMapper mapper)
+  {
+    try {
+      return mapper.readValue(asCharSource(resource).openStream(), reference);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  public static CharSource asCharSource(String resourceFilename)
+  {
+    final URL resource = Thread.currentThread().getContextClassLoader().getResource(resourceFilename);
+    if (resource == null) {
+      throw new IllegalArgumentException("cannot find resource " + resourceFilename);
+    }
+    LOG.info("Loading from resource [%s]", resource);
+    return Resources.asByteSource(resource).asCharSource(Charsets.UTF_8);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Iterator<InputRow> readRows(final Reader reader, final InputRowParser parser) throws IOException
+  {
+    if (parser instanceof InputRowParser.Streaming) {
+      InputRowParser.Streaming streaming = ((InputRowParser.Streaming) parser);
+      if (streaming.accept(reader)) {
+        return streaming.parseStream(reader);
+      }
+    }
+    return Iterators.transform(
+        CharStreams.readLines(reader).iterator(),
+        new com.google.common.base.Function<String, InputRow>()
+        {
+          @Override
+          public InputRow apply(String input)
+          {
+            return parser.parse(input);
+          }
+        }
+    );
+  }
 
   @Override
   public StorageHandler getHandler(String scheme)
@@ -188,7 +369,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   }
 
   private TestQuerySegmentWalker(
-      ObjectMapper objectMapper,
+      ObjectMapper mapper,
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService executor,
       QueryConfig queryConfig,
@@ -196,16 +377,16 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       Consumer<Query<?>> hook
   )
   {
-    this.objectMapper = objectMapper;
+    this.mapper = mapper;
     this.conglomerate = conglomerate;
     this.executor = executor;
     this.queryConfig = queryConfig;
     this.timeLines = timeLines;
     this.handler = new ForwardHandler(
         new DruidNode("test", "test", 0),
-        objectMapper,
+        mapper,
         asWarehouse(queryConfig, conglomerate),
-        GuavaUtils.mutableMap("file", new LocalStorageHandler(objectMapper)),
+        GuavaUtils.mutableMap("file", new LocalStorageHandler(mapper)),
         this
     );
     this.hook = hook;
@@ -214,7 +395,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   public TestQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
   {
     return new TestQuerySegmentWalker(
-        objectMapper,
+        mapper,
         conglomerate,
         executor,
         queryConfig,
@@ -238,7 +419,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   public TestQuerySegmentWalker withExecutor(ExecutorService executor)
   {
     return new TestQuerySegmentWalker(
-        objectMapper,
+        mapper,
         conglomerate,
         executor,
         queryConfig,
@@ -250,7 +431,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   public TestQuerySegmentWalker withQueryConfig(QueryConfig queryConfig)
   {
     return new TestQuerySegmentWalker(
-        objectMapper,
+        mapper,
         conglomerate,
         executor,
         queryConfig,
@@ -262,7 +443,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   public TestQuerySegmentWalker withQueryHook(Consumer<Query<?>> hook)
   {
     return new TestQuerySegmentWalker(
-        objectMapper,
+        mapper,
         conglomerate,
         executor,
         queryConfig,
@@ -279,7 +460,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     duplicate.node2.putAll(timeLines.node2);
     duplicate.populators.putAll(timeLines.populators);
     return new TestQuerySegmentWalker(
-        objectMapper,
+        mapper,
         conglomerate,
         executor,
         queryConfig,
@@ -330,7 +511,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private <T> Query<T> prepareQuery(Query<T> query)
   {
     String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
-    query = QueryUtils.readPostProcessors(query, objectMapper);
+    query = QueryUtils.readPostProcessors(query, mapper);
     query = QueryUtils.setQueryId(query, queryId);
     query = QueryUtils.rewriteRecursively(query, this, queryConfig);
     query = QueryUtils.resolveRecursively(query, this);
@@ -338,9 +519,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   }
 
   @Override
-  public ObjectMapper getObjectMapper()
+  public ObjectMapper getMapper()
   {
-    return objectMapper;
+    return mapper;
   }
 
   @Override
@@ -579,7 +760,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                 factory.mergeRunners(resolved, executor, runners, optimizer)
             ),
             toolChest,
-            objectMapper
+            mapper
         );
       }
     };

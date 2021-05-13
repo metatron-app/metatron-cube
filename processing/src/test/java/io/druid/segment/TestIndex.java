@@ -19,40 +19,22 @@
 
 package io.druid.segment;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.CharSource;
-import com.google.common.io.CharStreams;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
-import io.druid.common.DateTimes;
-import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.InputRow;
-import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.granularity.Granularities;
-import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
-import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -66,14 +48,9 @@ import org.joda.time.Interval;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Reader;
 import java.net.URL;
 import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 /**
  */
@@ -142,8 +119,7 @@ public class TestIndex
   private static QueryableIndex noRollupMmappedIndex = null;
   private static QueryableIndex mergedRealtime = null;
 
-  public static TestQuerySegmentWalker segmentWalker =
-      new TestQuerySegmentWalker(QueryRunnerTestHelper.CONGLOMERATE, QueryRunnerTestHelper.QUERY_CONFIG);
+  public static TestQuerySegmentWalker segmentWalker = TestHelper.newWalker();
 
   public static final IncrementalIndexSchema SAMPLE_SCHEMA = new IncrementalIndexSchema.Builder()
       .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())
@@ -198,7 +174,7 @@ public class TestIndex
   {
     if (mmappedIndex == null) {
       IncrementalIndex incrementalIndex = getIncrementalTestIndex();
-      mmappedIndex = persistRealtimeAndLoadMMapped(incrementalIndex);
+      mmappedIndex = TestHelper.persistRealtimeAndLoadMMapped(incrementalIndex, indexSpec);
       segmentWalker.add(SEGMENT.withDataSource("mmapped"), mmappedIndex);
     }
     return mmappedIndex;
@@ -208,7 +184,7 @@ public class TestIndex
   {
     if (noRollupMmappedIndex == null) {
       IncrementalIndex incrementalIndex = getNoRollupIncrementalTestIndex();
-      noRollupMmappedIndex = persistRealtimeAndLoadMMapped(incrementalIndex);
+      noRollupMmappedIndex = TestHelper.persistRealtimeAndLoadMMapped(incrementalIndex, indexSpec);
       segmentWalker.add(SEGMENT.withDataSource("mmapped_norollup"), noRollupMmappedIndex);
     }
     return noRollupMmappedIndex;
@@ -216,200 +192,39 @@ public class TestIndex
 
   private static void addSalesIndex()
   {
-    addIndex("sales", "sales_schema.json", "sales.tsv", true);
+    segmentWalker.addIndex("sales", "sales_schema.json", "sales.tsv", true);
   }
 
   private static void addCategoryAliasIndex()
   {
-    addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
+    segmentWalker.addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
   }
 
   private static void addEstateIndex()
   {
-    addIndex("estate", "estate_schema.json", "estate.csv", true);
-    addIndex("estate_incremental", "estate_schema.json", "estate.csv", false);
+    segmentWalker.addIndex("estate", "estate_schema.json", "estate.csv", true);
+    segmentWalker.addIndex("estate_incremental", "estate_schema.json", "estate.csv", false);
   }
 
   private static void addTpch()
   {
-    addIndex("lineitem", "lineitem_schema.json", "lineitem.tbl", true);
-    addIndex("orders", "orders_schema.json", "orders.tbl", true);
-    addIndex("customer", "customer_schema.json", "customer.tbl", true);
-    addIndex("nation", "nation_schema.json", "nation.tbl", true);
-    addIndex("part", "part_schema.json", "part.tbl", true);
-    addIndex("partsupp", "partsupp_schema.json", "partsupp.tbl", true);
-    addIndex("region", "region_schema.json", "region.tbl", true);
-    addIndex("supplier", "supplier_schema.json", "supplier.tbl", true);
+    segmentWalker.addIndex("lineitem", "lineitem_schema.json", "lineitem.tbl", true);
+    segmentWalker.addIndex("orders", "orders_schema.json", "orders.tbl", true);
+    segmentWalker.addIndex("customer", "customer_schema.json", "customer.tbl", true);
+    segmentWalker.addIndex("nation", "nation_schema.json", "nation.tbl", true);
+    segmentWalker.addIndex("part", "part_schema.json", "part.tbl", true);
+    segmentWalker.addIndex("partsupp", "partsupp_schema.json", "partsupp.tbl", true);
+    segmentWalker.addIndex("region", "region_schema.json", "region.tbl", true);
+    segmentWalker.addIndex("supplier", "supplier_schema.json", "supplier.tbl", true);
   }
 
   private static void addSsb()
   {
-    addIndex("ssb_lineorder", "ssb_lineorder_schema.json", "ssb_lineorder.tbl", true);
-    addIndex("ssb_part", "ssb_part_schema.json", "ssb_part.tbl", true);
-    addIndex("ssb_customer", "ssb_customer_schema.json", "ssb_customer.tbl", true);
-    addIndex("ssb_date", "ssb_date_schema.json", "ssb_date.tbl", true);
-    addIndex("ssb_supplier", "ssb_supplier_schema.json", "ssb_supplier.tbl", true);
-  }
-
-  private static synchronized void addIndex(
-      final String ds,
-      final String schemaFile,
-      final String sourceFile,
-      final boolean mmapped) {
-    addIndex(ds, schemaFile, sourceFile, TestHelper.JSON_MAPPER, mmapped);
-  }
-
-  public static synchronized void addIndex(
-      final String ds,
-      final String schemaFile,
-      final String sourceFile,
-      final ObjectMapper mapper
-  )
-  {
-    addIndex(ds, schemaFile, sourceFile, mapper, true);
-  }
-
-  public static synchronized void addIndex(
-      final String ds,
-      final String schemaFile,
-      final String sourceFile,
-      final ObjectMapper mapper,
-      final boolean mmapped
-  )
-  {
-    TestLoadSpec schema = loadJson(schemaFile, new TypeReference<TestLoadSpec>() {}, mapper);
-    Supplier<CharSource> source = new Supplier<CharSource>()
-    {
-      @Override
-      public CharSource get()
-      {
-        return asCharSource(sourceFile);
-      }
-    };
-    load(ds, schema, source, mapper, mmapped);
-  }
-
-  public static synchronized void addIndex(
-      final String ds,
-      final List<String> columns,
-      final List<String> types,
-      final Granularity segmentGran,
-      final String source
-  )
-  {
-    int timeIx = columns.indexOf("time");
-    String timeFormat = types.get(timeIx);
-    TimestampSpec spec = new DefaultTimestampSpec("time", timeFormat, DateTimes.nowUtc());
-
-    int dimIx = types.lastIndexOf("dimension");
-    List<String> dimensions = Lists.newArrayList();
-    for (int i = 0; i < dimIx + 1; i++) {
-      if (i != timeIx) {
-        dimensions.add(columns.get(i));
-      }
-    }
-    DimensionsSpec dimensionsSpec = DimensionsSpec.ofStringDimensions(dimensions);
-
-    List<AggregatorFactory> metrics = Lists.newArrayList();
-    for (int i = dimIx + 1; i < columns.size(); i++) {
-      if (i != timeIx) {
-        metrics.add(new RelayAggregatorFactory(columns.get(i), ValueDesc.of(types.get(i))));
-      }
-    }
-    TestLoadSpec schema = new TestLoadSpec(
-        0,
-        Granularities.DAY,
-        segmentGran,
-        ImmutableMap.<String, Object>of("format", "csv"),
-        columns,
-        spec,
-        dimensionsSpec,
-        metrics.toArray(new AggregatorFactory[0]),
-        null, null, false, false, true, null
-    );
-    load(ds, schema, Suppliers.ofInstance(CharSource.wrap(source)), TestHelper.JSON_MAPPER, true);
-  }
-
-  public static void load(
-      final String ds,
-      final TestLoadSpec schema,
-      final Supplier<CharSource> source,
-      final ObjectMapper mapper,
-      final boolean mmapped
-  )
-  {
-    segmentWalker.addPopulator(
-        ds,
-        new Supplier<List<Pair<DataSegment, Segment>>>()
-        {
-          @Override
-          public List<Pair<DataSegment, Segment>> get()
-          {
-            final Granularity granularity = schema.getSegmentGran();
-            final InputRowParser parser = schema.getParser(mapper, false);
-
-            final List<Pair<DataSegment, Segment>> segments = Lists.newArrayList();
-            final CharSource charSource = source.get();
-            try (Reader reader = charSource.openStream()) {
-              final Iterator<InputRow> rows = readRows(reader, parser);
-              final Map<Long, IncrementalIndex> indices = Maps.newHashMap();
-              while (rows.hasNext()) {
-                InputRow inputRow = rows.next();
-                DateTime dateTime = granularity.bucketStart(inputRow.getTimestamp());
-                IncrementalIndex index = indices.computeIfAbsent(
-                    dateTime.getMillis(),
-                    new Function<Long, IncrementalIndex>()
-                    {
-                      @Override
-                      public IncrementalIndex apply(Long aLong)
-                      {
-                        return new OnheapIncrementalIndex(schema, true, 100000);
-                      }
-                    }
-                );
-                index.add(inputRow);
-              }
-              for (Map.Entry<Long, IncrementalIndex> entry : indices.entrySet()) {
-                Interval interval = new Interval(entry.getKey(), granularity.bucketEnd(entry.getKey()));
-                DataSegment segmentSpec = new DataSegment(
-                    ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
-                );
-                String identifier = segmentSpec.getIdentifier();
-                Segment segment = mmapped ? new QueryableIndexSegment(
-                    identifier, persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec())) :
-                                  new IncrementalIndexSegment(entry.getValue(), identifier);
-                segments.add(Pair.of(segmentSpec, segment));
-              }
-            }
-            catch (Exception e) {
-              throw Throwables.propagate(e);
-            }
-            return segments;
-          }
-        }
-    );
-  }
-
-  @SuppressWarnings("unchecked")
-  private static Iterator<InputRow> readRows(final Reader reader, final InputRowParser parser) throws IOException
-  {
-    if (parser instanceof InputRowParser.Streaming) {
-      InputRowParser.Streaming streaming = ((InputRowParser.Streaming) parser);
-      if (streaming.accept(reader)) {
-        return streaming.parseStream(reader);
-      }
-    }
-    return Iterators.transform(
-        CharStreams.readLines(reader).iterator(),
-        new com.google.common.base.Function<String, InputRow>()
-        {
-          @Override
-          public InputRow apply(String input)
-          {
-            return parser.parse(input);
-          }
-        }
-    );
+    segmentWalker.addIndex("ssb_lineorder", "ssb_lineorder_schema.json", "ssb_lineorder.tbl", true);
+    segmentWalker.addIndex("ssb_part", "ssb_part_schema.json", "ssb_part.tbl", true);
+    segmentWalker.addIndex("ssb_customer", "ssb_customer_schema.json", "ssb_customer.tbl", true);
+    segmentWalker.addIndex("ssb_date", "ssb_date_schema.json", "ssb_date.tbl", true);
+    segmentWalker.addIndex("ssb_supplier", "ssb_supplier_schema.json", "ssb_supplier.tbl", true);
   }
 
   public static synchronized QueryableIndex mergedRealtimeIndex()
@@ -462,16 +277,6 @@ public class TestIndex
   public static IncrementalIndex makeRealtimeIndex(String resourceFilename, boolean rollup)
   {
     return makeRealtimeIndex(asCharSource(resourceFilename), rollup);
-  }
-
-  private static <T> T loadJson(String resource, TypeReference<T> reference, ObjectMapper mapper)
-  {
-    try {
-      return mapper.readValue(asCharSource(resource).openStream(), reference);
-    }
-    catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
   }
 
   public static CharSource asCharSource(String resourceFilename)
@@ -558,26 +363,5 @@ public class TestIndex
     log.info("Loaded %,d lines in %,d millis.", lineCount, System.currentTimeMillis() - startTime.get());
 
     return retVal;
-  }
-
-  public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index)
-  {
-    return persistRealtimeAndLoadMMapped(index, indexSpec);
-  }
-
-  public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index, IndexSpec indexSpec)
-  {
-    try {
-      File someTmpFile = File.createTempFile("billy", "yay");
-      someTmpFile.delete();
-      someTmpFile.mkdirs();
-      someTmpFile.deleteOnExit();
-
-      INDEX_MERGER.persist(index, someTmpFile, indexSpec);
-      return INDEX_IO.loadIndex(someTmpFile);
-    }
-    catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
   }
 }

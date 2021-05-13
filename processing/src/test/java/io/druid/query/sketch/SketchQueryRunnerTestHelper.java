@@ -92,7 +92,7 @@ public class SketchQueryRunnerTestHelper extends QueryRunnerTestHelper
       );
       factoryMap.put(
           SketchQuery.class,
-          new SketchQueryRunnerFactory(toolChest, QueryRunnerTestHelper.NOOP_QUERYWATCHER)
+          new SketchQueryRunnerFactory(toolChest, TestHelper.NOOP_QUERYWATCHER)
       );
       conglomerate = new DefaultQueryRunnerFactoryConglomerate(factoryMap);
     }

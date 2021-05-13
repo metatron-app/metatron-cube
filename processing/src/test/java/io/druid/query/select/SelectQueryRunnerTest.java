@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.ObjectArrays;
 import com.google.common.collect.Sets;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunnerTestHelper;
@@ -136,7 +137,7 @@ public class SelectQueryRunnerTest
                  .dimensionSpecs(DefaultDimensionSpec.toSpec(Arrays.<String>asList()))
                  .metrics(Arrays.<String>asList())
                  .intervals(QueryRunnerTestHelper.fullOnInterval)
-                 .granularity(QueryRunnerTestHelper.allGran)
+                 .granularity(Granularities.ALL)
                  .pagingSpec(PagingSpec.newSpec(3))
                  .descending(descending);
   }
@@ -525,7 +526,7 @@ public class SelectQueryRunnerTest
       SelectQuery query = newTestQuery()
           .interval(I_0112_0114)
           .filters(new SelectorDimFilter(QueryRunnerTestHelper.marketDimension, "spot", null))
-          .granularity(QueryRunnerTestHelper.dayGran)
+          .granularity(Granularities.DAY)
           .dimensionSpecs(DefaultDimensionSpec.toSpec(QueryRunnerTestHelper.qualityDimension))
           .metrics(Lists.<String>newArrayList(QueryRunnerTestHelper.indexMetric))
           .pagingSpec(new PagingSpec(toPagingIdentifier(segmentId, param[0], descending), param[1]))
@@ -592,7 +593,7 @@ public class SelectQueryRunnerTest
     SelectQuery query = newTestQuery()
         .interval(I_0112_0114)
         .filters(new SelectorDimFilter(QueryRunnerTestHelper.marketDimension, "replaced", lookupExtractionFn))
-        .granularity(QueryRunnerTestHelper.dayGran)
+        .granularity(Granularities.DAY)
         .dimensionSpecs(DefaultDimensionSpec.toSpec(QueryRunnerTestHelper.qualityDimension))
         .metrics(Lists.<String>newArrayList(QueryRunnerTestHelper.indexMetric))
         .build();

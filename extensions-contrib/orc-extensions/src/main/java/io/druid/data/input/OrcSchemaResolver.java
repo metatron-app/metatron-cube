@@ -178,7 +178,7 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
     }
     ParseSpec parseSpec = new TimeAndDimsParseSpec(timestampSpec, DimensionsSpec.ofStringDimensions(dimensions));
     InputRowParser parser = new OrcHadoopInputRowParser(parseSpec, typeString.toString(), null);
-    Map<String, Object> spec = walker.getObjectMapper().convertValue(parser, ObjectMappers.MAP_REF);
+    Map<String, Object> spec = walker.getMapper().convertValue(parser, ObjectMappers.MAP_REF);
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     DataSchema schema = new DataSchema(
         dataSource, spec, agggregators.toArray(new AggregatorFactory[0]), false, granularity, null, null, true

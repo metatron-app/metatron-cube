@@ -84,7 +84,7 @@ public class ClientQuerySegmentWalker implements ForwardingSegmentWalker
   }
 
   @Override
-  public ObjectMapper getObjectMapper()
+  public ObjectMapper getMapper()
   {
     return objectMapper;
   }

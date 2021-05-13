@@ -110,7 +110,7 @@ public class DruidSchemaTest extends CalciteTestBase
                                               .rows(ROWS2)
                                               .buildMMappedIndex();
 
-    walker = CalciteTests.newSegmentWalker().add(
+    walker = TestHelper.newWalker().add(
         DataSegment.builder()
                    .dataSource(CalciteTests.DATASOURCE1)
                    .interval(Intervals.of("2000/P1Y"))

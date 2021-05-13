@@ -28,6 +28,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
+import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -50,7 +51,7 @@ public class TimeBoundaryQueryRunnerTest
   {
     return QueryRunnerTestHelper.transformToConstructionFeeder(
         QueryRunnerTestHelper.makeQueryRunners(
-            new TimeBoundaryQueryRunnerFactory(QueryRunnerTestHelper.NOOP_QUERYWATCHER)
+            TestHelper.factoryFor(TimeBoundaryQuery.class)
         )
     );
   }

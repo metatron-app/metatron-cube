@@ -417,7 +417,7 @@ public class GeoBoundaryFilterQuery extends BaseQuery<Object[]>
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
-    final ObjectMapper mapper = segmentWalker.getObjectMapper();
+    final ObjectMapper mapper = segmentWalker.getMapper();
     final int executor = parallelism == null ? DEFAULT_PARALLELISM : parallelism;
     final List<String> columns = boundary.estimatedOutputColumns();
     final String boundaryColumn = this.boundaryColumn == null ? columns.get(0) : this.boundaryColumn;

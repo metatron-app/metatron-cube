@@ -28,13 +28,13 @@ import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.ExplodeSpec;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.QueryRunnerFactory;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
@@ -48,6 +48,7 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.MapVirtualColumn;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -65,7 +66,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static io.druid.query.QueryRunnerTestHelper.allGran;
 import static io.druid.query.QueryRunnerTestHelper.dataSource;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
 import static io.druid.query.QueryRunnerTestHelper.makeQueryRunner;
@@ -79,12 +79,7 @@ public class MapVirtualColumnTest
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
-        new SelectQueryQueryToolChest(null, DefaultGenericQueryMetricsFactory.instance()),
-        new SelectQueryEngine(),
-        new SelectQueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
-    );
+    QueryRunnerFactory<Result<SelectResultValue>, SelectQuery> factory = TestHelper.factoryFor(SelectQuery.class);
 
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
@@ -115,7 +110,7 @@ public class MapVirtualColumnTest
     );
 
     IncrementalIndex index1 = TestIndex.loadIncrementalIndex(index, input, parser);
-    QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
+    QueryableIndex index2 = TestHelper.persistRealtimeAndLoadMMapped(index1);
 
     return transformToConstructionFeeder(
         Arrays.asList(
@@ -136,7 +131,7 @@ public class MapVirtualColumnTest
   {
     return Druids.newSelectQueryBuilder()
                  .dataSource(dataSource)
-                 .granularity(allGran)
+                 .granularity(Granularities.ALL)
                  .intervals(fullOnInterval)
                  .pagingSpec(new PagingSpec(null, 3));
   }

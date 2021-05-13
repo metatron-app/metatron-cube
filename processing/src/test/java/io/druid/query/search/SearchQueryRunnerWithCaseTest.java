@@ -24,6 +24,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharSource;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
@@ -33,6 +34,7 @@ import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
@@ -48,8 +50,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static io.druid.query.QueryRunnerTestHelper.NOOP_QUERYWATCHER;
-import static io.druid.query.QueryRunnerTestHelper.allGran;
 import static io.druid.query.QueryRunnerTestHelper.dataSource;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
 import static io.druid.query.QueryRunnerTestHelper.makeQueryRunner;
@@ -58,6 +58,7 @@ import static io.druid.query.QueryRunnerTestHelper.placementDimension;
 import static io.druid.query.QueryRunnerTestHelper.placementishDimension;
 import static io.druid.query.QueryRunnerTestHelper.qualityDimension;
 import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder;
+import static io.druid.segment.TestHelper.NOOP_QUERYWATCHER;
 
 /**
  */
@@ -84,8 +85,8 @@ public class SearchQueryRunnerWithCaseTest
     IncrementalIndex index1 = TestIndex.makeRealtimeIndex(input, true);
     IncrementalIndex index2 = TestIndex.makeRealtimeIndex(input, true);
 
-    QueryableIndex index3 = TestIndex.persistRealtimeAndLoadMMapped(index1);
-    QueryableIndex index4 = TestIndex.persistRealtimeAndLoadMMapped(index2);
+    QueryableIndex index3 = TestHelper.persistRealtimeAndLoadMMapped(index1);
+    QueryableIndex index4 = TestHelper.persistRealtimeAndLoadMMapped(index2);
 
     return transformToConstructionFeeder(
         Arrays.asList(
@@ -110,7 +111,7 @@ public class SearchQueryRunnerWithCaseTest
   {
     return Druids.newSearchQueryBuilder()
                  .dataSource(dataSource)
-                 .granularity(allGran)
+                 .granularity(Granularities.ALL)
                  .intervals(fullOnInterval);
   }
 

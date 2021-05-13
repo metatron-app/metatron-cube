@@ -44,8 +44,8 @@ public class DefaultQueryRunnerFactoryConglomerate implements QueryRunnerFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(QueryType query)
+  public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
   {
-    return (QueryRunnerFactory<T, QueryType>) factories.get(query.getClass());
+    return factories.get(clazz);
   }
 }

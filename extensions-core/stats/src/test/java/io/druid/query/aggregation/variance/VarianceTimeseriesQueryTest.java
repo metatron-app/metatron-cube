@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -62,7 +63,7 @@ public class VarianceTimeseriesQueryTest
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(dataSource)
-                                  .granularity(VarianceTestHelper.dayGran)
+                                  .granularity(Granularities.DAY)
                                   .filters("bobby", null)
                                   .intervals(VarianceTestHelper.firstToThird)
                                   .aggregators(VarianceTestHelper.commonPlusVarAggregators)

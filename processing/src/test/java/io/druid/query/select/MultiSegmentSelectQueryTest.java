@@ -23,8 +23,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -35,6 +35,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -64,16 +65,7 @@ import java.util.Map;
 @RunWith(Parameterized.class)
 public class MultiSegmentSelectQueryTest
 {
-  private static final SelectQueryQueryToolChest toolChest = new SelectQueryQueryToolChest(
-      null, DefaultGenericQueryMetricsFactory.instance()
-  );
-
-  private static final QueryRunnerFactory factory = new SelectQueryRunnerFactory(
-      toolChest,
-      new SelectQueryEngine(),
-      new SelectQueryConfig(),
-      QueryRunnerTestHelper.NOOP_QUERYWATCHER
-  );
+  private static final QueryRunnerFactory factory = TestHelper.factoryFor(SelectQuery.class);
 
   // time modified version of druid.sample.tsv
   public static final String[] V_0112 = {
@@ -206,7 +198,7 @@ public class MultiSegmentSelectQueryTest
     return Druids.newSelectQueryBuilder()
                  .dataSource(new TableDataSource(QueryRunnerTestHelper.dataSource))
                  .interval(SelectQueryRunnerTest.I_0112_0114)
-                 .granularity(QueryRunnerTestHelper.allGran)
+                 .granularity(Granularities.ALL)
                  .dimensionSpecs(DefaultDimensionSpec.toSpec(QueryRunnerTestHelper.dimensions))
                  .pagingSpec(PagingSpec.newSpec(3));
   }
@@ -262,7 +254,7 @@ public class MultiSegmentSelectQueryTest
   public void testDayGranularity()
   {
     runDayGranularityTest(
-        newBuilder().granularity(QueryRunnerTestHelper.dayGran).build(),
+        newBuilder().granularity(Granularities.DAY).build(),
         new int[][]{
             {2, -1, -1, 2, 3, 0, 0, 3}, {3, 1, -1, 5, 1, 2, 0, 3}, {-1, 3, 0, 8, 0, 2, 1, 3},
             {-1, -1, 3, 11, 0, 0, 3, 3}, {-1, -1, 4, 12, 0, 0, 1, 1}, {-1, -1, 5, 13, 0, 0, 0, 0}
@@ -270,7 +262,7 @@ public class MultiSegmentSelectQueryTest
     );
 
     runDayGranularityTest(
-        newBuilder().granularity(QueryRunnerTestHelper.dayGran).descending(true).build(),
+        newBuilder().granularity(Granularities.DAY).descending(true).build(),
         new int[][]{
             {0, 0, -3, -3, 0, 0, 3, 3}, {0, -1, -5, -6, 0, 1, 2, 3}, {0, -4, 0, -9, 0, 3, 0, 3},
             {-3, 0, 0, -12, 3, 0, 0, 3}, {-4, 0, 0, -13, 1, 0, 0, 1}, {-5, 0, 0, -14, 0, 0, 0, 0}

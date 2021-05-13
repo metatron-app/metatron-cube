@@ -21,6 +21,7 @@ package io.druid.query.aggregation.kurtosis;
 
 import com.google.common.collect.Lists;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.QueryRunner;
@@ -75,7 +76,7 @@ public class KurtosisGroupByQueryTest
                 KurtosisTestHelper.indexKurtosisAggr, QueryRunnerTestHelper.rowsCount
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran);
+        .setGranularity(Granularities.DAY);
 
     KurtosisTestHelper.RowBuilder builder =
         new KurtosisTestHelper.RowBuilder(new String[]{"market", "index_kurtosis", "rows"});

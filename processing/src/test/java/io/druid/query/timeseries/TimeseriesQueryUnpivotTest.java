@@ -41,6 +41,7 @@ import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -78,7 +79,7 @@ public class TimeseriesQueryUnpivotTest
         toolChest,
         new TimeseriesQueryEngine(),
         new QueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
 
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
@@ -110,7 +111,7 @@ public class TimeseriesQueryUnpivotTest
     CharSource v_401 = CharSource.wrap(StringUtils.join(V_0401, "\n"));
 
     IncrementalIndex index1 = TestIndex.loadIncrementalIndex(index, v_401, parser);
-    QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
+    QueryableIndex index2 = TestHelper.persistRealtimeAndLoadMMapped(index1);
 
     return transformToConstructionFeeder(
         Arrays.asList(

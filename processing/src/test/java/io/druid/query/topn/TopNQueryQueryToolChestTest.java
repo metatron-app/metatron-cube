@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.Sequence;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.CacheStrategy;
@@ -121,7 +122,7 @@ public class TopNQueryQueryToolChestTest
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(
         TestQueryRunners.getPool(),
         chest,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
     QueryRunner<Result<TopNResultValue>> runner = QueryRunnerTestHelper.makeQueryRunner(
         factory,
@@ -133,7 +134,7 @@ public class TopNQueryQueryToolChestTest
 
     TopNQueryBuilder builder = new TopNQueryBuilder()
         .dataSource(QueryRunnerTestHelper.dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.placementishDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
         .intervals(QueryRunnerTestHelper.fullOnInterval)

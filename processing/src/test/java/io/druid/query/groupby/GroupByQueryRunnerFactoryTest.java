@@ -151,9 +151,7 @@ public class GroupByQueryRunnerFactoryTest
     StupidPool<ByteBuffer> pool = StupidPool.heap(1024 * 1024);
 
     GroupByQueryEngine engine = new GroupByQueryEngine(pool);
-    GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
-        config, engine, pool
-    );
+    GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(config, engine, pool);
     return new GroupByQueryRunnerFactory(
         engine,
         NoopQueryWatcher.instance(),

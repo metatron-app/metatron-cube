@@ -113,7 +113,7 @@ public class ClassifyQuery extends BaseQuery<Object[]>
     if (q instanceof Query.RewritingQuery) {
       q = ((Query.RewritingQuery) q).rewriteQuery(segmentWalker, queryConfig);
     }
-    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
+    ObjectMapper jsonMapper = segmentWalker.getMapper();
     if (estimatedOutputColumns() == null && PostProcessingOperators.returns(q) != Map.class) {
       throw new IllegalArgumentException("cannot classify which is neither array output supported or map format");
     }

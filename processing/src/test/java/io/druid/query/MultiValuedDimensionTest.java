@@ -293,7 +293,7 @@ public class MultiValuedDimensionTest
             new TopNQueryConfig(),
             TestHelper.testTopNQueryEngine()
         ),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
     QueryRunner<Result<TopNResultValue>> runner = QueryRunnerTestHelper.makeQueryRunner(
         factory,

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -40,7 +41,6 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import static io.druid.query.QueryRunnerTestHelper.addRowsIndexConstant;
-import static io.druid.query.QueryRunnerTestHelper.allGran;
 import static io.druid.query.QueryRunnerTestHelper.commonAggregators;
 import static io.druid.query.QueryRunnerTestHelper.dataSource;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
@@ -57,7 +57,7 @@ public class TopNQueryTest
   {
     Query query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(allGran)
+        .granularity(Granularities.ALL)
         .dimension(marketDimension)
         .metric(indexMetric)
         .threshold(4)
@@ -88,7 +88,7 @@ public class TopNQueryTest
   {
     final TopNQuery expectedQuery = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 marketDimension,
@@ -121,7 +121,7 @@ public class TopNQueryTest
   {
     TopNQuery expectedQuery = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(allGran)
+        .granularity(Granularities.ALL)
         .dimension(new LegacyDimensionSpec(marketDimension))
         .metric(new AlphaNumericTopNMetricSpec(null))
         .threshold(2)

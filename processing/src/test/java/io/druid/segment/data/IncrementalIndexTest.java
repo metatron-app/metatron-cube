@@ -41,7 +41,6 @@ import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -53,6 +52,7 @@ import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
 import io.druid.segment.CloserRule;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
@@ -322,7 +322,7 @@ public class IncrementalIndexTest
         toolChest,
         new TimeseriesQueryEngine(),
         new QueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
     final QueryRunner<Row> runner = new FinalizeResultsQueryRunner<Row>(
         toolChest.mergeResults(factory.createRunner(incrementalIndexSegment, null)),
@@ -426,7 +426,7 @@ public class IncrementalIndexTest
         toolChest,
         new TimeseriesQueryEngine(),
         new QueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
     final AtomicInteger currentlyRunning = new AtomicInteger(0);
     final AtomicInteger concurrentlyRan = new AtomicInteger(0);

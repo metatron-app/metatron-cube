@@ -27,6 +27,7 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -46,7 +47,7 @@ public class RetryQueryRunnerTest
 
   final TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                       .dataSource(QueryRunnerTestHelper.dataSource)
-                                      .granularity(QueryRunnerTestHelper.dayGran)
+                                      .granularity(Granularities.DAY)
                                       .intervals(QueryRunnerTestHelper.firstToThird)
                                       .aggregators(
                                           Arrays.asList(

@@ -40,6 +40,7 @@ import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.LogicalSegment;
@@ -128,7 +129,7 @@ public class DataSourceMetadataQueryTest
     final QueryRunner runner = QueryRunnerTestHelper.makeQueryRunner(
         (QueryRunnerFactory) new DataSourceMetadataQueryRunnerFactory(
             new DataSourceQueryQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-            QueryRunnerTestHelper.NOOP_QUERYWATCHER
+            TestHelper.NOOP_QUERYWATCHER
         ), new IncrementalIndexSegment(rtIndex, "test")
     );
     DataSourceMetadataQuery dataSourceMetadataQuery = Druids.newDataSourceMetadataQueryBuilder()

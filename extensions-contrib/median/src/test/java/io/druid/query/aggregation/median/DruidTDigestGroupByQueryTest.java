@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -69,11 +70,9 @@ public class DruidTDigestGroupByQueryTest
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         config,
-        new GroupByQueryQueryToolChest(
-            config, engine, pool
-        ),
+        new GroupByQueryQueryToolChest(config, engine, pool),
         pool
     );
 
@@ -83,11 +82,9 @@ public class DruidTDigestGroupByQueryTest
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         engine,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         config,
-        new GroupByQueryQueryToolChest(
-            config, engine, pool
-        ),
+        new GroupByQueryQueryToolChest(config, engine, pool),
         pool
     );
 
@@ -138,7 +135,7 @@ public class DruidTDigestGroupByQueryTest
 
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(
             Arrays.<DimensionSpec>asList(
                 new DefaultDimensionSpec(
@@ -193,7 +190,7 @@ public class DruidTDigestGroupByQueryTest
 
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(
             Arrays.<DimensionSpec>asList(
                 new DefaultDimensionSpec(

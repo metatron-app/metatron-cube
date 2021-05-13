@@ -139,7 +139,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         Maps.newHashMap(sketchContext)
     );
 
-    ObjectMapper jsonMapper = segmentWalker.getObjectMapper();
+    ObjectMapper jsonMapper = segmentWalker.getMapper();
     Map<String, Object> summaryContext = computeOverriddenContext(
         ImmutableMap.<String, Object>of(
             POST_PROCESSING,

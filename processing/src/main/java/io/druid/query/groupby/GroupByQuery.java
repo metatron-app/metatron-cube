@@ -511,7 +511,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
       query = query.tryRemoveOrdering();
     }
     if (query.getContextBoolean(GBY_CONVERT_TIMESERIES, groupByConfig.isConvertTimeseries())) {
-      Query converted = query.tryConvertToTimeseries(segmentWalker.getObjectMapper());
+      Query converted = query.tryConvertToTimeseries(segmentWalker.getMapper());
       if (converted != null) {
         return converted;
       }

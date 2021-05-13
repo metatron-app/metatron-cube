@@ -37,7 +37,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
@@ -144,19 +143,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(
-        dataSource,
-        (querySegmentSpec == null) ? new MultipleIntervalSegmentSpec(Arrays.asList(DEFAULT_INTERVAL))
-                                   : querySegmentSpec,
-        false,
-        context
-    );
-
-    if (querySegmentSpec == null) {
-      this.usingDefaultInterval = true;
-    } else {
-      this.usingDefaultInterval = useDefaultInterval == null ? false : useDefaultInterval;
-    }
+    super(dataSource, querySegmentSpec, false, context);
+    this.usingDefaultInterval = querySegmentSpec == null || useDefaultInterval != null && useDefaultInterval;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.toInclude = toInclude;
     this.columns = columns;

@@ -22,6 +22,7 @@ package io.druid.query.topn;
 import com.google.common.collect.ImmutableMap;
 import io.druid.collections.StupidPool;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -39,7 +40,6 @@ import io.druid.segment.MapVirtualColumn;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestHelper;
-import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -52,7 +52,6 @@ import java.util.List;
 import java.util.Map;
 
 import static io.druid.query.QueryRunnerTestHelper.dataSource;
-import static io.druid.query.QueryRunnerTestHelper.dayGran;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
 import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder;
 
@@ -73,16 +72,16 @@ public class TopNVirtualColumnTest
     TopNQueryRunnerFactory factory1 = new TopNQueryRunnerFactory(
         TestQueryRunners.getPool(),
         toolChest,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
     TopNQueryRunnerFactory factory2 = new TopNQueryRunnerFactory(
         StupidPool.heap(100),
         toolChest,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
 
     IncrementalIndex index1 = VirtualColumnTest.createArrayIncrementalIndex();
-    QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
+    QueryableIndex index2 = TestHelper.persistRealtimeAndLoadMMapped(index1);
 
     final List<QueryRunner<Result<TopNResultValue>>> runners = Arrays.asList(
         QueryRunnerTestHelper.makeQueryRunner(factory1, "index1", new IncrementalIndexSegment(index1, "index1")),
@@ -105,7 +104,7 @@ public class TopNVirtualColumnTest
   {
     return new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(dayGran)
+        .granularity(Granularities.DAY)
         .intervals(fullOnInterval);
   }
 

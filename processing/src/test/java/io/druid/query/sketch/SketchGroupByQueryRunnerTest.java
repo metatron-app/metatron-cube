@@ -23,9 +23,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.QueryRunnerTestHelper.RowBuilder;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -38,6 +38,7 @@ import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestHelper.RowBuilder;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,7 +79,7 @@ public class SketchGroupByQueryRunnerTest
         .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(SketchTestHelper.indexQuantileAggr))
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(SketchTestHelper.quantilesOfIndexPostAggr))
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setOutputColumns(Arrays.asList("alias", "index_quantiles"))
         .build();
 
@@ -146,7 +147,7 @@ public class SketchGroupByQueryRunnerTest
         .setPostAggregatorSpecs(
             SketchQuantilesPostAggregator.evenSpaced("X", "SKETCH", 3)
         )
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setOutputColumns(Arrays.asList("X"))
         .build();
 
@@ -167,7 +168,7 @@ public class SketchGroupByQueryRunnerTest
         .setDimensions(DefaultDimensionSpec.toSpec("market"))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(SketchTestHelper.qualityQuantileAggr))
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(SketchTestHelper.quantilesOfQualityPostAggr))
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setOutputColumns(Arrays.asList("market", SketchTestHelper.quantilesOfQualityMetric))
         .build();
 
@@ -204,7 +205,7 @@ public class SketchGroupByQueryRunnerTest
         .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(SketchTestHelper.indexThetaAggr))
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(SketchTestHelper.cardinalityOfIndexPostAggr))
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setOutputColumns(Arrays.asList("alias", SketchTestHelper.cardinalityOfIndexMetric))
         .build();
 
@@ -253,7 +254,7 @@ public class SketchGroupByQueryRunnerTest
         .setDimensions(DefaultDimensionSpec.toSpec("market"))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(SketchTestHelper.qualityThetaAggr))
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(SketchTestHelper.cardinalityOfQualityPostAggr))
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setOutputColumns(Arrays.asList("market", SketchTestHelper.cardinalityOfQualityMetric))
         .build();
 

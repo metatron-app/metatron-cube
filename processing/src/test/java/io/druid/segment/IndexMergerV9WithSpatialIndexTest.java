@@ -544,7 +544,7 @@ public class IndexMergerV9WithSpatialIndexTest
           toolChest,
           new TimeseriesQueryEngine(),
           new QueryConfig(),
-          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+          TestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
@@ -596,7 +596,7 @@ public class IndexMergerV9WithSpatialIndexTest
           toolChest,
           new TimeseriesQueryEngine(),
           new QueryConfig(),
-          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+          TestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
@@ -675,7 +675,7 @@ public class IndexMergerV9WithSpatialIndexTest
           toolChest,
           new TimeseriesQueryEngine(),
           new QueryConfig(),
-          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+          TestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner<Row> runner = new FinalizeResultsQueryRunner(

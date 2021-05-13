@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
@@ -78,7 +79,7 @@ public class StreamRawQueryRunnerTest extends QueryRunnerTestHelper
                  .dimensionSpecs(DefaultDimensionSpec.toSpec(Arrays.<String>asList()))
                  .metrics(Arrays.<String>asList())
                  .intervals(QueryRunnerTestHelper.fullOnInterval)
-                 .granularity(QueryRunnerTestHelper.allGran);
+                 .granularity(Granularities.ALL);
   }
 
   @Test

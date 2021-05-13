@@ -22,6 +22,7 @@ package io.druid.query.aggregation.variance;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -80,7 +81,7 @@ public class VarianceGroupByQueryTest
         .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(VarianceTestHelper.indexVarianceAggr))
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(VarianceTestHelper.stddevOfIndexPostAggr))
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     VarianceTestHelper.RowBuilder builder =
@@ -128,7 +129,7 @@ public class VarianceGroupByQueryTest
         .setPostAggregatorSpecs(
             Arrays.<PostAggregator>asList(VarianceTestHelper.stddevOfIndexPostAggr)
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     VarianceTestHelper.RowBuilder builder =

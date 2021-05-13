@@ -157,7 +157,7 @@ public class ParquetSchemaResolver implements FileLoadSpec.Resolver
     InputRowParser parser = new MapInputRowParser(
         new TimeAndDimsParseSpec(timestampSpec, DimensionsSpec.ofStringDimensions(dimensions))
     );
-    Map<String, Object> spec = walker.getObjectMapper().convertValue(parser, ObjectMappers.MAP_REF);
+    Map<String, Object> spec = walker.getMapper().convertValue(parser, ObjectMappers.MAP_REF);
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     DataSchema schema = new DataSchema(
         dataSource, spec, agggregators.toArray(new AggregatorFactory[0]), false, granularity, null, null, true
@@ -179,7 +179,7 @@ public class ParquetSchemaResolver implements FileLoadSpec.Resolver
 
   public static void main(String[] args) throws Exception
   {
-    LOG.warn(QuerySegmentWalker.DUMMY.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(
+    LOG.warn(QuerySegmentWalker.DUMMY.getMapper().writerWithDefaultPrettyPrinter().writeValueAsString(
         new ParquetSchemaResolver(
             null,
             StringUtils.concat(",", args),

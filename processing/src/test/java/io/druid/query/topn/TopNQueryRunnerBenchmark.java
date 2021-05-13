@@ -25,6 +25,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.collections.StupidPool;
+import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
@@ -62,7 +63,7 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
 
   private static final TopNQuery query = new TopNQueryBuilder()
       .dataSource(QueryRunnerTestHelper.dataSource)
-      .granularity(QueryRunnerTestHelper.allGran)
+      .granularity(Granularities.ALL)
       .dimension(marketDimension)
       .metric(QueryRunnerTestHelper.indexMetric)
       .threshold(4)
@@ -93,7 +94,7 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
             new TopNQueryConfig(),
             TestHelper.testTopNQueryEngine()
         ),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
     testCaseMap.put(
         TestCases.rtIndex,

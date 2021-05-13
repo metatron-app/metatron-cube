@@ -38,9 +38,9 @@ import io.druid.java.util.http.client.response.HttpResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.Druids;
 import io.druid.query.QueryInterruptedException;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
@@ -128,7 +128,7 @@ public class DirectDruidClientTest
     final DefaultObjectMapper objectMapper = new DefaultObjectMapper();
     DirectDruidClient client1 = new DirectDruidClient(
         TestIndex.segmentWalker,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         objectMapper,
         objectMapper,
         httpClient,
@@ -140,7 +140,7 @@ public class DirectDruidClientTest
     );
     DirectDruidClient client2 = new DirectDruidClient(
         TestIndex.segmentWalker,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         objectMapper,
         objectMapper,
         httpClient,
@@ -256,7 +256,7 @@ public class DirectDruidClientTest
     final DefaultObjectMapper objectMapper = new DefaultObjectMapper();
     DirectDruidClient client1 = new DirectDruidClient(
         TestIndex.segmentWalker,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         objectMapper,
         objectMapper,
         httpClient,
@@ -325,7 +325,7 @@ public class DirectDruidClientTest
     final DefaultObjectMapper objectMapper = new DefaultObjectMapper();
     DirectDruidClient client1 = new DirectDruidClient(
         TestIndex.segmentWalker,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         objectMapper,
         objectMapper,
         httpClient,

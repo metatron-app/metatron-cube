@@ -37,6 +37,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
@@ -114,7 +115,7 @@ public class TimeseriesQueryRunnerBonusTest
         toolChest,
         new TimeseriesQueryEngine(),
         new QueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
 
     final QueryRunner<Row> runner = makeQueryRunner(

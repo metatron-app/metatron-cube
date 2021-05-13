@@ -21,6 +21,7 @@ package io.druid.query.aggregation.corr;
 
 import com.google.common.collect.Lists;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -72,7 +73,7 @@ public class PearsonGroupByQueryTest
         .setVirtualColumns(Arrays.<VirtualColumn>asList(new ExprVirtualColumn("(index-200)^2", "(index-200)^2")))
         .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("market", "market")))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(PearsonTestHelper.indexPearsonAggr))
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     PearsonTestHelper.RowBuilder builder =

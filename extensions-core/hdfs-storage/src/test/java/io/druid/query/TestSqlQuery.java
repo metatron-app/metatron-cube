@@ -35,7 +35,7 @@ public class TestSqlQuery extends CalciteQueryTestHelper
   {
     SEGMENT_WALKER.getForwardHandler().getHandlerMap().put(
         "file",
-        new HdfsStorageHandler(new Configuration(), SEGMENT_WALKER.getObjectMapper(), TestHelper.getTestIndexMergerV9())
+        new HdfsStorageHandler(new Configuration(), SEGMENT_WALKER.getMapper(), TestHelper.getTestIndexMergerV9())
     );
   }
 

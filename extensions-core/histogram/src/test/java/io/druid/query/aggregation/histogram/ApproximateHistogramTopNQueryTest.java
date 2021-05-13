@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
+import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
@@ -74,7 +75,7 @@ public class ApproximateHistogramTopNQueryTest
                         new TopNQueryConfig(),
                         TestHelper.testTopNQueryEngine()
                     ),
-                    QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                    TestHelper.NOOP_QUERYWATCHER
                 )
             )
         ),
@@ -108,7 +109,7 @@ public class ApproximateHistogramTopNQueryTest
 
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(QueryRunnerTestHelper.dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.dependentPostAggMetric)
         .threshold(4)

@@ -19,6 +19,7 @@
 
 package io.druid.query.timeseries;
 
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.CachingEmitter;
@@ -52,7 +53,7 @@ public class DefaultTimeseriesQueryMetricsTest
     TimeseriesQuery query = Druids
         .newTimeseriesQueryBuilder()
         .dataSource(QueryRunnerTestHelper.dataSource)
-        .granularity(QueryRunnerTestHelper.dayGran)
+        .granularity(Granularities.DAY)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
             Arrays.asList(

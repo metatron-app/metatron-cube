@@ -20,6 +20,7 @@
 package io.druid.query.timeseries;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.granularity.Granularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
 import io.druid.query.Query;
@@ -56,7 +57,7 @@ public class TimeseriesQueryTest
   {
     Query query = Druids.newTimeseriesQueryBuilder()
         .dataSource(QueryRunnerTestHelper.dataSource)
-        .granularity(QueryRunnerTestHelper.dayGran)
+        .granularity(Granularities.DAY)
         .intervals(QueryRunnerTestHelper.fullOnInterval)
         .aggregators(
             Arrays.asList(

@@ -19,31 +19,17 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.collections.StupidPool;
 import io.druid.common.guava.MergeSequence;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
-import io.druid.data.input.MapBasedRow;
-import io.druid.data.input.Row;
-import io.druid.granularity.Granularity;
-import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
-import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.UOE;
-
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -57,55 +43,15 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
-import io.druid.query.frequency.FrequencyQuery;
-import io.druid.query.frequency.FrequencyQueryRunnerFactory;
-import io.druid.query.frequency.FrequencyQueryToolChest;
-import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryEngine;
-import io.druid.query.groupby.GroupByQueryQueryToolChest;
-import io.druid.query.groupby.GroupByQueryRunnerFactory;
-import io.druid.query.kmeans.FindNearestQuery;
-import io.druid.query.kmeans.FindNearestQueryRunnerFactory;
-import io.druid.query.kmeans.FindNearestQueryToolChest;
-import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
-import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
-import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.search.SearchQueryQueryToolChest;
-import io.druid.query.search.SearchQueryRunnerFactory;
-import io.druid.query.search.search.SearchQuery;
-import io.druid.query.search.search.SearchQueryConfig;
-import io.druid.query.select.SelectMetaQuery;
-import io.druid.query.select.SelectMetaQueryEngine;
-import io.druid.query.select.SelectMetaQueryRunnerFactory;
-import io.druid.query.select.SelectMetaQueryToolChest;
-import io.druid.query.select.SelectQuery;
-import io.druid.query.select.SelectQueryEngine;
-import io.druid.query.select.SelectQueryQueryToolChest;
-import io.druid.query.select.SelectQueryRunnerFactory;
-import io.druid.query.select.StreamQuery;
-import io.druid.query.select.StreamQueryEngine;
-import io.druid.query.select.StreamQueryRunnerFactory;
-import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentSpec;
-import io.druid.query.timeboundary.TimeBoundaryQuery;
-import io.druid.query.timeboundary.TimeBoundaryQueryRunnerFactory;
-import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesQueryEngine;
-import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
-import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.topn.TopNQuery;
-import io.druid.query.topn.TopNQueryEngine;
-import io.druid.query.topn.TopNQueryQueryToolChest;
-import io.druid.query.topn.TopNQueryRunnerFactory;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
-import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.timeline.TimelineObjectHolder;
@@ -115,7 +61,6 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -124,142 +69,12 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
-public class QueryRunnerTestHelper
+public class QueryRunnerTestHelper extends TestHelper
 {
-
-  public static final QueryWatcher NOOP_QUERYWATCHER = NoopQueryWatcher.instance();
-
-  public static final QueryConfig QUERY_CONFIG = new QueryConfig();
-
-  private static final StupidPool<ByteBuffer> GBY_POOL = StupidPool.heap(10 * 1024 * 1024);
-  private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(StupidPool.heap(1024 * 1024));
-
-  public static final QueryRunnerFactoryConglomerate CONGLOMERATE = new DefaultQueryRunnerFactoryConglomerate(
-      ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>builder()
-                  .put(
-                      TimeBoundaryQuery.class,
-                      new TimeBoundaryQueryRunnerFactory(QueryRunnerTestHelper.NOOP_QUERYWATCHER)
-                  )
-                  .put(
-                      SegmentMetadataQuery.class,
-                      new SegmentMetadataQueryRunnerFactory(
-                          new SegmentMetadataQueryQueryToolChest(
-                              QUERY_CONFIG.getSegmentMeta()
-                          ),
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      StreamQuery.class,
-                      new StreamQueryRunnerFactory(
-                          new StreamQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          new StreamQueryEngine(),
-                          QUERY_CONFIG,
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      SelectQuery.class,
-                      new SelectQueryRunnerFactory(
-                          new SelectQueryQueryToolChest(
-                              new SelectQueryEngine(),
-                              DefaultGenericQueryMetricsFactory.instance()
-                          ),
-                          new SelectQueryEngine(),
-                          QUERY_CONFIG.getSelect(),
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      TimeseriesQuery.class,
-                      new TimeseriesQueryRunnerFactory(
-                          new TimeseriesQueryQueryToolChest(),
-                          new TimeseriesQueryEngine(),
-                          QUERY_CONFIG,
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      TopNQuery.class,
-                      new TopNQueryRunnerFactory(
-                          StupidPool.heap(10 * 1024 * 1024),
-                          new TopNQueryQueryToolChest(
-                              QUERY_CONFIG.getTopN(),
-                              new TopNQueryEngine(StupidPool.heap(10 * 1024 * 1024))
-                          ),
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      GroupByQuery.class,
-                      new GroupByQueryRunnerFactory(
-                          GBY_ENGINE,
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-                          QUERY_CONFIG,
-                          new GroupByQueryQueryToolChest(
-                              QUERY_CONFIG,
-                              GBY_ENGINE,
-                              GBY_POOL
-                          ),
-                          GBY_POOL
-                      )
-                  )
-                  .put(
-                      SelectMetaQuery.class,
-                      new SelectMetaQueryRunnerFactory(
-                          new SelectMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          new SelectMetaQueryEngine(),
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      SchemaQuery.class,
-                      new SchemaQueryRunnerFactory(
-                          new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      SearchQuery.class,
-                      new SearchQueryRunnerFactory(
-                          new SearchQueryQueryToolChest(
-                              new SearchQueryConfig()
-                          ),
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      FindNearestQuery.class,
-                      new FindNearestQueryRunnerFactory(
-                          new FindNearestQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          new StreamQueryEngine(),
-                          QUERY_CONFIG,
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      FrequencyQuery.class,
-                      new FrequencyQueryRunnerFactory(
-                          new FrequencyQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      UnionAllQuery.class,
-                      new TestQueryRunnerFactory()
-                  )
-                  .put(
-                      JoinQuery.JoinHolder.class,
-                      new TestQueryRunnerFactory()
-                  )
-                  .build()
-  );
-
   public static final String segmentId = "testSegment";
   public static final String dataSource = "testing";
   public static final UnionDataSource unionDataSource = UnionDataSource.of(
@@ -268,8 +83,6 @@ public class QueryRunnerTestHelper
 
   public static final DateTime minTime = new DateTime("2011-01-12T00:00:00.000Z");
 
-  public static final Granularity dayGran = QueryGranularities.DAY;
-  public static final Granularity allGran = QueryGranularities.ALL;
   public static final String timeDimension = "__time";
   public static final String marketDimension = "market";
   public static final String qualityDimension = "quality";
@@ -874,156 +687,5 @@ public class QueryRunnerTestHelper
   protected TestQuerySegmentWalker getSegmentWalker()
   {
     return TestIndex.segmentWalker;
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T> List<T> runQuery(Query query, QuerySegmentWalker walker)
-  {
-    return io.druid.common.utils.Sequences.toList(query.run(walker, Maps.<String, Object>newHashMap()));
-  }
-
-  public static List<Map<String, Object>> createExpectedMaps(String[] columnNames, Object[]... values)
-  {
-    int timeIndex = Arrays.asList(columnNames).indexOf(Column.TIME_COLUMN_NAME);
-    List<Map<String, Object>> expected = Lists.newArrayList();
-    for (Object[] value : values) {
-      Preconditions.checkArgument(value.length == columnNames.length);
-      Map<String, Object> theVals = Maps.newLinkedHashMap();
-      for (int i = 0; i < columnNames.length; i++) {
-        if (i != timeIndex) {
-          theVals.put(columnNames[i], value[i]);
-        } else {
-          theVals.put(columnNames[i], new DateTime(value[i]));
-        }
-      }
-      expected.add(theVals);
-    }
-    return expected;
-  }
-
-  public static Map<String, Object> of(Object... keyvalues)
-  {
-    ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
-    for (int i = 0; i < keyvalues.length; i += 2) {
-      builder.put(String.valueOf(keyvalues[i]), keyvalues[i + 1]);
-    }
-    return builder.build();
-  }
-
-  public static class RowBuilder
-  {
-    private final String[] names;
-    private final List<Row> rows = Lists.newArrayList();
-
-    public RowBuilder(String[] names)
-    {
-      this.names = names;
-    }
-
-    public RowBuilder add(final String timestamp, Object... values)
-    {
-      rows.add(build(timestamp, values));
-      return this;
-    }
-
-    public List<Row> build()
-    {
-      try {
-        return Lists.newArrayList(rows);
-      }
-      finally {
-        rows.clear();
-      }
-    }
-
-    public Row build(final String timestamp, Object... values)
-    {
-      Preconditions.checkArgument(names.length == values.length);
-
-      Map<String, Object> theVals = Maps.newHashMap();
-      for (int i = 0; i < values.length; i++) {
-        theVals.put(names[i], values[i]);
-      }
-      DateTime ts = new DateTime(timestamp);
-      return new MapBasedRow(ts, theVals);
-    }
-  }
-
-  public static void printJson(Object object)
-  {
-    ObjectWriter writer = ObjectMappers.excludeNulls(TestHelper.getObjectMapper())
-                                       .writer(new DefaultPrettyPrinter());
-    try {
-      System.out.println(writer.writeValueAsString(object));
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public static Object[] array(Object... objects)
-  {
-    return objects;
-  }
-
-  public static List list(Object... objects)
-  {
-    return Arrays.asList(objects);
-  }
-
-  public static class TestQueryRunnerFactory implements QueryRunnerFactory
-  {
-
-    @Override
-    public Future<Object> preFactoring(Query query, List list, Supplier resolver, ExecutorService exec)
-    {
-      return null;
-    }
-
-    @Override
-    public QueryRunner _createRunner(Segment segment, Future optimizer)
-    {
-      return null;
-    }
-
-    @Override
-    public QueryRunner mergeRunners(
-        Query query,
-        ExecutorService queryExecutor,
-        Iterable iterable,
-        Future optimizer
-    )
-    {
-      return null;
-    }
-
-    @Override
-    public QueryToolChest getToolchest()
-    {
-      return new QueryToolChest()
-      {
-        @Override
-        public QueryRunner mergeResults(QueryRunner runner)
-        {
-          return runner;
-        }
-
-        @Override
-        public QueryMetrics makeMetrics(Query query)
-        {
-          return new DefaultQueryMetrics<>(new DefaultObjectMapper());
-        }
-
-        @Override
-        public TypeReference getResultTypeReference(
-            Query query
-        )
-        {
-          return new TypeReference()
-          {
-          };
-        }
-      };
-    }
   }
 }

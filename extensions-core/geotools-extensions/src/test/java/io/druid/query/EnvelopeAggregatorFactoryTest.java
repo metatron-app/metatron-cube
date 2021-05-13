@@ -33,7 +33,6 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
-import io.druid.segment.TestIndex;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -44,13 +43,13 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
 {
   static {
     Parser.register(GeoHashFunctions.class);
-    TestIndex.addIndex("estate_wkt", "estate_wkt_schema.json", "estate_wkt.csv", segmentWalker.getObjectMapper());
+    segmentWalker.addIndex("estate_wkt", "estate_wkt_schema.json", "estate_wkt.csv", true);
   }
 
   @Test
   public void testSchema()
   {
-    Schema schema = (Schema) Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate_wkt")));
+    Schema schema = Iterables.getOnlyElement(runQuery(SchemaQuery.of("estate_wkt")));
     Assert.assertEquals("[__time, idx, gu, gis, amt, py]", schema.getColumnNames().toString());
     Assert.assertEquals(
         "[long, dimension.string, dimension.string, struct(lat:double,lon:double,addr:string), long, float]",
@@ -72,7 +71,7 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
         .setAggregatorSpecs(new EnvelopeAggregatorFactory("envelope", "shape"))
         .addContext(QueryContextKeys.GBY_CONVERT_TIMESERIES, false)
         .build();
-    Row results = (Row) Iterables.getOnlyElement(runQuery(query));
+    Row results = Iterables.getOnlyElement(runQuery(query));
 
     Assert.assertArrayEquals(
         new double[]{126.987022, 127.066436, 37.475122, 37.521752},
@@ -95,7 +94,7 @@ public class EnvelopeAggregatorFactoryTest extends GeoToolsTestHelper
       TestHelper.JSON_MAPPER.registerModules(module);
     }
     GroupByQueryRunnerTestHelper.printJson(query);
-    Row results = (Row) Iterables.getOnlyElement(runQuery(query));
+    Row results = Iterables.getOnlyElement(runQuery(query));
 
     System.out.println(Arrays.toString((double[]) results.getRaw("envelope")));
     Assert.assertArrayEquals(

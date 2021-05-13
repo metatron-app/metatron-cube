@@ -35,6 +35,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.ISE;
@@ -119,7 +120,7 @@ public class CachingQueryRunnerTest
     for (boolean descending : new boolean[]{false, true}) {
       TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                     .dataSource(QueryRunnerTestHelper.dataSource)
-                                    .granularity(QueryRunnerTestHelper.dayGran)
+                                    .granularity(Granularities.DAY)
                                     .intervals(QueryRunnerTestHelper.firstToThird)
                                     .aggregators(
                                         Arrays.<AggregatorFactory>asList(

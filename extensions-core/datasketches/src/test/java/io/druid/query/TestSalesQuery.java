@@ -22,8 +22,8 @@ package io.druid.query;
 import io.druid.common.Intervals;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
-import io.druid.query.aggregation.datasketches.theta.SketchMergeAggregatorFactory;
 import io.druid.query.aggregation.datasketches.theta.SketchEstimatePostProcessor;
+import io.druid.query.aggregation.datasketches.theta.SketchMergeAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
@@ -34,13 +34,16 @@ import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class TestSalesQuery extends QueryRunnerTestHelper
+public class TestSalesQuery extends TestHelper
 {
+  private static final TestQuerySegmentWalker segmentWalker = salesWalker;
+
   @Test
   public void test967()
   {
@@ -75,7 +78,7 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         "Technology-MEASURE_1", "Technology-MEASURE_1.estimation"
     };
     Object[][] objects = {array("2011-01-01T00:00:00.000Z", 371.0, false, 484.0, false, 343.0, false)};
-    Iterable<Row> results = runQuery(query);
+    Iterable<Row> results = runQuery(query, segmentWalker);
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
@@ -113,7 +116,7 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         array("2011-01-01T00:00:00.000Z", "Office Supplies", 40.40066777963272, 484.0),
         array("2011-01-01T00:00:00.000Z", "Technology", 28.63105175292154, 343.0)
     };
-    Iterable<Row> results = runQuery(query);
+    Iterable<Row> results = runQuery(query, segmentWalker);
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
@@ -139,7 +142,7 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         array("2011-01-01", "Technology", 660.8105760501137D)
     };
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, segmentWalker), "");
 
     query = query.withAggregatorSpecs(Arrays.asList(
         new SketchMergeAggregatorFactory(
@@ -152,7 +155,7 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         array("2011-01-01", "Technology", 204.0D)
     };
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
-    TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
+    TestHelper.assertExpectedObjects(expectedResults, runQuery(query, segmentWalker), "");
   }
 
   @Test
@@ -188,7 +191,7 @@ public class TestSalesQuery extends QueryRunnerTestHelper
         array("2011-01-01T00:00:00.000Z", "O", 40.40066777963272, 484.0),
         array("2011-01-01T00:00:00.000Z", "T", 28.63105175292154, 343.0)
     };
-    Iterable<Row> results = runQuery(query);
+    Iterable<Row> results = runQuery(query, segmentWalker);
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }

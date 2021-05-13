@@ -43,7 +43,6 @@ import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
@@ -58,7 +57,6 @@ import io.druid.query.spec.IntervalExpressionQuerySpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
-import io.druid.segment.TestIndex;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -69,20 +67,25 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
-public class TestSalesQuery extends GroupByQueryRunnerTestHelper
+public class TestSalesQuery extends TestHelper
 {
-  static final TestQuerySegmentWalker SEGMENT_WALKER = TestIndex.segmentWalker.duplicate();
+  public static final TestQuerySegmentWalker segmentWalker = salesWalker.duplicate();
 
   static {
-    SEGMENT_WALKER.getQueryConfig().getJoin().setHashJoinThreshold(-1);
-    SEGMENT_WALKER.getQueryConfig().getJoin().setSemiJoinThreshold(-1);
-    SEGMENT_WALKER.getQueryConfig().getJoin().setBroadcastJoinThreshold(-1);
+    segmentWalker.getQueryConfig().getJoin().setHashJoinThreshold(-1);
+    segmentWalker.getQueryConfig().getJoin().setSemiJoinThreshold(-1);
+    segmentWalker.getQueryConfig().getJoin().setBroadcastJoinThreshold(-1);
   }
 
-  @Override
-  protected TestQuerySegmentWalker getSegmentWalker()
+  @SuppressWarnings("unchecked")
+  private <T> List<T> runQuery(Query query)
   {
-    return SEGMENT_WALKER;
+    return runQuery(query, segmentWalker);
+  }
+
+  private List<Row> runQuery(BaseAggregationQuery query)
+  {
+    return runQuery(query, segmentWalker);
   }
 
   @Test

@@ -27,6 +27,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -73,7 +74,7 @@ public class TimeSeriesUnionQueryRunnerTest
                 new TimeseriesQueryQueryToolChest(),
                 new TimeseriesQueryEngine(),
                 new QueryConfig(),
-                QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                TestHelper.NOOP_QUERYWATCHER
             ),
             QueryRunnerTestHelper.unionDataSource
         ),
@@ -95,7 +96,7 @@ public class TimeSeriesUnionQueryRunnerTest
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(QueryRunnerTestHelper.unionDataSource)
-                                  .granularity(QueryRunnerTestHelper.dayGran)
+                                  .granularity(Granularities.DAY)
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(
                                       Arrays.<AggregatorFactory>asList(
@@ -131,7 +132,7 @@ public class TimeSeriesUnionQueryRunnerTest
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(UnionDataSource.of(Lists.newArrayList("ds1", "ds2")))
-                                  .granularity(QueryRunnerTestHelper.dayGran)
+                                  .granularity(Granularities.DAY)
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(
                                       Arrays.<AggregatorFactory>asList(

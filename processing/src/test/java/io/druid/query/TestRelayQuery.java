@@ -25,17 +25,19 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.segment.TestHelper;
-import io.druid.segment.TestIndex;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class TestRelayQuery extends GroupByQueryRunnerTestHelper
+public class TestRelayQuery extends TestHelper
 {
+  private static final TestQuerySegmentWalker segmentWalker = newWalker();
+
   static {
-    TestIndex.addIndex(
+    segmentWalker.addIndex(
         "relay",
         Arrays.asList("time", "dim", "m"),
         Arrays.asList("yyyy-MM-dd", "dimension", "double"),
@@ -74,8 +76,8 @@ public class TestRelayQuery extends GroupByQueryRunnerTestHelper
     Iterable<Row> results;
     List<Row> expectedResults;
 
-    results = runQuery(query);
-    expectedResults = createExpectedRows(columnNames, objects);
+    results = runQuery(query, segmentWalker);
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

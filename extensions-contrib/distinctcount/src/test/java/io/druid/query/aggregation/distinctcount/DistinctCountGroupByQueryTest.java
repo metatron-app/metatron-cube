@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryConfig;
@@ -67,7 +68,7 @@ public class DistinctCountGroupByQueryTest
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         config,
         new GroupByQueryQueryToolChest(
             config, engine, pool
@@ -105,7 +106,7 @@ public class DistinctCountGroupByQueryTest
 
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(
             Arrays.<DimensionSpec>asList(
                 new DefaultDimensionSpec(

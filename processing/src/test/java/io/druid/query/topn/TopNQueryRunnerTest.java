@@ -31,6 +31,7 @@ import com.google.common.collect.Sets;
 import io.druid.common.DateTimes;
 import io.druid.common.KeyBuilder;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.js.JavaScriptConfig;
@@ -132,7 +133,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     return results;
   }
 
-  private List<Map<String, Object>> createExpectedRows(String[] columnNames, Object[]... values)
+  private List<Map<String, Object>> createExpected(String[] columnNames, Object[]... values)
   {
     List<Map<String, Object>> expected = Lists.newArrayList();
     for (Object[] value : values) {
@@ -151,7 +152,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(indexMetric, direction))
         .threshold(4)
@@ -170,7 +171,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    List<Map<String, Object>> expectedRows = createExpectedRows(
+    List<Map<String, Object>> expectedRows = createExpected(
         new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
         new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
         new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
@@ -193,7 +194,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     // with projection
     query = query.withOutputColumns(Arrays.asList("market", "rows", "index"));
-    expectedRows = createExpectedRows(
+    expectedRows = createExpected(
         new String[]{"market", "rows", "index"},
         new Object[]{"total_market", 186L, 215679.82879638672D},
         new Object[]{"upfront", 186L, 192046.1060180664D},
@@ -213,7 +214,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(addRowsIndexConstantMetric, direction))
         .threshold(4)
@@ -232,7 +233,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    List<Map<String, Object>> expectedRows = createExpectedRows(
+    List<Map<String, Object>> expectedRows = createExpected(
         new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
         new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
         new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
@@ -254,7 +255,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(uniqueMetric, direction))
         .threshold(3)
@@ -275,14 +276,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expectedRows;
     if (direction == Direction.DESCENDING) {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
           new Object[]{"spot", 837L, 95606.57232284546D, 96444.57232284546D, UNIQUES_9, 277.2735290527344D, 59.02102279663086D},
           new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
           new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D}
       );
     } else {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "rows", "index", "addRowsIndexConstant", "uniques", "maxIndex", "minIndex"},
           new Object[]{"total_market", 186L, 215679.82879638672D, 215866.82879638672D, UNIQUES_2, 1743.9217529296875D, 792.3260498046875D},
           new Object[]{"upfront", 186L, 192046.1060180664D, 192233.1060180664D, UNIQUES_2, 1870.06103515625D, 545.9906005859375D},
@@ -302,7 +303,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.uniqueMetric)
         .threshold(3)
@@ -341,7 +342,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
         .threshold(3)
@@ -359,14 +360,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expectedRows;
     if (direction == Direction.DESCENDING) {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
           new Object[]{"spot", UNIQUES_9, UNIQUES_9},
           new Object[]{"total_market", UNIQUES_2, UNIQUES_2},
           new Object[]{"upfront", UNIQUES_2, UNIQUES_2}
       );
     } else {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
           new Object[]{"total_market", UNIQUES_2, UNIQUES_2},
           new Object[]{"upfront", UNIQUES_2, UNIQUES_2},
@@ -385,7 +386,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
         .threshold(3)
@@ -403,14 +404,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expectedRows;
     if (direction == Direction.DESCENDING) {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
           new Object[]{"spot", UNIQUES_9, UNIQUES_9 + 1},
           new Object[]{"total_market", UNIQUES_2, UNIQUES_2 + 1},
           new Object[]{"upfront", UNIQUES_2, UNIQUES_2 + 1}
       );
     } else {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
           new Object[]{"total_market", UNIQUES_2, UNIQUES_2 + 1},
           new Object[]{"upfront", UNIQUES_2, UNIQUES_2 + 1},
@@ -430,7 +431,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(hyperUniqueFinalizingPostAggMetric, direction))
         .threshold(3)
@@ -448,14 +449,14 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     List<Map<String, Object>> expectedRows;
     if (direction == Direction.DESCENDING) {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
           new Object[]{"spot", 9L, 10L},
           new Object[]{"total_market", 2L, 3L},
           new Object[]{"upfront", 2L, 3L}
       );
     } else {
-      expectedRows = createExpectedRows(
+      expectedRows = createExpected(
           new String[]{"market", "uniques", "hyperUniqueFinalizingPostAggMetric"},
           new Object[]{"total_market", 2L, 3L},
           new Object[]{"upfront", 2L, 3L},
@@ -476,7 +477,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(indexMetric, direction))
         .threshold(4)
@@ -485,7 +486,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
         .build();
 
-    List<Map<String, Object>> expectedRows = createExpectedRows(
+    List<Map<String, Object>> expectedRows = createExpected(
         new String[]{"market", "index", "addRowsIndexConstant", "rows", "uniques"},
         new Object[]{"total_market", 5351.814697265625D, 5356.814697265625D, 4L, UNIQUES_2},
         new Object[]{"upfront", 4875.669677734375D, 4880.669677734375D, 4L, UNIQUES_2},
@@ -522,7 +523,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
         .threshold(4)
@@ -572,7 +573,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     // cannot do this, currently.. use group-by query
     new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .virtualColumn(new ExprVirtualColumn("index", "metric"))
         .dimension("metric")
         .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("count")))
@@ -587,7 +588,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec("uniques"))
         .threshold(4)
@@ -635,7 +636,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.marketDimension, "total_market", "upfront", "spot")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -683,7 +684,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.marketDimension, "total_market", "upfront")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -724,7 +725,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.marketDimension, "upfront")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -758,7 +759,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -806,7 +807,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -858,7 +859,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.marketDimension, "total_market", "upfront", "billyblank")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -899,7 +900,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.marketDimension, "billyblank")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -928,7 +929,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     );
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(andDimFilter)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -952,7 +953,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.placementishDimension, "m")
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -965,7 +966,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     final List<Result<TopNResultValue>> expected = Sequences.toList(
         new TopNQueryBuilder()
             .dataSource(dataSource)
-            .granularity(QueryRunnerTestHelper.allGran)
+            .granularity(Granularities.ALL)
             .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine")
             .dimension(QueryRunnerTestHelper.marketDimension)
             .metric(QueryRunnerTestHelper.indexMetric)
@@ -985,7 +986,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.placementishDimension, "m", "a", "b")
         .dimension(QueryRunnerTestHelper.qualityDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -998,7 +999,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     List<Result<TopNResultValue>> expected = Sequences.toList(
         new TopNQueryBuilder()
             .dataSource(dataSource)
-            .granularity(QueryRunnerTestHelper.allGran)
+            .granularity(Granularities.ALL)
             .filters(QueryRunnerTestHelper.qualityDimension, "mezzanine", "automotive", "business")
             .dimension(QueryRunnerTestHelper.qualityDimension)
             .metric(QueryRunnerTestHelper.indexMetric)
@@ -1017,7 +1018,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.placementishDimension, "a")
         .dimension(QueryRunnerTestHelper.placementishDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -1058,7 +1059,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.placementishDimension, "a", "b")
         .dimension(QueryRunnerTestHelper.placementishDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -1106,7 +1107,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.placementishDimension, "preferred")
         .dimension(QueryRunnerTestHelper.placementishDimension)
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -1161,7 +1162,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension("doesn't exist")
         .metric(QueryRunnerTestHelper.indexMetric)
         .threshold(1)
@@ -1195,7 +1196,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters(QueryRunnerTestHelper.marketDimension, "upfront")
         .dimension("doesn't exist")
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -1230,7 +1231,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .filters("doesn't exist", null)
         .dimension("doesn't exist")
         .metric(QueryRunnerTestHelper.indexMetric)
@@ -1265,7 +1266,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new LexicographicTopNMetricSpec(""))
         .threshold(4)
@@ -1312,7 +1313,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new LexicographicTopNMetricSpec("spot"))
         .threshold(4)
@@ -1352,7 +1353,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new LexicographicTopNMetricSpec("t"))
         .threshold(4)
@@ -1392,7 +1393,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new InvertedTopNMetricSpec(new LexicographicTopNMetricSpec("upfront")))
         .threshold(4)
@@ -1432,7 +1433,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new InvertedTopNMetricSpec(new LexicographicTopNMetricSpec("u")))
         .threshold(4)
@@ -1473,7 +1474,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -1532,7 +1533,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.qualityDimension, QueryRunnerTestHelper.qualityDimension,
@@ -1601,7 +1602,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -1656,7 +1657,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -1721,7 +1722,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -1787,7 +1788,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -1852,7 +1853,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -1919,7 +1920,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -1986,7 +1987,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -2054,7 +2055,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -2121,7 +2122,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -2175,7 +2176,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -2229,7 +2230,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -2276,7 +2277,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension, QueryRunnerTestHelper.marketDimension,
@@ -2341,7 +2342,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -2388,7 +2389,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 QueryRunnerTestHelper.marketDimension,
@@ -2450,7 +2451,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     final TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .metric("rows")
         .threshold(4)
         .intervals(QueryRunnerTestHelper.firstToThird)
@@ -2528,7 +2529,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
 
     final TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .metric("rows")
         .threshold(4)
         .intervals(QueryRunnerTestHelper.firstToThird)
@@ -2586,7 +2587,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     TopNQuery query =
         new TopNQueryBuilder()
             .dataSource(dataSource)
-            .granularity(QueryRunnerTestHelper.allGran)
+            .granularity(Granularities.ALL)
             .dimension(QueryRunnerTestHelper.marketDimension)
             .metric(new InvertedTopNMetricSpec(new NumericTopNMetricSpec(QueryRunnerTestHelper.indexMetric)))
             .threshold(3)
@@ -2634,7 +2635,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     TopNQuery query =
         new TopNQueryBuilder()
             .dataSource(dataSource)
-            .granularity(QueryRunnerTestHelper.allGran)
+            .granularity(Granularities.ALL)
             .dimension(QueryRunnerTestHelper.marketDimension)
             .metric(new NumericTopNMetricSpec("numVals"))
             .threshold(10)
@@ -2685,7 +2686,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     TopNQuery query =
         new TopNQueryBuilder()
             .dataSource(dataSource)
-            .granularity(QueryRunnerTestHelper.allGran)
+            .granularity(Granularities.ALL)
             .dimension(dimSpec)
             .metric(new NumericTopNMetricSpec("numVals"))
             .threshold(10)
@@ -2731,7 +2732,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.dependentPostAggMetric)
         .threshold(4)
@@ -2815,7 +2816,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(QueryRunnerTestHelper.dependentPostAggMetric)
         .threshold(4)
@@ -2910,7 +2911,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                 QueryRunnerTestHelper.__timeLongSum
             )
         )
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric("ntimestamps")
         .threshold(3)
@@ -2995,7 +2996,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(
             new ExtractionDimensionSpec(
                 Column.TIME_COLUMN_NAME,
@@ -3045,7 +3046,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension("null_column")
         .metric(QueryRunnerTestHelper.indexMetric)
         .threshold(4)
@@ -3090,7 +3091,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension("null_column")
         .filters(
             new SelectorDimFilter("null_column", null, null)
@@ -3278,7 +3279,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, false);
 
     TopNQuery query = new TopNQueryBuilder().dataSource(dataSource)
-                                            .granularity(QueryRunnerTestHelper.allGran)
+                                            .granularity(Granularities.ALL)
                                             .dimension(QueryRunnerTestHelper.marketDimension)
                                             .metric("rows")
                                             .threshold(3)
@@ -3325,7 +3326,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     DimFilter extractionFilter = new SelectorDimFilter("null_column", "NULL", lookupExtractionFn);
     TopNQueryBuilder topNQueryBuilder = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension("null_column")
         .metric(QueryRunnerTestHelper.indexMetric)
         .threshold(4)
@@ -3380,7 +3381,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
     DimFilter extractionFilter = new SelectorDimFilter("null_column", "NULL", lookupExtractionFn);
     TopNQueryBuilder topNQueryBuilder = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension("null_column")
         .metric(QueryRunnerTestHelper.indexMetric)
         .threshold(4)

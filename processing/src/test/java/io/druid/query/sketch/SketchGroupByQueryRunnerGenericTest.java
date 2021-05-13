@@ -21,6 +21,7 @@ package io.druid.query.sketch;
 
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -69,7 +70,7 @@ public class SketchGroupByQueryRunnerGenericTest extends SketchQueryRunnerTestHe
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     String[] columnNames = {"__time", "alias", "rows", "idx"};

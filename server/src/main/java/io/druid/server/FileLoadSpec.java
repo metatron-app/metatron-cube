@@ -288,7 +288,7 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
       throw new IAE("Unsupported scheme '%s'", scheme);
     }
     LOG.info("%s : %s", scheme, locations);
-    final ObjectMapper jsonMapper = walker.getObjectMapper();
+    final ObjectMapper jsonMapper = walker.getMapper();
 
     final InputRowParser parser = getParser(jsonMapper);
     final GranularitySpec granularitySpec = schema.getGranularitySpec();

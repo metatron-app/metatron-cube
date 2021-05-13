@@ -491,7 +491,7 @@ public class SpatialFilterBonusTest
           toolChest,
           new TimeseriesQueryEngine(),
           new QueryConfig(),
-          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+          TestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
@@ -570,7 +570,7 @@ public class SpatialFilterBonusTest
           toolChest,
           new TimeseriesQueryEngine(),
           new QueryConfig(),
-          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+          TestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
@@ -655,7 +655,7 @@ public class SpatialFilterBonusTest
           toolChest,
           new TimeseriesQueryEngine(),
           new QueryConfig(),
-          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+          TestHelper.NOOP_QUERYWATCHER
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(

@@ -65,7 +65,7 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.aggregation.variance.StandardDeviationPostAggregator;
 import io.druid.query.aggregation.variance.VarianceAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.metadata.metadata.NoneColumnIncluderator;
+import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.SearchResultValue;
@@ -359,7 +359,7 @@ public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport
               representative.getDataSource(),
               representative.getQuerySegmentSpec(),
               null,
-              new NoneColumnIncluderator(),
+              ColumnIncluderator.NONE,
               null,
               false,
               SegmentMetadataQuery.DEFAULT_NON_COLUMN_STATS,

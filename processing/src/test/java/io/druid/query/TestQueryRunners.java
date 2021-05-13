@@ -23,8 +23,7 @@ import io.druid.collections.StupidPool;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
 import io.druid.query.search.search.SearchQueryConfig;
-import io.druid.query.timeboundary.TimeBoundaryQueryRunnerFactory;
-import io.druid.query.timeseries.DefaultTimeseriesQueryMetricsFactory;
+import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
@@ -58,7 +57,7 @@ public class TestQueryRunners
             topNConfig,
             TestHelper.testTopNQueryEngine()
         ),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
     return factory.getToolchest().finalizeResults(
         factory.createRunner(adapter, null)
@@ -73,7 +72,7 @@ public class TestQueryRunners
         new TimeseriesQueryQueryToolChest(),
         new TimeseriesQueryEngine(),
         new QueryConfig(),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER
+        TestHelper.NOOP_QUERYWATCHER
     );
 
     return factory.getToolchest().finalizeResults(
@@ -88,7 +87,7 @@ public class TestQueryRunners
     QueryRunnerFactory factory = new SearchQueryRunnerFactory(new SearchQueryQueryToolChest(
           new SearchQueryConfig()
     ),
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER);
+        TestHelper.NOOP_QUERYWATCHER);
     return factory.getToolchest().finalizeResults(
         factory.createRunner(adapter, null)
     );
@@ -98,7 +97,7 @@ public class TestQueryRunners
       Segment adapter
   )
   {
-    QueryRunnerFactory factory = new TimeBoundaryQueryRunnerFactory(QueryRunnerTestHelper.NOOP_QUERYWATCHER);
+    QueryRunnerFactory factory = TestHelper.factoryFor(TimeBoundaryQuery.class);
     return factory.getToolchest().finalizeResults(
         factory.createRunner(adapter, null)
     );

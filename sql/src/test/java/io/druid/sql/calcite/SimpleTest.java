@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite;
 
-import io.druid.query.QueryRunnerTestHelper;
+import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,10 +32,7 @@ public class SimpleTest extends CalciteQueryTestHelper
   @BeforeClass
   public static void setUp() throws Exception
   {
-    walker = new TestQuerySegmentWalker(
-        QueryRunnerTestHelper.CONGLOMERATE,
-        QueryRunnerTestHelper.QUERY_CONFIG
-    ).withQueryHook(hook);
+    walker = TestHelper.newWalker().withQueryHook(hook);
   }
 
   @Override

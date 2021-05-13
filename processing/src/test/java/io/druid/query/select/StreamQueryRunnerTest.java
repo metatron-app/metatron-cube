@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
@@ -81,7 +82,7 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
                  .dimensionSpecs(DefaultDimensionSpec.toSpec(Arrays.<String>asList()))
                  .metrics(Arrays.<String>asList())
                  .intervals(QueryRunnerTestHelper.fullOnInterval)
-                 .granularity(QueryRunnerTestHelper.allGran);
+                 .granularity(Granularities.ALL);
   }
 
   @Test

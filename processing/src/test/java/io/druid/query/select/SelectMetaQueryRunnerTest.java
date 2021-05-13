@@ -27,7 +27,6 @@ import com.google.common.collect.Maps;
 import io.druid.java.util.common.Pair;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
@@ -96,7 +95,7 @@ public class SelectMetaQueryRunnerTest
         TableDataSource.of(dataSource),
         new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
         null,
-        QueryRunnerTestHelper.allGran,
+        Granularities.ALL,
         DefaultDimensionSpec.toSpec(Arrays.asList("market")),
         null,
         null,
@@ -162,7 +161,7 @@ public class SelectMetaQueryRunnerTest
         TableDataSource.of(dataSource),
         new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
         null,
-        QueryRunnerTestHelper.allGran,
+        Granularities.ALL,
         DefaultDimensionSpec.toSpec(Arrays.asList("market")),
         metrics,
         null,
@@ -274,7 +273,7 @@ public class SelectMetaQueryRunnerTest
     }
     Assert.assertTrue(Iterables.elementsEqual(expected2, schema2.columnAndTypes()));
 
-    ObjectMapper mapper = TestIndex.segmentWalker.getObjectMapper();
+    ObjectMapper mapper = TestIndex.segmentWalker.getMapper();
     CacheStrategy cacheStrategy = new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()).getCacheStrategy(schemaQuery);
     Schema cached = (Schema) cacheStrategy.pullFromCache().apply(
         mapper.readValue(

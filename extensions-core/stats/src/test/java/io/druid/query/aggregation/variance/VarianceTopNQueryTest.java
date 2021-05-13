@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.Sequences;
+import io.druid.granularity.Granularities;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -70,7 +71,7 @@ public class VarianceTopNQueryTest
   {
     TopNQuery query = new TopNQueryBuilder()
         .dataSource(dataSource)
-        .granularity(QueryRunnerTestHelper.allGran)
+        .granularity(Granularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
         .metric(new NumericTopNMetricSpec(QueryRunnerTestHelper.uniqueMetric, direction))
         .threshold(3)

@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.query.Druids;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -59,7 +60,7 @@ public class TimeseriesQueryMergedRunnerTest
                 new TimeseriesQueryQueryToolChest(),
                 new TimeseriesQueryEngine(),
                 new QueryConfig(),
-                QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                TestHelper.NOOP_QUERYWATCHER
             )
         )
     );
@@ -82,7 +83,7 @@ public class TimeseriesQueryMergedRunnerTest
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, true, null, true, true);
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(QueryRunnerTestHelper.dataSource)
-                                  .granularity(QueryRunnerTestHelper.dayGran)
+                                  .granularity(Granularities.DAY)
                                   .filters(
                                       new SelectorDimFilter(QueryRunnerTestHelper.marketDimension, "upfront", lookupExtractionFn)
                                   )

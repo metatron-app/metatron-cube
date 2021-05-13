@@ -84,7 +84,7 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
         source, "gis.coord", null, null, boundary, "geom_buf", null, null, null, null, false, null
     );
-    ObjectMapper mapper = segmentWalker.getObjectMapper();
+    ObjectMapper mapper = segmentWalker.getMapper();
     String serialized = mapper.writeValueAsString(filtered);
     GeoBoundaryFilterQuery deserialized = mapper.readValue(serialized, GeoBoundaryFilterQuery.class);
     Assert.assertEquals(filtered, deserialized);
@@ -218,7 +218,7 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
             }
         )
     );
-    ObjectMapper mapper = segmentWalker.getObjectMapper();
+    ObjectMapper mapper = segmentWalker.getMapper();
     String serialized = mapper.writeValueAsString(constant);
     Query.ArrayOutputSupport deserialized = mapper.readValue(serialized, Query.ArrayOutputSupport.class);
     Assert.assertEquals(constant, deserialized);

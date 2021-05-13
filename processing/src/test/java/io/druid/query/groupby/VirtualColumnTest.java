@@ -30,6 +30,7 @@ import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.java.util.common.ISE;
 import io.druid.query.BaseAggregationQuery;
@@ -80,7 +81,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static io.druid.query.QueryRunnerTestHelper.dataSource;
-import static io.druid.query.QueryRunnerTestHelper.dayGran;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
 import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder;
 
@@ -99,19 +99,17 @@ public class VirtualColumnTest
 
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
-    final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(
-        config, engine, TestQueryRunners.pool
-    );
+    final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool);
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         config,
         toolChest,
         TestQueryRunners.pool
     );
 
     IncrementalIndex index1 = createArrayIncrementalIndex();
-    QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
+    QueryableIndex index2 = TestHelper.persistRealtimeAndLoadMMapped(index1);
 
     final List<QueryRunner<Row>> runners = Arrays.asList(
         QueryRunnerTestHelper.makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1")),
@@ -174,7 +172,7 @@ public class VirtualColumnTest
   {
     return GroupByQuery.builder()
                        .setDataSource(dataSource)
-                       .setGranularity(dayGran)
+                       .setGranularity(Granularities.DAY)
                        .setInterval(fullOnInterval);
   }
 

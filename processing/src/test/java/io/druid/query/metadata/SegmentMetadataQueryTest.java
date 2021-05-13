@@ -76,7 +76,7 @@ public class SegmentMetadataQueryTest
 {
   private static final SegmentMetadataQueryRunnerFactory FACTORY = new SegmentMetadataQueryRunnerFactory(
       new SegmentMetadataQueryQueryToolChest(new SegmentMetadataQueryConfig()),
-      QueryRunnerTestHelper.NOOP_QUERYWATCHER
+      TestHelper.NOOP_QUERYWATCHER
   );
   private static final ObjectMapper MAPPER = new DefaultObjectMapper();
 

@@ -187,7 +187,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new GenericSumAggregatorFactory("idx2", "indexDecimal", ValueDesc.DECIMAL)
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     String[] columnNames = {"__time", "alias", "rows", "idx", "idx2"};
@@ -340,7 +340,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             CountAggregatorFactory.predicate("rows_nc2", "partial_null_column == 'value'"),
             CountAggregatorFactory.predicate("rows_nc3", "partial_null_column >= 'value'")
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     String[] columnNames = {"__time", "rows", "rows_nc1", "rows_nc2", "rows_nc3"};
@@ -406,7 +406,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     String[] columnNames = {"__time", "x", "rows", "idx"};
@@ -434,7 +434,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("idx", "index")
         )
         .setLimitSpec(LimitSpecs.of(5, OrderByColumnSpec.desc("idx")))
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     Iterable<Row> results;
@@ -484,7 +484,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     String[] columnNames = {"__time", "quality", "alias", "rows", "idx"};
@@ -549,7 +549,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     String[] columnNames = {"__time", "quality", "alias", "rows", "idx"};
@@ -598,7 +598,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setInterval(new Interval("2011-01-12/2011-01-13"))
         .setDimensions(DefaultDimensionSpec.toSpec("index"))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(rowsCount))
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = createExpectedRows(
@@ -620,7 +620,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setInterval(new Interval("2011-01-12/2011-01-14"))
         .setDimensions(new DefaultDimensionSpec(Column.TIME_COLUMN_NAME, "time"))
         .setAggregatorSpecs(rowsCount)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = createExpectedRows(
@@ -643,7 +643,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setDimensions(DefaultDimensionSpec.toSpec("_week"))
         .setAggregatorSpecs(rowsCount)
         .setPostAggregatorSpecs(new MathPostAggregator("week = time_format(_week, out.format='ww xxxx')"))
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = createExpectedRows(
@@ -670,7 +670,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -706,7 +706,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -751,7 +751,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -793,7 +793,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .setContext(ImmutableMap.<String, Object>of("maxResults", 1))
         .build();
 
@@ -831,7 +831,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -908,7 +908,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -985,7 +985,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -1062,7 +1062,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -1138,7 +1138,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -1196,7 +1196,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 qualityUniques
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -1234,7 +1234,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new HyperUniqueFinalizingPostAggregator("quality_uniques", "quality_uniques")
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -1264,7 +1264,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 qualityCardinality
             )
         )
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     String[] columns = new String[]{"__time", "rows", "cardinality"};
@@ -1363,7 +1363,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
@@ -1429,7 +1429,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
@@ -1888,7 +1888,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(dataSource)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(new DefaultDimensionSpec(marketDimension, "marketalias"))
         .setInterval(fullOnInterval)
         .setLimitSpec(
@@ -1937,7 +1937,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(dataSource)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(DefaultDimensionSpec.of(marketDimension))
         .setInterval(fullOnInterval)
         .setLimitSpec(
@@ -1978,7 +1978,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(dataSource)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(DefaultDimensionSpec.of(marketDimension))
         .setInterval(fullOnInterval)
         .setLimitSpec(new LimitSpec(Lists.newArrayList(OrderByColumnSpec.asc(marketDimension)), 3))
@@ -2039,7 +2039,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(dataSource)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(DefaultDimensionSpec.of(marketDimension))
         .setInterval(fullOnInterval)
         .setLimitSpec(
@@ -2095,7 +2095,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(dataSource)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(DefaultDimensionSpec.of(marketDimension))
         .setInterval(fullOnInterval)
         .setLimitSpec(
@@ -2150,7 +2150,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(dataSource)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(DefaultDimensionSpec.of(marketDimension))
         .setInterval(fullOnInterval)
         .setLimitSpec(
@@ -2203,7 +2203,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   {
     GroupByQuery query = new GroupByQuery.Builder()
         .setDataSource(dataSource)
-        .setGranularity(allGran)
+        .setGranularity(Granularities.ALL)
         .setDimensions(DefaultDimensionSpec.of(marketDimension))
         .setInterval(fullOnInterval)
         .setLimitSpec(
@@ -2268,7 +2268,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 ), null
             )
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -2668,7 +2668,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("idx", "index"),
             new LongSumAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -2680,7 +2680,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("rows", "rows"),
             new LongSumAggregatorFactory("idx", "idx")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -2730,7 +2730,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("idx", "index"),
             new LongSumAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -2749,7 +2749,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("rows", "rows"),
             new LongSumAggregatorFactory("idx", "idx")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -2800,7 +2800,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -2824,7 +2824,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("rows", "rows"),
             new LongSumAggregatorFactory("idx", "idx")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -2863,7 +2863,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("idx", "index"),
             new LongSumAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -2875,7 +2875,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new DoubleMaxAggregatorFactory("idx", "idx"),
             new DoubleMaxAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = createExpectedRows(
@@ -2926,7 +2926,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 )
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -2939,7 +2939,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new DoubleMaxAggregatorFactory("idx3", "post_agg"),
             new DoubleMaxAggregatorFactory("idx4", "post_agg")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -2969,7 +2969,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -2992,7 +2992,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 )
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -3015,7 +3015,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -3025,7 +3025,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setAggregatorSpecs(
             new DoubleMaxAggregatorFactory("idx", "idx")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -3047,7 +3047,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -3055,7 +3055,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setDataSource(subquery)
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setAggregatorSpecs(new DoubleMaxAggregatorFactory("idx", "idx"))
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     Assert.assertFalse(runQuery(query).iterator().hasNext());
@@ -3134,7 +3134,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 )
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     final GroupByQuery query = GroupByQuery
@@ -3154,7 +3154,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults =
@@ -3232,7 +3232,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             }
         )
         .addOrderByColumn("alias")
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     final GroupByQuery query = GroupByQuery
@@ -3252,7 +3252,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             )
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults =
@@ -3336,7 +3336,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             }
         )
         .addOrderByColumn("alias")
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -3368,7 +3368,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 5
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults =
@@ -3401,7 +3401,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("idx", "index"),
             new HyperUniquesAggregatorFactory("quality_uniques", "quality_uniques")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -3414,7 +3414,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new LongSumAggregatorFactory("idx", "idx"),
             new HyperUniquesAggregatorFactory("uniq", "quality_uniques")
         )
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     String[] columnNames = {"__time", "alias", "rows", "idx", "uniq"};
@@ -3541,7 +3541,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setPostAggregatorSpecs(
             new FieldAccessPostAggregator("quality_uniques_inner_post", "quality_uniques_inner")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -3557,7 +3557,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         .setPostAggregatorSpecs(
             new HyperUniqueFinalizingPostAggregator("quality_uniques_outer_post", "quality_uniques_outer")
         )
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -3594,7 +3594,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.jsCountIfTimeGreaterThan,
             QueryRunnerTestHelper.__timeLongSum
         )
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -3633,7 +3633,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.indexDoubleSum
         )
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
-        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setGranularity(Granularities.ALL)
         .setDimFilter(
             new OrDimFilter(
                 Arrays.<DimFilter>asList(
@@ -6530,7 +6530,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .setDimFilter(DimFilters.or(dimFilters))
         .build();
     List<Row> expectedResults = Arrays.asList(
@@ -6582,7 +6582,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .setDimFilter(new SelectorDimFilter("quality", "", lookupExtractionFn))
         .build();
 
@@ -6610,7 +6610,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .setDimFilter(new SelectorDimFilter("quality", "NOT_THERE", lookupExtractionFn))
         .build();
     List<Row> expectedResults = Arrays.asList();
@@ -6635,7 +6635,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .setDimFilter(
             new SelectorDimFilter(
                 "null_column",
@@ -6687,7 +6687,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx2", "index"), new MathExprFilter("1 == 0")),
             new GenericSumAggregatorFactory("idx3", "index", null, "in(quality, 'automotive', 'business')", ValueDesc.LONG)
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = createExpectedRows(
@@ -6751,7 +6751,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .setDimFilter(
             new SelectorDimFilter(
                 "quality",
@@ -6787,7 +6787,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             QueryRunnerTestHelper.rowsCount,
             new LongSumAggregatorFactory("idx", "index")
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .setDimFilter(
             new SelectorDimFilter(
                 "null_column",
@@ -6933,7 +6933,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 QueryRunnerTestHelper.rowsCount,
                 new LongSumAggregatorFactory("idx", "index")
             ))
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .setDimFilter(superFilter).build();
 
     final String[] columns = new String[]{"__time", "alias", "rows", "idx"};
@@ -6976,7 +6976,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
                 )
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     List<Row> expectedResults = Arrays.asList(
@@ -7003,7 +7003,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new AverageAggregatorFactory("idx1", "index", null),
             new AverageAggregatorFactory("idx2", "indexMaxPlusTen", null)
         )
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     String[] columnNames = {"__time", "alias", "idx1", "idx2"};
@@ -7046,7 +7046,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
             new AverageAggregatorFactory("idx2", "indexMaxPlusTen", null)
         )
         .setDimFilter(SelectorDimFilter.of("alias", "automotive"))
-        .setGranularity(dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     String[] columnNames = {"__time", "alias", "idx1", "idx2"};

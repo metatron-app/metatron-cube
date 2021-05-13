@@ -38,6 +38,7 @@ import io.druid.data.input.FirehoseV2;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.ISE;
@@ -304,7 +305,7 @@ public class RealtimeManagerTest
     QueryRunnerFactoryConglomerate conglomerate = new QueryRunnerFactoryConglomerate()
     {
       @Override
-      public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(QueryType query)
+      public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
       {
         return factory;
       }
@@ -448,7 +449,7 @@ public class RealtimeManagerTest
                   new LongSumAggregatorFactory("idx", "index")
               )
           )
-          .setGranularity(QueryRunnerTestHelper.dayGran)
+          .setGranularity(Granularities.DAY)
           .build();
       plumber.setRunners(ImmutableMap.of(query.getIntervals().get(0), runner));
       plumber2.setRunners(ImmutableMap.of(query.getIntervals().get(0), runner));
@@ -506,7 +507,7 @@ public class RealtimeManagerTest
                   new LongSumAggregatorFactory("idx", "index")
               )
           )
-          .setGranularity(QueryRunnerTestHelper.dayGran)
+          .setGranularity(Granularities.DAY)
           .build();
       plumber.setRunners(ImmutableMap.of(query.getIntervals().get(0), runner));
       plumber2.setRunners(ImmutableMap.of(query.getIntervals().get(0), runner));
@@ -647,7 +648,7 @@ public class RealtimeManagerTest
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setGranularity(Granularities.DAY)
         .build();
 
     final Map<Interval, QueryRunner> runnerMap = ImmutableMap.<Interval, QueryRunner>of(
@@ -728,11 +729,9 @@ public class RealtimeManagerTest
     final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     return new GroupByQueryRunnerFactory(
         engine,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        TestHelper.NOOP_QUERYWATCHER,
         config,
-        new GroupByQueryQueryToolChest(
-            config, engine, TestQueryRunners.pool
-        ),
+        new GroupByQueryQueryToolChest(config, engine, TestQueryRunners.pool),
         TestQueryRunners.pool
     );
   }

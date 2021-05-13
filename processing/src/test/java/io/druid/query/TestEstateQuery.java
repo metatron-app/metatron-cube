@@ -39,6 +39,7 @@ import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.segment.TestHelper;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -46,8 +47,21 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-public class TestEstateQuery extends QueryRunnerTestHelper
+public class TestEstateQuery extends TestHelper
 {
+  public static final TestQuerySegmentWalker segmentWalker = estateWalker;
+
+  @SuppressWarnings("unchecked")
+  private <T> List<T> runQuery(Query query)
+  {
+    return runQuery(query, segmentWalker);
+  }
+
+  private List<Row> runQuery(BaseAggregationQuery query)
+  {
+    return runQuery(query, segmentWalker);
+  }
+
   @Test
   public void testSchema()
   {

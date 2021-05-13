@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.java.util.common.Pair;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.TestIndex;
@@ -157,7 +156,7 @@ public class SchemaQueryRunnerTest
     }
     Assert.assertTrue(Iterables.elementsEqual(expected2, schema2.columnAndTypes()));
 
-    ObjectMapper mapper = TestIndex.segmentWalker.getObjectMapper();
+    ObjectMapper mapper = TestIndex.segmentWalker.getMapper();
     CacheStrategy cacheStrategy = new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()).getCacheStrategy(schemaQuery);
     Schema cached = (Schema) cacheStrategy.pullFromCache().apply(
         mapper.readValue(

@@ -327,7 +327,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     final List<Query<Object[]>> queries = Lists.newArrayList();
 
-    final ObjectMapper mapper = segmentWalker.getObjectMapper();
+    final ObjectMapper mapper = segmentWalker.getMapper();
     for (int i = 0; i < elements.size(); i++) {
       final JoinElement element = elements.get(i);
       final JoinType joinType = element.getJoinType();
