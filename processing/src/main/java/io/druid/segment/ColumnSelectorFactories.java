@@ -391,33 +391,15 @@ public class ColumnSelectorFactories
     @Override
     public ObjectColumnSelector makeObjectColumnSelector(final String columnName)
     {
-      // creates VC if possible in here
-      final ValueDesc resolved = resolver.resolve(columnName);
-      if (resolved == null) {
-        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      final int index = resolver.getColumnNames().indexOf(columnName);
+      if (index >= 0) {
+        final ValueDesc resolved = resolver.getColumnTypes().get(index);
+        return ColumnSelectors.asSelector(resolved, () -> in.get()[index]);
       }
       final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
       if (virtualColumn != null) {
         return virtualColumn.asMetric(columnName, this);
       }
-      final int index = resolver.getColumnNames().indexOf(columnName);
-      if (index >= 0) {
-        return new ObjectColumnSelector()
-        {
-          @Override
-          public Object get()
-          {
-            return in.get()[index];
-          }
-
-          @Override
-          public ValueDesc type()
-          {
-            return resolved;
-          }
-        };
-      }
-      // todo : handle struct field access
       return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
     }
   }
@@ -448,68 +430,23 @@ public class ColumnSelectorFactories
     @Override
     public ObjectColumnSelector makeObjectColumnSelector(final String columnName)
     {
-      // creates VC if possible in here
-      final ValueDesc resolved = resolver.resolve(columnName);
-      if (resolved == null) {
-        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+      final int index = resolver.getColumnNames().indexOf(columnName);
+      if (index >= 0) {
+        final ValueDesc resolved = resolver.getColumnTypes().get(index);
+        if (Column.TIME_COLUMN_NAME.equals(columnName)) {
+          if (resolved.isDateTime()) {
+            return ColumnSelectors.asSelector(ValueDesc.DATETIME, () -> in.get().getTimestamp());
+          } else {
+            return ColumnSelectors.asSelector(ValueDesc.LONG, () -> in.get().getTimestampFromEpoch());
+          }
+        }
+        return ColumnSelectors.asSelector(resolved, () -> in.get().getRaw(columnName));
       }
       final VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
       if (virtualColumn != null) {
         return virtualColumn.asMetric(columnName, this);
       }
-      if (Column.TIME_COLUMN_NAME.equals(columnName)) {
-        if (resolved.isDateTime()) {
-          return new ObjectColumnSelector()
-          {
-            @Override
-            public ValueDesc type()
-            {
-              return ValueDesc.DATETIME;
-            }
-
-            @Override
-            public Object get()
-            {
-              return current().getTimestamp();
-            }
-          };
-        } else {
-          return new ObjectColumnSelector()
-          {
-            @Override
-            public ValueDesc type()
-            {
-              return ValueDesc.LONG;
-            }
-
-            @Override
-            public Object get()
-            {
-              return current().getTimestampFromEpoch();
-            }
-          };
-        }
-      }
-      // todo : handle struct field access
-      return new ObjectColumnSelector()
-      {
-        @Override
-        public Object get()
-        {
-          return current().getRaw(columnName);
-        }
-
-        @Override
-        public ValueDesc type()
-        {
-          return resolved;
-        }
-      };
-    }
-
-    protected Row current()
-    {
-      return in.get();
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
     }
   }
 

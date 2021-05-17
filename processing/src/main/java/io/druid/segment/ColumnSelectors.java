@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.DSuppliers;
@@ -530,6 +531,18 @@ public class ColumnSelectors
           }
           return org.apache.commons.lang.StringUtils.join(array, separator);
         }
+      }
+    };
+  }
+
+  public static <T> ObjectColumnSelector<T> asSelector(ValueDesc type, Supplier<T> supplier)
+  {
+    return new ObjectColumnSelector.Typed<T>(type)
+    {
+      @Override
+      public T get()
+      {
+        return supplier.get();
       }
     };
   }

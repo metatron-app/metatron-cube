@@ -165,8 +165,11 @@ public class DruidStatement implements Closeable
       return ColumnMetaData.array(
           toAvaticaType(type.getComponentType()), sqlTypeName.getName(), ColumnMetaData.Rep.ARRAY
       );
+    } else if (sqlTypeName == SqlTypeName.STRUCTURED) {
+      return ColumnMetaData.struct(createColumnMetaData(type));
+    } else {
+      return ColumnMetaData.scalar(sqlTypeName.getJdbcOrdinal(), sqlTypeName.getName(), rep(sqlTypeName));
     }
-    return ColumnMetaData.scalar(sqlTypeName.getJdbcOrdinal(), sqlTypeName.getName(), rep(sqlTypeName));
   }
 
   private static ColumnMetaData.Rep rep(final SqlTypeName sqlType)

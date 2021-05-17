@@ -35,6 +35,7 @@ import io.druid.sql.calcite.schema.SystemSchema;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
@@ -55,6 +56,7 @@ import org.joda.time.format.ISODateTimeFormat;
 
 import java.lang.reflect.Type;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.NavigableSet;
 
 import static io.druid.sql.calcite.Utils.TYPE_FACTORY;
@@ -141,20 +143,6 @@ public class Calcites
   public static ValueDesc getValueDescForRelDataType(RelDataType dataType)
   {
     final SqlTypeName sqlTypeName = dataType.getSqlTypeName();
-    final ValueDesc desc = getValueDescFromTypeName(sqlTypeName);
-    if (desc != null) {
-      return desc;
-    }
-    // hack
-    Type type = TYPE_FACTORY.getJavaClass(dataType);
-    if (type != null && type.getTypeName().startsWith("org.locationtech.jts.geom.")) {
-      return ValueDesc.GEOMETRY;
-    }
-    return ValueDesc.of(sqlTypeName.getName());
-  }
-
-  public static ValueDesc getValueDescFromTypeName(SqlTypeName sqlTypeName)
-  {
     if (SqlTypeName.BOOLEAN == sqlTypeName) {
       return ValueDesc.BOOLEAN;
     } else if (SqlTypeName.FLOAT == sqlTypeName) {
@@ -171,8 +159,30 @@ public class Calcites
       return ValueDesc.STRING;
     } else if (SqlTypeName.GEOMETRY == sqlTypeName) {
       return ValueDesc.GEOMETRY;    // it's not working (todo)
+    } else if (SqlTypeName.ARRAY == sqlTypeName) {
+      return ValueDesc.ofArray(getValueDescForRelDataType(dataType.getComponentType()));
+    } else if (SqlTypeName.MAP == sqlTypeName) {
+      return ValueDesc.ofMap(
+          getValueDescForRelDataType(dataType.getKeyType()),
+          getValueDescForRelDataType(dataType.getValueType())
+      );
+    } else if (dataType.isStruct()) {
+      List<RelDataTypeField> fields = dataType.getFieldList();
+      String[] names = new String[fields.size()];
+      ValueDesc[] types = new ValueDesc[fields.size()];
+      for (int i = 0; i < fields.size(); i++) {
+        RelDataTypeField field = fields.get(i);
+        names[i] = field.getName();
+        types[i] = getValueDescForRelDataType(field.getType());
+      }
+      return ValueDesc.ofStruct(names, types);
     }
-    return null;
+    // hack
+    Type type = TYPE_FACTORY.getJavaClass(dataType);
+    if (type != null && type.getTypeName().startsWith("org.locationtech.jts.geom.")) {
+      return ValueDesc.GEOMETRY;
+    }
+    return ValueDesc.of(sqlTypeName.getName());
   }
 
   public static String getStringComparatorForDataType(RelDataType dataType)

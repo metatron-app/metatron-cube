@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import io.druid.common.guava.DSuppliers;
+import io.druid.data.ValueDesc;
 
 import java.io.Closeable;
 
@@ -31,5 +32,18 @@ public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
 
   interface WithRawAccess<T> extends WithBaggage<T>, DSuppliers.WithRawAccess<T>
   {
+  }
+
+  abstract class Typed<T> implements ObjectColumnSelector<T>
+  {
+    private final ValueDesc type;
+
+    protected Typed(ValueDesc type) {this.type = type;}
+
+    @Override
+    public final ValueDesc type()
+    {
+      return type;
+    }
   }
 }
