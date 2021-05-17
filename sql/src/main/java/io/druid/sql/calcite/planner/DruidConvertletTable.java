@@ -69,7 +69,6 @@ public class DruidConvertletTable implements SqlRexConvertletTable
           .add(SqlStdOperatorTable.NOT_BETWEEN)
           .add(SqlStdOperatorTable.SYMMETRIC_BETWEEN)
           .add(SqlStdOperatorTable.SYMMETRIC_NOT_BETWEEN)
-          .add(SqlStdOperatorTable.ITEM)
           .add(SqlStdOperatorTable.TIMESTAMP_ADD)
           .add(SqlStdOperatorTable.UNION)
           .add(SqlStdOperatorTable.UNION_ALL)

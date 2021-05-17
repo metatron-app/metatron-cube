@@ -71,6 +71,7 @@ import io.druid.sql.calcite.expression.builtin.ConcatOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.ExtractOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.FloorOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.ItemOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LPadOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LeftOperatorConversion;
@@ -236,6 +237,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new RPadOperatorConversion())
           .add(new SizeOperatorConversion())
           .add(new StringFormatOperatorConversion())
+          .add(new ItemOperatorConversion())
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.
