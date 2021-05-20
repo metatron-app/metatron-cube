@@ -200,7 +200,7 @@ public class SearchQueryQueryToolChest
     if (query != null && BaseQuery.isBySegment(query)) {
       return factory.constructParametricType(Result.class, BySegmentSearchResultValue.class);
     }
-    return factory.constructType(SearchResultValue.class);
+    return factory.constructType(getResultTypeReference(query));
   }
 
   @Override
