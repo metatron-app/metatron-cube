@@ -56,6 +56,11 @@ public class Granularities
     }
   }
 
+  public static boolean isAll(Granularity granularity)
+  {
+    return ALL.equals(granularity);
+  }
+
   public static int getOnlyDurationIndex(Period period)
   {
     int index = -1;

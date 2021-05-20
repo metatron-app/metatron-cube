@@ -38,6 +38,7 @@ import java.util.function.BiFunction;
 
 /**
  */
+@Deprecated
 public final class MergeIndexSorting extends MergeIndex.GroupByMerge
 {
   private static final Logger LOG = new Logger(MergeIndexSorting.class);
@@ -62,6 +63,7 @@ public final class MergeIndexSorting extends MergeIndex.GroupByMerge
                    new TreeMap<Object[], Object[]>(comparator) :
                    new ConcurrentSkipListMap<Object[], Object[]>(comparator);
 
+    // warn : this can be called multiple times with ConcurrentSkipListMap, making invalid value
     this.populator = new BiFunction<Object[], Object[], Object[]>()
     {
       private final AtomicInteger counter = new AtomicInteger();    // not-exact. size() is very heavy in sorted map
@@ -92,7 +94,7 @@ public final class MergeIndexSorting extends MergeIndex.GroupByMerge
   }
 
   @Override
-  public Sequence<Row> toMergeStream(final boolean compact)
+  public Sequence<Row> toMergeStream(boolean parallel, boolean compact)
   {
     return Sequences.simple(
         groupBy.estimatedInitialColumns(),

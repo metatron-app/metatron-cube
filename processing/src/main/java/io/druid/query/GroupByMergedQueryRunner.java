@@ -131,8 +131,9 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
     };
     QueryRunners.waitForCompletion(query, future, queryWatcher, resource);
 
+    boolean parallel = config.useParallelSort(query);
     boolean compact = !BaseQuery.isLocalFinalizingQuery(query);
-    return Sequences.withBaggage(mergeIndex.toMergeStream(compact), new AsyncCloser(resource, executor));
+    return Sequences.withBaggage(mergeIndex.toMergeStream(parallel, compact), new AsyncCloser(resource, executor));
   }
 
   private static class AsyncCloser implements Closeable

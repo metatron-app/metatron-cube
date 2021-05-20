@@ -19,6 +19,7 @@
 
 package io.druid.query.groupby;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.Comparators;
@@ -49,6 +50,8 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
 {
   private static final Logger LOG = new Logger(MergeIndexParallel.class);
 
+  private final Function<Object[], MergeKey> factory;
+
   private final Map<MergeKey, Object[]> mapping;
   private final BiFunction<MergeKey, Object[], Object[]> populator;
 
@@ -59,6 +62,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
   )
   {
     super(groupBy);
+    this.factory = MergeKey.of(metricStart);
     this.mapping = parallelism == 1 ?
                    Maps.<MergeKey, Object[]>newHashMap() :
                    new ConcurrentHashMap<MergeKey, Object[]>(16 << parallelism);
@@ -89,11 +93,11 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
   @Override
   protected void _addRow(Object[] values)
   {
-    mapping.compute(MergeKey.of(values, metricStart), populator);
+    mapping.compute(factory.apply(values), populator);
   }
 
   @Override
-  public Sequence<Row> toMergeStream(final boolean compact)
+  public Sequence<Row> toMergeStream(boolean parallel, boolean compact)
   {
     final OrderedLimitSpec nodeLimit = groupBy.getLimitSpec().getNodeLimit();
     if (nodeLimit != null && nodeLimit.hasLimit() && nodeLimit.getLimit() < mapping.size()) {
@@ -110,12 +114,17 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     }
 
     // sort all
-    final Object[][] array = mapping.values().toArray(new Object[0][]);
-    final Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions(), true);
-    long start = System.currentTimeMillis();
-    Arrays.parallelSort(
-        array, Comparators.toArrayComparator(comparators, Granularities.ALL.equals(groupBy.getGranularity()) ? 1 : 0)
+    final Comparator<Object[]> cmp = Comparators.toArrayComparator(
+        DimensionSpecs.toComparator(groupBy.getDimensions(), true),
+        Granularities.isAll(groupBy.getGranularity()) ? 1 : 0
     );
+    final long start = System.currentTimeMillis();
+    final Object[][] array = mapping.values().toArray(new Object[0][]);
+    if (parallel) {
+      Arrays.parallelSort(array, cmp);
+    } else {
+      Arrays.sort(array, cmp);
+    }
     LOG.debug("Took %d msec for sorting %,d rows", (System.currentTimeMillis() - start), array.length);
 
     return Sequences.simple(
@@ -134,17 +143,21 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
 
   private static abstract class MergeKey implements Comparable<MergeKey>
   {
-    static MergeKey of(final Object[] values, final int compareUpTo)
+    private static Function<Object[], MergeKey> of(final int compareUpTo)
     {
       switch (compareUpTo) {
         case 1:
-          return new MergeKey1(values);
+          return v -> new MergeKey1(v);
         case 2:
-          return new MergeKey2(values);
+          return v -> new MergeKey2(v);
         case 3:
-          return new MergeKey3(values);
+          return v -> new MergeKey3(v);
         default:
-          return new MergeKeyN(values, compareUpTo);
+          return v -> new MergeKeyN(v)
+          {
+            @Override
+            protected int upTo() { return compareUpTo;}
+          };
       }
     }
 
@@ -153,19 +166,19 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     protected final Object[] values;
   }
 
-  private static final class MergeKeyN extends MergeKey
+  private static abstract class MergeKeyN extends MergeKey
   {
-    private final int upTo;
+    protected abstract int upTo();
 
-    private MergeKeyN(Object[] values, int upTo)
+    private MergeKeyN(Object[] values)
     {
       super(values);
-      this.upTo = upTo;
     }
 
     @Override
     public final boolean equals(Object o)
     {
+      final int upTo = upTo();
       final MergeKey other = (MergeKey) o;
       for (int i = 0; i < upTo; i++) {
         if (!Objects.equals(values[i], other.values[i])) {
@@ -178,6 +191,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     @Override
     public final int hashCode()
     {
+      final int upTo = upTo();
       int hash = 1;
       for (int i = 0; i < upTo; i++) {
         hash = 31 * hash + Objects.hashCode(values[i]);
@@ -188,13 +202,14 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     @Override
     public final String toString()
     {
-      return Arrays.toString(Arrays.copyOf(values, upTo));
+      return Arrays.toString(Arrays.copyOf(values, upTo()));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public final int compareTo(final MergeKey o)
     {
+      final int upTo = upTo();
       int compare = 0;
       for (int i = 0; compare == 0 && i < upTo; i++) {
         compare = comparator.compare(values[i], o.values[i]);

@@ -33,7 +33,7 @@ public interface MergeIndex<T> extends Closeable
 {
   void add(T row);
 
-  Sequence<T> toMergeStream(boolean compact);
+  Sequence<T> toMergeStream(boolean parallel, boolean compact);
 
   default void close() {}
 
@@ -43,7 +43,7 @@ public interface MergeIndex<T> extends Closeable
     public void add(Object row) {}
 
     @Override
-    public Sequence toMergeStream(boolean compact) { return Sequences.empty();}
+    public Sequence toMergeStream(boolean parallel, boolean compact) { return Sequences.empty();}
   };
 
   abstract class GroupByMerge implements MergeIndex<Row>

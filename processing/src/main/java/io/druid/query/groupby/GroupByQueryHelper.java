@@ -26,7 +26,6 @@ import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
 import io.druid.query.BaseQuery;
 import io.druid.query.QueryConfig;
-import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.segment.incremental.IncrementalIndex;
 
 import java.util.Queue;
@@ -43,13 +42,7 @@ public class GroupByQueryHelper
     if (BaseQuery.isBySegment(query)) {
       return new DummyMergeIndex(query);
     }
-    final int maxResults = config.getMaxResults(query);
-    final OrderedLimitSpec nodeLimit = query.getLimitSpec().getNodeLimit();
-    if (config.useParallelSort(query) ||
-        nodeLimit != null && nodeLimit.hasLimit() && nodeLimit.getLimit() < maxResults) {
-      return new MergeIndexParallel(query.withPostAggregatorSpecs(null), maxResults, parallelism);
-    }
-    return new MergeIndexSorting(query.withPostAggregatorSpecs(null), maxResults, parallelism);
+    return new MergeIndexParallel(query.withPostAggregatorSpecs(null), config.getMaxResults(query), parallelism);
   }
 
   @SuppressWarnings("unchecked")
@@ -70,7 +63,7 @@ public class GroupByQueryHelper
     }
 
     @Override
-    public Sequence toMergeStream(boolean compact)
+    public Sequence toMergeStream(boolean parallel, boolean compact)
     {
       return Sequences.simple(groupBy.estimatedInitialColumns(), queue);
     }

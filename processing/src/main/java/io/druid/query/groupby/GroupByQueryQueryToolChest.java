@@ -163,7 +163,8 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
             GroupByQueryHelper.createMergeIndex(groupBy, config, 1),
             GroupByQueryHelper.<Row>newMergeAccumulator(new Execs.Semaphore(1))
         );
-        sequence = Sequences.withBaggage(mergeIndex.toMergeStream(true), mergeIndex);
+        boolean parallel = config.useParallelSort(query);
+        sequence = Sequences.withBaggage(mergeIndex.toMergeStream(parallel, true), mergeIndex);
         return postAggregation(groupBy, Sequences.map(sequence, groupBy.compactToMap(sequence.columns())));
       }
 
