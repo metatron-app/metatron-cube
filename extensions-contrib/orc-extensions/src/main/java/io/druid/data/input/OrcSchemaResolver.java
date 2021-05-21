@@ -85,6 +85,19 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
   @Override
   public FileLoadSpec resolve(String dataSource, QuerySegmentWalker walker) throws IOException
   {
+    ClassLoader prev = Thread.currentThread().getContextClassLoader();
+    ClassLoader loader = OrcSchemaResolver.class.getClassLoader();
+    Thread.currentThread().setContextClassLoader(loader);
+    try {
+      return _resolve(dataSource, walker);
+    }
+    finally {
+      Thread.currentThread().setContextClassLoader(prev);
+    }
+  }
+
+  private FileLoadSpec _resolve(String dataSource, QuerySegmentWalker walker) throws IOException
+  {
     Path base = basePath == null ? null : new Path(basePath);
     List<String> resolved = PathUtil.resolve(base, paths, recursive);
     if (resolved.size() == 0) {
