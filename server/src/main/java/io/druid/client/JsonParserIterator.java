@@ -29,6 +29,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.query.QueryInterruptedException;
+import io.netty.channel.ChannelException;
 
 import java.io.InputStream;
 import java.net.URL;
@@ -120,7 +121,8 @@ public class JsonParserIterator<T> implements Iterator<T>
           ex instanceof InterruptedException ||
           ex instanceof QueryInterruptedException ||
           ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
-          ex instanceof CancellationException) {
+          ex instanceof CancellationException ||
+          ex instanceof ChannelException) {
         // todo should retry to other replica if exists?
         throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
       }
