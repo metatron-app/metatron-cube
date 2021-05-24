@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import io.druid.java.util.common.logger.Logger;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelException;
 import org.jboss.netty.channel.ChannelFuture;
@@ -33,6 +34,8 @@ import java.io.IOException;
 
 public class ChannelResources
 {
+  private static final Logger LOG = new Logger(ChannelResource.class);
+
   public static <T> ChannelResource<T> immediateFailed(ChannelFuture channelFuture)
   {
     Preconditions.checkArgument(!channelFuture.isSuccess());
@@ -70,6 +73,7 @@ public class ChannelResources
       @Override
       public void close() throws IOException
       {
+        LOG.debug(new Exception(), "Closing.. %s", channel);
         retVal.cancel(true);
         channel.close();
       }

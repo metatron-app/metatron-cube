@@ -219,11 +219,12 @@ public class ResourcePool<K, V> implements Closeable
 
       synchronized (this) {
         if (closed) {
-          log.info(String.format("giveBack called after being closed. key[%s]", key));
+          log.debug(String.format("giveBack called after being closed. key[%s]", key));
           factory.close(object);
           return;
         }
         if (!factory.isValid(object)) {
+          log.debug("Destroying invalid object[%s] at key[%s]", object, key);
           deficit++;
           factory.close(object);
           return;
@@ -232,22 +233,18 @@ public class ResourcePool<K, V> implements Closeable
         if (resourceHolderList.size() >= maxSize) {
           if (holderListContains(object)) {
             log.warn(
-                String.format(
-                    "Returning object[%s] at key[%s] that has already been returned!? Skipping",
-                    object,
-                    key
-                ),
-                new Exception("Exception for stacktrace")
+                new Exception("Exception for stacktrace"),
+                "Returning object[%s] at key[%s] that has already been returned!? Skipping",
+                object,
+                key
             );
           } else {
             log.warn(
-                String.format(
-                    "Returning object[%s] at key[%s] even though we already have all that we can hold[%s]!? Skipping",
-                    object,
-                    key,
-                    resourceHolderList
-                ),
-                new Exception("Exception for stacktrace")
+                new Exception("Exception for stacktrace"),
+                "Returning object[%s] at key[%s] even though we already have all that we can hold[%s]!? Skipping",
+                object,
+                key,
+                resourceHolderList
             );
           }
           return;

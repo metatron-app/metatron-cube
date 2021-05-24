@@ -42,7 +42,7 @@ import java.util.concurrent.TimeoutException;
  */
 public class JsonParserIterator<T> implements Iterator<T>
 {
-  private final URL url;
+  private final String host;
   private final String type;
   private final Callable<InputStream> callable;
   private final ObjectMapper mapper;
@@ -51,13 +51,18 @@ public class JsonParserIterator<T> implements Iterator<T>
   private JsonParser jp;
   private ObjectCodec objectCodec;
 
-  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef, URL url, String type, Callable<InputStream> callable)
+  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef, String host, String type, Callable<InputStream> callable)
   {
-    this.url = url;
+    this.host = host;
     this.type = type;
     this.callable = callable;
     this.mapper = mapper;
     this.typeRef = typeRef;
+  }
+
+  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef, URL url, String type, Callable<InputStream> callable)
+  {
+    this(mapper, typeRef, url.getHost() + ":" + url.getPort(), type, callable);
   }
 
   @Override
@@ -124,10 +129,10 @@ public class JsonParserIterator<T> implements Iterator<T>
           ex instanceof CancellationException ||
           ex instanceof ChannelException) {
         // todo should retry to other replica if exists?
-        throw QueryInterruptedException.wrapIfNeeded(ex, url.getHost() + ":" + url.getPort(), type);
+        throw QueryInterruptedException.wrapIfNeeded(ex, host, type);
       }
     }
-    throw new RE(t, "Failure getting results from[%s] because of [%s]", url, t.getMessage());
+    throw new RE(t, "Failure getting results from[%s(%s)] because of [%s]", host, type, t.getMessage());
   }
 
   public boolean close()

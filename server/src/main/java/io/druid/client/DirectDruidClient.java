@@ -53,11 +53,14 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import javax.ws.rs.core.MediaType;
 import java.io.Closeable;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -140,7 +143,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     final StreamHandler handler = handlerFactory.create(query, content.length, watch, queryMetrics, context);
 
     final long start = System.currentTimeMillis();
-    final ChannelResource<InputStream> future = httpClient.go(
+    final ChannelResource<InputStream> channel = httpClient.go(
         new Request(HttpMethod.POST, hostURL, true)
             .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType)
             .setContent(content),
@@ -153,19 +156,29 @@ public class DirectDruidClient<T> implements QueryRunner<T>
 
     openConnections.getAndIncrement();
 
-    final JsonParserIterator<T> iterator = new JsonParserIterator<T>(mapper, typeRef, hostURL, type, () -> watch.wainOn(future));
-    final Closeable resource = () -> {
-      openConnections.getAndDecrement();
-      queryWatcher.unregister(query, handler);
-      if (!iterator.close()) {
-        if (watch.isExpired()) {
-          cancelRemote(query);
+    final Callable<InputStream> waiter = () -> watch.wainOn(channel);
+    final JsonParserIterator<T> iterator = new JsonParserIterator<T>(mapper, typeRef, host, type, waiter);
+    final Closeable resource = new Closeable()
+    {
+      private final AtomicBoolean closed = new AtomicBoolean();
+
+      @Override
+      public void close() throws IOException
+      {
+        if (closed.compareAndSet(false, true)) {
+          openConnections.getAndDecrement();
+          queryWatcher.unregister(query, handler);
+          if (!iterator.close()) {
+            if (watch.isExpired()) {
+              DirectDruidClient.this.cancelRemote(query);
+            }
+            IOUtils.closeQuietly(channel);
+          }
+          IOUtils.closeQuietly(handler);
         }
       }
-      IOUtils.closeQuietly(future);
-      IOUtils.closeQuietly(handler);
     };
-    queryWatcher.register(query, Execs.tag(future, host), resource);
+    queryWatcher.register(query, Execs.tag(channel, host), resource);
 
     Sequence<T> sequence = Sequences.once(query.estimatedOutputColumns(), GuavaUtils.withResource(iterator, resource));
     // bySegment queries are de-serialized after caching results in order to
