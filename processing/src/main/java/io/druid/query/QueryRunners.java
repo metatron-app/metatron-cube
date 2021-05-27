@@ -247,12 +247,8 @@ public class QueryRunners
             queue.add(QueryRunnerHelper.asCallable(runner, query, responseContext));
           }
           final List<ListenableFuture<Sequence<T>>> futures = queue.execute(executor, priority);
-          final Closeable resource = () -> {
-            queue.close();
-            Execs.cancelQuietly(Futures.allAsList(futures));
-          };
-          final StopWatch watch = watcher.register(query, Futures.allAsList(futures), resource);
-          return Sequences.concat(columns, Iterables.transform(futures, future -> QueryRunners.waitOn(future, watch)));
+          final StopWatch watch = watcher.register(query, Futures.allAsList(futures), () -> semaphore.destroy());
+          return Sequences.concat(columns, Iterables.transform(futures, f -> QueryRunners.waitOn(f, watch)));
         }
       };
     }
@@ -268,10 +264,7 @@ public class QueryRunners
         final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
             Execs.execute(executor, works, semaphore, watch, priority)
         );
-        final Closeable resource = () -> {
-          semaphore.destroy();
-          Execs.cancelQuietly(future);
-        };
+        final Closeable resource = () -> semaphore.destroy();
         final List<Sequence<T>> sequences = waitForCompletion(query, future, watcher, resource);
         return sequences == null ? Sequences.withBaggage(Sequences.empty(columns), resource) :
                Sequences.withBaggage(QueryUtils.mergeSort(columns, ordering, sequences), resource);
