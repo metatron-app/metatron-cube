@@ -28,9 +28,11 @@ import io.druid.segment.indexing.TuningConfig;
  */
 public class BaseTuningConfig implements TuningConfig
 {
-  private static final int DEFAULT_MAX_ROWS_IN_MEMORY = 75000;
-  private static final long DEFAULT_MAX_OCCUPATION_IN_MEMORY = -1;
-  private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
+  public static final int DEFAULT_MAX_ROWS_IN_MEMORY = 75000;
+  public static final long DEFAULT_MAX_OCCUPATION_IN_MEMORY = -1;
+  public static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.TRUE;
+
+  public static final BaseTuningConfig DEFAULT = new BaseTuningConfig(null, null, null, null, null, false);
 
   private final IndexSpec indexSpec;
   private final int maxRowsInMemory;

@@ -26,10 +26,14 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -55,12 +59,25 @@ public class RowSignature implements io.druid.data.RowSignature
 
   public static RowSignature fromTypeString(String typeString)
   {
+    return fromTypeString(typeString, null);
+  }
+
+  public static RowSignature fromTypeString(String typeString, ValueDesc defaultType)
+  {
     List<String> columnNames = Lists.newArrayList();
     List<ValueDesc> columnTypes = Lists.newArrayList();
     for (String column : StringUtils.split(typeString, ',')) {
       final int index = column.indexOf(':');
-      columnNames.add(column.substring(0, index));
-      columnTypes.add(ValueDesc.fromTypeString(column.substring(0, index)));
+      if (index < 0) {
+        if (defaultType == null) {
+          throw new IAE("missing type for %s in typeString %s", column, typeString);
+        }
+        columnNames.add(column.trim());
+        columnTypes.add(ValueDesc.STRING);
+      } else {
+        columnNames.add(column.substring(0, index).trim());
+        columnTypes.add(ValueDesc.fromTypeString(column.substring(index + 1).trim()));
+      }
     }
     return RowSignature.of(columnNames, columnTypes);
   }
@@ -161,6 +178,36 @@ public class RowSignature implements io.druid.data.RowSignature
       s.append(columnName).append(":").append(columnType);
     }
     return s.append("}").toString();
+  }
+
+  public List<String> extractDimensionCandidates()
+  {
+    List<String> candidates = Lists.newArrayList();
+    for (int i = 0; i < columnTypes.size(); i++) {
+      if (columnTypes.get(i).isDimension()) {
+        candidates.add(columnNames.get(i));
+      }
+    }
+    if (!candidates.isEmpty()) {
+      return candidates;
+    }
+    for (int i = 0; i < columnTypes.size(); i++) {
+      if (columnTypes.get(i).isString()) {
+        candidates.add(columnNames.get(i));
+      }
+    }
+    return candidates;
+  }
+
+  public List<AggregatorFactory> extractMetricCandidates(Set<String> excludes)
+  {
+    List<AggregatorFactory> candidates = Lists.newArrayList();
+    for (int i = 0; i < columnNames.size(); i++) {
+      if (!excludes.contains(columnNames.get(i))) {
+        candidates.add(RelayAggregatorFactory.of(columnNames.get(i), columnTypes.get(i)));
+      }
+    }
+    return candidates;
   }
 
   // for streaming sub query.. we don't have index

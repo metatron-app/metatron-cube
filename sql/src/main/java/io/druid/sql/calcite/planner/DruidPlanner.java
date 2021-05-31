@@ -53,6 +53,7 @@ import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.server.FileLoadSpec;
+import io.druid.server.TypeStringResolver;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.ddl.SqlCreateTable;
 import io.druid.sql.calcite.ddl.SqlDescPath;
@@ -386,17 +387,15 @@ public class DruidPlanner implements Closeable, ForwardConstants
     ObjectMapper mapper = plannerContext.getObjectMapper().copy();
     mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
     FileLoadSpec.Resolver resolver = mapper.convertValue(properties, FileLoadSpec.Resolver.class);
-    if (resolver == null) {
-      throw new IAE("Not supports '%s'", properties);
+    if (resolver instanceof TypeStringResolver && properties.containsKey("format")) {
+      // fucking jackson prohibits accessing type property
+      ((TypeStringResolver) resolver).property("type", properties.get("format"));
     }
-    IndexSpec indexSpec = mapper.convertValue(properties, IndexSpec.class);
-    BaseTuningConfig config = mapper.convertValue(properties, BaseTuningConfig.class);
     try {
       return resolver.resolve(dataSource, segmentWalker)
                      .augment(
                          source.isTemporary(),
                          source.isOverwrite(),
-                         config.withIndexSpec(indexSpec),
                          properties
                      );
     }

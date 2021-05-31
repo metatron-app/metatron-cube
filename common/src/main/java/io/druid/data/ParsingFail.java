@@ -71,6 +71,6 @@ public class ParsingFail extends ParseException
     if (t instanceof ParseException) {
       throw (ParseException) t;
     }
-    throw new ParsingFail(input, message, t, params);
+    throw new ParsingFail(input, t, message, params);
   }
 }

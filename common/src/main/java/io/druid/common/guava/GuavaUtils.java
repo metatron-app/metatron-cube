@@ -576,6 +576,11 @@ public class GuavaUtils
     }
   }
 
+  public static <F, T> List<T> transform(F[] fromArray, Function<? super F, ? extends T> function)
+  {
+    return transform(Arrays.asList(fromArray), function);
+  }
+
   public static <F, T> List<T> transform(Iterable<F> fromList, Function<? super F, ? extends T> function)
   {
     return Lists.newArrayList(Iterables.transform(fromList, function));
