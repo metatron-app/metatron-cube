@@ -24,10 +24,10 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import org.joda.time.DateTime;
-import org.joda.time.chrono.ISOChronology;
 
 import javax.annotation.Nullable;
 import java.sql.Timestamp;
@@ -52,13 +52,13 @@ public enum ValueType
     }
 
     @Override
-    public Comparable cast(Object value)
+    public Boolean cast(Object value)
     {
       return Rows.parseBoolean(value);
     }
 
     @Override
-    public Comparable castIfPossible(Object value)
+    public Object castIfPossible(Object value)
     {
       return Rows.parseBooleanIfPossible(value);
     }
@@ -89,13 +89,13 @@ public enum ValueType
     }
 
     @Override
-    public Comparable cast(Object value)
+    public Float cast(Object value)
     {
       return Rows.parseFloat(value);
     }
 
     @Override
-    public Comparable castIfPossible(Object value)
+    public Object castIfPossible(Object value)
     {
       return Rows.parseFloatIfPossible(value);
     }
@@ -126,13 +126,13 @@ public enum ValueType
     }
 
     @Override
-    public Comparable cast(Object value)
+    public Long cast(Object value)
     {
       return Rows.parseLong(value);
     }
 
     @Override
-    public Comparable castIfPossible(Object value)
+    public Object castIfPossible(Object value)
     {
       return Rows.parseLongIfPossible(value);
     }
@@ -163,13 +163,13 @@ public enum ValueType
     }
 
     @Override
-    public Comparable cast(Object value)
+    public Double cast(Object value)
     {
       return Rows.parseDouble(value);
     }
 
     @Override
-    public Comparable castIfPossible(Object value)
+    public Object castIfPossible(Object value)
     {
       return Rows.parseDoubleIfPossible(value);
     }
@@ -236,7 +236,7 @@ public enum ValueType
       if (value instanceof DateTime) {
         return value;
       } else if (value instanceof Number) {
-        return new DateTime(((Number) value).longValue(), ISOChronology.getInstanceUTC());
+        return DateTimes.utc(((Number) value).longValue());
       }
       return super.cast(value);
     }
@@ -290,7 +290,7 @@ public enum ValueType
       return cast(value);
     }
     catch (Exception e) {
-      return value instanceof Comparable ? (Comparable) value : null;
+      return value;
     }
   }
 

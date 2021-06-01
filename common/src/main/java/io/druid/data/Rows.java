@@ -22,7 +22,6 @@ package io.druid.data;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.parsers.ParseException;
 import org.joda.time.DateTime;
 
@@ -32,9 +31,12 @@ import java.util.Date;
  */
 public class Rows
 {
+  private static final String NULL = "null";
+  private static final String NAN = "nan";
+
   public static Boolean parseBoolean(Object value)
   {
-    final Comparable parsed = parseBooleanIfPossible(value);
+    final Object parsed = parseBooleanIfPossible(value);
     if (parsed == null || parsed instanceof Boolean) {
       return (Boolean) parsed;
     }
@@ -43,33 +45,34 @@ public class Rows
 
   public static Boolean parseBoolean(Object value, Boolean defaultValue)
   {
-    final Comparable parsed = parseBooleanIfPossible(value);
+    final Object parsed = parseBooleanIfPossible(value);
     if (parsed == null || parsed instanceof Boolean) {
       return (Boolean) parsed;
     }
     return defaultValue;
   }
 
-  public static Comparable parseBooleanIfPossible(Object value)
+  public static Object parseBooleanIfPossible(Object value)
   {
-    if (StringUtils.isNullOrEmpty(value)) {
-      return null;
-    } else if (value instanceof Boolean) {
-      return (Boolean) value;
+    if (value == null || value instanceof Boolean) {
+      return value;
     } else if (value instanceof Number) {
       return ((Number) value).doubleValue() != 0;
-    } else if (value instanceof DateTime) {
-      return (float) ((DateTime) value).getMillis() != 0;
     } else if (value instanceof String) {
-      return Boolean.valueOf((String) value);
+      final String s = (String) value;
+      return NULL.equalsIgnoreCase(s) ? null : Boolean.valueOf(s);
+    } else if (value instanceof DateTime) {
+      return ((DateTime) value).getMillis() != 0;
+    } else if (value instanceof Date) {
+      return ((Date) value).getTime() != 0;
     } else {
-      return value instanceof Comparable ? (Comparable) value : null;
+      return value;
     }
   }
 
   public static Float parseFloat(Object value)
   {
-    final Comparable parsed = parseFloatIfPossible(value);
+    final Object parsed = parseFloatIfPossible(value);
     if (parsed == null || parsed instanceof Float) {
       return (Float) parsed;
     }
@@ -78,35 +81,34 @@ public class Rows
 
   public static Float parseFloat(Object value, Float defaultValue)
   {
-    final Comparable parsed = parseFloatIfPossible(value);
+    final Object parsed = parseFloatIfPossible(value);
     if (parsed == null || parsed instanceof Float) {
       return (Float) parsed;
     }
     return defaultValue;
   }
 
-  public static Comparable parseFloatIfPossible(Object value)
+  public static Object parseFloatIfPossible(Object value)
   {
-    if (StringUtils.isNullOrEmpty(value)) {
-      return null;
+    if (value == null || value instanceof Float) {
+      return value;
     } else if (value instanceof Number) {
       return ((Number) value).floatValue();
+    } else if (value instanceof String) {
+      final String s = (String) value;
+      return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : NAN.equalsIgnoreCase(s) ? Float.NaN : tryParseFloat(s);
     } else if (value instanceof DateTime) {
       return (float) ((DateTime) value).getMillis();
-    } else if (value instanceof String) {
-      try {
-        return tryParseFloat((String) value);
-      }
-      catch (Exception e) {
-        // ignore
-      }
+    } else if (value instanceof Date) {
+      return (float) ((Date) value).getTime();
+    } else {
+      return value;
     }
-    return value instanceof Comparable ? (Comparable) value : null;
   }
 
   public static Double parseDouble(Object value)
   {
-    final Comparable parsed = parseDoubleIfPossible(value);
+    final Object parsed = parseDoubleIfPossible(value);
     if (parsed == null || parsed instanceof Double) {
       return (Double) parsed;
     }
@@ -115,30 +117,29 @@ public class Rows
 
   public static Double parseDouble(Object value, Double defaultValue)
   {
-    final Comparable parsed = parseDoubleIfPossible(value);
+    final Object parsed = parseDoubleIfPossible(value);
     if (parsed == null || parsed instanceof Double) {
       return (Double) parsed;
     }
     return defaultValue;
   }
 
-  public static Comparable parseDoubleIfPossible(Object value)
+  public static Object parseDoubleIfPossible(Object value)
   {
-    if (StringUtils.isNullOrEmpty(value)) {
-      return null;
+    if (value == null || value instanceof Double) {
+      return value;
     } else if (value instanceof Number) {
       return ((Number) value).doubleValue();
+    } else if (value instanceof String) {
+      final String s = (String) value;
+      return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : NAN.equalsIgnoreCase(s) ? Double.NaN : tryParseDouble(s);
     } else if (value instanceof DateTime) {
       return (double) ((DateTime) value).getMillis();
-    } else if (value instanceof String) {
-      try {
-        return tryParseDouble((String) value);
-      }
-      catch (Exception e) {
-        // ignore
-      }
+    } else if (value instanceof Date) {
+      return (double) ((Date) value).getTime();
+    } else {
+      return value;
     }
-    return value instanceof Comparable ? (Comparable) value : null;
   }
 
   public static Double round(Double value, int round)
@@ -157,7 +158,7 @@ public class Rows
 
   public static Long parseLong(Object value)
   {
-    final Comparable parsed = parseLongIfPossible(value);
+    final Object parsed = parseLongIfPossible(value);
     if (parsed == null || parsed instanceof Long) {
       return (Long) parsed;
     }
@@ -166,8 +167,8 @@ public class Rows
 
   public static Integer parseInt(Object value, Integer defaultValue)
   {
-    final Comparable parsed = parseLongIfPossible(value);
-    if (parsed instanceof Long) {
+    final Object parsed = parseLongIfPossible(value);
+    if (parsed == null || parsed instanceof Long) {
       return ((Long) parsed).intValue();
     }
     return defaultValue;
@@ -175,32 +176,29 @@ public class Rows
 
   public static Long parseLong(Object value, Long defaultValue)
   {
-    final Comparable parsed = parseLongIfPossible(value);
-    if (parsed instanceof Long) {
+    final Object parsed = parseLongIfPossible(value);
+    if (parsed == null || parsed instanceof Long) {
       return (Long) parsed;
     }
     return defaultValue;
   }
 
-  public static Comparable parseLongIfPossible(Object value)
+  public static Object parseLongIfPossible(Object value)
   {
-    if (StringUtils.isNullOrEmpty(value)) {
-      return null;
+    if (value == null || value instanceof Long) {
+      return value;
     } else if (value instanceof Number) {
       return ((Number) value).longValue();
+    } else if (value instanceof String) {
+      final String s = (String) value;
+      return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : tryParseLong(s);
     } else if (value instanceof DateTime) {
       return ((DateTime) value).getMillis();
     } else if (value instanceof Date) {
       return ((Date) value).getTime();
-    } else if (value instanceof String) {
-      try {
-        return tryParseLong((String) value);
-      }
-      catch (Exception ex) {
-        // ignore
-      }
+    } else {
+      return value;
     }
-    return value instanceof Comparable ? (Comparable) value : null;
   }
 
   // long -> double -> long can make different value

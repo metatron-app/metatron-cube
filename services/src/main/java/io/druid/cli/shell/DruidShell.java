@@ -534,7 +534,8 @@ public class DruidShell extends CommonShell.WithUtils
               }
             } else if (command.startsWith("run")) {
               StringBuilder temp = new StringBuilder();
-              try (BufferedReader fileReader = new BufferedReader(new FileReader(command.substring(3).trim()))) {
+              String path = new File(command.substring(3).trim()).getAbsolutePath();
+              try (BufferedReader fileReader = new BufferedReader(new FileReader(path))) {
                 String fileLine;
                 while ((fileLine = fileReader.readLine()) != null) {
                   if (temp.length() > 0) {
