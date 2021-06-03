@@ -20,18 +20,41 @@
 package io.druid.segment.data;
 
 import io.druid.segment.column.IntScanner;
+import it.unimi.dsi.fastutil.ints.IntIterable;
 import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
+import java.io.IOException;
 
 /**
  * Get a int an index (array or list lookup abstraction without boxing).
  */
-public interface IndexedInts extends Closeable
+public interface IndexedInts extends IntIterable, Closeable
 {
   int size();
 
   int get(int index);
+
+  default it.unimi.dsi.fastutil.ints.IntIterator iterator()
+  {
+    return new it.unimi.dsi.fastutil.ints.IntIterator()
+    {
+      private final int limit = size();
+      private int index;
+
+      @Override
+      public int nextInt()
+      {
+        return get(index++);
+      }
+
+      @Override
+      public boolean hasNext()
+      {
+        return index < limit;
+      }
+    };
+  }
 
   default void scan(final IntIterator iterator, final IntScanner scanner)
   {
@@ -47,15 +70,12 @@ public interface IndexedInts extends Closeable
     }
   }
 
-  abstract class Abstract implements IndexedInts
-  {
-    public void close() {}
-  }
+  default void close() throws IOException {}
 
-  abstract class SingleValued extends Abstract
+  abstract class SingleValued implements IndexedInts
   {
     @Override
-    public int size()
+    public final int size()
     {
       return 1;
     }
@@ -68,4 +88,7 @@ public interface IndexedInts extends Closeable
       return get();
     }
   }
+
+  // marker.. use iterator instead of size + get
+  interface PreferIterator extends IndexedInts {}
 }

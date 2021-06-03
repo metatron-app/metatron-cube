@@ -118,7 +118,7 @@ public class CardinalityAggregatorTest
     public IndexedInts getRow()
     {
       final int p = this.pos;
-      return new IndexedInts.Abstract()
+      return new IndexedInts()
       {
         @Override
         public int size()

@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class IntBufferIndexedInts extends IndexedInts.Abstract implements Comparable<IntBufferIndexedInts>
+public class IntBufferIndexedInts implements IndexedInts, Comparable<IntBufferIndexedInts>
 {
   public static ObjectStrategy<IntBufferIndexedInts> objectStrategy =
       new IntBufferIndexedIntsObjectStrategy();

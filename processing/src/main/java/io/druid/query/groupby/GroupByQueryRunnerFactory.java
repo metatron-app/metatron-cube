@@ -119,6 +119,8 @@ public class GroupByQueryRunnerFactory
         types.add(type.subElement().type());
       } else if (type.isPrimitive()) {
         types.add(type.type());
+      } else if (type.isBitSet()) {
+        types.add(ValueType.STRING);
       } else {
         throw new ISE("cannot group-by on non-primitive type %s [%s]", type, dimensionSpec);
       }

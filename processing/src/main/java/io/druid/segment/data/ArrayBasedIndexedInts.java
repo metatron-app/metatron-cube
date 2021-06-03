@@ -21,7 +21,7 @@ package io.druid.segment.data;
 
 /**
 */
-public class ArrayBasedIndexedInts extends IndexedInts.Abstract
+public class ArrayBasedIndexedInts implements IndexedInts
 {
   private final int[] expansion;
 

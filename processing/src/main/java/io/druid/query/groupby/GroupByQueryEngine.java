@@ -69,6 +69,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
@@ -429,15 +430,31 @@ public class GroupByQueryEngine
             return updateRecursive(key, index + 1, dims);
           }
           List<int[]> retVal = null;
-          for (int i = 0; i < size; i++) {
-            final int[] newKey = Arrays.copyOf(key, key.length);
-            newKey[BUFFER_POS + index] = row.get(i);
-            List<int[]> unaggregatedBuffers = updateRecursive(newKey, index + 1, dims);
-            if (unaggregatedBuffers != null) {
-              if (retVal == null) {
-                retVal = unaggregatedBuffers;
-              } else {
-                retVal.addAll(unaggregatedBuffers);
+          if (row instanceof IndexedInts.PreferIterator) {
+            final IntIterator iterator = row.iterator();
+            while (iterator.hasNext()) {
+              final int[] newKey = Arrays.copyOf(key, key.length);
+              newKey[BUFFER_POS + index] = iterator.nextInt();
+              List<int[]> unaggregatedBuffers = updateRecursive(newKey, index + 1, dims);
+              if (unaggregatedBuffers != null) {
+                if (retVal == null) {
+                  retVal = unaggregatedBuffers;
+                } else {
+                  retVal.addAll(unaggregatedBuffers);
+                }
+              }
+            }
+          } else {
+            for (int i = 0; i < size; i++) {
+              final int[] newKey = Arrays.copyOf(key, key.length);
+              newKey[BUFFER_POS + index] = row.get(i);
+              List<int[]> unaggregatedBuffers = updateRecursive(newKey, index + 1, dims);
+              if (unaggregatedBuffers != null) {
+                if (retVal == null) {
+                  retVal = unaggregatedBuffers;
+                } else {
+                  retVal.addAll(unaggregatedBuffers);
+                }
               }
             }
           }

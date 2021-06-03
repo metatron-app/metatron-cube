@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  */
-public class VSizedInt extends IndexedInts.Abstract implements Comparable<VSizedInt>
+public class VSizedInt implements IndexedInts, Comparable<VSizedInt>
 {
   public static final byte VERSION = 0x0;
 

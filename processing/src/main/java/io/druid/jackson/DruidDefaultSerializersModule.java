@@ -46,6 +46,7 @@ import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.BitSet;
 import java.util.List;
 import java.util.TimeZone;
 
@@ -236,6 +237,19 @@ public class DruidDefaultSerializersModule extends SimpleModule
               }
             }
             generator.writeEndArray();
+          }
+        }
+    );
+
+    addSerializer(
+        BitSet.class,
+        new JsonSerializer<BitSet>()
+        {
+          @Override
+          public void serialize(BitSet bitSet, JsonGenerator generator, SerializerProvider provider)
+              throws IOException
+          {
+            generator.writeBinary(bitSet.toByteArray());
           }
         }
     );

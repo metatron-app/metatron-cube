@@ -31,7 +31,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
-
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.Schema;
@@ -336,6 +335,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return VirtualColumns.toDimensionSelector(selector);
                 }
 
+                final ValueDesc type = resolver.resolve(dimension, ValueDesc.UNKNOWN);
+                if (VirtualColumns.needImplicitVC(type)) {
+                  VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
+                  if (virtualColumn != null) {
+                    return virtualColumn.asDimension(dimension, extractionFn, this);
+                  }
+                }
+
                 final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
                 if (dimensionDesc == null) {
                   VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
@@ -383,7 +390,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     }
 
                     final int[] vals = values.length == length ? values : Arrays.copyOf(values, length);
-                    return new IndexedInts.Abstract()
+                    return new IndexedInts()
                     {
                       @Override
                       public int size()

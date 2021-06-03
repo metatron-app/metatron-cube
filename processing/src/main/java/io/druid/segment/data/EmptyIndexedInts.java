@@ -21,7 +21,7 @@ package io.druid.segment.data;
 
 /**
  */
-public class EmptyIndexedInts extends IndexedInts.Abstract
+public class EmptyIndexedInts implements IndexedInts
 {
   public static final EmptyIndexedInts EMPTY_INDEXED_INTS = new EmptyIndexedInts();
 

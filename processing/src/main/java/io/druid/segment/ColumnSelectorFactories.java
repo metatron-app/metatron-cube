@@ -627,7 +627,7 @@ public class ColumnSelectorFactories
           }
           final int length = dimensionValues.size();
 
-          return new IndexedInts.Abstract()
+          return new IndexedInts()
           {
             @Override
             public int size()

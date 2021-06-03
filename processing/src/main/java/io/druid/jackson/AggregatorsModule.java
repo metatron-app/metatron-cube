@@ -75,6 +75,7 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.sketch.TypedSketch;
 import io.druid.query.sketch.TypedSketchMetricSerDes;
+import io.druid.segment.serde.BitSetMetricSerDe;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StringMetricSerde;
@@ -132,6 +133,9 @@ public class AggregatorsModule extends SimpleModule
     }
     if (ComplexMetrics.getSerdeForType(TypedSketch.SAMPLING) == null) {
       ComplexMetrics.registerSerde(TypedSketch.SAMPLING, new TypedSketchMetricSerDes.Sampling(), false);
+    }
+    if (ComplexMetrics.getSerdeForType(BitSetMetricSerDe.BITSET) == null) {
+      ComplexMetrics.registerSerde(BitSetMetricSerDe.BITSET, new BitSetMetricSerDe(), false);
     }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);

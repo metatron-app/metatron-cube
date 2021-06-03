@@ -108,12 +108,19 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
       ValueDesc valueType = schema.resolve(metric, ValueDesc.UNKNOWN);
       if (valueType.isArray()) {
-        mapping.put(metric, ArrayVirtualColumn.implicit(metric));  // implicit array vc
+        mapping.put(metric, ArrayVirtualColumn.implicit(metric));   // implicit array vc
       } else if (valueType.isStruct()) {
         mapping.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
+      } else if (valueType.isBitSet()) {
+        mapping.put(metric, BitSetVirtualColumn.implicit(metric));  // implicit bitSet vc
       }
     }
     return new VirtualColumns(mapping);
+  }
+
+  public static boolean needImplicitVC(ValueDesc valueType)
+  {
+    return valueType.isArray() || valueType.isStruct() || valueType.isBitSet();
   }
 
   public static List<VirtualColumn> override(List<VirtualColumn> original, List<VirtualColumn> overriding)
@@ -130,7 +137,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
   public static DimensionSelector toDimensionSelector(final LongColumnSelector selector)
   {
-    return new MimicDimension(ValueDesc.LONG, () -> selector.get());
+    return mimicDimensionSelector(ValueDesc.LONG, () -> selector.get());
   }
 
   public static DimensionSelector toDimensionSelector(
@@ -153,6 +160,11 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     } else {
       return new MimicDimension(type, () -> (Comparable) selector.get());
     }
+  }
+
+  public static DimensionSelector mimicDimensionSelector(ValueDesc type, Supplier<? extends Comparable> supplier)
+  {
+    return new MimicDimension(type, supplier);
   }
 
   private static class MimicDimension implements DimensionSelector.SingleValued

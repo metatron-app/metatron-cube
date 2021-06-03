@@ -176,7 +176,7 @@ public class CompressedVSizedIndexedIntSupplier implements WritableSupplier<Inde
       final int offset = offsets.get(index);
       final int size = offsets.get(index + 1) - offset;
 
-      return new IndexedInts.Abstract()
+      return new IndexedInts()
       {
         @Override
         public int size()

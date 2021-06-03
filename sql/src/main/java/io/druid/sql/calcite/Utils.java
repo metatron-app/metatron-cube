@@ -359,6 +359,10 @@ public class Utils
           final RelDataType subType = columnType.hasSubElement() ? asRelDataType(factory, columnType.subElement())
                                                                  : factory.createSqlType(SqlTypeName.ANY);
           return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
+        } else if (columnType.isBitSet()) {
+          return factory.createTypeWithNullability(
+              factory.createArrayType(Calcites.createSqlType(factory, SqlTypeName.BOOLEAN), -1), true
+          );
         } else if (ValueDesc.isGeometry(columnType)) {
           return Calcites.createSqlTypeWithNullability(factory, columnType.asClass());
         }

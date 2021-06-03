@@ -433,6 +433,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         return VirtualColumns.toDimensionSelector(selector);
                       }
 
+                      final ValueDesc type = resolver.resolve(dimension, ValueDesc.UNKNOWN);
+                      if (VirtualColumns.needImplicitVC(type)) {
+                        VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
+                        if (virtualColumn != null) {
+                          return virtualColumn.asDimension(dimension, extractionFn, this);
+                        }
+                      }
+
                       final Column columnDesc = index.getColumn(dimension);
                       if (columnDesc == null) {
                         VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);

@@ -34,6 +34,8 @@ import org.joda.time.Interval;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +59,7 @@ public class ValueDesc implements Serializable, Cacheable
   private static final String MAP_TYPE = "map";
   private static final String ARRAY_TYPE = "array";
   private static final String INDEXED_ID_TYPE = "indexed";
+  private static final String BITSET_TYPE = "bitset";
   private static final String UNKNOWN_TYPE = "unknown";
 
   private static final String ARRAY_PREFIX = "array.";
@@ -87,6 +90,7 @@ public class ValueDesc implements Serializable, Cacheable
     INTERNER.intern(MAP_TYPE);
     INTERNER.intern(ARRAY_TYPE);
     INTERNER.intern(INDEXED_ID_TYPE);
+    INTERNER.intern(BITSET_TYPE);
     INTERNER.intern(UNKNOWN_TYPE);
     INTERNER.intern(DECIMAL_TYPE);
     INTERNER.intern(STRUCT_TYPE);
@@ -122,6 +126,7 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc GEOMETRY = new ValueDesc("geometry");
   public static ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
   public static ValueDesc INTERVAL = new ValueDesc("interval", Interval.class);
+  public static ValueDesc BITSET = new ValueDesc(BITSET_TYPE, BitSet.class);
 
   public static ValueDesc ofArray(ValueDesc valueType)
   {
@@ -145,7 +150,16 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static ValueDesc ofDecimal(BigDecimal decimal)
   {
-    return ValueDesc.of(String.format("%s(%d,%d)", DECIMAL_TYPE, decimal.precision(), decimal.scale()));
+    return ofDecimal(decimal.precision(), decimal.scale(), null);
+  }
+
+  public static ValueDesc ofDecimal(int precision, int scale, RoundingMode roundingMode)
+  {
+    if (roundingMode == null) {
+      return ValueDesc.of(String.format("%s(%d,%d)", DECIMAL_TYPE, precision, scale));
+    } else {
+      return ValueDesc.of(String.format("%s(%d,%d,%s)", DECIMAL_TYPE, precision, scale, roundingMode));
+    }
   }
 
   public static ValueDesc ofStruct(String elements)
@@ -181,7 +195,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static ValueDesc ofMultiValued(ValueDesc valueType)
   {
-    return ValueDesc.of(MULTIVALUED_PREFIX + valueType.typeName());
+    return valueType.isString() ? MV_STRING : ValueDesc.of(MULTIVALUED_PREFIX + valueType.typeName());
   }
 
   public static ValueDesc ofIndexedId(ValueType valueType)
@@ -635,22 +649,27 @@ public class ValueDesc implements Serializable, Cacheable
 
   public boolean isStruct()
   {
-    return STRUCT_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(STRUCT_TYPE);
+    return this == STRUCT || STRUCT_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(STRUCT_TYPE);
   }
 
   public boolean isArray()
   {
-    return ARRAY_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(ARRAY_TYPE);
+    return this == ARRAY || ARRAY_TYPE.equals(typeName) || typeName.toLowerCase().startsWith(ARRAY_TYPE);
+  }
+
+  public boolean isBitSet()
+  {
+    return this == BITSET || BITSET_TYPE.equals(typeName);
   }
 
   public boolean isMultiValued()
   {
-    return typeName.startsWith(MULTIVALUED_PREFIX);
+    return this == MV_STRING || typeName.startsWith(MULTIVALUED_PREFIX);
   }
 
   public boolean isUnknown()
   {
-    return UNKNOWN_TYPE.equals(typeName);
+    return this == UNKNOWN || UNKNOWN_TYPE.equals(typeName);
   }
 
   public String[] getDescription()
