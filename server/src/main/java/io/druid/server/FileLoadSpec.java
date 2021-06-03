@@ -52,7 +52,6 @@ import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowToMap;
 import io.druid.query.StorageHandler;
-import io.druid.segment.IndexSpec;
 import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.indexing.DataSchema;
@@ -211,31 +210,6 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
                  .getParser(mapper, ignoreInvalidRows);
   }
 
-  @JsonIgnore
-  private BaseTuningConfig tuningConfigFromProperties(ObjectMapper mapper)
-  {
-    Map<String, Object> tunningConfs = Maps.newHashMap();
-    Map<String, Object> indexingConfs = Maps.newHashMap();
-    for (Map.Entry<String, Object> entry : properties.entrySet()) {
-      if (entry.getKey().startsWith("tunning.")) {
-        tunningConfs.put(entry.getKey().substring(8), entry.getValue());
-      } else if (entry.getKey().startsWith("indexing.")) {
-        indexingConfs.put(entry.getKey().substring(9), entry.getValue());
-      }
-    }
-    BaseTuningConfig tunning = null;
-    if (!tunningConfs.isEmpty()) {
-      tunning = mapper.convertValue(tunningConfs, BaseTuningConfig.class);
-    }
-    if (!indexingConfs.isEmpty()) {
-      IndexSpec indexSpec = mapper.convertValue(indexingConfs, IndexSpec.class);
-      if (indexSpec != null && !IndexSpec.DEFAULT.equals(indexSpec)) {
-        tunning = (tunning == null ? BaseTuningConfig.DEFAULT : tunning).withIndexSpec(indexSpec);
-      }
-    }
-    return tunning;
-  }
-
   private List<URI> getURIs()
   {
     List<URI> uris = Lists.newArrayList();
@@ -327,11 +301,10 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
         .withNoQuery(true)
         .build();
 
-    final BaseTuningConfig config = tuningConfig != null ? tuningConfig : tuningConfigFromProperties(jsonMapper);
     final Map<String, Object> forwardContext = Maps.newHashMap(properties);
     forwardContext.put(FORMAT, INDEX_FORMAT);
     forwardContext.put(SCHEMA, jsonMapper.convertValue(indexSchema, ObjectMappers.MAP_REF));
-    forwardContext.put(TUNING_CONFIG, jsonMapper.convertValue(config, ObjectMappers.MAP_REF));
+    forwardContext.put(TUNING_CONFIG, jsonMapper.convertValue(tuningConfig, ObjectMappers.MAP_REF));
     forwardContext.put(TIMESTAMP_COLUMN, Row.TIME_COLUMN_NAME);
     forwardContext.put(DATASOURCE, schema.getDataSource());
     forwardContext.put(REGISTER_TABLE, true);

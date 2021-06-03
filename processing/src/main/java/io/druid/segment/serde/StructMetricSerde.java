@@ -118,7 +118,7 @@ public class StructMetricSerde implements ComplexMetricSerde, Iterable<Pair<Stri
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

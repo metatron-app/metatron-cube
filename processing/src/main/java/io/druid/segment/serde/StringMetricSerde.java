@@ -34,6 +34,7 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.SizePrefixedCompressedObjectStrategy;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -49,7 +50,7 @@ public class StringMetricSerde extends ComplexMetricSerde.CompressionSupport
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

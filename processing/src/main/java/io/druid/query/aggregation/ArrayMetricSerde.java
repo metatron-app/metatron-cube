@@ -62,7 +62,7 @@ public class ArrayMetricSerde implements ComplexMetricSerde
     Preconditions.checkNotNull(serde, "complex serde is null");
     this.elementType = ValueType.COMPLEX;
     this.arrayType = ValueDesc.ofArray(serde.getTypeName());
-    this.extractor = serde.getExtractor();
+    this.extractor = serde.getExtractor(null);
     this.strategy = serde.getObjectStrategy();
   }
 
@@ -73,7 +73,7 @@ public class ArrayMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

@@ -472,6 +472,12 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         }
 
         @Override
+        public String getString(String metric)
+        {
+          return row.getString(metric);
+        }
+
+        @Override
         public float getFloatMetric(String metric)
         {
           return row.getFloatMetric(metric);

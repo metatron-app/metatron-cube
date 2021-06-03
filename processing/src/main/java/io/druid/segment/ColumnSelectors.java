@@ -30,7 +30,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.MathExprFilter;
@@ -287,20 +286,7 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector nullObjectSelector(final ValueDesc valueType)
   {
-    return new ObjectColumnSelector()
-    {
-      @Override
-      public ValueDesc type()
-      {
-        return valueType;
-      }
-
-      @Override
-      public Object get()
-      {
-        return null;
-      }
-    };
+    return asSelector(valueType, () -> null);
   }
 
   @SuppressWarnings("unchecked")
@@ -314,20 +300,7 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector asStringSelector(final ExprEvalColumnSelector selector)
   {
-    return new ObjectColumnSelector()
-    {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.STRING;
-      }
-
-      @Override
-      public String get()
-      {
-        return selector.get().asString();
-      }
-    };
+    return asSelector(ValueDesc.STRING, () -> selector.get().asString());
   }
 
   @SuppressWarnings("unchecked")
@@ -352,20 +325,7 @@ public class ColumnSelectors
       return asArray(selector, type.subElement(ValueDesc.UNKNOWN));
     }
     // toString, whatsoever
-    return new ObjectColumnSelector()
-    {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.STRING;
-      }
-
-      @Override
-      public String get()
-      {
-        return Objects.toString(selector.get(), null);
-      }
-    };
+    return asSelector(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
   }
 
   public static <I, O> ObjectColumnSelector<O> map(
@@ -374,14 +334,8 @@ public class ColumnSelectors
       final Function<I, O> function
   )
   {
-    return new ObjectColumnSelector<O>()
+    return new ObjectColumnSelector.Typed<O>(outType)
     {
-      @Override
-      public ValueDesc type()
-      {
-        return outType;
-      }
-
       @Override
       public O get()
       {
@@ -392,14 +346,8 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector asValued(final ObjectColumnSelector<IndexedID> selector)
   {
-    return new ObjectColumnSelector()
+    return new ObjectColumnSelector.Typed(selector.type())
     {
-      @Override
-      public ValueDesc type()
-      {
-        return selector.type();
-      }
-
       @Override
       public Object get()
       {
@@ -411,14 +359,8 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector asArray(final ObjectColumnSelector<List> selector, final ValueDesc element)
   {
-    return new ObjectColumnSelector()
+    return new ObjectColumnSelector.Typed(ValueDesc.ofMultiValued(element))
     {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.ofMultiValued(element);
-      }
-
       @Override
       public Object get()
       {
@@ -440,14 +382,8 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector<UTF8Bytes> asRawAccess(final WithRawAccess selector)
   {
-    return new ObjectColumnSelector<UTF8Bytes>()
+    return new ObjectColumnSelector.Typed<UTF8Bytes>(ValueDesc.STRING)
     {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.STRING;
-      }
-
       @Override
       public UTF8Bytes get()
       {
@@ -458,14 +394,8 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector<String> asSingleValued(final SingleValued selector)
   {
-    return new ObjectColumnSelector<String>()
+    return new ObjectColumnSelector.Typed<String>(ValueDesc.STRING)
     {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.STRING;
-      }
-
       @Override
       public String get()
       {
@@ -476,14 +406,8 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector asMultiValued(final DimensionSelector selector)
   {
-    return new ObjectColumnSelector()
+    return new ObjectColumnSelector.Typed(ValueDesc.MV_STRING)
     {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.ofMultiValued(ValueType.STRING);
-      }
-
       @Override
       public Object get()
       {
@@ -507,14 +431,8 @@ public class ColumnSelectors
   public static ObjectColumnSelector asConcatValued(final DimensionSelector selector, final String separator)
   {
     Preconditions.checkNotNull(separator, "separator should not be null");
-    return new ObjectColumnSelector<String>()
+    return new ObjectColumnSelector.Typed<String>(ValueDesc.STRING)
     {
-      @Override
-      public ValueDesc type()
-      {
-        return ValueDesc.of(ValueType.STRING);
-      }
-
       @Override
       public String get()
       {

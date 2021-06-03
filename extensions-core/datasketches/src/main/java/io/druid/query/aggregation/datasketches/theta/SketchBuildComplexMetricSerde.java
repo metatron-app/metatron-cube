@@ -21,12 +21,14 @@ package io.druid.query.aggregation.datasketches.theta;
 
 import io.druid.segment.serde.ComplexMetricExtractor;
 
+import java.util.List;
+
 /**
  */
 public class SketchBuildComplexMetricSerde extends SketchMergeComplexMetricSerde
 {
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return ComplexMetricExtractor.DUMMY;
   }

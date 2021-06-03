@@ -103,6 +103,12 @@ public abstract class AbstractRow implements Row
   }
 
   @Override
+  public String getString(String metric)
+  {
+    return Rows.parseString(getRaw(metric));
+  }
+
+  @Override
   public long getTimestampFromEpoch()
   {
     throw new UnsupportedOperationException("getTimestampFromEpoch");

@@ -128,6 +128,23 @@ public abstract class AggregatorFactory implements Cacheable
     return object;
   }
 
+  public abstract String getName();
+
+  public abstract List<String> requiredFields();
+
+  public List<String> getExtractHints()
+  {
+    return Arrays.asList();
+  }
+
+  // this is type for ingestion, which can be different from typeName (which is output type from serde)
+  public ValueDesc getInputType()
+  {
+    return getOutputType();
+  }
+
+  public abstract ValueDesc getOutputType();
+
   /**
    * "Finalizes" the computation of an object.  Primarily useful for complex types that have a different mergeable
    * intermediate format than their final resultant output.
@@ -142,29 +159,6 @@ public abstract class AggregatorFactory implements Cacheable
   }
 
   public ValueDesc finalizedType()
-  {
-    return getOutputType();
-  }
-
-  public abstract String getName();
-
-  public static interface CubeSupport
-  {
-    String getCubeName();
-
-    String getPredicate();
-
-    String getFieldName();
-
-    AggregatorFactory getCombiningFactory(String inputField);
-  }
-
-  public abstract List<String> requiredFields();
-
-  public abstract ValueDesc getOutputType();
-
-  // this is type for ingestion, which can be different from typeName (which is output type from serde)
-  public ValueDesc getInputType()
   {
     return getOutputType();
   }
@@ -184,6 +178,17 @@ public abstract class AggregatorFactory implements Cacheable
   public boolean providesEstimation()
   {
     return false;
+  }
+
+  public static interface CubeSupport
+  {
+    String getCubeName();
+
+    String getPredicate();
+
+    String getFieldName();
+
+    AggregatorFactory getCombiningFactory(String inputField);
   }
 
   // this is possible only when intermediate type conveys resolved-type back to broker

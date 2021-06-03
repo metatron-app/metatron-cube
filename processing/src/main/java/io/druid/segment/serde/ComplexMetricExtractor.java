@@ -21,6 +21,9 @@ package io.druid.segment.serde;
 
 import io.druid.data.input.Row;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  */
 public interface ComplexMetricExtractor
@@ -35,4 +38,9 @@ public interface ComplexMetricExtractor
   };
 
   Object extractValue(Row inputRow, String metricName);
+
+  default List<String> getExtractedNames(List<String> metricNames)
+  {
+    return Arrays.asList();
+  }
 }

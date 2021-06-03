@@ -155,6 +155,12 @@ public class SpatialDimensionRowTransformer implements Function<InputRow, InputR
       }
 
       @Override
+      public String getString(String metric)
+      {
+        return row.getString(metric);
+      }
+
+      @Override
       public long getLongMetric(String metric)
       {
         return row.getLongMetric(metric);

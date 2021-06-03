@@ -22,6 +22,7 @@ package io.druid.server;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -40,9 +41,15 @@ import io.druid.java.util.common.StringUtils;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.segment.IndexSpec;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
+import io.druid.segment.serde.ComplexMetricExtractor;
+import io.druid.segment.serde.ComplexMetricSerde;
+import io.druid.segment.serde.ComplexMetrics;
 
 import java.io.IOException;
 import java.net.URI;
@@ -54,6 +61,8 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 public class TypeStringResolver implements FileLoadSpec.Resolver
 {
@@ -103,18 +112,82 @@ public class TypeStringResolver implements FileLoadSpec.Resolver
     if (timeExpression != null) {
       timestampSpec = new ExpressionTimestampSpec(timeExpression);
     }
+    ObjectMapper mapper = walker.getMapper();
     List<String> dimensions = signature.extractDimensionCandidates();
-    List<AggregatorFactory> metrics = signature.extractMetricCandidates(Sets.newHashSet(dimensions));
+    List<AggregatorFactory> metrics = rewriteMetrics(
+        signature.extractMetricCandidates(Sets.newHashSet(dimensions)), properties, mapper
+    );
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     Map<String, Object> parser = Maps.newHashMap(properties);
     if (!parser.containsKey("type")) {
       parser.put("type", "csv.stream");
     }
     parser.put("columns", signature.getColumnNames());
-    parser.put("timestampSpec", walker.getMapper().convertValue(timestampSpec, ObjectMappers.MAP_REF));
+    parser.put("timestampSpec", mapper.convertValue(timestampSpec, ObjectMappers.MAP_REF));
     parser.put("dimensionsSpec", DimensionsSpec.ofStringDimensions(dimensions));
     DataSchema dataSchema = new DataSchema(dataSource, parser, metrics.toArray(new AggregatorFactory[0]), granularity);
-    return new FileLoadSpec(null, resolved, null, null, dataSchema, null, null, null, properties);
+    BaseTuningConfig config = tuningConfigFromProperties(properties, mapper);
+    return new FileLoadSpec(null, resolved, null, null, dataSchema, null, null, config, properties);
+  }
+
+  private List<AggregatorFactory> rewriteMetrics(
+      List<AggregatorFactory> metrics, Map<String, Object> properties, ObjectMapper mapper
+  ) throws IOException
+  {
+    List<String> metricNames = AggregatorFactory.toNames(metrics);
+    // extract.<column-name> = <typeName>,<extract-hint1>,<extract-hint2>,...
+    Set<String> extractedNames = Sets.newHashSet();
+    List<AggregatorFactory> appended = Lists.newArrayList();
+    for (Map.Entry<String, Object> entry : properties.entrySet()) {
+      final String key = entry.getKey();
+      if (key.startsWith("extract.") || key.startsWith("evaluate.")) {
+        final String[] values = Objects.toString(entry.getValue()).split(",");
+        final String columnName = key.substring(key.indexOf('.') + 1, key.length());
+        final String columnType = values[0];
+        final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(columnType);
+        if (serde == null) {
+          throw new IAE("cannot handle type [%s] for column [%s]", columnType, columnName);
+        }
+        final List<String> hints = Arrays.asList(values).subList(1, values.length);
+        final ComplexMetricExtractor extractor = serde.getExtractor(hints);
+        if (extractor == null) {
+          throw new IAE("cannot find extractor for column [%s] with hints %s", columnName, hints);
+        }
+        if (key.startsWith("extract.")) {
+          extractedNames.addAll(extractor.getExtractedNames(metricNames));
+        }
+        appended.add(new RelayAggregatorFactory(columnName, columnName, columnType, null, hints));
+      }
+    }
+    if (!extractedNames.isEmpty()) {
+      metrics = Lists.newArrayList(Iterables.filter(metrics, m -> !extractedNames.contains(m.getName())));
+    }
+    metrics.addAll(appended);
+    return metrics;
+  }
+
+  private BaseTuningConfig tuningConfigFromProperties(Map<String, Object> properties, ObjectMapper mapper)
+  {
+    Map<String, Object> tunningConfs = Maps.newHashMap();
+    Map<String, Object> indexingConfs = Maps.newHashMap();
+    for (Map.Entry<String, Object> entry : properties.entrySet()) {
+      if (entry.getKey().startsWith("tunning.")) {
+        tunningConfs.put(entry.getKey().substring(8), entry.getValue());
+      } else if (entry.getKey().startsWith("indexing.")) {
+        indexingConfs.put(entry.getKey().substring(9), entry.getValue());
+      }
+    }
+    BaseTuningConfig tunning = null;
+    if (!tunningConfs.isEmpty()) {
+      tunning = mapper.convertValue(tunningConfs, BaseTuningConfig.class);
+    }
+    if (!indexingConfs.isEmpty()) {
+      IndexSpec indexSpec = mapper.convertValue(indexingConfs, IndexSpec.class);
+      if (indexSpec != null && !IndexSpec.DEFAULT.equals(indexSpec)) {
+        tunning = (tunning == null ? BaseTuningConfig.DEFAULT : tunning).withIndexSpec(indexSpec);
+      }
+    }
+    return tunning;
   }
 
   private static List<String> resolve(String basePath, List<String> paths, boolean recursive) throws IOException

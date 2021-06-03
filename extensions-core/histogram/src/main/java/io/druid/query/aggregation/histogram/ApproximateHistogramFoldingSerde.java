@@ -48,7 +48,7 @@ public class ApproximateHistogramFoldingSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

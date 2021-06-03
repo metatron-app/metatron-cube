@@ -30,6 +30,7 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.SizePrefixedCompressedObjectStrategy;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 /**
  */
@@ -37,7 +38,7 @@ public interface ComplexMetricSerde
 {
   String getTypeName();
 
-  default ComplexMetricExtractor getExtractor()
+  default ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return ComplexMetricExtractor.DUMMY;
   }

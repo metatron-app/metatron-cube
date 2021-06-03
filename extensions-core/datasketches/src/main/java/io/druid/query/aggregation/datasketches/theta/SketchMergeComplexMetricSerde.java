@@ -27,6 +27,8 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
+import java.util.List;
+
 public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
 {
   private final SketchObjectStrategy strategy = new SketchObjectStrategy();
@@ -38,7 +40,7 @@ public class SketchMergeComplexMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

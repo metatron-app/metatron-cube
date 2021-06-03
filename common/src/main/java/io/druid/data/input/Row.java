@@ -91,6 +91,8 @@ public interface Row extends Comparable<Row>, Expr.NumericBinding
    */
   Long getLong(String metric);
 
+  String getString(String metric);
+
   /**
    * Returns the float value of the given metric column.
    * <p/>

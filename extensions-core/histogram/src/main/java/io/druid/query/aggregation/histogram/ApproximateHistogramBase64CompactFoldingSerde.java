@@ -25,6 +25,7 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 
 public class ApproximateHistogramBase64CompactFoldingSerde extends ApproximateHistogramCompactFoldingSerde
 {
@@ -35,7 +36,7 @@ public class ApproximateHistogramBase64CompactFoldingSerde extends ApproximateHi
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

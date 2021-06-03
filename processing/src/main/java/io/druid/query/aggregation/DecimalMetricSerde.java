@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.Row;
+import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -31,6 +32,7 @@ import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.nio.ByteBuffer;
+import java.util.List;
 
 /**
  */
@@ -85,23 +87,24 @@ public class DecimalMetricSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {
-
       @Override
       public Object extractValue(Row inputRow, String metricName)
       {
-        Object raw = inputRow.getRaw(metricName);
+        final Object raw = inputRow.getRaw(metricName);
         if (raw == null) {
           return null;
         }
         BigDecimal decimal;
-        if (raw instanceof BigDecimal) {
-          decimal = ((BigDecimal) raw);
-        } else if (raw instanceof Number) {
-          if (raw instanceof Double || raw instanceof Float) {
+        if (raw instanceof Number) {
+          if (raw instanceof BigDecimal) {
+            decimal = (BigDecimal) raw;
+          } else if (raw instanceof BigInteger) {
+            decimal = new BigDecimal((BigInteger) raw);
+          } else if (raw instanceof Double || raw instanceof Float) {
             decimal = new BigDecimal(((Number) raw).doubleValue());
           } else {
             decimal = new BigDecimal(((Number) raw).longValue());
@@ -109,7 +112,7 @@ public class DecimalMetricSerde implements ComplexMetricSerde
         } else if (raw instanceof String) {
           decimal = new BigDecimal((String) raw);
         } else {
-          throw new IllegalArgumentException("unsupported type " + raw.getClass());
+          throw new IAE("unsupported type %s", raw.getClass());
         }
         return decimal.plus(context).setScale(scale, context.getRoundingMode());
       }

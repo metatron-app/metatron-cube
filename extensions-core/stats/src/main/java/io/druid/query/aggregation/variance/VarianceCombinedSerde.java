@@ -27,7 +27,7 @@ import java.util.List;
 public class VarianceCombinedSerde extends VarianceSerde
 {
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

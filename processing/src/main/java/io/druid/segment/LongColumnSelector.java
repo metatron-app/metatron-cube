@@ -19,9 +19,14 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
+
 /**
  */
-public interface LongColumnSelector
+public interface LongColumnSelector extends ObjectColumnSelector<Long>
 {
-  Long get();
+  default ValueDesc type()
+  {
+    return ValueDesc.LONG;
+  }
 }

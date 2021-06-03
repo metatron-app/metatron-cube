@@ -60,7 +60,16 @@ public class Rows
       return ((Number) value).doubleValue() != 0;
     } else if (value instanceof String) {
       final String s = (String) value;
-      return NULL.equalsIgnoreCase(s) ? null : Boolean.valueOf(s);
+      if (s.isEmpty() || NULL.equalsIgnoreCase(s)) {
+        return null;
+      } else if (Character.isLetter(s.charAt(0))) {
+        return Boolean.valueOf(s);
+      } else if (s.length() == 1 && s.charAt(0) == '0') {
+        return false;
+      } else {
+        final Long parsed = Longs.tryParse(s);
+        return parsed != null && parsed != 0;
+      }
     } else if (value instanceof DateTime) {
       return ((DateTime) value).getMillis() != 0;
     } else if (value instanceof Date) {

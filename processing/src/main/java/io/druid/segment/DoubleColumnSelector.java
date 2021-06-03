@@ -19,9 +19,14 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
+
 /**
  */
-public interface DoubleColumnSelector
+public interface DoubleColumnSelector extends ObjectColumnSelector<Double>
 {
-  Double get();
+  default ValueDesc type()
+  {
+    return ValueDesc.DOUBLE;
+  }
 }

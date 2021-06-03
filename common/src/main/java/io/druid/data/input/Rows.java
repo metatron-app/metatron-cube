@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -241,5 +242,10 @@ public class Rows extends io.druid.data.Rows
       }
     }
     return Murmur3.hash128(buffer.unwrap(), 0, buffer.size());
+  }
+
+  public static String parseString(Object raw)
+  {
+    return StringUtils.isNullOrEmpty(raw) ? null : Objects.toString(raw, null);
   }
 }

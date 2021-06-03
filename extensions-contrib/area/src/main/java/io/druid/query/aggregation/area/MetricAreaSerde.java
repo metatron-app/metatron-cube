@@ -28,6 +28,7 @@ import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
+import java.util.List;
 
 public class MetricAreaSerde implements ComplexMetricSerde
 {
@@ -72,7 +73,7 @@ public class MetricAreaSerde implements ComplexMetricSerde
   }
 
   @Override
-  public ComplexMetricExtractor getExtractor()
+  public ComplexMetricExtractor getExtractor(List<String> typeHint)
   {
     return new ComplexMetricExtractor()
     {

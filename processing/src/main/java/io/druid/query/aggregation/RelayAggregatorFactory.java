@@ -83,22 +83,22 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public static AggregatorFactory ofTime()
   {
-    return new RelayAggregatorFactory(Column.TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME, ValueDesc.LONG_TYPE, null);
+    return new RelayAggregatorFactory(Column.TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME, ValueDesc.LONG_TYPE);
   }
 
   public static AggregatorFactory of(String name, ValueDesc type)
   {
-    return new RelayAggregatorFactory(name, name, type.typeName(), null);
+    return new RelayAggregatorFactory(name, name, type.typeName(), null, null);
   }
 
   public static AggregatorFactory first(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "FIRST");
+    return new RelayAggregatorFactory(name, columnName, null, "FIRST", null);
   }
 
   public static AggregatorFactory last(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "LAST");
+    return new RelayAggregatorFactory(name, columnName, null, "LAST", null);
   }
 
   public static AggregatorFactory min(String name, String columnName)
@@ -108,7 +108,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public static AggregatorFactory min(String name, String columnName, String type)
   {
-    return new RelayAggregatorFactory(name, columnName, type, "MIN");
+    return new RelayAggregatorFactory(name, columnName, type, "MIN", null);
   }
 
   public static AggregatorFactory max(String name, String columnName)
@@ -118,46 +118,54 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
 
   public static AggregatorFactory max(String name, String columnName, String type)
   {
-    return new RelayAggregatorFactory(name, columnName, type, "MAX");
+    return new RelayAggregatorFactory(name, columnName, type, "MAX", null);
   }
 
   public static AggregatorFactory timeMin(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "TIME_MIN");
+    return new RelayAggregatorFactory(name, columnName, null, "TIME_MIN", null);
   }
 
   public static AggregatorFactory timeMax(String name, String columnName)
   {
-    return new RelayAggregatorFactory(name, columnName, null, "TIME_MAX");
+    return new RelayAggregatorFactory(name, columnName, null, "TIME_MAX", null);
   }
 
   private final String name;
   private final String columnName;
   private final String typeName;
   private final String relayType;
+  private final List<String> extractHints;
 
   @JsonCreator
   public RelayAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("columnName") String columnName,
       @JsonProperty("typeName") String typeName,
-      @JsonProperty("relayType") String relayType
-      )
+      @JsonProperty("relayType") String relayType,
+      @JsonProperty("extractHints") List<String> extractHints
+  )
   {
     this.name = Preconditions.checkNotNull(name == null ? columnName : name);
     this.columnName = Preconditions.checkNotNull(columnName == null ? name : columnName);
     this.typeName = typeName;
     this.relayType = relayType;
+    this.extractHints = extractHints;
   }
 
   public RelayAggregatorFactory(String name, ValueDesc type)
   {
-    this(name, name, type.typeName(), null);
+    this(name, name, type.typeName(), null, null);
   }
 
   public RelayAggregatorFactory(String name, String columnName, String typeName)
   {
-    this(name, columnName, typeName, null);
+    this(name, columnName, typeName, null, null);
+  }
+
+  public RelayAggregatorFactory(String name, String columnName, String typeName, String relayType)
+  {
+    this(name, columnName, typeName, relayType, null);
   }
 
   @Override
@@ -168,7 +176,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
       return null;
     }
     ValueDesc inputType = resolver.resolve(fieldName, ValueDesc.UNKNOWN);
-    return new RelayAggregatorFactory(name, fieldName, inputType.typeName(), relayType);
+    return new RelayAggregatorFactory(name, fieldName, inputType.typeName(), relayType, extractHints);
   }
 
   @Override
@@ -205,7 +213,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new RelayAggregatorFactory(name, name, typeName, relayType);
+    return new RelayAggregatorFactory(name, name, typeName, relayType, null);
   }
 
   @Override
@@ -238,6 +246,14 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   public String getRelayType()
   {
     return relayType;
+  }
+
+  @Override
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getExtractHints()
+  {
+    return extractHints == null ? Arrays.asList() : extractHints;
   }
 
   @Override
@@ -276,7 +292,8 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
     return builder.append(CACHE_TYPE_ID)
                   .append(columnName)
                   .append(typeName)
-                  .append(relayType);
+                  .append(relayType)
+                  .append(extractHints);
   }
 
   @Override
@@ -309,6 +326,9 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
     if (!Objects.equals(relayType, that.relayType)) {
       return false;
     }
+    if (!Objects.equals(extractHints, that.extractHints)) {
+      return false;
+    }
 
     return true;
   }
@@ -316,7 +336,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, columnName, typeName, relayType);
+    return Objects.hash(name, columnName, typeName, relayType, extractHints);
   }
 
   @Override
@@ -327,6 +347,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
            ", columnName='" + columnName + '\'' +
            (typeName == null ? "": ", typeName='" + typeName + '\'') +
            (relayType == null ? "": ", columnName='" + columnName + '\'') +
+           (extractHints == null ? "": ", extractHints='" + extractHints + '\'') +
            '}';
   }
 
@@ -343,7 +364,8 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
         name,
         columnName,
         Preconditions.checkNotNull(resolver.get().resolve(columnName), "Failed to resolve %s", columnName).typeName(),
-        relayType
+        relayType,
+        extractHints
     );
   }
 }
