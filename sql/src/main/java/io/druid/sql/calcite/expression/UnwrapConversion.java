@@ -17,38 +17,43 @@
  * under the License.
  */
 
-package io.druid.sql.calcite.expression.builtin;
+package io.druid.sql.calcite.expression;
 
-import io.druid.sql.calcite.expression.DruidExpression;
-import io.druid.sql.calcite.expression.OperatorConversions;
-import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
 
-public class EvalOperatorConversion implements SqlOperatorConversion
+public class UnwrapConversion implements SqlOperatorConversion
 {
-  public static EvalOperatorConversion of(String name, SqlTypeName sqlType)
-  {
-    return new EvalOperatorConversion(name, sqlType);
-  }
-
   private final SqlFunction function;
 
-  private EvalOperatorConversion(String name, SqlTypeName sqlType)
+  public UnwrapConversion()
   {
     this.function = OperatorConversions
-        .operatorBuilder(name)
-        .operandTypes(SqlTypeFamily.CHARACTER)
-        .returnType(sqlType)
+        .operatorBuilder("unwrap")
+        .operandTypes(SqlTypeFamily.ARRAY)
+        .returnTypeInference(opBinding -> {
+          final RelDataType type = opBinding.getOperandType(0);
+          if (type.getSqlTypeName() == SqlTypeName.ARRAY &&
+              type.getComponentType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
+            RelDataTypeFactory factory = opBinding.getTypeFactory();
+            return factory.createTypeWithNullability(
+                factory.createArrayType(factory.createSqlType(SqlTypeName.INTEGER), -1), true
+            );
+          }
+          return null;
+        })
         .functionCategory(SqlFunctionCategory.USER_DEFINED_SPECIFIC_FUNCTION)
         .build();
   }
@@ -68,8 +73,9 @@ public class EvalOperatorConversion implements SqlOperatorConversion
   {
     final RexCall call = (RexCall) rexNode;
     final List<RexNode> operands = call.getOperands();
-    if (operands.size() == 1) {
-      return DruidExpression.fromExpression(RexLiteral.stringValue(operands.get(0)));
+    if (operands.size() == 1 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
+      String column = rowSignature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
+      return DruidExpression.fromExpression(String.format("unwrap(%s)", DruidExpression.identifier(column)));
     }
     return null;
   }

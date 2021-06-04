@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
 import com.google.common.math.LongMath;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.DSuppliers.TypedSupplier;
@@ -471,22 +472,20 @@ final class AssignExpr implements Expr
 
 final class FunctionExpr implements Expr, Expression.FuncExpression
 {
-  final java.util.function.Function<List<Expr>, Function> provider;
-  final Function function;
   final String name;
   final List<Expr> args;
+  final Supplier<Function> supplier;
 
-  public FunctionExpr(java.util.function.Function<List<Expr>, Function> provider, String name, List<Expr> args)
+  public FunctionExpr(String name, List<Expr> args, Supplier<Function> supplier)
   {
-    this.provider = provider;
-    this.function = provider.apply(args);
+    this.supplier = supplier;
     this.name = name;
     this.args = args;
   }
 
   FunctionExpr with(List<Expr> args)
   {
-    return new FunctionExpr(provider, name, args);
+    return new FunctionExpr(name, args, supplier);
   }
 
   @Override
@@ -508,18 +507,21 @@ final class FunctionExpr implements Expr, Expression.FuncExpression
     return "(" + name + " " + args + ")";
   }
 
-  public Function getFunction() { return function;}
+  public Function getFunction()
+  {
+    return supplier.get();
+  }
 
   @Override
   public ValueDesc returns()
   {
-    return function.returns();
+    return supplier.get().returns();
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return function.evaluate(args, bindings);
+    return supplier.get().evaluate(args, bindings);
   }
 }
 

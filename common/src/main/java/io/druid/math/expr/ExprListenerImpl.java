@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Suppliers;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
@@ -299,7 +300,7 @@ public class ExprListenerImpl extends ExprBaseListener
                             ? (List<Expr>) nodes.get(ctx.getChild(2))
                             : Collections.<Expr>emptyList();
 
-    final FunctionExpr expr = new FunctionExpr(exprs -> factory.create(args, resolver), fnName, args);
+    final FunctionExpr expr = new FunctionExpr(fnName, args, Suppliers.memoize(() -> factory.create(args, resolver)));
     if (factory instanceof Function.External) {
       nodes.put(ctx, expr);
     } else {

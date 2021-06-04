@@ -283,7 +283,7 @@ public class Parser
             func = (args, binding) -> mapping.get(Evals.evalValue(args.get(0), binding));
             params = Arrays.asList(param);
           }
-          return new FunctionExpr(exprs -> Evals.asFunction(func, expr.returns()), "__map", params);
+          return new FunctionExpr("__map", params, Suppliers.memoize(() -> Evals.asFunction(func, expr.returns())));
         } else if ("switch".equals(expr.op())) {
           final Expr param = children.get(0);
           final Map<Object, Object> mapping = Maps.newHashMap();
@@ -312,7 +312,7 @@ public class Parser
             func = (args, binding) -> mapping.get(Evals.evalValue(args.get(0), binding));
             params = Arrays.asList(param);
           }
-          return new FunctionExpr(exprs -> Evals.asFunction(func, expr.returns()), "__map", params);
+          return new FunctionExpr("__map", params, Suppliers.memoize(() -> Evals.asFunction(func, expr.returns())));
         }
         return expr;
       }
@@ -688,8 +688,8 @@ public class Parser
       init(binary.right());
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
-      if (functionExpr.function instanceof WindowFunctions.Factory.WindowFunction) {
-        ((WindowFunctions.Factory.WindowFunction) functionExpr.function).init();
+      if (functionExpr.getFunction() instanceof WindowFunctions.Factory.WindowFunction) {
+        ((WindowFunctions.Factory.WindowFunction) functionExpr.getFunction()).init();
       } else {
         for (Expr child : functionExpr.args) {
           init(child);

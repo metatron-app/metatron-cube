@@ -60,6 +60,7 @@ import java.io.File;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Formatter;
 import java.util.List;
@@ -184,6 +185,28 @@ public interface BuiltinFunctions extends Function.Library
             return ExprEval.of(java.lang.reflect.Array.getLength(value));
           }
           return ExprEval.of(1);
+        }
+      };
+    }
+  }
+
+  @Function.Named("cardinality")
+  final class Cardinality extends NamedFactory
+  {
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args, ValueDesc.BITSET);
+      return new LongChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          final ExprEval value = Evals.eval(args.get(0), bindings);
+          if (value.isNull()) {
+            return ExprEval.of(0);
+          }
+          return ExprEval.of(((BitSet) value.value()).cardinality());
         }
       };
     }
@@ -382,6 +405,44 @@ public interface BuiltinFunctions extends Function.Library
             values.add(type.cast(Evals.evalValue(arg, bindings)));
           }
           return ExprEval.of(values, type);
+        }
+      };
+    }
+  }
+
+  @Function.Named("unwrap")
+  final class Unwrap extends NamedFactory implements Function.FixedTyped
+  {
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.LONG_ARRAY;
+    }
+
+    @Override
+    public Function create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args, ValueDesc.BITSET);
+      return new Child()
+      {
+        public ValueDesc returns()
+        {
+          return ValueDesc.LONG_ARRAY;
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          final ExprEval eval = args.get(0).eval(bindings);
+          if (eval.isNull()) {
+            return ExprEval.of(null, ValueDesc.LONG_ARRAY);
+          }
+          final BitSet bitSet = (BitSet) eval.value();
+          final List<Integer> values = Lists.newArrayListWithExpectedSize(bitSet.cardinality());
+          for (int x = bitSet.nextSetBit(0); x >= 0; x = bitSet.nextSetBit(x + 1)) {
+            values.add(x);
+          }
+          return ExprEval.of(values, ValueDesc.LONG_ARRAY);
         }
       };
     }

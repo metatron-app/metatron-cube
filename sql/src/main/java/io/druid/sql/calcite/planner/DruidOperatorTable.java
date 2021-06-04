@@ -64,6 +64,7 @@ import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.ImplicitVCConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
+import io.druid.sql.calcite.expression.UnwrapConversion;
 import io.druid.sql.calcite.expression.builtin.ArrayConstructorOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CastOperatorConversion;
@@ -240,6 +241,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new StringFormatOperatorConversion())
           .add(new ItemOperatorConversion())
           .add(new ImplicitVCConversion())
+          .add(new UnwrapConversion())
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.

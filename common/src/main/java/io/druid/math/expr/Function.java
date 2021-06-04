@@ -102,6 +102,8 @@ public interface Function
     private static final String AT_LEAST_THREE_PARAM = "function '%s' needs at least 3 arguments";
     private static final String AT_LEAST_FOUR_PARAM = "function '%s' needs at least 4 arguments";
 
+    private static final String INVALID_TYPE = "%dth parameter for function '%s' should be `%s` but `%s`";
+
     protected final String name;
 
     protected NamedEntity()
@@ -123,6 +125,17 @@ public interface Function
     {
       if (args.size() != 1) {
         throw new IAE(EXACT_ONE_PARAM, name);
+      }
+    }
+
+    public void exactOne(List<Expr> args, ValueDesc type)
+    {
+      if (args.size() != 1) {
+        throw new IAE(EXACT_ONE_PARAM, name);
+      }
+      ValueDesc returns = args.get(0).returns();
+      if (!type.equals(returns)) {
+        throw new IAE(INVALID_TYPE, 0, name, type, returns);
       }
     }
 

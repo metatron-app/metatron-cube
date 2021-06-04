@@ -55,7 +55,7 @@ public class ImplicitVCConversion implements SqlOperatorConversion
           }
           return null;
         })
-        .functionCategory(SqlFunctionCategory.STRING)
+        .functionCategory(SqlFunctionCategory.USER_DEFINED_SPECIFIC_FUNCTION)
         .build();
   }
 

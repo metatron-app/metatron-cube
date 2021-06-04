@@ -51,9 +51,9 @@ public class ItemOperatorConversion implements SqlOperatorConversion
     final RexCall call = (RexCall) rexNode;
     final List<RexNode> operands = call.getOperands();
     if (operands.size() == 2 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
-      String column = rowSignature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
-      int index = RexLiteral.intValue(operands.get(1));
-      return DruidExpression.fromExpression(String.format("%s.%d", column, index));
+      final String column = rowSignature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
+      final int index = RexLiteral.intValue(operands.get(1));
+      return DruidExpression.fromExpression(String.format("%s.%d", DruidExpression.identifier(column), index));
     }
     return null;
   }
