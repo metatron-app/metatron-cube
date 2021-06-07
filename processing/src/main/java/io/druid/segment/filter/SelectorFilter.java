@@ -22,6 +22,8 @@ package io.druid.segment.filter;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Range;
+import io.druid.common.utils.StringUtils;
+import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
@@ -35,6 +37,8 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.lucene.Lucenes;
+
+import java.util.BitSet;
 
 /**
  */
@@ -85,6 +89,19 @@ public class SelectorFilter implements Filter
       return Filters.toValueMatcher(selector, value -> value == index, allowsNull);
     }
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
+    if (selector.type().isBitSet()) {
+      if (StringUtils.isNullOrEmpty(value)) {
+        return () -> selector.get() == null;
+      }
+      final Integer ix = Rows.parseInt(value, null);
+      if (ix != null) {
+        return () -> {
+          final BitSet bitSet = (BitSet) selector.get();
+          return bitSet != null && bitSet.get(ix);
+        };
+      }
+      return ValueMatcher.FALSE;
+    }
     if (ValueDesc.isIndexedId(selector.type())) {
       return new ValueMatcher()
       {

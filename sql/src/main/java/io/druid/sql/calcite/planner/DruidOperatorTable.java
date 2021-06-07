@@ -61,7 +61,7 @@ import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.DirectOperatorConversion;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
-import io.druid.sql.calcite.expression.ImplicitVCConversion;
+import io.druid.sql.calcite.expression.NominalBitSetToStringConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
 import io.druid.sql.calcite.expression.UnwrapConversion;
@@ -79,6 +79,7 @@ import io.druid.sql.calcite.expression.builtin.LTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LeftOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LikeOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.MillisToTimestampOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.NominalTypeConversion;
 import io.druid.sql.calcite.expression.builtin.RPadOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.RTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.RegexpExtractOperatorConversion;
@@ -240,8 +241,9 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new SizeOperatorConversion())
           .add(new StringFormatOperatorConversion())
           .add(new ItemOperatorConversion())
-          .add(new ImplicitVCConversion())
+          .add(new NominalBitSetToStringConversion())
           .add(new UnwrapConversion())
+          .add(new NominalTypeConversion())
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.

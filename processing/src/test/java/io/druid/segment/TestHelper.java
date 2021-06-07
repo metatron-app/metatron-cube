@@ -292,12 +292,14 @@ public class TestHelper
 
   public static final TestQuerySegmentWalker salesWalker = newWalker();
   public static final TestQuerySegmentWalker estateWalker = newWalker();
+  public static final TestQuerySegmentWalker profileWalker = newWalker();
 
   static {
     salesWalker.addIndex("sales", "sales_schema.json", "sales.tsv", true);
     salesWalker.addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
     estateWalker.addIndex("estate", "estate_schema.json", "estate.csv", true);
     estateWalker.addIndex("estate_incremental", "estate_schema.json", "estate.csv", false);
+    profileWalker.addIndex("profile", "profile_schema.json", "profile.csv", true);
   }
 
   public static TestQuerySegmentWalker newWalker()

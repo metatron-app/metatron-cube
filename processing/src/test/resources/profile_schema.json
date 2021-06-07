@@ -1,0 +1,32 @@
+{
+  "parser": {
+    "type": "csv.stream",
+    "delimiter": ",",
+    "quoteCharacter": "\""
+  },
+  "columns": [
+    "svc_mgmt_num", "sex_cd", "age", "age_group_cd", "pay_cnt", "pay_group_cd", "mobile_use_ratio", "mobile_group_cd", "eqp_type",
+    "st11_cat1", "st11_cat2", "st11_cat3", "st11_cat4", "st11_cat5", "st11_cat6", "st11_cat7", "st11_cat8", "st11_cat9", "st11_cat10",
+    "st11_cat11", "st11_cat12", "st11_cat13", "st11_cat14", "st11_cat15", "st11_cat16", "st11_cat17", "st11_cat18", "st11_cat19", "st11_cat20",
+    "ym"
+  ],
+  "timestampSpec": {
+    "column": "ym", "format": "yyyyMM"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "svc_mgmt_num", "sex_cd", "age", "pay_cnt", "pay_group_cd", "mobile_group_cd", "eqp_type"
+    ]
+  },
+  "metricsSpec": [
+    {"type": "relay", "name": "mobile_use_ratio", "typeName": "double"},
+    {"type": "relay", "name": "st11_cat", "typeName": "bitset", "extractHints": ["prefixedBooleanColumns", "st11_cat"]}
+  ],
+  "queryGran": "DAY",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "allowNullForNumbers": true
+  }
+}

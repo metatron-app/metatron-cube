@@ -19,35 +19,33 @@
 
 package io.druid.sql.calcite.expression;
 
+import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
 
-public class UnwrapConversion implements SqlOperatorConversion
+public class NominalBitSetToStringConversion implements SqlOperatorConversion
 {
   private final SqlFunction function;
 
-  public UnwrapConversion()
+  public NominalBitSetToStringConversion()
   {
     this.function = OperatorConversions
-        .operatorBuilder("unwrap")
-        .operandTypes(SqlTypeFamily.ARRAY)
+        .operatorBuilder("_bs")
+        .operandTypeChecker(OperandTypes.family(SqlTypeFamily.ARRAY))
         .returnTypeInference(opBinding -> {
           if (opBinding.getOperandType(0).getComponentType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
-            RelDataTypeFactory factory = opBinding.getTypeFactory();
-            return factory.createTypeWithNullability(
-                factory.createArrayType(factory.createSqlType(SqlTypeName.INTEGER), -1), true
-            );
+            return Calcites.createSqlType(opBinding.getTypeFactory(), SqlTypeName.VARCHAR);
           }
           return null;
         })
@@ -72,7 +70,7 @@ public class UnwrapConversion implements SqlOperatorConversion
     final List<RexNode> operands = call.getOperands();
     if (operands.size() == 1 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
       String column = rowSignature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
-      return DruidExpression.fromExpression(String.format("unwrap(%s)", DruidExpression.identifier(column)));
+      return DruidExpression.fromColumn(column);
     }
     return null;
   }

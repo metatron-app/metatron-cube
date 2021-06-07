@@ -25,8 +25,6 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.table.RowSignature;
 
-import java.util.Objects;
-
 public class ConvertBoundsToSelectors extends BottomUpTransform
 {
   private final RowSignature sourceRowSignature;
@@ -46,23 +44,17 @@ public class ConvertBoundsToSelectors extends BottomUpTransform
   {
     if (filter instanceof BoundDimFilter) {
       final BoundDimFilter bound = (BoundDimFilter) filter;
-      final String naturalStringComparator = sourceRowSignature.naturalStringComparator(
+      final String comporatorType = sourceRowSignature.naturalStringComparator(
           SimpleExtraction.of(bound.getDimension(), bound.getExtractionFn())
       );
-      if (Objects.equals(bound.getUpper(), bound.getLower())
-          && !bound.isUpperStrict()
-          && !bound.isLowerStrict()
-          && bound.getComparatorType().equals(naturalStringComparator)) {
+      if (bound.isEquals() && comporatorType.equals(bound.getComparatorType())) {
         return new SelectorDimFilter(
             bound.getDimension(),
             bound.getUpper(),
             bound.getExtractionFn()
         );
-      } else {
-        return filter;
       }
-    } else {
-      return filter;
     }
+    return filter;
   }
 }

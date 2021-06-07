@@ -191,7 +191,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("cardinality")
-  final class Cardinality extends NamedFactory
+  final class Cardinality extends NamedFactory.LongType
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)

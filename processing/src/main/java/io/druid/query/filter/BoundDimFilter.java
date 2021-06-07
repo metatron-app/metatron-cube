@@ -273,6 +273,11 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     return upper != null;
   }
 
+  public boolean isEquals()
+  {
+    return !lowerStrict && !upperStrict && Objects.equals(lower, upper);
+  }
+
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()

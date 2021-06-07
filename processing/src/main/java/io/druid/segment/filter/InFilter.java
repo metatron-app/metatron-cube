@@ -24,9 +24,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
@@ -44,7 +47,9 @@ import io.druid.segment.data.IndexedID;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 
+import java.util.BitSet;
 import java.util.Collection;
+import java.util.List;
 
 /**
  */
@@ -120,10 +125,34 @@ public class InFilter implements Filter
       }
       return Filters.toValueMatcher(selector, value -> ids.contains(value), allowsNull);
     }
-    ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
+    if (selector.type().isBitSet()) {
+      if (extractionFn == null) {
+        List<Integer> ids = ImmutableList.copyOf(
+            Iterables.filter(Iterables.transform(values, v -> Rows.parseInt(v, null)), Predicates.notNull())
+        );
+        if (ids.isEmpty()) {
+          return () -> selector.get() == null;
+        }
+        final int[] ix = Ints.toArray(ids);
+        return () -> {
+          final BitSet bitSet = (BitSet) selector.get();
+          if (bitSet == null) {
+            return false;
+          }
+          for (int x : ix) {
+            if (bitSet.get(x)) {
+              return true;
+            }
+          }
+          return false;
+        };
+      }
+      return ValueMatcher.FALSE;
+    }
+    ObjectColumnSelector wrapped = selector;
     if (ValueDesc.isIndexedId(type)) {
       if (extractionFn == null) {
-        final ObjectColumnSelector<IndexedID> indexedSelector = selector;
         return new ValueMatcher()
         {
           private boolean ready;
@@ -132,7 +161,7 @@ public class InFilter implements Filter
           @Override
           public boolean matches()
           {
-            final IndexedID indexed = indexedSelector.get();
+            final IndexedID indexed = (IndexedID) selector.get();
             if (!ready) {
               for (String value : values) {
                 final int id = indexed.lookupId(value);
@@ -145,10 +174,11 @@ public class InFilter implements Filter
             return find.contains(indexed.get());
           }
         };
+      } else {
+        wrapped = ColumnSelectors.asValued(selector);
       }
-      selector = ColumnSelectors.asValued(selector);
     }
-    return Filters.toValueMatcher(selector, toPredicate(allowsNull, selector.type()));
+    return Filters.toValueMatcher(wrapped, toPredicate(allowsNull, wrapped.type()));
   }
 
   @SuppressWarnings("unchecked")

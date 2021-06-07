@@ -138,12 +138,14 @@ public class RowSignature extends io.druid.query.RowSignature
   public String naturalStringComparator(final SimpleExtraction simpleExtraction)
   {
     Preconditions.checkNotNull(simpleExtraction, "simpleExtraction");
-    if (simpleExtraction.getExtractionFn() != null
-        || resolve(simpleExtraction.getColumn(), ValueDesc.STRING).isStringOrDimension()) {
+    if (simpleExtraction.getExtractionFn() != null) {
       return StringComparators.LEXICOGRAPHIC_NAME;
-    } else {
+    }
+    ValueDesc resolved = resolve(simpleExtraction.getColumn(), ValueDesc.STRING);
+    if (resolved.isNumeric()) {
       return StringComparators.NUMERIC_NAME;
     }
+    return StringComparators.LEXICOGRAPHIC_NAME;
   }
 
   /**

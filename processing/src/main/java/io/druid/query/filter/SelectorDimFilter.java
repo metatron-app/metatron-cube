@@ -170,10 +170,8 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");
     ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING);
-    if (resolved.isStringOrDimension()) {
-      resolved = ValueDesc.STRING;
-    }
-    return Arrays.<Range>asList(Ranges.of((Comparable) resolved.type().cast(value), "=="));
+    Comparable c = resolved.isStringOrDimension() ? value : (Comparable) resolved.cast(value);
+    return Arrays.<Range>asList(Ranges.of(c, "=="));
   }
 
   @Override
