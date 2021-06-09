@@ -23,7 +23,7 @@ import io.druid.java.util.common.IAE;
 
 import java.io.IOException;
 
-public abstract class SingleValueIndexedIntsWriter extends ColumnPartWriter.Abstract
+public abstract class SingleValueIndexedIntsWriter implements ColumnPartWriter
 {
   @Override
   public void add(Object obj) throws IOException

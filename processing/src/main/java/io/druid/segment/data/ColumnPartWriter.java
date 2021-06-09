@@ -48,7 +48,7 @@ public interface ColumnPartWriter<T> extends ColumnPartSerde.Serializer, Closeab
     void add(double obj) throws IOException;
   }
 
-  abstract class Abstract<T> extends ColumnPartSerde.Serializer.Abstract implements ColumnPartWriter<T>
+  abstract class Abstract<T> implements ColumnPartSerde.Serializer, ColumnPartWriter<T>
   {
     @Override
     public void close() throws IOException {}

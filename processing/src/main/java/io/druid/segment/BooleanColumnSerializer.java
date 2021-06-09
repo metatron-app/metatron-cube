@@ -27,6 +27,7 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ColumnPartWriter;
+import io.druid.segment.data.IOPeon;
 import io.druid.segment.serde.BooleanColumnPartSerde;
 
 import java.io.DataOutputStream;
@@ -50,7 +51,7 @@ public class BooleanColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void open() throws IOException
+  public void open(IOPeon ioPeon) throws IOException
   {
     writer.open();
   }

@@ -212,15 +212,6 @@ public class IndexSpec
     return strategy == null ? defaultStrategy : CompressionStrategy.valueOf(strategy.toUpperCase());
   }
 
-  public LuceneIndexingSpec getLuceneIndexingSpec(String column)
-  {
-    SecondaryIndexingSpec indexing = secondaryIndexing == null ? null : secondaryIndexing.get(column);
-    if (indexing instanceof LuceneIndexingSpec) {
-      return (LuceneIndexingSpec) indexing;
-    }
-    return null;
-  }
-
   public CompressionStrategy getMetricCompressionStrategy()
   {
     return metricCompression == null ? DEFAULT_METRIC_COMPRESSION :

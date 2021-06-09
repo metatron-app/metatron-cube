@@ -63,13 +63,12 @@ public class ComplexColumnSerializerTest
   public void testLucene() throws Exception
   {
     ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
-        ioPeon,
         "test-lucene",
         StringMetricSerde.INSTANCE,
         LuceneIndexingSpec.of(null, new TextIndexingStrategy("test-lucene")),
         null
     );
-    serializer.open();
+    serializer.open(ioPeon);
 
     serializer.serialize(0, "navis manse");
     serializer.serialize(1, "");
@@ -148,7 +147,6 @@ public class ComplexColumnSerializerTest
     ValueDesc type = ValueDesc.of("struct(address:string,lat:double,lon:double)");
     ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
     ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
-        ioPeon,
         "test-lucene",
         serde,
         LuceneIndexingSpec.of(
@@ -158,7 +156,7 @@ public class ComplexColumnSerializerTest
         ),
         null
     );
-    serializer.open();
+    serializer.open(ioPeon);
 
     serializer.serialize(0, new Object[] {"home", 37.492929d, 127.020784d});
     serializer.serialize(1, new Object[] {"school", 37.491055d, 127.026020d});

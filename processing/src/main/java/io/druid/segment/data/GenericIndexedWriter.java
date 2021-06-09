@@ -47,12 +47,7 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
 
   public static GenericIndexedWriter<String> forDictionary(IOPeon ioPeon, String filenameBase)
   {
-    return new GenericIndexedWriter<>(
-        ioPeon,
-        filenameBase,
-        ObjectStrategy.STRING_STRATEGY,
-        true
-    );
+    return new GenericIndexedWriter<>(ioPeon, filenameBase, ObjectStrategy.STRING_STRATEGY, true);
   }
 
   final IOPeon ioPeon;
@@ -70,7 +65,7 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
     this(ioPeon, filenameBase, strategy, false);
   }
 
-  GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean dictionary)
+  private GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean dictionary)
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;

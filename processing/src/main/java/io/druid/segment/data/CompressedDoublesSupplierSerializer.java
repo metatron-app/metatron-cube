@@ -36,7 +36,7 @@ import java.util.Map;
 public class CompressedDoublesSupplierSerializer implements ColumnPartWriter.DoubleType
 {
   public static ColumnPartWriter.DoubleType create(
-      IOPeon ioPeon,
+      final IOPeon ioPeon,
       final String filenameBase,
       final ByteOrder order,
       final CompressedObjectStrategy.CompressionStrategy compression

@@ -20,11 +20,19 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import io.druid.data.ValueDesc;
 
 /**
  */
+@Deprecated
 public class BitSlicedBitmapSpec implements SecondaryIndexingSpec
 {
   @JsonCreator
   public BitSlicedBitmapSpec() {}
+
+  @Override
+  public MetricColumnSerializer serializer(String columnName, ValueDesc type)
+  {
+    throw new UnsupportedOperationException();
+  }
 }

@@ -21,17 +21,30 @@ package io.druid.segment;
 
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnDescriptor.Builder;
+import io.druid.segment.data.IOPeon;
 
 import java.io.Closeable;
 import java.io.IOException;
 
 /**
+ * open -> serialize -> close -> build -> serde.getSerializedSize -> serde.writeToChannel
  */
 public interface MetricColumnSerializer extends Closeable
 {
-  void open() throws IOException;
+  MetricColumnSerializer DUMMY = new MetricColumnSerializer()
+  {
+    @Override
+    public void serialize(int rowNum, Object aggs) throws IOException {}
+  };
+
+  default void open(IOPeon ioPeon) throws IOException {}
+
   void serialize(int rowNum, Object aggs) throws IOException;
-  Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException;
+
+  default Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException { return builder;}
+
+  @Override
+  default void close() throws IOException {}
 
   // for deprecated classes
   abstract class Abstract implements MetricColumnSerializer

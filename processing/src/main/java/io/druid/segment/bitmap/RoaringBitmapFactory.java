@@ -225,6 +225,11 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     return copyTo(iterator, bitSet);
   }
 
+  public static ImmutableBitmap convert(BitSet bitSet)
+  {
+    return copyToBitmap(WrappedBitSetBitmap.iterator(bitSet));
+  }
+
   private static BitSet copyTo(final ImmutableBitmap bitmap, final BitSet bitSet)
   {
     if (bitmap instanceof LazyImmutableBitmap) {
@@ -248,7 +253,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (bitSet == null || bitSet.isEmpty()) {
       return makeEmptyImmutableBitmap();
     }
-    return copyToBitmap(WrappedBitSetBitmap.iterator(bitSet));
+    return convert(bitSet);
   }
 
   // should return -1 instead of NoSuchElementException

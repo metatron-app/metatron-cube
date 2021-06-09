@@ -37,24 +37,18 @@ import java.nio.channels.WritableByteChannel;
 public class FloatMetricColumnSerializer extends MetricColumnSerializer.Abstract
 {
   private final String metricName;
-  private final IOPeon ioPeon;
   private final File outDir;
 
   private ColumnPartWriter writer;
 
-  public FloatMetricColumnSerializer(
-      String metricName,
-      File outDir,
-      IOPeon ioPeon
-  )
+  public FloatMetricColumnSerializer(String metricName, File outDir)
   {
     this.metricName = metricName;
-    this.ioPeon = ioPeon;
     this.outDir = outDir;
   }
 
   @Override
-  public void open() throws IOException
+  public void open(IOPeon ioPeon) throws IOException
   {
     writer = CompressedFloatsSupplierSerializer.create(
         ioPeon, String.format("%s_little", metricName), IndexIO.BYTE_ORDER,

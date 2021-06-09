@@ -67,13 +67,12 @@ public class ComplexColumnSerializerTest
   public void testLucene() throws Exception
   {
     ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
-        ioPeon,
         "test-lucene",
         StringMetricSerde.INSTANCE,
         LuceneIndexingSpec.of(null, new TextIndexingStrategy("test-lucene")),
         null
     );
-    serializer.open();
+    serializer.open(ioPeon);
 
     serializer.serialize(0, "navis manse");
     serializer.serialize(1, "");
@@ -152,7 +151,6 @@ public class ComplexColumnSerializerTest
     ValueDesc type = ValueDesc.STRING;
     ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
     ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
-        ioPeon,
         "test-lucene",
         serde,
         LuceneIndexingSpec.of(
@@ -161,7 +159,7 @@ public class ComplexColumnSerializerTest
         ),
         null
     );
-    serializer.open();
+    serializer.open(ioPeon);
 
     // lon-lat ?
     String 서초1동 = "POLYGON(("

@@ -59,8 +59,8 @@ public class TestProfileQuery extends TestHelper
     List<String> expected = Arrays.asList(
         "[{3, 7, 18}]",
         "[null]",
-        "[{6, 14, 15, 16, 17}]",
         "[{3, 9, 14}]",
+        "[{6, 14, 15, 16, 17}]",
         "[{1, 4, 14, 18}]"
     );
     TestHelper.assertExpectedObjects(expected, GuavaUtils.transform(result, a -> Arrays.toString(a)));
@@ -70,8 +70,8 @@ public class TestProfileQuery extends TestHelper
     expected = Arrays.asList(
         "[true, true]",
         "[null, null]",
-        "[false, false]",
         "[true, false]",
+        "[false, false]",
         "[false, true]"
     );
     TestHelper.assertExpectedObjects(expected, GuavaUtils.transform(result, a -> Arrays.toString(a)));

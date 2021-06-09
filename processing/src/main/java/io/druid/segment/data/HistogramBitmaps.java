@@ -78,7 +78,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
     @Override
     public Serializer getSerializer()
     {
-      return new Serializer.Abstract()
+      return new Serializer()
       {
         @Override
         public long getSerializedSize() throws IOException

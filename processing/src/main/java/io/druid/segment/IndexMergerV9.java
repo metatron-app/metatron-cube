@@ -46,7 +46,6 @@ import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.GranularityType;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.io.smoosh.SmooshedWriter;
@@ -77,7 +76,6 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VSizeIntWriter;
 import io.druid.segment.data.VSizeIntsWriter;
-import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
@@ -852,10 +850,10 @@ public class IndexMergerV9 extends IndexMerger
     final SecondaryIndexingSpec indexing = indexSpec.getSecondaryIndexingSpec(Column.TIME_COLUMN_NAME);
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     final LongColumnSerializer timeWriter = LongColumnSerializer.create(
-        ioPeon, fileNameBase, indexSpec.getMetricCompressionStrategy(), serdeFactory, indexing, false
+        fileNameBase, indexSpec.getMetricCompressionStrategy(), serdeFactory, indexing, false
     );
     // we will close this writer after we added all the timestamps
-    timeWriter.open();
+    timeWriter.open(ioPeon);
     return timeWriter;
   }
 
@@ -878,48 +876,47 @@ public class IndexMergerV9 extends IndexMerger
       throws IOException
   {
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
-    final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
     final SecondaryIndexingSpec provider = indexSpec.getSecondaryIndexingSpec(metric);
+    final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
     final CompressionStrategy compression = indexSpec.getCompressionStrategy(metric, null);
     final CompressionStrategy metCompression = Optional.ofNullable(compression).orElse(indexSpec.getMetricCompressionStrategy());
-    final LuceneIndexingSpec luceneSpec = indexSpec.getLuceneIndexingSpec(metric);
-    MetricColumnSerializer writer;
+
+    final MetricColumnSerializer writer;
     switch (type.type()) {
       case BOOLEAN:
         writer = BooleanColumnSerializer.create(serdeFactory);
         break;
       case LONG:
         writer = LongColumnSerializer.create(
-            ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+            metric, metCompression, serdeFactory, provider, allowNullForNumbers
         );
         break;
       case FLOAT:
         writer = FloatColumnSerializer.create(
-            ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+            metric, metCompression, serdeFactory, provider, allowNullForNumbers
         );
         break;
       case DOUBLE:
         writer = DoubleColumnSerializer.create(
-            ioPeon, metric, metCompression, serdeFactory, provider, allowNullForNumbers
+            metric, metCompression, serdeFactory, provider, allowNullForNumbers
         );
         break;
       case STRING:
-        writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE, luceneSpec, compression);
+        writer = ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, provider, compression);
         break;
       case COMPLEX:
-        String typeName = type.typeName();
-        ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
+        final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
         if (serde == null) {
-          throw new ISE("Unknown type[%s]", typeName);
+          throw new ISE("Unknown type[%s]", type);
         }
         // todo : compression (ComplexMetricSerde is not implementing this except StringMetricSerde)
-        writer = ComplexColumnSerializer.create(ioPeon, metric, serde, luceneSpec, compression);
+        writer = ComplexColumnSerializer.create(metric, serde, provider, compression);
         break;
       default:
         throw new ISE("Unknown type[%s]", type);
     }
     // we will close these writers in another method after we added all the metrics
-    writer.open();
+    writer.open(ioPeon);
     return writer;
   }
 

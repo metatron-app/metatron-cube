@@ -22,12 +22,36 @@ package io.druid.segment.lucene;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
+import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.SecondaryIndexingSpec;
+import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.column.ColumnDescriptor;
+import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.filter.BitmapHolder;
+import io.druid.segment.filter.FilterContext;
+import io.druid.segment.serde.ColumnPartSerde;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TopDocs;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -128,5 +152,171 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
     int result = textAnalyzer.hashCode();
     result = 31 * result + strategies.hashCode();
     return result;
+  }
+
+  @Override
+  public MetricColumnSerializer serializer(String columnName, final ValueDesc type)
+  {
+    if (GuavaUtils.isNullOrEmpty(strategies)) {
+      return MetricColumnSerializer.DUMMY;
+    }
+    final Map<String, String> descriptors = LuceneIndexingSpec.getFieldDescriptors(strategies);
+    final List<Function<Object, Field[]>> generators = GuavaUtils.transform(strategies, Lucenes.makeGenerator(type));
+    final IndexWriter writer = Lucenes.buildRamWriter(textAnalyzer);
+
+    return new MetricColumnSerializer()
+    {
+      @Override
+      public void serialize(int rowNum, Object obj) throws IOException
+      {
+        final Document doc = new Document();
+        for (Function<Object, Field[]> generator : generators) {
+          Field[] fields = generator.apply(obj);
+          if (fields != null) {
+            for (Field field : fields) {
+              doc.add(field);
+            }
+          }
+        }
+        writer.addDocument(doc);
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        writer.commit();
+      }
+
+      @Override
+      public ColumnDescriptor.Builder buildDescriptor(ValueDesc desc, ColumnDescriptor.Builder builder)
+      {
+        if (writer.getDocStats().numDocs > 0) {
+          builder.addSerde(new SerDe(writer))
+                 .addDescriptor(descriptors);
+        }
+        return builder;
+      }
+    };
+  }
+
+  public static class SerDe implements ColumnPartSerde
+  {
+    private final IndexWriter luceneIndexer;
+
+    @JsonCreator
+    public SerDe()
+    {
+      luceneIndexer = null;
+    }
+
+    public SerDe(IndexWriter luceneIndexer)
+    {
+      this.luceneIndexer = Preconditions.checkNotNull(luceneIndexer);
+    }
+
+    @Override
+    public Serializer getSerializer()
+    {
+      return new Serializer()
+      {
+        @Override
+        public long getSerializedSize() throws IOException
+        {
+          return Lucenes.sizeOf(luceneIndexer);
+        }
+
+        @Override
+        public void writeToChannel(WritableByteChannel channel) throws IOException
+        {
+          Lucenes.writeTo(luceneIndexer, channel);
+        }
+      };
+    }
+
+    @Override
+    public Deserializer getDeserializer()
+    {
+      return new Deserializer()
+      {
+        @Override
+        public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
+        {
+          final ByteBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer);
+          final int length = bufferToUse.remaining();
+
+          final int numRows = builder.getNumRows();
+          final BitmapFactory factory = serdeFactory.getBitmapFactory();
+
+          final ValueDesc type = builder.getType();
+
+          builder.setLuceneIndex(
+              new ColumnPartProvider<LuceneIndex>()
+              {
+                @Override
+                public int numRows()
+                {
+                  return numRows;
+                }
+
+                @Override
+                public long getSerializedSize()
+                {
+                  return length;
+                }
+
+                @Override
+                public LuceneIndex get()
+                {
+                  final DirectoryReader reader = Lucenes.readFrom(bufferToUse.asReadOnlyBuffer());
+                  final IndexSearcher searcher = new IndexSearcher(reader);
+                  return new LuceneIndex()
+                  {
+                    @Override
+                    public void close() throws IOException
+                    {
+                      reader.close();
+                    }
+
+                    @Override
+                    public ValueDesc type()
+                    {
+                      return type;
+                    }
+
+                    @Override
+                    public BitmapHolder filterFor(Query query, FilterContext context, String attachment)
+                    {
+                      return BitmapHolder.exact(Lucenes.toBitmap(query(query), context, attachment));   // really?
+                    }
+
+                    @Override
+                    public TopDocs query(Query query)
+                    {
+                      try {
+                        return searcher.search(query, numRows);
+                      }
+                      catch (IOException e) {
+                        throw Throwables.propagate(e);
+                      }
+                    }
+
+                    @Override
+                    public IndexSearcher searcher()
+                    {
+                      return searcher;
+                    }
+
+                    @Override
+                    public int numRows()
+                    {
+                      return numRows;
+                    }
+                  };
+                }
+              }
+          );
+        }
+      };
+    }
   }
 }

@@ -754,13 +754,13 @@ public class IndexMerger
         ValueDesc type = metricTypeNames.get(metric);
         switch (type.type()) {
           case LONG:
-            metWriters.add(new LongMetricColumnSerializer(metric, v8OutDir, ioPeon));
+            metWriters.add(new LongMetricColumnSerializer(metric, v8OutDir));
             break;
           case FLOAT:
-            metWriters.add(new FloatMetricColumnSerializer(metric, v8OutDir, ioPeon));
+            metWriters.add(new FloatMetricColumnSerializer(metric, v8OutDir));
             break;
           case DOUBLE:
-            metWriters.add(new DoubleMetricColumnSerializer(metric, v8OutDir, ioPeon));
+            metWriters.add(new DoubleMetricColumnSerializer(metric, v8OutDir));
             break;
           case COMPLEX:
             final String typeName = type.typeName();
@@ -770,7 +770,7 @@ public class IndexMerger
               throw new ISE("Unknown type[%s]", typeName);
             }
 
-            metWriters.add(new ComplexMetricColumnSerializer(metric, v8OutDir, ioPeon, serde));
+            metWriters.add(new ComplexMetricColumnSerializer(metric, v8OutDir, serde));
             break;
           default:
             throw new ISE("Unknown type[%s]", type);
@@ -778,7 +778,7 @@ public class IndexMerger
       }
 
       for (MetricColumnSerializer metWriter : metWriters) {
-        metWriter.open();
+        metWriter.open(ioPeon);
       }
 
       long time = System.currentTimeMillis();

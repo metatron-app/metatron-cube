@@ -227,6 +227,16 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     buf[count++] = (byte) (v & 127);
   }
 
+  public static int sizeOfUnsignedVarInt(int v)
+  {
+    int count = 1;
+    while ((long) (v & -128) != 0L) {
+      count++;
+      v >>>= 7;
+    }
+    return count;
+  }
+
   public void write(BytesRef ref)
   {
     write(ref.bytes, 0, ref.length);

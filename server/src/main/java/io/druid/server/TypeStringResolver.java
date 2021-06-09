@@ -168,26 +168,33 @@ public class TypeStringResolver implements FileLoadSpec.Resolver
 
   private BaseTuningConfig tuningConfigFromProperties(Map<String, Object> properties, ObjectMapper mapper)
   {
-    Map<String, Object> tunningConfs = Maps.newHashMap();
-    Map<String, Object> indexingConfs = Maps.newHashMap();
-    for (Map.Entry<String, Object> entry : properties.entrySet()) {
-      if (entry.getKey().startsWith("tunning.")) {
-        tunningConfs.put(entry.getKey().substring(8), entry.getValue());
-      } else if (entry.getKey().startsWith("indexing.")) {
-        indexingConfs.put(entry.getKey().substring(9), entry.getValue());
-      }
-    }
-    BaseTuningConfig tunning = null;
-    if (!tunningConfs.isEmpty()) {
-      tunning = mapper.convertValue(tunningConfs, BaseTuningConfig.class);
-    }
-    if (!indexingConfs.isEmpty()) {
-      IndexSpec indexSpec = mapper.convertValue(indexingConfs, IndexSpec.class);
+    Map<String, Object> tc = mappify(properties, "tunning.");
+    BaseTuningConfig tunning = tc.isEmpty() ? null : mapper.convertValue(tc, BaseTuningConfig.class);
+
+    Map<String, Object> ic = mappify(properties, "indexing.");
+    if (!ic.isEmpty()) {
+      IndexSpec indexSpec = mapper.convertValue(ic, IndexSpec.class);
       if (indexSpec != null && !IndexSpec.DEFAULT.equals(indexSpec)) {
         tunning = (tunning == null ? BaseTuningConfig.DEFAULT : tunning).withIndexSpec(indexSpec);
       }
     }
     return tunning;
+  }
+
+  private Map<String, Object> mappify(Map<String, Object> properties, String prefix)
+  {
+    Map<String, Object> map = Maps.newHashMap();
+    for (Map.Entry<String, Object> entry : Maps.filterKeys(properties, k -> k.startsWith(prefix)).entrySet()) {
+      String name = entry.getKey();
+      String key = name.substring(prefix.length(), name.length());
+      int index = key.indexOf('.');
+      if (index < 0) {
+        map.put(key, entry.getValue());
+      } else if (!map.containsKey(key.substring(0, index))) {
+        map.put(key.substring(0, index), mappify(properties, prefix + key.substring(0, index + 1)));
+      }
+    }
+    return map;
   }
 
   private static List<String> resolve(String basePath, List<String> paths, boolean recursive) throws IOException

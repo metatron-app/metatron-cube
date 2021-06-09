@@ -46,7 +46,6 @@ import java.util.Map;
 public class FloatColumnSerializer implements GenericColumnSerializer
 {
   public static FloatColumnSerializer create(
-      IOPeon ioPeon,
       String filenameBase,
       CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
@@ -56,7 +55,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   {
     final ByteOrder ordering = IndexIO.BYTE_ORDER;
     if (allowNullForNumbers) {
-      return new FloatColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing)
+      return new FloatColumnSerializer(filenameBase, ordering, compression, serdeFactory, indexing)
       {
         private final MutableBitmap nulls = serdeFactory.getBitmapFactory().makeEmptyMutableBitmap();
 
@@ -107,11 +106,10 @@ public class FloatColumnSerializer implements GenericColumnSerializer
         }
       };
     } else {
-      return new FloatColumnSerializer(ioPeon, filenameBase, ordering, compression, serdeFactory, indexing);
+      return new FloatColumnSerializer(filenameBase, ordering, compression, serdeFactory, indexing);
     }
   }
 
-  private final IOPeon ioPeon;
   private final String filenameBase;
   private final ByteOrder byteOrder;
   private final CompressionStrategy compression;
@@ -123,7 +121,6 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   final BitSlicer.FloatType slicer;
 
   private FloatColumnSerializer(
-      IOPeon ioPeon,
       String filenameBase,
       ByteOrder byteOrder,
       CompressionStrategy compression,
@@ -131,7 +128,6 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       SecondaryIndexingSpec indexing
   )
   {
-    this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.byteOrder = byteOrder;
     this.compression = compression;
@@ -154,7 +150,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void open() throws IOException
+  public void open(IOPeon ioPeon) throws IOException
   {
     writer = CompressedFloatsSupplierSerializer.create(
         ioPeon,

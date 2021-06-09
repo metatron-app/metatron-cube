@@ -40,7 +40,6 @@ public class ComplexMetricColumnSerializer extends MetricColumnSerializer.Abstra
 {
   private final String metricName;
   private final ComplexMetricSerde serde;
-  private final IOPeon ioPeon;
   private final File outDir;
 
   private ColumnPartWriter<Object> writer;
@@ -48,19 +47,17 @@ public class ComplexMetricColumnSerializer extends MetricColumnSerializer.Abstra
   public ComplexMetricColumnSerializer(
       String metricName,
       File outDir,
-      IOPeon ioPeon,
       ComplexMetricSerde serde
   )
   {
     this.metricName = metricName;
     this.serde = serde;
-    this.ioPeon = ioPeon;
     this.outDir = outDir;
   }
 
   @SuppressWarnings(value = "unchecked")
   @Override
-  public void open() throws IOException
+  public void open(IOPeon ioPeon) throws IOException
   {
     writer = new GenericIndexedWriter(
         ioPeon, String.format("%s_%s", metricName, outDir.getName()), serde.getObjectStrategy()

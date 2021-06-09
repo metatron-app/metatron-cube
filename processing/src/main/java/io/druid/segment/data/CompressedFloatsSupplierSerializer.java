@@ -36,7 +36,7 @@ import java.util.Map;
 public class CompressedFloatsSupplierSerializer implements ColumnPartWriter.FloatType
 {
   public static ColumnPartWriter.FloatType create(
-      IOPeon ioPeon,
+      final IOPeon ioPeon,
       final String filenameBase,
       final ByteOrder order,
       final CompressedObjectStrategy.CompressionStrategy compression
