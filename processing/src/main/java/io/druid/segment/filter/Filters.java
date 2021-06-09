@@ -83,7 +83,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
-import io.druid.segment.data.Indexed;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.lucene.Lucenes;
@@ -333,32 +333,6 @@ public class Filters
     };
   }
 
-  public static ImmutableBitmap matchPredicateValues(
-      final String dimension,
-      final BitmapIndexSelector selector,
-      final Predicate<String> predicate
-  )
-  {
-    Preconditions.checkNotNull(dimension, "dimension");
-    Preconditions.checkNotNull(selector, "selector");
-    Preconditions.checkNotNull(predicate, "predicate");
-
-    // Missing dimension -> match all rows if the predicate matches null; match no rows otherwise
-    final Indexed<String> dimValues = selector.getDimensionValues(dimension);
-    if (dimValues == null || dimValues.size() == 0) {
-      return selector.getBitmapFactory().makeEmptyImmutableBitmap();
-    }
-
-    final BitmapFactory factory = selector.getBitmapFactory();
-    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
-    for (int i = 0; i < dimValues.size(); i++) {
-      if (predicate.apply(dimValues.get(i))) {
-        bitmap.add(i);
-      }
-    }
-    return factory.makeImmutableBitmap(bitmap);
-  }
-
   /**
    * Return the union of bitmaps for all values matching a particular predicate.
    *
@@ -380,17 +354,19 @@ public class Filters
     Preconditions.checkNotNull(predicate, "predicate");
 
     // Missing dimension -> match all rows if the predicate matches null; match no rows otherwise
-    final Indexed<String> dimValues = selector.getDimensionValues(dimension);
-    if (dimValues == null || dimValues.size() == 0) {
-      if (predicate.apply(null)) {
-        return DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
-      } else {
-        return DimFilters.makeFalse(selector.getBitmapFactory());
-      }
+    final Column column = selector.getColumn(dimension);
+    if (column == null) {
+      return selector.createBoolean(predicate.apply(null));
     }
-
     // Apply predicate to all dimension values and union the matching bitmaps
-    final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
+    final BitmapIndex bitmapIndex = column.getBitmapIndex();
+    if (bitmapIndex == null || bitmapIndex.getCardinality() < 0) {
+      return null;
+    }
+    final Dictionary<String> dictionary = column.getDictionary();
+    if (dictionary == null) {
+      return null;
+    }
     return DimFilters.union(
         selector.getBitmapFactory(),
         new Iterable<ImmutableBitmap>()
@@ -412,7 +388,7 @@ public class Filters
               public ImmutableBitmap next()
               {
                 while (currIndex < bitmapIndex.getCardinality() &&
-                       !predicate.apply(dimValues.get(currIndex))) {
+                       !predicate.apply(dictionary.get(currIndex))) {
                   currIndex++;
                 }
 

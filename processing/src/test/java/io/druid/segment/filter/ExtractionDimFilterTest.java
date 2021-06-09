@@ -39,12 +39,10 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.data.ArrayIndexed;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.data.Indexed;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
@@ -90,13 +88,6 @@ public class ExtractionDimFilterTest
     this.serdeFactory = bitmapSerdeFactory;
     this.selector = new BitmapIndexSelector()
     {
-      @Override
-      public Indexed<String> getDimensionValues(String dimension)
-      {
-        final String[] vals = DIM_VALS.get(dimension);
-        return vals == null ? null : new ArrayIndexed<String>(vals, String.class);
-      }
-
       @Override
       public int getNumRows()
       {

@@ -29,19 +29,19 @@ import java.util.List;
 
 public class BitmapHolder extends Pair<Boolean, ImmutableBitmap>
 {
-  public static BitmapHolder of(boolean exact, ImmutableBitmap rhs)
+  public static BitmapHolder of(boolean exact, ImmutableBitmap bitmap)
   {
-    return new BitmapHolder(exact, rhs);
+    return bitmap == null ? null : new BitmapHolder(exact, bitmap);
   }
 
-  public static BitmapHolder exact(ImmutableBitmap rhs)
+  public static BitmapHolder exact(ImmutableBitmap bitmap)
   {
-    return new BitmapHolder(true, rhs);
+    return bitmap == null ? null : new BitmapHolder(true, bitmap);
   }
 
-  public static BitmapHolder notExact(ImmutableBitmap rhs)
+  public static BitmapHolder notExact(ImmutableBitmap bitmap)
   {
-    return new BitmapHolder(false, rhs);
+    return bitmap == null ? null : new BitmapHolder(false, bitmap);
   }
 
   private BitmapHolder(boolean lhs, ImmutableBitmap rhs)

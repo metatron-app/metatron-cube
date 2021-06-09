@@ -83,9 +83,9 @@ public class BoundFilter implements Filter
     final int[] range = toRange(bitmapIndex);
 
     if (range == ALL) {
-      return DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
+      return selector.createBoolean(true);
     } else if (range == NONE || range[0] >= range[1]) {
-      return DimFilters.makeFalse(selector.getBitmapFactory());
+      return selector.createBoolean(false);
     }
 
     if (bitmapIndex instanceof CumulativeSupport) {

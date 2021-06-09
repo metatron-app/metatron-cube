@@ -525,7 +525,7 @@ public class GuavaUtils
     return Lists.newArrayList(list).contains(null);
   }
 
-  public static boolean containsAny(Collection collection, Collection finding)
+  public static boolean containsAny(Collection collection, Iterable finding)
   {
     for (Object x : finding) {
       if (collection.contains(x)) {
@@ -535,7 +535,7 @@ public class GuavaUtils
     return false;
   }
 
-  public static boolean containsAll(Collection collection, Collection finding)
+  public static boolean containsAll(Collection collection, Iterable finding)
   {
     for (Object x : finding) {
       if (!collection.contains(x)) {

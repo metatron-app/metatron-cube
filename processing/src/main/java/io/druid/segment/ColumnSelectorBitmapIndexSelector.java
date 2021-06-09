@@ -38,12 +38,8 @@ import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.BitSlicedBitmap;
-import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.Indexed;
-import io.druid.segment.data.IndexedIterable;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -70,43 +66,6 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   public ValueDesc resolve(String column)
   {
     return resolver.resolve(column);
-  }
-
-  @Override
-  public Indexed<String> getDimensionValues(String dimension)
-  {
-    final Column columnDesc = index.getColumn(dimension);
-    if (columnDesc == null || !columnDesc.getCapabilities().isDictionaryEncoded()) {
-      return null;
-    }
-    final Dictionary<String> column = columnDesc.getDictionary();
-    return new Indexed<String>()
-    {
-
-      @Override
-      public int size()
-      {
-        return column.size();
-      }
-
-      @Override
-      public String get(int index)
-      {
-        return column.get(index);
-      }
-
-      @Override
-      public int indexOf(String value)
-      {
-        return column.indexOf(value);
-      }
-
-      @Override
-      public Iterator<String> iterator()
-      {
-        return IndexedIterable.create(this).iterator();
-      }
-    };
   }
 
   @Override
@@ -139,13 +98,8 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     if (column == null) {
       return makeBooleanBitmap(Strings.isNullOrEmpty(value));
     }
-
-    if (!column.getCapabilities().hasBitmapIndexes()) {
-      return bitmapFactory.makeEmptyImmutableBitmap();
-    }
-
-    final BitmapIndex bitmapIndex = column.getBitmapIndex();
-    return bitmapIndex.getBitmap(bitmapIndex.getIndex(value));
+    final BitmapIndex bitmap = column.getBitmapIndex();
+    return bitmap == null ? null : bitmap.getBitmap(bitmap.getIndex(value));
   }
 
   @Override

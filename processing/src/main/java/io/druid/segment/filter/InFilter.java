@@ -19,7 +19,6 @@
 
 package io.druid.segment.filter;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -28,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -43,6 +41,8 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedID;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
@@ -74,31 +74,22 @@ public class InFilter implements Filter
       return null;  // extractionFn requires bitmap index
     }
     if (extractionFn == null) {
+      final Column column = selector.getColumn(dimension);
+      if (column == null) {
+        return BitmapHolder.exact(selector.createBoolean(values.contains("")));
+      }
+      final BitmapIndex bitmap = column.getBitmapIndex();
+      if (bitmap == null) {
+        return null;
+      }
       return BitmapHolder.exact(DimFilters.union(
           selector.getBitmapFactory(),
-          Iterables.transform(
-              values, new Function<String, ImmutableBitmap>()
-              {
-                @Override
-                public ImmutableBitmap apply(String value)
-                {
-                  return selector.getBitmapIndex(dimension, value);
-                }
-              }
-          )
+          Iterables.transform(values, v -> bitmap.getBitmap(bitmap.getIndex(v)))
       ));
     } else {
       return BitmapHolder.exact(Filters.matchPredicate(
           dimension,
-          new Predicate<String>()
-          {
-            @Override
-            public boolean apply(String input)
-            {
-              // InDimFilter converts all null "values" to empty.
-              return values.contains(Strings.nullToEmpty(extractionFn.apply(input)));
-            }
-          },
+          v -> values.contains(Strings.nullToEmpty(extractionFn.apply(v))),
           context
       ));
     }

@@ -128,8 +128,7 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
   @Override
   public ImmutableBitmap toBooleanFilter(TypeResolver resolver, BitmapIndexSelector selector)
   {
-    final Boolean bool = StringUtil.isNullOrEmpty(value) ? null : Rows.parseBoolean(value);
-    return selector.getBitmapIndex(dimension, bool);
+    return selector.getBitmapIndex(dimension, Rows.parseBoolean(value));
   }
 
   @Override

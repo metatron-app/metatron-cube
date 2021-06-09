@@ -19,7 +19,6 @@
 
 package io.druid.segment.filter;
 
-import com.google.common.base.Predicate;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.JavaScriptDimFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -42,16 +41,7 @@ public class JavaScriptFilter implements Filter
   {
     final Context cx = Context.enter();
     try {
-      final Predicate<String> contextualPredicate = new Predicate<String>()
-      {
-        @Override
-        public boolean apply(String input)
-        {
-          return predicate.applyInContext(cx, input);
-        }
-      };
-
-      return BitmapHolder.exact(Filters.matchPredicate(dimension, contextualPredicate, context));
+      return BitmapHolder.exact(Filters.matchPredicate(dimension, v -> predicate.applyInContext(cx, v), context));
     }
     finally {
       Context.exit();

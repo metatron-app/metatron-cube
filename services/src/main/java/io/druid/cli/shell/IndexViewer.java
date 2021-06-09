@@ -267,7 +267,7 @@ public class IndexViewer extends CommonShell.WithUtils
       String[] commands = line.split(" ");
       if (commands[0].trim().equalsIgnoreCase("segment")) {
         IndexMeta index = new IndexMeta(new File(commands[1].trim()), null);
-        dumpIndex(index, writer);
+        dumpIndex(index, Arrays.copyOfRange(commands, 2, commands.length), writer);
         continue;
       }
       if (line.equalsIgnoreCase("?")) {
@@ -276,9 +276,9 @@ public class IndexViewer extends CommonShell.WithUtils
         }
         continue;
       }
-      IndexMeta index = mapping1.get(line);
+      IndexMeta index = mapping1.get(commands[0]);
       if (index != null) {
-        dumpIndex(index, writer);
+        dumpIndex(index, Arrays.copyOfRange(commands, 1, commands.length), writer);
         continue;
       }
       String matchedDataSource = null;
@@ -308,8 +308,9 @@ public class IndexViewer extends CommonShell.WithUtils
           if (line == null || line.contentEquals(";")) {
             break;
           }
+          String[] split = line.split(" ");
           try {
-            dumpIndex(values.get(Integer.valueOf(line)), writer);
+            dumpIndex(values.get(Integer.valueOf(split[0])), Arrays.copyOfRange(split, 1, split.length), writer);
           }
           catch (NumberFormatException e) {
             // ignore
@@ -324,10 +325,10 @@ public class IndexViewer extends CommonShell.WithUtils
     }
   }
 
-  private void dumpIndex(IndexMeta indexMeta, PrintWriter writer)
+  private void dumpIndex(IndexMeta indexMeta, String[] params, PrintWriter writer)
   {
     try (QueryableIndex index = indexMeta.index()) {
-      dumpIndex(index, indexMeta.offsets.get(), writer, null, null);
+      dumpIndex(index, indexMeta.offsets.get(), params, writer, null, null);
     }
     catch (Exception e) {
       LOG.warn(e, "failed");
@@ -338,11 +339,13 @@ public class IndexViewer extends CommonShell.WithUtils
   private void dumpIndex(
       final QueryableIndex index,
       final Map<String, int[]> offsets,
+      final String[] params,
       final PrintWriter writer,
       final BigInteger cubeId,
       final CuboidSpec cuboidSpec
   )
   {
+    Set<String> include = params == null || params.length == 0 ? null : Sets.newHashSet(Arrays.<String>asList(params));
     List<String> availableDimensions = Lists.newArrayList(index.getAvailableDimensions());
 
     List<Pair<String, int[]>> values = Lists.newArrayList();
@@ -416,6 +419,9 @@ public class IndexViewer extends CommonShell.WithUtils
       if (metadata.getAggregators() != null && metadata.getAggregators().length > 0) {
         writer.println("  Aggregators");
         for (AggregatorFactory aggregator : metadata.getAggregators()) {
+          if (include != null && !include.contains(aggregator.getName())) {
+            continue;
+          }
           writer.println("    " + aggregator.toString());
         }
       }
@@ -430,6 +436,9 @@ public class IndexViewer extends CommonShell.WithUtils
 
     for (Pair<String, int[]> value : values) {
       String columnName = value.lhs;
+      if (include != null && !include.contains(columnName)) {
+        continue;
+      }
       int[] offset = value.rhs;
 
       Column column = index.getColumn(columnName);
@@ -552,7 +561,7 @@ public class IndexViewer extends CommonShell.WithUtils
       writer.println();
     }
     for (Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>> entry : sorted) {
-      dumpIndex(entry.getValue().rhs, offsets, writer, entry.getKey(), entry.getValue().lhs);
+      dumpIndex(entry.getValue().rhs, offsets, null, writer, entry.getKey(), entry.getValue().lhs);
     }
   }
 

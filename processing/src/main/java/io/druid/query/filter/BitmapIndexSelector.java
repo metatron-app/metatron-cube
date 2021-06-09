@@ -30,7 +30,6 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitSlicedBitmap;
-import io.druid.segment.data.Indexed;
 
 import java.io.Closeable;
 
@@ -40,7 +39,6 @@ public interface BitmapIndexSelector extends TypeResolver, Closeable
 {
   int getNumRows();
   BitmapFactory getBitmapFactory();
-  Indexed<String> getDimensionValues(String dimension);
   BitmapIndex getBitmapIndex(String dimension);
   ImmutableBitmap getBitmapIndex(String dimension, String value);
   ImmutableBitmap getBitmapIndex(String dimension, Boolean value);
@@ -50,6 +48,15 @@ public interface BitmapIndexSelector extends TypeResolver, Closeable
   BitSlicedBitmap getBitSlicedBitmap(String dimension);
   ColumnCapabilities getCapabilities(String dimension);
   Column getColumn(String dimension);
+
+  default ImmutableBitmap createBoolean(boolean value)
+  {
+    if (value) {
+      return DimFilters.makeTrue(getBitmapFactory(), getNumRows());
+    } else {
+      return DimFilters.makeFalse(getBitmapFactory());
+    }
+  }
 
   default void close() {}
 
@@ -69,12 +76,6 @@ public interface BitmapIndexSelector extends TypeResolver, Closeable
 
     @Override
     public BitmapFactory getBitmapFactory()
-    {
-      return null;
-    }
-
-    @Override
-    public Indexed<String> getDimensionValues(String dimension)
     {
       return null;
     }
