@@ -123,8 +123,8 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   {
     List<OrderByColumnSpec> rewritten = Lists.newArrayList();
     for (OrderByColumnSpec order : columns) {
-      ValueDesc type = context.resolve(order.getDimension(), ValueDesc.UNKNOWN);
-      if (!type.isUnknown() && !type.isStringOrDimension()) {
+      ValueDesc type = context.resolve(order.getDimension(), ValueDesc.UNKNOWN).unwrapDimension();
+      if (!type.isUnknown() && !type.isString()) {
         order = order.withComparator(type.typeName());  // todo add types to context for flatten spec
       }
       rewritten.add(order);

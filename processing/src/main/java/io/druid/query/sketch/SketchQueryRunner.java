@@ -210,19 +210,20 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
           if (dimension == null) {
             continue;
           }
-          ValueDesc majorType = majorTypes.get(dimension.getDimension());
-          if (majorType != null && !majorType.isStringOrDimension()) {
+          DimensionSelector selector = cursor.makeDimensionSelector(dimension);
+          ValueDesc expected = majorTypes.get(dimension.getDimension());
+          if (expected != null && !expected.equals(selector.type())) {
             LOG.info(
                 "Skipping %s, which is expected to be %s type but %s type",
-                dimension.getDimension(), majorType, ValueDesc.STRING_TYPE
+                dimension.getDimension(), expected, selector.type()
             );
             continue;
           }
-          dimSelectors.add(cursor.makeDimensionSelector(dimension));
           TypedSketch union = prev.get(dimension.getOutputName());
           if (union == null) {
-            prev.put(dimension.getOutputName(), union = handler.newUnion(nomEntries, ValueDesc.STRING, null));
+            prev.put(dimension.getOutputName(), union = handler.newUnion(nomEntries, selector.type(), null));
           }
+          dimSelectors.add(selector);
           sketches.add(union);
         }
         final List<ObjectColumnSelector> metricSelectors = Lists.newArrayList();

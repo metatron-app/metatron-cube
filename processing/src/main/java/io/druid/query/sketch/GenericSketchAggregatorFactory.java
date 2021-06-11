@@ -223,10 +223,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   @Override
   public AggregatorFactory resolve(Supplier<? extends TypeResolver> resolver)
   {
-    ValueDesc inputType = resolver.get().resolve(fieldName);
-    if (inputType.isDimension()) {
-      inputType = ValueDesc.STRING;
-    }
+    ValueDesc inputType = resolver.get().resolve(fieldName).unwrapDimension();
     return new GenericSketchAggregatorFactory(
         name,
         fieldName,

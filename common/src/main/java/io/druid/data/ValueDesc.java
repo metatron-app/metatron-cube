@@ -305,6 +305,8 @@ public class ValueDesc implements Serializable, Cacheable
     if (type2 == null) {
       return type1;
     }
+    type1 = type1.unwrapDimension();
+    type2 = type2.unwrapDimension();
     if (type1.equals(type2)) {
       return type1;
     }
@@ -319,9 +321,6 @@ public class ValueDesc implements Serializable, Cacheable
     }
     if (type1.isNumeric() && type2.isNumeric()) {
       return ValueDesc.DOUBLE;
-    }
-    if (type1.isStringOrDimension() && type2.isStringOrDimension()) {
-      return ValueDesc.STRING;
     }
     return ValueDesc.UNKNOWN;
   }
@@ -356,10 +355,10 @@ public class ValueDesc implements Serializable, Cacheable
     if (desc == null || desc.isUnknown()) {
       return STRING_TYPE;
     }
-    String typeName = desc.typeName();
     if (desc.isDimension()) {
-      return ValueDesc.subElementOf(typeName);
+      return desc.subElement(ValueDesc.STRING).typeName;
     }
+    String typeName = desc.typeName();
     final int index = typeName.indexOf('(');
     if (index > 0 && typeName.indexOf(index + 1, ')') > 0) {
       typeName = typeName.substring(0, index);  // remove description
@@ -486,6 +485,11 @@ public class ValueDesc implements Serializable, Cacheable
   public boolean hasSubElement()
   {
     return !type.isPrimitive() && typeName.indexOf('.') >= 0;
+  }
+
+  public ValueDesc unwrapDimension()
+  {
+    return isDimension() ? subElement(ValueDesc.STRING) : this;
   }
 
   @Override
@@ -620,11 +624,6 @@ public class ValueDesc implements Serializable, Cacheable
   public boolean isArrayOrStruct()
   {
     return isArray() || isStruct();
-  }
-
-  public boolean isStringOrDimension()
-  {
-    return isString() || isDimension();
   }
 
   public boolean isFloat()

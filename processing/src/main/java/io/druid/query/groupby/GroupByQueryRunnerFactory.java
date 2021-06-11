@@ -115,8 +115,10 @@ public class GroupByQueryRunnerFactory
         }
         type = ValueDesc.of(descriptiveType[2]);
       }
-      if (type.isDimension() || type.isArray()) {
-        types.add(type.subElement().type());
+      if (type.isDimension()) {
+        types.add(type.subElement(ValueDesc.STRING).type());
+      } else if (type.isArray()) {
+        types.add(type.subElement(ValueDesc.UNKNOWN).type());
       } else if (type.isPrimitive()) {
         types.add(type.type());
       } else if (type.isBitSet()) {
@@ -280,10 +282,7 @@ public class GroupByQueryRunnerFactory
     long elapsed = System.currentTimeMillis() - start;
     logger.info("split %s on values : %s (%d msec)", dimensionSpec.getDimension(), Arrays.toString(thresholds), elapsed);
 
-    ValueDesc type = dimensionSpec.resolve(resolver);
-    if (type.isDimension()) {
-      type = ValueDesc.STRING;
-    }
+    ValueDesc type = dimensionSpec.resolve(resolver).unwrapDimension();
     Map<String, String> mapping = QueryUtils.aliasMapping(query);
     OrderByColumnSpec orderingSpec = DimensionSpecs.asOrderByColumnSpec(dimensionSpec);
     String dimension = mapping.getOrDefault(dimensionSpec.getOutputName(), dimensionSpec.getOutputName());
@@ -305,7 +304,7 @@ public class GroupByQueryRunnerFactory
                      BoundDimFilter.gte(dimension, thresholds[i - 1]) :
                      BoundDimFilter.lt(dimension, thresholds[i - 1]);
       }
-      if (type.isStringOrDimension() && !orderingSpec.isNaturalOrdering()) {
+      if (type.isString() && !orderingSpec.isNaturalOrdering()) {
         filter = filter.withComparatorType(orderingSpec.getDimensionOrder());
       }
       logger.debug("--> filter : %s", filter);

@@ -341,9 +341,7 @@ public class IncrementalIndexSchema
     {
       List<DimensionSchema> dimensionSchemas = Lists.newArrayList();
       for (Pair<String, ValueDesc> pair : dimensionAndTypes) {
-        dimensionSchemas.add(
-            DimensionSchema.of(pair.lhs, pair.rhs.isStringOrDimension() ? ValueType.STRING : pair.rhs.type())
-        );
+        dimensionSchemas.add(DimensionSchema.of(pair.lhs, pair.rhs.unwrapDimension().type()));
       }
       this.dimensionsSpec = new DimensionsSpec(dimensionSchemas, null, null);
       return this;

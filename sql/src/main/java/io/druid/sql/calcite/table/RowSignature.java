@@ -160,10 +160,7 @@ public class RowSignature extends io.druid.query.RowSignature
     final RelDataTypeFactory.Builder builder = typeFactory.builder();
     for (int i = 0; i < columnNames.size(); i++) {
       String columnName = columnNames.get(i);
-      ValueDesc columnType = columnTypes.get(i);
-      if (columnType.isDimension()) {
-        columnType = columnType.subElement();
-      }
+      ValueDesc columnType = columnTypes.get(i).unwrapDimension();
       RelDataType type;
       if (Row.TIME_COLUMN_NAME.equals(columnName)) {
         type = Calcites.createSqlType(typeFactory, SqlTypeName.TIMESTAMP);

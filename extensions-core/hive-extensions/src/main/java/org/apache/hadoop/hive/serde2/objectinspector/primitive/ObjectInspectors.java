@@ -73,9 +73,7 @@ public class ObjectInspectors
 
   public static ObjectInspector toObjectInspector(ValueDesc type)
   {
-    if (type.isDimension()) {
-      return STRING;
-    }
+    type = type.unwrapDimension();
     if (type.isPrimitive()) {
       ObjectInspector oi = toPrimitiveOI(type.type());
       if (oi != null) {
@@ -120,9 +118,7 @@ public class ObjectInspectors
 
   public static TypeInfo toTypeInfo(ValueDesc type)
   {
-    if (type.isDimension()) {
-      return TypeInfoFactory.stringTypeInfo;
-    }
+    type = type.unwrapDimension();
     if (type.isPrimitive()) {
       TypeInfo info = toPrimitiveType(type.type());
       if (info != null) {

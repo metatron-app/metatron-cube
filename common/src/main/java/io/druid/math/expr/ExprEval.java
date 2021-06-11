@@ -181,21 +181,6 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return rhs.isPrimitive();
   }
 
-  public boolean isBoolean()
-  {
-    return rhs.isBoolean();
-  }
-
-  public boolean isString()
-  {
-    return rhs.isStringOrDimension();
-  }
-
-  public boolean isNumeric()
-  {
-    return rhs.isNumeric();
-  }
-
   public boolean isLong()
   {
     return rhs.isLong();
@@ -274,7 +259,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return (Boolean) value();
     } else if (rhs.isNumeric()) {
       return doubleValue() > 0;
-    } else if (rhs.isStringOrDimension()) {
+    } else if (rhs.isString()) {
       return Boolean.valueOf(stringValue());
     } else {
       return true;
@@ -289,7 +274,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return (Boolean) value() ? 1F : 0F;
     } else if (rhs.isNumeric()) {
       return floatValue();
-    } else if (rhs.isStringOrDimension()) {
+    } else if (rhs.isString()) {
       return Rows.tryParseFloat(asString());
     } else if (rhs.type() == ValueType.DATETIME) {
       return (float) dateTimeValue().getMillis();
@@ -305,7 +290,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return (Boolean) value() ? 1D : 0D;
     } else if (rhs.isNumeric()) {
       return doubleValue();
-    } else if (rhs.isStringOrDimension()) {
+    } else if (rhs.isString()) {
       return Rows.tryParseDouble(asString());
     } else if (rhs.type() == ValueType.DATETIME) {
       return (double) dateTimeValue().getMillis();
@@ -321,7 +306,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return (Boolean) value() ? 1L : 0L;
     } else if (rhs.isNumeric()) {
       return longValue();
-    } else if (rhs.isStringOrDimension()) {
+    } else if (rhs.isString()) {
       return Rows.tryParseLong(asString());
     } else if (rhs.type() == ValueType.DATETIME) {
       return dateTimeValue().getMillis();
@@ -335,7 +320,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
       return null;
     } else if (rhs.isNumeric()) {
       return intValue();
-    } else if (rhs.isStringOrDimension()) {
+    } else if (rhs.isString()) {
       return Rows.tryParseInt(asString());
     } else if (rhs.type() == ValueType.DATETIME) {
       return Ints.checkedCast(dateTimeValue().getMillis());
@@ -343,7 +328,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return 0;
   }
 
-  public ExprEval defaultValue()
+  public ExprEval defaultValue(ValueDesc unkown)
   {
     switch (rhs.type()) {
       case BOOLEAN:
@@ -359,6 +344,6 @@ public class ExprEval extends Pair<Object, ValueDesc>
       case DATETIME:
         return ExprEval.of((DateTime) null);
     }
-    return ExprEval.of(null, ValueDesc.UNKNOWN);
+    return ExprEval.of(null, unkown);
   }
 }

@@ -102,10 +102,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       int majorCount = -1;
       ValueDesc majorType = null;
       for (Map.Entry<ValueDesc, MutableInt> e : entry.getValue().entrySet()) {
-        ValueDesc type = e.getKey();
-        if (type.isDimension()) {
-          type = ValueDesc.STRING;
-        }
+        ValueDesc type = e.getKey().unwrapDimension();
         value.put(type, e.getValue());
         if (majorType == null || e.getValue().intValue() > majorCount) {
           majorType = type;

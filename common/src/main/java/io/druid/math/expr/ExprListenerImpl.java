@@ -321,10 +321,7 @@ public class ExprListenerImpl extends ExprBaseListener
       text = text.substring(1, text.length() - 1);  // strip off
     }
     text = normalize(text);
-    ValueDesc type = resolver.resolve(text, ValueDesc.UNKNOWN);
-    if (type.isDimension()) {
-      type = ValueDesc.STRING;    // todo
-    }
+    ValueDesc type = resolver.resolve(text, ValueDesc.UNKNOWN).unwrapDimension();
     if (ctx.getChildCount() == 5 &&
         ctx.getChild(1).getText().equals("[") &&
         ctx.getChild(2).getText().equals("-") &&

@@ -236,14 +236,15 @@ public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport
               Object upper = itemsSketch.getQuantile(0.75f);
               result.put("iqr", new Object[]{lower, upper});
 
-              if (type.isPrimitiveNumeric()) {
+              final ValueDesc unwrap = type.unwrapDimension();
+              if (unwrap.isPrimitiveNumeric()) {
                 double q1 = ((Number) lower).doubleValue();
                 double q3 = ((Number) upper).doubleValue();
                 double delta = (q3 - q1) * 1.5;
                 result.put("outlierThreshold", new double[]{q1 - delta, q3 + delta});
               }
 
-              if (type.isStringOrDimension()) {
+              if (unwrap.isString()) {
                 final SearchQuery search = new SearchQuery(
                     representative.getDataSource(),
                     null,
@@ -283,8 +284,8 @@ public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport
                     )
                 );
               }
-              if (type.isPrimitive()) {
-                runner = configureForType(runner, column, lower, upper, type);
+              if (unwrap.isPrimitive()) {
+                runner = configureForType(runner, column, lower, upper, unwrap);
               }
             }
             final TimeseriesQuery timeseries = runner;

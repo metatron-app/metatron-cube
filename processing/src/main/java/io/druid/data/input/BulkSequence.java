@@ -69,8 +69,8 @@ public class BulkSequence extends YieldingSequenceBase<BulkRow>
     this.page = new Object[schema.size()];
     final List<ValueDesc> types = schema.getColumnTypes();
     for (int i = 0; i < types.size(); i++) {
-      final ValueDesc valueDesc = types.get(i);
-      switch (valueDesc.isDimension() ? ValueDesc.typeOfDimension(valueDesc) : valueDesc.type()) {
+      final ValueDesc valueDesc = types.get(i).unwrapDimension();
+      switch (valueDesc.type()) {
         case FLOAT:
           category[i] = 1;
           page[i] = new Float[max];

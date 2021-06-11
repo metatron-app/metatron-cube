@@ -168,8 +168,8 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
   public List<Range> toRanges(TypeResolver resolver)
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");
-    ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING);
-    Comparable c = resolved.isStringOrDimension() ? value : (Comparable) resolved.cast(value);
+    ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING).unwrapDimension();
+    Comparable c = resolved.isString() ? value : (Comparable) resolved.cast(value);
     return Arrays.<Range>asList(Ranges.of(c, "=="));
   }
 

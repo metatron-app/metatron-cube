@@ -643,7 +643,7 @@ public class Queries
       builder.append(DimensionSpecVirtualColumn.wrap(column, "$VC"));
       fieldName = "$VC";
     }
-    ValueDesc inputType = type.isDimension() ? ValueDesc.STRING : type;
+    ValueDesc inputType = type.unwrapDimension();
     AggregatorFactory aggregator = new GenericSketchAggregatorFactory(
         "$SKETCH", fieldName, null, inputType, SketchOp.QUANTILE, 4096, orderingSpec, false
     );

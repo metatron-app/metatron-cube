@@ -715,8 +715,8 @@ abstract class BinaryOpExprBase extends AbstractBinaryOp implements Expression.F
     if (this instanceof BooleanOp) {
       return ValueDesc.BOOLEAN;
     }
-    final ValueDesc lt = left.returns();
-    final ValueDesc rt = right.returns();
+    final ValueDesc lt = left.returns().unwrapDimension();
+    final ValueDesc rt = right.returns().unwrapDimension();
     if (lt.isUnknown() || rt.isUnknown()) {
       return ValueDesc.UNKNOWN;
     }
@@ -726,7 +726,7 @@ abstract class BinaryOpExprBase extends AbstractBinaryOp implements Expression.F
     if (!lt.isNumeric() && !rt.isNumeric()) {
       return ValueDesc.STRING;
     }
-    if (lt.isStringOrDimension() || rt.isStringOrDimension()) {
+    if (lt.isString() || rt.isString()) {
       return ValueDesc.STRING;
     }
     if (lt.isFloat() && rt.isFloat()) {

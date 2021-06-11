@@ -1876,7 +1876,7 @@ public interface BuiltinFunctions extends Function.Library
           if (args.size() % 2 != 1) {
             return args.get(args.size() - 1).eval(bindings);
           }
-          return leftVal.defaultValue();
+          return leftVal.defaultValue(type);
         }
       };
     }

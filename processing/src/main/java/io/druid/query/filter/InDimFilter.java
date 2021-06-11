@@ -178,10 +178,7 @@ public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.L
   public List<Range> toRanges(TypeResolver resolver)
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");
-    ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING);
-    if (resolved.isStringOrDimension()) {
-      resolved = ValueDesc.STRING;
-    }
+    ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING).unwrapDimension();
     List<Range> ranges = Lists.newArrayList();
     for (String value : values) {
       ranges.add(Ranges.of((Comparable) resolved.type().cast(value), "=="));

@@ -68,7 +68,8 @@ public class Schema extends RowSignature
       }
       ValueDesc type = entry.getValue();
       if (type.isDimension()) {
-        capabilities.put(column, ColumnCapabilities.of(ValueType.STRING).setHasBitmapIndexes(true));
+        type = type.unwrapDimension();
+        capabilities.put(column, ColumnCapabilities.of(type.type()).setHasBitmapIndexes(true));
       }
       columnTypes.add(type);
     }
