@@ -20,8 +20,10 @@
 package io.druid.segment.column;
 
 import io.druid.collections.ResourceHolder;
+import io.druid.common.guava.BufferRef;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.Tools;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
 
@@ -34,6 +36,15 @@ import java.util.Arrays;
 public interface ColumnAccess extends Closeable
 {
   Object getValue(int rowNum);
+
+  interface WithRawAccess extends ColumnAccess
+  {
+    byte[] getAsRaw(int index);
+
+    BufferRef getAsRef(int index);
+
+    <R> R apply(int index, Tools.Function<R> function);
+  }
 
   abstract class Compressed implements ColumnAccess
   {

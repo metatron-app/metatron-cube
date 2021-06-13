@@ -49,6 +49,7 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
@@ -865,7 +866,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public byte[] getRaw()
+                            public byte[] getAsRaw()
                             {
                               return dictionary.getAsRaw(columnVals.getSingleValueRow(cursorOffset.getOffset()));
                             }
@@ -875,31 +876,79 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             {
                               return dictionary.getAsRef(columnVals.getSingleValueRow(cursorOffset.getOffset()));
                             }
+
+                            @Override
+                            public <R> R apply(Tools.Function<R> function)
+                            {
+                              return dictionary.apply(cursorOffset.getOffset(), function);
+                            }
                           };
                         }
                       } else if (!capabilities.getType().isPrimitive()) {
                         final ComplexColumn columnVals = holder.getComplexColumn();
                         final ValueDesc valueType = columnVals.getType();
-                        cachedColumnVals = new ObjectColumnSelector.WithBaggage()
-                        {
-                          @Override
-                          public void close() throws IOException
+                        if (columnVals instanceof ColumnAccess.WithRawAccess) {
+                          final ColumnAccess.WithRawAccess rawAccess = (ColumnAccess.WithRawAccess) columnVals;
+                          cachedColumnVals = new ObjectColumnSelector.WithRawAccess<Object>()
                           {
-                            columnVals.close();
-                          }
+                            @Override
+                            public ValueDesc type()
+                            {
+                              return valueType;
+                            }
 
-                          @Override
-                          public ValueDesc type()
-                          {
-                            return valueType;
-                          }
+                            @Override
+                            public Object get()
+                            {
+                              return rawAccess.getValue(cursorOffset.getOffset());
+                            }
 
-                          @Override
-                          public Object get()
+                            @Override
+                            public byte[] getAsRaw()
+                            {
+                              return rawAccess.getAsRaw(offset.getOffset());
+                            }
+
+                            @Override
+                            public BufferRef getAsRef()
+                            {
+                              return rawAccess.getAsRef(offset.getOffset());
+                            }
+
+                            @Override
+                            public <R> R apply(Tools.Function<R> function)
+                            {
+                              return rawAccess.apply(offset.getOffset(), function);
+                            }
+
+                            @Override
+                            public void close() throws IOException
+                            {
+                              rawAccess.close();
+                            }
+                          };
+                        } else {
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage()
                           {
-                            return columnVals.getValue(cursorOffset.getOffset());
-                          }
-                        };
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
+                            @Override
+                            public ValueDesc type()
+                            {
+                              return valueType;
+                            }
+
+                            @Override
+                            public Object get()
+                            {
+                              return columnVals.getValue(cursorOffset.getOffset());
+                            }
+                          };
+                        }
                       } else {
                         final GenericColumn columnVals = holder.getGenericColumn();
                         final ValueType type = columnVals.getType().type();

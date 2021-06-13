@@ -19,20 +19,22 @@
 
 package io.druid.segment.column;
 
+import io.druid.common.guava.BufferRef;
 import io.druid.data.ValueDesc;
+import io.druid.segment.Tools;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
-import io.druid.segment.data.Indexed;
+import io.druid.segment.data.GenericIndexed;
 
 import java.io.IOException;
 
 /**
 */
-public class IndexedComplexColumn implements ComplexColumn
+public class IndexedComplexColumn implements ComplexColumn, ColumnAccess.WithRawAccess
 {
-  private final Indexed column;
+  private final GenericIndexed<?> column;
   private final ValueDesc type;
 
-  public IndexedComplexColumn(ValueDesc type, Indexed column)
+  public IndexedComplexColumn(ValueDesc type, GenericIndexed<?> column)
   {
     this.column = column;
     this.type = type;
@@ -60,6 +62,21 @@ public class IndexedComplexColumn implements ComplexColumn
   public Object getValue(int rowNum)
   {
     return column.get(rowNum);
+  }
+
+  public byte[] getAsRaw(int index)
+  {
+    return column.getAsRaw(index);
+  }
+
+  public BufferRef getAsRef(int index)
+  {
+    return column.getAsRef(index);
+  }
+
+  public <R> R apply(int index, Tools.Function<R> function)
+  {
+    return column.apply(index, function);
   }
 
   @Override

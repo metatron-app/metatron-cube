@@ -21,6 +21,7 @@ package io.druid.common.guava;
 
 import com.google.common.base.Supplier;
 import io.druid.data.ValueDesc;
+import io.druid.segment.Tools;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -67,9 +68,11 @@ public class DSuppliers
 
   public static interface WithRawAccess<T> extends TypedSupplier<T>
   {
-    byte[] getRaw();
+    byte[] getAsRaw();
 
     BufferRef getAsRef();
+
+    <R> R apply(Tools.Function<R> function);
   }
 
   public static <T> Supplier<T> of(final AtomicReference<T> ref)

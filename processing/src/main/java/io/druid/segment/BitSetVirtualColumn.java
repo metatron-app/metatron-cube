@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.BufferRef;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
@@ -88,6 +89,13 @@ public class BitSetVirtualColumn implements VirtualColumn
     final ValueDesc indexed = factory.resolve(columnName);
     if (indexed.isBitSet()) {
       final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
+      if (selector instanceof ObjectColumnSelector.WithRawAccess) {
+        final ObjectColumnSelector.WithRawAccess rawAccess = (ObjectColumnSelector.WithRawAccess) selector;
+        return ColumnSelectors.asSelector(ValueDesc.BOOLEAN, () -> {
+          final BufferRef ref = rawAccess.getAsRef();
+          return ref.remaining() == 0 ? null : ref.get(access);
+        });
+      }
       return ColumnSelectors.asSelector(ValueDesc.BOOLEAN, () -> {
         final BitSet bitSet = (BitSet) selector.get();
         return bitSet == null ? null : bitSet.get(access);

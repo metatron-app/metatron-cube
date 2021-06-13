@@ -41,7 +41,7 @@ public class BufferRef implements Comparable<BufferRef>
     this.to = to;
   }
 
-  private int remaining()
+  public int remaining()
   {
     return to - from;
   }
@@ -76,5 +76,32 @@ public class BufferRef implements Comparable<BufferRef>
       }
     }
     return Ints.compare(len1, len2);
+  }
+
+  private final static int ADDRESS_BITS_PER_WORD = 6;
+  private static final int BIT_INDEX_MASK = 0b111111;
+
+  public boolean get(int index)
+  {
+    final long word = getIxWord(index);
+    return word != 0 && (word & 1L << (index & BIT_INDEX_MASK)) != 0;
+  }
+
+  private long getIxWord(int index)
+  {
+    if (index >= remaining() * Byte.SIZE) {
+      return 0L;
+    }
+    final int ix = index >> ADDRESS_BITS_PER_WORD;
+    final int x = from + ix * Long.BYTES;
+    final int remnant = to - x;
+    if (remnant >= Long.BYTES) {
+      return buffer.getLong(x);
+    }
+    long v = 0;
+    for (int i = 0; i < remnant; i++) {
+      v |= (buffer.get(x + i) & 0xffL) << Byte.SIZE * i;
+    }
+    return v;
   }
 }
