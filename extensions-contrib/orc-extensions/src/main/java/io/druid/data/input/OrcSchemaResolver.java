@@ -22,7 +22,7 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -33,13 +33,14 @@ import io.druid.granularity.Granularity;
 import io.druid.indexer.path.PathUtil;
 import io.druid.jackson.ObjectMappers;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.StringUtils;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
+import io.druid.server.AbstractResolver;
 import io.druid.server.FileLoadSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -49,20 +50,12 @@ import org.apache.hadoop.hive.ql.io.orc.Reader;
 import org.apache.orc.OrcProto;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 @JsonTypeName("orc")
-public class OrcSchemaResolver implements FileLoadSpec.Resolver
+public class OrcSchemaResolver extends AbstractResolver
 {
-  private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
-  private final List<String> paths;
-  private final boolean recursive;
-
-  private final String timeExpression;
-  private final Granularity segmentGranularity;
-
   @JsonCreator
   public OrcSchemaResolver(
       @JsonProperty("basePath") String basePath,
@@ -72,12 +65,7 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
       @JsonProperty("segmentGranularity") Granularity segmentGranularity
   )
   {
-    Preconditions.checkArgument(basePath != null || !StringUtils.isNullOrEmpty(paths), "No path");
-    this.basePath = basePath;
-    this.paths = paths == null ? null : Arrays.asList(paths.split(","));
-    this.recursive = recursive;
-    this.timeExpression = timeExpression;
-    this.segmentGranularity = segmentGranularity;
+    super(basePath, paths, recursive, timeExpression, segmentGranularity);
   }
 
   private static final int DIMENSION_THRESHOLD = 32;
@@ -186,6 +174,8 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
     }
     typeString.append('>');
 
+    ObjectMapper mapper = walker.getMapper();
+    List<AggregatorFactory> metrics = rewriteMetrics(agggregators, properties, mapper);
     if (timestampSpec == null) {
       timestampSpec = IncrementTimestampSpec.dummy();
     }
@@ -194,8 +184,9 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
     Map<String, Object> spec = walker.getMapper().convertValue(parser, ObjectMappers.MAP_REF);
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     DataSchema schema = new DataSchema(
-        dataSource, spec, agggregators.toArray(new AggregatorFactory[0]), false, granularity, null, null, true
+        dataSource, spec, metrics.toArray(new AggregatorFactory[0]), false, granularity, null, null, true
     );
+    BaseTuningConfig config = tuningConfigFromProperties(properties, mapper);
     return new FileLoadSpec(
         basePath,
         resolved,
@@ -204,8 +195,8 @@ public class OrcSchemaResolver implements FileLoadSpec.Resolver
         schema,
         null,
         null,
-        null,
-        null
+        config,
+        properties
     );
   }
 }

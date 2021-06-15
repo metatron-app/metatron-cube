@@ -1091,14 +1091,7 @@ public class IndexIO
       ));
 
       // load cuboids
-      Iterable<String> remaining = Iterables.filter(smooshedFiles.getInternalFilenames(), new Predicate<String>()
-      {
-        @Override
-        public boolean apply(String input)
-        {
-          return !columns.containsKey(input);
-        }
-      });
+      Iterable<String> remaining = Iterables.filter(smooshedFiles.getInternalFilenames(), c -> !columns.containsKey(c));
 
       final Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids = Maps.newTreeMap();
       for (Map.Entry<BigInteger, CuboidSpec> cuboid : Cuboids.extractCuboids(remaining).entrySet()) {

@@ -37,7 +37,6 @@ import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
-import java.util.Map;
 
 /**
  */
@@ -114,12 +113,6 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseDoubleBuffers.writeToChannel(channel);
-  }
-
-  @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
   }
 
   public CompressedDoublesIndexedSupplier convertByteOrder(ByteOrder order)

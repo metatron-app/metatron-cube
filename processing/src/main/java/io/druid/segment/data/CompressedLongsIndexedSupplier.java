@@ -38,7 +38,6 @@ import java.nio.LongBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  */
@@ -287,12 +286,6 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
         ),
         compression
     );
-  }
-
-  @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
   }
 
   private class CompressedIndexedLongs implements IndexedLongs

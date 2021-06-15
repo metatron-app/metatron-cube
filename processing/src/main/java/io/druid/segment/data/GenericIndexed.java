@@ -36,7 +36,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.Map;
 
 /**
  * A generic, flat storage mechanism.  Use static methods fromArray() or fromIterable() to construct.  If input
@@ -481,12 +480,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + 4)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(size)));
     channel.write(theBuffer.asReadOnlyBuffer());
-  }
-
-  @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
   }
 
   @Override

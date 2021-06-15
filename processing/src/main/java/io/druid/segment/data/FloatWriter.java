@@ -33,7 +33,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.util.Map;
 
 public class FloatWriter implements ColumnPartWriter.FloatType
 {
@@ -82,12 +81,6 @@ public class FloatWriter implements ColumnPartWriter.FloatType
            Integer.BYTES +  // sizePer
            1 +              // compression id
            Float.BYTES * count;
-  }
-
-  @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
   }
 
   @Override

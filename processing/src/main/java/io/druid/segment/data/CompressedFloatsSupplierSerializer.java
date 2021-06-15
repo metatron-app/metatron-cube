@@ -29,7 +29,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Map;
 
 /**
  */
@@ -141,11 +140,5 @@ public class CompressedFloatsSupplierSerializer implements ColumnPartWriter.Floa
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     flattener.writeToChannel(channel);
-  }
-
-  @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
   }
 }

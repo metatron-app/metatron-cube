@@ -22,7 +22,7 @@ package io.druid.data.input.parquet;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.ExpressionTimestampSpec;
@@ -42,9 +42,11 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.segment.incremental.BaseTuningConfig;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
+import io.druid.server.AbstractResolver;
 import io.druid.server.FileLoadSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -57,21 +59,13 @@ import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.Type;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 @JsonTypeName("parquet")
-public class ParquetSchemaResolver implements FileLoadSpec.Resolver
+public class ParquetSchemaResolver extends AbstractResolver
 {
   private static final Logger LOG = new Logger(ParquetSchemaResolver.class);
-
-  private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
-  private final List<String> paths;
-  private final boolean recursive;
-
-  private final String timeExpression;
-  private final Granularity segmentGranularity;
 
   @JsonCreator
   public ParquetSchemaResolver(
@@ -82,12 +76,7 @@ public class ParquetSchemaResolver implements FileLoadSpec.Resolver
       @JsonProperty("segmentGranularity") Granularity segmentGranularity
   )
   {
-    Preconditions.checkArgument(basePath != null || !StringUtils.isNullOrEmpty(paths), "No path");
-    this.basePath = basePath;
-    this.paths = paths == null ? null : Arrays.asList(paths.split(","));
-    this.recursive = recursive;
-    this.timeExpression = timeExpression;
-    this.segmentGranularity = segmentGranularity;
+    super(basePath, paths, recursive, timeExpression, segmentGranularity);
   }
 
   @Override
@@ -164,17 +153,20 @@ public class ParquetSchemaResolver implements FileLoadSpec.Resolver
       }
       throw new UnsupportedOperationException("Unknown type " + field);
     }
+    ObjectMapper mapper = walker.getMapper();
+    List<AggregatorFactory> metrics = rewriteMetrics(agggregators, properties, mapper);
     if (timestampSpec == null) {
       timestampSpec = IncrementTimestampSpec.dummy();
     }
     InputRowParser parser = new MapInputRowParser(
         new TimeAndDimsParseSpec(timestampSpec, DimensionsSpec.ofStringDimensions(dimensions))
     );
-    Map<String, Object> spec = walker.getMapper().convertValue(parser, ObjectMappers.MAP_REF);
+    Map<String, Object> spec = mapper.convertValue(parser, ObjectMappers.MAP_REF);
     GranularitySpec granularity = UniformGranularitySpec.of(segmentGranularity);
     DataSchema schema = new DataSchema(
-        dataSource, spec, agggregators.toArray(new AggregatorFactory[0]), false, granularity, null, null, true
+        dataSource, spec, metrics.toArray(new AggregatorFactory[0]), false, granularity, null, null, true
     );
+    BaseTuningConfig config = tuningConfigFromProperties(properties, mapper);
     FileLoadSpec loadSpec = new FileLoadSpec(
         basePath,
         resolved,
@@ -183,8 +175,8 @@ public class ParquetSchemaResolver implements FileLoadSpec.Resolver
         schema,
         null,
         null,
-        null,
-        null
+        config,
+        properties
     );
     LOG.info("Extracted schema.. %s", loadSpec.getSchema().asTypeString(parser));
     return loadSpec;

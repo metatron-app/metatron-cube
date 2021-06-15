@@ -143,10 +143,4 @@ public class CompressedDoublesSupplierSerializer implements ColumnPartWriter.Dou
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     flattener.writeToChannel(channel);
   }
-
-  @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
-  }
 }

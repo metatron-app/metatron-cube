@@ -37,7 +37,6 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
-import java.util.Map;
 
 /**
  */
@@ -114,12 +113,6 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseFloatBuffers.writeToChannel(channel);
-  }
-
-  @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
   }
 
   public CompressedFloatsIndexedSupplier convertByteOrder(ByteOrder order)
