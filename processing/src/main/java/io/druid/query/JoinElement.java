@@ -327,6 +327,7 @@ public class JoinElement
       Map<String, Object> context
   )
   {
+    Preconditions.checkNotNull(dataSource);
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       if (query instanceof JoinQuery.JoinHolder) {
@@ -343,6 +344,9 @@ public class JoinElement
       }
       return (ArrayOutputSupport) query;
     }
+    if (dataSource instanceof TableDataSource) {
+      dataSource = ViewDataSource.of(((TableDataSource) dataSource).getName());
+    }
     if (dataSource instanceof ViewDataSource) {
       ViewDataSource view = (ViewDataSource) dataSource;
       StreamQuery query = new Druids.SelectQueryBuilder()
@@ -358,7 +362,7 @@ public class JoinElement
       }
       return query;
     }
-    throw new ISE("todo: cannot join on %s", dataSource);
+    throw new ISE("todo: cannot join on %s(%s)", dataSource, dataSource.getClass());
   }
 
   public static long estimatedNumRows(
