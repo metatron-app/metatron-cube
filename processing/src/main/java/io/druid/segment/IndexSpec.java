@@ -34,6 +34,7 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
+import io.druid.segment.lucene.FSTBuilder;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 
 import javax.annotation.Nullable;
@@ -79,7 +80,7 @@ public class IndexSpec
   private final Map<String, String> columnCompression;
   private final ColumnIncluderator dimensionSketches;
   private final boolean allowNullForNumbers;
-  private final float expectedFSTreduction;
+  private final Map<String, Float> expectedFSTReductions;
 
   private final List<CuboidSpec> cuboidSpecs;
 
@@ -88,7 +89,7 @@ public class IndexSpec
    */
   public IndexSpec()
   {
-    this(null, null, null, null, null, null, null, false, 0);
+    this(null, null, null, null, null, null, null, false, null);
   }
 
   /**
@@ -115,7 +116,7 @@ public class IndexSpec
       @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing,
       @JsonProperty("cuboidSpecs") List<CuboidSpec> cuboidSpecs,
       @JsonProperty("allowNullForNumbers") boolean allowNullForNumbers,
-      @JsonProperty("expectedFSTreduction") float expectedFSTreduction
+      @JsonProperty("expectedFSTReductions") Map<String, Float> expectedFSTReductions
   )
   {
     Preconditions.checkArgument(dimensionCompression == null || dimensionCompression.equals(UNCOMPRESSED) || COMPRESSION_NAMES.contains(dimensionCompression),
@@ -132,7 +133,7 @@ public class IndexSpec
     this.columnCompression = columnCompression;
     this.cuboidSpecs = cuboidSpecs;
     this.allowNullForNumbers = allowNullForNumbers;
-    this.expectedFSTreduction = expectedFSTreduction;
+    this.expectedFSTReductions = expectedFSTReductions;
   }
 
   public IndexSpec(
@@ -141,7 +142,7 @@ public class IndexSpec
       String metricCompression
   )
   {
-    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, null, false, 0);
+    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, null, false, null);
   }
 
   @JsonProperty("bitmap")
@@ -198,15 +199,22 @@ public class IndexSpec
     return allowNullForNumbers;
   }
 
-  @JsonProperty("expectedFSTreduction")
-  public float getExpectedFSTreduction()
+  @JsonProperty("expectedFSTReductions")
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, Float> getExpectedFSTReductions()
   {
-    return expectedFSTreduction;
+    return expectedFSTReductions;
   }
 
   public SecondaryIndexingSpec getSecondaryIndexingSpec(String column)
   {
     return secondaryIndexing == null ? null : secondaryIndexing.get(column);
+  }
+
+  public FSTBuilder getFSTBuilder(String column)
+  {
+    Float fstReduction = expectedFSTReductions == null ? null : expectedFSTReductions.get(column);
+    return fstReduction != null && fstReduction > 0 ? new FSTBuilder(fstReduction) : null;
   }
 
   public CompressionStrategy getCompressionStrategy(String column, CompressionStrategy defaultStrategy)
@@ -271,7 +279,7 @@ public class IndexSpec
         null,
         null,
         allowNullForNumbers,
-        needFinalizing() ? 0 : expectedFSTreduction    // seemed not much of overhead
+        needFinalizing() ? null : expectedFSTReductions    // seemed not much of overhead
     );
   }
 
@@ -286,7 +294,7 @@ public class IndexSpec
         secondaryIndexing,
         cuboidSpecs,
         allowNullForNumbers,
-        expectedFSTreduction
+        expectedFSTReductions
     );
   }
 
@@ -323,10 +331,13 @@ public class IndexSpec
     if (!Objects.equals(cuboidSpecs, indexSpec.cuboidSpecs)) {
       return false;
     }
+    if (!Objects.equals(expectedFSTReductions, indexSpec.expectedFSTReductions)) {
+      return false;
+    }
     if (allowNullForNumbers != indexSpec.allowNullForNumbers) {
       return false;
     }
-    return expectedFSTreduction == indexSpec.expectedFSTreduction;
+    return true;
   }
 
   @Override
@@ -341,7 +352,7 @@ public class IndexSpec
         columnCompression,
         cuboidSpecs,
         allowNullForNumbers,
-        expectedFSTreduction
+        expectedFSTReductions
     );
   }
 }

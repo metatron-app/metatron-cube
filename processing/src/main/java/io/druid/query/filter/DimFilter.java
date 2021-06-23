@@ -64,6 +64,7 @@ import java.util.regex.Pattern;
     @JsonSubTypes.Type(name = "selector", value = SelectorDimFilter.class),
     @JsonSubTypes.Type(name = "extraction", value = ExtractionDimFilter.class),
     @JsonSubTypes.Type(name = "regex", value = RegexDimFilter.class),
+    @JsonSubTypes.Type(name = "regex.match", value = RegexMatchFilter.class),
     @JsonSubTypes.Type(name = "search", value = SearchQueryDimFilter.class),
     @JsonSubTypes.Type(name = "javascript", value = JavaScriptDimFilter.class),
     @JsonSubTypes.Type(name = "spatial", value = SpatialDimFilter.class),

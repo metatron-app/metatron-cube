@@ -29,5 +29,8 @@
   "queryGran": "DAY",
   "segmentGran": "YEAR",
   "fixedSchema": true,
-  "rollup": true
+  "rollup": true,
+  "indexSpec": {
+    "expectedFSTReductions": {"ProductName": 100}
+  }
 }

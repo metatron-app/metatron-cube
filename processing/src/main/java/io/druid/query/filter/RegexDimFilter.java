@@ -24,14 +24,26 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
-import io.druid.segment.filter.RegexFilter;
+import io.druid.segment.column.Column;
+import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.filter.BitmapHolder;
+import io.druid.segment.filter.DimensionPredicateFilter;
+import io.druid.segment.filter.FilterContext;
+import io.druid.segment.lucene.RegexpMatcher;
+import org.apache.lucene.util.automaton.Automaton;
+import org.apache.lucene.util.automaton.RegExp;
 
+import java.io.IOException;
+import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -41,20 +53,35 @@ public class RegexDimFilter extends SingleInput
   private final String dimension;
   private final String pattern;
   private final ExtractionFn extractionFn;
+  private final boolean match;
 
   private final Supplier<Pattern> patternSupplier;
+  private final Supplier<Automaton> automatonSupplier;
 
   @JsonCreator
   public RegexDimFilter(
       @JsonProperty("dimension") String dimension,
       @JsonProperty("pattern") String pattern,
+      @JsonProperty("match") boolean match,
       @JsonProperty("extractionFn") ExtractionFn extractionFn
   )
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension must not be null");
     this.pattern = Preconditions.checkNotNull(pattern, "pattern must not be null");
+    this.match = match;
     this.extractionFn = extractionFn;
     this.patternSupplier = Suppliers.memoize(() -> Pattern.compile(pattern));
+    final Supplier<Automaton> supplier = Suppliers.memoize(() -> new RegExp(pattern).toAutomaton());
+    this.automatonSupplier = () -> {
+      Automaton automaton = new Automaton(0, 0);
+      automaton.copy(supplier.get());
+      return automaton;
+    };
+  }
+
+  public RegexDimFilter(String dimension, String pattern, ExtractionFn extractionFn)
+  {
+    this(dimension, pattern, false, extractionFn);
   }
 
   @Override
@@ -67,7 +94,7 @@ public class RegexDimFilter extends SingleInput
   @Override
   protected DimFilter withDimension(String dimension)
   {
-    return new RegexDimFilter(dimension, pattern, extractionFn);
+    return new RegexDimFilter(dimension, pattern, match, extractionFn);
   }
 
   @JsonProperty
@@ -87,15 +114,40 @@ public class RegexDimFilter extends SingleInput
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(DimFilterCacheKey.REGEX_CACHE_ID)
-                  .append(dimension).sp()
-                  .append(pattern).sp()
+                  .append(dimension, pattern)
+                  .append(match)
                   .append(extractionFn);
   }
 
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new RegexFilter(dimension, patternSupplier.get().matcher(""), extractionFn);
+    final Matcher matcher = patternSupplier.get().matcher("");
+    final Predicate<String> predicate = match ? v -> v != null && matcher.reset(v).matches()
+                                              : v -> v != null && matcher.reset(v).find();
+    if (!match || extractionFn != null) {
+      return new DimensionPredicateFilter(dimension, predicate, extractionFn);
+    }
+    return new DimensionPredicateFilter(dimension, predicate, extractionFn)
+    {
+      @Override
+      public BitmapHolder getBitmapIndex(FilterContext context)
+      {
+        final BitmapIndexSelector selector = context.indexSelector();
+        final Column column = selector.getColumn(dimension);
+        if (column != null && column.getCapabilities().hasDictionaryFST()) {
+          final DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
+          try {
+            final IntList matched = RegexpMatcher.regexMatch(automatonSupplier.get(), dictionary.getFST()).sort();
+            return BitmapHolder.exact(column.getBitmapIndex().union(matched));
+          }
+          catch (IOException e) {
+            // fallback to scanning matcher
+          }
+        }
+        return super.getBitmapIndex(context);
+      }
+    };
   }
 
   @Override
@@ -104,6 +156,7 @@ public class RegexDimFilter extends SingleInput
     return "RegexDimFilter{" +
            "dimension='" + dimension + '\'' +
            ", pattern='" + pattern + '\'' +
+           ", match='" + match + '\'' +
            (extractionFn == null ? "" : ", extractionFn='" + extractionFn + '\'') +
            '}';
   }
@@ -126,16 +179,15 @@ public class RegexDimFilter extends SingleInput
     if (!pattern.equals(that.pattern)) {
       return false;
     }
-    return extractionFn != null ? extractionFn.equals(that.extractionFn) : that.extractionFn == null;
-
+    if (match != that.match) {
+      return false;
+    }
+    return Objects.equals(extractionFn, that.extractionFn);
   }
 
   @Override
   public int hashCode()
   {
-    int result = dimension.hashCode();
-    result = 31 * result + pattern.hashCode();
-    result = 31 * result + (extractionFn != null ? extractionFn.hashCode() : 0);
-    return result;
+    return Objects.hash(dimension, pattern, match, extractionFn);
   }
 }

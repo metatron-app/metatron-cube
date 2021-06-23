@@ -59,6 +59,7 @@ public class ColumnCapabilities
   private boolean hasMetricBitmap;
   private boolean hasBitSlicedBitmap;
   private boolean hasLuceneIndex;
+  private boolean hasDictionaryFST;
 
   public ColumnCapabilities() {}
 
@@ -72,7 +73,8 @@ public class ColumnCapabilities
       @JsonProperty("hasSpatialIndexes") boolean hasSpatialIndexes,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("hasMetricBitmap") boolean hasMetricBitmap,
-      @JsonProperty("hasLuceneIndex") boolean hasLuceneIndex
+      @JsonProperty("hasLuceneIndex") boolean hasLuceneIndex,
+      @JsonProperty("hasDictionaryFST") boolean hasDictionaryFST
   )
   {
     this.type = type;
@@ -84,6 +86,7 @@ public class ColumnCapabilities
     this.hasMultipleValues = hasMultipleValues;
     this.hasMetricBitmap = hasMetricBitmap;
     this.hasLuceneIndex = hasLuceneIndex;
+    this.hasDictionaryFST = hasDictionaryFST;
   }
 
   @JsonProperty
@@ -206,6 +209,18 @@ public class ColumnCapabilities
     return this;
   }
 
+  @JsonProperty
+  public boolean hasDictionaryFST()
+  {
+    return hasDictionaryFST;
+  }
+
+  public ColumnCapabilities setHasDictionaryFST(boolean hasDictionaryFST)
+  {
+    this.hasDictionaryFST = hasDictionaryFST;
+    return this;
+  }
+
   public ColumnCapabilities merge(ColumnCapabilities other)
   {
     if (other == null) {
@@ -235,6 +250,7 @@ public class ColumnCapabilities
     this.hasMultipleValues |= other.hasMultipleValues();
     this.hasMetricBitmap &= other.hasMetricBitmap();
     this.hasLuceneIndex &= other.hasLuceneIndex();
+    this.hasDictionaryFST &= other.hasDictionaryFST();
 
     return this;
   }
@@ -252,7 +268,8 @@ public class ColumnCapabilities
         hasMultipleValues,
         hasMetricBitmap,
         hasBitSlicedBitmap,
-        hasLuceneIndex
+        hasLuceneIndex,
+        hasDictionaryFST
     );
   }
 
@@ -274,6 +291,7 @@ public class ColumnCapabilities
            hasMetricBitmap == that.hasMetricBitmap &&
            hasBitSlicedBitmap == that.hasBitSlicedBitmap &&
            hasLuceneIndex == that.hasLuceneIndex &&
+           hasDictionaryFST == that.hasDictionaryFST &&
            type == that.type &&
            Objects.equals(typeName, that.typeName);
   }

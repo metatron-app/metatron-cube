@@ -39,9 +39,11 @@ import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
+import io.druid.query.filter.RegexMatchFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupingSetSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -129,7 +131,7 @@ public class TestSalesQuery extends TestHelper
     expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    columnNames = new String[] {"__time", "State", "rows", "Discount", "Profit"};
+    columnNames = new String[]{"__time", "State", "rows", "Discount", "Profit"};
     objects = new Object[][]{
         array("2011-01-01", "California", 2001L, 145.60000000000002, 76368.0),
         array("2011-01-01", "New York", 1128L, 62.39999999999992, 74020.0),
@@ -176,7 +178,8 @@ public class TestSalesQuery extends TestHelper
         .setVirtualColumns(
             new ExprVirtualColumn(
                 "time_format(__time,out.format='yyyy-MM-dd HH:mm',out.timezone='Asia/Seoul',out.locale='en')",
-                "MINUTE(event_time).inner")
+                "MINUTE(event_time).inner"
+            )
         )
         .setDimensions(DefaultDimensionSpec.of("MINUTE(event_time).inner", "MINUTE(event_time)"))
         .setAggregatorSpecs(
@@ -186,9 +189,11 @@ public class TestSalesQuery extends TestHelper
         )
         .setPostAggregatorSpecs(
             new ArithmeticPostAggregator(
-                "AVG(Discount)", "/", Arrays.<PostAggregator>asList(
-                new FieldAccessPostAggregator("SUM(Discount)", "SUM(Discount)"),
-                new FieldAccessPostAggregator("COUNT", "COUNT"))
+                "AVG(Discount)", "/",
+                Arrays.<PostAggregator>asList(
+                    new FieldAccessPostAggregator("SUM(Discount)", "SUM(Discount)"),
+                    new FieldAccessPostAggregator("COUNT", "COUNT")
+                )
             )
         )
         .setLimitSpec(
@@ -410,8 +415,8 @@ public class TestSalesQuery extends TestHelper
         array("2011-01-01", "98103", 118L, 6.4, 6105.0),
         array("2011-01-01", "94122", 157L, 11.350000000000003, 5968.0)
     );
-    limitSpec = new LimitSpec(OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(15), OrderedLimitSpec.of(15), null,
-                              null
+    limitSpec = new LimitSpec(
+        OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(15), OrderedLimitSpec.of(15), null, null
     );
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
@@ -442,7 +447,7 @@ public class TestSalesQuery extends TestHelper
                         PivotSpec.tabular(
                             Arrays.asList(PivotColumnSpec.of("Region")), "COUNT(Sales)"
                         ).withPartitionExpressions(
-                          "#_ = $sum(_)", "concat(_, '.percent') = case(#_ == 0, 0.0, cast(_, 'DOUBLE') / #_ * 100)"
+                            "#_ = $sum(_)", "concat(_, '.percent') = case(#_ == 0, 0.0, cast(_, 'DOUBLE') / #_ * 100)"
                         ).withAppendValueColumn(true)
                     )
                 )
@@ -639,7 +644,8 @@ public class TestSalesQuery extends TestHelper
                 "AVG(Sales)", "/",
                 Arrays.<PostAggregator>asList(
                     new FieldAccessPostAggregator("SUM(Sales)", "SUM(Sales)"),
-                    new FieldAccessPostAggregator("count", "count"))
+                    new FieldAccessPostAggregator("count", "count")
+                )
             )
         )
         .limitSpec(
@@ -892,5 +898,49 @@ public class TestSalesQuery extends TestHelper
         array("2011-01-01", Arrays.asList("Central", "East", "South", "West"), 4L)
     };
     TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+  }
+
+  @Test
+  public void test3747()
+  {
+    final List<String> values = Arrays.asList(
+        "Eldon Jumbo ProFile Portable File Boxes Graphite/Black",
+        "Blue Parrot B250XT Professional Grade Wireless Bluetooth Headset with",
+        "DataProducts Ampli Magnifier Task Lamp, Black,",
+        "Eldon ProFile File N Store Portable File Tub Letter/Legal Size Black",
+        "Eldon ProFile File N Store Portable File Tub Letter/Legal Size Black",
+        "DataProducts Ampli Magnifier Task Lamp, Black,",
+        "Eldon ProFile File N Store Portable File Tub Letter/Legal Size Black",
+        "Eldon ProFile File N Store Portable File Tub Letter/Legal Size Black",
+        "DataProducts Ampli Magnifier Task Lamp, Black,",
+        "Eldon ProFile File N Store Portable File Tub Letter/Legal Size Black",
+        "Blue Parrot B250XT Professional Grade Wireless Bluetooth Headset with",
+        "DataProducts Ampli Magnifier Task Lamp, Black,",
+        "Eldon ProFile File N Store Portable File Tub Letter/Legal Size Black",
+        "Eldon ProFile File N Store Portable File Tub Letter/Legal Size Black",
+        "Blue Parrot B250XT Professional Grade Wireless Bluetooth Headset with",
+        "Blue Parrot B250XT Professional Grade Wireless Bluetooth Headset with",
+        "DataProducts Ampli Magnifier Task Lamp, Black,"
+    );
+
+    StreamQuery stream = Druids.newSelectQueryBuilder()
+                               .dataSource("sales")
+                               .intervals(Intervals.of("2011-01-01/2015-01-01"))
+                               .filters(new RegexMatchFilter("ProductName", "[^I-T].*Pro.*Bl.*", IdentityExtractionFn.getInstance()))
+                               .columns("ProductName")
+                               .streaming();
+
+    List<Object[]> rows = runQuery(stream);
+    Assert.assertEquals(values.size(), rows.size());
+    for (Object[] x : rows) {
+      Assert.assertTrue(String.valueOf(x[0]), values.contains(x[0]));
+    }
+
+    // with FST
+    rows = runQuery(stream.withFilter(new RegexMatchFilter("ProductName", "[^I-T].*Pro.*Bl.*", null)));
+    Assert.assertEquals(values.size(), rows.size());
+    for (Object[] x : rows) {
+      Assert.assertTrue(String.valueOf(x[0]), values.contains(x[0]));
+    }
   }
 }

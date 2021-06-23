@@ -36,6 +36,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
+import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
 import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
 import it.unimi.dsi.fastutil.chars.CharSet;
@@ -325,7 +326,7 @@ public class LikeDimFilter extends SingleInput
     if (extractionFn == null && matcher.regex == null) {
       return new SelectorFilter(dimension, matcher.prefix);
     }
-    return new LikeFilter(dimension, matcher, extractionFn);
+    return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn);
   }
 
   @Override

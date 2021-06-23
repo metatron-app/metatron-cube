@@ -1001,8 +1001,6 @@ public class IndexMergerV9 extends IndexMerger
       dimConversions.add(Maps.<String, IntBuffer>newHashMap());
     }
 
-    float fstReduction = indexSpec.getExpectedFSTreduction();
-
     for (int dimIndex = 0; dimIndex < mergedDimensions.size(); ++dimIndex) {
       long dimStartTime = System.currentTimeMillis();
       String dimension = mergedDimensions.get(dimIndex);
@@ -1041,7 +1039,7 @@ public class IndexMergerV9 extends IndexMerger
         numMergeIndex++;
       }
 
-      final FSTBuilder builder = fstReduction > 0 ? new FSTBuilder(fstReduction) : null;
+      final FSTBuilder builder = indexSpec.getFSTBuilder(dimension);
       final GenericIndexedWriter<String> writer = dictionaryWriters.get(dimIndex);
 
       int cardinality = 0;

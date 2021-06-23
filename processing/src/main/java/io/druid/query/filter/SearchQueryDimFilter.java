@@ -28,7 +28,7 @@ import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.search.search.SearchQuerySpec;
-import io.druid.segment.filter.SearchQueryFilter;
+import io.druid.segment.filter.DimensionPredicateFilter;
 
 /**
  */
@@ -90,7 +90,7 @@ public class SearchQueryDimFilter extends SingleInput
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new SearchQueryFilter(dimension, query, extractionFn);
+    return new DimensionPredicateFilter(dimension, v -> query.accept(v), extractionFn);
   }
 
   @Override

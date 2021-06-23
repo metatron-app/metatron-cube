@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * with the License. You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -19,14 +19,21 @@
 
 package io.druid.query.filter;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.LikeDimFilter.LikeMatcher;
-import io.druid.segment.filter.DimensionPredicateFilter;
 
-public class LikeFilter extends DimensionPredicateFilter
+/**
+ */
+public class RegexMatchFilter extends RegexDimFilter
 {
-  public LikeFilter(String dimension, LikeMatcher matcher, ExtractionFn extractionFn)
+  @JsonCreator
+  public RegexMatchFilter(
+      @JsonProperty("dimension") String dimension,
+      @JsonProperty("pattern") String pattern,
+      @JsonProperty("extractionFn") ExtractionFn extractionFn
+  )
   {
-    super(dimension, matcher.asPredicate(), extractionFn);
+    super(dimension, pattern, true, extractionFn);
   }
 }

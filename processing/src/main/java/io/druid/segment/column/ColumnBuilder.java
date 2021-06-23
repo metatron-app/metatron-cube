@@ -165,6 +165,7 @@ public class ColumnBuilder
             .setType(type.type())
             .setTypeName(type.typeName())
             .setDictionaryEncoded(dictionaryEncodedColumn != null)
+            .setHasDictionaryFST(dictionaryEncodedColumn != null && dictionaryEncodedColumn.hasFST())
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)
             .setHasBitSlicedBitmap(bitSlicedBitmap != null)

@@ -133,6 +133,12 @@ public class IntList implements Iterable<Integer>, IntConsumer
     return current;
   }
 
+  public IntList sort()
+  {
+    Arrays.sort(baseArray, 0, size);
+    return this;
+  }
+
   public int[] array()
   {
     return Arrays.copyOfRange(baseArray, 0, size);

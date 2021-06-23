@@ -56,6 +56,18 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   }
 
   @Override
+  public boolean hasFST()
+  {
+    return fst != null;
+  }
+
+  @Override
+  public FST<Long> getFST()
+  {
+    return fst.get();
+  }
+
+  @Override
   public DictionaryEncodedColumn get()
   {
     return new SimpleDictionaryEncodedColumn(
