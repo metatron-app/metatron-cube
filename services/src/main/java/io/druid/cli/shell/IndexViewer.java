@@ -64,6 +64,7 @@ import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.segment.loading.StorageLocationConfig;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
+import org.apache.lucene.util.fst.FST;
 import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
@@ -469,19 +470,17 @@ public class IndexViewer extends CommonShell.WithUtils
           CloseQuietly.close(genericColumn);
         }
       }
-      StringBuilder builder = new StringBuilder();
+      LineBuilder builder = new LineBuilder(writer);
       if (dimensionsType) {
         if (cuboidSpec == null) {
           boolean multipleValued = capabilities.hasMultipleValues();
-          builder.append(
-              format("  type : %s (hasMultiValue = %s, size = %,d bytes)", desc, multipleValued, columnSize)
-          );
+          builder.append("  type : %s (multiValued = %s, %,d bytes)", desc, multipleValued, columnSize);
         } else {
-          builder.append(format("  type : %s (%,d bytes)", desc, columnSize));
+          builder.append("  type : %s (%,d bytes)", desc, columnSize);
         }
       } else {
         compressionType = compressionType != null ? compressionType : CompressionStrategy.UNCOMPRESSED;
-        builder.append(format("  type : %s (compression = %s, size = %,d bytes)", desc, compressionType, columnSize));
+        builder.append("  type : %s (compression = %s, %,d bytes)", desc, compressionType, columnSize);
       }
       Map<String, Object> columnStats = column.getColumnStats();
       if (!GuavaUtils.isNullOrEmpty(columnStats)) {
@@ -491,27 +490,29 @@ public class IndexViewer extends CommonShell.WithUtils
             entry.setValue(stat.substring(0, 12) + "...(abbreviated)");
           }
         }
-        builder.append(format(", stats %s", columnStats));
+        builder.append("stats %s", columnStats);
       }
 
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         Dictionary<String> dictionary = dictionaryEncoded.dictionary();
+        FST<Long> fst = dictionaryEncoded.getFST();
         long dictionarySize = cuboidSpec == null ? dictionary.getSerializedSize() : 0;
+        long fstSize = fst == null ? 0 : fst.ramBytesUsed();  // todo
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = Objects.toString(dictionary.containsNull(), "unknown");
         if (cuboidSpec == null) {
-          append(
-              builder, writer,
-              format(
-                  "dictionary (cardinality = %d, hasNull = %s, size = %,d bytes)",
-                  dictionary.size(), hasNull, dictionarySize
-              )
+          builder.flush();
+          builder.append(
+              "dictionary (cardinality = %d, hasNull = %s, %,d bytes)", dictionary.size(), hasNull, dictionarySize
           );
+          if (fst != null) {
+            builder.append("FST (%,d bytes)", fstSize);
+          }
         } else {
-          append(builder, writer, format("cardinality = %d", dictionary.size()));
+          builder.append("cardinality = %d", dictionary.size());
         }
-        append(builder, writer, format("rows (%,d bytes)", encodedSize - dictionarySize));
+        builder.append("rows (%,d bytes)", encodedSize - dictionarySize - fstSize);
         CloseQuietly.close(dictionaryEncoded);
       }
       if (capabilities.hasBitmapIndexes()) {
@@ -526,38 +527,34 @@ public class IndexViewer extends CommonShell.WithUtils
             );
           }
         }
-        append(builder, writer, string);
+        builder.append(string);
       }
       if (capabilities.hasSpatialIndexes()) {
-        append(builder, writer, format("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL)));
+        builder.append("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL));
       }
       if (capabilities.isRunLengthEncoded()) {
-        append(builder, writer, format("RLE encoded (%,d bytes)", column.getSerializedSize(Column.EncodeType.RUNLENGTH_ENCODED)));
+        builder.append("RLE encoded (%,d bytes)", column.getSerializedSize(Column.EncodeType.RUNLENGTH_ENCODED));
       }
       if (capabilities.hasMetricBitmap()) {
         HistogramBitmap bitmap = column.getMetricBitmap();
-        append(builder, writer,
-            format(
-                "metric bitmap (%d bitmaps, %,d zeros, %,d bytes)",
-                bitmap.numBins(), bitmap.zeroRows(), column.getSerializedSize(Column.EncodeType.METRIC_BITMAP)
-            )
+        builder.append(
+            "metric bitmap (%d bitmaps, %,d zeros, %,d bytes)",
+            bitmap.numBins(), bitmap.zeroRows(), column.getSerializedSize(Column.EncodeType.METRIC_BITMAP)
         );
       }
       if (capabilities.hasBitSlicedBitmap()) {
-        append(builder, writer,
-            format("bit sliced bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITSLICED_BITMAP))
+        builder.append(
+            "bit sliced bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITSLICED_BITMAP)
         );
       }
       if (capabilities.hasLuceneIndex()) {
-        append(builder, writer, format("lucene index (%,d bytes)", column.getSerializedSize(Column.EncodeType.LUCENE_INDEX)));
+        builder.append("lucene index (%,d bytes)", column.getSerializedSize(Column.EncodeType.LUCENE_INDEX));
         Map<String, String> columnDescs = column.getColumnDescs();
         if (!GuavaUtils.isNullOrEmpty(columnDescs)) {
-          builder.append(format(", descs %s", columnDescs));
+          builder.append("descs %s", columnDescs);
         }
       }
-      if (builder.length() > 2) {
-        writer.println(builder.toString());
-      }
+      builder.flush();
       writer.println();
     }
     for (Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>> entry : sorted) {
@@ -565,20 +562,42 @@ public class IndexViewer extends CommonShell.WithUtils
     }
   }
 
-  private StringBuilder append(StringBuilder builder, PrintWriter writer, String string)
+  private static class LineBuilder
   {
-    int length = builder.length() + string.length();
-    if (length > 120) {
-      writer.println(builder.toString());
+    private final PrintWriter writer;
+    private final StringBuilder builder = new StringBuilder();
+
+    private LineBuilder(PrintWriter writer) {this.writer = writer;}
+
+    private void append(String format, Object... arguments)
+    {
+      append(format(format, arguments));
+    }
+
+    private void append(String string)
+    {
+      int length = builder.length() + string.length();
+      if (length > 120) {
+        writer.println(builder.toString());
+        builder.setLength(0);
+        builder.append("  ");
+      } else if (builder.length() > 2) {
+        builder.append(", ");
+      }
+      builder.append(string);
+    }
+
+    private void flush()
+    {
+      if (builder.length() > 2) {
+        writer.println(builder.toString());
+      }
       builder.setLength(0);
       builder.append("  ");
-    } else if (length > 2) {
-      builder.append(", ");
     }
-    return builder.append(string);
   }
 
-  private String format(String format, Object... arguments)
+  private static String format(String format, Object... arguments)
   {
     return StringUtils.safeFormat(format, arguments);
   }

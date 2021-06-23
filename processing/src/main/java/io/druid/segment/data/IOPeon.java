@@ -19,11 +19,18 @@
 
 package io.druid.segment.data;
 
+import com.google.common.io.ByteStreams;
+import io.druid.java.util.common.io.smoosh.SmooshedWriter;
+
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 
 /**
  */
@@ -34,4 +41,15 @@ public interface IOPeon extends Closeable
   OutputStream makeOutputStream(String filename) throws IOException;
 
   InputStream makeInputStream(String filename) throws IOException;
+
+  default void copyTo(WritableByteChannel channel, String fileName) throws IOException
+  {
+    try (ReadableByteChannel input = Channels.newChannel(makeInputStream(fileName))) {
+      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
+        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
+      } else {
+        ByteStreams.copy(input, channel);
+      }
+    }
+  }
 }

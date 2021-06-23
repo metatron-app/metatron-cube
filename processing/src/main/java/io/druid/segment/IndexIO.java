@@ -928,6 +928,7 @@ public class IndexIO
                 new DictionaryEncodedColumnSupplier(
                     dictionary,
                     null,
+                    null,
                     ColumnPartProviders.<IndexedMultivalue<IndexedInts>>with(
                         column, column.getSerializedSize(), column.size()
                     )
@@ -1185,7 +1186,7 @@ public class IndexIO
 
   private static ColumnPartSerde delegateDictionary(final Column source)
   {
-    return new ColumnPartSerde.Abstract()
+    return new ColumnPartSerde()
     {
       @Override
       public ColumnPartSerde.Deserializer getDeserializer()

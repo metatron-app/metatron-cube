@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
@@ -76,12 +77,16 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VSizeIntWriter;
 import io.druid.segment.data.VSizeIntsWriter;
+import io.druid.segment.lucene.FSTBuilder;
+import io.druid.segment.lucene.SimpleRelaySerializer;
+import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import io.druid.segment.serde.StringMetricSerde;
 import org.apache.commons.io.FileUtils;
+import org.apache.lucene.util.fst.FST;
 import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
@@ -173,15 +178,16 @@ public class IndexMergerV9 extends IndexMerger
 
       /************* Setup Dim Conversions **************/
       startTime = System.currentTimeMillis();
+      final Map<String, ColumnPartSerde.Serializer> dictionaryFSTs = Maps.newHashMap();
       final Map<String, Integer> dimCardinalities = Maps.newHashMap();
-      final ArrayList<GenericIndexedWriter<String>> dimValueWriters = setupDimValueWriters(ioPeon, mergedDimensions);
+      final ArrayList<GenericIndexedWriter<String>> dictionaryWriters = setupDictionaryWriters(ioPeon, mergedDimensions);
       final ArrayList<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(adapters.size());
       final boolean[] dimensionSkipFlag = new boolean[mergedDimensions.size()];
       final boolean[] dimHasNullFlags = new boolean[mergedDimensions.size()];
       final boolean[] convertMissingDimsFlags = new boolean[mergedDimensions.size()];
        writeDimValueAndSetupDimConversion(
-          adapters, progress, mergedDimensions, dimCardinalities, dimValueWriters, dimensionSkipFlag, dimConversions,
-          convertMissingDimsFlags, dimHasNullFlags
+          adapters, progress, mergedDimensions, dictionaryWriters, dictionaryFSTs, dimCardinalities,
+          dimensionSkipFlag, dimConversions, convertMissingDimsFlags, dimHasNullFlags, indexSpec
       );
       final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
       final BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory();
@@ -214,8 +220,8 @@ public class IndexMergerV9 extends IndexMerger
           ioPeon, mergedDimensions, indexSpec, dimCapabilities
       );
       final ArrayList<Indexed.Closeable<String>> dimValues = Lists.newArrayList();
-      for (GenericIndexedWriter<String> dimValueWriter : dimValueWriters) {
-        dimValues.add(dimValueWriter.asIndexed(ObjectStrategy.STRING_STRATEGY));
+      for (GenericIndexedWriter<String> dictionaryWriter : dictionaryWriters) {
+        dimValues.add(dictionaryWriter.asIndexed(ObjectStrategy.STRING_STRATEGY));
       }
       makeInvertedIndexes(
           adapters, progress, mergedDimensions, indexSpec, v9TmpDir, rowNumConversions,
@@ -227,7 +233,7 @@ public class IndexMergerV9 extends IndexMerger
       makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters, true);
       makeDimensionColumns(
           v9Smoosher, progress, indexSpec, mergedDimensions, dimensionSkipFlag, dimCapabilities,
-          dimValueWriters, dimWriters, bitmapIndexWriters, spatialIndexWriters, true
+          dictionaryWriters, dictionaryFSTs, dimWriters, bitmapIndexWriters, spatialIndexWriters, true
       );
 
       Interval dataInterval = toDataInterval(adapters);
@@ -375,7 +381,7 @@ public class IndexMergerV9 extends IndexMerger
           makeMetricsColumns(v9Smoosher, progress, cubeMetrics, cubeMetricTypes, cubeMetricWriters, false);
           makeDimensionColumns(
               v9Smoosher, progress, indexer,
-              cubeDims, null, null, null, cubeDimWriters, cubeBitmapWriters, null, false
+              cubeDims, null, null, null, null, cubeDimWriters, cubeBitmapWriters, null, false
           );
         }
 
@@ -474,10 +480,11 @@ public class IndexMergerV9 extends IndexMerger
       final List<String> mergedDimensions,
       final boolean[] dimensionSkipFlag,
       final List<ColumnCapabilities> dimCapabilities,
-      final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
-      final ArrayList<ColumnPartWriter> dimWriters,
-      final ArrayList<ColumnPartWriter<ImmutableBitmap>> bitmapIndexWriters,
-      final ArrayList<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters,
+      final List<GenericIndexedWriter<String>> dictionaryWriters,
+      final Map<String, ColumnPartSerde.Serializer> dictionaryFSTs,
+      final List<ColumnPartWriter> dimWriters,
+      final List<ColumnPartWriter<ImmutableBitmap>> bitmapIndexWriters,
+      final List<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters,
       final boolean includeStats
   ) throws IOException
   {
@@ -493,7 +500,8 @@ public class IndexMergerV9 extends IndexMerger
       long dimStartTime = System.currentTimeMillis();
       final String dim = mergedDimensions.get(i);
       final ColumnPartWriter dimWriter = dimWriters.get(i);
-      final GenericIndexedWriter<String> dictionaryWriter = dimValueWriters == null ? null : dimValueWriters.get(i);
+      final GenericIndexedWriter<String> dictionaryWriter = dictionaryWriters == null ? null : dictionaryWriters.get(i);
+      final ColumnPartSerde.Serializer fst = dictionaryFSTs == null ? null : dictionaryFSTs.get(dim);
       final ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter =
           bitmapIndexWriters == null ? null : bitmapIndexWriters.get(i);
       final ColumnPartWriter<ImmutableRTree> spatialIndexWriter =
@@ -513,13 +521,12 @@ public class IndexMergerV9 extends IndexMerger
       final DictionaryEncodedColumnPartSerde.SerializerBuilder partBuilder = DictionaryEncodedColumnPartSerde
           .serializerBuilder()
           .withDictionary(dictionaryWriter)
+          .withFST(fst)
           .withValue(dimWriter, hasMultiValue, compression != null)
-          .withBitmapSerdeFactory(bitmapSerdeFactory)
           .withBitmapIndex(bitmapIndexWriter)
-          .withSpatialIndex(spatialIndexWriter)
-          .withByteOrder(IndexIO.BYTE_ORDER);
+          .withSpatialIndex(spatialIndexWriter);
 
-      builder.addSerde(partBuilder.build());
+      builder.addSerde(partBuilder.build(bitmapSerdeFactory));
 
       makeColumn(v9Smoosher, dim, builder.build(includeStats));
       log.info("Completed dimension column[%s] in %,d millis.", dim, System.currentTimeMillis() - dimStartTime);
@@ -956,7 +963,7 @@ public class IndexMergerV9 extends IndexMerger
     return dimWriters;
   }
 
-  private ArrayList<GenericIndexedWriter<String>> setupDimValueWriters(
+  private ArrayList<GenericIndexedWriter<String>> setupDictionaryWriters(
       final IOPeon ioPeon,
       final List<String> mergedDimensions
   )
@@ -977,12 +984,14 @@ public class IndexMergerV9 extends IndexMerger
       final List<IndexableAdapter> indexes,
       final ProgressIndicator progress,
       final List<String> mergedDimensions,
+      final List<GenericIndexedWriter<String>> dictionaryWriters,
+      final Map<String, ColumnPartSerde.Serializer> dictionaryFSTs,
       final Map<String, Integer> dimensionCardinalities,
-      final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
       final boolean[] dimensionSkipFlag,
       final List<Map<String, IntBuffer>> dimConversions,
       final boolean[] convertMissingDimsFlags,
-      final boolean[] dimHasNullFlags
+      final boolean[] dimHasNullFlags,
+      final IndexSpec indexSpec
   ) throws IOException
   {
     final String section = "setup dimension conversions";
@@ -991,6 +1000,8 @@ public class IndexMergerV9 extends IndexMerger
     for (int i = 0; i < indexes.size(); ++i) {
       dimConversions.add(Maps.<String, IntBuffer>newHashMap());
     }
+
+    float fstReduction = indexSpec.getExpectedFSTreduction();
 
     for (int dimIndex = 0; dimIndex < mergedDimensions.size(); ++dimIndex) {
       long dimStartTime = System.currentTimeMillis();
@@ -1030,14 +1041,19 @@ public class IndexMergerV9 extends IndexMerger
         numMergeIndex++;
       }
 
-      GenericIndexedWriter<String> writer = dimValueWriters.get(dimIndex);
+      final FSTBuilder builder = fstReduction > 0 ? new FSTBuilder(fstReduction) : null;
+      final GenericIndexedWriter<String> writer = dictionaryWriters.get(dimIndex);
 
       int cardinality = 0;
       if (numMergeIndex > 1) {
-        DictionaryMergeIterator iterator = new DictionaryMergeIterator(dimValueLookups, true);
+        final DictionaryMergeIterator iterator = new DictionaryMergeIterator(dimValueLookups, true);
 
-        while (iterator.hasNext()) {
-          writer.add(iterator.next());
+        for (int i = 0; iterator.hasNext(); i++) {
+          String value = iterator.next();
+          writer.add(value);
+          if (builder != null) {
+            builder.addEntry(Strings.nullToEmpty(value), i);
+          }
         }
 
         for (int i = 0; i < indexes.size(); i++) {
@@ -1047,10 +1063,18 @@ public class IndexMergerV9 extends IndexMerger
         }
         cardinality = iterator.counter;
       } else if (numMergeIndex == 1) {
+        int i = 0;
         for (String value : dimValueLookup) {
           writer.add(value);
+          if (builder != null) {
+            builder.addEntry(Strings.nullToEmpty(value), i++);
+          }
         }
         cardinality = dimValueLookup.size();
+      }
+      FST fst = builder == null ? null : builder.done(cardinality);
+      if (fst != null) {
+        dictionaryFSTs.put(dimension, SimpleRelaySerializer.forFST(fst));
       }
 
       // Mark if this dim has the null/empty str value in its dictionary, used for determining nullRowsList later.

@@ -23,28 +23,31 @@ import com.google.common.base.Strings;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
+import org.apache.lucene.util.fst.FST;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 
 /**
  */
-public class SimpleDictionaryEncodedColumn
-    implements DictionaryEncodedColumn
+public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
 {
   private final IndexedInts column;
   private final IndexedMultivalue<IndexedInts> multiValueColumn;
-  private final Dictionary<String> delegate;
+  private final Dictionary<String> dictionary;
+  private final FST<Long> fst;
 
   public SimpleDictionaryEncodedColumn(
       IndexedInts singleValueColumn,
       IndexedMultivalue<IndexedInts> multiValueColumn,
-      Dictionary<String> delegate
+      Dictionary<String> dictionary,
+      FST<Long> fst
   )
   {
     this.column = singleValueColumn;
     this.multiValueColumn = multiValueColumn;
-    this.delegate = delegate;
+    this.dictionary = dictionary;
+    this.fst = fst;
   }
 
   @Override
@@ -80,31 +83,37 @@ public class SimpleDictionaryEncodedColumn
   public String lookupName(int id)
   {
     //Empty to Null will ensure that null and empty are equivalent for extraction function
-    return Strings.emptyToNull(delegate.get(id));
+    return Strings.emptyToNull(dictionary.get(id));
   }
 
   @Override
   public int lookupId(String name)
   {
-    return delegate.indexOf(name);
+    return dictionary.indexOf(name);
   }
 
   @Override
   public int getCardinality()
   {
-    return delegate.size();
+    return dictionary.size();
   }
 
   @Override
   public Dictionary<String> dictionary()
   {
-    return delegate;
+    return dictionary;
+  }
+
+  @Override
+  public FST<Long> getFST()
+  {
+    return fst;
   }
 
   @Override
   public DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary)
   {
-    return new SimpleDictionaryEncodedColumn(column, multiValueColumn, dictionary);
+    return new SimpleDictionaryEncodedColumn(column, multiValueColumn, dictionary, fst);
   }
 
   @Override
@@ -116,8 +125,8 @@ public class SimpleDictionaryEncodedColumn
     if (multiValueColumn != null) {
       multiValueColumn.close();
     }
-    if (delegate != null) {
-      delegate.close();
+    if (dictionary != null) {
+      dictionary.close();
     }
   }
 }

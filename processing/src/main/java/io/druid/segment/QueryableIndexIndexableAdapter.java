@@ -25,10 +25,10 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnAccess;
@@ -37,7 +37,6 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.ListIndexed;
 import org.joda.time.Interval;
 
@@ -116,44 +115,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   public Indexed<String> getDimValueLookup(String dimension)
   {
     final Column column = input.getColumn(dimension);
-
-    if (column == null) {
-      return null;
-    }
-
-    final DictionaryEncodedColumn dict = column.getDictionaryEncoding();
-
-    if (dict == null) {
-      return null;
-    }
-
-    return new Indexed<String>()
-    {
-
-      @Override
-      public int size()
-      {
-        return dict.getCardinality();
-      }
-
-      @Override
-      public String get(int index)
-      {
-        return dict.lookupName(index);
-      }
-
-      @Override
-      public int indexOf(String value)
-      {
-        return dict.lookupId(value);
-      }
-
-      @Override
-      public Iterator<String> iterator()
-      {
-        return IndexedIterable.create(this).iterator();
-      }
-    };
+    return column == null ? null : column.getDictionary();
   }
 
   @Override

@@ -20,21 +20,16 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.ByteBufferUtils;
-import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 
@@ -121,7 +116,7 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
     );
 
     try (OutputStream metaOut = ioPeon.makeOutputStream(makeFilename("meta"))) {
-      metaOut.write(0x1);
+      metaOut.write(GenericIndexed.version);
       metaOut.write(dictionary ? 0x1 : 0x0);
       metaOut.write(Ints.toByteArray((int) numBytesWritten + 4));
       metaOut.write(Ints.toByteArray(numWritten));
@@ -142,30 +137,9 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
-    byte flag = 0;
-    if (dictionary) {
-      flag |= GenericIndexed.Feature.SORTED.getMask();
-    }
-    channel.write(ByteBuffer.wrap(new byte[]{GenericIndexed.version, flag}));
-
-    // size + count + header + values
-    int length = Ints.checkedCast(headerOut.getCount() + valuesOut.getCount() + Integer.BYTES);
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(length)));
-    channel.write(ByteBuffer.wrap(Ints.toByteArray(numWritten)));
-    try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("header")))) {
-      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
-        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
-      } else {
-        ByteStreams.copy(input, channel);
-      }
-    }
-    try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename("values")))) {
-      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
-        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
-      } else {
-        ByteStreams.copy(input, channel);
-      }
-    }
+    ioPeon.copyTo(channel, makeFilename("meta"));
+    ioPeon.copyTo(channel, makeFilename("header"));
+    ioPeon.copyTo(channel, makeFilename("values"));
   }
 
   // this is just for index merger.. which only uses size() and get()

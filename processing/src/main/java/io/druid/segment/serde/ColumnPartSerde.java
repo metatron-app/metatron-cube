@@ -25,7 +25,6 @@ import io.druid.segment.bitmap.BitSetInvertedIndexingSpec;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitSlicedBitmaps;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 
@@ -55,7 +54,10 @@ public interface ColumnPartSerde
   byte LZF_FIXED = 0x1;     // DO NOT USE ON GenericIndexed (this fuck conflicts with GenericIndexed.version)
   byte WITH_COMPRESSION_ID = 0x2;
 
-  Serializer getSerializer();
+  default Serializer getSerializer()
+  {
+    throw new UnsupportedOperationException("getSerializer");
+  }
 
   Deserializer getDeserializer();
 
@@ -70,41 +72,6 @@ public interface ColumnPartSerde
 
   interface Deserializer
   {
-    void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory);
-  }
-
-  class Abstract implements ColumnPartSerde
-  {
-    @Override
-    public Serializer getSerializer()
-    {
-      throw new UnsupportedOperationException("getSerializer");
-    }
-
-    @Override
-    public Deserializer getDeserializer()
-    {
-      throw new UnsupportedOperationException("getDeserializer");
-    }
-  }
-
-  class Skipper extends Abstract
-  {
-    @Override
-    public Deserializer getDeserializer()
-    {
-      return new Deserializer()
-      {
-        @Override
-        public void read(
-            ByteBuffer buffer,
-            ColumnBuilder builder,
-            BitmapSerdeFactory serdeFactory
-        )
-        {
-          ByteBufferSerializer.prepareForRead(buffer);  // skip this part
-        }
-      };
-    }
+    void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException;
   }
 }

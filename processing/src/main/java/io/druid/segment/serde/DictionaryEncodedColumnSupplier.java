@@ -25,24 +25,34 @@ import io.druid.segment.column.SimpleDictionaryEncodedColumn;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
+import org.apache.lucene.util.fst.FST;
 
 /**
 */
 public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.DictionarySupport
 {
   private final ColumnPartProvider<Dictionary<String>> dictionary;
+  private final ColumnPartProvider<FST<Long>> fst;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
 
   public DictionaryEncodedColumnSupplier(
       ColumnPartProvider<Dictionary<String>> dictionary,
+      ColumnPartProvider<FST<Long>> fst,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
       ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn
   )
   {
     this.dictionary = dictionary;
+    this.fst = fst;
     this.singleValuedColumn = singleValuedColumn;
     this.multiValuedColumn = multiValuedColumn;
+  }
+
+  @Override
+  public Dictionary<String> getDictionary()
+  {
+    return dictionary == null ? null : dictionary.get();
   }
 
   @Override
@@ -51,7 +61,8 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
     return new SimpleDictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
-        dictionary == null ? null : dictionary.get()
+        dictionary == null ? null : dictionary.get(),
+        fst == null ? null : fst.get()
     );
   }
 
@@ -65,12 +76,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   public long getSerializedSize()
   {
     return (dictionary == null ? 0 : dictionary.getSerializedSize()) +
+           (fst == null ? 0 : fst.getSerializedSize()) +
            (singleValuedColumn != null ? singleValuedColumn.getSerializedSize() : multiValuedColumn.getSerializedSize());
-  }
-
-  @Override
-  public Dictionary<String> getDictionary()
-  {
-    return dictionary == null ? null : dictionary.get();
   }
 }

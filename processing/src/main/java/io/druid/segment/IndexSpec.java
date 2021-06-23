@@ -79,6 +79,7 @@ public class IndexSpec
   private final Map<String, String> columnCompression;
   private final ColumnIncluderator dimensionSketches;
   private final boolean allowNullForNumbers;
+  private final float expectedFSTreduction;
 
   private final List<CuboidSpec> cuboidSpecs;
 
@@ -87,7 +88,7 @@ public class IndexSpec
    */
   public IndexSpec()
   {
-    this(null, null, null, null, null, null, null, false);
+    this(null, null, null, null, null, null, null, false, 0);
   }
 
   /**
@@ -113,7 +114,8 @@ public class IndexSpec
       @JsonProperty("columnCompression") Map<String, String> columnCompression,
       @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing,
       @JsonProperty("cuboidSpecs") List<CuboidSpec> cuboidSpecs,
-      @JsonProperty("allowNullForNumbers") boolean allowNullForNumbers
+      @JsonProperty("allowNullForNumbers") boolean allowNullForNumbers,
+      @JsonProperty("expectedFSTreduction") float expectedFSTreduction
   )
   {
     Preconditions.checkArgument(dimensionCompression == null || dimensionCompression.equals(UNCOMPRESSED) || COMPRESSION_NAMES.contains(dimensionCompression),
@@ -130,6 +132,7 @@ public class IndexSpec
     this.columnCompression = columnCompression;
     this.cuboidSpecs = cuboidSpecs;
     this.allowNullForNumbers = allowNullForNumbers;
+    this.expectedFSTreduction = expectedFSTreduction;
   }
 
   public IndexSpec(
@@ -138,7 +141,7 @@ public class IndexSpec
       String metricCompression
   )
   {
-    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, null, false);
+    this(bitmapSerdeFactory, dimensionCompression, null, metricCompression, null, null, null, false, 0);
   }
 
   @JsonProperty("bitmap")
@@ -195,10 +198,10 @@ public class IndexSpec
     return allowNullForNumbers;
   }
 
-  @JsonIgnore
-  public boolean needFinalizing()
+  @JsonProperty("expectedFSTreduction")
+  public float getExpectedFSTreduction()
   {
-    return !GuavaUtils.isNullOrEmpty(secondaryIndexing) || !GuavaUtils.isNullOrEmpty(cuboidSpecs);
+    return expectedFSTreduction;
   }
 
   public SecondaryIndexingSpec getSecondaryIndexingSpec(String column)
@@ -250,6 +253,13 @@ public class IndexSpec
     return columnDescs;
   }
 
+  @JsonIgnore
+  public boolean needFinalizing()
+  {
+    return !GuavaUtils.isNullOrEmpty(secondaryIndexing) || !GuavaUtils.isNullOrEmpty(cuboidSpecs);
+  }
+
+  @JsonIgnore
   public IndexSpec asIntermediarySpec()
   {
     return new IndexSpec(
@@ -260,7 +270,8 @@ public class IndexSpec
         columnCompression,
         null,
         null,
-        allowNullForNumbers
+        allowNullForNumbers,
+        needFinalizing() ? 0 : expectedFSTreduction    // seemed not much of overhead
     );
   }
 
@@ -274,7 +285,8 @@ public class IndexSpec
         columnCompression,
         secondaryIndexing,
         cuboidSpecs,
-        allowNullForNumbers
+        allowNullForNumbers,
+        expectedFSTreduction
     );
   }
 
@@ -314,7 +326,7 @@ public class IndexSpec
     if (allowNullForNumbers != indexSpec.allowNullForNumbers) {
       return false;
     }
-    return true;
+    return expectedFSTreduction == indexSpec.expectedFSTreduction;
   }
 
   @Override
@@ -328,7 +340,8 @@ public class IndexSpec
         secondaryIndexing,
         columnCompression,
         cuboidSpecs,
-        allowNullForNumbers
+        allowNullForNumbers,
+        expectedFSTreduction
     );
   }
 }

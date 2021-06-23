@@ -1408,36 +1408,39 @@ public class DruidShell extends CommonShell.WithUtils
     int numRow = 0;
     boolean header = false;
     boolean plan = false;
+    StringBuilder builder = new StringBuilder();
     for (Map<String, Object> row : execute) {
+      builder.setLength(0);
       if (!header) {
-        writer.print("  ");
+        builder.append("  ");
         String columns = row.keySet().toString();
-        writer.println(columns);
-        writer.print("  ");
+        builder.append(columns).append('\n');
+        builder.append("  ");
         for (int i = 0; i < columns.length(); i++) {
-          writer.print('-');
+          builder.append('-');
         }
-        writer.println();
+        builder.append('\n');
         header = true;
         plan = columns.equals("[PLAN]");
       }
       if (plan) {
-        writer.print("  ");
-        writer.println(row.values().toString());
+        builder.append("  ");
+        builder.append(row.values().toString());
       } else {
-        writer.print("  [");
-        boolean first = true;
-        for (Object value : row.values()) {
-          if (!first) {
-            writer.write(", ");
+        builder.append("  [");
+        List<Object> values = Lists.newArrayList(row.values());
+        for (int i = 0; i < values.size(); i++) {
+          Object value = values.get(i);
+          if (i > 0) {
+            builder.append(", ");
           }
-          String print = StringUtils.limit(Objects.toString(value, ""), 64);
-          writer.print(print);
-          first = false;
+          int limit = i == values.size() - 1 ? 140 - builder.length() : 0;
+          String print = StringUtils.limit(Objects.toString(value, ""), Math.max(32, limit));
+          builder.append(print);
         }
-        writer.println("]");
+        builder.append(']');
       }
-
+      writer.println(builder.toString());
       numRow++;
     }
     return numRow;

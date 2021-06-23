@@ -81,7 +81,8 @@ public class IndexSpecTest
             )
         ),
         null,
-        false
+        false,
+        0
     );
     IndexSpec actual = objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class);
     Assert.assertEquals(spec, actual);

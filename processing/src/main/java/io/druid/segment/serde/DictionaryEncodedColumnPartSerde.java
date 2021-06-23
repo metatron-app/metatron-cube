@@ -22,23 +22,23 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.data.VLongUtils;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizedIndexedIntSupplier;
 import io.druid.segment.CompressedVSizedIndexedIntV3Supplier;
+import io.druid.segment.IndexIO;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
-import io.druid.segment.data.ColumnPartWriter;
 import io.druid.segment.data.CompressedVSizedIntSupplier;
 import io.druid.segment.data.CumulativeBitmapWriter;
 import io.druid.segment.data.Dictionary;
@@ -50,6 +50,10 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizedIndexedInt;
 import io.druid.segment.data.VSizedInt;
 import io.druid.segment.data.WritableSupplier;
+import org.apache.lucene.store.DataInput;
+import org.apache.lucene.store.LuceneIndexInput;
+import org.apache.lucene.util.fst.FST;
+import org.apache.lucene.util.fst.PositiveIntOutputs;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -90,7 +94,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     MULTI_VALUE(0),
     MULTI_VALUE_V3(1),
     NO_DICTIONARY(2),
-    RESERVED(3),
+    FST(3),
     CUMULATIVE_BITMAPS(4),
     UNCOMPRESSED(5),     // override LEGACY_COMPRESSED
     SPATIAL_INDEX(6)     // technically, it's not backward compatible with index v8 but who cares?
@@ -176,50 +180,44 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
   public static class SerializerBuilder
   {
     private int flags = Feature.NO_DICTIONARY.set(NO_FLAGS, true);
-    private ColumnPartWriter<String> dictionaryWriter = null;
-    private ColumnPartWriter<Pair<String, Integer>> sketchWriter = null;
-    private ColumnPartWriter valueWriter = null;
-    private BitmapSerdeFactory bitmapSerdeFactory = null;
-    private ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter = null;
-    private ColumnPartWriter<ImmutableRTree> spatialIndexWriter = null;
-    private ByteOrder byteOrder = null;
 
-    public SerializerBuilder withDictionary(ColumnPartWriter<String> dictionaryWriter)
+    private ColumnPartSerde.Serializer dictionary;
+    private ColumnPartSerde.Serializer fst;
+    private ColumnPartSerde.Serializer values;
+    private ColumnPartSerde.Serializer bitmaps;
+    private ColumnPartSerde.Serializer rindices;
+
+    public SerializerBuilder withDictionary(ColumnPartSerde.Serializer dictionary)
     {
-      this.dictionaryWriter = dictionaryWriter;
-      this.flags = Feature.NO_DICTIONARY.set(flags, dictionaryWriter == null);
+      this.dictionary = dictionary;
+      this.flags = Feature.NO_DICTIONARY.set(flags, dictionary == null);
       return this;
     }
 
-    public SerializerBuilder withBitmapSerdeFactory(BitmapSerdeFactory bitmapSerdeFactory)
+    public SerializerBuilder withFST(ColumnPartSerde.Serializer fst)
     {
-      this.bitmapSerdeFactory = bitmapSerdeFactory;
+      this.fst = fst;
+      this.flags = Feature.FST.set(flags, fst != null);
       return this;
     }
 
-    public SerializerBuilder withBitmapIndex(ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter)
+    public SerializerBuilder withBitmapIndex(ColumnPartSerde.Serializer bitmaps)
     {
-      this.bitmapIndexWriter = bitmapIndexWriter;
-      this.flags = Feature.CUMULATIVE_BITMAPS.set(flags, bitmapIndexWriter instanceof CumulativeBitmapWriter);
+      this.bitmaps = bitmaps;
+      this.flags = Feature.CUMULATIVE_BITMAPS.set(flags, bitmaps instanceof CumulativeBitmapWriter);
       return this;
     }
 
-    public SerializerBuilder withSpatialIndex(ColumnPartWriter<ImmutableRTree> spatialIndexWriter)
+    public SerializerBuilder withSpatialIndex(ColumnPartSerde.Serializer rindices)
     {
-      this.spatialIndexWriter = spatialIndexWriter;
-      this.flags = Feature.SPATIAL_INDEX.set(flags, spatialIndexWriter != null);
+      this.rindices = rindices;
+      this.flags = Feature.SPATIAL_INDEX.set(flags, rindices != null);
       return this;
     }
 
-    public SerializerBuilder withByteOrder(ByteOrder byteOrder)
+    public SerializerBuilder withValue(ColumnPartSerde.Serializer valueWriter, boolean hasMultiValue, boolean compressed)
     {
-      this.byteOrder = byteOrder;
-      return this;
-    }
-
-    public SerializerBuilder withValue(ColumnPartWriter valueWriter, boolean hasMultiValue, boolean compressed)
-    {
-      this.valueWriter = valueWriter;
+      this.values = valueWriter;
       if (hasMultiValue && compressed) {
         this.flags = Feature.MULTI_VALUE_V3.set(flags, true);
       }
@@ -227,31 +225,31 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       return this;
     }
 
-    public DictionaryEncodedColumnPartSerde build()
+    public DictionaryEncodedColumnPartSerde build(BitmapSerdeFactory serdeFactory)
     {
       return new DictionaryEncodedColumnPartSerde(
-          byteOrder,
-          bitmapSerdeFactory,
+          IndexIO.BYTE_ORDER,
+          serdeFactory,
           new Serializer()
           {
             @Override
             public long getSerializedSize() throws IOException
             {
               long size = Byte.BYTES + Integer.BYTES;
-              if (dictionaryWriter != null) {
-                size += dictionaryWriter.getSerializedSize();
+              if (dictionary != null) {
+                size += dictionary.getSerializedSize();
               }
-              if (sketchWriter != null) {
-                size += sketchWriter.getSerializedSize();
+              if (fst != null) {
+                size += fst.getSerializedSize();
               }
-              if (valueWriter != null) {
-                size += valueWriter.getSerializedSize();
+              if (values != null) {
+                size += values.getSerializedSize();
               }
-              if (bitmapIndexWriter != null) {
-                size += bitmapIndexWriter.getSerializedSize();
+              if (bitmaps != null) {
+                size += bitmaps.getSerializedSize();
               }
-              if (spatialIndexWriter != null) {
-                size += spatialIndexWriter.getSerializedSize();
+              if (rindices != null) {
+                size += rindices.getSerializedSize();
               }
               return size;
             }
@@ -262,20 +260,20 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
               channel.write(ByteBuffer.wrap(new byte[]{VERSION.LEGACY_COMPRESSED.asByte()}));
               channel.write(ByteBuffer.wrap(Ints.toByteArray(flags)));
 
-              if (dictionaryWriter != null) {
-                dictionaryWriter.writeToChannel(channel);
+              if (dictionary != null) {
+                dictionary.writeToChannel(channel);
               }
-              if (sketchWriter != null) {
-                sketchWriter.writeToChannel(channel);
+              if (fst != null) {
+                fst.writeToChannel(channel);
               }
-              if (valueWriter != null) {
-                valueWriter.writeToChannel(channel);
+              if (values != null) {
+                values.writeToChannel(channel);
               }
-              if (bitmapIndexWriter != null) {
-                bitmapIndexWriter.writeToChannel(channel);
+              if (bitmaps != null) {
+                bitmaps.writeToChannel(channel);
               }
-              if (spatialIndexWriter != null) {
-                spatialIndexWriter.writeToChannel(channel);
+              if (rindices != null) {
+                rindices.writeToChannel(channel);
               }
             }
           }
@@ -453,11 +451,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(
-          ByteBuffer buffer,
-          ColumnBuilder builder,
-          BitmapSerdeFactory serdeFactory
-      )
+      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException
       {
         final VERSION rVersion = VERSION.fromByte(buffer.get());
         final int rFlags;
@@ -468,9 +462,42 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           rFlags = buffer.getInt();
         }
 
-        ColumnPartProvider<Dictionary<String>> rDictionary = null;
-        if (!Feature.NO_DICTIONARY.isSet(rFlags)) {
+        ColumnPartProvider<Dictionary<String>> rDictionary;
+        ColumnPartProvider<FST<Long>> rFST = null;
+        if (Feature.NO_DICTIONARY.isSet(rFlags)) {
+          rDictionary = null;
+        } else {
           rDictionary = StringMetricSerde.deserializeDictionary(buffer, ObjectStrategy.STRING_STRATEGY);
+          if (Feature.FST.isSet(rFlags)) {
+            final ByteBuffer block = ByteBufferSerializer.prepareForRead(buffer);
+            rFST = new ColumnPartProvider<FST<Long>>()
+            {
+              @Override
+              public int numRows()
+              {
+                return rDictionary.numRows();
+              }
+
+              @Override
+              public long getSerializedSize()
+              {
+                return block.remaining();
+              }
+
+              @Override
+              public FST<Long> get()
+              {
+                DataInput input = LuceneIndexInput.newInstance("FST", block.slice(), block.remaining());  // slice !
+                try {
+                  // keep in heap.. need to upgrade lucene 8.x to avoid this
+                  return new FST<>(input, PositiveIntOutputs.getSingleton());
+                }
+                catch (Exception e) {
+                  throw Throwables.propagate(e);
+                }
+              }
+            };
+          }
         }
 
         final boolean hasMultipleValues = Feature.hasAny(rFlags, Feature.MULTI_VALUE, Feature.MULTI_VALUE_V3);
@@ -492,6 +519,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                .setDictionaryEncodedColumn(
                    new DictionaryEncodedColumnSupplier(
                        rDictionary,
+                       rFST,
                        rSingleValuedColumn,
                        rMultiValuedColumn
                    )

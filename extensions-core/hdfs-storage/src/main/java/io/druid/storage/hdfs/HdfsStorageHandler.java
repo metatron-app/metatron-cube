@@ -499,9 +499,9 @@ public class HdfsStorageHandler implements StorageHandler
             tempPath = queue.get(0);
           } else {
             if (queue.size() == 1) {
-              LOG.info("Building seconday index & finlizing into [%s]", finalPath);
+              LOG.info("Building seconday index & finalizing into [%s]", finalPath);
             } else {
-              LOG.info("Merging %d indices & finlizing into [%s]", queue.size(), finalPath);
+              LOG.info("Merging %d indices & finalizing into [%s]", queue.size(), finalPath);
             }
             List<QueryableIndex> indices = Lists.newArrayList();
             for (File path : queue) {

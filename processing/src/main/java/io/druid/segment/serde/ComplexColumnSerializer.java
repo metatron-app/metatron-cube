@@ -49,7 +49,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   private final String columnName;
   private final ComplexMetricSerde serde;
   private final CompressionStrategy compression;
-  private final MetricColumnSerializer seconday;
+  private final MetricColumnSerializer secondary;
 
   private String minValue;
   private String maxValue;
@@ -67,8 +67,8 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     this.columnName = columnName;
     this.serde = serde;
     this.compression = compression;
-    this.seconday = indexingSpec == null ? MetricColumnSerializer.DUMMY :
-                    indexingSpec.serializer(columnName, ValueDesc.of(serde.getTypeName()));
+    this.secondary = indexingSpec == null ? MetricColumnSerializer.DUMMY :
+                     indexingSpec.serializer(columnName, ValueDesc.of(serde.getTypeName()));
   }
 
   @Override
@@ -77,7 +77,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
     String filenameBase = String.format("%s.complex_column", columnName);
     writer = CompressedComplexColumnSerializer.create(ioPeon, filenameBase, compression, serde);
     writer.open();
-    seconday.open(ioPeon);
+    secondary.open(ioPeon);
   }
 
   @SuppressWarnings(value = "unchecked")
@@ -85,7 +85,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   public void serialize(int rowNum, Object obj) throws IOException
   {
     writer.add(obj);
-    seconday.serialize(rowNum, obj);
+    secondary.serialize(rowNum, obj);
 
     if (obj == null) {
       numNulls++;
@@ -106,14 +106,14 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
       builder.setValueType(desc);
       builder.addSerde(new ComplexColumnPartSerde(desc.typeName(), this));
     }
-    return seconday.buildDescriptor(desc, builder);
+    return secondary.buildDescriptor(desc, builder);
   }
 
   @Override
   public void close() throws IOException
   {
     writer.close();
-    seconday.close();
+    secondary.close();
   }
 
   @Override
