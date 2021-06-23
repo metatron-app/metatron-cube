@@ -449,7 +449,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("regex")
-  final class Regex extends NamedFactory.StringType
+  class Regex extends NamedFactory.StringType
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
@@ -464,12 +464,26 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           final String target = Evals.evalString(args.get(0), bindings);
-          if (target != null && matcher.reset(target).find()) {
+          if (target != null && isMatched(matcher, target)) {
             return ExprEval.of(matcher.group(index));
           }
           return ExprEval.NULL_STRING;
         }
       };
+    }
+
+    protected boolean isMatched(Matcher matcher, String target)
+    {
+      return matcher.reset(target).find();
+    }
+  }
+
+  @Function.Named("regex.match")
+  final class RegexMatch extends Regex
+  {
+    protected boolean isMatched(Matcher matcher, String target)
+    {
+      return matcher.reset(target).matches();
     }
   }
 

@@ -97,7 +97,7 @@ public class CountAggregatorFactory extends AggregatorFactory implements Aggrega
       matcher = ColumnSelectors.toMatcher(String.format("!isNull(\"%s\")", fieldName), metricFactory);
     }
     if (predicate != null) {
-      matcher = ValueMatchers.and(ColumnSelectors.toMatcher(predicate, metricFactory));
+      matcher = ValueMatchers.and(matcher, ColumnSelectors.toMatcher(predicate, metricFactory));
     }
     return matcher == null ? ValueMatcher.TRUE : matcher;
   }
