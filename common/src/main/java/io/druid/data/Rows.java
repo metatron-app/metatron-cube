@@ -32,7 +32,6 @@ import java.util.Date;
 public class Rows
 {
   private static final String NULL = "null";
-  private static final String NAN = "nan";
 
   public static Boolean parseBoolean(Object value)
   {
@@ -105,14 +104,18 @@ public class Rows
       return ((Number) value).floatValue();
     } else if (value instanceof String) {
       final String s = (String) value;
-      return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : NAN.equalsIgnoreCase(s) ? Float.NaN : tryParseFloat(s);
+      try {
+        return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : tryParseFloat(s);
+      }
+      catch (Exception e) {
+        // ignore
+      }
     } else if (value instanceof DateTime) {
       return (float) ((DateTime) value).getMillis();
     } else if (value instanceof Date) {
       return (float) ((Date) value).getTime();
-    } else {
-      return value;
     }
+    return value;
   }
 
   public static Double parseDouble(Object value)
@@ -141,14 +144,18 @@ public class Rows
       return ((Number) value).doubleValue();
     } else if (value instanceof String) {
       final String s = (String) value;
-      return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : NAN.equalsIgnoreCase(s) ? Double.NaN : tryParseDouble(s);
+      try {
+        return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : tryParseDouble(s);
+      }
+      catch (Exception e) {
+        // ignore
+      }
     } else if (value instanceof DateTime) {
       return (double) ((DateTime) value).getMillis();
     } else if (value instanceof Date) {
       return (double) ((Date) value).getTime();
-    } else {
-      return value;
     }
+    return value;
   }
 
   public static Double round(Double value, int round)
@@ -200,14 +207,18 @@ public class Rows
       return ((Number) value).longValue();
     } else if (value instanceof String) {
       final String s = (String) value;
-      return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : tryParseLong(s);
+      try {
+        return s.isEmpty() || NULL.equalsIgnoreCase(s) ? null : tryParseLong(s);
+      }
+      catch (Exception e) {
+        // ignore
+      }
     } else if (value instanceof DateTime) {
       return ((DateTime) value).getMillis();
     } else if (value instanceof Date) {
       return ((Date) value).getTime();
-    } else {
-      return value;
     }
+    return value;
   }
 
   // long -> double -> long can make different value

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
@@ -37,13 +38,16 @@ import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.Druids;
+import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
+import io.druid.utils.StopWatch;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -55,11 +59,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.Closeable;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeoutException;
 
 public class DirectDruidClientTest
 {
@@ -225,7 +231,10 @@ public class DirectDruidClientTest
             EasyMock.<HttpResponseHandler>anyObject()
         )
     )
-            .andReturn(cancelledResource)
+            .andAnswer(() -> {
+              Thread.sleep(1000);
+              return cancelledResource;
+            })
             .once();
 
     EasyMock.expect(
@@ -254,9 +263,17 @@ public class DirectDruidClientTest
     );
 
     final DefaultObjectMapper objectMapper = new DefaultObjectMapper();
+    final QueryWatcher noopQuerywatcher = new QueryWatcher.Abstract()
+    {
+      @Override
+      public long remainingTime(String queryId)
+      {
+        return 1000L;
+      }
+    };
     DirectDruidClient client1 = new DirectDruidClient(
         TestIndex.segmentWalker,
-        TestHelper.NOOP_QUERYWATCHER,
+        noopQuerywatcher,
         objectMapper,
         objectMapper,
         httpClient,
@@ -282,7 +299,7 @@ public class DirectDruidClientTest
     }
     catch (Exception e) {
       Assert.assertTrue(e instanceof QueryInterruptedException);
-      Assert.assertTrue(e.getCause() instanceof CancellationException);
+      Assert.assertTrue(e.getCause() instanceof TimeoutException);
     }
     Assert.assertEquals(HttpMethod.DELETE, capturedRequest.getValue().getMethod());
     Assert.assertEquals(0, client1.getNumOpenConnections());

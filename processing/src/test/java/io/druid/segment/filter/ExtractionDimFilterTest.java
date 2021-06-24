@@ -27,25 +27,33 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.common.KeyBuilder;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
+import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
+import io.druid.segment.data.VSizedInt;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
+import io.druid.segment.serde.DictionaryEncodedColumnSupplier;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,16 +68,6 @@ import java.util.Map;
 @RunWith(Parameterized.class)
 public class ExtractionDimFilterTest
 {
-  private static final Map<String, String[]> DIM_VALS = ImmutableMap.<String, String[]>of(
-      "foo", new String[]{"foo1", "foo2", "foo3"},
-      "bar", new String[]{"bar1"},
-      "baz", new String[]{"foo1"}
-  );
-
-  private static final Map<String, String> EXTRACTION_VALUES = ImmutableMap.of(
-      "foo1", "extractDimVal"
-  );
-
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder()
   {
@@ -79,14 +77,27 @@ public class ExtractionDimFilterTest
     );
   }
 
-  public ExtractionDimFilterTest(BitmapFactory bitmapFactory, BitmapSerdeFactory bitmapSerdeFactory)
+  public ExtractionDimFilterTest(BitmapFactory factory, BitmapSerdeFactory serdeFactory)
   {
-    final MutableBitmap mutableBitmap = bitmapFactory.makeEmptyMutableBitmap();
+    MutableBitmap mutableBitmap = factory.makeEmptyMutableBitmap();
     mutableBitmap.add(1);
-    this.foo1BitMap = bitmapFactory.makeImmutableBitmap(mutableBitmap);
-    this.factory = bitmapFactory;
-    this.serdeFactory = bitmapSerdeFactory;
-    this.selector = new BitmapIndexSelector()
+    ImmutableBitmap bitmap = factory.makeImmutableBitmap(mutableBitmap);
+
+    ColumnPartProvider<Dictionary<String>> dictionary = GenericIndexed.fromIterable(
+        Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY).asColumnPartProvider();
+    ColumnPartProvider<IndexedInts> values = ColumnPartProviders.with(VSizedInt.fromArray(new int[] {0}));
+    ColumnPartProvider<BitmapIndex> bitmaps = new BitmapIndexColumnPartSupplier(
+        factory,
+        GenericIndexed.fromIterable(Arrays.asList(bitmap), serdeFactory.getObjectStrategy()),
+        dictionary
+    );
+    Column column = new ColumnBuilder().setType(ValueDesc.STRING)
+                                       .setBitmapIndex(bitmaps)
+                                       .setDictionaryEncodedColumn(
+                                           new DictionaryEncodedColumnSupplier(dictionary, null, values, null))
+                                       .build("foo");
+
+    BitmapIndexSelector selector = new BitmapIndexSelector()
     {
       @Override
       public int getNumRows()
@@ -103,7 +114,7 @@ public class ExtractionDimFilterTest
       @Override
       public ImmutableBitmap getBitmapIndex(String dimension, String value)
       {
-        return "foo1".equals(value) ? foo1BitMap : null;
+        return null;
       }
 
       @Override
@@ -115,11 +126,7 @@ public class ExtractionDimFilterTest
       @Override
       public BitmapIndex getBitmapIndex(String dimension)
       {
-        return new BitmapIndexColumnPartSupplier(
-            factory,
-            GenericIndexed.fromIterable(Arrays.asList(foo1BitMap), serdeFactory.getObjectStrategy()),
-            GenericIndexed.fromIterable(Arrays.asList("foo1"), ObjectStrategy.STRING_STRATEGY).asColumnPartProvider()
-        ).get();
+        return bitmaps.get();
       }
 
       @Override
@@ -155,21 +162,18 @@ public class ExtractionDimFilterTest
       @Override
       public Column getColumn(String dimension)
       {
-        return null;
+        return "foo".equals(dimension) ? column : null;
       }
     };
     this.context = new FilterContext(selector);
   }
 
-  private final BitmapFactory factory;
-  private final BitmapSerdeFactory serdeFactory;
-  private final ImmutableBitmap foo1BitMap;
-
-  private final BitmapIndexSelector selector;
   private final FilterContext context;
 
   private static final ExtractionFn DIM_EXTRACTION_FN = new ExtractionFn()
   {
+    final Map<String, String> EXTRACTION_VALUES = ImmutableMap.of("foo1", "extractDimVal");
+
     @Override
     public KeyBuilder getCacheKey(KeyBuilder builder)
     {
@@ -179,8 +183,7 @@ public class ExtractionDimFilterTest
     @Override
     public String apply(String dimValue)
     {
-      final String retval = EXTRACTION_VALUES.get(dimValue);
-      return retval == null ? dimValue : retval;
+      return EXTRACTION_VALUES.getOrDefault(dimValue, dimValue);
     }
   };
 

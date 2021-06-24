@@ -436,7 +436,7 @@ public class RealtimeIndexTaskTest
     );
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testDefaultResource() throws Exception
   {
     final RealtimeIndexTask task = makeRealtimeTask(null);
@@ -444,7 +444,7 @@ public class RealtimeIndexTaskTest
   }
 
 
-  @Test(timeout = 60_000L, expected = ExecutionException.class)
+  @Test(timeout = 10_000L, expected = ExecutionException.class)
   public void testHandoffTimeout() throws Exception
   {
     final TestIndexerMetadataStorageCoordinator mdc = new TestIndexerMetadataStorageCoordinator();
@@ -484,7 +484,7 @@ public class RealtimeIndexTaskTest
     statusFuture.get();
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testBasics() throws Exception
   {
     final TestIndexerMetadataStorageCoordinator mdc = new TestIndexerMetadataStorageCoordinator();
@@ -559,7 +559,7 @@ public class RealtimeIndexTaskTest
     Assert.assertEquals(TaskState.SUCCESS, taskStatus.getStatusCode());
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testReportParseExceptionsOnBadMetric() throws Exception
   {
     final TestIndexerMetadataStorageCoordinator mdc = new TestIndexerMetadataStorageCoordinator();
@@ -624,7 +624,7 @@ public class RealtimeIndexTaskTest
     statusFuture.get();
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testNoReportParseExceptions() throws Exception
   {
     final TestIndexerMetadataStorageCoordinator mdc = new TestIndexerMetadataStorageCoordinator();
@@ -716,7 +716,7 @@ public class RealtimeIndexTaskTest
     Assert.assertEquals(TaskState.SUCCESS, taskStatus.getStatusCode());
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testRestore() throws Exception
   {
     final File directory = tempFolder.newFolder();
@@ -817,7 +817,7 @@ public class RealtimeIndexTaskTest
     }
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testRestoreAfterHandoffAttemptDuringShutdown() throws Exception
   {
     final TaskStorage taskStorage = new HeapMemoryTaskStorage(new TaskStorageConfig(null));
@@ -914,7 +914,7 @@ public class RealtimeIndexTaskTest
     }
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testRestoreCorruptData() throws Exception
   {
     final File directory = tempFolder.newFolder();
@@ -986,7 +986,7 @@ public class RealtimeIndexTaskTest
     }
   }
 
-  @Test(timeout = 60_000L)
+  @Test(timeout = 10_000L)
   public void testStopBeforeStarting() throws Exception
   {
     final File directory = tempFolder.newFolder();
