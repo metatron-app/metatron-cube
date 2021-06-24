@@ -67,6 +67,7 @@ public class Parser
     register(BuiltinFunctions.class);
     register(WindowFunctions.class);
     register(PredicateFunctions.class);
+    register(BitSetFunctions.class);
     register(DateTimeFunctions.class);
     register(ExcelFunctions.class);
   }
@@ -76,11 +77,8 @@ public class Parser
     if (registered.putIfAbsent(parent.getName(), new Object()) != null) {
       return;
     }
-    final boolean builtInLibrary = parent == BuiltinFunctions.class ||
-                                   parent == WindowFunctions.class ||
-                                   parent == PredicateFunctions.class ||
-                                   parent == DateTimeFunctions.class ||
-                                   parent == ExcelFunctions.class;
+
+    boolean builtInLibrary = isBuiltIn(parent);
 
     log.info("registering functions in %s library [%s]", builtInLibrary ? "built-in" : "user", parent.getName());
 
@@ -100,10 +98,15 @@ public class Parser
 
   public static boolean isBuiltIn(Function.Factory factory)
   {
-    final Class parent = factory.getClass().getEnclosingClass();
+    return isBuiltIn(factory.getClass().getEnclosingClass());
+  }
+
+  public static boolean isBuiltIn(Class parent)
+  {
     return parent == BuiltinFunctions.class ||
            parent == WindowFunctions.class ||
            parent == PredicateFunctions.class ||
+           parent == BitSetFunctions.class ||
            parent == DateTimeFunctions.class ||
            parent == ExcelFunctions.class;
   }
@@ -138,7 +141,7 @@ public class Parser
       if (t instanceof NoClassDefFoundError) {
         ClassLoader current = parent.getClassLoader();
         for (; current instanceof URLClassLoader; current = current.getParent()) {
-          log.info("--- " + Arrays.<URL>asList(((URLClassLoader) current).getURLs()));
+          log.info("--- %s", Arrays.<URL>asList(((URLClassLoader) current).getURLs()));
         }
       }
       log.warn(t, "failed to load functions from %s by %s .. ignoring", parent.getName(), t);

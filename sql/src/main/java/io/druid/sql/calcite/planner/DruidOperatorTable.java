@@ -57,6 +57,7 @@ import io.druid.sql.calcite.aggregation.builtin.SumSqlAggregator;
 import io.druid.sql.calcite.aggregation.builtin.SumZeroSqlAggregator;
 import io.druid.sql.calcite.expression.AliasedOperatorConversion;
 import io.druid.sql.calcite.expression.BinaryOperatorConversion;
+import io.druid.sql.calcite.expression.BitSetCardinalityConversion;
 import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.DirectOperatorConversion;
 import io.druid.sql.calcite.expression.DruidExpression;
@@ -64,7 +65,7 @@ import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.NominalBitSetToStringConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
-import io.druid.sql.calcite.expression.UnwrapConversion;
+import io.druid.sql.calcite.expression.BitSetUnwrapConversion;
 import io.druid.sql.calcite.expression.builtin.ArrayConstructorOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CastOperatorConversion;
@@ -242,7 +243,8 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new StringFormatOperatorConversion())
           .add(new ItemOperatorConversion())
           .add(new NominalBitSetToStringConversion())
-          .add(new UnwrapConversion())
+          .add(new BitSetUnwrapConversion())
+          .add(new BitSetCardinalityConversion())
           .add(new NominalTypeConversion())
           .build();
 

@@ -33,14 +33,14 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.List;
 
-public class UnwrapConversion implements SqlOperatorConversion
+public class BitSetCardinalityConversion implements SqlOperatorConversion
 {
   private final SqlFunction function;
 
-  public UnwrapConversion()
+  public BitSetCardinalityConversion()
   {
     this.function = OperatorConversions
-        .operatorBuilder("unwrap")
+        .operatorBuilder("cardinality")
         .operandTypes(SqlTypeFamily.ARRAY)
         .returnTypeInference(opBinding -> {
           if (opBinding.getOperandType(0).getComponentType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
@@ -72,7 +72,7 @@ public class UnwrapConversion implements SqlOperatorConversion
     final List<RexNode> operands = call.getOperands();
     if (operands.size() == 1 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
       String column = rowSignature.getColumnNames().get(((RexInputRef) operands.get(0)).getIndex());
-      return DruidExpression.fromExpression(String.format("unwrap(%s)", DruidExpression.identifier(column)));
+      return DruidExpression.fromExpression(String.format("bitset.cardinality(%s)", DruidExpression.identifier(column)));
     }
     return null;
   }

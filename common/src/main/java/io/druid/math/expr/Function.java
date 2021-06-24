@@ -139,10 +139,22 @@ public interface Function
       }
     }
 
-    public void exactTwo(List<Expr> args)
+    public void exactTwo(List<Expr> args, ValueDesc... types)
     {
       if (args.size() != 2) {
         throw new IAE(EXACT_TWO_PARAM, name);
+      }
+      validateType(args, types);
+    }
+
+    private void validateType(List<Expr> args, ValueDesc[] types)
+    {
+      int limit = Math.min(args.size(), types.length);
+      for (int i = 0; i < limit; i++) {
+        ValueDesc returns = args.get(i).returns();
+        if (!types[i].equals(returns)) {
+          throw new IAE(INVALID_TYPE, i, name, types[i], returns);
+        }
       }
     }
 
@@ -153,11 +165,12 @@ public interface Function
       }
     }
 
-    public void oneOrTwo(List<Expr> args)
+    public void oneOrTwo(List<Expr> args, ValueDesc... types)
     {
       if (args.size() != 1 && args.size() != 2) {
         throw new IAE(ONE_OR_TWO_PARAM, name);
       }
+      validateType(args, types);
     }
 
     public void twoOrThree(List<Expr> args)
