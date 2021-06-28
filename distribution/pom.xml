@@ -31,7 +31,7 @@
     <parent>
         <artifactId>druid</artifactId>
         <groupId>app.metatron</groupId>
-        <version>2021.2-SNAPSHOT</version>
+        <version>2021.2</version>
     </parent>
 
     <dependencies>
