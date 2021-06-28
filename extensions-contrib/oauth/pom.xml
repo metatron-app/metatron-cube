@@ -28,7 +28,7 @@
     <parent>
         <artifactId>druid</artifactId>
         <groupId>app.metatron</groupId>
-        <version>2021.2</version>
+        <version>2021.3-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -37,12 +37,12 @@
         <dependency>
             <groupId>app.metatron</groupId>
             <artifactId>druid-common</artifactId>
-            <version>2021.2</version>
+            <version>2021.3-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>app.metatron</groupId>
             <artifactId>druid-server</artifactId>
-            <version>2021.2</version>
+            <version>2021.3-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -56,7 +56,7 @@
         <dependency>
             <groupId>app.metatron</groupId>
             <artifactId>druid-server</artifactId>
-            <version>2021.2</version>
+            <version>2021.3-SNAPSHOT</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>

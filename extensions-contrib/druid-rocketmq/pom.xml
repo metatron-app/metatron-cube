@@ -24,7 +24,7 @@
   <parent>
     <artifactId>druid</artifactId>
     <groupId>app.metatron</groupId>
-    <version>2021.2</version>
+    <version>2021.3-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
