@@ -21,6 +21,11 @@ package io.druid.common;
 
 public class IntTagged<T>
 {
+  public static <T> IntTagged<T> of(int tag, T value)
+  {
+    return new IntTagged<>(tag, value);
+  }
+
   public final int tag;
   public final T value;
 
@@ -40,8 +45,18 @@ public class IntTagged<T>
     return value;
   }
 
-  public static <T> IntTagged<T> of(int tag, T value)
+  public static class Sortable<T extends Comparable> extends IntTagged<T> implements Comparable<Sortable<T>>
   {
-    return new IntTagged<>(tag, value);
+    public Sortable(int tag, T value)
+    {
+      super(tag, value);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public int compareTo(Sortable<T> o)
+    {
+      return value.compareTo(o.value);
+    }
   }
 }

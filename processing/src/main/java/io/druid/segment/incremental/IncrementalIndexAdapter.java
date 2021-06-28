@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.IndexMerger;
@@ -175,7 +176,6 @@ public class IncrementalIndexAdapter implements IndexableAdapter
 
     return new Indexed<String>()
     {
-
       @Override
       public int size()
       {
@@ -225,7 +225,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
         final int[] dimLookup = IndexMerger.toLookupMap(getDimensionNames(), mergedDimensions);
         final int[] metricLookup = IndexMerger.toLookupMap(getMetricNames(), mergedMetrics);
 
-        final Aggregator[] aggregators = index.getAggregators();
+        final Aggregator[] aggregators = index.getMetricAggregators();
         /*
          * Note that the transform function increments a counter to determine the rowNum of
          * the iterated Rowboats. We need to return a new iterator on each
@@ -243,24 +243,36 @@ public class IncrementalIndexAdapter implements IndexableAdapter
                 final IncrementalIndex.TimeAndDims timeAndDims = input.getKey();
                 final int[][] dimValues = timeAndDims.getDims();
 
+                final Object[] values = input.getValue();
                 final int[][] dims = new int[mergedDimensions.size()][];
                 for (DimensionDesc dimension : dimensions) {
                   final int dimIndex = dimension.getIndex();
-                  if (dimIndex >= dimValues.length || dimValues[dimIndex] == null) {
+                  if (dimIndex >= dimValues.length) {
                     continue;
                   }
-                  final int[] dimValue = dimValues[dimIndex];
-                  final int[] dim = new int[dimValue.length];
-                  for (int i = 0; i < dim.length; ++i) {
-                    dim[i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(dimValue[i]);
+                  final int pivotIx = dimension.getPivotIndex();
+                  if (pivotIx >= 0) {
+                    final IntList dimValue = (IntList) values[pivotIx];
+                    final int[] dim = new int[dimValue.size()];
+                    for (int i = 0; i < dim.length; i++) {
+                      dim[i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(dimValue.get(i));
+                    }
+                    dims[dimLookup[dimIndex]] = dim;
+                  } else if (dimValues[dimIndex] != null) {
+                    final int[] dimValue = dimValues[dimIndex];
+                    final int[] dim = new int[dimValue.length];
+                    for (int i = 0; i < dim.length; i++) {
+                      dim[i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(dimValue[i]);
+                    }
+                    dims[dimLookup[dimIndex]] = dim;
                   }
-                  dims[dimLookup[dimIndex]] = dim;
                 }
 
-                final Object[] values = input.getValue();
                 final Object[] metrics = new Object[metricLookup.length];
                 for (int i = 0; i < aggregators.length; i++) {
-                  metrics[metricLookup[i]] = aggregators[i].get(values[i]);
+                  if (aggregators[i] != null) {
+                    metrics[metricLookup[i]] = aggregators[i].get(values[i]);
+                  }
                 }
 
                 return new Rowboat(

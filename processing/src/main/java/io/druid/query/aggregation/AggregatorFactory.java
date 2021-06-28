@@ -417,6 +417,19 @@ public abstract class AggregatorFactory implements Cacheable
         }
       };
 
+  public static <T> Combiner<T> nullHandling(Combiner<T> combiner)
+  {
+    return (p1, p2) -> {
+      if (p1 == null) {
+        return p2;
+      } else if (p2 == null) {
+        return p1;
+      } else {
+        return combiner.combine(p1, p2);
+      }
+    };
+  }
+
   public static interface Combiner<T>
   {
     T combine(T param1, T param2);

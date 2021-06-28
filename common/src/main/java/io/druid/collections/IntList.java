@@ -163,6 +163,21 @@ public class IntList implements Iterable<Integer>, IntConsumer
     }
   }
 
+  public IntList concat(IntList other)
+  {
+    final int length = size + other.size;
+    if (baseArray.length >= length) {
+      System.arraycopy(other.baseArray, 0, baseArray, size, other.size);
+      this.size = length;
+    } else {
+      final int[] concat = Arrays.copyOf(baseArray, length);
+      System.arraycopy(other.baseArray, 0, concat, size, other.size);
+      this.baseArray = concat;
+      this.size = length;
+    }
+    return this;
+  }
+
   @Override
   public Iterator<Integer> iterator()
   {

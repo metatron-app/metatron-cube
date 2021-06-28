@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.cache.Cache;
+import io.druid.collections.IntList;
 import io.druid.common.Intervals;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -357,6 +358,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
 
                 final int dimIndex = dimensionDesc.getIndex();
+                final int pivotIx = dimensionDesc.getPivotIndex();
                 final IncrementalIndex.DimDim dimValLookup = dimensionDesc.getValues();
 
                 final int maxId = dimValLookup.size();
@@ -366,10 +368,19 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   @Override
                   public IndexedInts getRow()
                   {
-                    final int[][] dims = currEntry.getKey().getDims();
+                    final int[] indices;
+                    if (pivotIx >= 0) {
+                      Object[] values = currEntry.getValue();
+                      indices = pivotIx < values.length ? ((IntList) values[pivotIx]).array() : null;
+                    } else {
+                      int[][] dims = currEntry.getKey().getDims();
+                      indices = dimIndex < dims.length ? dims[dimIndex] : null;
+                    }
+                    return toIndexedInts(indices);
+                  }
 
-                    final int[] indices = dimIndex < dims.length ? dims[dimIndex] : null;
-
+                  private IndexedInts toIndexedInts(int[] indices)
+                  {
                     int length = 0;
                     int[] values = null;
                     if (indices == null || indices.length == 0) {

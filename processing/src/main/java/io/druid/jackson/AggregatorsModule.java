@@ -75,6 +75,7 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.sketch.TypedSketch;
 import io.druid.query.sketch.TypedSketchMetricSerDes;
+import io.druid.segment.incremental.DimensionAggregatorFactory;
 import io.druid.segment.serde.BitSetMetricSerDe;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
@@ -187,6 +188,8 @@ public class AggregatorsModule extends SimpleModule
 
       @JsonSubTypes.Type(name = "countMin", value = CountMinAggregatorFactory.class),
       @JsonSubTypes.Type(name = "bloomFilter", value = BloomFilterAggregatorFactory.class),
+
+      @JsonSubTypes.Type(name = "dimension", value = DimensionAggregatorFactory.class),
   })
   public static interface AggregatorFactoryMixin
   {
