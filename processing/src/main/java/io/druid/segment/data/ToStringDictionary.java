@@ -60,7 +60,7 @@ public class ToStringDictionary implements Dictionary<String>
   @Override
   public int indexOf(String value)
   {
-    return value == null ? -1 : Integer.valueOf(value);
+    return StringUtils.isNullOrEmpty(value) ? -1 : Integer.valueOf(value);
   }
 
   @Override

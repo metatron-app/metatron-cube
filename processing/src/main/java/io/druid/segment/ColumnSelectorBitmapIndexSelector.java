@@ -98,6 +98,9 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     if (column == null) {
       return makeBooleanBitmap(Strings.isNullOrEmpty(value));
     }
+    if (column.getType().isBitSet() && Strings.isNullOrEmpty(value)) {
+      return null;    // todo write null bitmap for complex column
+    }
     final BitmapIndex bitmap = column.getBitmapIndex();
     return bitmap == null ? null : bitmap.getBitmap(bitmap.getIndex(value));
   }
