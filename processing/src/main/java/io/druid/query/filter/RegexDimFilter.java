@@ -37,7 +37,7 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.FilterContext;
-import io.druid.segment.lucene.RegexpMatcher;
+import io.druid.segment.lucene.AutomatonMatcher;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.RegExp;
 
@@ -138,7 +138,7 @@ public class RegexDimFilter extends SingleInput
         if (column != null && column.getCapabilities().hasDictionaryFST()) {
           final DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
           try {
-            final IntList matched = RegexpMatcher.regexMatch(automatonSupplier.get(), dictionary.getFST()).sort();
+            final IntList matched = AutomatonMatcher.match(automatonSupplier.get(), dictionary.getFST()).sort();
             return BitmapHolder.exact(column.getBitmapIndex().union(matched));
           }
           catch (IOException e) {

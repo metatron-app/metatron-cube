@@ -44,19 +44,20 @@ import java.util.List;
  *   regexMatchOnFST() Function runs matching on FST (See function comments for more details)
  *   match(input) Function builds the automaton and matches given input.
  */
-public class RegexpMatcher
+public class AutomatonMatcher
 {
-  public static final Logger LOG = new Logger(RegexpMatcher.class);
+  public static final Logger LOG = new Logger(AutomatonMatcher.class);
 
   private final FST<Long> _fst;
   private final Automaton _automaton;
 
-  public RegexpMatcher(Automaton automaton, FST<Long> fst)
+  public AutomatonMatcher(Automaton automaton, FST<Long> fst)
   {
     _automaton = automaton;
     _fst = fst;
   }
-  public RegexpMatcher(String regexQuery, FST<Long> fst)
+
+  public AutomatonMatcher(String regexQuery, FST<Long> fst)
   {
     this(new RegExp(regexQuery).toAutomaton(), fst);
   }
@@ -64,15 +65,13 @@ public class RegexpMatcher
   public static IntList regexMatch(String regexQuery, FST<Long> fst)
       throws IOException
   {
-    RegexpMatcher matcher = new RegexpMatcher(regexQuery, fst);
-    return matcher.regexMatchOnFST();
+    return new AutomatonMatcher(regexQuery, fst).matchOnFST();
   }
 
-  public static IntList regexMatch(Automaton automaton, FST<Long> fst)
+  public static IntList match(Automaton automaton, FST<Long> fst)
       throws IOException
   {
-    RegexpMatcher matcher = new RegexpMatcher(automaton, fst);
-    return matcher.regexMatchOnFST();
+    return new AutomatonMatcher(automaton, fst).matchOnFST();
   }
 
   // Matches "input" string with _regexQuery Automaton.
@@ -98,7 +97,7 @@ public class RegexpMatcher
    * @return
    * @throws IOException
    */
-  public IntList regexMatchOnFST() throws IOException
+  public IntList matchOnFST() throws IOException
   {
     final List<Path<Long>> queue = new ArrayList<>();
     final List<Path<Long>> endNodes = new ArrayList<>();
