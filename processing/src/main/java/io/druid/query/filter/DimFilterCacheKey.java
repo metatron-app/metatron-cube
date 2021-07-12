@@ -46,4 +46,5 @@ public interface DimFilterCacheKey
   byte LUCENE_WITHIN_CACHE_ID = 0x13;
   byte INS_CACHE_ID = 0x14;
   byte BOUND_ROWID_CACHE_ID = 0x15;
+  byte PREFIX_CACHE_ID = 0x16;
 }

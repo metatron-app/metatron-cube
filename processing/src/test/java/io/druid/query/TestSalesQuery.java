@@ -43,6 +43,7 @@ import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
+import io.druid.query.filter.PrefixDimFilter;
 import io.druid.query.filter.RegexMatchFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupingSetSpec;
@@ -942,5 +943,29 @@ public class TestSalesQuery extends TestHelper
     for (Object[] x : rows) {
       Assert.assertTrue(String.valueOf(x[0]), values.contains(x[0]));
     }
+  }
+
+  @Test
+  public void testPrefixFilter()
+  {
+    GroupByQuery query = GroupByQuery.builder()
+                                     .dataSource("sales")
+                                     .filters(PrefixDimFilter.of("CustomerName", "Dar"))
+                                     .dimensions("CustomerName")
+                                     .aggregators(CountAggregatorFactory.of("count"))
+                                     .outputColumns("CustomerName", "count")
+                                     .build();
+
+    String[] columnNames = {"CustomerName", "count"};
+    Object[][] objects = new Object[][]{
+        array("Dario Medina", 9L),
+        array("Darren Budd", 14L),
+        array("Darren Koutras", 8L),
+        array("Darren Powers", 17L),
+        array("Darrin Martin", 20L),
+        array("Darrin Sayre", 19L),
+        array("Darrin Van Huff", 9L)
+    };
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
   }
 }

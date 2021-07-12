@@ -80,6 +80,7 @@ import java.util.regex.Pattern;
     @JsonSubTypes.Type(name = "like", value = LikeDimFilter.class),
     @JsonSubTypes.Type(name = "bloom", value = BloomDimFilter.class),
     @JsonSubTypes.Type(name = "bloom.factory", value = BloomDimFilter.Factory.class),
+    @JsonSubTypes.Type(name = "prefix", value = PrefixDimFilter.class),
 })
 public interface DimFilter extends Expression, Cacheable
 {

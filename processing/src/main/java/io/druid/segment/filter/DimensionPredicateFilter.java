@@ -48,7 +48,7 @@ public class DimensionPredicateFilter implements Filter
   @Override
   public BitmapHolder getBitmapIndex(FilterContext context)
   {
-    return BitmapHolder.exact(Filters.matchPredicate(dimension, combine(predicate, extractionFn), context));
+    return BitmapHolder.exact(Filters.matchDictionary(dimension, context, toMatcher(combine(predicate, extractionFn))));
   }
 
   @Override
@@ -57,7 +57,12 @@ public class DimensionPredicateFilter implements Filter
     return Filters.toValueMatcher(factory, dimension, combine(predicate, extractionFn));
   }
 
-  private Predicate<String> combine(Predicate<String> predicate, ExtractionFn extractionFn)
+  protected Filters.DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
+  {
+    return v -> predicate.apply(v);
+  }
+
+  private static Predicate<String> combine(Predicate<String> predicate, ExtractionFn extractionFn)
   {
     if (extractionFn == null) {
       return predicate;

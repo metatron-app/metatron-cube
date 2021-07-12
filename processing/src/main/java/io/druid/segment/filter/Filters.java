@@ -333,6 +333,49 @@ public class Filters
     };
   }
 
+  public static interface DictionaryMatcher<T>
+  {
+    default int start(Dictionary<T> dictionary)
+    {
+      return 0;
+    }
+
+    default boolean matches(Dictionary<T> dictionary, int index)
+    {
+      return matches(dictionary.get(index));
+    }
+
+    boolean matches(T value);
+  }
+
+  public static class FromPredicate<T> implements DictionaryMatcher<T>
+  {
+    private final T prefix;
+    private final Predicate<T> predicate;
+
+    public FromPredicate(T prefix, Predicate<T> predicate)
+    {
+      this.prefix = prefix;
+      this.predicate = predicate;
+    }
+
+    @Override
+    public int start(Dictionary<T> dictionary)
+    {
+      if (prefix == null) {
+        return 0;
+      }
+      final int index = dictionary.indexOf(prefix);
+      return index < 0 ? -index - 1 : index;
+    }
+
+    @Override
+    public boolean matches(T value)
+    {
+      return predicate.apply(value);
+    }
+  }
+
   /**
    * Return the union of bitmaps for all values matching a particular predicate.
    *
@@ -342,25 +385,28 @@ public class Filters
    *
    * @return bitmap of matching rows
    */
-  public static ImmutableBitmap matchPredicate(
+  public static ImmutableBitmap matchPredicate(String dimension, Predicate<String> predicate, FilterContext context)
+  {
+    return matchDictionary(dimension, context, v -> predicate.apply(v));
+  }
+
+  public static ImmutableBitmap matchDictionary(
       final String dimension,
-      final Predicate<String> predicate,
-      final FilterContext context
+      final FilterContext context,
+      final DictionaryMatcher<String> matcher
   )
   {
     final BitmapIndexSelector selector = context.indexSelector();
-    Preconditions.checkNotNull(dimension, "dimension");
-    Preconditions.checkNotNull(selector, "selector");
-    Preconditions.checkNotNull(predicate, "predicate");
 
     // Missing dimension -> match all rows if the predicate matches null; match no rows otherwise
     final Column column = selector.getColumn(dimension);
     if (column == null) {
-      return selector.createBoolean(predicate.apply(null));
+      return selector.createBoolean(matcher.matches(null));
     }
     // Apply predicate to all dimension values and union the matching bitmaps
     final BitmapIndex bitmapIndex = column.getBitmapIndex();
-    if (bitmapIndex == null || bitmapIndex.getCardinality() < 0) {
+    final int cardinality = bitmapIndex.getCardinality();
+    if (bitmapIndex == null || cardinality < 0) {
       return null;
     }
     final Dictionary<String> dictionary = column.getDictionary();
@@ -376,23 +422,22 @@ public class Filters
           {
             return new Iterator<ImmutableBitmap>()
             {
-              int currIndex = 0;
+              private int currIndex = matcher.start(dictionary);
 
               @Override
               public boolean hasNext()
               {
-                return currIndex < bitmapIndex.getCardinality();
+                return currIndex < cardinality;
               }
 
               @Override
               public ImmutableBitmap next()
               {
-                while (currIndex < bitmapIndex.getCardinality() &&
-                       !predicate.apply(dictionary.get(currIndex))) {
+                while (currIndex < cardinality && !matcher.matches(dictionary, currIndex)) {
                   currIndex++;
                 }
 
-                if (currIndex == bitmapIndex.getCardinality()) {
+                if (currIndex == cardinality) {
                   return bitmapIndex.getBitmapFactory().makeEmptyImmutableBitmap();
                 }
 
@@ -932,12 +977,12 @@ public class Filters
 
     switch (expression.op().toLowerCase()) {
       case "between":
-        List<Comparable> constants = getConstants(expression.getChildren(), type);
-        if (constants.size() != 2) {
+        List<Comparable> range = getConstants(expression.getChildren(), type);
+        if (range == null || range.size() != 2) {
           return null;
         }
-        Comparable value1 = constants.get(0);
-        Comparable value2 = constants.get(1);
+        Comparable value1 = range.get(0);
+        Comparable value2 = range.get(1);
         if (value1 == null || value2 == null) {
           return null;
         }
@@ -972,7 +1017,11 @@ public class Filters
           return null;  // hard to be expressed with bitmap
         }
         List<BitmapHolder> holders = Lists.newArrayList();
-        for (Comparable value : getConstants(expression.getChildren(), type)) {
+        List<Comparable> values = getConstants(expression.getChildren(), type);
+        if (values == null) {
+          return null;
+        }
+        for (Comparable value : values) {
           holders.add(
               metric instanceof SecondaryIndex.WithRange ?
               metric.filterFor(Range.closed(value, value), context) :
@@ -1024,6 +1073,8 @@ public class Filters
     for (Expression expr : children) {
       if (expr instanceof Expression.ConstExpression) {
         constants.add((Comparable) type.cast(((Expression.ConstExpression) expr).get()));
+      } else {
+        return null;
       }
     }
     return constants;

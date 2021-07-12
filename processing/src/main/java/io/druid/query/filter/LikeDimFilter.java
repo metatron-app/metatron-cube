@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
@@ -37,6 +38,8 @@ import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.filter.DimensionPredicateFilter;
+import io.druid.segment.filter.Filters;
+import io.druid.segment.filter.PrefixFilter;
 import io.druid.segment.filter.SelectorFilter;
 import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
 import it.unimi.dsi.fastutil.chars.CharSet;
@@ -323,10 +326,25 @@ public class LikeDimFilter extends SingleInput
   public Filter toFilter(TypeResolver resolver)
   {
     final LikeMatcher matcher = likeMatcherSupplier.get();
-    if (extractionFn == null && matcher.regex == null) {
-      return new SelectorFilter(dimension, matcher.prefix);
+    if (extractionFn == null) {
+      switch (matcher.predicateType()) {
+        case 0:
+          return new SelectorFilter(dimension, matcher.prefix);
+        case 1:
+          return new PrefixFilter(dimension, matcher.prefix);
+      }
     }
-    return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn);
+    if (Strings.isNullOrEmpty(matcher.prefix)) {
+      return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn);
+    }
+    return new DimensionPredicateFilter(dimension, matcher.asPredicate(), extractionFn)
+    {
+      @Override
+      protected Filters.DictionaryMatcher<String> toMatcher(Predicate<String> predicate)
+      {
+        return new Filters.FromPredicate<String>(matcher.prefix, matcher.asPredicate());
+      }
+    };
   }
 
   @Override

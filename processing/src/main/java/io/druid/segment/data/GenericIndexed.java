@@ -426,29 +426,30 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public int indexOf(T value)
     {
       if (!allowReverseLookup) {
         throw new UnsupportedOperationException("Reverse lookup not allowed.");
       }
-
-      value = (value != null && value.equals("")) ? null : value;
+      if (StringUtils.isNullOrEmpty(value)) {
+        return StringUtils.isNullOrEmpty(get(0)) ? 0 : -1;
+      }
+      final Comparator<T> comparator = (Comparator<T>) strategy;
 
       int minIndex = 0;
       int maxIndex = size - 1;
       while (minIndex <= maxIndex) {
-        int currIndex = (minIndex + maxIndex) >>> 1;
-
-        T currValue = GenericIndexed.this.get(currIndex);
-        int comparison = ((Comparator<T>) strategy).compare(currValue, value);
+        final int medianIndex = (minIndex + maxIndex) >>> 1;
+        final T currValue = get(medianIndex);
+        final int comparison = comparator.compare(currValue, value);
         if (comparison == 0) {
-          return currIndex;
+          return medianIndex;
         }
-
         if (comparison < 0) {
-          minIndex = currIndex + 1;
+          minIndex = medianIndex + 1;
         } else {
-          maxIndex = currIndex - 1;
+          maxIndex = medianIndex - 1;
         }
       }
 

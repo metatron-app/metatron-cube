@@ -719,6 +719,11 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       return this;
     }
 
+    public Builder<T> dimensions(String... dimensions)
+    {
+      return setDimensions(DefaultDimensionSpec.toSpec(dimensions));
+    }
+
     public Builder<T> dimensions(DimensionSpec... dimensions)
     {
       return setDimensions(dimensions);
