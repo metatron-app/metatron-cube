@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Throwables;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
@@ -84,6 +85,12 @@ public class ReferenceCountingSegmentTest
 
           @Override
           public Schema asSchema(boolean prependTime)
+          {
+            return null;
+          }
+
+          @Override
+          public RowSignature asSignature(boolean prependTime)
           {
             return null;
           }

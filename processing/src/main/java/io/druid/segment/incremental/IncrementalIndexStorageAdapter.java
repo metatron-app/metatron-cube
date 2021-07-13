@@ -31,9 +31,11 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -56,6 +58,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
@@ -151,9 +154,31 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
+  public ColumnMeta getColumnMeta(String column)
+  {
+    ColumnCapabilities capabilities = index.getCapabilities(column);
+    if (capabilities != null) {
+      ValueType type = capabilities.getType();
+      return new ColumnMeta(
+          type == ValueType.COMPLEX ? ValueDesc.of(capabilities.getTypeName()) : ValueDesc.of(type),
+          capabilities.hasMultipleValues(),
+          index.getColumnDescriptor(column),
+          null
+      );
+    }
+    return null;
+  }
+
+  @Override
   public Map<String, String> getColumnDescriptor(String column)
   {
     return index.getColumnDescriptor(column);
+  }
+
+  @Override
+  public Map<String, Object> getColumnStats(String column)
+  {
+    return null;
   }
 
   @Override
@@ -193,6 +218,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);
+  }
+
+  @Override
+  public RowSignature asSignature(boolean prependTime)
+  {
+    return index.asSignature(prependTime);
   }
 
   @Override

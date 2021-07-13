@@ -49,6 +49,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.ParseException;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -851,6 +852,28 @@ public abstract class IncrementalIndex implements Closeable
       capabilities.put(metric, getCapabilities(metric));
     }
     return new Schema(columnNames, columnTypes, aggregators, capabilities, descriptors);
+  }
+
+  public RowSignature asSignature(boolean prependTime)
+  {
+    List<String> columnNames = Lists.newArrayList();
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+
+    if (prependTime) {
+      columnNames.add(Row.TIME_COLUMN_NAME);
+      columnTypes.add(ValueDesc.LONG);
+    }
+    for (String dimension : getDimensionNames()) {
+      ColumnCapabilities capability = getCapabilities(dimension);
+      columnNames.add(dimension);
+      columnTypes.add(ValueDesc.ofDimension(capability.getType()));
+    }
+    Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
+    for (String metric : getMetricNames()) {
+      columnNames.add(metric);
+      columnTypes.add(aggregators.get(metric).getOutputType());
+    }
+    return new RowSignature(columnNames, columnTypes);
   }
 
   public static final class DimensionDesc

@@ -56,8 +56,9 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
+import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Rule;
+import org.junit.BeforeClass;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runners.Parameterized;
 
@@ -72,8 +73,7 @@ import java.util.Objects;
 
 public abstract class BaseFilterTest
 {
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  private static TemporaryFolder temporaryFolder;
 
   private final List<InputRow> rows;
 
@@ -111,6 +111,19 @@ public abstract class BaseFilterTest
     this.indexBuilder = indexBuilder;
     this.finisher = finisher;
     this.optimize = optimize;
+  }
+
+  @BeforeClass
+  public static void setUpClass() throws Exception
+  {
+    temporaryFolder = new TemporaryFolder();
+    temporaryFolder.create();
+  }
+
+  @AfterClass
+  public static void tearDownClass() throws Exception
+  {
+    temporaryFolder.delete();
   }
 
   @Before

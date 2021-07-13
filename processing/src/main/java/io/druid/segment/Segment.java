@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import io.druid.query.Query;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.SegmentDescriptor;
 import org.joda.time.Interval;
@@ -107,6 +108,12 @@ public interface Segment extends SchemaProvider, Closeable
     public Schema asSchema(boolean prependTime)
     {
       return segment.asSchema(prependTime);
+    }
+
+    @Override
+    public RowSignature asSignature(boolean prependTime)
+    {
+      return segment.asSignature(prependTime);
     }
 
     @Override

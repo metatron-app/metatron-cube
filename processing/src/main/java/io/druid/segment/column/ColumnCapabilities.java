@@ -21,8 +21,8 @@ package io.druid.segment.column;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.java.util.common.ISE;
 import io.druid.data.ValueType;
+import io.druid.java.util.common.ISE;
 
 import java.util.Objects;
 

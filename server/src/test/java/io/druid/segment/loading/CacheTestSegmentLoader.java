@@ -20,6 +20,7 @@
 package io.druid.segment.loading;
 
 import io.druid.java.util.common.MapUtils;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.segment.AbstractSegment;
 import io.druid.segment.QueryableIndex;
@@ -91,6 +92,12 @@ public class CacheTestSegmentLoader implements SegmentLoader
 
       @Override
       public Schema asSchema(boolean prependTime)
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public RowSignature asSignature(boolean prependTime)
       {
         throw new UnsupportedOperationException();
       }

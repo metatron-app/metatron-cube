@@ -51,6 +51,7 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.search.SearchResultValue;
@@ -663,6 +664,12 @@ public class ServerManagerTest
 
     @Override
     public Schema asSchema(boolean prependTime)
+    {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public RowSignature asSignature(boolean prependTime)
     {
       throw new UnsupportedOperationException();
     }

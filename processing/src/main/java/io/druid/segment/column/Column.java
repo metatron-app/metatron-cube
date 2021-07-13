@@ -47,6 +47,8 @@ public interface Column
   }
 
   String getName();
+  ColumnMeta getMetaData();
+
   ColumnCapabilities getCapabilities();
   int getNumRows();
 

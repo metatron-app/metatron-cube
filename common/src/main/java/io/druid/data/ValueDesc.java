@@ -182,6 +182,11 @@ public class ValueDesc implements Serializable, Cacheable
     return of(builder.toString(), List.class);
   }
 
+  public static ValueDesc ofDimension(ValueDesc valueDesc)
+  {
+    return valueDesc.isDimension() ? valueDesc : ofDimension(valueDesc.type);
+  }
+
   public static ValueDesc ofDimension(ValueType valueType)
   {
     Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");

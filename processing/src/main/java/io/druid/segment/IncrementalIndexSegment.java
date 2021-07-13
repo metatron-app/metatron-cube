@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
@@ -78,6 +79,12 @@ public class IncrementalIndexSegment extends AbstractSegment
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);
+  }
+
+  @Override
+  public RowSignature asSignature(boolean prependTime)
+  {
+    return index.asSignature(prependTime);
   }
 
   @Override

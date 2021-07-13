@@ -20,6 +20,7 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
@@ -80,6 +81,12 @@ class SimpleColumn implements Column
   public String getName()
   {
     return name;
+  }
+
+  @Override
+  public ColumnMeta getMetaData()
+  {
+    return new ColumnMeta(ValueDesc.of(capabilities.getTypeName()), capabilities.hasMultipleValues(), descs, stats);
   }
 
   @Override

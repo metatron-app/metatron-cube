@@ -116,14 +116,15 @@ public class SmooshedFileMapper implements Closeable
   public ByteBuffer mapFile(String name) throws IOException
   {
     final Metadata metadata = internalFiles.get(name);
-    if (metadata == null) {
-      return null;
-    }
+    return metadata == null ? null : mapFile(metadata);
+  }
+
+  private ByteBuffer mapFile(Metadata metadata) throws IOException
+  {
     final int fileNum = metadata.getFileNum();
     while (buffersList.size() <= fileNum) {
       buffersList.add(null);
     }
-
     MappedByteBuffer mappedBuffer = buffersList.get(fileNum);
     if (mappedBuffer == null) {
       buffersList.set(fileNum, mappedBuffer = Files.map(outFiles.get(fileNum)));
@@ -161,6 +162,17 @@ public class SmooshedFileMapper implements Closeable
     }
   }
 
+  public byte[] readSizedBytes(String name) throws IOException
+  {
+    final Metadata meta = internalFiles.get(name);
+    try (RandomAccessFile file = new RandomAccessFile(outFiles.get(meta.getFileNum()), "r")) {
+      file.seek(meta.getStartOffset());
+      final byte[] array = new byte[file.readInt()];
+      file.readFully(array);
+      return array;
+    }
+  }
+
   @Override
   public void close()
   {
@@ -171,7 +183,8 @@ public class SmooshedFileMapper implements Closeable
       }
       try {
         ByteBufferUtils.unmap(mappedByteBuffer);
-      } catch (Throwable t) {
+      }
+      catch (Throwable t) {
         if (thrown == null) {
           thrown = t;
         } else {

@@ -55,16 +55,16 @@ public class RowResolver implements io.druid.data.RowSignature
   public static RowResolver of(List<Segment> segments, List<VirtualColumn> virtualColumns)
   {
     Preconditions.checkArgument(!segments.isEmpty());
-    Schema schema = segments.get(0).asSchema(true);
+    RowSignature signature = segments.get(0).asSignature(true);
     for (int i = 1; i < segments.size(); i++) {
-      schema = schema.merge(segments.get(i).asSchema(true));
+      signature = signature.merge(segments.get(i).asSignature(true));
     }
-    return of(schema, virtualColumns);
+    return of(signature, virtualColumns);
   }
 
   public static RowResolver of(SchemaProvider segment, List<VirtualColumn> virtualColumns)
   {
-    return of(segment.asSchema(true), virtualColumns);
+    return of(segment.asSignature(true), virtualColumns);
   }
 
   public static RowResolver of(RowSignature schema, List<VirtualColumn> virtualColumns)

@@ -20,12 +20,14 @@
 package io.druid.common.guava;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import io.druid.data.ValueDesc;
 import io.druid.segment.Tools;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -135,5 +137,67 @@ public class DSuppliers
         return Objects.toString(supplier.get(), null);
       }
     };
+  }
+
+  public static <T> Supplier<T> wrap(Callable<T> callable)
+  {
+    return new Supplier<T>()
+    {
+      @Override
+      public T get()
+      {
+        try {
+          return callable.call();
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
+      }
+    };
+  }
+
+  public static <T> Memoizing<T> memoize(Callable<T> callable)
+  {
+    return new Memoizing<>(wrap(callable));
+  }
+
+  // com.google.common.base.Suppliers
+  public static class Memoizing<T> implements Supplier<T>
+  {
+    private final Supplier<T> delegate;
+    private volatile boolean initialized;
+    private T value;
+
+    Memoizing(Supplier<T> delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    public boolean initialized()
+    {
+      if (initialized) {
+        return true;
+      }
+      synchronized (this) {
+        return initialized;
+      }
+    }
+
+    @Override
+    public T get()
+    {
+      // A 2-field variant of Double Checked Locking.
+      if (!initialized) {
+        synchronized (this) {
+          if (!initialized) {
+            T t = delegate.get();
+            value = t;
+            initialized = true;
+            return t;
+          }
+        }
+      }
+      return value;
+    }
   }
 }

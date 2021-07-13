@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import org.joda.time.Interval;
 
@@ -73,5 +74,11 @@ public class StorageAdapterSegment extends AbstractSegment
   public Schema asSchema(boolean prependTime)
   {
     return adapter.asSchema(prependTime);
+  }
+
+  @Override
+  public RowSignature asSignature(boolean prependTime)
+  {
+    return adapter.asSignature(prependTime);
   }
 }

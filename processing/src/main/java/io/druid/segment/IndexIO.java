@@ -26,7 +26,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -41,6 +40,8 @@ import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
+import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.DSuppliers.Memoizing;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueDesc;
@@ -48,6 +49,7 @@ import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
@@ -59,6 +61,7 @@ import io.druid.segment.ColumnPartProvider.DictionarySupport;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.ArrayIndexed;
 import io.druid.segment.data.BitmapSerde;
@@ -972,10 +975,11 @@ public class IndexIO
               )
           );
         } else if (metricHolder.getType() == ValueType.COMPLEX) {
+          ValueDesc type = ValueDesc.of(metricHolder.getTypeName());
           columns.put(
               metric,
               Suppliers.ofInstance(new ColumnBuilder()
-                  .setType(ValueDesc.of(metricHolder.getTypeName()))
+                  .setType(type)
                   .setComplexColumn(
                       new ComplexColumnPartSupplier(
                           metricHolder.getTypeName(), (GenericIndexed) metricHolder.complexType
@@ -1008,6 +1012,7 @@ public class IndexIO
           new ArrayIndexed<>(cols, String.class),
           index.getAvailableDimensions(),
           CONCISE_FACTORY,
+          null,
           columns,
           null,
           index.getFileMapper(),
@@ -1074,22 +1079,25 @@ public class IndexIO
       }
 
       Map<String, Supplier<Column>> columns = Maps.newHashMap();
+      Map<String, Supplier<ColumnMeta>> columnMetas = Maps.newHashMap();
 
       for (String columnName : cols) {
-        columns.put(columnName, Suppliers.memoize(() -> {
-          try {
-            final ByteBuffer mapped = smooshedFiles.mapFile(columnName);
-            return readDescriptor(mapper, mapped).read(columnName, mapped, serdeFactory);
-          }
-          catch (Exception e) {
-            throw Throwables.propagate(e);
-          }
-        }));
+        final Memoizing<Column> column = DSuppliers.memoize(() -> {
+          final ByteBuffer mapped = smooshedFiles.mapFile(columnName);
+          return readDescriptor(mapper, mapped).read(columnName, mapped, serdeFactory);
+        });
+        final Supplier<ColumnMeta> desc = DSuppliers.wrap(
+            () -> column.initialized() ? column.get().getMetaData() :
+                  mapper.readValue(StringUtils.fromUtf8(smooshedFiles.readSizedBytes(columnName)), ColumnMeta.class)
+        );
+        columns.put(columnName, column);
+        columnMetas.put(columnName, desc);
       }
-      ByteBuffer meta = smooshedFiles.mapFile(Column.TIME_COLUMN_NAME, readOnly);
-      columns.put(Column.TIME_COLUMN_NAME, Suppliers.ofInstance(
-          readDescriptor(mapper, meta).read(Column.TIME_COLUMN_NAME, meta, serdeFactory)
-      ));
+      ByteBuffer buffer = smooshedFiles.mapFile(Column.TIME_COLUMN_NAME, readOnly);
+      Column timeColumn = readDescriptor(mapper, buffer).read(Column.TIME_COLUMN_NAME, buffer, serdeFactory);
+
+      columns.put(Column.TIME_COLUMN_NAME, Suppliers.ofInstance(timeColumn));
+      columnMetas.put(Column.TIME_COLUMN_NAME, Suppliers.ofInstance(timeColumn.getMetaData()));
 
       // load cuboids
       Iterable<String> remaining = Iterables.filter(smooshedFiles.getInternalFilenames(), c -> !columns.containsKey(c));
@@ -1149,16 +1157,18 @@ public class IndexIO
             GuavaUtils.exclude(cuboidColumns.keySet(), Column.TIME_COLUMN_NAME)
         );
         QueryableIndex index = new SimpleQueryableIndex(
-            dataInterval, columnNames, dimensionNames, bitmapFactory, cuboidColumns, null, null, null
+            dataInterval, columnNames, dimensionNames, bitmapFactory, null, cuboidColumns, null, null, null
         );
         cuboids.put(cubeId, Pair.of(cuboidSpec, index));
       }
 
-      final QueryableIndex index = new SimpleQueryableIndex(
-          dataInterval, cols, dims, bitmapFactory, columns, cuboids, smooshedFiles, metadata
+      QueryableIndex index = new SimpleQueryableIndex(
+          dataInterval, cols, dims, bitmapFactory, columnMetas, columns, cuboids, smooshedFiles, metadata
       );
 
-      log.debug("Mapped v9 index[%s] in %,d millis", inDir, System.currentTimeMillis() - startTime);
+      if (log.isDebugEnabled()) {
+        log.debug("Mapped v9 index[%s] in %,d millis", inDir, System.currentTimeMillis() - startTime);
+      }
 
       return index;
     }

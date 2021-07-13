@@ -247,4 +247,28 @@ public class RowSignature implements io.druid.data.RowSignature
   {
     return Queries.relay(this, query, finalzed);
   }
+
+  public RowSignature merge(RowSignature other)
+  {
+    final List<String> mergedColumns = Lists.newArrayList(columnNames);
+    final List<ValueDesc> mergedTypes = Lists.newArrayList(columnTypes);
+
+    final List<String> otherColumnNames = other.getColumnNames();
+    final List<ValueDesc> otherColumnTypes = other.getColumnTypes();
+    for (int i = 0; i < other.size(); i++) {
+      final String otherColumn = otherColumnNames.get(i);
+      final int index = mergedColumns.indexOf(otherColumn);
+      if (index < 0) {
+        mergedColumns.add(otherColumn);
+        mergedTypes.add(otherColumnTypes.get(i));
+      } else {
+        ValueDesc type1 = resolve(otherColumn);
+        ValueDesc type2 = other.resolve(otherColumn);
+        if (!Objects.equals(type1, type2)) {
+          mergedTypes.set(index, ValueDesc.toCommonType(type1, type2));
+        }
+      }
+    }
+    return new RowSignature(mergedColumns, mergedTypes);
+  }
 }

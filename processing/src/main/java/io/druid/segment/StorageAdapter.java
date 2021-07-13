@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
@@ -49,7 +50,20 @@ public interface StorageAdapter extends CursorFactory
    */
   int getDimensionCardinality(String column);
   ColumnCapabilities getColumnCapabilities(String column);
-  Map<String, String> getColumnDescriptor(String column);
+  ColumnMeta getColumnMeta(String columnName);
   long getSerializedSize(String column);
+
   float getAverageSize(String column);
+
+  default Map<String, String> getColumnDescriptor(String column)
+  {
+    final ColumnMeta columnMeta = getColumnMeta(column);
+    return columnMeta == null ? null : columnMeta.getDescs();
+  }
+
+  default Map<String, Object> getColumnStats(String column)
+  {
+    final ColumnMeta columnMeta = getColumnMeta(column);
+    return columnMeta == null ? null : columnMeta.getStats();
+  }
 }

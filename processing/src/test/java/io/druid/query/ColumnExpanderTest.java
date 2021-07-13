@@ -47,6 +47,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.StorageAdapterSegment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.ListIndexed;
 import org.joda.time.Interval;
@@ -135,7 +136,7 @@ public class ColumnExpanderTest
     }
 
     @Override
-    public Map<String, String> getColumnDescriptor(String column)
+    public ColumnMeta getColumnMeta(String column)
     {
       return null;
     }
@@ -176,6 +177,12 @@ public class ColumnExpanderTest
       columnNames.addAll(GuavaUtils.concat(dimensions, metrics));
       columnTypes.addAll(types);
       return new Schema(columnNames, columnTypes, AggregatorFactory.asMap(metadata.getAggregators()), null, null);
+    }
+
+    @Override
+    public RowSignature asSignature(boolean prependTime)
+    {
+      return asSchema(prependTime);
     }
 
     @Override

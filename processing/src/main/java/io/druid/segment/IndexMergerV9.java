@@ -251,7 +251,7 @@ public class IndexMergerV9 extends IndexMerger
         Indexed<String> dimNames = ListIndexed.ofString(mergedDimensions);
         Indexed<String> columnNames = ListIndexed.ofString(GuavaUtils.concat(mergedMetrics, mergedDimensions));
         SimpleQueryableIndex index = new SimpleQueryableIndex(
-            dataInterval, columnNames, dimNames, bitmapFactory, columns, null, smooshedFiles, segmentMetadata
+            dataInterval, columnNames, dimNames, bitmapFactory, null, columns, null, smooshedFiles, segmentMetadata
         );
         QueryableIndexSegment segment = new QueryableIndexSegment(dataInterval.toString(), index);
 

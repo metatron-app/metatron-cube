@@ -23,6 +23,7 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.java.util.common.Pair;
 import io.druid.query.Query;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
@@ -44,6 +45,7 @@ public interface QueryableIndex extends SchemaProvider, Closeable
   Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> getQuboids();
   QueryableIndex cuboidFor(Query<?> query);
 
+  ColumnMeta getColumnMeta(String columnName);
   Column getColumn(String columnName);
 
   int getNumRows();

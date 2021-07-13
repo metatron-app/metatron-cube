@@ -19,9 +19,13 @@
 
 package io.druid.segment;
 
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 
 public interface SchemaProvider
 {
+  // todo: discard this
   Schema asSchema(boolean prependTime);
+
+  RowSignature asSignature(boolean prependTime);
 }

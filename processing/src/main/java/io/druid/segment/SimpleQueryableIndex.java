@@ -39,11 +39,13 @@ import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Query;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
@@ -63,6 +65,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   private final Indexed<String> columnNames;
   private final Indexed<String> availableDimensions;
   private final BitmapFactory bitmapFactory;
+  private final Map<String, Supplier<ColumnMeta>> descriptors;
   private final Map<String, Supplier<Column>> columns;
   private final SmooshedFileMapper fileMapper;
   private final Metadata metadata;
@@ -75,6 +78,7 @@ public class SimpleQueryableIndex implements QueryableIndex
       Indexed<String> columnNames,
       Indexed<String> dimNames,
       BitmapFactory bitmapFactory,
+      Map<String, Supplier<ColumnMeta>> descriptors,
       Map<String, Supplier<Column>> columns,
       Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids,
       SmooshedFileMapper fileMapper,
@@ -86,6 +90,7 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.columnNames = columnNames;
     this.availableDimensions = dimNames;
     this.bitmapFactory = bitmapFactory;
+    this.descriptors = descriptors;
     this.columns = columns;
     this.cuboids = cuboids == null ? ImmutableMap.of() : cuboids;
     this.fileMapper = fileMapper;
@@ -142,6 +147,17 @@ public class SimpleQueryableIndex implements QueryableIndex
   public BitmapFactory getBitmapFactoryForDimensions()
   {
     return bitmapFactory;
+  }
+
+  @Override
+  public ColumnMeta getColumnMeta(String columnName)
+  {
+    if (descriptors == null) {
+      final Supplier<Column> supplier = columns.get(columnName);
+      return supplier == null ? null : supplier.get().getMetaData();
+    }
+    final Supplier<ColumnMeta> supplier = descriptors.get(columnName);
+    return supplier == null ? null : supplier.get();
   }
 
   @Override
@@ -227,6 +243,28 @@ public class SimpleQueryableIndex implements QueryableIndex
     }
     Map<String, AggregatorFactory> aggregators = AggregatorFactory.getAggregatorsFromMeta(getMetadata());
     return new Schema(columnNames, columnTypes, aggregators, columnCapabilities, columnDescriptors);
+  }
+
+  @Override
+  public RowSignature asSignature(boolean prependTime)
+  {
+    List<String> columnNames = Lists.newArrayList();
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+    if (prependTime) {
+      columnNames.add(Row.TIME_COLUMN_NAME);
+      columnTypes.add(ValueDesc.LONG);
+    }
+    for (String dimension : getAvailableDimensions()) {
+      ColumnMeta meta = Preconditions.checkNotNull(getColumnMeta(dimension), "cannot find column %s", dimension);
+      columnNames.add(dimension);
+      columnTypes.add(ValueDesc.ofDimension(meta.getValueType()));
+    }
+    for (String metric : getAvailableMetrics()) {
+      ColumnMeta meta = Preconditions.checkNotNull(getColumnMeta(metric), "cannot find column %s", metric);
+      columnNames.add(metric);
+      columnTypes.add(meta.getValueType());
+    }
+    return new RowSignature(columnNames, columnTypes);
   }
 
   private static class TimeStats

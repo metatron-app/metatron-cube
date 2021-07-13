@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 import io.druid.query.Query;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import org.joda.time.Interval;
 
@@ -91,6 +92,12 @@ public class QueryableIndexSegment extends AbstractSegment
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);
+  }
+
+  @Override
+  public RowSignature asSignature(boolean prependTime)
+  {
+    return index.asSignature(prependTime);
   }
 
   @Override

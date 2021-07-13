@@ -20,7 +20,6 @@
 package io.druid.segment.column;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -40,19 +39,14 @@ import java.util.Set;
 
 /**
  */
-public class ColumnDescriptor
+public class ColumnDescriptor extends ColumnMeta
 {
   public static Builder builder()
   {
     return new Builder();
   }
 
-  private final ValueDesc valueType;
-  private final boolean hasMultipleValues;
   private final List<ColumnPartSerde> parts;
-
-  private final Map<String, String> descs;
-  private final Map<String, Object> stats;
 
   @JsonCreator
   public ColumnDescriptor(
@@ -63,43 +57,14 @@ public class ColumnDescriptor
       @JsonProperty("stats") Map<String, Object> stats
   )
   {
-    this.valueType = Preconditions.checkNotNull(valueType);
-    this.hasMultipleValues = hasMultipleValues;
+    super(valueType, hasMultipleValues, descs, stats);
     this.parts = Preconditions.checkNotNull(parts);
-    this.descs = descs;
-    this.stats = stats;
-  }
-
-  @JsonProperty
-  public ValueDesc getValueType()
-  {
-    return valueType;
-  }
-
-  @JsonProperty
-  public boolean isHasMultipleValues()
-  {
-    return hasMultipleValues;
   }
 
   @JsonProperty
   public List<ColumnPartSerde> getParts()
   {
     return parts;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public Map<String, String> getDescs()
-  {
-    return descs;
-  }
-
-  @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_EMPTY)
-  public Map<String, Object> getStats()
-  {
-    return stats;
   }
 
   public long numBytes() throws IOException

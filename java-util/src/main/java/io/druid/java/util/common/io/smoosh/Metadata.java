@@ -18,7 +18,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-class Metadata
+public class Metadata
 {
   private final int fileNum;
   private final int startOffset;
@@ -56,6 +56,11 @@ class Metadata
     final ByteBuffer duplicate = buffer.duplicate();
     duplicate.position(startOffset).limit(endOffset);
     return duplicate.slice();
+  }
+
+  public Metadata shift(int offset)
+  {
+    return new Metadata(fileNum, startOffset + offset, endOffset);
   }
 
   @Override

@@ -21,6 +21,8 @@ package io.druid.query.metadata;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.Accumulator;
@@ -43,6 +45,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -87,7 +90,7 @@ public class SegmentAnalyzer
       if (valueDesc == null) {
         continue;
       }
-      Column column = index == null ? null : index.getColumn(columnName);
+      Supplier<Column> column = Suppliers.memoize(() -> index == null ? null : index.getColumn(columnName));
 
       ColumnAnalysis analysis;
       if (valueDesc.isDimension()) {
@@ -101,7 +104,7 @@ public class SegmentAnalyzer
   }
 
   private static ColumnAnalysis analyzeSimpleColumn(
-      final Column column,
+      final Supplier<Column> supplier,
       final String columnName,
       final ValueDesc valueDesc,
       final RowResolver resolver,
@@ -109,9 +112,6 @@ public class SegmentAnalyzer
       final EnumSet<AnalysisType> analysisTypes
   )
   {
-    final Map<String, Object> stats = column == null ? null : column.getColumnStats();
-    final ColumnCapabilities capabilities = column == null ? null : column.getCapabilities();
-
     final boolean analyzingMinMax = analysisTypes.contains(AnalysisType.MINMAX);
     final boolean analyzingNullCount = analysisTypes.contains(AnalysisType.NULL_COUNT);
 
@@ -119,13 +119,14 @@ public class SegmentAnalyzer
     Comparable minValue = null;
     Comparable maxValue = null;
     boolean minMaxEvaluated = false;
-    if ((analyzingMinMax || analyzingNullCount) && stats != null) {
-      if (analyzingMinMax) {
+    if (analyzingMinMax || analyzingNullCount) {
+      final Map<String, Object> stats = storageAdapter.getColumnStats(columnName);
+      if (analyzingMinMax && stats != null) {
         minValue = (Comparable) stats.get("min");
         maxValue = (Comparable) stats.get("max");
         minMaxEvaluated = stats.containsKey("min") && stats.containsKey("max");
       }
-      if (analyzingNullCount) {
+      if (analyzingNullCount && stats != null) {
         if (stats.containsKey("numNulls")) {
           nullCount = (Integer) stats.get("numNulls");
         } else if (stats.containsKey("numZeros")) {
@@ -134,6 +135,8 @@ public class SegmentAnalyzer
       }
     }
     if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {
+      final Column column = supplier.get();
+      final ColumnCapabilities capabilities = column == null ? null : column.getCapabilities();
       if (capabilities != null && capabilities.hasMetricBitmap()) {
         HistogramBitmap metricBitmap = column.getMetricBitmap();
         if (analyzingMinMax) {
@@ -146,8 +149,7 @@ public class SegmentAnalyzer
         }
       }
     }
-    if (valueDesc.isPrimitive() &&
-        (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0)) {
+    if (valueDesc.isPrimitive() && (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0)) {
       Object[] accumulated = accumulate(
           storageAdapter, resolver,
           new Object[]{null, null, new MutableInt()}, new Accumulator<Object[], Cursor>()
@@ -193,11 +195,12 @@ public class SegmentAnalyzer
     if (analysisTypes.contains(AnalysisType.SERIALIZED_SIZE)) {
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
+    ColumnMeta columnMeta = storageAdapter.getColumnMeta(columnName);
 
     return new ColumnAnalysis(
         valueDesc.typeName(),
-        storageAdapter.getColumnDescriptor(columnName),
-        false,
+        columnMeta == null ? null : columnMeta.getDescs(),
+        columnMeta != null && columnMeta.isHasMultipleValues(),
         serializedSize,
         -1,
         nullCount,
@@ -208,7 +211,7 @@ public class SegmentAnalyzer
   }
 
   private static ColumnAnalysis analyzeDimensionColumn(
-      final Column column,
+      final Supplier<Column> supplier,
       final String columnName,
       final ValueDesc valueDesc,
       final RowResolver resolver,
@@ -218,8 +221,6 @@ public class SegmentAnalyzer
   {
     Preconditions.checkArgument(ValueDesc.isDimension(valueDesc));
     final ValueType valueType = valueDesc.subElement().type();
-    final Map<String, Object> stats = column == null ? null : column.getColumnStats();
-    final ColumnCapabilities capabilities = column == null ? null : column.getCapabilities();
 
     final boolean analyzingMinMax = analysisTypes.contains(AnalysisType.MINMAX);
     final boolean analyzingNullCount = analysisTypes.contains(AnalysisType.NULL_COUNT);
@@ -228,13 +229,14 @@ public class SegmentAnalyzer
     Comparable minValue = null;
     Comparable maxValue = null;
     boolean minMaxEvaluated = false;
-    if ((analyzingMinMax || analyzingNullCount) && stats != null) {
-      if (analyzingMinMax) {
+    if (analyzingMinMax || analyzingNullCount) {
+      final Map<String, Object> stats = storageAdapter.getColumnStats(columnName);
+      if (stats != null && analyzingMinMax) {
         minValue = (Comparable) stats.get("min");
         maxValue = (Comparable) stats.get("max");
         minMaxEvaluated = stats.containsKey("min") && stats.containsKey("max");
       }
-      if (analyzingNullCount) {
+      if (stats != null && analyzingNullCount) {
         if (stats.containsKey("numNulls")) {
           nullCount = (Integer) stats.get("numNulls");
         } else if (stats.containsKey("numZeros")) {
@@ -243,6 +245,8 @@ public class SegmentAnalyzer
       }
     }
     if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {
+      final Column column = supplier.get();
+      final ColumnCapabilities capabilities = column == null ? null : column.getCapabilities();
       if (capabilities != null && capabilities.hasBitmapIndexes()) {
         BitmapIndex bitmapIndex = column.getBitmapIndex();
         int cardinality = bitmapIndex.getCardinality();
@@ -315,10 +319,12 @@ public class SegmentAnalyzer
       cardinality = storageAdapter.getDimensionCardinality(columnName);
     }
 
+    ColumnMeta columnMeta = storageAdapter.getColumnMeta(columnName);
+
     return new ColumnAnalysis(
         valueDesc.typeName(),
-        storageAdapter.getColumnDescriptor(columnName),
-        storageAdapter.getColumnCapabilities(columnName).hasMultipleValues(),
+        columnMeta == null ? null : columnMeta.getDescs(),
+        columnMeta != null && columnMeta.isHasMultipleValues(),
         serializedSize,
         cardinality,
         nullCount,

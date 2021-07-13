@@ -41,6 +41,7 @@ import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
+import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -51,6 +52,7 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnAccess;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnMeta;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
@@ -166,10 +168,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public Map<String, String> getColumnDescriptor(String columnName)
+  public ColumnMeta getColumnMeta(String columnName)
   {
-    Column column = index.getColumn(columnName);
-    return column == null ? null : column.getColumnDescs();
+    return index.getColumnMeta(columnName);
   }
 
   @Override
@@ -244,6 +245,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   public Schema asSchema(boolean prependTime)
   {
     return index.asSchema(prependTime);
+  }
+
+  @Override
+  public RowSignature asSignature(boolean prependTime)
+  {
+    return index.asSignature(prependTime);
   }
 
   private static class CursorSequenceBuilder
