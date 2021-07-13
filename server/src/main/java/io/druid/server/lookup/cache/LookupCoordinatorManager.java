@@ -556,7 +556,7 @@ public class LookupCoordinatorManager
                 return;
               }
               if (allLookupTiers == null) {
-                LOG.info("Not updating lookups because no data exists");
+                LOG.debug("Not updating lookups because no data exists");
                 return;
               }
               for (final String tier : allLookupTiers.keySet()) {
