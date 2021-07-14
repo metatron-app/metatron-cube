@@ -365,6 +365,22 @@ public class JoinElement
     throw new ISE("todo: cannot join on %s(%s)", dataSource, dataSource.getClass());
   }
 
+  private static final int TRIVIAL_SIZE = 2000;
+  private static final int ACCEPTABLE_SIZE = 10000;
+
+  private static long applyLimit(Query<?> query, long estimated)
+  {
+    LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
+    if (limitSpec != null && limitSpec.hasLimit()) {
+      if (estimated > 0) {
+        estimated = Math.min(limitSpec.getLimit(), estimated);
+      } else if (limitSpec.getLimit() < ACCEPTABLE_SIZE) {
+        estimated = limitSpec.getLimit();
+      }
+    }
+    return estimated;
+  }
+
   public static long estimatedNumRows(
       DataSource dataSource,
       QuerySegmentSpec segmentSpec,
@@ -379,6 +395,10 @@ public class JoinElement
     }
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
+      LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
+      if (limitSpec != null && limitSpec.hasLimit() && limitSpec.getLimit() < TRIVIAL_SIZE) {
+        return limitSpec.getLimit();
+      }
       if (query.getDataSource() instanceof QueryDataSource) {
         if (query instanceof StreamQuery) {
           StreamQuery stream = (StreamQuery) query;
@@ -387,11 +407,7 @@ public class JoinElement
           if (estimated > 0 && stream.getFilter() != null) {
             estimated = Math.max(1, estimated >>> 1);
           }
-          LimitSpec limitSpec = stream.getLimitSpec();
-          if (estimated > 0 && limitSpec.hasLimit()) {
-            estimated = Math.min(limitSpec.getLimit(), estimated);
-          }
-          return estimated;
+          return applyLimit(stream, estimated);
         }
         return -1;  // see later
       }
@@ -401,17 +417,18 @@ public class JoinElement
         if (estimated > 0 && aggregation.getHavingSpec() != null) {
           estimated = Math.max(1, estimated >>> 1);    // half
         }
-        return estimated;
+        return applyLimit(query, estimated);
       }
+
       if (query instanceof StreamQuery) {
         StreamQuery stream = (StreamQuery) query;
-        return Queries.estimateCardinality(
+        return applyLimit(query, Queries.estimateCardinality(
             stream.getDataSource(),
             stream.getQuerySegmentSpec(),
             stream.getFilter(),
             BaseQuery.copyContextForMeta(stream),
             segmentWalker
-        );
+        ));
       }
       return -1;
     }
