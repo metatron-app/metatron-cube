@@ -192,6 +192,9 @@ public class SqlResource
           public Object[] apply(Object[] input)
           {
             for (int i = 0; i < fieldList.size(); i++) {
+              if (input[i] == null) {
+                continue;
+              }
               if (timeColumns[i]) {
                 input[i] = formatter.print(Calcites.calciteTimestampToJoda((long) input[i], timeZone));
               } else if (dateColumns[i]) {
