@@ -24,7 +24,6 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.IdentityFunction;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.UTF8Bytes;
@@ -42,6 +41,7 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
+import io.druid.query.QueryVisitor;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
@@ -118,10 +118,10 @@ public class QueryMaker
     prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker, queryConfig);
     prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
-      Queries.iterate(prepared, new IdentityFunction<Query>()
+      Queries.iterate(prepared, new QueryVisitor()
       {
         @Override
-        public Query apply(Query query)
+        public Query out(Query query)
         {
           if (!(query.getDataSource() instanceof QueryDataSource) && query.getQuerySegmentSpec() == null) {
             throw new CannotBuildQueryException(

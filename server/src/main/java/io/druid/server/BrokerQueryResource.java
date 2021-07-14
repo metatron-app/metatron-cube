@@ -59,6 +59,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
+import io.druid.query.QueryVisitor;
 import io.druid.query.RegexDataSource;
 import io.druid.query.RowSignature;
 import io.druid.query.SegmentDescriptor;
@@ -293,10 +294,10 @@ public class BrokerQueryResource extends QueryResource
   private Query rewriteDataSource(Query query)
   {
     return Queries.iterate(
-        query, new Function<Query, Query>()
+        query, new QueryVisitor()
         {
           @Override
-          public Query apply(Query input)
+          public Query out(Query input)
           {
             DataSource dataSource = input.getDataSource();
             if (dataSource instanceof RegexDataSource) {

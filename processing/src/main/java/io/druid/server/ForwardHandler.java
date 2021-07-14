@@ -20,7 +20,6 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
@@ -47,6 +46,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryUtils;
+import io.druid.query.QueryVisitor;
 import io.druid.query.StorageHandler;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 
@@ -185,10 +185,10 @@ public class ForwardHandler implements ForwardConstants
   // remove forward context (except select forward query) for historical, etc.
   private Query removeForwardContext(Query query)
   {
-    return Queries.iterate(query, new Function<Query, Query>()
+    return Queries.iterate(query, new QueryVisitor()
     {
       @Override
-      public Query apply(Query input)
+      public Query out(Query input)
       {
         if (input.getContextValue(Query.FORWARD_URL) != null) {
           return input.withOverriddenContext(

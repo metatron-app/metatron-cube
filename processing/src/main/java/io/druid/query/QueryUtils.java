@@ -33,7 +33,6 @@ import com.google.common.collect.Sets;
 import io.druid.common.Intervals;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.guava.IdentityFunction;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
@@ -253,10 +252,10 @@ public class QueryUtils
   {
     final Set<String> dataSources = Sets.newHashSet();
     Queries.iterate(
-        query, new IdentityFunction<Query>()
+        query, new QueryVisitor()
         {
           @Override
-          public Query apply(Query input)
+          public Query out(Query input)
           {
             if (input.getDataSource() instanceof TableDataSource) {
               dataSources.add(((TableDataSource) input.getDataSource()).getName());
@@ -275,11 +274,11 @@ public class QueryUtils
   public static Query readPostProcessors(final Query query, final ObjectMapper mapper)
   {
     return Queries.iterate(
-        query, new IdentityFunction<Query>()
+        query, new QueryVisitor()
         {
           @Override
           @SuppressWarnings("unchecked")
-          public Query apply(Query input)
+          public Query out(Query input)
           {
             Map<String, Object> context = input.getContext();
             if (context == null) {
@@ -308,11 +307,11 @@ public class QueryUtils
   {
     final Map<String, Object> override = ImmutableMap.of(Query.QUERYID, queryId);
     return Queries.iterate(
-        query, new IdentityFunction<Query>()
+        query, new QueryVisitor()
         {
           @Override
           @SuppressWarnings("unchecked")
-          public Query apply(Query input)
+          public Query out(Query input)
           {
             Map<String, Object> context = input.getContext();
             if (context == null || context.get(Query.QUERYID) == null) {
@@ -327,10 +326,10 @@ public class QueryUtils
   public static Query forLog(final Query query)
   {
     return Queries.iterate(
-        query, new IdentityFunction<Query>()
+        query, new QueryVisitor()
         {
           @Override
-          public Query apply(Query input)
+          public Query out(Query input)
           {
             if (input instanceof Query.LogProvider) {
               input = ((Query.LogProvider) input).forLog();
@@ -358,22 +357,29 @@ public class QueryUtils
     );
   }
 
-  public static Query rewriteRecursively(
-      final Query query,
-      final QuerySegmentWalker segmentWalker,
-      final QueryConfig queryConfig
-  )
+  public static Query rewriteRecursively(Query query, QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
-    return Queries.iterate(
-        query, new IdentityFunction<Query>()
-        {
-          @Override
-          public Query apply(Query input)
-          {
-            return rewrite(input, segmentWalker, queryConfig);
-          }
+    // todo: there would be better way than this
+    return Queries.iterate(query, new QueryVisitor()
+    {
+      private boolean outermost;
+
+      @Override
+      public Query in(Query input)
+      {
+        if (!outermost && input instanceof JoinQuery) {
+          outermost = true;
+          return input.withOverriddenContext(Query.OUTERMOST_JOIN, true);
         }
-    );
+        return input;
+      }
+
+      @Override
+      public Query out(Query input)
+      {
+        return rewrite(input, segmentWalker, queryConfig);
+      }
+    });
   }
 
   @SuppressWarnings("unchecked")
@@ -406,19 +412,10 @@ public class QueryUtils
   }
 
   // called by Broker or QueryMaker (resolves leaf queries)
-  public static Query resolveRecursively(final Query query, final QuerySegmentWalker walker)
+  @SuppressWarnings("unchecked")
+  public static Query resolveRecursively(Query query, QuerySegmentWalker walker)
   {
-    return Queries.iterate(
-        query, new IdentityFunction<Query>()
-        {
-          @Override
-          @SuppressWarnings("unchecked")
-          public Query apply(Query input)
-          {
-            return resolve(input, walker);
-          }
-        }
-    );
+    return Queries.iterate(query, input -> resolve(input, walker));
   }
 
   // called by QueryRunners.getSubQueryResolver

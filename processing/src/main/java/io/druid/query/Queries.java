@@ -373,10 +373,11 @@ public class Queries
     throw new UnsupportedOperationException("cannot convert to " + subQuery.getType() + " result");
   }
 
-  public static Query iterate(Query query, Function<Query, Query> function)
+  public static Query iterate(Query query, QueryVisitor visitor)
   {
+    query = visitor.in(query);
     if (!(query.getDataSource() instanceof TableDataSource)) {
-      DataSource converted = iterate(query.getDataSource(), function);
+      DataSource converted = iterate(query.getDataSource(), visitor);
       if (query.getDataSource() != converted) {
         query = query.withDataSource(converted);
       }
@@ -385,7 +386,7 @@ public class Queries
       JoinQuery joinQuery = (JoinQuery) query;
       Map<String, DataSource> rewritten = Maps.newHashMap();
       for (Map.Entry<String, DataSource> entry : joinQuery.getDataSources().entrySet()) {
-        DataSource converted = iterate(entry.getValue(), function);
+        DataSource converted = iterate(entry.getValue(), visitor);
         if (converted != entry.getValue()) {
           rewritten.put(entry.getKey(), converted);
         }
@@ -399,7 +400,7 @@ public class Queries
       UnionAllQuery<?> union = (UnionAllQuery) query;
       if (union.getQuery() != null) {
         Query source = union.getQuery();
-        Query converted = iterate(source, function);
+        Query converted = iterate(source, visitor);
         if (source != converted) {
           query = union.withQuery(converted);
         }
@@ -407,7 +408,7 @@ public class Queries
         boolean changed = false;
         List<Query> queries = Lists.newArrayList();
         for (Query source : union.getQueries()) {
-          Query converted = iterate(source, function);
+          Query converted = iterate(source, visitor);
           changed |= source != converted;
           queries.add(converted);
         }
@@ -420,7 +421,7 @@ public class Queries
       List<Query> queries = Lists.newArrayList();
       Query.WrappingQuery<?> wrapping = (Query.WrappingQuery) query;
       for (Query source : wrapping.getQueries()) {
-        Query converted = iterate(source, function);
+        Query converted = iterate(source, visitor);
         changed |= source != converted;
         queries.add(converted);
       }
@@ -428,10 +429,10 @@ public class Queries
         query = wrapping.withQueries(queries);
       }
     }
-    return function.apply(query);
+    return visitor.out(query);
   }
 
-  private static DataSource iterate(DataSource dataSource, Function<Query, Query> function)
+  private static DataSource iterate(DataSource dataSource, QueryVisitor visitor)
   {
     if (dataSource instanceof QueryDataSource) {
       QueryDataSource querySource = (QueryDataSource) dataSource;
@@ -439,7 +440,7 @@ public class Queries
       if (querySource.getSchema() == null && source instanceof JoinQuery) {
         querySource.setSchema(((JoinQuery) source).getSchema());    // todo: generalize this
       }
-      Query converted = iterate(source, function);
+      Query converted = iterate(source, visitor);
       return source == converted ? dataSource : QueryDataSource.of(converted, querySource.getSchema());
     } else if (dataSource instanceof ViewDataSource) {
       // later..

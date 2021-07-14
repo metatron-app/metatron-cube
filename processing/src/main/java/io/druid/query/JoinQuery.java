@@ -350,7 +350,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       }
       LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinType(), leftAlias, leftEstimated, rightAlias, rightEstimated);
 
-      element.earlyCheckMaxJoin(leftEstimated, rightEstimated, maxResult);
+      if (!getContextBoolean(Query.OUTERMOST_JOIN, false)) {
+        element.earlyCheckMaxJoin(leftEstimated, rightEstimated, maxResult);
+      }
 
       // try convert semi-join to filter
       if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {

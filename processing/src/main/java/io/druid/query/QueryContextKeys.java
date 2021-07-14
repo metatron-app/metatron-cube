@@ -38,6 +38,7 @@ public interface QueryContextKeys
   String MAJOR_TYPES = "#majorTypes";   // for sketch
   String DISABLE_LOG = "#disableLog";
   String BROKER_SIDE = "#brokerSide";
+  String OUTERMOST_JOIN = "#outermostJoin";
 
   // group-by config.. overriding
   String GBY_USE_PARALLEL_SORT = "groupByUseParallelSort";
