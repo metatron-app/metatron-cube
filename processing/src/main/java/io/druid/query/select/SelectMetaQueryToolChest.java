@@ -103,11 +103,7 @@ public class SelectMetaQueryToolChest
               Integer prev = merged.get(entry.getKey());
               merged.put(entry.getKey(), prev == null ? entry.getValue() : prev + entry.getValue());
             }
-            long estimatedSize = value1.getEstimatedSize() + value2.getEstimatedSize();
-            return new Result<>(
-                timestamp,
-                new SelectMetaResultValue(merged, estimatedSize)
-            );
+            return new Result<>(timestamp, new SelectMetaResultValue(merged));
           }
         };
       }

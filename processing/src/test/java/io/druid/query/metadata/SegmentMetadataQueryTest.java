@@ -168,7 +168,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.getName(),
                 false,
-                mmap1 ? 916 : 0,
+                mmap1 ? 1083 : 0,
                 -1,
                 1294790400000L,
                 1302825600000L,
@@ -178,7 +178,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.DOUBLE.getName(),
                 false,
-                mmap1 ? 6477 : 0,
+                mmap1 ? 6655 : 0,
                 -1,
                 59.02102279663086D,
                 1870.06103515625D,
@@ -188,14 +188,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueDesc.DIM_STRING.typeName(),
                 false,
-                mmap1 ? 348 : 0,
+                mmap1 ? 511 : 0,
                 1,
                 "preferred",
                 "preferred",
                 null
             )
         ),
-        mmap1 ? 69450 : 0,
+        mmap1 ? 71206 : 0,
         1209,
         null,
         null
@@ -210,7 +210,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.getName(),
                 false,
-                mmap2 ? 916 : 0,
+                mmap2 ? 1083 : 0,
                 -1,
                 1294790400000L,
                 1302825600000L,
@@ -220,7 +220,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.DOUBLE.getName(),
                 false,
-                mmap2 ? 6477 : 0,
+                mmap2 ? 6655 : 0,
                 -1,
                 59.02102279663086D,
                 1870.06103515625D,
@@ -230,7 +230,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueDesc.DIM_STRING.typeName(),
                 false,
-                mmap2 ? 348 : 0,
+                mmap2 ? 511 : 0,
                 1,
                 "preferred",
                 "preferred",
@@ -238,7 +238,7 @@ public class SegmentMetadataQueryTest
             )
         // null_column will be included only for incremental index, which makes a little bigger result than expected
         ),
-        mmap2 ? 69450 : 0,
+        mmap2 ? 71206 : 0,
         1209,
         null,
         null
@@ -281,10 +281,10 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "partial_null_column",
             new ColumnAnalysis(
-                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2812 : 0, 2, 1023, "", "value", null
+                ValueDesc.DIM_STRING.typeName(), null, false, mmap1 ? 2975 : 0, 2, 1023, "", "value", null
             )
         ),
-        mmap1 ? 69450 : 0,
+        mmap1 ? 71206 : 0,
         1209,
         null,
         null
@@ -319,7 +319,7 @@ public class SegmentMetadataQueryTest
             "string-expr",
             new ColumnAnalysis(ValueDesc.STRING_TYPE, null, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
         ),
-        mmap1 ? 69450 : 0,
+        mmap1 ? 71206 : 0,
         1209,
         null,
         null
@@ -360,7 +360,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        -1L,
+        (mmap1 ? 71206 : 0) + (mmap2 ? 71206 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         -1L,
         -1L,
@@ -435,7 +435,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        -1,
+        (mmap1 ? 71206 : 0) + (mmap2 ? 71206 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -512,7 +512,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        -1,
+        (mmap1 ? 71206 : 0) + (mmap2 ? 71206 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -560,7 +560,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueDesc.DIM_STRING.typeName(),
         false,
-        (mmap1 ? 348 : 0) + (mmap2 ? 348 : 0),
+        (mmap1 ? 511 : 0) + (mmap2 ? 511 : 0),
         1,
         "preferred",
         "preferred",
@@ -575,7 +575,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueDesc.DIM_STRING.typeName(),
         false,
-        (mmap1 ? 2864 : 0) + (mmap2 ? 2864 : 0),
+        (mmap1 ? 3027 : 0) + (mmap2 ? 3027 : 0),
         3,
         "spot",
         "upfront",
@@ -590,7 +590,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueDesc.DIM_STRING.typeName(),
         false,
-        (mmap1 ? 3111 : 0) + (mmap2 ? 3111 : 0),
+        (mmap1 ? 3274 : 0) + (mmap2 ? 3274 : 0),
         9,
         "automotive",
         "travel",
@@ -612,7 +612,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.getName(),
                 false,
-                (mmap1 ? 916 : 0) + (mmap2 ? 916 : 0),
+                (mmap1 ? 1083 : 0) + (mmap2 ? 1083 : 0),
                 -1,
                 1294790400000L,
                 1302825600000L,
@@ -622,7 +622,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.DOUBLE.getName(),
                 false,
-                (mmap1 ? 6477 : 0) + (mmap2 ? 6477 : 0),
+                (mmap1 ? 6655 : 0) + (mmap2 ? 6655 : 0),
                 -1,
                 59.02102279663086D,
                 1870.06103515625D,
@@ -683,7 +683,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        -1,
+        (mmap1 ? 71206 : 0) + (mmap2 ? 71206 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -744,7 +744,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        -1,
+        (mmap1 ? 71206 : 0) + (mmap2 ? 71206 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         expectedAggregators,
         null
@@ -802,7 +802,7 @@ public class SegmentMetadataQueryTest
                 null
             )
         ),
-        -1,
+        (mmap1 ? 71206 : 0) + (mmap2 ? 71206 : 0),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         QueryGranularities.NONE

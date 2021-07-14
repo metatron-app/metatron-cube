@@ -126,6 +126,12 @@ public class SimpleQueryableIndex implements QueryableIndex
   }
 
   @Override
+  public long getSerializedSize()
+  {
+    return fileMapper.getSerializedSize();
+  }
+
+  @Override
   public Iterable<String> getAvailableMetrics()
   {
     return Sets.difference(Sets.newHashSet(columnNames), Sets.newHashSet(availableDimensions));
@@ -147,6 +153,13 @@ public class SimpleQueryableIndex implements QueryableIndex
   public BitmapFactory getBitmapFactoryForDimensions()
   {
     return bitmapFactory;
+  }
+
+  @Override
+  public long getSerializedSize(String columnName)
+  {
+    final io.druid.java.util.common.io.smoosh.Metadata metadata = fileMapper.getMetadata(columnName);
+    return metadata == null ? 0 : metadata.getLength();
   }
 
   @Override

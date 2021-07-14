@@ -108,7 +108,6 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   );
 
   public static final EnumSet<AnalysisType> DEFAULT_NON_COLUMN_STATS = EnumSet.of(
-      AnalysisType.SERIALIZED_SIZE,
       AnalysisType.LAST_ACCESS_TIME,
       AnalysisType.INGESTED_NUMROW,
       AnalysisType.INTERVAL

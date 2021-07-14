@@ -52,8 +52,7 @@ public interface StorageAdapter extends CursorFactory
   ColumnCapabilities getColumnCapabilities(String column);
   ColumnMeta getColumnMeta(String columnName);
   long getSerializedSize(String column);
-
-  float getAverageSize(String column);
+  long getSerializedSize();
 
   default Map<String, String> getColumnDescriptor(String column)
   {

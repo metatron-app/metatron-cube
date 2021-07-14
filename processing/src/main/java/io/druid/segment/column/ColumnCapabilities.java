@@ -20,7 +20,9 @@
 package io.druid.segment.column;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.ISE;
 
@@ -99,6 +101,12 @@ public class ColumnCapabilities
   public String getTypeName()
   {
     return typeName;
+  }
+
+  @JsonIgnore
+  public ValueDesc getTypeDesc()
+  {
+    return type == ValueType.COMPLEX ? ValueDesc.of(typeName) : ValueDesc.of(type);
   }
 
   public ColumnCapabilities setType(ValueType type)

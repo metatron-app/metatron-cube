@@ -63,8 +63,6 @@ public interface Column
   BitSlicedBitmap getBitSlicedBitmap();
   LuceneIndex getLuceneIndex();
 
-  float getAverageSize();
-  long getSerializedSize();
   long getSerializedSize(EncodeType encodeType);
 
   Map<String, Object> getColumnStats();

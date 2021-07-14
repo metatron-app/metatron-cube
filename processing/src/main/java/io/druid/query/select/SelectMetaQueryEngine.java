@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import io.druid.cache.Cache;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.Sequence;
@@ -33,7 +32,6 @@ import io.druid.granularity.Granularity;
 import io.druid.java.util.common.ISE;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
@@ -41,7 +39,6 @@ import io.druid.segment.StorageAdapter;
 import org.joda.time.Interval;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  */
@@ -71,7 +68,6 @@ public class SelectMetaQueryEngine
     final String segmentId = segment.getIdentifier();
 
     final PagingOffset offset = query.getPagingOffset(segmentId);
-    final float averageSize = calculateAverageSize(query, adapter);
 
     // minor optimization.. todo: we can do this even with filters set
     if (filter == null && offset.startDelta() == 0 &&
@@ -81,9 +77,7 @@ public class SelectMetaQueryEngine
       return Sequences.of(
           new Result<>(
               granularity.toDateTime(interval.getStartMillis()),
-              new SelectMetaResultValue(
-                  ImmutableMap.of(segmentId, row), (long) (row * averageSize)
-              )
+              new SelectMetaResultValue(ImmutableMap.of(segmentId, row))
           )
       );
     }
@@ -105,29 +99,10 @@ public class SelectMetaQueryEngine
             }
             return new Result<>(
                 DateTimes.utc(cursor.getStartTime()),
-                new SelectMetaResultValue(ImmutableMap.of(segmentId, row), (long) (row * averageSize))
+                new SelectMetaResultValue(ImmutableMap.of(segmentId, row))
             );
           }
         }
     );
-  }
-
-  // not include virtual columns & not consider extract, lookup, etc.
-  private float calculateAverageSize(SelectMetaQuery query, StorageAdapter adapter)
-  {
-    float averageSize = 0;
-    final Set<String> dimensions = Sets.newHashSet(DimensionSpecs.toOutputNames(query.getDimensions()));
-    for (String dimension : adapter.getAvailableDimensions()) {
-      if (dimensions.contains(dimension)) {
-        averageSize += adapter.getAverageSize(dimension);
-      }
-    }
-    final Set<String> metrics = Sets.newHashSet(query.getMetrics());
-    for (String metric : adapter.getAvailableMetrics()) {
-      if (metrics == null || metrics.contains(metric)) {
-        averageSize += adapter.getAverageSize(metric);
-      }
-    }
-    return averageSize;
   }
 }

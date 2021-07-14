@@ -148,7 +148,7 @@ public class ColumnExpanderTest
     }
 
     @Override
-    public float getAverageSize(String column)
+    public long getSerializedSize()
     {
       return 0;
     }

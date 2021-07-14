@@ -113,7 +113,6 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 26), value.getPerSegmentCounts());
     Assert.assertEquals(26, value.getTotalCount());
-    Assert.assertEquals(incremental ? 702 : 1248, value.getEstimatedSize());
 
     query = query.withFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
@@ -125,7 +124,6 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 8), value.getPerSegmentCounts());
     Assert.assertEquals(8, value.getTotalCount());
-    Assert.assertEquals(incremental ? 216 : 384, value.getEstimatedSize());
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
@@ -138,13 +136,11 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 4), value.getPerSegmentCounts());
     Assert.assertEquals(4, value.getTotalCount());
-    Assert.assertEquals(incremental ? 108 : 192, value.getEstimatedSize());
 
     r = results.get(1);
     Assert.assertEquals(new DateTime(2011, 1, 13, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 4), value.getPerSegmentCounts());
     Assert.assertEquals(4, value.getTotalCount());
-    Assert.assertEquals(incremental ? 108 : 192, value.getEstimatedSize());
   }
 
   @Test
@@ -179,7 +175,6 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of(segmentId, 23), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(23, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 621 : 483, r.getValue().getEstimatedSize());
 
     query = query.withFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
@@ -191,7 +186,6 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of(segmentId, 5), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(5, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 135 : 105, r.getValue().getEstimatedSize());
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
@@ -203,13 +197,11 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of(segmentId, 1), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(1, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 27 : 21, r.getValue().getEstimatedSize());
 
     r = results.get(1);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
     Assert.assertEquals(ImmutableMap.of(segmentId, 1), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(1, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 27 : 21, r.getValue().getEstimatedSize());
   }
 
   @Test

@@ -20,7 +20,6 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
-import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
@@ -43,8 +42,7 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<HistogramBitmap> metricBitmap;
   private final ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap;
   private final ColumnPartProvider<LuceneIndex> luceneIndex;
-  private final Map<String, Object> stats;
-  private final Map<String, String> descs;
+  private final ColumnMeta columnMeta;
 
   SimpleColumn(
       String name,
@@ -73,8 +71,9 @@ class SimpleColumn implements Column
     this.metricBitmap = metricBitmap;
     this.bitSlicedBitmap = bitSlicedBitmap;
     this.luceneIndex = luceneIndex;
-    this.stats = stats;
-    this.descs = descs;
+    this.columnMeta = new ColumnMeta(
+        capabilities.getTypeDesc(), capabilities.hasMultipleValues(), descs, stats
+    );
   }
 
   @Override
@@ -86,7 +85,7 @@ class SimpleColumn implements Column
   @Override
   public ColumnMeta getMetaData()
   {
-    return new ColumnMeta(ValueDesc.of(capabilities.getTypeName()), capabilities.hasMultipleValues(), descs, stats);
+    return columnMeta;
   }
 
   @Override
@@ -117,40 +116,6 @@ class SimpleColumn implements Column
   }
 
   @Override
-  public long getSerializedSize()
-  {
-    long serialized = 0L;
-    if (dictionaryEncodedColumn != null) {
-      serialized += dictionaryEncodedColumn.getSerializedSize();
-    }
-    if (runLengthColumn != null) {
-      serialized += runLengthColumn.getSerializedSize();
-    }
-    if (genericColumn != null) {
-      serialized += genericColumn.getSerializedSize();
-    }
-    if (complexColumn != null) {
-      serialized += complexColumn.getSerializedSize();
-    }
-    if (bitmapIndex != null) {
-      serialized += bitmapIndex.getSerializedSize();
-    }
-    if (bitSlicedBitmap != null) {
-      serialized += bitSlicedBitmap.getSerializedSize();
-    }
-    if (spatialIndex != null) {
-      serialized += spatialIndex.getSerializedSize();
-    }
-    if (metricBitmap != null) {
-      serialized += metricBitmap.getSerializedSize();
-    }
-    if (luceneIndex != null) {
-      serialized += luceneIndex.getSerializedSize();
-    }
-    return serialized;
-  }
-
-  @Override
   public long getSerializedSize(EncodeType encodeType)
   {
     switch (encodeType) {
@@ -174,40 +139,6 @@ class SimpleColumn implements Column
         return luceneIndex == null ? -1 : luceneIndex.getSerializedSize();
     }
     return -1;
-  }
-
-  @Override
-  public float getAverageSize()
-  {
-    if (dictionaryEncodedColumn != null) {
-      final Dictionary<String> dictionary = dictionaryEncodedColumn.getDictionary();
-      return dictionary.sizeOfWords() / dictionary.size();
-    }
-    if (runLengthColumn != null) {
-      return runLengthColumn.getSerializedSize() / runLengthColumn.numRows();
-    }
-    if (genericColumn != null) {
-      return genericColumn.getSerializedSize() / genericColumn.numRows();
-    }
-    if (complexColumn != null) {
-      return complexColumn.getSerializedSize() / complexColumn.numRows();
-    }
-    if (bitmapIndex != null) {
-      return bitmapIndex.getSerializedSize() / bitmapIndex.numRows();
-    }
-    if (spatialIndex != null) {
-      return spatialIndex.getSerializedSize() / spatialIndex.numRows();
-    }
-    if (metricBitmap != null) {
-      return metricBitmap.getSerializedSize() / metricBitmap.numRows();
-    }
-    if (bitSlicedBitmap != null) {
-      return bitSlicedBitmap.getSerializedSize() / bitSlicedBitmap.numRows();
-    }
-    if (luceneIndex != null) {
-      return luceneIndex.getSerializedSize() / luceneIndex.numRows();
-    }
-    return 0;
   }
 
   @Override
@@ -273,12 +204,12 @@ class SimpleColumn implements Column
   @Override
   public Map<String, Object> getColumnStats()
   {
-    return stats;
+    return columnMeta.getStats();
   }
 
   @Override
   public Map<String, String> getColumnDescs()
   {
-    return descs;
+    return columnMeta.getDescs();
   }
 }

@@ -31,12 +31,10 @@ public class SelectMetaResultValue
 {
   private final Map<String, Integer> perSegmentCounts;
   private final int totalCount;
-  private final long estimatedSize;
 
   @JsonCreator
   public SelectMetaResultValue(
-      @JsonProperty("perSegmentCounts") Map<String, Integer> perSegmentCounts,
-      @JsonProperty("estimatedSize") long estimatedSize
+      @JsonProperty("perSegmentCounts") Map<String, Integer> perSegmentCounts
   )
   {
     this.perSegmentCounts = perSegmentCounts;
@@ -45,7 +43,6 @@ public class SelectMetaResultValue
       total += segmentCount;
     }
     this.totalCount = total;
-    this.estimatedSize = estimatedSize;
   }
 
   @JsonProperty
@@ -58,12 +55,6 @@ public class SelectMetaResultValue
   public int getTotalCount()
   {
     return totalCount;
-  }
-
-  @JsonProperty
-  public long getEstimatedSize()
-  {
-    return estimatedSize;
   }
 
   @Override
@@ -95,7 +86,6 @@ public class SelectMetaResultValue
     return "SelectMetaResultValue{" +
            "perSegmentCounts=" + perSegmentCounts +
            ", totalCount=" + totalCount +
-           ", estimatedSize=" + estimatedSize +
            '}';
   }
 }

@@ -162,15 +162,32 @@ public class SmooshedFileMapper implements Closeable
     }
   }
 
+  public Metadata getMetadata(String name)
+  {
+    return internalFiles.get(name);
+  }
+
   public byte[] readSizedBytes(String name) throws IOException
   {
-    final Metadata meta = internalFiles.get(name);
+    Metadata meta = internalFiles.get(name);
     try (RandomAccessFile file = new RandomAccessFile(outFiles.get(meta.getFileNum()), "r")) {
       file.seek(meta.getStartOffset());
       final byte[] array = new byte[file.readInt()];
       file.readFully(array);
       return array;
     }
+  }
+
+  public long getSerializedSize()
+  {
+    // skipping META_COLUMNS just cause it's hard to predict the size of merged metadata in SegmentMetadataQueryTest
+    long serializedSize = 0L;
+    for (Map.Entry<String, Metadata> entry : internalFiles.entrySet()) {
+      if (!META_COLUMNS.contains(entry.getKey())) {
+        serializedSize += entry.getValue().getLength();
+      }
+    }
+    return serializedSize;
   }
 
   @Override

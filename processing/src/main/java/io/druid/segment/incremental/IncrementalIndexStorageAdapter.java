@@ -31,7 +31,6 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
@@ -158,9 +157,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   {
     ColumnCapabilities capabilities = index.getCapabilities(column);
     if (capabilities != null) {
-      ValueType type = capabilities.getType();
       return new ColumnMeta(
-          type == ValueType.COMPLEX ? ValueDesc.of(capabilities.getTypeName()) : ValueDesc.of(type),
+          capabilities.getTypeDesc(),
           capabilities.hasMultipleValues(),
           index.getColumnDescriptor(column),
           null
@@ -188,23 +186,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public float getAverageSize(String column)
+  public long getSerializedSize()
   {
-    IncrementalIndex.DimensionDesc dimDesc = index.getDimension(column);
-    if (dimDesc != null) {
-      IncrementalIndex.DimDim values = dimDesc.getValues();
-      return (values.estimatedSize() - Integer.BYTES * index.ingestedRows()) / values.size();
-    }
-    IncrementalIndex.MetricDesc metricDesc = index.getMetricDesc(column);
-    if (metricDesc != null) {
-      switch (metricDesc.getCapabilities().getType()) {
-        case BOOLEAN: return Byte.BYTES;
-        case FLOAT: return Float.BYTES;
-        case LONG: return Long.BYTES;
-        case DOUBLE: return Double.BYTES;
-        // ?
-      }
-    }
     return 0;
   }
 

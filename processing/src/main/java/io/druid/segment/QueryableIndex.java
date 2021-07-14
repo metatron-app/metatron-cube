@@ -45,10 +45,12 @@ public interface QueryableIndex extends SchemaProvider, Closeable
   Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> getQuboids();
   QueryableIndex cuboidFor(Query<?> query);
 
+  long getSerializedSize(String columnName);
   ColumnMeta getColumnMeta(String columnName);
   Column getColumn(String columnName);
 
   int getNumRows();
+  long getSerializedSize();
   Metadata getMetadata();
   BitmapFactory getBitmapFactoryForDimensions();
 
@@ -58,4 +60,5 @@ public interface QueryableIndex extends SchemaProvider, Closeable
    */
   //@Deprecated // This is still required for SimpleQueryableIndex. It should not go away unitl SimpleQueryableIndex is fixed
   void close() throws IOException;
+
 }

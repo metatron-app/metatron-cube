@@ -21,7 +21,6 @@ package io.druid.query.metadata;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -44,11 +43,9 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.column.Column;
 import io.druid.utils.StopWatch;
 import org.joda.time.Interval;
 
@@ -88,18 +85,7 @@ public class SegmentMetadataQueryRunnerFactory extends QueryRunnerFactory.Abstra
 
         final StorageAdapter adapter = segment.asStorageAdapter(false);
         final long numRows = adapter.getNumRows();
-
-        long totalSerializedSize = -1;
-        if (query.getAnalysisTypes().contains(AnalysisType.SERIALIZED_SIZE)) {
-          totalSerializedSize = 0;
-          for (String columnName : Iterables.concat(
-              adapter.getAvailableDimensions(),
-              adapter.getAvailableMetrics(),
-              Arrays.asList(Column.TIME_COLUMN_NAME)
-          )) {
-            totalSerializedSize += adapter.getSerializedSize(columnName);
-          }
-        }
+        final long totalSerializedSize = adapter.getSerializedSize();
 
         List<Interval> retIntervals = query.analyzingInterval() ? Arrays.asList(segment.getInterval()) : null;
 

@@ -87,7 +87,8 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   @Override
   public long getSerializedSize()
   {
-    return (dictionary == null ? 0 : dictionary.getSerializedSize()) +
+    return 5 +
+           (dictionary == null ? 0 : dictionary.getSerializedSize()) +
            (fst == null ? 0 : fst.getSerializedSize()) +
            (singleValuedColumn != null ? singleValuedColumn.getSerializedSize() : multiValuedColumn.getSerializedSize());
   }
