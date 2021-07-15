@@ -19,15 +19,29 @@
 
 package io.druid.server.coordinator;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import org.joda.time.Period;
 
 /**
  */
 public class SimpleBalancerStrategyFactory implements BalancerStrategyFactory
 {
+  private final Period offsetPeriod;
+  private final Integer initialGrouping;
+
+  public SimpleBalancerStrategyFactory(
+      @JsonProperty("offsetPeriod") Period offsetPeriod,
+      @JsonProperty("initialGrouping") Integer initialGrouping
+  )
+  {
+    this.offsetPeriod = offsetPeriod;
+    this.initialGrouping = initialGrouping;
+  }
+
   @Override
   public BalancerStrategy createBalancerStrategy(ListeningExecutorService exec)
   {
-    return new SimpleBalancerStrategy();
+    return new SimpleBalancerStrategy(offsetPeriod, initialGrouping);
   }
 }

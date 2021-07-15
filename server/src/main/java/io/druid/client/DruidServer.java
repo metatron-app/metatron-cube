@@ -89,6 +89,17 @@ public class DruidServer implements Comparable
     this.segments = new ConcurrentHashMap<String, DataSegment>();
   }
 
+  public DruidServer(
+      DruidServerMetadata metadata,
+      ConcurrentMap<String, DruidDataSource> dataSources,
+      ConcurrentMap<String, DataSegment> segments
+  )
+  {
+    this.metadata = metadata;
+    this.dataSources = dataSources;
+    this.segments = segments;
+  }
+
   public String getName()
   {
     return metadata.getName();
@@ -150,30 +161,22 @@ public class DruidServer implements Comparable
     return segments.get(segmentName);
   }
 
+  private static final Map<String, String> DUMMY = ImmutableMap.of("client", "side"); // what is this?
+
   public boolean addDataSegment(DataSegment segment)
   {
     final String segmentId = segment.getIdentifier();
 
     synchronized (lock) {
       if (segments.putIfAbsent(segmentId, segment) != null) {
-        log.info("Asked to add data segment that already exists!? server[%s], segment[%s]", getName(), segmentId);
+        log.debug("Asked to add data segment that already exists!? server[%s], segment[%s]", getName(), segmentId);
         return false;
       }
 
-      String dataSourceName = segment.getDataSource();
-      DruidDataSource dataSource = dataSources.get(dataSourceName);
-
-      if (dataSource == null) {
-        dataSource = new DruidDataSource(
-            dataSourceName,
-            ImmutableMap.of("client", "side")
-        );
-        dataSources.put(dataSourceName, dataSource);
+      if (dataSources.computeIfAbsent(segment.getDataSource(), name -> new DruidDataSource(name, DUMMY))
+                     .addSegmentIfAbsent(segment)) {
+        currSize += segment.getSize();
       }
-
-      dataSource.addSegment(segment);
-
-      currSize += segment.getSize();
     }
     return true;
   }
@@ -181,6 +184,9 @@ public class DruidServer implements Comparable
   public DruidServer addDataSegments(DruidServer server)
   {
     synchronized (lock) {
+      if (segments.isEmpty() && dataSources.isEmpty()) {
+        return new DruidServer(metadata, server.dataSources, server.segments);
+      }
       for (Map.Entry<String, DataSegment> entry : server.segments.entrySet()) {
         addDataSegment(entry.getValue());
       }
@@ -194,7 +200,7 @@ public class DruidServer implements Comparable
       DataSegment segment = segments.get(segmentId);
 
       if (segment == null) {
-        log.info("Asked to remove data segment that doesn't exist. server[%s], segment[%s]", getName(), segmentId);
+        log.debug("Asked to remove data segment that doesn't exist. server[%s], segment[%s]", getName(), segmentId);
         return segment;
       }
 

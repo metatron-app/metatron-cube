@@ -127,32 +127,26 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           @Override
           public DruidServer updateContainer(DruidServer oldContainer, DruidServer newContainer)
           {
-            log.debug("Server[%s:%s] Updated", oldContainer.getType(), newContainer);
+            log.info("Server[%s:%s] Updated", oldContainer.getType(), newContainer);
             DruidServer updated = newContainer.addDataSegments(oldContainer);
             runServerCallback(updated, ServerCallback.Type.UPDATED);
             return updated;
           }
 
           @Override
-          public DruidServer addInventory(
-              final DruidServer container,
-              final String inventoryKey,
-              final InventoryType inventory
-          )
+          public DruidServer addInventory(DruidServer container, String inventoryKey, InventoryType inventory)
           {
             return addInnerInventory(container, inventoryKey, inventory);
           }
 
           @Override
-          public DruidServer updateInventory(
-              DruidServer container, String inventoryKey, InventoryType inventory
-          )
+          public DruidServer updateInventory(DruidServer container, String inventoryKey, InventoryType inventory)
           {
             return updateInnerInventory(container, inventoryKey, inventory);
           }
 
           @Override
-          public DruidServer removeInventory(final DruidServer container, String inventoryKey)
+          public DruidServer removeInventory(DruidServer container, String inventoryKey)
           {
             return removeInnerInventory(container, inventoryKey);
           }
@@ -161,16 +155,7 @@ public abstract class AbstractCuratorServerInventoryView<InventoryType> implemen
           public void inventoryInitialized()
           {
             log.info("Inventory Initialized");
-            runSegmentCallbacks(
-                new Function<SegmentCallback, CallbackAction>()
-                {
-                  @Override
-                  public CallbackAction apply(SegmentCallback input)
-                  {
-                    return input.segmentViewInitialized();
-                  }
-                }
-            );
+            runSegmentCallbacks(input -> input.segmentViewInitialized());
           }
         }
     );

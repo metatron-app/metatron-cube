@@ -28,9 +28,12 @@ import io.druid.collections.IntList;
 import io.druid.common.DateTimes;
 import io.druid.common.IntTagged;
 import io.druid.granularity.Granularities;
+import io.druid.granularity.Granularity;
+import io.druid.granularity.PeriodGranularity;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.coordinator.helper.DruidCoordinatorBalancer;
 import io.druid.timeline.DataSegment;
+import org.joda.time.Period;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -47,12 +50,21 @@ public class SimpleBalancerStrategy implements BalancerStrategy
 {
   private static final Logger LOG = new Logger(SimpleBalancerStrategy.class);
 
-  private static final float BASELINE_RATIO = 0.95f;
+  private static final Granularity DEFAULT_OFFSET_PERIOD = Granularities.DAY;
+  private static final int DEFAULT_INIT_GROUPING = 96;
 
-  private static final int FIRST_GROUPING_DENOMITOR = 100;
+  private static final float BASELINE_RATIO = 0.95f;
   private static final float EXCESSIVE_TOLERANCE_RATIO = 0.1f;
 
+  private final Granularity offset;
+  private final int initialGrouping;
   private final Random random = new Random();
+
+  public SimpleBalancerStrategy(Period offsetPeriod, Integer initialGrouping)
+  {
+    this.offset = offsetPeriod == null ? DEFAULT_OFFSET_PERIOD : new PeriodGranularity(offsetPeriod, null, null);
+    this.initialGrouping = initialGrouping == null || initialGrouping <= 0 ? DEFAULT_INIT_GROUPING : initialGrouping;
+  }
 
   @Override
   public int balance(
@@ -72,7 +84,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
     if (segmentsToMove <= 0) {
       return 0;
     }
-    final long start = Granularities.DAY.bucketStart(DateTimes.nowUtc()).getMillis();
+    final long start = offset.bucketStart(DateTimes.nowUtc()).getMillis();
 
     final Set<String> dataSourceNames = Sets.newTreeSet();  // sorted to estimate progress
     final ServerHolder[] holders = serverHolders.toArray(new ServerHolder[0]);
@@ -118,7 +130,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
       Arrays.fill(totalSegmentsPerDs, 0);
 
       final int numSegmentsInDS = allSegmentsInDS.size();
-      final int firstGroupSize = Math.max(serverCount, numSegmentsInDS / FIRST_GROUPING_DENOMITOR);
+      final int firstGroupSize = Math.max(serverCount, numSegmentsInDS / initialGrouping);
 
       int i = 0;
       while (segmentsToMove - balanced > 0 && i < numSegmentsInDS) {
