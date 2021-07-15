@@ -4872,7 +4872,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
                     "dense_rank_all = $dense_rank(rows)"
                 ),
                 new WindowingSpec(
-                    dayOfWeek, Arrays.asList(rowsAsc),
+                    dayOfWeek, Arrays.asList(rowsAsc, OrderByColumnSpec.asc("row_num_all")),
                     "row_num_week = $row_num(rows)",
                     "rank_week = $rank(rows)",
                     "dense_rank_week = $dense_rank(rows)"

@@ -102,7 +102,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
         Iterables.transform(orderingSpecs, OrderByColumnSpec::getDimension)
     ));
     PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
-    return new PartitionDefinition(accessors, ordering, evaluators);
+    return new PartitionDefinition(accessors, ordering, windowingSpec.getInputLimit(), evaluators);
   }
 
   public Comparator<Row> toRowOrdering(List<OrderByColumnSpec> columns)
@@ -141,6 +141,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   {
     private final List<Accessor<Row>> partColumns;
     private final Comparator<Row> ordering;
+    private final int inputLimit;
     private final PartitionEvaluator evaluator;
 
     private final Object[] currPartKeys;
@@ -149,11 +150,13 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     public PartitionDefinition(
         List<Accessor<Row>> partColumns,
         Comparator<Row> ordering,
+        int inputLimit,
         PartitionEvaluator evaluator
     )
     {
       this.partColumns = partColumns;
       this.ordering = ordering;
+      this.inputLimit = inputLimit;
       this.evaluator = evaluator;
       this.currPartKeys = new Object[partColumns.size()];
       if (partColumns.isEmpty()) {
@@ -161,11 +164,9 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       }
     }
 
-    private List<Row> process(final List<Row> input)
+    private List<Row> process(List<Row> rows)
     {
-      if (ordering != null) {
-        Collections.sort(input, ordering);
-      }
+      final List<Row> input = prepareInputRows(rows);
 
       int prev = 0;
       Map<Object[], int[]> partitions = Maps.newLinkedHashMap();
@@ -202,6 +203,20 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
         }
       }
       return evaluator.finalize(rewritten != null ? rewritten : input);
+    }
+
+    private List<Row> prepareInputRows(List<Row> input)
+    {
+      if (inputLimit > 0 && inputLimit < input.size()) {
+        if (ordering == null) {
+          input = input.subList(0, inputLimit);
+        } else {
+          input = Lists.newArrayList(TopNSorter.topN(ordering, input, inputLimit));
+        }
+      } else if (ordering != null) {
+        Collections.sort(input, ordering);
+      }
+      return input;
     }
   }
 }

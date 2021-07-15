@@ -968,4 +968,41 @@ public class TestSalesQuery extends TestHelper
     };
     TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
   }
+
+  @Test
+  public void test3785()
+  {
+    // check with debugger (PartitionDefinition#prepareInputRows inWindowingProcessor)
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .dimensions(DefaultDimensionSpec.toSpec("Category", "Region"))
+        .aggregators(new GenericSumAggregatorFactory("SUM(Discount)", "Discount", ValueDesc.DOUBLE))
+        .limitSpec(LimitSpec.of(
+            10,
+            new WindowingSpec(
+                null,
+                OrderByColumnSpec.descending("SUM(Discount)"),
+                "rank = $rank(\"SUM(Discount)\")"
+            )
+        ))
+        .build();
+    String[] columnNames = {
+        "__time", "Category", "Region", "SUM(Discount)", "rank"
+    };
+    Object[][] objects = new Object[][]{
+        array("2011-01-01", "Office Supplies", "Central", 359.40000000000043D, 1L),
+        array("2011-01-01", "Office Supplies", "East", 244.70000000000084D, 2L),
+        array("2011-01-01", "Office Supplies", "West", 177.1000000000003D, 3L),
+        array("2011-01-01", "Office Supplies", "South", 166.60000000000016D, 4L),
+        array("2011-01-01", "Furniture", "Central", 143.0400000000001D, 5L),
+        array("2011-01-01", "Furniture", "West", 92.89999999999986D, 6L),
+        array("2011-01-01", "Furniture", "East", 92.59999999999998D, 7L),
+        array("2011-01-01", "Technology", "West", 80.19999999999985D, 8L),
+        array("2011-01-01", "Technology", "East", 76.69999999999995D, 9L),
+        array("2011-01-01", "Technology", "Central", 55.899999999999935D, 10L)
+    };
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+  }
 }

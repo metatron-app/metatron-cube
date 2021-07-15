@@ -54,12 +54,13 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
 {
   public static WindowingSpec expressions(String... expressions)
   {
-    return new WindowingSpec(null, null, false, Arrays.asList(expressions), null, null);
+    return new WindowingSpec(null, null, false, -1, Arrays.asList(expressions), null, null);
   }
 
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortingColumns;
   private final boolean skipSorting;
+  private final int inputLimit;
 
   private final List<String> expressions;
   private final FlattenSpec flattenSpec;
@@ -70,6 +71,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       @JsonProperty("partitionColumns") List<String> partitionColumns,
       @JsonProperty("sortingColumns") List<OrderByColumnSpec> sortingColumns,
       @JsonProperty("skipSorting") boolean skipSorting,
+      @JsonProperty("inputLimit") int inputLimit,
       @JsonProperty("expressions") List<String> expressions,
       @JsonProperty("flattenSpec") FlattenSpec flattenSpec,
       @JsonProperty("pivotSpec") PivotSpec pivotSpec
@@ -78,6 +80,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.sortingColumns = sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
     this.skipSorting = skipSorting;
+    this.inputLimit = inputLimit;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
     this.flattenSpec = flattenSpec;
     this.pivotSpec = pivotSpec;
@@ -90,7 +93,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       FlattenSpec flattenSpec
   )
   {
-    this(partitionColumns, sortingColumns, false, expressions, flattenSpec, null);
+    this(partitionColumns, sortingColumns, false, -1, expressions, flattenSpec, null);
   }
 
   public WindowingSpec(
@@ -100,7 +103,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       PivotSpec pivotSpec
   )
   {
-    this(partitionColumns, sortingColumns, false, expressions, null, pivotSpec);
+    this(partitionColumns, sortingColumns, false, -1, expressions, null, pivotSpec);
   }
 
   public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, String... expressions)
@@ -110,13 +113,26 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
 
   public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, List<String> expressions)
   {
-    this(partitionColumns, sortingColumns, false, expressions, null, null);
+    this(partitionColumns, sortingColumns, false, -1, expressions, null, null);
   }
 
   // used by pre-ordering (gby, stream)
   public WindowingSpec skipSorting()
   {
-    return new WindowingSpec(partitionColumns, null, true, expressions, flattenSpec, pivotSpec);
+    return new WindowingSpec(partitionColumns, null, true, inputLimit, expressions, flattenSpec, pivotSpec);
+  }
+
+  public WindowingSpec withInputLimit(int inputLimit)
+  {
+    return new WindowingSpec(
+        partitionColumns,
+        sortingColumns,
+        skipSorting,
+        inputLimit,
+        expressions,
+        flattenSpec,
+        pivotSpec
+    );
   }
 
   private static List<OrderByColumnSpec> toOrderingSpec(
@@ -167,6 +183,12 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
   public boolean isSkipSorting()
   {
     return skipSorting;
+  }
+
+  @JsonProperty
+  public int getInputLimit()
+  {
+    return inputLimit;
   }
 
   @JsonProperty
@@ -278,18 +300,26 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
+    // I don't think this could be used
     return builder.append(skipSorting).sp()
                   .append(partitionColumns).sp()
                   .append(sortingColumns).sp()
+                  .append(inputLimit).sp()
                   .append(expressions).sp()
                   .append(flattenSpec)
                   .append(pivotSpec);
   }
 
+  @JsonIgnore
+  public boolean hasPostProcessing()
+  {
+    return pivotSpec != null || flattenSpec != null;
+  }
+
   @Override
   public List<String> evolve(List<String> schema)
   {
-    if (schema == null || pivotSpec != null || flattenSpec != null) {
+    if (schema == null || hasPostProcessing()) {
       return null;
     }
     List<String> columns = Lists.newArrayList(schema);
@@ -305,7 +335,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
   @Override
   public RowSignature evolve(Query query, RowSignature schema)
   {
-    if (schema == null || pivotSpec != null || flattenSpec != null) {
+    if (schema == null || hasPostProcessing()) {
       return null;
     }
     WindowContext context = WindowContext.newInstance(schema);
@@ -346,6 +376,9 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
     if (skipSorting != that.skipSorting) {
       return false;
     }
+    if (inputLimit != that.inputLimit) {
+      return false;
+    }
     if (!expressions.equals(that.expressions)) {
       return false;
     }
@@ -361,7 +394,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
   @Override
   public int hashCode()
   {
-    return Objects.hash(partitionColumns, sortingColumns, skipSorting, expressions, flattenSpec, pivotSpec);
+    return Objects.hash(partitionColumns, sortingColumns, skipSorting, inputLimit, expressions, flattenSpec, pivotSpec);
   }
 
   @Override
@@ -371,6 +404,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
            "skipSorting=" + skipSorting +
            ", partitionColumns=" + partitionColumns +
            (GuavaUtils.isNullOrEmpty(sortingColumns) ? "" : ", sortingColumns=" + sortingColumns) +
+           (inputLimit <= 0 ? "" : ", inputLimit=" + inputLimit) +
            (GuavaUtils.isNullOrEmpty(expressions) ? "" : ", expressions=" + expressions) +
            (flattenSpec == null ? "" : ", flattenSpec=" + flattenSpec) +
            (pivotSpec == null ? "" : ", pivotSpec=" + pivotSpec) +

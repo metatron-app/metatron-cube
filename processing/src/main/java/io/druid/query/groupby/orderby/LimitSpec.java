@@ -58,6 +58,11 @@ import java.util.Map;
 })
 public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving, Cacheable
 {
+  public static LimitSpec of(int limit)
+  {
+    return of(limit, Arrays.asList());
+  }
+
   public static LimitSpec of(OrderByColumnSpec... orderings)
   {
     return of(-1, orderings);
@@ -76,9 +81,14 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     return new LimitSpec(orderings, limit == 0 ? -1 : limit);
   }
 
+  public static LimitSpec of(int limit, WindowingSpec... windowingSpecs)
+  {
+    return new LimitSpec(limit, Arrays.asList(windowingSpecs));
+  }
+
   public static LimitSpec of(WindowingSpec... windowingSpecs)
   {
-    return new LimitSpec(Arrays.asList(windowingSpecs));
+    return of(-1, windowingSpecs);
   }
 
   private static final byte CACHE_KEY = 0x1;
@@ -139,7 +149,12 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
 
   public LimitSpec(List<WindowingSpec> windowingSpecs)
   {
-    this(null, null, null, null, windowingSpecs, null);
+    this(-1, windowingSpecs);
+  }
+
+  public LimitSpec(int limit, List<WindowingSpec> windowingSpecs)
+  {
+    this(null, limit, null, null, windowingSpecs, null);
   }
 
   public LimitSpec(
@@ -253,6 +268,15 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     final OrderingProcessor source = OrderingProcessor.from(query);
     if (windowingSpecs.isEmpty()) {
       return wrapAlias(source.toRowLimitFn(columns, sortOnTimeForLimit, limit));
+    }
+    List<WindowingSpec> windowingSpecs = getWindowingSpecs();
+    if (columns.isEmpty() && limit > 0) {
+      WindowingSpec windowing = GuavaUtils.lastOf(windowingSpecs);
+      if (!windowing.hasPostProcessing() && windowing.getInputLimit() <= 0) {
+        windowingSpecs = GuavaUtils.concat(
+            windowingSpecs.subList(0, windowingSpecs.size() - 1), windowing.withInputLimit(limit)
+        );
+      }
     }
     final RowSignature resolver = Queries.bestEffortOf(query, true);
     final WindowingProcessor processor = new WindowingProcessor(source, resolver, windowingSpecs);
