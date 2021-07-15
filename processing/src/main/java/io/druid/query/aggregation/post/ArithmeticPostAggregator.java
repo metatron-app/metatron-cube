@@ -108,7 +108,7 @@ public class ArithmeticPostAggregator extends PostAggregator.Abstract
   }
 
   @Override
-  public Processor processor()
+  public Processor processor(TypeResolver resolver)
   {
     if (fields.isEmpty()) {
       return new AbstractProcessor()
@@ -122,7 +122,7 @@ public class ArithmeticPostAggregator extends PostAggregator.Abstract
     }
     return new AbstractProcessor()
     {
-      private final List<Processor> processors = PostAggregators.toProcessors(fields);
+      private final List<Processor> processors = PostAggregators.toProcessors(fields, resolver);
 
       @Override
       public Object compute(DateTime timestamp, Map<String, Object> values)

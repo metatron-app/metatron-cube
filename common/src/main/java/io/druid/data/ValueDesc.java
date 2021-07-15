@@ -21,7 +21,6 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Interner;
@@ -266,18 +265,6 @@ public class ValueDesc implements Serializable, Cacheable
     return valueDesc;
   }
 
-  public static Function<String, ValueDesc> resolving(final TypeResolver resolver)
-  {
-    return new Function<String, ValueDesc>()
-    {
-      @Override
-      public ValueDesc apply(String input)
-      {
-        return resolver.resolve(input);
-      }
-    };
-  }
-
   public static ValueDesc toCommonType(Iterable<ValueDesc> valueDescs, ValueDesc notFound)
   {
     ValueDesc current = null;
@@ -305,26 +292,30 @@ public class ValueDesc implements Serializable, Cacheable
   public static ValueDesc toCommonType(ValueDesc type1, ValueDesc type2)
   {
     if (type1 == null) {
-      return type2;
+      return type2 == null ? null : type2.unwrapDimension();
     }
     if (type2 == null) {
-      return type1;
+      return type1.unwrapDimension();
     }
     type1 = type1.unwrapDimension();
     type2 = type2.unwrapDimension();
     if (type1.equals(type2)) {
       return type1;
     }
-    if (type1.isDecimal() && type2.isDecimal()) {
+
+    boolean decimal1 = type1.isDecimal();
+    boolean decimal2 = type2.isDecimal();
+
+    if (decimal1 && decimal2) {
       return commonDecimal(type1, type2);
     }
-    if (type1.isDecimal() && type2.isNumeric()) {
+    if (decimal1 && type2.isPrimitiveNumeric()) {
       return type1;
     }
-    if (type1.isNumeric() && type2.isDecimal()) {
+    if (type1.isPrimitiveNumeric() && decimal2) {
       return type2;
     }
-    if (type1.isNumeric() && type2.isNumeric()) {
+    if (type1.isPrimitiveNumeric() && type2.isPrimitiveNumeric()) {
       return ValueDesc.DOUBLE;
     }
     return ValueDesc.UNKNOWN;

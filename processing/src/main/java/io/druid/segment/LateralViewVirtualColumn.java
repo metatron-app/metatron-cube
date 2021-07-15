@@ -108,7 +108,7 @@ public class LateralViewVirtualColumn implements VirtualColumn
     if (column.equals(outputName)) {
       return ValueDesc.STRING;
     } else if (!column.equals(metricName)) {
-      return ValueDesc.toCommonType(Iterables.transform(values, ValueDesc.resolving(types)), ValueDesc.UNKNOWN);
+      return ValueDesc.toCommonType(Iterables.transform(values, v -> types.resolve(v)), ValueDesc.UNKNOWN);
     } else {
       return types.resolve(column, ValueDesc.UNKNOWN);
     }
@@ -121,7 +121,7 @@ public class LateralViewVirtualColumn implements VirtualColumn
       throw new ISE("This virtual columns provides only metric %s", metricName);
     }
     final ValueDesc commonType = ValueDesc.toCommonType(
-        Iterables.transform(values, ValueDesc.resolving(factory)), ValueDesc.UNKNOWN
+        Iterables.transform(values, v -> factory.resolve(v)), ValueDesc.UNKNOWN
     );
     if (commonType == null || commonType.isUnknown()) {
       throw new ISE("Cannot resolve common type os values %s", values);

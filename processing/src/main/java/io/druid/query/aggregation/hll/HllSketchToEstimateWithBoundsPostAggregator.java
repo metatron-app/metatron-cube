@@ -94,11 +94,11 @@ public class HllSketchToEstimateWithBoundsPostAggregator extends PostAggregator.
   }
 
   @Override
-  public Processor processor()
+  public Processor processor(TypeResolver resolver)
   {
     return new AbstractProcessor()
     {
-      private final Processor processor = field.processor();
+      private final Processor processor = field.processor(TypeResolver.UNKNOWN);
 
       @Override
       public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)

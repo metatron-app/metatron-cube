@@ -721,7 +721,7 @@ public class Queries
     }
     if (union != null) {
       PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
-      return (Object[]) postAggregator.processor().compute(
+      return (Object[]) postAggregator.processor(TypeResolver.UNKNOWN).compute(
           DateTime.now(), GuavaUtils.mutableMap("$SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
       );
     }
@@ -734,7 +734,7 @@ public class Queries
     Row row = Sequences.only(engine.process(query, segment, false, cache), null);
     if (row != null) {
       PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
-      return (Object[]) postAggregator.processor().compute(row.getTimestamp(), ((MapBasedRow) row).getEvent());
+      return (Object[]) postAggregator.processor(TypeResolver.UNKNOWN).compute(row.getTimestamp(), ((MapBasedRow) row).getEvent());
     }
     return null;
   }
@@ -751,7 +751,7 @@ public class Queries
       return current;
     });
     if (union != null) {
-      PostAggregator.Processor processor = query.getPostAggregator().processor();
+      PostAggregator.Processor processor = query.getPostAggregator().processor(TypeResolver.UNKNOWN);
       return (Object[]) processor.compute(
           DateTime.now(), GuavaUtils.mutableMap("$SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
       );

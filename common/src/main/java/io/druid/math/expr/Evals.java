@@ -409,7 +409,7 @@ public class Evals
 
   static ExprEval castTo(ExprEval eval, ValueDesc castTo)
   {
-    if (castTo.equals(eval.type())) {
+    if (castTo.isUnknown() || castTo.equals(eval.type())) {
       return eval;
     }
     switch (castTo.type()) {

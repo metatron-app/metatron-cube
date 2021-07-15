@@ -43,7 +43,7 @@ import java.util.Set;
 
 /**
  */
-public class MathPostAggregator extends PostAggregator.Stateless implements PostAggregator.Decorating
+public class MathPostAggregator extends PostAggregator.Abstract implements PostAggregator.Decorating
 {
   private final String name;
   private final String expression;
@@ -105,11 +105,11 @@ public class MathPostAggregator extends PostAggregator.Stateless implements Post
   }
 
   @Override
-  protected Processor createStateless()
+  public Processor processor(TypeResolver resolver)
   {
     return new AbstractProcessor()
     {
-      private final Expr parsed = parseExpr(expression, TypeResolver.UNKNOWN);
+      private final Expr parsed = parseExpr(expression, resolver);
 
       @Override
       public Object compute(DateTime timestamp, Map<String, Object> values)
@@ -147,6 +147,12 @@ public class MathPostAggregator extends PostAggregator.Stateless implements Post
 
   @JsonProperty
   public boolean isFinalize()
+  {
+    return finalize;
+  }
+
+  @Override
+  public boolean needsDecorate()
   {
     return finalize;
   }
@@ -244,11 +250,14 @@ public class MathPostAggregator extends PostAggregator.Stateless implements Post
     }
 
     @Override
-    public Processor createStateless()
+    public Processor processor(TypeResolver resolver)
     {
+      final TypeResolver finalized = TypeResolver.override(
+          resolver, AggregatorFactory.toFinalizedType(aggregators)
+      );
       return new AbstractProcessor()
       {
-        private final Expr parsed = parseExpr(getExpression(), TypeResolver.UNKNOWN);
+        private final Expr parsed = parseExpr(getExpression(), finalized);
 
         @Override
         public Object compute(DateTime timestamp, Map<String, Object> values)

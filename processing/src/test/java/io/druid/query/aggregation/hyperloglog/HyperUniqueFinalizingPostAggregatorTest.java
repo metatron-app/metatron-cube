@@ -24,6 +24,7 @@ import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.Murmur3;
+import io.druid.data.TypeResolver;
 import io.druid.query.aggregation.PostAggregator;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -39,7 +40,7 @@ public class HyperUniqueFinalizingPostAggregatorTest
   public void testCompute() throws Exception
   {
     Random random = new Random(0L);
-    PostAggregator.Processor postAggregator = new HyperUniqueFinalizingPostAggregator("uniques", "uniques").processor();
+    PostAggregator.Processor postAggregator = new HyperUniqueFinalizingPostAggregator("uniques", "uniques").processor(TypeResolver.UNKNOWN);
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
 
     for (int i = 0; i < 100; ++i) {

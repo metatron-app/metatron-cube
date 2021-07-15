@@ -69,7 +69,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
   public static ExprEval bestEffortOf(Object val, ValueDesc defaultType)
   {
     if (val == null) {
-      return ExprEval.of(null, defaultType == null ? ValueDesc.STRING : defaultType);
+      return defaultType == null ? NULL_STRING : ExprEval.of(null, defaultType);
     }
     if (val instanceof ExprEval) {
       return (ExprEval) val;

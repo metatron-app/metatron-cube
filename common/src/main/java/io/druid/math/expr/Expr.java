@@ -354,9 +354,25 @@ final class IdentifierExpr implements Expr.BindingRewriter
   public IdentifierExpr(String value, ValueDesc type, int index)
   {
     this.value = value;
-    this.type = type.isArray() ? type.subElement(ValueDesc.UNKNOWN) : type;
+    this.type = getType(type, index);
     this.index = index;
     this.indexed = true;
+  }
+
+  private ValueDesc getType(ValueDesc type, int index)
+  {
+    if (type.isArray()) {
+      return type.subElement(ValueDesc.UNKNOWN);
+    } else if (type.isStruct()) {
+      final String[] description = type.getDescription();
+      if (description == null || description.length < index + 1) {
+        return ValueDesc.UNKNOWN;
+      }
+      String desc = description[index + 1];
+      int x = desc.indexOf(':');
+      return x < 0 ? ValueDesc.UNKNOWN : ValueDesc.of(desc.substring(x + 1));
+    }
+    return type;
   }
 
   public IdentifierExpr(String value, ValueDesc type)
@@ -397,19 +413,16 @@ final class IdentifierExpr implements Expr.BindingRewriter
         List list = (List) binding;
         final int length = list.size();
         final int x = index < 0 ? length + index : index;
-        binding = x >= 0 && x < length ? list.get(x) : null;
+        return ExprEval.bestEffortOf(x >= 0 && x < length ? list.get(x) : null);
       } else if (binding.getClass().isArray()) {
         final int length = Array.getLength(binding);
         final int x = index < 0 ? length + index : index;
-        binding = x >= 0 && x < length ? Array.get(binding, x) : null;
+        return ExprEval.bestEffortOf(x >= 0 && x < length ? Array.get(binding, x) : null);
       } else {
-        binding = null;
+        return ExprEval.NULL_STRING;
       }
     }
-    if (type.isUnknown()) {
-      return ExprEval.bestEffortOf(binding);
-    }
-    return ExprEval.of(binding, type);
+    return type.isUnknown() ? ExprEval.bestEffortOf(binding) : ExprEval.of(binding, type);
   }
 
   @Override
@@ -717,6 +730,9 @@ abstract class BinaryOpExprBase extends AbstractBinaryOp implements Expression.F
     }
     final ValueDesc lt = left.returns().unwrapDimension();
     final ValueDesc rt = right.returns().unwrapDimension();
+    if (lt.equals(rt)) {
+      return lt;
+    }
     if (lt.isUnknown() || rt.isUnknown()) {
       return ValueDesc.UNKNOWN;
     }

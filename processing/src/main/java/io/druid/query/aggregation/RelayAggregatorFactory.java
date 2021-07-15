@@ -261,7 +261,7 @@ public class RelayAggregatorFactory extends AggregatorFactory.TypeResolving impl
   {
     final RELAY_TYPE relayType = RELAY_TYPE.fromString(this.relayType);
     if (relayType == RELAY_TYPE.TIME_MIN || relayType == RELAY_TYPE.TIME_MAX) {
-      return ValueDesc.STRUCT;
+      return typeName == null ? ValueDesc.STRUCT : ValueDesc.of(String.format("struct(t:long,v:%s)", typeName));
     }
     return typeName == null ? null : ValueDesc.of(typeName);
   }

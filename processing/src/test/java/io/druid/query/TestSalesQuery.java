@@ -1005,4 +1005,39 @@ public class TestSalesQuery extends TestHelper
     };
     TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
   }
+
+  @Test
+  public void test3787()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource("sales")
+        .setInterval(Intervals.of("2011-01-01/2015-01-01"))
+        .dimensions(DefaultDimensionSpec.toSpec("City"))
+        .aggregators(
+            GenericSumAggregatorFactory.of("aggregationfunc_000", "Profit"),
+            GenericSumAggregatorFactory.of("aggregationfunc_001", "Sales"),
+            GenericSumAggregatorFactory.of("aggregationfunc_002", "Profit")
+        )
+        .postAggregators(
+            new MathPostAggregator("MEASURE_1", "IF(aggregationfunc_000==0,1,aggregationfunc_001/aggregationfunc_002)")
+        )
+        .limitSpec(LimitSpec.of(10, OrderByColumnSpec.asc("MEASURE_1")))
+        .build();
+
+    String[] columnNames = {"__time", "City", "MEASURE_1"};
+    Object[][] objects = new Object[][]{
+        array("2011-01-01", "Austin", -288.57142857142856D),
+        array("2011-01-01", "Tucson", -95.5909090909091D),
+        array("2011-01-01", "Gastonia", -64.0D),
+        array("2011-01-01", "Bolingbrook", -54.5D),
+        array("2011-01-01", "Richardson", -51.56D),
+        array("2011-01-01", "Denver", -50.20164609053498D),
+        array("2011-01-01", "Hickory", -41.0D),
+        array("2011-01-01", "Freeport", -38.89473684210526D),
+        array("2011-01-01", "Hamilton", -36.44444444444444D),
+        array("2011-01-01", "Carol Stream", -32.65D)
+    };
+    TestHelper.assertExpectedObjects(createExpectedRows(columnNames, objects), runQuery(query));
+  }
 }

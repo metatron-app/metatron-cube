@@ -107,11 +107,11 @@ public class HllSketchUnionPostAggregator extends PostAggregator.Abstract
   }
 
   @Override
-  public Processor processor()
+  public Processor processor(TypeResolver resolver)
   {
     return new AbstractProcessor()
     {
-      private final List<Processor> processors = PostAggregators.toProcessors(fields);
+      private final List<Processor> processors = PostAggregators.toProcessors(fields, resolver);
 
       @Override
       public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)

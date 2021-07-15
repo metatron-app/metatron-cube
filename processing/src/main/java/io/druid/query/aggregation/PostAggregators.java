@@ -19,12 +19,13 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
+import io.druid.query.aggregation.PostAggregator.Decorating;
 
 import java.util.AbstractMap;
 import java.util.Arrays;
@@ -60,14 +61,17 @@ public class PostAggregators
     if (aggregators == null || aggregators.isEmpty()) {
       return ImmutableList.of();
     }
+    if (!Iterables.any(aggregators, p -> p instanceof Decorating && ((Decorating) p).needsDecorate())) {
+      return aggregators;
+    }
     Map<String, AggregatorFactory> mapping = Maps.newHashMap();
     for (AggregatorFactory factory : factories) {
       mapping.put(factory.getName(), factory);
     }
     List<PostAggregator> decorated = Lists.newArrayListWithExpectedSize(aggregators.size());
     for (PostAggregator aggregator : aggregators) {
-      if (aggregator instanceof PostAggregator.Decorating) {
-        aggregator = ((PostAggregator.Decorating) aggregator).decorate(mapping);
+      if (aggregator instanceof Decorating) {
+        aggregator = ((Decorating) aggregator).decorate(mapping);
       }
       decorated.add(aggregator);
     }
@@ -76,20 +80,15 @@ public class PostAggregators
 
   public static List<PostAggregator.Processor> toProcessors(List<PostAggregator> postAggregators)
   {
+    return toProcessors(postAggregators, TypeResolver.UNKNOWN);
+  }
+
+  public static List<PostAggregator.Processor> toProcessors(List<PostAggregator> postAggregators, TypeResolver resolver)
+  {
     if (GuavaUtils.isNullOrEmpty(postAggregators)) {
       return ImmutableList.of();
     }
-    return ImmutableList.copyOf(Iterables.transform(
-        postAggregators,
-        new Function<PostAggregator, PostAggregator.Processor>()
-        {
-          @Override
-          public PostAggregator.Processor apply(PostAggregator postAggregator)
-          {
-            return postAggregator.processor();
-          }
-        }
-    ));
+    return ImmutableList.copyOf(Iterables.transform(postAggregators, p -> p.processor(resolver)));
   }
 
   public abstract static class MapAccess extends AbstractMap<String, Object>

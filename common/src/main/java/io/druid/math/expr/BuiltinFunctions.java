@@ -1661,7 +1661,6 @@ public interface BuiltinFunctions extends Function.Library
         throw new IAE("function 'if' needs default value");
       }
       final ValueDesc commonType = returns(args);
-
       return new Function()
       {
         @Override
@@ -1675,10 +1674,10 @@ public interface BuiltinFunctions extends Function.Library
         {
           for (int i = 0; i < args.size() - 1; i += 2) {
             if (args.get(i).eval(bindings).asBoolean()) {
-              return args.get(i + 1).eval(bindings);
+              return Evals.castTo(args.get(i + 1).eval(bindings), commonType);
             }
           }
-          return args.get(args.size() - 1).eval(bindings);
+          return Evals.castTo(args.get(args.size() - 1).eval(bindings), commonType);
         }
       };
     }
@@ -1785,7 +1784,7 @@ public interface BuiltinFunctions extends Function.Library
           for (int i = 1; i < args.size() && eval.isNull(); i++) {
             eval = args.get(1).eval(bindings);
           }
-          return eval;
+          return Evals.castTo(eval, type);
         }
       };
     }
@@ -1823,13 +1822,13 @@ public interface BuiltinFunctions extends Function.Library
           final ExprEval leftVal = args.get(0).eval(bindings);
           for (int i = 1; i < args.size() - 1; i += 2) {
             if (Evals.eq(leftVal, args.get(i).eval(bindings))) {
-              return args.get(i + 1).eval(bindings);
+              return Evals.castTo(args.get(i + 1).eval(bindings), type);
             }
           }
           if (args.size() % 2 != 1) {
-            return args.get(args.size() - 1).eval(bindings);
+            return Evals.castTo(args.get(args.size() - 1).eval(bindings), type);
           }
-          return leftVal.defaultValue(type);
+          return Evals.castTo(leftVal.defaultValue(type), type);
         }
       };
     }
@@ -1868,17 +1867,13 @@ public interface BuiltinFunctions extends Function.Library
           for (int i = 0; i < size - 1; i += 2) {
             ExprEval eval = Evals.eval(args.get(i), bindings);
             if (eval.asBoolean()) {
-              return args.get(i + 1).eval(bindings);
+              return Evals.castTo(args.get(i + 1).eval(bindings), type);
             }
           }
           if (size % 2 == 1) {
-            return args.get(size - 1).eval(bindings);
+            return Evals.castTo(args.get(size - 1).eval(bindings), type);
           }
-          ValueDesc type = null;
-          for (int i = 1; i < size - 1; i += 2) {
-            type = ValueDesc.toCommonType(type, args.get(i).eval(bindings).type());
-          }
-          return ExprEval.of(null, Optional.ofNullable(type).orElse(ValueDesc.STRING));
+          return ExprEval.of(null, type);
         }
       };
     }

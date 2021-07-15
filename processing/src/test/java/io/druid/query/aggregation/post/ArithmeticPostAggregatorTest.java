@@ -22,6 +22,7 @@ package io.druid.query.aggregation.post;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import io.druid.data.TypeResolver;
 import io.druid.query.aggregation.CountAggregator;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -67,23 +68,23 @@ public class ArithmeticPostAggregatorTest
       metricValues.put(postAggregator.getName(), postAggregator.compute(timestamp, metricValues));
     }
 
-    arithmeticPostAggregator = new ArithmeticPostAggregator("add", "+", postAggregatorList).processor();
-    mathPostAggregator = new MathPostAggregator("add", "roku + rows").processor();
+    arithmeticPostAggregator = new ArithmeticPostAggregator("add", "+", postAggregatorList).processor(TypeResolver.UNKNOWN);
+    mathPostAggregator = new MathPostAggregator("add", "roku + rows").processor(TypeResolver.UNKNOWN);
     Assert.assertEquals(9.0, arithmeticPostAggregator.compute(timestamp, metricValues));
     Assert.assertEquals(9L, mathPostAggregator.compute(timestamp, metricValues));
 
-    arithmeticPostAggregator = new ArithmeticPostAggregator("subtract", "-", postAggregatorList).processor();
-    mathPostAggregator = new MathPostAggregator("add", "roku - rows").processor();
+    arithmeticPostAggregator = new ArithmeticPostAggregator("subtract", "-", postAggregatorList).processor(TypeResolver.UNKNOWN);
+    mathPostAggregator = new MathPostAggregator("add", "roku - rows").processor(TypeResolver.UNKNOWN);
     Assert.assertEquals(3.0, arithmeticPostAggregator.compute(timestamp, metricValues));
     Assert.assertEquals(3L, mathPostAggregator.compute(timestamp, metricValues));
 
-    arithmeticPostAggregator = new ArithmeticPostAggregator("multiply", "*", postAggregatorList).processor();
-    mathPostAggregator = new MathPostAggregator("add", "roku * rows").processor();
+    arithmeticPostAggregator = new ArithmeticPostAggregator("multiply", "*", postAggregatorList).processor(TypeResolver.UNKNOWN);
+    mathPostAggregator = new MathPostAggregator("add", "roku * rows").processor(TypeResolver.UNKNOWN);
     Assert.assertEquals(18.0, arithmeticPostAggregator.compute(timestamp, metricValues));
     Assert.assertEquals(18L, mathPostAggregator.compute(timestamp, metricValues));
 
-    arithmeticPostAggregator = new ArithmeticPostAggregator("divide", "/", postAggregatorList).processor();
-    mathPostAggregator = new MathPostAggregator("add", "roku / rows").processor();
+    arithmeticPostAggregator = new ArithmeticPostAggregator("divide", "/", postAggregatorList).processor(TypeResolver.UNKNOWN);
+    mathPostAggregator = new MathPostAggregator("add", "roku / rows").processor(TypeResolver.UNKNOWN);
     Assert.assertEquals(2.0, arithmeticPostAggregator.compute(timestamp, metricValues));
     Assert.assertEquals(2L, mathPostAggregator.compute(timestamp, metricValues));
   }
@@ -109,7 +110,7 @@ public class ArithmeticPostAggregatorTest
 
     arithmeticPostAggregator = new ArithmeticPostAggregator("add", "+", postAggregatorList);
     Comparator comp = arithmeticPostAggregator.getComparator();
-    PostAggregator.Processor processor = arithmeticPostAggregator.processor();
+    PostAggregator.Processor processor = arithmeticPostAggregator.processor(TypeResolver.UNKNOWN);
 
     DateTime timestamp = DateTime.now();
     Object before = processor.compute(timestamp, metricValues);
@@ -136,7 +137,7 @@ public class ArithmeticPostAggregatorTest
             new ConstantPostAggregator("zero", 0)
         ),
         "numericFirst"
-    ).processor();
+    ).processor(TypeResolver.UNKNOWN);
 
     DateTime timestamp = DateTime.now();
     Assert.assertEquals(Double.NaN, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", 0)));
@@ -155,7 +156,7 @@ public class ArithmeticPostAggregatorTest
             new FieldAccessPostAggregator("numerator", "value"),
             new ConstantPostAggregator("denomiator", 0)
         )
-    ).processor();
+    ).processor(TypeResolver.UNKNOWN);
     DateTime timestamp = DateTime.now();
     Assert.assertEquals(0.0, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", 0)));
     Assert.assertEquals(0.0, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", Double.NaN)));

@@ -39,7 +39,7 @@ public interface PostAggregator extends TypeResolver.Resolvable
 
   Comparator getComparator();
 
-  Processor processor();
+  Processor processor(TypeResolver resolver);
 
   interface Processor
   {
@@ -50,6 +50,8 @@ public interface PostAggregator extends TypeResolver.Resolvable
 
   interface Decorating extends PostAggregator
   {
+    boolean needsDecorate();
+
     PostAggregator decorate(Map<String, AggregatorFactory> aggregators);
   }
 
@@ -70,7 +72,7 @@ public interface PostAggregator extends TypeResolver.Resolvable
     private final Supplier<Processor> supplier = Suppliers.memoize(() -> createStateless());
 
     @Override
-    public final Processor processor()
+    public final Processor processor(TypeResolver resolver)
     {
       return supplier.get();
     }

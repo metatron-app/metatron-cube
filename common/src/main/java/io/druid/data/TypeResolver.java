@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 
 import java.util.Map;
 
@@ -135,9 +136,11 @@ public interface TypeResolver
     @Override
     public ValueDesc resolve(String column)
     {
-      return ValueDesc.UNKNOWN;
+      return null;
     }
   };
+
+  Supplier<TypeResolver> UNKNOWN_SUPPLIER = Suppliers.ofInstance(UNKNOWN);
 
   TypeResolver STRING = new TypeResolver()
   {

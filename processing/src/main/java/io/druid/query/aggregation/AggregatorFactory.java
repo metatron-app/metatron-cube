@@ -317,6 +317,15 @@ public abstract class AggregatorFactory implements Cacheable
     return types;
   }
 
+  public static Map<String, ValueDesc> toFinalizedType(Map<String, AggregatorFactory> aggregators)
+  {
+    Map<String, ValueDesc> types = Maps.newHashMap();
+    for (Map.Entry<String, AggregatorFactory> entry : aggregators.entrySet()) {
+      types.put(entry.getKey(), entry.getValue().finalizedType());
+    }
+    return types;
+  }
+
   public static List<AggregatorFactory> retain(List<AggregatorFactory> aggregators, List<String> retainer)
   {
     Set<String> set = Sets.newHashSet(retainer);
@@ -524,7 +533,7 @@ public abstract class AggregatorFactory implements Cacheable
     }
 
     @Override
-    public Processor processor()
+    public Processor processor(TypeResolver resolver)
     {
       return new AbstractProcessor()
       {

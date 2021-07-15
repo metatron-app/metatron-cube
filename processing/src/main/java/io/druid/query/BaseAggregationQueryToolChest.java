@@ -24,12 +24,14 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.BulkRow;
 import io.druid.data.input.BulkSequence;
 import io.druid.data.input.CompactRow;
@@ -43,6 +45,7 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.AggregationQueryBinaryFn;
 import io.druid.query.timeseries.TimeseriesQuery;
 import org.joda.time.DateTime;
@@ -105,8 +108,19 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
   private Function<Row, Row> toPostAggregator(final T query)
   {
     final Granularity granularity = query.getGranularity();
+    final List<String> columnNames = Lists.newArrayList();
+    final List<ValueDesc> columnTypes = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : query.getDimensions()) {
+      columnNames.add(dimensionSpec.getOutputName());
+      columnTypes.add(dimensionSpec.resolve(RowResolver.UNKNOWN_SUPPLIER));
+    }
+    for (AggregatorFactory aggregator : query.getAggregatorSpecs()) {
+      columnNames.add(aggregator.getName());
+      columnTypes.add(aggregator.getOutputType());
+    }
+    final RowSignature resolver = RowSignature.of(columnNames, columnTypes);
     final List<PostAggregator.Processor> postAggregators = PostAggregators.toProcessors(
-        PostAggregators.decorate(query.getPostAggregatorSpecs(), query.getAggregatorSpecs())
+        PostAggregators.decorate(query.getPostAggregatorSpecs(), query.getAggregatorSpecs()), resolver
     );
     if (!postAggregators.isEmpty()) {
       return row -> {

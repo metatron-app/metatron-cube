@@ -22,6 +22,7 @@ package io.druid.query.aggregation.post;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
+import io.druid.data.TypeResolver;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.PostAggregator;
 import org.junit.Assert;
@@ -52,7 +53,7 @@ public class JavaScriptPostAggregatorTest
         Lists.newArrayList("delta", "total"),
         absPercentFunction,
         JavaScriptConfig.getDefault()
-    ).processor();
+    ).processor(TypeResolver.UNKNOWN);
     Assert.assertEquals(10.0, javaScriptPostAggregator.compute(DateTimes.nowUtc(), metricValues));
   }
 
@@ -71,7 +72,7 @@ public class JavaScriptPostAggregatorTest
 
     expectedException.expect(IllegalStateException.class);
     expectedException.expectMessage("JavaScript is disabled");
-    javaScriptPostAggregator.processor().compute(DateTimes.nowUtc(), Maps.<String, Object>newHashMap());
+    javaScriptPostAggregator.processor(TypeResolver.UNKNOWN).compute(DateTimes.nowUtc(), Maps.<String, Object>newHashMap());
     Assert.assertTrue(false);
   }
 }
