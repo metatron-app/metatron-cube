@@ -28,7 +28,6 @@ import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Map;
 
@@ -59,6 +58,5 @@ public interface QueryableIndex extends SchemaProvider, Closeable
    * @throws java.io.IOException if an exception was thrown closing the index
    */
   //@Deprecated // This is still required for SimpleQueryableIndex. It should not go away unitl SimpleQueryableIndex is fixed
-  void close() throws IOException;
-
+  void close();
 }

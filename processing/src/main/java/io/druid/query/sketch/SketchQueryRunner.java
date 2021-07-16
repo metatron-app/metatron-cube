@@ -40,7 +40,7 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.segment.ColumnSelectorBitmapIndexSelector;
+import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -120,7 +120,7 @@ public class SketchQueryRunner implements QueryRunner<Object[]>
 
     OUT:
     if (queryable != null && metrics.isEmpty() && !sketchOp.isCardinalitySensitive()) {
-      final BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(queryable, resolver);
+      final BitmapIndexSelector selector = new QueryableIndexSelector(queryable, resolver);
       final Pair<ImmutableBitmap, DimFilter> extracted = extractBitmaps(selector, segment.getIdentifier(), filter);
       if (extracted.getValue() != null) {
         break OUT;

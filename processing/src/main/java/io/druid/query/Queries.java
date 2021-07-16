@@ -84,7 +84,7 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
-import io.druid.segment.ColumnSelectorBitmapIndexSelector;
+import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSpecVirtualColumn;
 import io.druid.segment.QueryableIndex;
@@ -535,7 +535,7 @@ public class Queries
         if (index == null) {
           return -1;
         }
-        BitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index, TypeResolver.UNKNOWN);
+        BitmapIndexSelector selector = new QueryableIndexSelector(index, TypeResolver.UNKNOWN);
         Column column = selector.getColumn(dimension.getDimension());
         if (column == null) {
           continue;

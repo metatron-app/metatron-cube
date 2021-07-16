@@ -50,7 +50,6 @@ import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
@@ -181,7 +180,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   }
 
   @Override
-  public void close() throws IOException
+  public void close()
   {
     fileMapper.close();
   }

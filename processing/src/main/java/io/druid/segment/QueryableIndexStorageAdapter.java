@@ -190,7 +190,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
-    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(index, resolver);
+    final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver);
     final FilterContext context = Filters.createFilterContext(selector, cache, segmentId);
 
     final long start = System.currentTimeMillis();

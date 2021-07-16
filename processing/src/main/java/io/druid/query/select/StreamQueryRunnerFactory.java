@@ -23,9 +23,10 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
-
 import io.druid.common.guava.Sequence;
+import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Queries;
@@ -44,7 +45,11 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.QueryableIndexSelector;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
+import io.druid.segment.filter.FilterContext;
+import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
@@ -116,9 +121,11 @@ public class StreamQueryRunnerFactory
     if (numSplit < 2) {
       int splitRows = query.getContextInt(Query.STREAM_RAW_LOCAL_SPLIT_ROWS, SPLIT_DEFAULT_ROWS);
       if (splitRows > SPLIT_MIN_ROWS) {
-        int numRows = getNumRows(query, segments);
-        logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
-        numSplit = numRows / splitRows;
+        int numRows = getNumRows(query, segments, resolver, splitRows);
+        if (numRows >= 0) {
+          logger.info("Total number of rows [%,d] spliting on [%d] rows", numRows, splitRows);
+          numSplit = numRows / splitRows;
+        }
       }
     }
     if (numSplit < 2) {
@@ -171,14 +178,11 @@ public class StreamQueryRunnerFactory
     return splits;
   }
 
-  private int getNumRows(StreamQuery query, List<Segment> segments)
+  private int getNumRows(StreamQuery query, List<Segment> segments, Supplier<RowResolver> resolver, int splitRows)
   {
     final DimFilter filter = query.getFilter();
-    if (filter == null) {
-      int numRows = 0;
-      for (Segment segment : segments) {
-        numRows += segment.getNumRows();
-      }
+    final int numRows = segments.stream().mapToInt(Segment::getNumRows).sum();
+    if (filter == null || numRows <= splitRows) {
       return numRows;
     }
     final SelectMetaQuery meta = SelectMetaQuery.of(
@@ -187,7 +191,17 @@ public class StreamQueryRunnerFactory
     final MutableInt counter = new MutableInt();
     final SelectMetaQueryEngine engine = new SelectMetaQueryEngine();
     for (Segment segment : segments) {
-      DimFilter optimized = filter.optimize(segment, query.getVirtualColumns());
+      final DimFilter optimized = filter.optimize(segment, query.getVirtualColumns());
+      final QueryableIndex index = segment.asQueryableIndex(false);
+      if (index != null) {
+        final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver.get());
+        final FilterContext context = Filters.createFilterContext(selector, cache, segment.getIdentifier());
+        final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);
+        if (extracted.rhs == null) {
+          counter.add(extracted.lhs == null ? segment.getNumRows() : extracted.lhs.size());
+          continue;
+        }
+      }
       engine.process(meta.withFilter(optimized), segment, cache)
             .accumulate(r -> counter.add(r.getValue().getTotalCount()));
     }

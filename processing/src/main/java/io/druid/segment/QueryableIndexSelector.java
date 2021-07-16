@@ -44,7 +44,7 @@ import java.util.Map;
 
 /**
  */
-public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
+public class QueryableIndexSelector implements BitmapIndexSelector
 {
   private final QueryableIndex index;
   private final TypeResolver resolver;
@@ -54,7 +54,7 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   private final Map<String, HistogramBitmap> metricBitmaps = Maps.newHashMap();
   private final Map<String, BitSlicedBitmap> bitSlicedBitmapMaps = Maps.newHashMap();
 
-  public ColumnSelectorBitmapIndexSelector(QueryableIndex index, TypeResolver resolver)
+  public QueryableIndexSelector(QueryableIndex index, TypeResolver resolver)
   {
     this.index = index;
     this.resolver = resolver;
