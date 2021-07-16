@@ -90,7 +90,7 @@ public class MinSqlAggregator implements SqlAggregator
       expression = arg.getExpression();
     }
     AggregatorFactory factory;
-    if (valueDesc.isNumeric()) {
+    if (valueDesc.isNumeric() || valueDesc.isArray()) {
       factory = new GenericMinAggregatorFactory(name, fieldName, expression, null, valueDesc);
     } else if (fieldName != null) {
       factory = RelayAggregatorFactory.min(name, fieldName);

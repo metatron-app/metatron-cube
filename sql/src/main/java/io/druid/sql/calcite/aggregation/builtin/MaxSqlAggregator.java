@@ -91,7 +91,7 @@ public class MaxSqlAggregator implements SqlAggregator
     }
 
     AggregatorFactory factory;
-    if (valueDesc.isNumeric()) {
+    if (valueDesc.isNumeric() || valueDesc.isArray()) {
       factory = new GenericMaxAggregatorFactory(name, fieldName, expression, null, valueDesc);
     } else if (fieldName != null) {
       factory = RelayAggregatorFactory.max(name, fieldName);
