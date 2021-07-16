@@ -28,6 +28,7 @@ import io.druid.sql.calcite.rule.AggregateMergeRule;
 import io.druid.sql.calcite.rule.DruidFilterableTableScanRule;
 import io.druid.sql.calcite.rule.DruidJoinProjectRule;
 import io.druid.sql.calcite.rule.DruidJoinRule;
+import io.druid.sql.calcite.rule.DruidProjectableTableScanRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
 import io.druid.sql.calcite.rule.DruidTableScanRule;
@@ -331,6 +332,7 @@ public class Rules
     List<RelOptRule> rules = Lists.newArrayList();
     rules.addAll(baseRuleSet(plannerContext));
     rules.add(new DruidFilterableTableScanRule(queryMaker));
+    rules.add(new DruidProjectableTableScanRule(queryMaker));
     rules.add(new DruidTableScanRule(queryMaker));
     rules.add(new DruidValuesRule(queryMaker));
     rules.addAll(DruidRules.RULES);

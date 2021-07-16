@@ -40,14 +40,22 @@ import java.util.Set;
 public class DruidValuesRel extends DruidRel
 {
   private final RelNode source;
+  private final RelNode leaf;
   private final Iterable<Object[]> values;
   private final String tableName;
 
-  public static DruidValuesRel of(LogicalTableScan source, Iterable<Object[]> values, QueryMaker queryMaker) {
+  public static DruidValuesRel of(
+      LogicalTableScan source,
+      RelNode leaf,
+      Iterable<Object[]> values,
+      QueryMaker queryMaker
+  )
+  {
     return new DruidValuesRel(
         source.getCluster(),
         source.getTraitSet(),
         source,
+        leaf,
         values,
         StringUtils.join(source.getTable().getQualifiedName(), '.'),
         queryMaker
@@ -60,8 +68,9 @@ public class DruidValuesRel extends DruidRel
         source.getCluster(),
         source.getTraitSet(),
         source,
+        source,
         values,
-        null,
+        source instanceof LogicalTableScan ? StringUtils.join(source.getTable().getQualifiedName(), '.') : null,
         queryMaker
     );
   }
@@ -70,6 +79,7 @@ public class DruidValuesRel extends DruidRel
       RelOptCluster cluster,
       RelTraitSet traitSet,
       RelNode source,
+      RelNode leaf,
       Iterable<Object[]> values,
       String tableName,
       QueryMaker queryMaker
@@ -77,6 +87,7 @@ public class DruidValuesRel extends DruidRel
   {
     super(cluster, traitSet, queryMaker);
     this.source = source;
+    this.leaf = leaf;
     this.values = values;
     this.tableName = tableName;
   }
@@ -84,7 +95,12 @@ public class DruidValuesRel extends DruidRel
   @Override
   public RelOptCost computeSelfCost(RelOptPlanner planner, RelMetadataQuery mq, Set<RelNode> visited)
   {
-    return planner.getCostFactory().makeCost(0.000001, 0, 0);   // should be less than scan + filter
+    if (source != leaf) {
+      // filterable or projectable
+      return planner.getCostFactory().makeCost(0.000001, 0, 0);
+    } else {
+      return planner.getCostFactory().makeCost(0.0001, 0, 0);
+    }
   }
 
   @Override
@@ -96,7 +112,7 @@ public class DruidValuesRel extends DruidRel
   @Override
   public DruidQuery makeDruidQuery(boolean finalizeAggregations)
   {
-    final RowSignature signature = RowSignature.from(source.getRowType());
+    final RowSignature signature = RowSignature.from(leaf.getRowType());
     final TypedDummyQuery query = TypedDummyQuery.of(tableName, signature, values)
                                                  .withOverriddenContext(getPlannerContext().copyQueryContext());
     return new DruidQuery()
@@ -130,13 +146,13 @@ public class DruidValuesRel extends DruidRel
   @Override
   protected RelDataType deriveRowType()
   {
-    return source.getRowType();
+    return leaf.getRowType();
   }
 
   @Override
   public RelNode getLeafRel()
   {
-    return source;
+    return leaf;
   }
 
   @Override
@@ -146,6 +162,7 @@ public class DruidValuesRel extends DruidRel
         getCluster(),
         getTraitSet().replace(DruidConvention.instance()),
         source,
+        leaf,
         values,
         tableName,
         getQueryMaker()

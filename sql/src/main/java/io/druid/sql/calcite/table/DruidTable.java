@@ -20,8 +20,17 @@
 package io.druid.sql.calcite.table;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.DSuppliers.Memoizing;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.query.DataSource;
+import io.druid.query.metadata.metadata.ColumnAnalysis;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -35,35 +44,64 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public class DruidTable implements TranslatableTable
 {
-  private final long timestamp;
-
   private final DataSource dataSource;
-  private final RowSignature signature;
-  private final Statistic statistic;
-  private final Map<String, Map<String, String>> descriptors;
 
-  public DruidTable(
-      DataSource dataSource,
-      RowSignature signature,
-      Map<String, Map<String, String>> descriptors,
-      long rowNum
-  )
+  private final Memoizing<List<SegmentAnalysis>> supplier;
+  private final Memoizing<RowSignature> signature;
+  private final Memoizing<Statistic> statistic;
+  private final Memoizing<Map<String, Map<String, String>>> descriptors;
+
+  public DruidTable(DataSource dataSource, Memoizing<List<SegmentAnalysis>> supplier)
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
-    this.signature = Preconditions.checkNotNull(signature, "signature");
-    this.statistic = Statistics.of(rowNum, ImmutableList.of());
-    this.descriptors = descriptors;
-    this.timestamp = System.currentTimeMillis();
+    this.supplier = Preconditions.checkNotNull(supplier, "supplier");
+    this.signature = DSuppliers.memoize(
+        () -> {
+          Set<String> columns = Sets.newHashSet();
+          RowSignature.Builder builder = RowSignature.builder();
+          for (SegmentAnalysis schema : supplier.get()) {
+            for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
+              if (columns.add(entry.getKey())) {
+                builder.add(entry.getKey(), ValueDesc.of(entry.getValue().getType()));
+              }
+            }
+          }
+          return builder.sort().build();
+        }
+    );
+    this.descriptors = DSuppliers.memoize(
+        () -> {
+          Map<String, Map<String, String>> builder = Maps.newHashMap();
+          for (SegmentAnalysis schema : supplier.get()) {
+            for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
+              if (!GuavaUtils.isNullOrEmpty(entry.getValue().getDescriptor())) {
+                builder.putIfAbsent(entry.getKey(), entry.getValue().getDescriptor());
+              }
+            }
+          }
+          return builder;
+        }
+    );
+    Supplier<Long> rowNum = () -> supplier.get().stream().mapToLong(SegmentAnalysis::getNumRows).sum();
+    this.statistic = DSuppliers.memoize(() -> Statistics.of(rowNum.get(), ImmutableList.of()));
   }
 
-  public long getTimestamp()
+  public DruidTable check(long threshold)
   {
-    return timestamp;
+    if (supplier.updated() > 0 && supplier.updated() + threshold < System.currentTimeMillis()) {
+      supplier.reset();
+      signature.reset();
+      descriptors.reset();
+      statistic.reset();
+    }
+    return this;
   }
 
   public DataSource getDataSource()
@@ -73,12 +111,12 @@ public class DruidTable implements TranslatableTable
 
   public RowSignature getRowSignature()
   {
-    return signature;
+    return signature.get();
   }
 
   public Map<String, Map<String, String>> getDescriptors()
   {
-    return descriptors;
+    return descriptors.get();
   }
 
   @Override
@@ -90,17 +128,17 @@ public class DruidTable implements TranslatableTable
   @Override
   public Statistic getStatistic()
   {
-    return statistic;
+    return statistic.get();
   }
 
   @Override
-  public RelDataType getRowType(final RelDataTypeFactory typeFactory)
+  public RelDataType getRowType(RelDataTypeFactory typeFactory)
   {
     return getRowSignature().toRelDataType(typeFactory);
   }
 
   @Override
-  public boolean isRolledUp(final String column)
+  public boolean isRolledUp(String column)
   {
     return false;
   }
@@ -139,16 +177,5 @@ public class DruidTable implements TranslatableTable
   public int hashCode()
   {
     return Objects.hashCode(dataSource);
-  }
-
-  @Override
-  public String toString()
-  {
-    return "DruidTable{" +
-           "dataSource=" + dataSource +
-           ", rowSignature=" + signature +
-           ", descriptors=" + descriptors +
-           ", rowCount=" + statistic.getRowCount() +
-           '}';
   }
 }

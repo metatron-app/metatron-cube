@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
@@ -44,6 +45,8 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.schema.ProjectableFilterableTable;
 import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Statistic;
@@ -55,7 +58,6 @@ import org.apache.calcite.schema.impl.AbstractTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nullable;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -283,11 +285,21 @@ public class InformationSchema extends AbstractSchema
     }
   }
 
-  class TablesTable extends AbstractTable implements ScannableTable
+  private static final int[] PROJECT_ALL = GuavaUtils.intsTo(TABLES_SIGNATURE.size());
+
+  class TablesTable extends AbstractTable implements ScannableTable, ProjectableFilterableTable
   {
     @Override
-    public Enumerable<Object[]> scan(final DataContext root)
+    public Enumerable<Object[]> scan(DataContext root)
     {
+      return scan(root, null, null);
+    }
+
+    @Override
+    public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters, int[] projects)
+    {
+      Preconditions.checkArgument(filters == null, "filter is not supported, yet");
+      final int[] projection = projects == null ? PROJECT_ALL : projects;
       final FluentIterable<Object[]> results = FluentIterable
           .from(rootSchema.getSubSchemaNames())
           .transformAndConcat(
@@ -297,44 +309,40 @@ public class InformationSchema extends AbstractSchema
                 public Iterable<Object[]> apply(final String schemaName)
                 {
                   final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
-                  return Iterables.filter(
-                      Iterables.concat(
-                          FluentIterable.from(subSchema.getTableNames()).transform(
-                              new Function<String, Object[]>()
-                              {
-                                @Override
-                                public Object[] apply(final String tableName)
-                                {
-                                  return new Object[]{
-                                      DRUID_CATALOG, // TABLE_CATALOG
-                                      schemaName, // TABLE_SCHEMA
-                                      tableName, // TABLE_NAME
-                                      subSchema.getTable(tableName).getJdbcTableType().toString() // TABLE_TYPE
-                                  };
-                                }
+                  return Iterables.concat(
+                      Iterables.transform(
+                          subSchema.getTableNames(),
+                          tableName -> {
+                            final Object[] row = new Object[projection.length];
+                            for (int i = 0; i < projection.length; i++) {
+                              switch (projection[i]) {
+                                case 0: row[i] = DRUID_CATALOG; continue;
+                                case 1: row[i] = schemaName; continue;
+                                case 2: row[i] = tableName; continue;
+                                case 3: row[i] = subSchema.getTable(tableName).getJdbcTableType().toString(); // todo
                               }
-                          ),
-                          FluentIterable.from(subSchema.getFunctionNames()).transform(
-                              new Function<String, Object[]>()
-                              {
-                                @Override
-                                public Object[] apply(final String functionName)
-                                {
-                                  if (getView(subSchema, functionName) != null) {
-                                    return new Object[]{
-                                        DRUID_CATALOG, // TABLE_CATALOG
-                                        schemaName, // TABLE_SCHEMA
-                                        functionName, // TABLE_NAME
-                                        "VIEW" // TABLE_TYPE
-                                    };
-                                  } else {
-                                    return null;
-                                  }
-                                }
-                              }
-                          )
+                            }
+                            return row;
+                          }
                       ),
-                      Predicates.notNull()
+                      Iterables.filter(Iterables.transform(
+                          subSchema.getFunctionNames(),
+                          functionName -> {
+                            if (getView(subSchema, functionName) == null) {
+                              return null;
+                            }
+                            final Object[] row = new Object[projection.length];
+                            for (int i = 0; i < projection.length; i++) {
+                              switch (projection[i]) {
+                                case 0: row[i] = DRUID_CATALOG; continue;
+                                case 1: row[i] = schemaName; continue;
+                                case 2: row[i] = functionName; continue;
+                                case 3: row[i] = "VIEW";
+                              }
+                            }
+                            return row;
+                          }
+                      ), Predicates.notNull())
                   );
                 }
               }
@@ -568,15 +576,11 @@ public class InformationSchema extends AbstractSchema
   {
     // Look for a zero-arg function that is also a TableMacro. The returned value
     // is never null so we don't need to check for that.
-    final Collection<org.apache.calcite.schema.Function> functions =
-        schemaPlus.getFunctions(functionName);
-
-    for (org.apache.calcite.schema.Function function : functions) {
+    for (org.apache.calcite.schema.Function function : schemaPlus.getFunctions(functionName)) {
       if (function.getParameters().isEmpty() && function instanceof TableMacro) {
         return (TableMacro) function;
       }
     }
-
     return null;
   }
 }

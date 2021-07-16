@@ -19,35 +19,34 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.google.common.collect.Lists;
+import io.druid.collections.IntList;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.DruidValuesRel;
 import io.druid.sql.calcite.rel.QueryMaker;
+import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptTable;
-import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.calcite.rel.logical.LogicalTableScan;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.schema.FilterableTable;
-import org.apache.calcite.tools.RelBuilder;
+import org.apache.calcite.schema.ProjectableFilterableTable;
 
-import java.util.List;
-
-public class DruidFilterableTableScanRule extends RelOptRule
+public class DruidProjectableTableScanRule extends RelOptRule
 {
   private final QueryMaker queryMaker;
 
-  public DruidFilterableTableScanRule(final QueryMaker queryMaker)
+  public DruidProjectableTableScanRule(final QueryMaker queryMaker)
   {
     super(
-        operand(
-            LogicalFilter.class,
+        operandJ(
+            LogicalProject.class,
+            null,
+            p -> Utils.isAllInputRef(p.getProjects()),
             some(
                 DruidRel.of(
                     LogicalTableScan.class,
-                    scan -> scan.getTable().unwrap(FilterableTable.class) != null
+                    scan -> scan.getTable().unwrap(ProjectableFilterableTable.class) != null
                 )
             )
         )
@@ -58,18 +57,15 @@ public class DruidFilterableTableScanRule extends RelOptRule
   @Override
   public void onMatch(final RelOptRuleCall call)
   {
-    final LogicalFilter filter = call.rel(0);
+    final LogicalProject project = call.rel(0);
     final LogicalTableScan scan = call.rel(1);
 
     final RelOptTable table = scan.getTable();
-    final List<RexNode> filters = Lists.newArrayList(Utils.decomposeOnAnd(filter.getCondition()));
-    final DruidValuesRel valuesRel = DruidValuesRel.of(
-        scan, filter, table.unwrap(FilterableTable.class).scan(null, filters), queryMaker
-    );
-    final RelBuilder relBuilder = call.builder().push(valuesRel);
-    if (!filters.isEmpty()) {
-      relBuilder.filter(filters.toArray(new RexNode[0]));
-    }
-    call.transformTo(relBuilder.build());
+    final IntList inputRefs = Utils.collectInputRefs(project.getProjects());
+
+    final Enumerable<Object[]> projected = table.unwrap(ProjectableFilterableTable.class)
+                                                .scan(null, null, inputRefs.array());
+
+    call.transformTo(DruidValuesRel.of(scan, project, projected, queryMaker));
   }
 }

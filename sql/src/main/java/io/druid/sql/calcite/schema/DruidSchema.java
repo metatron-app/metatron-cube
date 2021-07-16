@@ -26,26 +26,20 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import io.druid.client.ServerView;
 import io.druid.client.TimelineServerView;
-import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
-import io.druid.data.ValueDesc;
 import io.druid.guice.ManageLifecycle;
-import io.druid.query.Query;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
-import io.druid.query.metadata.metadata.ColumnAnalysis;
-import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.sql.calcite.table.DruidTable;
-import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.view.DruidViewMacro;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.timeline.DataSegment;
@@ -53,7 +47,6 @@ import org.apache.calcite.schema.Table;
 import org.apache.calcite.schema.impl.AbstractSchema;
 
 import java.util.AbstractMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -64,7 +57,7 @@ public class DruidSchema extends AbstractSchema
     implements BiFunction<String, DruidTable, DruidTable>
 {
   public static final String NAME = "druid";
-  public static final long CACHE_VALID_MSEC = 300_000;   // 5 min
+  public static final long CACHE_VALID_MSEC = 600_000;   // 10 min
 
   private final QuerySegmentWalker segmentWalker;
   private final TimelineServerView serverView;
@@ -147,31 +140,17 @@ public class DruidSchema extends AbstractSchema
   @Override
   public DruidTable apply(String tableName, DruidTable prev)
   {
-    if (prev != null && prev.getTimestamp() + CACHE_VALID_MSEC > System.currentTimeMillis()) {
-      return prev;
+    if (prev != null) {
+      return prev.check(CACHE_VALID_MSEC);
     }
     if (serverView.getTimeline(tableName) == null) {
       return null;
     }
-    Query<SegmentAnalysis> metaQuery = SegmentMetadataQuery.of(tableName, AnalysisType.INTERVAL)
-                                                           .withId(UUID.randomUUID().toString());
-    List<SegmentAnalysis> schemas = Sequences.toList(QueryRunners.run(metaQuery, segmentWalker));
-
-    long numRows = 0;
-    Set<String> columns = Sets.newHashSet();
-    Map<String, Map<String, String>> descriptors = Maps.newHashMap();
-    RowSignature.Builder builder = RowSignature.builder();
-    for (SegmentAnalysis schema : Lists.reverse(schemas)) {
-      for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
-        if (columns.add(entry.getKey())) {
-          builder.add(entry.getKey(), ValueDesc.of(entry.getValue().getType()));
-          if (!GuavaUtils.isNullOrEmpty(entry.getValue().getDescriptor())) {
-            descriptors.put(entry.getKey(), entry.getValue().getDescriptor());
-          }
-        }
-      }
-      numRows += schema.getNumRows();
-    }
-    return new DruidTable(TableDataSource.of(tableName), builder.sort().build(), descriptors, numRows);
+    return new DruidTable(
+        TableDataSource.of(tableName),
+        DSuppliers.memoize(() -> Lists.reverse(Sequences.toList(QueryRunners.run(
+            SegmentMetadataQuery.of(tableName, AnalysisType.INTERVAL)
+                                .withId(UUID.randomUUID().toString()), segmentWalker)))
+        ));
   }
 }

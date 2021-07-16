@@ -165,7 +165,7 @@ public class DSuppliers
   public static class Memoizing<T> implements Supplier<T>
   {
     private final Supplier<T> delegate;
-    private volatile boolean initialized;
+    private volatile long initialized = -1;
     private T value;
 
     Memoizing(Supplier<T> delegate)
@@ -173,13 +173,24 @@ public class DSuppliers
       this.delegate = delegate;
     }
 
+    public synchronized void reset()
+    {
+      initialized = -1;
+      value = null;
+    }
+
+    public synchronized long updated()
+    {
+      return initialized;
+    }
+
     public boolean initialized()
     {
-      if (initialized) {
+      if (initialized > 0) {
         return true;
       }
       synchronized (this) {
-        return initialized;
+        return initialized > 0;
       }
     }
 
@@ -187,12 +198,12 @@ public class DSuppliers
     public T get()
     {
       // A 2-field variant of Double Checked Locking.
-      if (!initialized) {
+      if (initialized < 0) {
         synchronized (this) {
-          if (!initialized) {
+          if (initialized < 0) {
             T t = delegate.get();
             value = t;
-            initialized = true;
+            initialized = System.currentTimeMillis();
             return t;
           }
         }
