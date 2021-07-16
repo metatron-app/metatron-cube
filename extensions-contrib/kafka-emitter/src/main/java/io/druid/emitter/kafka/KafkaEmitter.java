@@ -22,6 +22,8 @@ package io.druid.emitter.kafka;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
+import io.druid.common.utils.StringUtils;
+import io.druid.emitter.kafka.MemoryBoundLinkedBlockingQueue.ObjectContainer;
 import io.druid.java.util.common.lifecycle.LifecycleStart;
 import io.druid.java.util.common.lifecycle.LifecycleStop;
 import io.druid.java.util.common.logger.Logger;
@@ -30,8 +32,6 @@ import io.druid.java.util.emitter.core.Event;
 import io.druid.java.util.emitter.service.AlertEvent;
 import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
-import io.druid.common.utils.StringUtils;
-import io.druid.emitter.kafka.MemoryBoundLinkedBlockingQueue.ObjectContainer;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -47,6 +47,7 @@ import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class KafkaEmitter implements Emitter
@@ -67,6 +68,8 @@ public class KafkaEmitter implements Emitter
   private final MemoryBoundLinkedBlockingQueue<String> alertQueue;
   private final MemoryBoundLinkedBlockingQueue<String> queryQueue;
   private final ScheduledExecutorService scheduler;
+
+  private final AtomicBoolean closed = new AtomicBoolean();
 
   public KafkaEmitter(KafkaEmitterConfig config, ObjectMapper jsonMapper)
   {
@@ -132,33 +135,10 @@ public class KafkaEmitter implements Emitter
   @LifecycleStart
   public void start()
   {
-    scheduler.scheduleWithFixedDelay(
-        new Runnable()
-        {
-          @Override
-          public void run()
-          {
-            KafkaEmitter.this.sendMetricToKafka();
-          }
-        }, 10, 10, TimeUnit.SECONDS);
-    scheduler.scheduleWithFixedDelay(
-        new Runnable()
-        {
-          @Override
-          public void run()
-          {
-            KafkaEmitter.this.sendAlertToKafka();
-          }
-        }, 10, 10, TimeUnit.SECONDS);
-    scheduler.scheduleWithFixedDelay(
-        new Runnable()
-        {
-          @Override
-          public void run()
-          {
-            KafkaEmitter.this.sendQueryToKafka();
-          }
-        }, 10, 10, TimeUnit.SECONDS);
+    log.info("Starting Kafka Emitter.");
+    scheduler.schedule(this::sendMetricToKafka, 10, TimeUnit.SECONDS);
+    scheduler.schedule(this::sendAlertToKafka, 10, TimeUnit.SECONDS);
+    scheduler.schedule(this::sendQueryToKafka, 10, TimeUnit.SECONDS);
     scheduler.scheduleWithFixedDelay(
         new Runnable()
         {
@@ -171,7 +151,6 @@ public class KafkaEmitter implements Emitter
             );
           }
         }, 5, 5, TimeUnit.MINUTES);
-    log.info("Starting Kafka Emitter.");
   }
 
   private void sendMetricToKafka()
@@ -189,17 +168,15 @@ public class KafkaEmitter implements Emitter
     sendToKafka(config.getQueryTopic(), queryQueue);
   }
 
-  private void sendToKafka(final String topic, MemoryBoundLinkedBlockingQueue<String> recordQueue)
+  private void sendToKafka(final String topic, final MemoryBoundLinkedBlockingQueue<String> recordQueue)
   {
-    ObjectContainer<String> objectToSend;
     try {
-      while (true) {
-        objectToSend = recordQueue.take();
-        producer.send(new ProducerRecord<>(topic, objectToSend.getData()), producerCallback);
+      while (!closed.get()) {
+        producer.send(new ProducerRecord<>(topic, recordQueue.take().getData()), producerCallback);
       }
     }
-    catch (InterruptedException e) {
-      log.warn(e, "Failed to take record from queue!");
+    catch (Throwable t) {
+      log.warn(t, "Failed to send record to topic [%s].. remaining [%d] records", topic, recordQueue.size());
     }
   }
 
@@ -267,7 +244,9 @@ public class KafkaEmitter implements Emitter
   @LifecycleStop
   public void close()
   {
-    scheduler.shutdownNow();
-    producer.close();
+    if (closed.compareAndSet(false, true)) {
+      scheduler.shutdownNow();
+      producer.close();
+    }
   }
 }

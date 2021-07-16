@@ -61,6 +61,11 @@ public class MemoryBoundLinkedBlockingQueue<T>
     return ret;
   }
 
+  public int size()
+  {
+    return queue.size();
+  }
+
   public static class ObjectContainer<T>
   {
     private T data;
