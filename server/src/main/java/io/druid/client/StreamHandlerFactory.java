@@ -186,8 +186,6 @@ public class StreamHandlerFactory
       );
     }
 
-    private static final long POLLING_INTERVAL = 3_000;
-
     private void enqueue(ChannelBuffer contents)
     {
       final InputStream stream = new ChannelBufferInputStream(contents);
@@ -197,12 +195,16 @@ public class StreamHandlerFactory
         }
       }
       catch (InterruptedException e) {
-        LOG.error(e, "Enqueue interrupted");
-        Thread.currentThread().interrupt();
-        throw Throwables.propagate(e);
+        if (!done.get()) {
+          LOG.error(e, "Enqueue interrupted");
+          Thread.currentThread().interrupt();
+          throw Throwables.propagate(e);
+        }
       }
       catch (Exception e) {
-        throw QueryInterruptedException.wrapIfNeeded(e);
+        if (!done.get()) {
+          throw QueryInterruptedException.wrapIfNeeded(e);
+        }
       }
     }
 
@@ -212,12 +214,17 @@ public class StreamHandlerFactory
         return watch.dequeue(queue);
       }
       catch (InterruptedException e) {
-        LOG.error(e, "Dequeue interrupted");
-        Thread.currentThread().interrupt();
-        throw Throwables.propagate(e);
+        if (!done.get()) {
+          LOG.error(e, "Dequeue interrupted");
+          Thread.currentThread().interrupt();
+          throw Throwables.propagate(e);
+        }
       } catch (Exception e) {
-        throw QueryInterruptedException.wrapIfNeeded(e);
+        if (!done.get()) {
+          throw QueryInterruptedException.wrapIfNeeded(e);
+        }
       }
+      return EMPTY;
     }
 
     @Override
