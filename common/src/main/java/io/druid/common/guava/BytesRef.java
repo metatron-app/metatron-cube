@@ -19,6 +19,9 @@
 
 package io.druid.common.guava;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import java.util.Arrays;
 
 public class BytesRef
@@ -26,6 +29,7 @@ public class BytesRef
   public final byte[] bytes;
   public final int length;
 
+  @JsonCreator
   public BytesRef(byte[] bytes)
   {
     this(bytes, bytes.length);
@@ -37,6 +41,7 @@ public class BytesRef
     this.length = length;
   }
 
+  @JsonValue
   public byte[] asArray()
   {
     return Arrays.copyOfRange(bytes, 0, length);

@@ -81,6 +81,7 @@ import java.util.regex.Pattern;
     @JsonSubTypes.Type(name = "bloom", value = BloomDimFilter.class),
     @JsonSubTypes.Type(name = "bloom.factory", value = BloomDimFilter.Factory.class),
     @JsonSubTypes.Type(name = "prefix", value = PrefixDimFilter.class),
+    @JsonSubTypes.Type(name = "in.compressed", value = CompressedInFilter.class),
 })
 public interface DimFilter extends Expression, Cacheable
 {
@@ -142,7 +143,7 @@ public interface DimFilter extends Expression, Cacheable
     }
   }
 
-  abstract class FilterFactory implements Rewriting
+  abstract class FilterFactory implements DimFilter
   {
     @Override
     public void addDependent(Set<String> handler)
@@ -384,6 +385,11 @@ public interface DimFilter extends Expression, Cacheable
   interface Rewriting extends DimFilter
   {
     DimFilter rewrite(QuerySegmentWalker walker, Query parent);
+  }
+
+  interface Compressed extends LogProvider
+  {
+    DimFilter decompress(Query parent);
   }
 
   interface VCInflator extends DimFilter

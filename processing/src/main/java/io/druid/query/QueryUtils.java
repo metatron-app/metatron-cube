@@ -383,6 +383,18 @@ public class QueryUtils
   }
 
   @SuppressWarnings("unchecked")
+  public static <T> Query<T> compress(Query query)
+  {
+    return Queries.iterate(query, input -> DimFilters.rewrite(input, DimFilters.compressor(input)));
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> Query<T> decompress(Query query)
+  {
+    return Queries.iterate(query, input -> DimFilters.rewrite(input, DimFilters.decompressor(input)));
+  }
+
+  @SuppressWarnings("unchecked")
   public static <T extends Query> T rewrite(
       final Query query,
       final QuerySegmentWalker segmentWalker,

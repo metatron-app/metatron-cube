@@ -664,6 +664,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       @Override
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
+        query = QueryUtils.decompress(QueryUtils.compress(query));
         return QueryUtils.mergeSort(query, Arrays.asList(
             toLocalQueryRunner(query, getSegment(query, 0)).run(query, responseContext),
             toLocalQueryRunner(query, getSegment(query, 1)).run(query, responseContext)

@@ -217,6 +217,11 @@ public class BloomKFilter implements HashCollector.ScanSupport
     return output.toByteArray();
   }
 
+  public int length()
+  {
+    return Byte.BYTES + Integer.BYTES + bitSet.bitSize();
+  }
+
   public static void init(ByteBuffer in, int position, int maxNumEntries)
   {
     ByteBuffer duplicated = in.duplicate().order(ByteOrder.BIG_ENDIAN);

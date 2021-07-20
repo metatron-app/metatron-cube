@@ -42,6 +42,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ViewDataSource;
+import io.druid.query.filter.DimFilter.Compressed;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
@@ -303,6 +304,16 @@ public class DimFilters
         return expression;
       }
     };
+  }
+
+  public static Expressions.Rewriter<DimFilter> decompressor(final Query query)
+  {
+    return filter -> filter instanceof Compressed ? ((Compressed) filter).decompress(query) : filter;
+  }
+
+  public static Expressions.Rewriter<DimFilter> compressor(final Query query)
+  {
+    return filter -> filter instanceof InDimFilter ? CompressedInFilter.build((InDimFilter) filter) : filter;
   }
 
   public static boolean hasAnyLucene(final DimFilter filter)

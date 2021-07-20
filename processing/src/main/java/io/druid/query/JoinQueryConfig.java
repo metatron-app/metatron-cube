@@ -34,7 +34,7 @@ public class JoinQueryConfig
   private int hashJoinThreshold = 300_000;
 
   @JsonProperty
-  private int semiJoinThreshold = 1_000;
+  private int semiJoinThreshold = 5_000;
 
   @JsonProperty
   private int broadcastJoinThreshold = 1_000;

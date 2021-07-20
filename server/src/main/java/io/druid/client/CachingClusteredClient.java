@@ -551,7 +551,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     if (!override.isEmpty()) {
       query = query.withOverriddenContext(override);
     }
-    return query.toLocalQuery();
+    return QueryUtils.compress(query.toLocalQuery());
   }
 
   private List<DruidServer> getManagementTargets(Query<T> query) throws Exception

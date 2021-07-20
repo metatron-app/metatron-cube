@@ -401,7 +401,9 @@ public class QueryResource
 
   protected Query prepareQuery(Query query, RequestContext context) throws Exception
   {
-    return BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout());
+    return QueryUtils.decompress(
+        BaseQuery.enforceTimeout(query, warehouse.getQueryConfig().getMaxQueryTimeout())
+    );
   }
 
   protected class RequestContext
