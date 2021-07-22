@@ -131,22 +131,21 @@ public class DataSources
   public static boolean isDataNodeSourced(DataSource source)
   {
     if (source instanceof QueryDataSource) {
-      Query inner = ((QueryDataSource) source).getQuery();
-      if (inner.getContextValue(Query.POST_PROCESSING) != null) {
-        return false;
-      }
-      if (!(inner.getDataSource() instanceof TableDataSource)) {
-        return false;
-      }
-      if (inner instanceof StreamQuery) {
-        StreamQuery stream = (StreamQuery) inner;
-        if (stream.getLimitSpec().isNoop() || stream.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
-          return true;
-        }
-      }
-      return false;
+      return isDataNodeSourced(((QueryDataSource) source).getQuery());
     }
-    return true;
+    return source instanceof TableDataSource || source instanceof ViewDataSource;
+  }
+
+  private static boolean isDataNodeSourced(Query<?> query)
+  {
+    if (query instanceof StreamQuery && query.getDataSource() instanceof TableDataSource) {
+      StreamQuery stream = (StreamQuery) query;
+      if (stream.getContextValue(Query.POST_PROCESSING) != null) {
+        return false;
+      }
+      return stream.getLimitSpec().isNoop() || stream.getContextValue(Query.LOCAL_POST_PROCESSING) == null;
+    }
+    return false;
   }
 
   public static List<String> getInvariantColumns(DataSource dataSource)

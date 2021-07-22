@@ -363,7 +363,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
-        limitSpec.isNoop() ? null : limitSpec,
+        limitSpec == null || limitSpec.isNoop() ? null : limitSpec,
         getOutputColumns(),
         getLateralView(),
         getContext()

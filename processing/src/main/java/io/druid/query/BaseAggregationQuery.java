@@ -421,7 +421,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     return result;
   }
 
-  public static abstract class Builder<T>
+  public static abstract class Builder<T extends BaseAggregationQuery>
   {
     protected DataSource dataSource;
     protected QuerySegmentSpec querySegmentSpec;

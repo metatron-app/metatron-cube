@@ -90,43 +90,50 @@ public class QueryConfig
 
   public int getMaxResults(Query<?> query)
   {
-    int systemMax = maxResults <= 0 ? getGroupBy().getMaxResults() : maxResults;
-    int userMax = query.getContextValue(Query.MAX_RESULTS, -1);
-    return userMax <= 0 ? systemMax : Math.min(systemMax, userMax);
+    return maxedBySystem(query, Query.MAX_RESULTS, maxResults <= 0 ? getGroupBy().getMaxResults() : maxResults);
   }
 
   public int getQueryParallelism(Query<?> query)
   {
-    final int systemMax = maxQueryParallelism;
-    final int userMax = query.getContextInt(Query.MAX_QUERY_PARALLELISM, QueryRunners.MAX_QUERY_PARALLELISM);
-    return Math.min(systemMax, userMax);
+    return maxedBySystem(query, Query.MAX_QUERY_PARALLELISM, maxQueryParallelism);
   }
 
   public int getHashJoinThreshold(Query<?> query)
   {
-    final int systemMax = getJoin().getHashJoinThreshold();
-    final int userMax = query.getContextInt(Query.HASHJOIN_THRESHOLD, -1);
-    return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
+    return maxedBySystem(query, Query.HASHJOIN_THRESHOLD, getJoin().getHashJoinThreshold());
   }
 
   public int getSemiJoinThreshold(Query<?> query)
   {
-    final int systemMax = getJoin().getSemiJoinThreshold();
-    final int userMax = query.getContextInt(Query.SEMIJOIN_THRESHOLD, -1);
-    return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
+    return maxedBySystem(query, Query.SEMIJOIN_THRESHOLD, getJoin().getSemiJoinThreshold());
   }
 
   public int getBroadcastJoinThreshold(Query<?> query)
   {
-    final int systemMax = getJoin().getBroadcastJoinThreshold();
-    final int userMax = query.getContextInt(Query.BROADCASTJOIN_THRESHOLD, -1);
-    return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
+    return maxedBySystem(query, Query.BROADCASTJOIN_THRESHOLD, getJoin().getBroadcastJoinThreshold());
   }
 
   public int getBloomFilterThreshold(Query<?> query)
   {
-    final int systemMax = getJoin().getBloomFilterThreshold();
-    final int userMax = query.getContextInt(Query.BLOOMFILTER_THRESHOLD, -1);
+    return maxedBySystem(query, Query.BLOOMFILTER_THRESHOLD, getJoin().getBloomFilterThreshold());
+  }
+
+  public int getForcedFilterHugeThreshold(Query<?> query)
+  {
+    return maxedBySystem(query, Query.FORCEDFILTER_HUGE_THRESHOLD, getJoin().getForcedFilterHugeThreshold());
+  }
+
+  public int getForcedFilterTinyThreshold(Query<?> query)
+  {
+    return maxedBySystem(query, Query.FORCEDFILTER_TINY_THRESHOLD, getJoin().getForcedFilterTinyThreshold());
+  }
+
+  private int maxedBySystem(Query<?> query, String key, int systemMax)
+  {
+    if (!query.hasContext(key)) {
+      return systemMax;
+    }
+    int userMax = query.getContextInt(key, -1);
     return userMax <= 0 ? systemMax : systemMax <= 0 ? userMax : Math.min(systemMax, userMax);
   }
 

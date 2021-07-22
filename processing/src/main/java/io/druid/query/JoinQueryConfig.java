@@ -21,8 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.validation.constraints.Min;
-
 /**
  */
 public class JoinQueryConfig
@@ -39,9 +37,14 @@ public class JoinQueryConfig
   @JsonProperty
   private int broadcastJoinThreshold = 1_000;
 
-  @Min(0)
   @JsonProperty
   private int bloomFilterThreshold = 500_000;
+
+  @JsonProperty
+  private int forcedFilterHugeThreshold = 10_000_000;
+
+  @JsonProperty
+  private int forcedFilterTinyThreshold = 10_000;
 
   public int getMaxOutputRow()
   {
@@ -96,5 +99,25 @@ public class JoinQueryConfig
   public void setBloomFilterThreshold(int bloomFilterThreshold)
   {
     this.bloomFilterThreshold = bloomFilterThreshold;
+  }
+
+  public int getForcedFilterHugeThreshold()
+  {
+    return forcedFilterHugeThreshold;
+  }
+
+  public void setForcedFilterHugeThreshold(int forcedFilterHugeThreshold)
+  {
+    this.forcedFilterHugeThreshold = forcedFilterHugeThreshold;
+  }
+
+  public int getForcedFilterTinyThreshold()
+  {
+    return forcedFilterTinyThreshold;
+  }
+
+  public void setForcedFilterTinyThreshold(int forcedFilterTinyThreshold)
+  {
+    this.forcedFilterTinyThreshold = forcedFilterTinyThreshold;
   }
 }

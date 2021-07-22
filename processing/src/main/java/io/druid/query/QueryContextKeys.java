@@ -67,6 +67,8 @@ public interface QueryContextKeys
   String SEMIJOIN_THRESHOLD = "semiJoinThreshold";
   String BROADCASTJOIN_THRESHOLD = "broadcastJoinThreshold";
   String BLOOMFILTER_THRESHOLD = "bloomFilterThreshold";
+  String FORCEDFILTER_HUGE_THRESHOLD = "forcedFilterHugeThreshold";
+  String FORCEDFILTER_TINY_THRESHOLD = "forcedFilterTinyThreshold";
 
   // jmx
   String PREVIOUS_JMX = "previousJmx";

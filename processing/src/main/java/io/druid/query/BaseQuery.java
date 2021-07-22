@@ -410,6 +410,12 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
+  public boolean hasContext(String key)
+  {
+    return context != null && context.containsKey(key);
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public <ContextType> ContextType getContextValue(String key)
   {

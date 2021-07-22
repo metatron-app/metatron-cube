@@ -222,6 +222,12 @@ public class JoinElement
     return leftJoinColumns.isEmpty();
   }
 
+  @JsonIgnore
+  public boolean isInnerJoin()
+  {
+    return joinType == JoinType.INNER && !leftJoinColumns.isEmpty();
+  }
+
   public void earlyCheckMaxJoin(long leftEstimated, long rightEstimated, int maxResult)
   {
     if (maxResult <= 0) {
@@ -307,6 +313,67 @@ public class JoinElement
       }
     }
     return false;
+  }
+
+  public Query.ArrayOutputSupport convertLeftToFilter(Query<?> left, Query<?> right)
+  {
+    if (right instanceof Query.FilterSupport &&
+        DataSources.isDataNodeSourced(right.getDataSource()) &&
+        left.getDataSource() instanceof TableDataSource &&
+        left.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
+      if (right.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+        List<String> invariants = DataSources.getInvariantColumns(right);
+        if (invariants == null || !invariants.containsAll(rightJoinColumns)) {
+          return null;
+        }
+      }
+      return convert(left, leftJoinColumns);
+    }
+    return null;
+  }
+
+  public Query.ArrayOutputSupport convertRightToFilter(Query<?> left, Query<?> right)
+  {
+    if (left instanceof Query.FilterSupport &&
+        DataSources.isDataNodeSourced(left.getDataSource()) &&
+        right.getDataSource() instanceof TableDataSource &&
+        right.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
+      if (left.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+        List<String> invariants = DataSources.getInvariantColumns(left);
+        if (invariants == null || !invariants.containsAll(leftJoinColumns)) {
+          return null;
+        }
+      }
+      return convert(right, rightJoinColumns);
+    }
+    return null;
+  }
+
+  private static Query.ArrayOutputSupport convert(Query<?> query, List<String> joinColumns)
+  {
+    if (query instanceof StreamQuery) {
+      StreamQuery stream = (StreamQuery) query;
+      List<String> columns = stream.getColumns();
+      if (columns != null && columns.containsAll(joinColumns)) {
+        return stream.withColumns(joinColumns);
+      }
+    } else if (query instanceof BaseAggregationQuery) {
+      BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
+      List<DimensionSpec> dimensions = aggregation.getDimensions();
+      List<String> columns = DimensionSpecs.toOutputNames(dimensions);
+      if (columns != null && columns.containsAll(joinColumns)) {
+        List<DimensionSpec> ordered = Lists.newArrayList();
+        for (String joinColumn : joinColumns) {
+          ordered.add(dimensions.get(columns.indexOf(joinColumn)));
+        }
+        return Druids.builderFor(aggregation)
+                     .dimensions(ordered).aggregators().postAggregators().havingSpec(null)
+                     .lateralViewSpec(null).limitSpec(null).outputColumns(joinColumns)
+                     .context(BaseQuery.copyContextForMeta(aggregation))
+                     .build();
+      }
+    }
+    return null;
   }
 
   public static ArrayOutputSupport toQuery(

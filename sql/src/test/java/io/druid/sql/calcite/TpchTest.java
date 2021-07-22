@@ -168,42 +168,40 @@ public class TpchTest extends TpchTestHelper
     );
   }
 
-  @Test
-  public void tpch2() throws Exception
-  {
-    testQuery(
-        "WITH q2_min_ps_supplycost AS ("
-        + " SELECT"
-        + "    P_PARTKEY AS MIN_P_PARTKEY," 
-        + "    MIN(PS_SUPPLYCOST) AS MIN_PS_SUPPLYCOST"
-        + " FROM"
-        + "    part, partsupp, supplier, nation, region"
-        + " WHERE"
-        + "    P_PARTKEY = PS_PARTKEY AND"
-        + "    S_SUPPKEY = PS_SUPPKEY AND"
-        + "    S_NATIONKEY = N_NATIONKEY AND"
-        + "    N_REGIONKEY = R_REGIONKEY AND"
-        + "    R_NAME = 'EUROPE'"
-        + " GROUP BY P_PARTKEY"
-        + ")"
-        + " SELECT"
-        + "   S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT"
-        + " FROM"
-        + "   part, supplier, partsupp, nation, region, q2_min_ps_supplycost"
-        + " WHERE"
-        + "   P_PARTKEY = PS_PARTKEY AND"
-        + "   S_SUPPKEY = PS_SUPPKEY AND"
-        + "   P_SIZE = 37 AND"
-        + "   P_TYPE LIKE '%COPPER' AND" 
-        + "   S_NATIONKEY = N_NATIONKEY AND"
-        + "   N_REGIONKEY = R_REGIONKEY AND"
-        + "   R_NAME = 'EUROPE' AND"
-        + "   PS_SUPPLYCOST = MIN_PS_SUPPLYCOST AND"
-        + "   P_PARTKEY = MIN_P_PARTKEY"
-        + " ORDER BY"
-        + "   S_ACCTBAL DESC, N_NAME, S_NAME, P_PARTKEY"
-        + " LIMIT 100"
-        ,
+  public static final String TPCH2 =
+      "WITH q2_min_ps_supplycost AS ("
+      + " SELECT"
+      + "    P_PARTKEY AS MIN_P_PARTKEY,"
+      + "    MIN(PS_SUPPLYCOST) AS MIN_PS_SUPPLYCOST"
+      + " FROM"
+      + "    part, partsupp, supplier, nation, region"
+      + " WHERE"
+      + "    P_PARTKEY = PS_PARTKEY AND"
+      + "    S_SUPPKEY = PS_SUPPKEY AND"
+      + "    S_NATIONKEY = N_NATIONKEY AND"
+      + "    N_REGIONKEY = R_REGIONKEY AND"
+      + "    R_NAME = 'EUROPE'"
+      + " GROUP BY P_PARTKEY"
+      + ")"
+      + " SELECT"
+      + "   S_ACCTBAL, S_NAME, N_NAME, P_PARTKEY, P_MFGR, S_ADDRESS, S_PHONE, S_COMMENT"
+      + " FROM"
+      + "   part, supplier, partsupp, nation, region, q2_min_ps_supplycost"
+      + " WHERE"
+      + "   P_PARTKEY = PS_PARTKEY AND"
+      + "   S_SUPPKEY = PS_SUPPKEY AND"
+      + "   P_SIZE = 37 AND"
+      + "   P_TYPE LIKE '%COPPER' AND"
+      + "   S_NATIONKEY = N_NATIONKEY AND"
+      + "   N_REGIONKEY = R_REGIONKEY AND"
+      + "   R_NAME = 'EUROPE' AND"
+      + "   PS_SUPPLYCOST = MIN_PS_SUPPLYCOST AND"
+      + "   P_PARTKEY = MIN_P_PARTKEY"
+      + " ORDER BY"
+      + "   S_ACCTBAL DESC, N_NAME, S_NAME, P_PARTKEY"
+      + " LIMIT 100";
+
+    public static final String TPCH2_EXPLAIN =
         "DruidOuterQueryRel(sort=[$0:DESC, $2:ASC, $1:ASC, $3:ASC], fetch=[100])\n"
         + "  DruidJoinRel(joinType=[INNER], leftKeys=[7, 1], rightKeys=[1, 0], outputColumns=[2, 5, 8, 1, 0, 3, 6, 4])\n"
         + "    DruidJoinRel(joinType=[INNER], leftKeys=[9], rightKeys=[0], outputColumns=[0, 1, 2, 3, 4, 5, 6, 7, 8])\n"
@@ -224,11 +222,21 @@ public class TpchTest extends TpchTestHelper
         + "              DruidQueryRel(table=[druid.partsupp], scanProject=[$2, $3, $4])\n"
         + "            DruidQueryRel(table=[druid.supplier], scanProject=[$4, $6])\n"
         + "          DruidQueryRel(table=[druid.nation], scanProject=[$2, $3])\n"
-        + "        DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n"
-        ,
-        new Object[]{6820.35, "Supplier#000000007", "UNITED KINGDOM", "560", "Manufacturer#2", "s,4TicNGB4uO6PaSqNBUq", "33-990-965-2201", "s unwind silently furiously regular courts. final requests are deposits. requests wake quietly blit"},
-        new Object[]{3556.47, "Supplier#000000032", "UNITED KINGDOM", "381", "Manufacturer#5", "yvoD3TtZSx1skQNCK8agk5bZlZLug", "33-484-637-7873", "usly even depths. quickly ironic theodolites s"},
-        new Object[]{2972.26, "Supplier#000000016", "RUSSIA", "396", "Manufacturer#3", "YjP5C55zHDXL7LalK27zfQnwejdpin4AMpvh", "32-822-502-4215", "ously express ideas haggle quickly dugouts? fu"}
+        + "        DruidQueryRel(table=[druid.region], scanFilter=[=($1, 'EUROPE')], scanProject=[$2])\n";
+
+  public static final Object[][] TPCH2_RESULT = {
+      {6820.35, "Supplier#000000007", "UNITED KINGDOM", "560", "Manufacturer#2", "s,4TicNGB4uO6PaSqNBUq", "33-990-965-2201", "s unwind silently furiously regular courts. final requests are deposits. requests wake quietly blit"},
+      {3556.47, "Supplier#000000032", "UNITED KINGDOM", "381", "Manufacturer#5", "yvoD3TtZSx1skQNCK8agk5bZlZLug", "33-484-637-7873", "usly even depths. quickly ironic theodolites s"},
+      {2972.26, "Supplier#000000016", "RUSSIA", "396", "Manufacturer#3", "YjP5C55zHDXL7LalK27zfQnwejdpin4AMpvh", "32-822-502-4215", "ously express ideas haggle quickly dugouts? fu"}
+  };
+
+  @Test
+  public void tpch2() throws Exception
+  {
+    testQuery(
+        TPCH2,
+        TPCH2_EXPLAIN,
+        TPCH2_RESULT
     );
 
     if (broadcastJoin) {

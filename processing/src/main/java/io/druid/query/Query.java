@@ -118,6 +118,8 @@ public interface Query<T> extends QueryContextKeys
 
   Map<String, Object> getContext();
 
+  boolean hasContext(String key);
+
   <ContextType> ContextType getContextValue(String key);
 
   <ContextType> ContextType getContextValue(String key, ContextType defaultValue);

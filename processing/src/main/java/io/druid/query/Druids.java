@@ -36,6 +36,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -1404,5 +1405,15 @@ public class Druids
   public static JoinQueryBuilder newJoinQueryBuilder()
   {
     return new JoinQueryBuilder();
+  }
+
+  public static BaseAggregationQuery.Builder builderFor(BaseAggregationQuery query)
+  {
+    if (query instanceof GroupByQuery) {
+      return new GroupByQuery.Builder((GroupByQuery) query);
+    } else if (query instanceof TimeseriesQuery) {
+      return new TimeseriesQuery.Builder((TimeseriesQuery) query);
+    }
+    throw new UnsupportedOperationException("?? " + query.getClass());
   }
 }
