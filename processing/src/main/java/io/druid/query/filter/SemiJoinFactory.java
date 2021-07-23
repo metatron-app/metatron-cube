@@ -24,10 +24,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.segment.StringArray;
 import org.apache.commons.io.IOUtils;
 
+import java.io.Closeable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -36,43 +37,43 @@ public class SemiJoinFactory
 {
   public static DimFilter from(List<String> fieldNames, Sequence<Object[]> fieldValues, boolean allowDuplication)
   {
-    if (fieldNames.size() == 1) {
-      final Set<String> set = Sets.newTreeSet();
-      final CloseableIterator<Object[]> iterator = Sequences.toIterator(fieldValues);
-      try {
+    return from(fieldNames, Sequences.toIterator(fieldValues), allowDuplication);
+  }
+
+  public static DimFilter from(List<String> fieldNames, Iterator<Object[]> iterator, boolean allowDuplication)
+  {
+    try {
+      if (fieldNames.size() == 1) {
+        final Set<String> set = Sets.newTreeSet();
         while (iterator.hasNext()) {
           if (!set.add(Objects.toString(iterator.next()[0], "")) && !allowDuplication) {
             return null;
           }
         }
-      }
-      finally {
-        IOUtils.closeQuietly(iterator);
-      }
-      return new InDimFilter(fieldNames.get(0), null, ImmutableList.copyOf(set));
-    } else {
-      final Set<StringArray> set = Sets.newTreeSet();
-      final CloseableIterator<Object[]> iterator = Sequences.toIterator(fieldValues);
-      try {
+        return new InDimFilter(fieldNames.get(0), null, ImmutableList.copyOf(set));
+      } else {
+        final Set<StringArray> set = Sets.newTreeSet();
         while (iterator.hasNext()) {
           if (!set.add(StringArray.of(iterator.next(), "")) && !allowDuplication) {
             return null;
           }
         }
-      }
-      finally {
-        IOUtils.closeQuietly(iterator);
-      }
-      List<List<String>> valuesList = Lists.newArrayList();
-      for (int i = 0; i < fieldNames.size(); i++) {
-        valuesList.add(Lists.newArrayList());
-      }
-      for (StringArray array : set) {
+        List<List<String>> valuesList = Lists.newArrayList();
         for (int i = 0; i < fieldNames.size(); i++) {
-          valuesList.get(i).add(array.get(i));
+          valuesList.add(Lists.newArrayList());
         }
+        for (StringArray array : set) {
+          for (int i = 0; i < fieldNames.size(); i++) {
+            valuesList.get(i).add(array.get(i));
+          }
+        }
+        return new InDimsFilter(fieldNames, valuesList);
       }
-      return new InDimsFilter(fieldNames, valuesList);
+    }
+    finally {
+      if (iterator instanceof Closeable) {
+        IOUtils.closeQuietly((Closeable) iterator);
+      }
     }
   }
 }
