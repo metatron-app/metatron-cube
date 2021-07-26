@@ -216,6 +216,26 @@ public class PostProcessingOperators
     }
   }
 
+  public static PostProcessingOperator rewriteLast(
+      PostProcessingOperator processor,
+      IdentityFunction<PostProcessingOperator> converter
+  )
+  {
+    if (processor instanceof ListPostProcessingOperator) {
+      ListPostProcessingOperator<?> list = (ListPostProcessingOperator<?>) processor;
+      PostProcessingOperator last = GuavaUtils.lastOf(list.getProcessors());
+      PostProcessingOperator rewritten = converter.apply(last);
+      if (last != rewritten) {
+        List<PostProcessingOperator> processors = Lists.newArrayList(list.getProcessors());
+        processors.set(processors.size() - 1, rewritten);
+        return PostProcessingOperators.list(processors);
+      }
+      return processor;
+    } else {
+      return converter.apply(processor);
+    }
+  }
+
   @SuppressWarnings("unchecked")
   public static <T extends PostProcessingOperator> T find(PostProcessingOperator processor, Class<T> clazz)
   {

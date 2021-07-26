@@ -19,7 +19,6 @@
 
 package io.druid.query.filter;
 
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.BoundType;
@@ -44,7 +43,6 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ViewDataSource;
 import io.druid.query.filter.DimFilter.Compressed;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.bitmap.WrappedBitSetBitmap;
@@ -121,26 +119,6 @@ public class DimFilters
   public static NotDimFilter not(DimFilter filter)
   {
     return new NotDimFilter(filter);
-  }
-
-  public static List<DimFilter> optimize(
-      final List<DimFilter> filters,
-      final Segment segment,
-      final List<VirtualColumn> virtualColumns
-  )
-  {
-    return Lists.newArrayList(
-        Lists.transform(
-            filters, new Function<DimFilter, DimFilter>()
-            {
-              @Override
-              public DimFilter apply(DimFilter input)
-              {
-                return input.optimize(segment, virtualColumns);
-              }
-            }
-        )
-    );
   }
 
   public static List<DimFilter> filterNulls(List<DimFilter> optimized)

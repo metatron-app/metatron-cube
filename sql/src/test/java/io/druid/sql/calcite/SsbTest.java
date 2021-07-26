@@ -161,14 +161,25 @@ public class SsbTest extends SsbTestHelper
           "StreamQuery{dataSource='ssb_lineorder', filter=(BloomFilter{fieldNames=[LO_PARTKEY], groupingSets=Noop} && BloomFilter{fieldNames=[LO_SUPPKEY], groupingSets=Noop}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_date, leftJoinColumns=[LO_PARTKEY], rightAlias=ssb_part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_BRAND1:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_date+ssb_part, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:dimension.string}}]}"
       );
     } else {
-      hook.verifyHooked(
-          "uJf0xiaizK2n3sjWmUc2pg==",
-          "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}, StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_part', filter=P_CATEGORY=='MFGR#12', columns=[P_BRAND1, P_PARTKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
-          "StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}",
-          "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}",
-          "StreamQuery{dataSource='ssb_part', filter=P_CATEGORY=='MFGR#12', columns=[P_BRAND1, P_PARTKEY], $hash=true}",
-          "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}"
-      );
+      if (semiJoin) {
+        hook.verifyHooked(
+            "Zfxg1kDBaqQ/hs+MIPpCHw==",
+            "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='ssb_lineorder', filter=InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}, columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}, StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_part', filter=P_CATEGORY=='MFGR#12', columns=[P_BRAND1, P_PARTKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
+            "StreamQuery{dataSource='ssb_lineorder', filter=InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}, columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}",
+            "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}",
+            "StreamQuery{dataSource='ssb_part', filter=P_CATEGORY=='MFGR#12', columns=[P_BRAND1, P_PARTKEY], $hash=true}"
+        );
+      } else {
+        hook.verifyHooked(
+            "uJf0xiaizK2n3sjWmUc2pg==",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}, StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_part', filter=P_CATEGORY=='MFGR#12', columns=[P_BRAND1, P_PARTKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
+            "StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}",
+            "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}",
+            "StreamQuery{dataSource='ssb_part', filter=P_CATEGORY=='MFGR#12', columns=[P_BRAND1, P_PARTKEY], $hash=true}",
+            "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}"
+        );
+      }
     }
   }
 
@@ -208,14 +219,25 @@ public class SsbTest extends SsbTestHelper
           "StreamQuery{dataSource='ssb_lineorder', filter=(BloomFilter{fieldNames=[LO_PARTKEY], groupingSets=Noop} && BloomFilter{fieldNames=[LO_SUPPKEY], groupingSets=Noop}), columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time], localPostProcessing=ListPostProcessingOperator[BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder, leftJoinColumns=[__time], rightAlias=ssb_date, rightJoinColumns=[__time]}, hashLeft=false, hashSignature={D_YEAR:dimension.string, __time:long}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_date, leftJoinColumns=[LO_PARTKEY], rightAlias=ssb_part, rightJoinColumns=[P_PARTKEY]}, hashLeft=false, hashSignature={P_BRAND1:dimension.string, P_PARTKEY:dimension.string}}, BroadcastJoinProcessor{element=JoinElement{joinType=INNER, leftAlias=ssb_lineorder+ssb_date+ssb_part, leftJoinColumns=[LO_SUPPKEY], rightAlias=ssb_supplier, rightJoinColumns=[S_SUPPKEY]}, hashLeft=false, hashSignature={S_SUPPKEY:dimension.string}}]}"
       );
     } else {
-      hook.verifyHooked(
-          "Uj/exKsbHsp+qdoZOrRkBw==",
-          "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}, StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_part', filter=BoundDimFilter{MFGR#2221 <= P_BRAND1 <= MFGR#2228(lexicographic)}, columns=[P_BRAND1, P_PARTKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
-          "StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}",
-          "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}",
-          "StreamQuery{dataSource='ssb_part', filter=BoundDimFilter{MFGR#2221 <= P_BRAND1 <= MFGR#2228(lexicographic)}, columns=[P_BRAND1, P_PARTKEY], $hash=true}",
-          "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}"
-      );
+      if (semiJoin) {
+        hook.verifyHooked(
+            "//T+aiqM2KugFYlFQv+o1g==",
+            "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY]}",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='ssb_lineorder', filter=InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}, columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}, StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_part', filter=BoundDimFilter{MFGR#2221 <= P_BRAND1 <= MFGR#2228(lexicographic)}, columns=[P_BRAND1, P_PARTKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
+            "StreamQuery{dataSource='ssb_lineorder', filter=InDimFilter{dimension='LO_SUPPKEY', values=[1, 10, 3, 8]}, columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}",
+            "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}",
+            "StreamQuery{dataSource='ssb_part', filter=BoundDimFilter{MFGR#2221 <= P_BRAND1 <= MFGR#2228(lexicographic)}, columns=[P_BRAND1, P_PARTKEY], $hash=true}"
+        );
+      } else {
+        hook.verifyHooked(
+            "Uj/exKsbHsp+qdoZOrRkBw==",
+            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}, StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_part', filter=BoundDimFilter{MFGR#2221 <= P_BRAND1 <= MFGR#2228(lexicographic)}, columns=[P_BRAND1, P_PARTKEY], $hash=true}], timeColumnName=__time}, StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='D_YEAR', outputName='d0'}, DefaultDimensionSpec{dimension='P_BRAND1', outputName='d1'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='LO_REVENUE', inputType='double'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}, OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[a0, d0, d1]}",
+            "StreamQuery{dataSource='ssb_lineorder', columns=[LO_PARTKEY, LO_REVENUE, LO_SUPPKEY, __time]}",
+            "StreamQuery{dataSource='ssb_date', columns=[D_YEAR, __time], $hash=true}",
+            "StreamQuery{dataSource='ssb_part', filter=BoundDimFilter{MFGR#2221 <= P_BRAND1 <= MFGR#2228(lexicographic)}, columns=[P_BRAND1, P_PARTKEY], $hash=true}",
+            "StreamQuery{dataSource='ssb_supplier', filter=S_REGION=='AMERICA', columns=[S_SUPPKEY], $hash=true}"
+        );
+      }
     }
   }
 

@@ -591,11 +591,13 @@ public class GuavaUtils
     return Lists.newArrayList(Iterables.transform(fromList, function));
   }
 
-  public static Function<Object[], Object[]> mapper(final int[] indices)
+  public static Function<Object[], Object[]> mapper(List<String> source, List<String> target)
   {
-    if (isIdenticalIndex(indices)) {
-      return Functions.identity();
-    }
+    return target == null || source.equals(target) ? Functions.identity() : mapper(indexOf(source, target));
+  }
+
+  private static Function<Object[], Object[]> mapper(final int[] indices)
+  {
     return new Function<Object[], Object[]>()
     {
       @Override
@@ -603,7 +605,9 @@ public class GuavaUtils
       {
         final Object[] output = new Object[indices.length];
         for (int i = 0; i < indices.length; i++) {
-          output[i] = input[indices[i]];
+          if (indices[i] >= 0) {
+            output[i] = input[indices[i]];
+          }
         }
         return output;
       }

@@ -26,6 +26,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -549,6 +550,11 @@ public abstract class BaseQuery<T> implements Query<T>
   protected Map<String, Object> computeOverriddenContext(Map<String, Object> overrides)
   {
     return overrideContextWith(getContext(), overrides);
+  }
+
+  protected Map<String, Object> computeOverriddenContext(String key, Object value)
+  {
+    return overrideContextWith(getContext(), ImmutableMap.of(key, value));
   }
 
   protected static Map<String, Object> overrideContextWith(Map<String, Object> context, Map<String, Object> overrides)

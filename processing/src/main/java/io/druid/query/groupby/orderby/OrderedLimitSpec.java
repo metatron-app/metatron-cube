@@ -20,6 +20,7 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
@@ -71,7 +72,7 @@ public class OrderedLimitSpec implements Cacheable
 
   public OrderedLimitSpec withOrderingIfNotExists(List<OrderByColumnSpec> ordering)
   {
-    return !GuavaUtils.isNullOrEmpty(ordering) && GuavaUtils.isNullOrEmpty(columns) ? withOrderingSpec(ordering) : this;
+    return !GuavaUtils.isNullOrEmpty(ordering) && columns.isEmpty() ? withOrderingSpec(ordering) : this;
   }
 
   public boolean hasLimit()
@@ -79,9 +80,15 @@ public class OrderedLimitSpec implements Cacheable
     return limit > 0;
   }
 
+  @JsonIgnore
+  public boolean isSimpleLimiter()
+  {
+    return columns.isEmpty();
+  }
+
   public boolean isNoop()
   {
-    return GuavaUtils.isNullOrEmpty(columns) && !hasLimit();
+    return columns.isEmpty() && !hasLimit();
   }
 
   @Override

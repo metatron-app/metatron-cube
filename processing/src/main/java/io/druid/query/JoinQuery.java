@@ -365,9 +365,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<String> rightColumns = array.estimatedOutputColumns();
           if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
             boolean allowDuplication = JoinElement.allowDuplication(left, leftJoinColumns);
-            int[] indices = GuavaUtils.indexOf(rightColumns, rightJoinColumns);
-            Sequence<Object[]> fieldValues =
-                Sequences.map(QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices));
+            Sequence<Object[]> fieldValues = Sequences.map(
+                QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(rightColumns, rightJoinColumns)
+            );
             DimFilter semijoin = SemiJoinFactory.from(leftJoinColumns, fieldValues, allowDuplication);
             if (semijoin != null) {
               DataSource filtered = DataSources.applyFilterAndProjection(left, semijoin, outputColumns);
@@ -385,9 +385,9 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<String> leftColumns = array.estimatedOutputColumns();
           if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
             boolean allowDuplication = JoinElement.allowDuplication(right, rightJoinColumns);
-            int[] indices = GuavaUtils.indexOf(leftColumns, leftJoinColumns);
-            Sequence<Object[]> fieldValues =
-                Sequences.map(QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(indices));
+            Sequence<Object[]> fieldValues = Sequences.map(
+                QueryRunners.runArray(array, segmentWalker), GuavaUtils.mapper(leftColumns, leftJoinColumns)
+            );
             DimFilter semijoin = SemiJoinFactory.from(rightJoinColumns, fieldValues, allowDuplication);
             if (semijoin != null) {
               DataSource filtered = DataSources.applyFilterAndProjection(right, semijoin, outputColumns);
@@ -433,9 +433,10 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
           leftEstimated = Math.min(leftEstimated, values.size());
           if (leftEstimated < forcedFilterTinyThreshold && rightEstimated >= forcedFilterHugeThreshold) {
-            if (element.convertLeftToFilter(query0, query1) != null) {
-              int[] indices = GuavaUtils.indexOf(signature.columnNames, leftJoinColumns);
-              Iterator<Object[]> iterator = Iterators.transform(values.iterator(), GuavaUtils.mapper(indices));
+            if (element.forceLeftToFilter(query0, query1) != null) {
+              Iterator<Object[]> iterator = Iterators.transform(
+                  values.iterator(), GuavaUtils.mapper(signature.columnNames, leftJoinColumns)
+              );
               DimFilter filter = SemiJoinFactory.from(rightJoinColumns, iterator, true);
               if (filter != null) {
                 query1 = DimFilters.and((FilterSupport) query1, filter);
@@ -475,9 +476,10 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
           rightEstimated = Math.min(rightEstimated, values.size());
           if (rightEstimated < forcedFilterTinyThreshold && leftEstimated >= forcedFilterHugeThreshold) {
-            if (element.convertRightToFilter(query0, query1) != null) {
-              int[] indices = GuavaUtils.indexOf(signature.columnNames, rightJoinColumns);
-              Iterator<Object[]> iterator = Iterators.transform(values.iterator(), GuavaUtils.mapper(indices));
+            if (element.forceRightToFilter(query0, query1) != null) {
+              Iterator<Object[]> iterator = Iterators.transform(
+                  values.iterator(), GuavaUtils.mapper(signature.columnNames, rightJoinColumns)
+              );
               DimFilter filter = SemiJoinFactory.from(leftJoinColumns, iterator, true);
               if (filter != null) {
                 query0 = DimFilters.and((FilterSupport) query0, filter);
@@ -557,7 +559,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         Query query0 = queries.get(i);
         Query query1 = queries.get(i + 1);
         if (leftEstimated < forcedFilterTinyThreshold && rightEstimated >= forcedFilterHugeThreshold) {
-          Query.ArrayOutputSupport<?> converted = element.convertLeftToFilter(query0, query1);
+          Query.ArrayOutputSupport<?> converted = element.forceLeftToFilter(query0, query1);
           if (converted != null) {
             Sequence<Object[]> fieldValues = QueryRunners.runArray(converted, segmentWalker);
             DimFilter filter = SemiJoinFactory.from(rightJoinColumns, fieldValues, true);
@@ -569,7 +571,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           }
         }
         if (leftEstimated >= forcedFilterHugeThreshold && rightEstimated < forcedFilterTinyThreshold) {
-          Query.ArrayOutputSupport<?> converted = element.convertRightToFilter(query0, query1);
+          Query.ArrayOutputSupport<?> converted = element.forceRightToFilter(query0, query1);
           if (converted != null) {
             Sequence<Object[]> fieldValues = QueryRunners.runArray(converted, segmentWalker);
             DimFilter filter = SemiJoinFactory.from(leftJoinColumns, fieldValues, true);
@@ -882,6 +884,10 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     @Override
     public LastProjectionSupport<Object[]> withOutputColumns(List<String> outputColumns)
     {
+      PostProcessingOperator rewritten = PostProcessingOperators.rewriteLast(
+          getContextValue(Query.POST_PROCESSING),
+          p -> ((CommonJoinProcessor) p).withOutputColumns(outputColumns)
+      );
       return new JoinHolder(
           alias,
           getQueries(),
@@ -889,7 +895,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           outputAlias,
           outputColumns,
           getLimit(),
-          getContext()
+          computeOverriddenContext(Query.POST_PROCESSING, rewritten)
       ).withSchema(schema);
     }
 

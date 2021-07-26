@@ -90,6 +90,20 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
   }
 
   @Override
+  public CommonJoinProcessor withOutputColumns(List<String> outputColumns)
+  {
+    return new JoinPostProcessor(
+        config,
+        Arrays.asList(elements),
+        prefixAlias,
+        asMap,
+        outputAlias,
+        outputColumns,
+        maxOutputRow
+    );
+  }
+
+  @Override
   public QueryRunner postProcess(QueryRunner baseQueryRunner)
   {
     throw new UnsupportedOperationException("should be used with union all query");

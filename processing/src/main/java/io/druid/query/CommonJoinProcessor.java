@@ -29,7 +29,6 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.Rows;
-import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.segment.column.Column;
 
 import java.util.Iterator;
@@ -61,6 +60,8 @@ public abstract class CommonJoinProcessor extends JoinProcessor
   }
 
   public abstract CommonJoinProcessor withAsMap(boolean asMap);
+
+  public abstract CommonJoinProcessor withOutputColumns(List<String> outputColumns);
 
   @JsonProperty
   public boolean isPrefixAlias()
@@ -127,7 +128,7 @@ public abstract class CommonJoinProcessor extends JoinProcessor
           projectedNames, asRow ? GuavaUtils.map(iterator, Rows.mapToRow(Column.TIME_COLUMN_NAME)) : iterator
       );
     }
-    Iterator iterator = GuavaUtils.map(outputRows, LimitSpec.remap(outputAlias, projectedNames));
+    Iterator iterator = GuavaUtils.map(outputRows, GuavaUtils.mapper(outputAlias, projectedNames));
     return Sequences.once(projectedNames, asRow ? GuavaUtils.map(iterator, CompactRow.WRAP) : iterator);
   }
 

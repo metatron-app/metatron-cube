@@ -234,31 +234,32 @@ public class JoinElement
       return;
     }
     if (isCrossJoin() && leftEstimated > 0 && rightEstimated > 0 && leftEstimated * rightEstimated > maxResult) {
-      throw new ISE("Exceeding maxOutputRow of %d in %s + %s", maxResult, leftAlias, rightAlias);
+      throw _exceeding(maxResult, leftEstimated * rightEstimated);
     }
     if (joinType == JoinType.LO && leftEstimated > 0 && leftEstimated > maxResult) {
-      throw new ISE("Exceeding maxOutputRow of %d in %s + %s", maxResult, leftAlias, rightAlias);
+      throw _exceeding(maxResult, leftEstimated);
     }
     if (joinType == JoinType.RO && rightEstimated > 0 && rightEstimated > maxResult) {
-      throw new ISE("Exceeding maxOutputRow of %d in %s + %s", maxResult, leftAlias, rightAlias);
+      throw _exceeding(maxResult, rightEstimated);
     }
+  }
+
+  private ISE _exceeding(int maxResult, long estimated)
+  {
+    return new ISE("Exceeding maxOutputRow of %d in %s + %s (%d)", maxResult, leftAlias, rightAlias, estimated);
   }
 
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
-      if (left instanceof QueryDataSource
-          && ((QueryDataSource) left).getQuery().getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+      if (DataSources.isBroadcasting(left)) {
         return false;   // todo apply projection to broadcast processor if possible
       }
-      List<String> leftInvariantColumns = DataSources.getInvariantColumns(left);
-      if (leftInvariantColumns == null || !leftInvariantColumns.containsAll(leftJoinColumns)) {
+      List<String> rightOutputColumns = DataSources.getOutputColumns(right);
+      if (rightOutputColumns == null || GuavaUtils.containsAny(outputColumns, rightOutputColumns)) {
         return false;
       }
-      List<String> rightOutputColumns = DataSources.getOutputColumns(right);
-      if (rightOutputColumns != null && !GuavaUtils.containsAny(outputColumns, rightOutputColumns)) {
-        return true;
-      }
+      return DataSources.isFilterable(left, leftJoinColumns);
     }
     return false;
   }
@@ -266,18 +267,14 @@ public class JoinElement
   public boolean isRightSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
-      if (right instanceof QueryDataSource
-          && ((QueryDataSource) right).getQuery().getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+      if (DataSources.isBroadcasting(right)) {
         return false;   // todo apply projection to broadcast processor if possible
       }
-      List<String> rightInvariantColumns = DataSources.getInvariantColumns(right);
-      if (rightInvariantColumns == null || !rightInvariantColumns.containsAll(rightJoinColumns)) {
+      List<String> leftOutputColumns = DataSources.getOutputColumns(left);
+      if (leftOutputColumns == null || GuavaUtils.containsAny(outputColumns, leftOutputColumns)) {
         return false;
       }
-      List<String> leftOutputColumns = DataSources.getOutputColumns(left);
-      if (leftOutputColumns != null && !GuavaUtils.containsAny(outputColumns, leftOutputColumns)) {
-        return true;
-      }
+      return DataSources.isFilterable(right, rightJoinColumns);
     }
     return false;
   }
@@ -285,9 +282,12 @@ public class JoinElement
   public static boolean allowDuplication(DataSource dataSource, List<String> keys)
   {
     if (dataSource instanceof QueryDataSource) {
-      List<DimensionSpec> dimensions = BaseQuery.getDimensions(((QueryDataSource) dataSource).getQuery());
-      if (!dimensions.isEmpty() && DimensionSpecs.isAllDefault(dimensions)) {
-        return Sets.newHashSet(DimensionSpecs.toOutputNames(dimensions)).containsAll(keys);
+      Query<?> query = ((QueryDataSource) dataSource).getQuery();
+      if (query instanceof Query.AggregationsSupport) {
+        List<DimensionSpec> dimensions = BaseQuery.getDimensions(query);
+        if (!dimensions.isEmpty() && DimensionSpecs.isAllDefault(dimensions)) {
+          return Sets.newHashSet(DimensionSpecs.toOutputNames(dimensions)).containsAll(keys);
+        }
       }
     }
     return false;
@@ -296,8 +296,7 @@ public class JoinElement
   public boolean isLeftBroadcastable(DataSource left, DataSource right)
   {
     if (joinType.isRightDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
-      List<String> columns = DataSources.getInvariantColumns(right);
-      if (columns != null && columns.containsAll(rightJoinColumns)) {
+      if (DataSources.isFilterable(right, rightJoinColumns)) {
         return true;
       }
     }
@@ -307,43 +306,26 @@ public class JoinElement
   public boolean isRightBroadcastable(DataSource left, DataSource right)
   {
     if (joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
-      List<String> columns = DataSources.getInvariantColumns(left);
-      if (columns != null && columns.containsAll(leftJoinColumns)) {
+      if (DataSources.isFilterable(left, leftJoinColumns)) {
         return true;
       }
     }
     return false;
   }
 
-  public Query.ArrayOutputSupport convertLeftToFilter(Query<?> left, Query<?> right)
+  public Query.ArrayOutputSupport forceLeftToFilter(Query<?> left, Query<?> right)
   {
-    if (right instanceof Query.FilterSupport &&
-        DataSources.isDataNodeSourced(right.getDataSource()) &&
-        left.getDataSource() instanceof TableDataSource &&
-        left.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
-      if (right.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
-        List<String> invariants = DataSources.getInvariantColumns(right);
-        if (invariants == null || !invariants.containsAll(rightJoinColumns)) {
-          return null;
-        }
-      }
+    if (DataSources.isDataNodeSourced(right) && DataSources.isFilterable(right, rightJoinColumns) &&
+        DataSources.isDataNodeSourced(left) && !DataSources.isBroadcasting(left)) {
       return convert(left, leftJoinColumns);
     }
     return null;
   }
 
-  public Query.ArrayOutputSupport convertRightToFilter(Query<?> left, Query<?> right)
+  public Query.ArrayOutputSupport forceRightToFilter(Query<?> left, Query<?> right)
   {
-    if (left instanceof Query.FilterSupport &&
-        DataSources.isDataNodeSourced(left.getDataSource()) &&
-        right.getDataSource() instanceof TableDataSource &&
-        right.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
-      if (left.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
-        List<String> invariants = DataSources.getInvariantColumns(left);
-        if (invariants == null || !invariants.containsAll(leftJoinColumns)) {
-          return null;
-        }
-      }
+    if (DataSources.isDataNodeSourced(left) && DataSources.isFilterable(left, leftJoinColumns) &&
+        DataSources.isDataNodeSourced(right) && !DataSources.isBroadcasting(right)) {
       return convert(right, rightJoinColumns);
     }
     return null;
@@ -404,8 +386,7 @@ public class JoinElement
         throw new UnsupportedOperationException("todo: cannot resolve output column names on " + query.getType());
       }
       if (!GuavaUtils.isNullOrEmpty(sortColumns) && query instanceof Query.OrderingSupport) {
-        if (!(query.getDataSource() instanceof QueryDataSource) &&
-            DataSources.getInvariantColumns(query).containsAll(sortColumns)) {
+        if (DataSources.isFilterSupport(dataSource) && DataSources.isFilterable(dataSource, sortColumns)) {
           query = ((Query.OrderingSupport) query).withResultOrdering(OrderByColumnSpec.ascending(sortColumns));
         }
       }

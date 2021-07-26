@@ -93,6 +93,24 @@ public class BroadcastJoinProcessor extends CommonJoinProcessor
     );
   }
 
+  @Override
+  public CommonJoinProcessor withOutputColumns(List<String> outputColumns)
+  {
+    return new BroadcastJoinProcessor(
+        mapper,
+        config,
+        element,
+        hashLeft,
+        hashSignature,
+        prefixAlias,
+        asMap,
+        outputAlias,
+        outputColumns,
+        maxOutputRow,
+        values
+    );
+  }
+
   @JsonProperty
   public boolean isHashLeft()
   {

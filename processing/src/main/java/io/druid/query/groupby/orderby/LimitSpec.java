@@ -20,6 +20,7 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -330,8 +331,9 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     if (windowingSpecs.isEmpty()) {
       Comparator<Object[]> ordering = new OrderingProcessor(query.getColumns(), null).toArrayOrdering(columns, false);
       Function<Sequence<Object[]>, Sequence<Object[]>> function = sequenceLimiter(ordering, limit);
-      if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
-        function = GuavaUtils.sequence(function, Sequences.mapper(outputColumns, remap(inputColumns, outputColumns)));
+      Function<Object[], Object[]> mapper = GuavaUtils.mapper(inputColumns, outputColumns);
+      if (mapper != Functions.<Object[]>identity()) {
+        function = GuavaUtils.sequence(function, Sequences.mapper(outputColumns, mapper));
       }
       return function;
     }
@@ -418,40 +420,18 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     return LimitSpec.sequenceLimiter(ordering, limit).apply(sequence);
   }
 
-  public static Function<Object[], Object[]> remap(List<String> source, List<String> target)
-  {
-    if (GuavaUtils.isNullOrEmpty(target) || source.equals(target)) {
-      return GuavaUtils.identity("remap");
-    }
-    final int[] mapping = new int[target.size()];
-    for (int i = 0; i < mapping.length; i++) {
-      mapping[i] = source.indexOf(target.get(i));
-    }
-    return new Function<Object[], Object[]>()
-    {
-      @Override
-      public Object[] apply(final Object[] input)
-      {
-        final Object[] output = new Object[mapping.length];
-        for (int i = 0; i < mapping.length; i++) {
-          if (mapping[i] >= 0) {
-            output[i] = input[mapping[i]];
-          }
-        }
-        return output;
-      }
-    };
-  }
-
+  @Override
+  @JsonIgnore
   public boolean isSimpleLimiter()
   {
-    return GuavaUtils.isNullOrEmpty(columns) &&
-           segmentLimit == null && nodeLimit == null && GuavaUtils.isNullOrEmpty(windowingSpecs);
+    return super.isSimpleLimiter() && segmentLimit == null && nodeLimit == null && windowingSpecs.isEmpty();
   }
 
+  @Override
+  @JsonIgnore
   public boolean isNoop()
   {
-    return super.isNoop() && segmentLimit == null && nodeLimit == null && GuavaUtils.isNullOrEmpty(windowingSpecs);
+    return super.isNoop() && segmentLimit == null && nodeLimit == null && windowingSpecs.isEmpty();
   }
 
   @Override
