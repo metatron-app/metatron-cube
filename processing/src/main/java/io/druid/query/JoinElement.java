@@ -293,26 +293,6 @@ public class JoinElement
     return false;
   }
 
-  public boolean isLeftBroadcastable(DataSource left, DataSource right)
-  {
-    if (joinType.isRightDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
-      if (DataSources.isFilterable(right, rightJoinColumns)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  public boolean isRightBroadcastable(DataSource left, DataSource right)
-  {
-    if (joinType.isLeftDrivable() && DataSources.isDataNodeSourced(left) && DataSources.isDataNodeSourced(right)) {
-      if (DataSources.isFilterable(left, leftJoinColumns)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   public Query.ArrayOutputSupport forceLeftToFilter(Query<?> left, Query<?> right)
   {
     if (DataSources.isDataNodeSourced(right) && DataSources.isFilterable(right, rightJoinColumns) &&

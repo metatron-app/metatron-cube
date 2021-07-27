@@ -406,11 +406,11 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         }
       }
 
-      if (i == 0 && broadcastThreshold > 0) {
-        boolean leftBroadcast =
-            isUnderThreshold(leftEstimated, broadcastThreshold) && element.isLeftBroadcastable(left, right);
-        boolean rightBroadcast =
-            isUnderThreshold(rightEstimated, broadcastThreshold) && element.isRightBroadcastable(left, right);
+      if (i == 0 && broadcastThreshold > 0 &&
+          DataSources.isDataNodeSourced(left) &&
+          DataSources.isDataNodeSourced(right)) {
+        boolean leftBroadcast = joinType.isRightDrivable() && isUnderThreshold(leftEstimated, broadcastThreshold);
+        boolean rightBroadcast = joinType.isLeftDrivable() && isUnderThreshold(rightEstimated, broadcastThreshold);
         if (leftBroadcast && rightBroadcast) {
           if (leftEstimated > rightEstimated) {
             leftBroadcast = false;
@@ -426,12 +426,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query0, segmentWalker));
           LOG.info("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
-          if (query0.hasFilters() && query1 instanceof FilterSupport && !element.isCrossJoin()) {
+          if (query0.hasFilters() && DataSources.isFilterable(query1, rightJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(
-                resolver, element.getLeftJoinColumns(), leftEstimated, values.iterator()
+                resolver, leftJoinColumns, leftEstimated, values.iterator()
             );
-            query1 = DimFilters.and((FilterSupport<?>) query1, BloomDimFilter.of(element.getRightJoinColumns(), bloom));
+            query1 = DataSources.applyFilter(query1, BloomDimFilter.of(rightJoinColumns, bloom));
             rightEstimated = rightEstimated > 0 && rightEstimated > broadcastThreshold ? rightEstimated >> 1 : rightEstimated;
             LOG.info(".. apply bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
           }
@@ -469,12 +469,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query1, segmentWalker));
           LOG.info("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
-          if (query1.hasFilters() && query0 instanceof FilterSupport && !element.isCrossJoin()) {
+          if (query1.hasFilters() && DataSources.isFilterable(query0, leftJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(
                 resolver, element.getRightJoinColumns(), rightEstimated, values.iterator()
             );
-            query0 = DimFilters.and((FilterSupport<?>) query0, BloomDimFilter.of(element.getLeftJoinColumns(), bloom));
+            query0 = DataSources.applyFilter(query0, BloomDimFilter.of(element.getLeftJoinColumns(), bloom));
             LOG.info("-- .. with bloom filter %s(%s) to %s (L)", rightAlias, BaseQuery.getDimFilter(query1), leftAlias);
             leftEstimated = leftEstimated > 0 && leftEstimated > broadcastThreshold ? leftEstimated >> 1 : leftEstimated;
           }
@@ -644,7 +644,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
   private boolean isUnderThreshold(long estimation, long threshold)
   {
-    return estimation >= 0 && threshold >= 0 && estimation < threshold;
+    return estimation >= 0 && threshold >= 0 && estimation <= threshold;
   }
 
   private long resultEstimation(JoinType type, long leftEstimation, long rightEstimated)
