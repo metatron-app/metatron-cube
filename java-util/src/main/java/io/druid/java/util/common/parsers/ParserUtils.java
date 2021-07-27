@@ -16,11 +16,9 @@ package io.druid.java.util.common.parsers;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Sets;
-import io.druid.java.util.common.IAE;
 import org.joda.time.DateTime;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Set;
 
 public class ParserUtils
@@ -59,27 +57,14 @@ public class ParserUtils
     return TimestampParser.createTimestampParser(format);
   }
 
-  public static Set<String> findDuplicates(Iterable<String> fieldNames)
-  {
-    Set<String> duplicates = Sets.newHashSet();
-    Set<String> uniqueNames = Sets.newHashSet();
-
-    for (String fieldName : fieldNames) {
-      String next = fieldName.toLowerCase();
-      if (uniqueNames.contains(next)) {
-        duplicates.add(next);
-      }
-      uniqueNames.add(next);
-    }
-
-    return duplicates;
-  }
-
   public static void validateFields(Iterable<String> fieldNames)
   {
-    Set<String> duplicates = findDuplicates(fieldNames);
-    if (!duplicates.isEmpty()) {
-      throw new ParseException("Duplicate column entries found : %s", duplicates.toString());
+    Set<String> uniqueNames = Sets.newHashSet();
+    for (String fieldName : fieldNames) {
+      String next = fieldName.toLowerCase();
+      if (!uniqueNames.add(next)) {
+        throw new ParseException("Duplicate column entries found : %s", next);
+      }
     }
   }
 
