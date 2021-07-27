@@ -36,6 +36,7 @@ import io.druid.granularity.Granularities;
 import io.druid.guice.annotations.Global;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.query.BaseQuery;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -233,7 +234,7 @@ public class GroupByQueryRunnerFactory
       QuerySegmentWalker segmentWalker
   )
   {
-    if (!Granularities.ALL.equals(query.getGranularity())) {
+    if (!Granularities.ALL.equals(query.getGranularity()) || BaseQuery.isBySegment(query)) {
       return null;  // cannot split on column
     }
     if (query.getLimitSpec().getSegmentLimit() != null) {
