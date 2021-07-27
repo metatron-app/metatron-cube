@@ -372,10 +372,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             if (semijoin != null) {
               DataSource filtered = DataSources.applyFilterAndProjection(left, semijoin, outputColumns);
               LOG.info("-- %s:%d (R) is merged into %s (L) as filter on %s", rightAlias, rightEstimated, leftAlias, leftJoinColumns);
-              queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
+              Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context);
               if (leftEstimated >= 0) {
-                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated) >> 1;
+                query = query.withOverriddenContext(CARDINALITY, currentEstimation);
               }
+              queries.add(query);
             }
             continue;
           }
@@ -392,10 +394,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             if (semijoin != null) {
               DataSource filtered = DataSources.applyFilterAndProjection(right, semijoin, outputColumns);
               LOG.info("-- %s:%d (L) is merged into %s (R) as filter on %s", leftAlias, leftEstimated, rightAlias, rightJoinColumns);
-              queries.add(JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context));
+              Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context);
               if (rightEstimated >= 0) {
-                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated) >> 1;
+                query = query.withOverriddenContext(CARDINALITY, currentEstimation);
               }
+              queries.add(query);
               continue;
             }
           }
