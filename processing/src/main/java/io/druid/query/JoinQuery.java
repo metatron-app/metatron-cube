@@ -303,7 +303,14 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
-      return query.getContextLong(CARDINALITY, ROWNUM_NOT_EVALUATED);
+      long estimate = query.getContextLong(CARDINALITY, ROWNUM_NOT_EVALUATED);
+      if (estimate == ROWNUM_NOT_EVALUATED) {
+        estimate = estimatedNumRows(query.getDataSource());
+        if (estimate > 0 && query instanceof AggregationsSupport) {
+          estimate = (long) Math.max(1, estimate * (1 - Math.pow(0.4, BaseQuery.getDimensions(query).size())));
+        }
+      }
+      return estimate;
     }
     return ROWNUM_NOT_EVALUATED;
   }
