@@ -36,6 +36,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.Query;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
@@ -51,7 +52,7 @@ import java.util.List;
 import java.util.Objects;
 
 @JsonTypeName("in")
-public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.LogProvider
+public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.LogProvider, DimFilter.Compressible
 {
   private final String dimension;
   private final ExtractionFn extractionFn;
@@ -244,5 +245,11 @@ public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.L
       );
     }
     return this;
+  }
+
+  @Override
+  public DimFilter compress(Query parent)
+  {
+    return CompressedInFilter.build(this);
   }
 }

@@ -29,6 +29,7 @@ import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
+import io.druid.query.Query;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
@@ -43,7 +44,7 @@ import java.util.Objects;
 import java.util.Set;
 
 @JsonTypeName("ins")
-public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
+public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider, DimFilter.Compressible
 {
   private final List<List<String>> values;
   private final List<String> dimensions;
@@ -237,5 +238,11 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
       return new InDimsFilter(dimensions, cut);
     }
     return this;
+  }
+
+  @Override
+  public DimFilter compress(Query parent)
+  {
+    return CompressedInsFilter.build(this);
   }
 }
