@@ -173,6 +173,12 @@ public class JoinElement
     return Preconditions.checkNotNull(found, "cannot find alias from %s", expression);
   }
 
+  @JsonIgnore
+  public String getJoinTypeString()
+  {
+    return isCrossJoin() ? "CROSS" : joinType.getName();
+  }
+
   @JsonProperty
   public JoinType getJoinType()
   {
@@ -297,8 +303,7 @@ public class JoinElement
 
   public Query.ArrayOutputSupport forceLeftToFilter(Query<?> left, Query<?> right)
   {
-    if (DataSources.isDataNodeSourced(right) && DataSources.isFilterableOn(right, rightJoinColumns) &&
-        DataSources.isDataNodeSourced(left) && !DataSources.isBroadcasting(left)) {
+    if (DataSources.isDataNodeSourced(right) && DataSources.isFilterableOn(right, rightJoinColumns)) {
       return convert(left, leftJoinColumns);
     }
     return null;
@@ -306,8 +311,7 @@ public class JoinElement
 
   public Query.ArrayOutputSupport forceRightToFilter(Query<?> left, Query<?> right)
   {
-    if (DataSources.isDataNodeSourced(left) && DataSources.isFilterableOn(left, leftJoinColumns) &&
-        DataSources.isDataNodeSourced(right) && !DataSources.isBroadcasting(right)) {
+    if (DataSources.isDataNodeSourced(left) && DataSources.isFilterableOn(left, leftJoinColumns)) {
       return convert(right, rightJoinColumns);
     }
     return null;
@@ -336,6 +340,8 @@ public class JoinElement
                      .context(BaseQuery.copyContextForMeta(aggregation))
                      .build();
       }
+    } else if (query instanceof JoinQuery.JoinHolder) {
+      return ((JoinQuery.JoinHolder) query).withOutputColumns(joinColumns);
     }
     return null;
   }

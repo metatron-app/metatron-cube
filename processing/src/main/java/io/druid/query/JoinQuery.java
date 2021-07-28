@@ -353,14 +353,14 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       if (rightEstimated == ROWNUM_NOT_EVALUATED) {
         rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
       }
-      LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinType(), leftAlias, leftEstimated, rightAlias, rightEstimated);
+      LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinTypeString(), leftAlias, leftEstimated, rightAlias, rightEstimated);
 
       if (!getContextBoolean(Query.OUTERMOST_JOIN, false)) {
         element.earlyCheckMaxJoin(leftEstimated, rightEstimated, maxResult);
       }
 
       // try convert semi-join to filter
-      if (semiJoinThrehold > 0 && joinType == JoinType.INNER && outputColumns != null) {
+      if (semiJoinThrehold > 0 && element.isInnerJoin() && outputColumns != null) {
         if (i == 0 && isUnderThreshold(rightEstimated, semiJoinThrehold) && element.isLeftSemiJoinable(left, right, outputColumns)) {
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
           List<String> rightColumns = array.estimatedOutputColumns();
@@ -375,7 +375,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
               LOG.info("-- %s:%d (R) is merged into %s (L) as filter on %s", rightAlias, rightEstimated, leftAlias, leftJoinColumns);
               Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context);
               if (leftEstimated >= 0) {
-                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated) >> 1;
+                currentEstimation = resultEstimation(element, leftEstimated, rightEstimated) >> 1;
                 query = query.withOverriddenContext(CARDINALITY, currentEstimation);
               }
               queries.add(query);
@@ -397,7 +397,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
               LOG.info("-- %s:%d (L) is merged into %s (R) as filter on %s", leftAlias, leftEstimated, rightAlias, rightJoinColumns);
               Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context);
               if (rightEstimated >= 0) {
-                currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated) >> 1;
+                currentEstimation = resultEstimation(element, leftEstimated, rightEstimated) >> 1;
                 query = query.withOverriddenContext(CARDINALITY, currentEstimation);
               }
               queries.add(query);
@@ -448,13 +448,15 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
               }
             }
           }
-          currentEstimation = rightEstimated;
+          if (rightEstimated > 0) {
+            currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
+          }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, true, signature, prefixAlias,
               asMap, outputAlias, outputColumns, maxOutputRow, bytes
           );
           query1 = query1.withOverriddenContext(PostProcessingOperators.appendLocal(
-              BaseQuery.copyContext(query1, CARDINALITY, rightEstimated), processor
+              BaseQuery.copyContext(query1, CARDINALITY, currentEstimation), processor
           ));
           query1 = ((LastProjectionSupport) query1).withOutputColumns(null);
           queries.add(query1);
@@ -489,12 +491,14 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
               }
             }
           }
-          currentEstimation = leftEstimated;
+          if (leftEstimated > 0) {
+            currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
+          }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, false, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes
           );
           query0 = query0.withOverriddenContext(PostProcessingOperators.appendLocal(
-              BaseQuery.copyContext(query0, CARDINALITY, leftEstimated), processor
+              BaseQuery.copyContext(query0, CARDINALITY, currentEstimation), processor
           ));
           query0 = ((LastProjectionSupport) query0).withOutputColumns(null);
           queries.add(query0);
@@ -571,7 +575,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
       if (queries.get(i) instanceof MaterializedQuery || queries.get(i + 1) instanceof MaterializedQuery) {
         if (leftEstimated >= 0 && rightEstimated >= 0) {
-          currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+          currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
         }
         continue;
       }
@@ -626,7 +630,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         }
       }
       if (leftEstimated >= 0 && rightEstimated >= 0) {
-        currentEstimation = resultEstimation(joinType, leftEstimated, rightEstimated);
+        currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
       }
     }
     // todo: properly handle filter converted semijoin
@@ -685,9 +689,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     return estimation >= 0 && threshold >= 0 && estimation <= threshold;
   }
 
-  private long resultEstimation(JoinType type, long leftEstimation, long rightEstimated)
+  private long resultEstimation(JoinElement element, long leftEstimation, long rightEstimated)
   {
-    switch (type) {
+    if (element.isCrossJoin()) {
+      return leftEstimation == 0 || rightEstimated == 0 ? 0 : leftEstimation * rightEstimated;
+    }
+    switch (element.getJoinType()) {
       case INNER:
         if (leftEstimation == 0 || rightEstimated == 0) {
           leftEstimation = 0;
@@ -924,7 +931,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     }
 
     @Override
-    public LastProjectionSupport<Object[]> withOutputColumns(List<String> outputColumns)
+    public JoinHolder withOutputColumns(List<String> outputColumns)
     {
       PostProcessingOperator rewritten = PostProcessingOperators.rewriteLast(
           getContextValue(Query.POST_PROCESSING),
