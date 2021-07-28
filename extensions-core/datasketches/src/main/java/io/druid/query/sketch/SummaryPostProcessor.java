@@ -262,7 +262,7 @@ public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport
                 result.put("frequentItems", frequentItems);
                 futures.add(
                     listening.submit(
-                        new PrioritizedCallable.Background<Integer>()
+                        new PrioritizedCallable<Integer>()
                         {
                           @Override
                           public Integer call()
@@ -291,7 +291,7 @@ public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport
             final TimeseriesQuery timeseries = runner;
             futures.add(
                 listening.submit(
-                    new PrioritizedCallable.Background<Integer>()
+                    new PrioritizedCallable<Integer>()
                     {
                       @Override
                       public Integer call()
@@ -373,7 +373,7 @@ public class SummaryPostProcessor implements PostProcessingOperator.UnionSupport
           stats.put("segments", segments);
           futures.add(
               listening.submit(
-                  new PrioritizedCallable.Background<Integer>()
+                  new PrioritizedCallable<Integer>()
                   {
                     @Override
                     public Integer call()

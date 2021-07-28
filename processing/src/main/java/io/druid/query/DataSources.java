@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.FilterSupport;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -75,7 +76,7 @@ public class DataSources
     return applyProjection(applyFilter(dataSource, filter), projection);
   }
 
-  private static DataSource applyFilter(DataSource dataSource, DimFilter filter)
+  public static DataSource applyFilter(DataSource dataSource, DimFilter filter)
   {
     if (dataSource instanceof ViewDataSource) {
       final ViewDataSource view = (ViewDataSource) dataSource;
@@ -84,9 +85,6 @@ public class DataSources
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
       final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
-      if (query instanceof FilterSupport) {
-        return QueryDataSource.of(DimFilters.and((FilterSupport<?>) query, filter), schema);
-      }
       final Query applied = applyFilter(query, filter);
       if (applied != null) {
         return QueryDataSource.of(applied, schema);
@@ -165,10 +163,10 @@ public class DataSources
     return false;
   }
 
-  public static boolean isFilterable(DataSource dataSource, List<String> columns)
+  public static boolean isFilterableOn(DataSource dataSource, List<String> columns)
   {
     if (dataSource instanceof QueryDataSource) {
-      return isFilterable(((QueryDataSource) dataSource).getQuery(), columns);
+      return isFilterableOn(((QueryDataSource) dataSource).getQuery(), columns);
     } else if (dataSource instanceof ViewDataSource) {
       List<String> invariant = ((ViewDataSource) dataSource).getColumns();
       return invariant != null && invariant.containsAll(columns);
@@ -176,10 +174,11 @@ public class DataSources
     return false;
   }
 
-  public static boolean isFilterable(Query<?> query, List<String> columns)
+  public static boolean isFilterableOn(Query<?> query, List<String> columns)
   {
     if (query instanceof Query.AggregationsSupport) {
-      List<String> invariant = DimensionSpecs.toOutputNames(BaseQuery.getDimensions(query));
+      List<DimensionSpec> dimensions = BaseQuery.getDimensions(query);
+      List<String> invariant = DimensionSpecs.isAllDefault(dimensions) ? DimensionSpecs.toOutputNames(dimensions) : null;
       return invariant != null && invariant.containsAll(columns);
     } else if (query instanceof Query.ColumnsSupport) {
       List<String> invariant = ((Query.ColumnsSupport<?>) query).getColumns();
@@ -187,7 +186,7 @@ public class DataSources
     } else if (query instanceof JoinQuery.JoinHolder) {
       JoinQuery.JoinHolder holder = (JoinQuery.JoinHolder) query;
       for (Query<?> nested : holder.getQueries()) {
-        if (isFilterable(nested, columns)) {
+        if (isFilterableOn(nested, columns)) {
           return true;
         }
       }
@@ -204,8 +203,8 @@ public class DataSources
   {
     if (query instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<?> aggregations = (Query.AggregationsSupport) query;
-      List<String> invariant = DimensionSpecs.toOutputNames(aggregations.getDimensions());
-      if (invariant != null && invariant.containsAll(dependents)) {
+      List<DimensionSpec> dimensions = aggregations.getDimensions();
+      if (DimensionSpecs.isAllDefault(dimensions) && DimensionSpecs.toOutputNames(dimensions).containsAll(dependents)) {
         return DimFilters.and(aggregations, filter);
       }
     } else if (query instanceof Query.ColumnsSupport) {

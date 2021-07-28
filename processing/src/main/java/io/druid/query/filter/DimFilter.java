@@ -77,6 +77,7 @@ import java.util.regex.Pattern;
     @JsonSubTypes.Type(name = "lucene.point", value = LucenePointFilter.class),
     @JsonSubTypes.Type(name = "lucene.nearest", value = LuceneNearestFilter.class),
     @JsonSubTypes.Type(name = "lucene.geojson", value = LuceneGeoJsonPolygonFilter.class),
+    @JsonSubTypes.Type(name = "ins", value = InDimsFilter.class),
     @JsonSubTypes.Type(name = "like", value = LikeDimFilter.class),
     @JsonSubTypes.Type(name = "bloom", value = BloomDimFilter.class),
     @JsonSubTypes.Type(name = "bloom.factory", value = BloomDimFilter.Factory.class),

@@ -5212,10 +5212,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{T("2001-01-02"), 1L, "def", "abc"}
     );
     hook.verifyHooked(
-        "VPMgfl28jgJOrTkcmKPEGg==",
+        "GyNDRH97OuruNqkogyEXZg==",
         "TimeseriesQuery{dataSource='foo', filter=dim2=='abc', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
         "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], filter=dim2=='abc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], havingSpec=ExpressionHavingSpec{expression='(a0 == 1)'}, outputColumns=[d0, d1]}",
-        "StreamQuery{dataSource='foo', filter=(dim2=='abc' && InDimsFilter{dimensions=[dim1, dim2], values=[[def], [abc]]}), columns=[__time, cnt, dim1, dim2]}"
+        "StreamQuery{dataSource='foo', filter=(dim2=='abc' && InDimsFilter{dimensions=[dim1, dim2], values=[[def, abc]]}), columns=[__time, cnt, dim1, dim2]}"
     );
   }
 

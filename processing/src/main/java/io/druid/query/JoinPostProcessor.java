@@ -39,7 +39,6 @@ import io.druid.query.JoinQuery.JoinHolder;
 import io.druid.query.PostProcessingOperator.Local;
 
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -187,24 +186,11 @@ public class JoinPostProcessor extends CommonJoinProcessor implements PostProces
     final int cardinality = source.getContextInt(JoinQuery.CARDINALITY, -1);
     final boolean hashing = source.getContextBoolean(JoinQuery.HASHING, false);
     if (hashing) {
-      return new PrioritizedCallable.Background<JoinAlias>()
-      {
-        @Override
-        public JoinAlias call()
-        {
-          return new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence));
-        }
-      };
+      return () -> new JoinAlias(aliases, columnNames, joinColumns, indices, Sequences.toIterator(sequence));
     }
-    return new PrioritizedCallable.Background<JoinAlias>()
-    {
-      @Override
-      public JoinAlias call()
-      {
-        final Iterator<Object[]> rows = Sequences.toIterator(sequence);
-        return new JoinAlias(aliases, columnNames, joinColumns, getCollations(source), indices, rows, cardinality);
-      }
-    };
+    return () -> new JoinAlias(
+        aliases, columnNames, joinColumns, getCollations(source), indices, Sequences.toIterator(sequence), cardinality
+    );
   }
 
   private JoinType toJoinType(int index)

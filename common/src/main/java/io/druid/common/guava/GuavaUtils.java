@@ -36,7 +36,6 @@ import com.google.common.primitives.Longs;
 import io.druid.collections.IntList;
 import io.druid.common.IntTagged;
 import io.druid.common.Progressing;
-import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
@@ -61,7 +60,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Callable;
 
 /**
  */
@@ -375,6 +373,11 @@ public class GuavaUtils
   public static <T, X extends T> X lastOf(List<T> list)
   {
     return list.isEmpty() ? null : (X) list.get(list.size() - 1);
+  }
+
+  public static <T> void setLastOf(List<T> list, T element)
+  {
+    list.set(list.size() - 1, element);
   }
 
   public static <T> T get(List<T> list, int x)
@@ -858,18 +861,6 @@ public class GuavaUtils
     output.delete();
     output.mkdirs();
     return output;
-  }
-
-  public static <F, T> Callable<T> asCallable(final Function<F, T> function, final F param)
-  {
-    return new PrioritizedCallable.Background<T>()
-    {
-      @Override
-      public T call() throws Exception
-      {
-        return function.apply(param);
-      }
-    };
   }
 
   public static <T> Function<T, T> identity(final String log)

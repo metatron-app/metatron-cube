@@ -21,13 +21,13 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -42,7 +42,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class InDimsFilter implements DimFilter.BestEffort
+@JsonTypeName("ins")
+public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
 {
   private final List<List<String>> values;
   private final List<String> dimensions;
@@ -91,6 +92,16 @@ public class InDimsFilter implements DimFilter.BestEffort
   {
     if (dimensions.size() == 1) {
       return new InDimFilter(dimensions.get(0), values.get(0), null).optimize(segment, virtualColumns);
+    }
+    return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    List<String> mapped = GuavaUtils.transform(dimensions, d -> mapping.getOrDefault(d, d));
+    if (!mapped.equals(dimensions)) {
+      return new InDimsFilter(mapped, values);
     }
     return this;
   }
@@ -187,9 +198,44 @@ public class InDimsFilter implements DimFilter.BestEffort
   @Override
   public String toString()
   {
+    final int size = values.get(0).size();
+    final StringBuilder builder = new StringBuilder().append('[');
+    for (int i = 0; i < Math.min(10, size); i++) {
+      if (i > 0) {
+        builder.append(", ");
+      }
+      builder.append('[');
+      for (int j = 0; j < values.size(); j++) {
+        if (j > 0) {
+          builder.append(", ");
+        }
+        builder.append(values.get(j).get(i));
+      }
+      builder.append(']');
+    }
+    if (size > 10) {
+      builder.append(String.format(", [..%d more]", size - 10));
+    }
+    builder.append(']');
     return "InDimsFilter{" +
            "dimensions=" + dimensions +
-           ", values=" + StringUtils.limit(values.toString(), 40) +
+           ", values=" + builder.toString() +
            '}';
+  }
+
+  @Override
+  public DimFilter forLog()
+  {
+    final int size = values.get(0).size();
+    if (size > 10) {
+      final List<List<String>> cut = Lists.newArrayList();
+      for (int i = 0; i < values.size(); i++) {
+        List<String> subList = Lists.newArrayList(values.get(i).subList(0, 10));
+        subList.add(i == 0 ? String.format("..%d more", values.size() - 10) : "");
+        cut.add(subList);
+      }
+      return new InDimsFilter(dimensions, cut);
+    }
+    return this;
   }
 }

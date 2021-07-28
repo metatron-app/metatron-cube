@@ -31,7 +31,6 @@ import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 
-import java.util.Iterator;
 import java.util.List;
 
 public class BloomFilterAggregator extends HashAggregator.ScanSupport<BloomKFilter>
@@ -40,9 +39,8 @@ public class BloomFilterAggregator extends HashAggregator.ScanSupport<BloomKFilt
       RowResolver resolver,
       List<String> columns,
       long maxNumEntries,
-      Iterator<Object[]> values
-  )
-  {
+      Iterable<Object[]> values
+  ) {
     final DSuppliers.HandOver<Object[]> handover = new DSuppliers.HandOver<Object[]>();
     final ColumnSelectorFactory factory = new ColumnSelectorFactories.FromArraySupplier(handover, resolver);
     final List<DimensionSelector> selectors = Lists.newArrayList(
@@ -52,8 +50,8 @@ public class BloomFilterAggregator extends HashAggregator.ScanSupport<BloomKFilt
     final BloomFilterAggregator aggregator = new BloomFilterAggregator(
         ValueMatcher.TRUE, selectors, GroupingSetSpec.EMPTY_INDEX, true, maxNumEntries
     );
-    while (values.hasNext()) {
-      handover.set(values.next());
+    for (Object[] value : values) {
+      handover.set(value);
       aggregator.aggregate(bloom);
     }
     return bloom;

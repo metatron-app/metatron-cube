@@ -25,23 +25,17 @@ import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
-import io.druid.concurrent.PrioritizedCallable;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.Cursor;
 import io.druid.segment.CursorFactory;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
 /**
  */
 public class QueryRunnerHelper
 {
-  private static final Logger log = new Logger(QueryRunnerHelper.class);
-
   public static <T> Sequence<T> makeCursorBasedQuery(
       final CursorFactory factory,
       final Query<?> query,
@@ -85,38 +79,5 @@ public class QueryRunnerHelper
         toolChest,
         mapper
     );
-  }
-
-  public static <T> Callable<Sequence<T>> asCallable(
-      final QueryRunner<T> runner,
-      final Query<T> query,
-      final Map<String, Object> responseContext
-  )
-  {
-    return new PrioritizedCallable.Background<Sequence<T>>()
-    {
-      @Override
-      public Sequence<T> call()
-      {
-        return runner.run(query, responseContext);
-      }
-    };
-  }
-
-  public static <T> Callable<Sequence<T>> asCallable(
-      final QueryRunner<T> runner,
-      final Query<T> query,
-      final Map<String, Object> responseContext,
-      final Execs.Semaphore semaphore
-  )
-  {
-    return new PrioritizedCallable.Background<Sequence<T>>()
-    {
-      @Override
-      public Sequence<T> call() throws Exception
-      {
-        return Sequences.materialize(Sequences.withBaggage(runner.run(query, responseContext), semaphore));
-      }
-    };
   }
 }

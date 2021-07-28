@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -49,6 +50,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
+@JsonTypeName("in")
 public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.LogProvider
 {
   private final String dimension;
@@ -234,11 +236,11 @@ public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.L
   @Override
   public DimFilter forLog()
   {
-    if (values.size() > 100) {
+    if (values.size() > 10) {
       return new InDimFilter(
           dimension,
           extractionFn,
-          GuavaUtils.concat(Iterables.limit(values, 100), String.format("..%d more", values.size() - 100))
+          GuavaUtils.concat(Iterables.limit(values, 10), String.format("..%d more", values.size() - 10))
       );
     }
     return this;

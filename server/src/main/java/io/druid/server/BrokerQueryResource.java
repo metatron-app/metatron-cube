@@ -21,7 +21,6 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
@@ -37,7 +36,6 @@ import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
-import io.druid.concurrent.PrioritizedCallable;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.output.ForwardConstants;
@@ -342,16 +340,7 @@ public class BrokerQueryResource extends QueryResource
       final Sequence sequence = pair.rhs;   // progressing sequence
       final QueryRunner runner = forward.handle(query, QueryRunners.wrap(sequence));
       if (async) {
-        final ListenableFuture<Sequence> future = exec.submit(
-            new PrioritizedCallable.Background<Sequence>()
-            {
-              @Override
-              public Sequence call() throws Exception
-              {
-                return QueryRunners.run(query, runner);
-              }
-            }
-        );
+        final ListenableFuture<Sequence> future = exec.submit(QueryRunners.asCallable(runner, query));
         queryManager.register(query, new ProgressingFuture(future, sequence));
         return context.ok(ImmutableMap.of("queryId", query.getId(), "broker", node.getHostAndPort()));
       } else {

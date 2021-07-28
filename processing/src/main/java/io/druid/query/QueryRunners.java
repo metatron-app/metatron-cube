@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.utils.StopWatch;
@@ -244,7 +245,7 @@ public class QueryRunners
         {
           final Execs.ExecutorQueue<Sequence<T>> queue = new Execs.ExecutorQueue<>(semaphore);
           for (QueryRunner<T> runner : runners) {
-            queue.add(QueryRunnerHelper.asCallable(runner, query, responseContext));
+            queue.add(QueryRunners.asCallable(runner, query, responseContext));
           }
           final List<ListenableFuture<Sequence<T>>> futures = queue.execute(executor, priority);
           final StopWatch watch = watcher.register(query, Futures.allAsList(futures), () -> semaphore.destroy());
@@ -258,7 +259,7 @@ public class QueryRunners
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
         final Iterable<Callable<Sequence<T>>> works = Iterables.transform(
-            runners, runner -> QueryRunnerHelper.asCallable(runner, query, responseContext, semaphore)
+            runners, runner -> QueryRunners.asCallable(runner, query, responseContext, semaphore)
         );
         final StopWatch watch = new StopWatch(watcher.remainingTime(query.getId()));
         final ListenableFuture<List<Sequence<T>>> future = Futures.allAsList(
@@ -397,5 +398,29 @@ public class QueryRunners
                                    .applyFinalQueryDecoration()
                                    .applyPostProcessingOperator()
                                    .build();
+  }
+
+  public static <T> PrioritizedCallable<Sequence<T>> asCallable(QueryRunner<T> runner, Query<T> query)
+  {
+    return asCallable(runner, query, Maps.newHashMap());
+  }
+
+  public static <T> PrioritizedCallable<Sequence<T>> asCallable(
+      final QueryRunner<T> runner,
+      final Query<T> query,
+      final Map<String, Object> responseContext
+  )
+  {
+    return () -> runner.run(query, responseContext);
+  }
+
+  public static <T> PrioritizedCallable<Sequence<T>> asCallable(
+      final QueryRunner<T> runner,
+      final Query<T> query,
+      final Map<String, Object> responseContext,
+      final Execs.Semaphore semaphore
+  )
+  {
+    return () -> Sequences.materialize(Sequences.withBaggage(runner.run(query, responseContext), semaphore));
   }
 }
