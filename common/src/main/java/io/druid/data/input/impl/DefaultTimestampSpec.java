@@ -25,10 +25,14 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
+import io.druid.data.Pair;
 import io.druid.data.input.TimestampSpec;
 import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.common.parsers.ParserUtils;
 import io.druid.java.util.common.parsers.TimestampParser;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -199,9 +203,9 @@ public class DefaultTimestampSpec implements TimestampSpec
           if (property.startsWith("[") && property.endsWith("]")) {
             property = property.substring(1, property.length() - 1).trim();
           }
-          return findFormat(stripQuotes(input), property.split(","));
+          return findFormat(ParserUtils.stripQuotes(input), property.split(","));
         }
-        return findFormat(stripQuotes(input), format);
+        return findFormat(ParserUtils.stripQuotes(input), format);
       }
     };
     final Function<Number, DateTime> numericFunc = wrapInvalidHandling(
@@ -234,42 +238,35 @@ public class DefaultTimestampSpec implements TimestampSpec
 
   private Function<String, DateTime> findFormat(String input, String... dateFormats)
   {
-    DateTimeFormatter found = null;
     log.info("finding format with candidates.. " + Arrays.toString(dateFormats));
+    List<Pair<String, DateTimeFormatter>> candidates = Lists.newArrayList();
     for (String dateFormat : dateFormats) {
       if (BUILT_IN.contains(dateFormat)) {
         return TimestampParser.createTimestampParser(dateFormat);
       }
       DateTimeFormatter formatter;
       try {
-        formatter = DateTimeFormat.forPattern(stripQuotes(dateFormat));
+        formatter = supplement(DateTimeFormat.forPattern(ParserUtils.stripQuotes(dateFormat)));
       }
       catch (Exception e) {
         log.info("Invalid format %s", dateFormat);
         continue;
       }
-      found = isApplicable(input, formatter);
-      if (found != null) {
+      if (isApplicable(formatter, input)) {
         log.info("using format '%s'", dateFormat);
-        break;
+        return wrap(formatter);
       }
+      candidates.add(Pair.of(dateFormat, formatter));
     }
-    if (found == null) {
-      found = isApplicable(input, ISODateTimeFormat.dateTimeParser());
-      if (found != null) {
-        log.info("using iso format");
-      }
+    // try iso
+    if (isApplicable(ISODateTimeFormat.dateTimeParser(), input)) {
+      log.info("using iso format");
+      return wrap(ISODateTimeFormat.dateTimeParser());
     }
-    if (found != null) {
-      final DateTimeFormatter formatter = found;
-      return new Function<String, DateTime>()
-      {
-        @Override
-        public DateTime apply(String input)
-        {
-          return formatter.parseDateTime(stripQuotes(input));
-        }
-      };
+    Pair<String, DateTimeFormatter> first = Iterables.getFirst(candidates, null);
+    if (first != null) {
+      log.info("failed to parse input row but stick to format '%s'", first.getKey());
+      return wrap(supplement(first.getValue()));
     }
     if (isStringLong(input)) {
       Function<String, DateTime> function =
@@ -287,16 +284,24 @@ public class DefaultTimestampSpec implements TimestampSpec
     return TimestampParser.createTimestampParser("auto");
   }
 
-  private String stripQuotes(String input)
+  private static Function<String, DateTime> wrap(DateTimeFormatter formatter)
   {
-    input = input.trim();
-    if (input.length() > 0 && input.charAt(0) == '\"' && input.charAt(input.length() - 1) == '\"') {
-      input = input.substring(1, input.length() - 1).trim();
-    }
-    return input;
+    return v -> formatter.parseDateTime(ParserUtils.stripQuotes(v));
   }
 
-  private DateTimeFormatter isApplicable(String value, DateTimeFormatter formatter)
+  private static boolean isApplicable(DateTimeFormatter formatter, String value)
+  {
+    try {
+      formatter.parseDateTime(value);
+      return true;
+    }
+    catch (Exception e) {
+      // failed.. try next
+    }
+    return false;
+  }
+
+  private DateTimeFormatter supplement(DateTimeFormatter formatter)
   {
     if (timeZone != null) {
       formatter = formatter.withZone(timeZone);
@@ -304,14 +309,7 @@ public class DefaultTimestampSpec implements TimestampSpec
     if (locale != null) {
       formatter = formatter.withLocale(new Locale(locale));
     }
-    try {
-      formatter.parseDateTime(value);
-      return formatter;
-    }
-    catch (Exception e) {
-      // failed.. try next
-    }
-    return null;
+    return formatter;
   }
 
   private static boolean isStringLong(String input)
@@ -400,8 +398,8 @@ public class DefaultTimestampSpec implements TimestampSpec
       if (input.equals(parseCtx.lastTimeObject)) {
         extracted = parseCtx.lastDateTime;
       } else {
-        parseCtx.lastTimeObject = input;
         parseCtx.lastDateTime = extracted = timestampConverter.apply(input);
+        parseCtx.lastTimeObject = input;
       }
     }
     return extracted == null ? missingValue : extracted;
