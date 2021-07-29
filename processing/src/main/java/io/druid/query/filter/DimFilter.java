@@ -403,4 +403,13 @@ public interface DimFilter extends Expression, Cacheable
   {
     VirtualColumn inflate();
   }
+
+  enum OP {AND, OR}
+
+  interface Mergeable extends DimFilter
+  {
+    boolean supports(OP op, DimFilter other);
+
+    DimFilter merge(OP op, DimFilter other);
+  }
 }

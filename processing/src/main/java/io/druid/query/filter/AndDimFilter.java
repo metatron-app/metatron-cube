@@ -108,6 +108,7 @@ public class AndDimFilter implements DimFilter, AndExpression
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<DimFilter> getChildren()
   {
     return fields;

@@ -33,12 +33,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.BooleanColumnSupport;
+import io.druid.query.filter.DimFilter.Mergeable;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.segment.Segment;
@@ -53,7 +56,7 @@ import java.util.Objects;
 
 /**
  */
-public class SelectorDimFilter extends SingleInput implements RangeFilter, BooleanColumnSupport
+public class SelectorDimFilter extends SingleInput implements RangeFilter, BooleanColumnSupport, Mergeable
 {
   public static DimFilter or(final String dimension, String... values)
   {
@@ -212,5 +215,35 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
     result = 31 * result + value.hashCode();
     result = 31 * result + (extractionFn != null ? extractionFn.hashCode() : 0);
     return result;
+  }
+
+  @Override
+  public boolean supports(OP op, DimFilter other)
+  {
+    if (other instanceof SelectorDimFilter) {
+      SelectorDimFilter select = (SelectorDimFilter) other;
+      return dimension.equals(select.dimension) && Objects.equals(extractionFn, select.extractionFn);
+    }
+    return false;
+  }
+
+  @Override
+  public DimFilter merge(OP op, DimFilter other)
+  {
+    if (other instanceof SelectorDimFilter) {
+      SelectorDimFilter select = (SelectorDimFilter) other;
+      int compare = GuavaUtils.nullFirstNatural().compare(value, select.value);
+      if (compare == 0) {
+        return this;
+      }
+      switch (op) {
+        case AND:
+          return DimFilters.NONE;
+        case OR:
+          List<String> values = compare < 0 ? Arrays.asList(value, select.value) : Arrays.asList(select.value, value);
+          return new InDimFilter(dimension, extractionFn, values);
+      }
+    }
+    throw new ISE("merge?? %s %s %s", this, op, other);
   }
 }

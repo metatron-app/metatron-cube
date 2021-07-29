@@ -31,11 +31,13 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Ranges;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.ISE;
 import io.druid.query.Query;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.RangeFilter;
@@ -50,9 +52,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+
+import static io.druid.query.filter.DimFilter.Compressible;
+import static io.druid.query.filter.DimFilter.LogProvider;
+import static io.druid.query.filter.DimFilter.Mergeable;
 
 @JsonTypeName("in")
-public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.LogProvider, DimFilter.Compressible
+public class InDimFilter extends SingleInput implements RangeFilter, LogProvider, Compressible, Mergeable
 {
   private final String dimension;
   private final ExtractionFn extractionFn;
@@ -251,5 +258,47 @@ public class InDimFilter extends SingleInput implements RangeFilter, DimFilter.L
   public DimFilter compress(Query parent)
   {
     return CompressedInFilter.build(this);
+  }
+
+  @Override
+  public boolean supports(OP op, DimFilter other)
+  {
+    if (other instanceof InDimFilter) {
+      InDimFilter in = (InDimFilter) other;
+      return dimension.equals(in.dimension) && Objects.equals(extractionFn, in.extractionFn);
+    } else if (other instanceof SelectorDimFilter) {
+      SelectorDimFilter select = (SelectorDimFilter) other;
+      return dimension.equals(select.getDimension()) && Objects.equals(extractionFn, select.getExtractionFn());
+    }
+    return false;
+  }
+
+  @Override
+  public DimFilter merge(OP op, DimFilter other)
+  {
+    if (other instanceof InDimFilter) {
+      InDimFilter in = (InDimFilter) other;
+      Set<String> set1 = Sets.newTreeSet(values);
+      Set<String> set2 = Sets.newTreeSet(in.values);
+      switch (op) {
+        case AND: return new InDimFilter(dimension, extractionFn, Lists.newArrayList(Sets.intersection(set1, set2)));
+        case OR: return new InDimFilter(dimension, extractionFn, Lists.newArrayList(Sets.union(set1, set2)));
+      }
+    } else if (other instanceof SelectorDimFilter) {
+      SelectorDimFilter select = (SelectorDimFilter) other;
+      int index = values.indexOf(select.getValue());
+      switch (op) {
+        case AND:
+          return index >= 0 ? other : DimFilters.NONE;
+        case OR:
+          if (index >= 0) {
+            return this;
+          }
+          List<String> copy = Lists.newArrayList(values);
+          copy.add(-index -1, select.getValue());
+          return new InDimFilter(dimension, extractionFn, copy);
+      }
+    }
+    throw new ISE("merge?? %s %s %s", this, op, other);
   }
 }

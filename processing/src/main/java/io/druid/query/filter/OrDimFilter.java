@@ -108,6 +108,7 @@ public class OrDimFilter implements DimFilter, OrExpression
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<DimFilter> getChildren()
   {
     return fields;

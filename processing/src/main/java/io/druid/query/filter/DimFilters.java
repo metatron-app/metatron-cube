@@ -25,6 +25,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.WrappedConciseBitmap;
@@ -53,6 +54,7 @@ import io.druid.segment.filter.Filters;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -70,6 +72,41 @@ public class DimFilters
     return new SelectorDimFilter(dimension, value, null);
   }
 
+  private static List<DimFilter> merge(List<DimFilter> fields, DimFilter.OP op)
+  {
+    if (fields.size() <= 1) {
+      return fields;
+    }
+    final Iterable<DimFilter.Mergeable> mergeables = Iterables.filter(fields, DimFilter.Mergeable.class);
+    if (Iterables.isEmpty(mergeables)) {
+      return fields;
+    }
+    boolean anyMerge = false;
+    final Set<DimFilter> remains = Sets.newHashSet(fields);
+    for (DimFilter.Mergeable mergeable : mergeables) {
+      if (!remains.remove(mergeable)) {
+        continue;   // merged already
+      }
+      Iterator<DimFilter> iterator = remains.iterator();
+      while (iterator.hasNext()) {
+        DimFilter filter = iterator.next();
+        if (mergeable.supports(op, filter)) {
+          anyMerge = true;
+          iterator.remove();
+          DimFilter merged = mergeable.merge(op, filter);
+          if (merged instanceof DimFilter.Mergeable) {
+            mergeable = (DimFilter.Mergeable) merged;
+          } else {
+            remains.add(merged);
+            break;
+          }
+        }
+      }
+      remains.add(mergeable);
+    }
+    return anyMerge ? Lists.newArrayList(remains) : fields;
+  }
+
   public static DimFilter and(DimFilter... filters)
   {
     return and(Arrays.asList(filters));
@@ -80,15 +117,16 @@ public class DimFilters
     if (filters.contains(NONE)) {
       return NONE;
     }
-    List<DimFilter> list = Filters.filterNull(Iterables.filter(filters, new Predicate<DimFilter>()
-    {
-      @Override
-      public boolean apply(DimFilter input)
-      {
-        return !ALL.equals(input);
+    List<DimFilter> list = Lists.newArrayList();
+    for (DimFilter filtered : Iterables.filter(filters, p -> p != null && !ALL.equals(p))) {
+      if (filtered instanceof AndDimFilter) {
+        list.addAll(((AndDimFilter) filtered).getChildren());
+      } else {
+        list.add(filtered);
       }
-    }));
-    return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new AndDimFilter(list);
+    }
+    List<DimFilter> merged = merge(list, DimFilter.OP.AND);
+    return merged.isEmpty() ? null : merged.size() == 1 ? merged.get(0) : new AndDimFilter(merged);
   }
 
   public static <T> Query.FilterSupport<T> and(Query.FilterSupport<T> query, DimFilter filter)
@@ -106,15 +144,16 @@ public class DimFilters
     if (filters.contains(ALL)) {
       return ALL;
     }
-    List<DimFilter> list = Filters.filterNull(Iterables.filter(filters, new Predicate<DimFilter>()
-    {
-      @Override
-      public boolean apply(DimFilter input)
-      {
-        return !NONE.equals(input);
+    List<DimFilter> list = Lists.newArrayList();
+    for (DimFilter filtered : Iterables.filter(filters, p -> p != null && !NONE.equals(p))) {
+      if (filtered instanceof OrDimFilter) {
+        list.addAll(((OrDimFilter) filtered).getChildren());
+      } else {
+        list.add(filtered);
       }
-    }));
-    return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new OrDimFilter(list);
+    }
+    List<DimFilter> merged = merge(list, DimFilter.OP.OR);
+    return merged.isEmpty() ? null : merged.size() == 1 ? merged.get(0) : new OrDimFilter(merged);
   }
 
   public static NotDimFilter not(DimFilter filter)
