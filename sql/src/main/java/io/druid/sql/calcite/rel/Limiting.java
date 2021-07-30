@@ -34,6 +34,7 @@ public class Limiting
   private final List<OrderByColumnSpec> columns;
   private final int limit;
   private final Map<String, String> alias;
+  private final RowSignature inputRowSignature;
   private final RowSignature outputRowSignature;
 
   public Limiting(
@@ -41,6 +42,7 @@ public class Limiting
       List<OrderByColumnSpec> columns,
       Integer limit,
       Map<String, String> alias,
+      RowSignature inputRowSignature,
       RowSignature outputRowSignature
   )
   {
@@ -48,6 +50,7 @@ public class Limiting
     this.columns = columns;
     this.limit = limit != null ? limit : -1;
     this.alias = alias;
+    this.inputRowSignature = inputRowSignature;
     this.outputRowSignature = outputRowSignature;
   }
 
@@ -61,6 +64,11 @@ public class Limiting
     return limit;
   }
 
+  public RowSignature getInputRowSignature()
+  {
+    return inputRowSignature;
+  }
+
   public RowSignature getOutputRowSignature()
   {
     return outputRowSignature;
@@ -68,6 +76,6 @@ public class Limiting
 
   public LimitSpec getLimitSpec()
   {
-    return new LimitSpec(columns, limit, null, null, windowingSpecs, alias, Suppliers.ofInstance(outputRowSignature));
+    return new LimitSpec(columns, limit, null, null, windowingSpecs, alias, Suppliers.ofInstance(inputRowSignature));
   }
 }

@@ -132,9 +132,17 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     return rewritten;
   }
 
-  public List<String> getFinalColumns()
+  // should be called after processed
+  public List<String> getFinalColumns(Map<String, String> alias)
   {
-    return context.getOutputColumns();
+    if (alias.isEmpty()) {
+      return context.getOutputColumns();
+    }
+    List<String> aliased = Lists.newArrayList();
+    for (String name : context.getOutputColumns()) {
+      aliased.add(alias.getOrDefault(name, name));
+    }
+    return aliased;
   }
 
   private static class PartitionDefinition

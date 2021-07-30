@@ -54,6 +54,7 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -68,6 +69,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 public class Utils
@@ -97,6 +99,19 @@ public class Utils
     listCondition.add(right);
 
     return SqlParserUtil.toTree(listCondition);
+  }
+
+  public static SqlNode concat(SqlNode first, SqlNode second)
+  {
+    String s1 = Objects.toString(SqlLiteral.value(first), "");
+    String s2 = Objects.toString(SqlLiteral.value(second), "");
+    return SqlLiteral.createCharString(s1 + ":" + s2, first.getParserPosition());
+  }
+
+  public static SqlNode concat(String s1, SqlNode second)
+  {
+    String s2 = Objects.toString(SqlLiteral.value(second), "");
+    return SqlLiteral.createCharString(s1 + ":" + s2, second.getParserPosition());
   }
 
   public static boolean isOr(RexNode op)

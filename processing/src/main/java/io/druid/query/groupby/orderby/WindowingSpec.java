@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -47,6 +48,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  */
@@ -54,11 +56,12 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
 {
   public static WindowingSpec expressions(String... expressions)
   {
-    return new WindowingSpec(null, null, false, -1, Arrays.asList(expressions), null, null);
+    return new WindowingSpec(null, null, null, false, -1, Arrays.asList(expressions), null, null);
   }
 
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortingColumns;
+  private final Integer increment;
   private final boolean skipSorting;
   private final int inputLimit;
 
@@ -70,6 +73,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
   public WindowingSpec(
       @JsonProperty("partitionColumns") List<String> partitionColumns,
       @JsonProperty("sortingColumns") List<OrderByColumnSpec> sortingColumns,
+      @JsonProperty("increment") Integer increment,
       @JsonProperty("skipSorting") boolean skipSorting,
       @JsonProperty("inputLimit") int inputLimit,
       @JsonProperty("expressions") List<String> expressions,
@@ -79,11 +83,13 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
   {
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.sortingColumns = sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
+    this.increment = increment;
     this.skipSorting = skipSorting;
     this.inputLimit = inputLimit;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
     this.flattenSpec = flattenSpec;
     this.pivotSpec = pivotSpec;
+    Preconditions.checkArgument((flattenSpec == null && pivotSpec == null) || increment == null);
   }
 
   public WindowingSpec(
@@ -93,7 +99,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       FlattenSpec flattenSpec
   )
   {
-    this(partitionColumns, sortingColumns, false, -1, expressions, flattenSpec, null);
+    this(partitionColumns, sortingColumns, null, false, -1, expressions, flattenSpec, null);
   }
 
   public WindowingSpec(
@@ -103,23 +109,28 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       PivotSpec pivotSpec
   )
   {
-    this(partitionColumns, sortingColumns, false, -1, expressions, null, pivotSpec);
+    this(partitionColumns, sortingColumns, null, false, -1, expressions, null, pivotSpec);
   }
 
   public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, String... expressions)
   {
-    this(partitionColumns, sortingColumns, Arrays.asList(expressions));
+    this(partitionColumns, sortingColumns, null, Arrays.asList(expressions));
   }
 
-  public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, List<String> expressions)
+  public WindowingSpec(
+      List<String> partitionColumns,
+      List<OrderByColumnSpec> sortingColumns,
+      Integer increment,
+      List<String> expressions
+  )
   {
-    this(partitionColumns, sortingColumns, false, -1, expressions, null, null);
+    this(partitionColumns, sortingColumns, increment, false, -1, expressions, null, null);
   }
 
   // used by pre-ordering (gby, stream)
   public WindowingSpec skipSorting()
   {
-    return new WindowingSpec(partitionColumns, null, true, inputLimit, expressions, flattenSpec, pivotSpec);
+    return new WindowingSpec(partitionColumns, null, increment, true, inputLimit, expressions, flattenSpec, pivotSpec);
   }
 
   public WindowingSpec withInputLimit(int inputLimit)
@@ -127,6 +138,21 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
     return new WindowingSpec(
         partitionColumns,
         sortingColumns,
+        increment,
+        skipSorting,
+        inputLimit,
+        expressions,
+        flattenSpec,
+        pivotSpec
+    );
+  }
+
+  public WindowingSpec withIncrement(int increment)
+  {
+    return new WindowingSpec(
+        partitionColumns,
+        sortingColumns,
+        increment,
         skipSorting,
         inputLimit,
         expressions,
@@ -180,6 +206,13 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public Integer getIncrement()
+  {
+    return increment;
+  }
+
+  @JsonProperty
   public boolean isSkipSorting()
   {
     return skipSorting;
@@ -226,8 +259,9 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
         return context.with(partitionKey, partition)
-                      .evaluate(Iterables.transform(
-                          expressions, expression -> Frame.of(Evals.splitAssign(expression, context)))
+                      .evaluate(
+                          Iterables.transform(expressions, expr -> Frame.of(Evals.splitAssign(expr, context))),
+                          Optional.ofNullable(increment).orElse(1)
                       );
       }
     };
@@ -428,6 +462,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       return partition;
     }
 
+    // for pivot spec
     protected List<Row> retainColumns(List<Row> partition, List<String> retainColumns)
     {
       if (GuavaUtils.isNullOrEmpty(retainColumns)) {

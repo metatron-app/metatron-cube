@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Pair;
 import io.druid.data.RowSignature;
@@ -34,6 +35,7 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.UOE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -114,22 +116,39 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
 
   public List<Row> evaluate(Iterable<Frame> frames)
   {
+    return evaluate(frames, 1);
+  }
+
+  public List<Row> evaluate(Iterable<Frame> frames, int increment)
+  {
+    Preconditions.checkArgument(increment >= 1, "invalid increment %d", increment);
     for (Frame frame : frames) {
-      evaluate(frame);
+      evaluate(frame, increment);
+    }
+    if (increment > 1) {
+      List<Row> output = Lists.newArrayList();
+      for (int x = increment - 1; x < length; x += increment) {
+        output.add(partition.get(x));
+      }
+      partition = output;
+      length = output.size();
     }
     temporaryColumns.clear();
     return partition;
   }
 
-  private void evaluate(Frame frame)
+  private void evaluate(Frame frame, int increment)
   {
     Parser.init(frame.expression);
 
-    final int[] window = frame.toEvalWindow(length);
+    if (increment != 1 && frame.window != null) {
+      throw new UOE("not supports");
+    }
+    final int[] window = frame.window == null ? new int[]{increment - 1, length} : frame.toEvalWindow(length);
     final boolean temporaryAssign = frame.isTemporaryAssign();
 
     ExprEval eval = null;
-    for (index = window[0]; index < window[1]; index++) {
+    for (index = window[0]; index < window[1]; index += increment) {
       eval = frame.expression.eval(this);
       if (!temporaryAssign) {
         assigned(frame.outputName, eval.type());
@@ -244,12 +263,13 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
   @Override
   public Iterable<Object> iterator(final int startRel, final int endRel, final Expr expr)
   {
+    final long x = index;
     List<Row> target;
     if (startRel > endRel) {
-      target = partition.subList(Math.max(0, index + endRel), Math.min(length, index + startRel + 1));
+      target = partition.subList(cast(x + endRel), cast(x + startRel + 1));
       target = Lists.reverse(target);
     } else {
-      target = partition.subList(Math.max(0, index + startRel), Math.min(length, index + endRel + 1));
+      target = partition.subList(cast(x + startRel), cast(x + endRel + 1));
     }
     return Iterables.transform(target, row -> Evals.evalValue(expr, row));
   }
@@ -257,11 +277,17 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
   @Override
   public int size(int startRel, int endRel)
   {
+    final long x = index;
     if (startRel > endRel) {
-      return Math.min(length, index + startRel) - Math.max(0, index + endRel)  + 1;
+      return cast(x + startRel + 1) - cast(x + endRel);
     } else {
-      return Math.min(length, index + endRel) - Math.max(0, index + startRel)  + 1;
+      return cast(x + endRel + 1) - cast(x + startRel);
     }
+  }
+
+  private int cast(long value)
+  {
+    return Ints.checkedCast(Math.max(Math.min(value, length), 0));
   }
 
   @Override
@@ -344,7 +370,7 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
         window = new int[]{(Integer) windowed[1], (Integer) windowed[2]};
       } else if (eval instanceof String) {
         outputName = (String) eval;
-        window = new int[0];
+        window = null;
       } else {
         throw new IAE("invalid assignee expression %s", assign.lhs);
       }
@@ -379,9 +405,6 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
 
     private int[] toEvalWindow(int limit)
     {
-      if (window.length == 0) {
-        return new int[]{0, limit};
-      }
       int index = window[0];
       if (index < 0) {
         index = limit + index;

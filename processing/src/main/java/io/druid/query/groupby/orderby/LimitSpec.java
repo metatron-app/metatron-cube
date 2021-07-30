@@ -273,7 +273,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     List<WindowingSpec> windowingSpecs = getWindowingSpecs();
     if (columns.isEmpty() && limit > 0) {
       WindowingSpec windowing = GuavaUtils.lastOf(windowingSpecs);
-      if (!windowing.hasPostProcessing() && windowing.getInputLimit() <= 0) {
+      if (!windowing.hasPostProcessing() && windowing.getIncrement() == null && windowing.getInputLimit() <= 0) {
         windowingSpecs = GuavaUtils.concat(
             windowingSpecs.subList(0, windowingSpecs.size() - 1), windowing.withInputLimit(limit)
         );
@@ -354,8 +354,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
         public List<Object[]> apply(List<Row> input)
         {
           return Lists.transform(input, GroupByQueryEngine.rowToArray(
-              GuavaUtils.isNullOrEmpty(outputColumns) ? processor.getFinalColumns() : outputColumns)
-          );
+              outputColumns != null ? outputColumns : processor.getFinalColumns(alias)));
         }
       }, LimitSpec.<Object[]>listLimiter(limit));
     }
@@ -364,9 +363,9 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
       @Override
       public Sequence<Object[]> apply(List<Row> input)
       {
-        final List<String> sourceColumns =
-            GuavaUtils.isNullOrEmpty(outputColumns) ? processor.getFinalColumns() : outputColumns;
-        final List<Object[]> processed = Lists.transform(input, GroupByQueryEngine.rowToArray(sourceColumns));
+        final List<Object[]> processed = Lists.transform(input, GroupByQueryEngine.rowToArray(
+            outputColumns != null ? outputColumns : processor.getFinalColumns(alias))
+        );
         final Comparator<Object[]> ordering = processor.ordering().toArrayOrdering(columns, false);
         if (limit > 0 && limit <= input.size()) {
           return Sequences.once(new TopNSorter<>(ordering).toTopN(processed, limit));
@@ -449,7 +448,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     for (WindowingSpec window : windowingSpecs) {
       schema = window.evolve(query, schema);
     }
-    return schema;
+    return schema.alias(alias);
   }
 
   public static class SortingArrayFn implements Function<Sequence<Object[]>, Sequence<Object[]>>

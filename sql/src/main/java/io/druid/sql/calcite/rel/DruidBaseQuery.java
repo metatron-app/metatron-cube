@@ -88,6 +88,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.BitSets;
 import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -399,15 +400,27 @@ public class DruidBaseQuery implements DruidQuery
             throw new UnsupportedOperationException("not supports " + orderKey.getDirection());
         }
       }
+      Integer increment = null;
+
       int startIx;
       if (group.lowerBound.isCurrentRow()) {
         startIx = 0;
       } else if (group.lowerBound.isUnbounded()) {
-        startIx = Integer.MIN_VALUE;
+        startIx = Integer.MAX_VALUE;
       } else {
-        startIx = ((Number) RexLiteral.value(window.getConstants().get(
+        Comparable value = RexLiteral.value(window.getConstants().get(
             Utils.getInputRef(group.lowerBound.getOffset()) - rowOrdering.size()
-        ))).intValue();
+        ));
+        if (value instanceof Number) {
+          startIx = ((Number) value).intValue();
+        } else {
+          String string = ((NlsString) value).getValue();
+          startIx = Integer.valueOf(string.substring(0, string.indexOf(':')));
+          if (startIx < 0) {
+            startIx = Integer.MAX_VALUE;
+          }
+          increment = Integer.valueOf(string.substring(string.indexOf(':') + 1));
+        }
       }
       int endIx;
       if (group.upperBound.isCurrentRow()) {
@@ -415,18 +428,26 @@ public class DruidBaseQuery implements DruidQuery
       } else if (group.upperBound.isUnbounded()) {
         endIx = Integer.MAX_VALUE;
       } else {
-        endIx = ((Number) RexLiteral.value(window.getConstants().get(
+        Comparable value = RexLiteral.value(window.getConstants().get(
             Utils.getInputRef(group.upperBound.getOffset()) - rowOrdering.size()
-        ))).intValue();
+        ));
+        if (value instanceof Number) {
+          endIx = ((Number) value).intValue();
+        } else {
+          String string = ((NlsString) value).getValue();
+          endIx = Integer.valueOf(string.substring(0, string.indexOf(':')));
+          if (endIx < 0) {
+            endIx = Integer.MAX_VALUE;
+          }
+          increment = Integer.valueOf(string.substring(string.indexOf(':') + 1));
+        }
       }
       for (AggregateCall aggCall : group.getAggregateCalls(window)) {
         final List<DruidExpression> arguments = Aggregations.getArgumentsForSimpleAggregator(
             plannerContext, sourceRowSignature, aggCall, null
         );
-        if (startIx != Integer.MIN_VALUE && endIx != Integer.MAX_VALUE) {
-          arguments.add(DruidExpression.numberLiteral(-startIx));
-          arguments.add(DruidExpression.numberLiteral(endIx));
-        }
+        arguments.add(DruidExpression.numberLiteral(-startIx));
+        arguments.add(DruidExpression.numberLiteral(endIx));
         final String functionName = aggCall.getAggregation().getName();
         final String expression = DruidExpression.functionCall(
             !functionName.startsWith("$") ? "$" + functionName : functionName, arguments    // hack
@@ -434,7 +455,7 @@ public class DruidBaseQuery implements DruidQuery
         expressions.add(StringUtils.format("\"%s\" = %s", aggCall.getName(), expression));
       }
       RowSignature outputRowSignature = RowSignature.from(window.getRowType());
-      windowings.add(new Windowing(partitionColumns, sortColumns, expressions, outputRowSignature));
+      windowings.add(new Windowing(partitionColumns, sortColumns, increment, expressions, outputRowSignature));
     }
     return windowings;
   }
@@ -717,7 +738,7 @@ public class DruidBaseQuery implements DruidQuery
       }
     }
     if (sort == null) {
-      return new Limiting(windowingSpecs, null, -1, alias, outputRowSignature);
+      return new Limiting(windowingSpecs, null, -1, alias, inputRowSignature, outputRowSignature);
     }
 
     final Integer limit = sort.fetch != null ? RexLiteral.intValue(sort.fetch) : null;
@@ -729,7 +750,7 @@ public class DruidBaseQuery implements DruidQuery
 
     // Extract orderBy column specs.
     final List<OrderByColumnSpec> orderings = asOrderingSpec(sort, inputRowSignature);
-    return new Limiting(windowingSpecs, orderings, limit, alias, outputRowSignature);
+    return new Limiting(windowingSpecs, orderings, limit, alias, inputRowSignature, outputRowSignature);
   }
 
   private static List<OrderByColumnSpec> asOrderingSpec(Sort sort, RowSignature rowSignature)

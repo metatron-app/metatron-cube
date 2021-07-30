@@ -7062,4 +7062,44 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     expectedResults = createExpectedRows(columnNames, objects);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
+
+  @Test
+  public void test3823()
+  {
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .dataSource(dataSource)
+        .granularity(Granularities.WEEK)
+        .dimensions(DefaultDimensionSpec.toSpec("market"))
+        .aggregators(QueryRunnerTestHelper.indexDoubleSum)
+        .limitSpec(
+            LimitSpec.of(
+                20,
+                new WindowingSpec(
+                    Arrays.asList("market"),
+                    OrderByColumnSpec.ascending("__time"),
+                    "sum5 = $SUM(index,-10,0)"
+                ).withIncrement(4)
+            )
+        )
+        .outputColumns("__time", "market", "index", "sum5");
+
+    String[] columnNames = {"__time", "market", "index", "sum5"};
+
+    List<Row> expected = createExpectedRows(
+        columnNames,
+        array("2011-01-31", "spot", 6702.265960693359D, 23925.748176574707D),
+        array("2011-02-28", "spot", 7058.767166137695D, 52978.629051208496D),
+        array("2011-03-28", "spot", 7914.987197875977D, 78976.86014938354D),
+        array("2011-01-31", "total_market", 16211.757202148438D, 56602.0625D),
+        array("2011-02-28", "total_market", 16089.98095703125D, 123067.95086669922D),
+        array("2011-03-28", "total_market", 17989.742065429688D, 178131.49340820312D),
+        array("2011-01-31", "upfront", 15596.994750976562D, 52846.12664794922D),
+        array("2011-02-28", "upfront", 14309.646179199219D, 112967.61041259766D),
+        array("2011-03-28", "upfront", 15950.494201660156D, 158644.24676513672D)
+    );
+
+    Iterable<Row> results = runQuery(builder.build(), false);
+    TestHelper.assertExpectedObjects(expected, results, "");
+  }
 }

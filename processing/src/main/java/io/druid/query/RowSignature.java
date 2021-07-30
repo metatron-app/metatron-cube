@@ -32,6 +32,7 @@ import io.druid.query.aggregation.RelayAggregatorFactory;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -270,5 +271,17 @@ public class RowSignature implements io.druid.data.RowSignature
       }
     }
     return new RowSignature(mergedColumns, mergedTypes);
+  }
+
+  public RowSignature alias(Map<String, String> alias)
+  {
+    if (!alias.isEmpty() && GuavaUtils.containsAny(alias.keySet(), columnNames)) {
+      List<String> aliased = Lists.newArrayList();
+      for (String name : columnNames) {
+        aliased.add(alias.getOrDefault(name, name));
+      }
+      return RowSignature.of(aliased, columnTypes);
+    }
+    return this;
   }
 }
