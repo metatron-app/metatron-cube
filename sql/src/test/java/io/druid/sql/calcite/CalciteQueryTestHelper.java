@@ -86,6 +86,7 @@ import io.druid.sql.calcite.util.QueryLogHook;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import io.druid.sql.calcite.view.InProcessViewManager;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.commons.lang.StringEscapeUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -446,6 +447,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         comparison.arrayEquals(StringUtils.format("result #%d: %s", i + 1, sql), expected, actual);
       }
       catch (ArrayComparisonFailure f) {
+        TestHelper.printToExpected(results.rhs);
         failed(f);
       }
     }
@@ -711,7 +713,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       builder.append("hook.verifyHooked(\n");
       queries.add(0, Base64.getEncoder().encodeToString(md5.digest()));
       for (int i = 0; i < queries.size(); i++) {
-        builder.append('\t').append('"').append(queries.get(i)).append('\"');
+        builder.append('\t').append('"').append(StringEscapeUtils.escapeJava(queries.get(i))).append('\"');
         if (i < queries.size() - 1) {
           builder.append(',');
         }

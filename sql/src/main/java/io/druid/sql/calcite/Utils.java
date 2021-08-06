@@ -101,17 +101,21 @@ public class Utils
     return SqlParserUtil.toTree(listCondition);
   }
 
-  public static SqlNode concat(SqlNode first, SqlNode second)
+  public static SqlNode frame(SqlNode frame, SqlNode increment, SqlNode offset)
   {
-    String s1 = Objects.toString(SqlLiteral.value(first), "");
-    String s2 = Objects.toString(SqlLiteral.value(second), "");
-    return SqlLiteral.createCharString(s1 + ":" + s2, first.getParserPosition());
+    return frame(Objects.toString(SqlLiteral.value(frame), ""), increment, offset, frame.getParserPosition());
   }
 
-  public static SqlNode concat(String s1, SqlNode second)
+  public static SqlNode frame(String frame, SqlNode increment, SqlNode offset)
   {
-    String s2 = Objects.toString(SqlLiteral.value(second), "");
-    return SqlLiteral.createCharString(s1 + ":" + s2, second.getParserPosition());
+    return frame(frame, increment, offset, increment.getParserPosition());
+  }
+
+  private static SqlNode frame(String frame, SqlNode increment, SqlNode offset, SqlParserPos pos)
+  {
+    String s2 = Objects.toString(increment == null ? null : SqlLiteral.value(increment), "1");
+    String s3 = Objects.toString(offset == null ? null : SqlLiteral.value(offset), "");
+    return SqlLiteral.createCharString(frame + ":" + s2 + ":" + s3, pos);
   }
 
   public static boolean isOr(RexNode op)

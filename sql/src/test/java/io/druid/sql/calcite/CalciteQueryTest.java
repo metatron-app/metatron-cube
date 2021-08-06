@@ -4951,6 +4951,50 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   }
 
   @Test
+  public void test3835() throws Exception
+  {
+    testQuery(
+        "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
+        + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN 1999 PRECEDING AND CURRENT ROW INCREMENT BY 1000 OFFSET 499)",
+        new Object[]{"2011. 11. 5.", 1869.0D},
+        new Object[]{"2011. 7. 27.", 5655.0D},
+        new Object[]{"2012. 11. 7.", 7719.0D},
+        new Object[]{"2012. 7. 10.", 7669.0D},
+        new Object[]{"2013. 11. 18.", 7550.0D},
+        new Object[]{"2013. 4. 7.", 7653.0D},
+        new Object[]{"2013. 9. 28.", 7603.0D},
+        new Object[]{"2014. 11. 7.", 7570.0D},
+        new Object[]{"2014. 4. 28.", 7526.0D},
+        new Object[]{"2014. 9. 10.", 7511.0D}
+    );
+    hook.verifyHooked(
+        "5zDk6sHY2e2FWb9aBwPT/w==",
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}"
+    );
+
+    testQuery(
+        "  SELECT ShipDate, sum(cast(Quantity as double)) over W as S FROM sales"
+        + "  WINDOW W as (ORDER BY ShipDate ROWS BETWEEN CURRENT ROW AND 2000 FOLLOWING INCREMENT BY 1000 OFFSET 0)",
+        new Object[]{"2011. 1. 11.", 7586.0D},
+        new Object[]{"2011. 4. 1.", 7757.0D},
+        new Object[]{"2012. 1. 29.", 7646.0D},
+        new Object[]{"2012. 3. 26.", 7625.0D},
+        new Object[]{"2012. 9. 29.", 7637.0D},
+        new Object[]{"2013. 12. 31.", 7467.0D},
+        new Object[]{"2013. 7. 22.", 7613.0D},
+        new Object[]{"2014. 10. 29.", 7518.0D},
+        new Object[]{"2014. 12. 9.", 7396.0D},
+        new Object[]{"2014. 6. 4.", 3764.0D}
+    );
+    hook.verifyHooked(
+        "m2wpvHoGQUCK2DH0TOCg9g==",
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}"
+    );
+  }
+
+  @Test
   public void testNewWindowFunctions() throws Exception
   {
     testQuery(

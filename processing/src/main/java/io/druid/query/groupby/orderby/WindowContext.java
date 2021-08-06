@@ -116,18 +116,18 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
 
   public List<Row> evaluate(Iterable<Frame> frames)
   {
-    return evaluate(frames, 1);
+    return evaluate(frames, 1, 0);
   }
 
-  public List<Row> evaluate(Iterable<Frame> frames, int increment)
+  public List<Row> evaluate(Iterable<Frame> frames, int increment, int offset)
   {
     Preconditions.checkArgument(increment >= 1, "invalid increment %d", increment);
     for (Frame frame : frames) {
-      evaluate(frame, increment);
+      evaluate(frame, increment, offset);
     }
     if (increment > 1) {
       List<Row> output = Lists.newArrayList();
-      for (int x = increment - 1; x < length; x += increment) {
+      for (int x = offset; x < length; x += increment) {
         output.add(partition.get(x));
       }
       partition = output;
@@ -137,14 +137,14 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
     return partition;
   }
 
-  private void evaluate(Frame frame, int increment)
+  private void evaluate(Frame frame, int increment, int offset)
   {
     Parser.init(frame.expression);
 
-    if (increment != 1 && frame.window != null) {
-      throw new UOE("not supports");
+    if ((increment != 1 || offset != 0) && frame.window != null) {
+      throw new UOE("not supports");    // todo
     }
-    final int[] window = frame.window == null ? new int[]{increment - 1, length} : frame.toEvalWindow(length);
+    final int[] window = frame.window == null ? new int[]{offset, length} : frame.toEvalWindow(length);
     final boolean temporaryAssign = frame.isTemporaryAssign();
 
     ExprEval eval = null;

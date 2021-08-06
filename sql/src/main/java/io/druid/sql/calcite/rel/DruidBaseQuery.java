@@ -34,6 +34,7 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Parser;
@@ -401,6 +402,7 @@ public class DruidBaseQuery implements DruidQuery
         }
       }
       Integer increment = null;
+      Integer offset = null;
 
       int startIx;
       if (group.lowerBound.isCurrentRow()) {
@@ -413,13 +415,18 @@ public class DruidBaseQuery implements DruidQuery
         ));
         if (value instanceof Number) {
           startIx = ((Number) value).intValue();
-        } else {
+        } else if (value instanceof NlsString){
           String string = ((NlsString) value).getValue();
-          startIx = Integer.valueOf(string.substring(0, string.indexOf(':')));
+          int ix1 = string.indexOf(':');
+          int ix2 = string.indexOf(':', ix1 + 1);
+          startIx = Integer.valueOf(string.substring(0, ix1));
           if (startIx < 0) {
             startIx = Integer.MAX_VALUE;
           }
-          increment = Integer.valueOf(string.substring(string.indexOf(':') + 1));
+          increment = Integer.valueOf(string.substring(ix1 + 1, ix2));
+          offset = ix2 + 1 == string.length() ? null : Integer.valueOf(string.substring(ix2 + 1));
+        } else {
+          throw new UOE("cannot translate %s to window frame", value);
         }
       }
       int endIx;
@@ -434,12 +441,7 @@ public class DruidBaseQuery implements DruidQuery
         if (value instanceof Number) {
           endIx = ((Number) value).intValue();
         } else {
-          String string = ((NlsString) value).getValue();
-          endIx = Integer.valueOf(string.substring(0, string.indexOf(':')));
-          if (endIx < 0) {
-            endIx = Integer.MAX_VALUE;
-          }
-          increment = Integer.valueOf(string.substring(string.indexOf(':') + 1));
+          throw new UOE("cannot translate %s to window frame", value);
         }
       }
       for (AggregateCall aggCall : group.getAggregateCalls(window)) {
@@ -455,7 +457,7 @@ public class DruidBaseQuery implements DruidQuery
         expressions.add(StringUtils.format("\"%s\" = %s", aggCall.getName(), expression));
       }
       RowSignature outputRowSignature = RowSignature.from(window.getRowType());
-      windowings.add(new Windowing(partitionColumns, sortColumns, increment, expressions, outputRowSignature));
+      windowings.add(new Windowing(partitionColumns, sortColumns, increment, offset, expressions, outputRowSignature));
     }
     return windowings;
   }

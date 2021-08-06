@@ -30,7 +30,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.Cacheable;
-import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
@@ -52,16 +51,17 @@ import java.util.Optional;
 
 /**
  */
-public class WindowingSpec implements RowSignature.Evolving, Cacheable
+public class WindowingSpec implements RowSignature.Evolving
 {
   public static WindowingSpec expressions(String... expressions)
   {
-    return new WindowingSpec(null, null, null, false, -1, Arrays.asList(expressions), null, null);
+    return new WindowingSpec(null, null, null, null, false, -1, Arrays.asList(expressions), null, null);
   }
 
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortingColumns;
   private final Integer increment;
+  private final Integer offset;
   private final boolean skipSorting;
   private final int inputLimit;
 
@@ -74,6 +74,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       @JsonProperty("partitionColumns") List<String> partitionColumns,
       @JsonProperty("sortingColumns") List<OrderByColumnSpec> sortingColumns,
       @JsonProperty("increment") Integer increment,
+      @JsonProperty("offset") Integer offset,
       @JsonProperty("skipSorting") boolean skipSorting,
       @JsonProperty("inputLimit") int inputLimit,
       @JsonProperty("expressions") List<String> expressions,
@@ -84,12 +85,14 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.sortingColumns = sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
     this.increment = increment;
+    this.offset = offset;
     this.skipSorting = skipSorting;
     this.inputLimit = inputLimit;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
     this.flattenSpec = flattenSpec;
     this.pivotSpec = pivotSpec;
     Preconditions.checkArgument((flattenSpec == null && pivotSpec == null) || increment == null);
+    Preconditions.checkArgument((flattenSpec == null && pivotSpec == null) || offset == null);
   }
 
   public WindowingSpec(
@@ -99,7 +102,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       FlattenSpec flattenSpec
   )
   {
-    this(partitionColumns, sortingColumns, null, false, -1, expressions, flattenSpec, null);
+    this(partitionColumns, sortingColumns, null, null, false, -1, expressions, flattenSpec, null);
   }
 
   public WindowingSpec(
@@ -109,28 +112,39 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       PivotSpec pivotSpec
   )
   {
-    this(partitionColumns, sortingColumns, null, false, -1, expressions, null, pivotSpec);
+    this(partitionColumns, sortingColumns, null, null, false, -1, expressions, null, pivotSpec);
   }
 
   public WindowingSpec(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns, String... expressions)
   {
-    this(partitionColumns, sortingColumns, null, Arrays.asList(expressions));
+    this(partitionColumns, sortingColumns, null, null, Arrays.asList(expressions));
   }
 
   public WindowingSpec(
       List<String> partitionColumns,
       List<OrderByColumnSpec> sortingColumns,
       Integer increment,
+      Integer offset,
       List<String> expressions
   )
   {
-    this(partitionColumns, sortingColumns, increment, false, -1, expressions, null, null);
+    this(partitionColumns, sortingColumns, increment, offset, false, -1, expressions, null, null);
   }
 
   // used by pre-ordering (gby, stream)
   public WindowingSpec skipSorting()
   {
-    return new WindowingSpec(partitionColumns, null, increment, true, inputLimit, expressions, flattenSpec, pivotSpec);
+    return new WindowingSpec(
+        partitionColumns,
+        null,
+        increment,
+        offset,
+        true,
+        inputLimit,
+        expressions,
+        flattenSpec,
+        pivotSpec
+    );
   }
 
   public WindowingSpec withInputLimit(int inputLimit)
@@ -139,6 +153,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
         partitionColumns,
         sortingColumns,
         increment,
+        offset,
         skipSorting,
         inputLimit,
         expressions,
@@ -153,6 +168,7 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
         partitionColumns,
         sortingColumns,
         increment,
+        offset,
         skipSorting,
         inputLimit,
         expressions,
@@ -258,10 +274,13 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
       @Override
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
+        int increment = Optional.ofNullable(WindowingSpec.this.increment).orElse(1);
+        int offset = Optional.ofNullable(WindowingSpec.this.offset).orElse(increment - 1);
         return context.with(partitionKey, partition)
                       .evaluate(
                           Iterables.transform(expressions, expr -> Frame.of(Evals.splitAssign(expr, context))),
-                          Optional.ofNullable(increment).orElse(1)
+                          increment,
+                          offset
                       );
       }
     };
@@ -329,19 +348,6 @@ public class WindowingSpec implements RowSignature.Evolving, Cacheable
         return keyIndex >= 0 && keyIndex < target.size() ? target.get(keyIndex) : null;
       }
     };
-  }
-
-  @Override
-  public KeyBuilder getCacheKey(KeyBuilder builder)
-  {
-    // I don't think this could be used
-    return builder.append(skipSorting).sp()
-                  .append(partitionColumns).sp()
-                  .append(sortingColumns).sp()
-                  .append(inputLimit).sp()
-                  .append(expressions).sp()
-                  .append(flattenSpec)
-                  .append(pivotSpec);
   }
 
   @JsonIgnore

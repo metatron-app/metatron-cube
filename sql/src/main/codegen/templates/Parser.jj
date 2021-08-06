@@ -2466,6 +2466,8 @@ SqlWindow WindowSpecification() :
     SqlParserPos startPos;
     final Span s, s1, s2;
     SqlLiteral allowPartial = null;
+    SqlNode increment = null;
+    SqlNode offset = null;
 }
 {
     <LPAREN> { s = span(); }
@@ -2498,41 +2500,6 @@ SqlWindow WindowSpecification() :
         |
             lowerBound = WindowRange()
         )
-        (
-            <INCREMENT> <BY>
-            {
-                SqlNode increment = Expression(ExprContext.ACCEPT_NON_QUERY);
-                if (lowerBound != null) {
-                    switch(lowerBound.getKind()) {
-                        case FOLLOWING:
-                        case PRECEDING:
-                            SqlBasicCall call = (SqlBasicCall) lowerBound;
-                            call.setOperand(0, Utils.concat(call.operand(0), increment));
-                            break;
-                        case LITERAL:
-                            if (SqlWindow.isCurrentRow(lowerBound)) {
-                                lowerBound = SqlWindow.createPreceding(Utils.concat("0", increment), lowerBound.getParserPosition());
-                            } else if (SqlWindow.isUnboundedPreceding(lowerBound)) {
-                                lowerBound = SqlWindow.createPreceding(Utils.concat("-1", increment), lowerBound.getParserPosition());
-                            }
-                    }
-                } else if (upperBound != null) {
-                    switch(upperBound.getKind()) {
-                        case FOLLOWING:
-                        case PRECEDING:
-                            SqlBasicCall call = (SqlBasicCall) upperBound;
-                            call.setOperand(0, Utils.concat(call.operand(0), increment));
-                            break;
-                        case LITERAL:
-                            if (SqlWindow.isCurrentRow(upperBound)) {
-                                upperBound = SqlWindow.createFollowing(Utils.concat("0", increment), upperBound.getParserPosition());
-                            } else if (SqlWindow.isUnboundedFollowing(upperBound)) {
-                                upperBound = SqlWindow.createFollowing(Utils.concat("-1", increment), upperBound.getParserPosition());
-                            }
-                    }
-                }
-            }
-        )?
     ]
     [
         <ALLOW> { s2 = span(); } <PARTIAL> {
@@ -2543,8 +2510,36 @@ SqlWindow WindowSpecification() :
             allowPartial = SqlLiteral.createBoolean(false, s2.end(this));
         }
     ]
+    (
+        <INCREMENT> <BY> { increment = Expression(ExprContext.ACCEPT_NON_QUERY); }
+    )?
+    (
+        <OFFSET> { offset = Expression(ExprContext.ACCEPT_NON_QUERY);}
+    )?
     <RPAREN>
     {
+        if (increment != null || offset != null) {
+            if (lowerBound == null) {
+              throw new IllegalArgumentException("cannot use INCREMENT or OFFSET without bound");
+            }
+            switch(lowerBound.getKind()) {
+                case FOLLOWING:
+                case PRECEDING:
+                    SqlBasicCall call = (SqlBasicCall) lowerBound;
+                    call.setOperand(0, Utils.frame(call.operand(0), increment, offset));
+                    break;
+                case LITERAL:
+                    if (SqlWindow.isCurrentRow(lowerBound)) {
+                        lowerBound = SqlWindow.createPreceding(
+                            Utils.frame("0", increment, offset), lowerBound.getParserPosition()
+                        );
+                    } else if (SqlWindow.isUnboundedPreceding(lowerBound)) {
+                        lowerBound = SqlWindow.createPreceding(
+                            Utils.frame("-1", increment, offset), lowerBound.getParserPosition()
+                        );
+                    }
+            }
+        }
         return SqlWindow.create(
             null, id, partitionList, orderList,
             isRows, lowerBound, upperBound, allowPartial, s.end(this));

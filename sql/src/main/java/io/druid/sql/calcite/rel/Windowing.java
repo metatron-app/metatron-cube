@@ -32,6 +32,7 @@ public class Windowing
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortCoumns;
   private final Integer increment;
+  private final Integer offset;
   private final List<String> expression;
 
   private final RowSignature outputRowSignature;
@@ -40,6 +41,7 @@ public class Windowing
       final List<String> partitionColumns,
       final List<OrderByColumnSpec> sortCoumns,
       final Integer increment,
+      final Integer offset,
       final List<String> expression,
       final RowSignature outputRowSignature
   )
@@ -47,13 +49,14 @@ public class Windowing
     this.partitionColumns = ImmutableList.copyOf(partitionColumns);
     this.sortCoumns = ImmutableList.copyOf(sortCoumns);
     this.increment = increment;
+    this.offset = offset;
     this.expression = ImmutableList.copyOf(expression);
     this.outputRowSignature = outputRowSignature;
   }
 
   public WindowingSpec asSpec()
   {
-    return new WindowingSpec(partitionColumns, sortCoumns, increment, expression);
+    return new WindowingSpec(partitionColumns, sortCoumns, increment, offset, expression);
   }
 
   public RowSignature getOutputRowSignature()
@@ -74,6 +77,7 @@ public class Windowing
     return Objects.equals(partitionColumns, grouping.partitionColumns) &&
            Objects.equals(sortCoumns, grouping.sortCoumns) &&
            Objects.equals(increment, grouping.increment) &&
+           Objects.equals(offset, grouping.offset) &&
            Objects.equals(expression, grouping.expression) &&
            Objects.equals(outputRowSignature, grouping.outputRowSignature);
   }
@@ -81,7 +85,7 @@ public class Windowing
   @Override
   public int hashCode()
   {
-    return Objects.hash(partitionColumns, sortCoumns, increment, expression, outputRowSignature);
+    return Objects.hash(partitionColumns, sortCoumns, increment, offset, expression, outputRowSignature);
   }
 
   @Override
@@ -91,6 +95,7 @@ public class Windowing
            "partitionColumns=" + partitionColumns +
            ", sortCoumns=" + sortCoumns +
            (increment == null ? "" : ", increment=" + increment) +
+           (offset == null ? "" : ", offset=" + offset) +
            ", expression=" + expression +
            ", outputRowSignature=" + outputRowSignature +
            '}';
