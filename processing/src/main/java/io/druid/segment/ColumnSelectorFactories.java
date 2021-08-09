@@ -19,12 +19,14 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Function;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import io.druid.common.DateTimes;
+import io.druid.common.Intervals;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
@@ -55,7 +57,6 @@ import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -456,6 +457,11 @@ public class ColumnSelectorFactories
 
     abstract ColumnSelectorFactory makeColumnSelectorFactory(RowResolver resolver);
 
+    public DateTime timestamp()
+    {
+      return timestamp(get());
+    }
+
     private static class FromRow extends RowSupplier<Row>
     {
       @Override
@@ -702,14 +708,11 @@ public class ColumnSelectorFactories
     return toCursors(sequence, new RowSupplier.FromArray(timeIndex), schema, query);
   }
 
+  // assumes time-sorted sequence
   private static <T> Sequence<Cursor> toCursors(
       Sequence<T> sequence, RowSupplier<T> supplier, RowSignature schema, Query<?> query
   )
   {
-    final CloseableIterator<T> iterator = Sequences.toIterator(sequence);
-    if (!iterator.hasNext()) {
-      return Sequences.empty();
-    }
     // todo: this is semantically not consistent with others
     final RowResolver resolver = RowResolver.of(schema.replaceDimensionToString(), BaseQuery.getVirtualColumns(query));
     final ColumnSelectorFactory factory = supplier.makeColumnSelectorFactory(resolver);
@@ -721,16 +724,26 @@ public class ColumnSelectorFactories
     } else {
       matcher = filter.toFilter(resolver).makeMatcher(factory);
     }
+    final CloseableIterator<T> iterator = Sequences.toIterator(sequence);
     final PeekingIterator<T> peeker = Iterators.peekingIterator(iterator);
 
     final Granularity granularity = query.getGranularity();
-    List<Interval> intervals = Lists.newArrayList(JodaUtils.split(granularity, query.getIntervals()));
-    if (query.isDescending()) {
-      Collections.reverse(intervals);
-    }
+    final Sequence<Interval> intervals = Sequences.lazy(
+        () -> {
+          if (!peeker.hasNext()) {
+            return Sequences.empty();
+          }
+          DateTime start = granularity.bucketStart(supplier.timestamp(peeker.peek()));
+          Interval cut = Intervals.utc(start.getMillis(), JodaUtils.MAX_INSTANT);
+          Iterable<Interval> exploded = JodaUtils.split(
+              granularity, Iterables.transform(query.getIntervals(), i -> i.overlap(cut))
+          );
+          return Sequences.simple(GuavaUtils.withCondition(exploded, () -> peeker.hasNext()));
+        });
+
     return Sequences.withBaggage(Sequences.filterNull(Sequences.map(
-        Sequences.simple(intervals),
-        new com.google.common.base.Function<Interval, Cursor>()
+        intervals,
+        new Function<Interval, Cursor>()
         {
           @Override
           public Cursor apply(final Interval input)
@@ -787,7 +800,7 @@ public class ColumnSelectorFactories
               @Override
               public long getRowTimestamp()
               {
-                return input.getStartMillis();
+                return supplier.timestamp().getMillis();
               }
 
               @Override

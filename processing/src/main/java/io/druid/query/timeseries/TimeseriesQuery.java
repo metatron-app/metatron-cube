@@ -433,8 +433,8 @@ public class TimeseriesQuery extends BaseAggregationQuery
   {
     return "TimeseriesQuery{" +
            "dataSource='" + getDataSource() + '\'' +
-           (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
-           (granularity == null || granularity.equals(Granularities.ALL) ? "" : ", filter=" + filter) +
+           (querySegmentSpec == null || querySegmentSpec == QuerySegmentSpec.ETERNITY ? "" : ", querySegmentSpec=" + querySegmentSpec) +
+           (granularity == null || granularity.equals(Granularities.ALL) ? "" : granularity) +
            (limitSpec == NoopLimitSpec.INSTANCE ? "" : ", limitSpec=" + limitSpec) +
            (filter == null ? "" : ", filter=" + filter) +
            (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +

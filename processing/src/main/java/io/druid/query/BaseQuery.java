@@ -172,11 +172,11 @@ public abstract class BaseQuery<T> implements Query<T>
            PropUtils.parseBoolean(getResultForwardContext(query), ForwardConstants.PARALLEL, false);
   }
 
-  private final DataSource dataSource;
-  private final boolean descending;
-  private final Map<String, Object> context;
-  private final QuerySegmentSpec querySegmentSpec;
-  private volatile Duration duration;
+  protected final DataSource dataSource;
+  protected final boolean descending;
+  protected final Map<String, Object> context;
+  protected final QuerySegmentSpec querySegmentSpec;
+  protected volatile Duration duration;
 
   public BaseQuery(
       DataSource dataSource,

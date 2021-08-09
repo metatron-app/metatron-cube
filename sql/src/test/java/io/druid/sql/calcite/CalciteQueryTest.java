@@ -5050,11 +5050,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "FROM druid.foo\n"
         + "GROUP BY EXTRACT(YEAR FROM __time)\n"
         + "ORDER BY 1",
-        newGroupBy()
+        newTimeseries()
             .dataSource(CalciteTests.DATASOURCE1)
-            .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
-            .virtualColumns(EXPR_VC("d0:v", "timestamp_extract('YEAR',__time,'UTC')"))
+            .granularity(Granularities.YEAR)
             .aggregators(GenericSumAggregatorFactory.ofLong("a0", "cnt"))
+            .postAggregators(EXPR_POST_AGG("d0", "timestamp_extract('YEAR',__time,'UTC')"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
             .outputColumns("d0", "a0")
             .build(),
@@ -5514,7 +5514,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                  + " ) AND dim1 <> ''"
                  + "GROUP BY EXTRACT(MONTH FROM __time)\n"
                  + "ORDER BY EXTRACT(MONTH FROM __time)";
-    Query query = newGroupBy()
+    Query query = newTimeseries()
         .dataSource(
             newJoin()
                 .dataSource("foo$", newGroupBy()
@@ -5534,9 +5534,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 .outputColumns("__time", "dim1")
                 .build()
         )
-        .virtualColumns(EXPR_VC("d0:v", "timestamp_extract('MONTH',__time,'UTC')"))
-        .dimensions(DefaultDimensionSpec.of("d0:v", "d0"))
+        .granularity(Granularities.MONTH)
         .aggregators(CARDINALITY("a0", DefaultDimensionSpec.of("dim1")))
+        .postAggregators(EXPR_POST_AGG("d0", "timestamp_extract('MONTH',__time,'UTC')"))
         .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("d0")))
         .outputColumns("a0", "d0")
         .build();
@@ -5548,9 +5548,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{1L, 1L}
     );
     hook.verifyHooked(
-        "Kz/ivO6A4jECp0PBlLvISA==",
+        "02yK5ZZzc0X2/uOqkqDNAA==",
         "TimeseriesQuery{dataSource='foo', filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',__time,'UTC')', outputName='d0:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[a0, d0]}",
+        "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0], $hash=true}], timeColumnName=__time}'PeriodGranularity{period=P1M, timeZone=UTC}, limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_extract('MONTH',__time,'UTC')', finalize=true}], outputColumns=[a0, d0]}",
         "StreamQuery{dataSource='foo', filter=!(dim1==NULL), columns=[__time, dim1, dim2]}",
         "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0], $hash=true}"
     );
@@ -5563,10 +5563,10 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{1L, 1L}
     );
     hook.verifyHooked(
-        "IOoQi5nJe8hcXaTZShtbww==",
+        "sk0oZqKCT/ig2AqFnT/2aw==",
         "TimeseriesQuery{dataSource='foo', filter=dim1=='def', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
         "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], filter=dim1=='def', outputColumns=[d0]}",
-        "GroupByQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}', dimensions=[DefaultDimensionSpec{dimension='d0:v', outputName='d0'}], virtualColumns=[ExprVirtualColumn{expression='timestamp_extract('MONTH',__time,'UTC')', outputName='d0:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, outputColumns=[a0, d0]}",
+        "TimeseriesQuery{dataSource='StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}'PeriodGranularity{period=P1M, timeZone=UTC}, limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d0', direction=ascending}], limit=-1}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}], postAggregatorSpecs=[MathPostAggregator{name='d0', expression='timestamp_extract('MONTH',__time,'UTC')', finalize=true}], outputColumns=[a0, d0]}",
         "StreamQuery{dataSource='foo', filter=(!(dim1==NULL) && dim2=='abc'), columns=[__time, dim1]}"
     );
   }

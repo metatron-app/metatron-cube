@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
@@ -51,14 +52,7 @@ public class IncrementalIndexSchema
   public static IncrementalIndexSchema from(RowSignature signature)
   {
     // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
-    return new IncrementalIndexSchema.Builder()
-        .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(Granularities.ALL)
-        .withDimensionAndTypes(signature.dimensionAndTypes())
-        .withMetricAndTypes(signature.metricAndTypes())
-        .withDimensionFixed(true)
-        .withRollup(false)
-        .build();
+    return from(signature, ImmutableMap.of());
   }
 
   public static IncrementalIndexSchema from(RowSignature signature, Map<String, String> mapping)

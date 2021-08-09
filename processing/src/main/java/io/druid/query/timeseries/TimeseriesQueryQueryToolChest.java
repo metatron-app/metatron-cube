@@ -26,15 +26,19 @@ import io.druid.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
-
 import io.druid.query.BaseAggregationQueryToolChest;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryUtils;
 import io.druid.segment.Cursor;
+import io.druid.segment.Segment;
+import org.joda.time.Interval;
 
 import java.util.Comparator;
+import java.util.Map;
 
 /**
  */
@@ -91,13 +95,38 @@ public class TimeseriesQueryQueryToolChest extends BaseAggregationQueryToolChest
   @Override
   public <I> QueryRunner<Row> handleSubQuery(QuerySegmentWalker segmentWalker, QueryConfig config)
   {
-    return new StreamingSubQueryRunner<I>(segmentWalker, config)
+    return new SubQueryRunner<I>(segmentWalker, config)
     {
+      @Override
+      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+      {
+        QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+        if (Granularities.isAll(query.getGranularity()) || QueryUtils.isTimeSorted(dataSource.getQuery())) {
+          return runStreaming(query, responseContext);
+        }
+        return super.run(query, responseContext);
+      }
+
+      @Override
+      protected Function<Interval, Sequence<Row>> query(Query<Row> query, Segment segment)
+      {
+        final TimeseriesQuery timeseries = (TimeseriesQuery) query;
+        return new Function<Interval, Sequence<Row>>()
+        {
+          @Override
+          public Sequence<Row> apply(Interval interval)
+          {
+            return postAggregation(timeseries, new TimeseriesQueryEngine().process(timeseries, segment, false));
+          }
+        };
+      }
+
       @Override
       protected Function<Cursor, Sequence<Row>> streamQuery(Query<Row> query)
       {
         final TimeseriesQuery timeseries = (TimeseriesQuery) query;
-        return new Function<Cursor, Sequence<Row>>() {
+        return new Function<Cursor, Sequence<Row>>()
+        {
           @Override
           public Sequence<Row> apply(Cursor input)
           {

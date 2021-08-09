@@ -36,6 +36,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.Pair;
@@ -51,9 +52,11 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
+import io.druid.query.select.StreamQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
@@ -602,5 +605,19 @@ public class QueryUtils
     }
     // todo
     return intervals2.equals(intervals1);
+  }
+
+  public static boolean isTimeSorted(Query<?> query)
+  {
+    if (query instanceof StreamQuery) {
+      StreamQuery stream = (StreamQuery) query;
+      List<OrderByColumnSpec> ordering = stream.getResultOrdering();
+      if (!ordering.isEmpty()) {
+        return ordering.get(0).equals(OrderByColumnSpec.asc(Row.TIME_COLUMN_NAME));
+      }
+      List<String> columns = stream.getColumns();
+      return columns == null || columns.contains(Row.TIME_COLUMN_NAME);
+    }
+    return false;
   }
 }

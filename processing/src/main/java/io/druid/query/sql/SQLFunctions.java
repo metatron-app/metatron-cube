@@ -25,7 +25,7 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.java.util.common.IAE;
 import io.druid.math.expr.DateTimeFunctions;
@@ -61,30 +61,29 @@ public interface SQLFunctions extends Function.Library
       }
       final Expr timeParam = args.get(0);
       final PeriodGranularity granularity = ExprUtils.toPeriodGranularity(args, 1);
-      if (Evals.isIdentifier(timeParam) && Row.TIME_COLUMN_NAME.equals(Evals.getIdentifier(timeParam))) {
-        return new HoldingChild<PeriodGranularity>(granularity)
-        {
-          @Override
-          public ValueDesc returns()
-          {
-            return ValueDesc.LONG;
-          }
-
-          @Override
-          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-          {
-            return TimestampGranExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
-          }
-        };
+      if (Evals.isTimeColumn(timeParam)) {
+        return wrap(granularity, new Evaluator(granularity));
       }
-      return new LongChild()
+      return new Evaluator(granularity);
+    }
+
+    private class Evaluator implements Function.FixedTyped, Function
+    {
+      private final PeriodGranularity granularity;
+
+      public Evaluator(PeriodGranularity granularity) {this.granularity = granularity;}
+
+      @Override
+      public ValueDesc returns()
       {
-        @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          return TimestampGranExprMacro.this.evaluate(args.get(0).eval(bindings), granularity);
-        }
-      };
+        return ValueDesc.LONG;
+      }
+
+      @Override
+      public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return TimestampGranExprMacro.this.evaluate(Evals.eval(args.get(0), bindings), granularity);
+      }
     }
 
     protected abstract ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity);
@@ -116,33 +115,24 @@ public interface SQLFunctions extends Function.Library
     @Override
     public Function create(final List<Expr> args, TypeResolver context)
     {
-      final Function function = super.create(args, context);
-      final Function parameter = Evals.getFunction(args.get(1));
+      final Evaluator evaluator = (Evaluator) super.create(args, context);
+      final Expr target = args.get(1);
+      final Function parameter = Evals.getFunction(target);
       if (parameter instanceof HoldingChild) {
         final Object holder = ((HoldingChild) parameter).getHolder();
         if (holder instanceof PeriodGranularity && !((PeriodGranularity) holder).isCompound()) {
           PeriodGranularity granularity = (PeriodGranularity) holder;
-          String uninName = Evals.getConstantString(args.get(0));
-          Period period = DateTimeFunctions.Unit.valueOf(StringUtils.toUpperCase(uninName)).asPeriod();
-          if (granularity.getPeriod().equals(period)) {
-            return new HoldingChild<Object>(holder)
-            {
-              @Override
-              public ValueDesc returns()
-              {
-                return function.returns();
-              }
-
-              @Override
-              public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-              {
-                return function.evaluate(args, bindings);
-              }
-            };
+          if (granularity.getPeriod().equals(evaluator.unit.asPeriod())) {
+            return wrap(holder, evaluator);
           }
         }
+      } else if (Evals.isTimeColumn(target)) {
+        Granularity granularity = evaluator.unit.asGranularity(evaluator.timeZone);
+        if (granularity != null) {
+          return wrap(granularity, evaluator);
+        }
       }
-      return function;
+      return evaluator;
     }
   }
 

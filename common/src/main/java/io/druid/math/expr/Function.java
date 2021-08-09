@@ -298,7 +298,24 @@ public interface Function
       protected HoldingChild(T holder) {this.holder = holder;}
 
       public T getHolder() { return holder; }
+    }
 
+    public <T> HoldingChild<T> wrap(T object, Function evaluator)
+    {
+      return new HoldingChild<T>(object)
+      {
+        @Override
+        public ValueDesc returns()
+        {
+          return evaluator.returns();
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          return evaluator.evaluate(args, bindings);
+        }
+      };
     }
 
     public abstract class StringChild extends Child

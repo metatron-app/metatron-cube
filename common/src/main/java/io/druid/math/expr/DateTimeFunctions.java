@@ -521,6 +521,18 @@ public interface DateTimeFunctions extends Function.Library
       GranularityType type = GranularityType.of(name());
       return type == null ? null : type.getPeriod();
     }
+
+    public Granularity asGranularity(DateTimeZone timeZone)
+    {
+      GranularityType type = GranularityType.of(name());
+      if (type == null) {
+        return null;
+      }
+      if (timeZone == null || timeZone == DateTimeZone.UTC) {
+        return type.getDefaultGranularity();
+      }
+      return new PeriodGranularity(type.getPeriod(), null, timeZone);
+    }
   }
 
   // whole time based
@@ -963,65 +975,76 @@ public interface DateTimeFunctions extends Function.Library
         throw new IAE("Function[%s] timezone arg must be literal", name());
       }
 
-      final Unit unit = Unit.valueOf(StringUtils.toUpperCase(Evals.getConstantString(args.get(0))));
-      final DateTimeZone timeZone = args.size() > 2 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2))) : null;
+      Unit unit = Unit.valueOf(StringUtils.toUpperCase(Evals.getConstantString(args.get(0))));
+      DateTimeZone timeZone = args.size() > 2 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2))) : null;
 
-      return new LongChild()
+      return new Evaluator(unit, timeZone);
+    }
+
+    protected class Evaluator extends LongChild
+    {
+      public final Unit unit;
+      public final DateTimeZone timeZone;
+
+      public Evaluator(Unit unit, DateTimeZone timeZone)
       {
-        @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
-        {
-          final ExprEval param = args.get(1).eval(bindings);
-          final DateTime dateTime = Evals.toDateTime(param, timeZone);
-          if (dateTime == null) {
-            if (unit == Unit.MINUTE || unit == Unit.EPOCH) {
-              throw new IAE("Invalid value %s", param.value());
-            }
-            return ExprEval.of(-1);
-          }
+        this.unit = unit;
+        this.timeZone = timeZone;
+      }
 
-          switch (unit) {
-            case MILLIS:
-              return ExprEval.of(dateTime.getMillis());
-            case EPOCH:
-              return ExprEval.of(dateTime.getMillis() / 1000);
-            case SECOND:
-              return ExprEval.of(dateTime.getSecondOfMinute());
-            case MINUTE:
-              return ExprEval.of(dateTime.getMinuteOfHour());
-            case HOUR:
-              return ExprEval.of(dateTime.getHourOfDay());
-            case DAY:
-              return ExprEval.of(dateTime.getDayOfMonth());
-            case DOW:
-              return ExprEval.of(dateTime.getDayOfWeek());
-            case DOY:
-              return ExprEval.of(dateTime.getDayOfYear());
-            case WEEK:
-              if (dateTime.getWeekyear() != dateTime.getYear()) {
-                return ExprEval.of(1);
-              }
-              // wish it's ISOChronology
-              DateTime firstDay = dateTime.withDate(dateTime.getYear(), DateTimeConstants.JANUARY, 1);
-              if (firstDay.getDayOfWeek() >= DateTimeConstants.FRIDAY) {
-                return ExprEval.of(dateTime.getWeekOfWeekyear() + 1);
-              }
-              return ExprEval.of(dateTime.getWeekOfWeekyear());
-            case WEEKOFWEEKYEAR:
-              return ExprEval.of(dateTime.getWeekOfWeekyear());
-            case MONTH:
-              return ExprEval.of(dateTime.getMonthOfYear());
-            case QUARTER:
-              return ExprEval.of((dateTime.getMonthOfYear() - 1) / 3 + 1);
-            case YEAR:
-              return ExprEval.of(dateTime.getYear());
-            case WEEKYEAR:
-              return ExprEval.of(dateTime.getWeekyear());
-            default:
-              throw new ISE("Unhandled unit[%s]", unit);
+      @Override
+      public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        final ExprEval param = args.get(1).eval(bindings);
+        final DateTime dateTime = Evals.toDateTime(param, timeZone);
+        if (dateTime == null) {
+          if (unit == Unit.MINUTE || unit == Unit.EPOCH) {
+            throw new IAE("Invalid value %s", param.value());
           }
+          return ExprEval.of(-1);
         }
-      };
+
+        switch (unit) {
+          case MILLIS:
+            return ExprEval.of(dateTime.getMillis());
+          case EPOCH:
+            return ExprEval.of(dateTime.getMillis() / 1000);
+          case SECOND:
+            return ExprEval.of(dateTime.getSecondOfMinute());
+          case MINUTE:
+            return ExprEval.of(dateTime.getMinuteOfHour());
+          case HOUR:
+            return ExprEval.of(dateTime.getHourOfDay());
+          case DAY:
+            return ExprEval.of(dateTime.getDayOfMonth());
+          case DOW:
+            return ExprEval.of(dateTime.getDayOfWeek());
+          case DOY:
+            return ExprEval.of(dateTime.getDayOfYear());
+          case WEEK:
+            if (dateTime.getWeekyear() != dateTime.getYear()) {
+              return ExprEval.of(1);
+            }
+            // wish it's ISOChronology
+            DateTime firstDay = dateTime.withDate(dateTime.getYear(), DateTimeConstants.JANUARY, 1);
+            if (firstDay.getDayOfWeek() >= DateTimeConstants.FRIDAY) {
+              return ExprEval.of(dateTime.getWeekOfWeekyear() + 1);
+            }
+            return ExprEval.of(dateTime.getWeekOfWeekyear());
+          case WEEKOFWEEKYEAR:
+            return ExprEval.of(dateTime.getWeekOfWeekyear());
+          case MONTH:
+            return ExprEval.of(dateTime.getMonthOfYear());
+          case QUARTER:
+            return ExprEval.of((dateTime.getMonthOfYear() - 1) / 3 + 1);
+          case YEAR:
+            return ExprEval.of(dateTime.getYear());
+          case WEEKYEAR:
+            return ExprEval.of(dateTime.getWeekyear());
+          default:
+            throw new ISE("Unhandled unit[%s]", unit);
+        }
+      }
     }
   }
 }

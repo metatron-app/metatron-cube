@@ -31,6 +31,7 @@ import io.druid.data.Pair;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
@@ -183,6 +184,11 @@ public class Evals
   public static boolean isIdentifier(Expr arg)
   {
     return arg instanceof IdentifierExpr;
+  }
+
+  public static boolean isTimeColumn(Expr arg)
+  {
+    return arg instanceof IdentifierExpr && Row.TIME_COLUMN_NAME.equals(((IdentifierExpr) arg).identifier());
   }
 
   public static boolean isFunction(Expr arg)

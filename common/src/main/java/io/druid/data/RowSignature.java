@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
@@ -70,6 +71,11 @@ public interface RowSignature extends TypeResolver
       }
     }
     return columnAndTypes;
+  }
+
+  default Iterable<Pair<String, ValueDesc>> columnAndTypes(Iterable<String> columns)
+  {
+    return Iterables.transform(columns, c -> Pair.of(c, resolve(c)));
   }
 
   default List<String> getDimensionNames()

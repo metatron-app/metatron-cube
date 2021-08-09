@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 
 /**
  */
@@ -954,5 +955,31 @@ public class GuavaUtils
     }
     sb.append('\n');
     return sb.toString();
+  }
+
+  public static <T> Iterable<T> withCondition(final Iterable<T> iterable, final BooleanSupplier predicate)
+  {
+    return new Iterable<T>()
+    {
+      @Override
+      public Iterator<T> iterator()
+      {
+        final Iterator<T> iterator = iterable.iterator();
+        return new Iterator<T>()
+        {
+          @Override
+          public boolean hasNext()
+          {
+            return predicate.getAsBoolean() && iterator.hasNext();
+          }
+
+          @Override
+          public T next()
+          {
+            return iterator.next();
+          }
+        };
+      }
+    };
   }
 }
