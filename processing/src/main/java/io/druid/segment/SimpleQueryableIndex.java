@@ -64,7 +64,6 @@ public class SimpleQueryableIndex implements QueryableIndex
   private final Indexed<String> columnNames;
   private final Indexed<String> availableDimensions;
   private final BitmapFactory bitmapFactory;
-  private final Map<String, Supplier<ColumnMeta>> descriptors;
   private final Map<String, Supplier<Column>> columns;
   private final SmooshedFileMapper fileMapper;
   private final Metadata metadata;
@@ -77,7 +76,6 @@ public class SimpleQueryableIndex implements QueryableIndex
       Indexed<String> columnNames,
       Indexed<String> dimNames,
       BitmapFactory bitmapFactory,
-      Map<String, Supplier<ColumnMeta>> descriptors,
       Map<String, Supplier<Column>> columns,
       Map<BigInteger, Pair<CuboidSpec, QueryableIndex>> cuboids,
       SmooshedFileMapper fileMapper,
@@ -89,7 +87,6 @@ public class SimpleQueryableIndex implements QueryableIndex
     this.columnNames = columnNames;
     this.availableDimensions = dimNames;
     this.bitmapFactory = bitmapFactory;
-    this.descriptors = descriptors;
     this.columns = columns;
     this.cuboids = cuboids == null ? ImmutableMap.of() : cuboids;
     this.fileMapper = fileMapper;
@@ -164,12 +161,8 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public ColumnMeta getColumnMeta(String columnName)
   {
-    if (descriptors == null) {
-      final Supplier<Column> supplier = columns.get(columnName);
-      return supplier == null ? null : supplier.get().getMetaData();
-    }
-    final Supplier<ColumnMeta> supplier = descriptors.get(columnName);
-    return supplier == null ? null : supplier.get();
+    final Supplier<Column> supplier = columns.get(columnName);
+    return supplier == null ? null : supplier.get().getMetaData();
   }
 
   @Override
