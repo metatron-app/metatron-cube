@@ -884,82 +884,63 @@ public interface WindowFunctions extends Function.Library
     {
       return new PercentileFunction(args, context)
       {
-        @Override
-        protected float percentile(List<Expr> parameters)
+        private final float percentile;
         {
-          if (parameters.isEmpty()) {
-            throw new IAE("function 'percentile' needs 1 ratio argument");
+          this.percentile = Evals.getConstantNumber(parameters.get(0)).floatValue();
+          if (percentile < 0 || percentile > 1) {
+            throw new IAE("percentile should be in [0 ~ 1]");
           }
-          return Evals.getConstantNumber(parameters.get(0)).floatValue();
+        }
+
+        @Override
+        protected ExprEval current(WindowContext context)
+        {
+          return evaluate(percentile);
         }
       };
     }
 
     abstract class PercentileFunction extends FrameFunction
     {
-      private final ValueType type;
-      private final float percentile;
+      protected final ValueType type;
 
-      private int index;
-      private long[] longs;
-      private float[] floats;
-      private double[] doubles;
+      protected int index;
+      protected double[] values;
 
       protected PercentileFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
         Preconditions.checkArgument(fieldType.isPrimitiveNumeric());
         this.type = fieldType.type();
-        this.percentile = percentile(parameters);
-        if (percentile < 0 || percentile > 1) {
-          throw new IAE("percentile should be in [0 ~ 1]");
-        }
       }
 
-      protected abstract float percentile(List<Expr> parameters);
+      @Override
+      public ValueDesc returns()
+      {
+        return ValueDesc.DOUBLE;
+      }
 
       @Override
       public void init()
       {
         int limit = window == null ? context.size() : sizeOfWindow();
-        if (type == ValueType.LONG) {
-          longs = longs != null && longs.length >= limit ? longs : new long[limit];
-        } else if (type == ValueType.FLOAT) {
-          floats = floats != null && floats.length >= limit ? floats : new float[limit];
-        } else {
-          doubles = doubles != null && doubles.length >= limit ? doubles : new double[limit];
-        }
+        values = values != null && values.length >= limit ? values : new double[limit];
         index = 0;
       }
 
       @Override
-      protected void invoke(Object current, WindowContext context)
+      protected final void invoke(Object current, WindowContext context)
       {
-        final Number number = (Number) current;
-        if (type == ValueType.LONG) {
-          longs[index] = number.longValue();
-        } else if (type == ValueType.FLOAT) {
-          floats[index] = number.floatValue();
-        } else {
-          doubles[index] = number.doubleValue();
-        }
-        index++;
+        values[index++] = ((Number) current).doubleValue();
       }
 
-      @Override
-      protected ExprEval current(WindowContext context)
+      protected final ExprEval evaluate(float percentile)
       {
-        final int x = (int) (index * percentile);
-        if (type == ValueType.LONG) {
-          Arrays.sort(longs, 0, index);
-          return ExprEval.of(longs[x]);
-        } else if (type == ValueType.FLOAT) {
-          Arrays.sort(floats, 0, index);
-          return ExprEval.of(floats[x]);
-        } else {
-          Arrays.sort(doubles, 0, index);
-          return ExprEval.of(doubles[x]);
+        if (index == 0) {
+          return ExprEval.NULL_DOUBLE;
         }
+        Arrays.sort(values, 0, index);
+        return ExprEval.of(values[(int) (index * percentile)]);
       }
     }
   }
@@ -973,9 +954,17 @@ public interface WindowFunctions extends Function.Library
       return new PercentileFunction(args, context)
       {
         @Override
-        protected float percentile(List<Expr> parameters)
+        protected ExprEval current(WindowContext context)
         {
-          return 0.5f;
+          if (index == 0) {
+            return ExprEval.of(null, ValueDesc.of(type));
+          }
+          Arrays.sort(values, 0, index);
+          final int x = (int) (index * 0.5);
+          if (index % 2 == 0) {
+            return ExprEval.of((values[x - 1] + values[x]) / 2);
+          }
+          return ExprEval.of(values[x]);
         }
       };
     }
