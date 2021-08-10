@@ -31,12 +31,10 @@ import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.CombiningSequence;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.granularity.Granularity;
-
 import io.druid.java.util.common.guava.nary.BinaryFn;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.GenericQueryMetricsFactory;
@@ -116,12 +114,7 @@ public class SegmentMetadataQueryQueryToolChest
       @Override
       protected Comparator<SegmentAnalysis> makeOrdering(Query<SegmentAnalysis> query)
       {
-        if (((SegmentMetadataQuery) query).isMerge()) {
-          // Merge everything always
-          return GuavaUtils.<SegmentAnalysis>allEquals();
-        }
-
-        return query.getMergeOrdering(null); // No two elements should be equal, so it should never merge
+        return query.getMergeOrdering(null);
       }
 
       @Override
@@ -129,12 +122,12 @@ public class SegmentMetadataQueryQueryToolChest
       {
         return new BinaryFn<SegmentAnalysis, SegmentAnalysis, SegmentAnalysis>()
         {
-          private final SegmentMetadataQuery query = (SegmentMetadataQuery) inQ;
+          private final boolean lenient = ((SegmentMetadataQuery) inQ).isLenientAggregatorMerge();
 
           @Override
           public SegmentAnalysis apply(SegmentAnalysis arg1, SegmentAnalysis arg2)
           {
-            return mergeAnalyses(arg1, arg2, query.isLenientAggregatorMerge());
+            return mergeAnalyses(arg1, arg2, lenient);
           }
         };
       }
@@ -336,9 +329,13 @@ public class SegmentMetadataQueryQueryToolChest
   @VisibleForTesting
   public static SegmentAnalysis finalizeAnalysis(SegmentAnalysis analysis)
   {
+    List<Interval> intervals = analysis.getIntervals();
+    if (intervals == null || intervals.size() == 1) {
+      return analysis;
+    }
     return new SegmentAnalysis(
         analysis.getId(),
-        analysis.getIntervals() != null ? JodaUtils.condenseIntervals(analysis.getIntervals()) : null,
+        JodaUtils.condenseIntervals(intervals),
         analysis.getColumns(),
         analysis.getSerializedSize(),
         analysis.getNumRows(),

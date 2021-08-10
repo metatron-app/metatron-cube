@@ -25,12 +25,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.BaseQuery;
@@ -211,18 +208,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   @Override
   public Comparator<SegmentAnalysis> getMergeOrdering(List<String> columns)
   {
-    Comparator<SegmentAnalysis> ordering = GuavaUtils.<SegmentAnalysis>noNullableNatural();
-    if (!merge && analyzingInterval()) {
-      ordering = Ordering.from(JodaUtils.intervalsByStartThenEnd()).onResultOf(new Function<SegmentAnalysis, Interval>()
-      {
-        @Override
-        public Interval apply(SegmentAnalysis input)
-        {
-          return JodaUtils.umbrellaInterval(input.getIntervals());
-        }
-      });
-    }
-    return isDescending() ? Comparators.REVERT(ordering) : ordering;
+    return merge ? GuavaUtils.<SegmentAnalysis>allEquals() : super.getMergeOrdering(columns);
   }
 
   public boolean analyzingOnlyInterval()
