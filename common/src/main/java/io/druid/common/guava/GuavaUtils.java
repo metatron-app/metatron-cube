@@ -364,6 +364,11 @@ public class GuavaUtils
     return Lists.newArrayList(set);
   }
 
+  public static <T, V> Iterable<V> explode(Iterable<T> iterable, Function<T, Iterable<V>> function)
+  {
+    return Iterables.concat(Iterables.transform(iterable, function));
+  }
+
   @SuppressWarnings("unchecked")
   public static <T, X extends T> X firstOf(List<T> list)
   {

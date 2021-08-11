@@ -19,10 +19,8 @@
 
 package io.druid.sql.calcite.schema;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -31,28 +29,30 @@ import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.Pair;
 import io.druid.query.Query;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.jmx.JMXQuery;
+import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.DataContext;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.linq4j.Linq4j;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.schema.FilterableTable;
 import org.apache.calcite.schema.ProjectableFilterableTable;
 import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.SchemaPlus;
-import org.apache.calcite.schema.Statistic;
-import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.schema.TableMacro;
+import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.AbstractSchema;
 import org.apache.calcite.schema.impl.AbstractTable;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -167,7 +167,8 @@ public class InformationSchema extends AbstractSchema
       .add(JDBC_TYPE, ValueDesc.LONG)
       .add(COLUMN_DESCS, ValueDesc.STRING)
       .build();
-  private static final RelDataTypeSystem TYPE_SYSTEM = RelDataTypeSystem.DEFAULT;
+
+  private static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
 
   private static final String HOST = "host";
   private static final String TYPE = "type";
@@ -241,41 +242,28 @@ public class InformationSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(final DataContext root)
     {
-      final FluentIterable<Object[]> results = FluentIterable
-          .from(rootSchema.getSubSchemaNames())
-          .transform(
-              new Function<String, Object[]>()
-              {
-                @Override
-                public Object[] apply(final String schemaName)
-                {
-                  final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
-                  return new Object[]{
-                      DRUID_CATALOG, // CATALOG_NAME
-                      subSchema.getName(), // SCHEMA_NAME
-                      null, // SCHEMA_OWNER
-                      null, // DEFAULT_CHARACTER_SET_CATALOG
-                      null, // DEFAULT_CHARACTER_SET_SCHEMA
-                      null, // DEFAULT_CHARACTER_SET_NAME
-                      null  // SQL_PATH
-                  };
-                }
-              }
-          );
-
-      return Linq4j.asEnumerable(results);
+      return Linq4j.asEnumerable(Iterables.transform(
+          rootSchema.getSubSchemaNames(),
+          schemaName ->
+          {
+            final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
+            return new Object[]{
+                DRUID_CATALOG, // CATALOG_NAME
+                subSchema.getName(), // SCHEMA_NAME
+                null, // SCHEMA_OWNER
+                null, // DEFAULT_CHARACTER_SET_CATALOG
+                null, // DEFAULT_CHARACTER_SET_SCHEMA
+                null, // DEFAULT_CHARACTER_SET_NAME
+                null  // SQL_PATH
+            };
+          }
+      ));
     }
 
     @Override
     public RelDataType getRowType(final RelDataTypeFactory typeFactory)
     {
       return SCHEMATA_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public Statistic getStatistic()
-    {
-      return Statistics.UNKNOWN;
     }
 
     @Override
@@ -300,55 +288,48 @@ public class InformationSchema extends AbstractSchema
     {
       Preconditions.checkArgument(filters == null, "filter is not supported, yet");
       final int[] projection = projects == null ? PROJECT_ALL : projects;
-      final FluentIterable<Object[]> results = FluentIterable
-          .from(rootSchema.getSubSchemaNames())
-          .transformAndConcat(
-              new Function<String, Iterable<Object[]>>()
-              {
-                @Override
-                public Iterable<Object[]> apply(final String schemaName)
-                {
-                  final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
-                  return Iterables.concat(
-                      Iterables.transform(
-                          subSchema.getTableNames(),
-                          tableName -> {
-                            final Object[] row = new Object[projection.length];
-                            for (int i = 0; i < projection.length; i++) {
-                              switch (projection[i]) {
-                                case 0: row[i] = DRUID_CATALOG; continue;
-                                case 1: row[i] = schemaName; continue;
-                                case 2: row[i] = tableName; continue;
-                                case 3: row[i] = subSchema.getTable(tableName).getJdbcTableType().toString(); // todo
-                              }
-                            }
-                            return row;
-                          }
-                      ),
-                      Iterables.filter(Iterables.transform(
-                          subSchema.getFunctionNames(),
-                          functionName -> {
-                            if (getView(subSchema, functionName) == null) {
-                              return null;
-                            }
-                            final Object[] row = new Object[projection.length];
-                            for (int i = 0; i < projection.length; i++) {
-                              switch (projection[i]) {
-                                case 0: row[i] = DRUID_CATALOG; continue;
-                                case 1: row[i] = schemaName; continue;
-                                case 2: row[i] = functionName; continue;
-                                case 3: row[i] = "VIEW";
-                              }
-                            }
-                            return row;
-                          }
-                      ), Predicates.notNull())
-                  );
-                }
-              }
-          );
 
-      return Linq4j.asEnumerable(results);
+      return Linq4j.asEnumerable(GuavaUtils.explode(
+          rootSchema.getSubSchemaNames(),
+          schemaName -> {
+            final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
+            return Iterables.concat(
+                Iterables.transform(
+                    subSchema.getTableNames(),
+                    tableName -> {
+                      final Object[] row = new Object[projection.length];
+                      for (int i = 0; i < projection.length; i++) {
+                        switch (projection[i]) {
+                          case 0: row[i] = DRUID_CATALOG; continue;
+                          case 1: row[i] = schemaName; continue;
+                          case 2: row[i] = tableName; continue;
+                          case 3: row[i] = subSchema.getTable(tableName).getJdbcTableType().toString(); // todo
+                        }
+                      }
+                      return row;
+                    }
+                ),
+                Iterables.filter(Iterables.transform(
+                    subSchema.getFunctionNames(),
+                    functionName -> {
+                      if (getView(subSchema, functionName) == null) {
+                        return null;
+                      }
+                      final Object[] row = new Object[projection.length];
+                      for (int i = 0; i < projection.length; i++) {
+                        switch (projection[i]) {
+                          case 0: row[i] = DRUID_CATALOG; continue;
+                          case 1: row[i] = schemaName; continue;
+                          case 2: row[i] = functionName; continue;
+                          case 3: row[i] = "VIEW";
+                        }
+                      }
+                      return row;
+                    }
+                ), Predicates.notNull())
+            );
+          }
+      ));
     }
 
     @Override
@@ -358,93 +339,46 @@ public class InformationSchema extends AbstractSchema
     }
 
     @Override
-    public Statistic getStatistic()
-    {
-      return Statistics.UNKNOWN;
-    }
-
-    @Override
     public TableType getJdbcTableType()
     {
       return TableType.SYSTEM_TABLE;
     }
   }
 
-  class ColumnsTable extends AbstractTable implements ScannableTable
+  class ColumnsTable extends AbstractTable implements ScannableTable, FilterableTable
   {
     @Override
-    public Enumerable<Object[]> scan(final DataContext root)
+    public Enumerable<Object[]> scan(DataContext root)
     {
-      final FluentIterable<Object[]> results = FluentIterable
-          .from(rootSchema.getSubSchemaNames())
-          .transformAndConcat(
-              new Function<String, Iterable<Object[]>>()
-              {
-                @Override
-                public Iterable<Object[]> apply(final String schemaName)
-                {
-                  final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
-                  final JavaTypeFactoryImpl typeFactory = new JavaTypeFactoryImpl(TYPE_SYSTEM);
+      return scan(getAllTables(rootSchema));
+    }
 
-                  return Iterables.concat(
-                      Iterables.filter(
-                          Iterables.concat(
-                              FluentIterable.from(subSchema.getTableNames()).transform(
-                                  new Function<String, Iterable<Object[]>>()
-                                  {
-                                    @Override
-                                    public Iterable<Object[]> apply(final String tableName)
-                                    {
-                                      return generateColumnMetadata(
-                                          schemaName,
-                                          tableName,
-                                          subSchema.getTable(tableName),
-                                          typeFactory
-                                      );
-                                    }
-                                  }
-                              ),
-                              FluentIterable.from(subSchema.getFunctionNames()).transform(
-                                  new Function<String, Iterable<Object[]>>()
-                                  {
-                                    @Override
-                                    public Iterable<Object[]> apply(final String functionName)
-                                    {
-                                      final TableMacro viewMacro = getView(subSchema, functionName);
-                                      if (viewMacro == null) {
-                                        return null;
-                                      }
+    @Override
+    public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
+    {
+      Iterable<Pair<String[], Table>> tables = getAllTables(rootSchema);
+      String tableSchema = Objects.toString(Utils.extractEq(1, filters), null); // 1 : COLUMNS.indexOf("TABLE_SCHEMA")
+      if (tableSchema != null) {
+        tables = Iterables.filter(tables, table -> table.lhs[0].equals(tableSchema));
+      }
+      String tableName = Objects.toString(Utils.extractEq(2, filters), null);   // 2 : COLUMNS.indexOf("TABLE_NAME")
+      if (tableName != null) {
+        tables = Iterables.filter(tables, table -> table.lhs[1].equals(tableName));
+      }
+      return scan(tables);
+    }
 
-                                      return generateColumnMetadata(
-                                          schemaName,
-                                          functionName,
-                                          viewMacro.apply(ImmutableList.of()),
-                                          typeFactory
-                                      );
-                                    }
-                                  }
-                              )
-                          ),
-                          Predicates.notNull()
-                      )
-                  );
-                }
-              }
-          );
-
-      return Linq4j.asEnumerable(results);
+    private Enumerable<Object[]> scan(Iterable<Pair<String[], Table>> tables)
+    {
+      return Linq4j.asEnumerable(GuavaUtils.explode(
+          tables, table -> generateColumnMetadata(table.lhs[0], table.lhs[1], table.rhs)
+      ));
     }
 
     @Override
     public RelDataType getRowType(final RelDataTypeFactory typeFactory)
     {
       return COLUMNS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public Statistic getStatistic()
-    {
-      return Statistics.UNKNOWN;
     }
 
     @Override
@@ -457,91 +391,74 @@ public class InformationSchema extends AbstractSchema
     private Iterable<Object[]> generateColumnMetadata(
         final String schemaName,
         final String tableName,
-        final Table table,
-        final RelDataTypeFactory typeFactory
+        final Table table
     )
     {
-      if (table == null) {
-        return null;
-      }
-
-      return FluentIterable
-          .from(table.getRowType(typeFactory).getFieldList())
-          .transform(
-              new Function<RelDataTypeField, Object[]>()
-              {
-                @Override
-                public Object[] apply(final RelDataTypeField field)
-                {
-                  final String name = field.getName();
-                  final RelDataType type = field.getType();
-                  boolean isNumeric = SqlTypeName.NUMERIC_TYPES.contains(type.getSqlTypeName());
-                  boolean isCharacter = SqlTypeName.CHAR_TYPES.contains(type.getSqlTypeName());
-                  boolean isDateTime = SqlTypeName.DATETIME_TYPES.contains(type.getSqlTypeName());
-                  String descriptor = null;
-                  if (table instanceof DruidTable) {
-                    descriptor = Objects.toString(((DruidTable) table).getDescriptors().get(name), "");
-                  }
-                  return new Object[]{
-                      DRUID_CATALOG, // TABLE_CATALOG
-                      schemaName, // TABLE_SCHEMA
-                      tableName, // TABLE_NAME
-                      name, // COLUMN_NAME
-                      String.valueOf(field.getIndex()), // ORDINAL_POSITION
-                      "", // COLUMN_DEFAULT
-                      type.isNullable() ? "YES" : "NO", // IS_NULLABLE
-                      type.getSqlTypeName().toString(), // DATA_TYPE
-                      type.getFullTypeString(), // DATA_TYPE_EXTENDED
-                      null, // CHARACTER_MAXIMUM_LENGTH
-                      null, // CHARACTER_OCTET_LENGTH
-                      isNumeric ? String.valueOf(type.getPrecision()) : null, // NUMERIC_PRECISION
-                      isNumeric ? "10" : null, // NUMERIC_PRECISION_RADIX
-                      isNumeric ? String.valueOf(type.getScale()) : null, // NUMERIC_SCALE
-                      isDateTime ? String.valueOf(type.getPrecision()) : null, // DATETIME_PRECISION
-                      isCharacter ? type.getCharset().name() : null, // CHARACTER_SET_NAME
-                      isCharacter ? type.getCollation().getCollationName() : null, // COLLATION_NAME
-                      type.getSqlTypeName().getJdbcOrdinal(), // JDBC_TYPE (Druid extension)
-                      descriptor
-                  };
-                }
-              }
-          );
+      return Iterables.transform(
+          table.getRowType(TYPE_FACTORY).getFieldList(),
+          field -> {
+            final String name = field.getName();
+            final RelDataType type = field.getType();
+            boolean isNumeric = SqlTypeName.NUMERIC_TYPES.contains(type.getSqlTypeName());
+            boolean isCharacter = SqlTypeName.CHAR_TYPES.contains(type.getSqlTypeName());
+            boolean isDateTime = SqlTypeName.DATETIME_TYPES.contains(type.getSqlTypeName());
+            String descriptor = null;
+            if (table instanceof DruidTable) {
+              descriptor = Objects.toString(((DruidTable) table).getDescriptors().get(name), "");
+            }
+            return new Object[]{
+                DRUID_CATALOG, // TABLE_CATALOG
+                schemaName, // TABLE_SCHEMA
+                tableName, // TABLE_NAME
+                name, // COLUMN_NAME
+                String.valueOf(field.getIndex()), // ORDINAL_POSITION
+                "", // COLUMN_DEFAULT
+                type.isNullable() ? "YES" : "NO", // IS_NULLABLE
+                type.getSqlTypeName().toString(), // DATA_TYPE
+                type.getFullTypeString(), // DATA_TYPE_EXTENDED
+                null, // CHARACTER_MAXIMUM_LENGTH
+                null, // CHARACTER_OCTET_LENGTH
+                isNumeric ? String.valueOf(type.getPrecision()) : null, // NUMERIC_PRECISION
+                isNumeric ? "10" : null, // NUMERIC_PRECISION_RADIX
+                isNumeric ? String.valueOf(type.getScale()) : null, // NUMERIC_SCALE
+                isDateTime ? String.valueOf(type.getPrecision()) : null, // DATETIME_PRECISION
+                isCharacter ? type.getCharset().name() : null, // CHARACTER_SET_NAME
+                isCharacter ? type.getCollation().getCollationName() : null, // COLLATION_NAME
+                type.getSqlTypeName().getJdbcOrdinal(), // JDBC_TYPE (Druid extension)
+                descriptor
+            };
+          }
+      );
     }
   }
+
+  private static final List<String> SERVERS_COLUMNS = SERVERS_SIGNATURE.getColumnNames();
 
   class ServersTable extends AbstractTable implements ScannableTable
   {
     @Override
+    @SuppressWarnings("unchecked")
     public Enumerable<Object[]> scan(final DataContext root)
     {
       JMXQuery query = new JMXQuery(
           null, null, null, false, ImmutableMap.of(Query.QUERYID, UUID.randomUUID().toString())
       );
-      Iterable<Object[]> results = Iterables.concat(Iterables.transform(
+      return Linq4j.asEnumerable(GuavaUtils.explode(
           Sequences.toList(QueryRunners.run(query, segmentWalker)),
-          new Function<Map<String, Object>, Iterable<Object[]>>()
-          {
-            private final List<String> rowOrder = SERVERS_SIGNATURE.getColumnNames();
-
-            @Override
-            @SuppressWarnings("unchecked")
-            public Iterable<Object[]> apply(Map<String, Object> input)
-            {
-              List<Object[]> values = Lists.newArrayList();
-              for (Map.Entry<String, Object> entry : input.entrySet()) {
-                Map<String, Object> stats = (Map<String, Object>) entry.getValue();
-                final Object[] array = new Object[rowOrder.size()];
-                array[0] = entry.getKey();
-                for (int i = 1; i < array.length; i++) {
-                  array[i] = stats.get(rowOrder.get(i));
-                }
-                values.add(array);
+          input -> {
+            List<Object[]> values = Lists.newArrayList();
+            for (Map.Entry<String, Object> entry : input.entrySet()) {
+              Map<String, Object> stats = (Map<String, Object>) entry.getValue();
+              final Object[] array = new Object[SERVERS_COLUMNS.size()];
+              array[0] = entry.getKey();
+              for (int i = 1; i < array.length; i++) {
+                array[i] = stats.get(SERVERS_COLUMNS.get(i));
               }
-              return values;
+              values.add(array);
             }
+            return values;
           }
       ));
-      return Linq4j.asEnumerable(results);
     }
 
     @Override
@@ -551,16 +468,24 @@ public class InformationSchema extends AbstractSchema
     }
 
     @Override
-    public Statistic getStatistic()
-    {
-      return Statistics.UNKNOWN;
-    }
-
-    @Override
     public TableType getJdbcTableType()
     {
       return TableType.SYSTEM_VIEW;
     }
+  }
+
+  private static Iterable<Pair<String[], Table>> getAllTables(SchemaPlus rootSchema)
+  {
+    Iterable<SchemaPlus> schemas = Iterables.transform(
+        rootSchema.getSubSchemaNames(), name -> rootSchema.getSubSchema(name)
+    );
+    Iterable<Pair<String[], Table>> tables = GuavaUtils.explode(schemas, schema -> Iterables.transform(
+        schema.getTableNames(), name -> Pair.of(new String[]{schema.getName(), name}, schema.getTable(name))
+    ));
+    Iterable<Pair<String[], Table>> macros = GuavaUtils.explode(schemas, schema -> Iterables.transform(
+        schema.getFunctionNames(), name -> Pair.of(new String[]{schema.getName(), name}, getView(schema, name))
+    ));
+    return Iterables.filter(Iterables.concat(tables, macros), table -> table.rhs != null);
   }
 
   /**
@@ -572,13 +497,13 @@ public class InformationSchema extends AbstractSchema
    * @return view, or null
    */
   @Nullable
-  private static TableMacro getView(final SchemaPlus schemaPlus, final String functionName)
+  private static TranslatableTable getView(final SchemaPlus schemaPlus, final String functionName)
   {
     // Look for a zero-arg function that is also a TableMacro. The returned value
     // is never null so we don't need to check for that.
     for (org.apache.calcite.schema.Function function : schemaPlus.getFunctions(functionName)) {
       if (function.getParameters().isEmpty() && function instanceof TableMacro) {
-        return (TableMacro) function;
+        return ((TableMacro) function).apply(ImmutableList.of());
       }
     }
     return null;

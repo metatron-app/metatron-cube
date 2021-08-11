@@ -30,7 +30,6 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
@@ -316,7 +315,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       final List<String> columns
   )
   {
-    return JodaUtils.explode(partitionExpressions, new Function<PartitionExpression, Iterable<Frame>>()
+    return GuavaUtils.explode(partitionExpressions, new Function<PartitionExpression, Iterable<Frame>>()
     {
       @Override
       public Iterable<Frame> apply(PartitionExpression expression)

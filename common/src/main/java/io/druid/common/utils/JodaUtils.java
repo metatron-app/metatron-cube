@@ -25,6 +25,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeUtils;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.IAE;
@@ -209,7 +210,7 @@ public class JodaUtils
     if (granularity == null) {
       return intervals;
     }
-    return explode(
+    return GuavaUtils.explode(
         intervals,
         new Function<Interval, Iterable<Interval>>()
         {
@@ -220,11 +221,6 @@ public class JodaUtils
           }
         }
     );
-  }
-
-  public static <T, V> Iterable<V> explode(Iterable<T> iterable, Function<T, Iterable<V>> function)
-  {
-    return Iterables.concat(Iterables.transform(iterable, function));
   }
 
   public static Period toPeriod(String string)

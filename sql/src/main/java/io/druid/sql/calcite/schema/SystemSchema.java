@@ -22,7 +22,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -34,6 +33,7 @@ import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.client.selector.ServerSelector;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.HostAndPort;
 import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.Sequences;
@@ -71,12 +71,12 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public class SystemSchema extends AbstractSchema
@@ -299,9 +299,9 @@ public class SystemSchema extends AbstractSchema
     }
   }
 
-  static class ServersTable extends AbstractTable implements ScannableTable
+  static class ServersTable extends AbstractTable implements ScannableTable, FilterableTable
   {
-    private final TimelineServerView serverView;
+    protected final TimelineServerView serverView;
 
     public ServersTable(TimelineServerView serverView)
     {
@@ -323,31 +323,59 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      final List<ImmutableDruidServer> druidServers = serverView.getDruidServers();
-      final FluentIterable<Object[]> results = FluentIterable
-          .from(druidServers)
-          .transform(val -> new Object[]{
-              val.getHost(),
-              extractHost(val.getHost()),
-              (long) extractPort(val.getHostAndPort()),
-              (long) extractPort(val.getHostAndTlsPort()),
-              toStringOrNull(val.getType()),
-              val.getTier(),
-              val.getCurrSize(),
-              val.getMaxSize()
-          });
-      return Linq4j.asEnumerable(results);
+      return scan(serverView.getDruidServers());
+    }
+
+    @Override
+    public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
+    {
+      return scan(filter(serverView.getDruidServers(), filters));
+    }
+
+    protected Enumerable<Object[]> scan(Iterable<ImmutableDruidServer> servers)
+    {
+      return Linq4j.asEnumerable(Iterables.transform(
+          servers,
+          server -> new Object[]{
+              server.getHost(),
+              extractHost(server.getHost()),
+              (long) extractPort(server.getHostAndPort()),
+              (long) extractPort(server.getHostAndTlsPort()),
+              toStringOrNull(server.getType()),
+              server.getTier(),
+              server.getCurrSize(),
+              server.getMaxSize()
+          }
+      ));
+    }
+
+    protected Iterable<ImmutableDruidServer> filter(Iterable<ImmutableDruidServer> servers, List<RexNode> filters)
+    {
+      String serverName = Objects.toString(Utils.extractEq(0, filters), null);  // 0 : SERVERS.indexOf("server")
+      if (serverName != null) {
+        servers = Iterables.filter(servers, server -> serverName.equals(server.getName()));
+      }
+      String hostName = Objects.toString(Utils.extractEq(1, filters), null);    // 1 : SERVERS.indexOf("host")
+      if (hostName != null) {
+        servers = Iterables.filter(servers, server -> hostName.equals(server.getHost()));
+      }
+      String serverType = Objects.toString(Utils.extractEq(4, filters), null);  // 4 : SERVERS.indexOf("server_type")
+      if (serverType != null) {
+        servers = Iterables.filter(servers, server -> serverType.equals(server.getType()));
+      }
+      String tier = Objects.toString(Utils.extractEq(5, filters), null);        // 5 : SERVERS.indexOf("tier")
+      if (tier != null) {
+        servers = Iterables.filter(servers, server -> tier.equals(server.getTier()));
+      }
+      return servers;
     }
   }
 
-  // todo implement FilterableTable
-  static class ServersExtendedTable extends AbstractTable implements ScannableTable
+  static class ServersExtendedTable extends ServersTable
   {
-    private final TimelineServerView serverView;
-
     public ServersExtendedTable(TimelineServerView serverView)
     {
-      this.serverView = serverView;
+      super(serverView);
     }
 
     @Override
@@ -357,28 +385,20 @@ public class SystemSchema extends AbstractSchema
     }
 
     @Override
-    public TableType getJdbcTableType()
+    protected Enumerable<Object[]> scan(Iterable<ImmutableDruidServer> servers)
     {
-      return TableType.SYSTEM_TABLE;
-    }
-
-    @Override
-    public Enumerable<Object[]> scan(DataContext root)
-    {
-      final List<ImmutableDruidServer> druidServers = serverView.getDruidServers();
-      final FluentIterable<Object[]> results = FluentIterable
-          .from(druidServers)
-          .transform(val -> {
-            final Map<String, Object> stat = getStatFrom(val);
+      return Linq4j.asEnumerable(Iterables.transform(
+          servers, server -> {
+            final Map<String, Object> stat = getStatFrom(server);
             return new Object[]{
-                val.getHost(),
-                extractHost(val.getHost()),
-                (long) extractPort(val.getHostAndPort()),
-                (long) extractPort(val.getHostAndTlsPort()),
-                toStringOrNull(val.getType()),
-                val.getTier(),
-                val.getCurrSize(),
-                val.getMaxSize(),
+                server.getHost(),
+                extractHost(server.getHost()),
+                (long) extractPort(server.getHostAndPort()),
+                (long) extractPort(server.getHostAndTlsPort()),
+                toStringOrNull(server.getType()),
+                server.getTier(),
+                server.getCurrSize(),
+                server.getMaxSize(),
                 PropUtils.parseLong(stat, "availableProcessor", -1),
                 PropUtils.parseDouble(stat, "systemLoadAverage", -1),
                 PropUtils.parseLong(stat, "heap.max", -1),
@@ -393,8 +413,8 @@ public class SystemSchema extends AbstractSchema
                 stat.get("gc.collectionCount"),
                 stat.get("gc.collectionTime")
             };
-          });
-      return Linq4j.asEnumerable(results);
+          }
+      ));
     }
 
     @SuppressWarnings("unchecked")
@@ -407,7 +427,7 @@ public class SystemSchema extends AbstractSchema
     }
   }
 
-  private static class ServerSegmentsTable extends AbstractTable implements ScannableTable
+  private static class ServerSegmentsTable extends AbstractTable implements ScannableTable, FilterableTable
   {
     private final TimelineServerView serverView;
 
@@ -431,19 +451,27 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      final List<Object[]> rows = new ArrayList<>();
-      final List<ImmutableDruidServer> druidServers = serverView.getDruidServers();
-      final int serverSegmentsTableSize = SERVER_SEGMENTS_SIGNATURE.size();
-      for (ImmutableDruidServer druidServer : druidServers) {
-        final Map<String, DataSegment> segmentMap = druidServer.getSegments();
-        for (DataSegment segment : segmentMap.values()) {
-          Object[] row = new Object[serverSegmentsTableSize];
-          row[0] = druidServer.getHost();
-          row[1] = segment.getIdentifier();
-          rows.add(row);
-        }
+      return scan(serverView.getDruidServers());
+    }
+
+    @Override
+    public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
+    {
+      Iterable<ImmutableDruidServer> servers = serverView.getDruidServers();
+      String serverName = Objects.toString(Utils.extractEq(0, filters), null);  // 0 : SERVER_SEGMENTS.indexOf("server")
+      if (serverName != null) {
+        servers = Iterables.filter(servers, server -> serverName.equals(server.getName()));
       }
-      return Linq4j.asEnumerable(rows);
+      return scan(servers);
+    }
+
+    private Enumerable<Object[]> scan(Iterable<ImmutableDruidServer> servers)
+    {
+      return Linq4j.asEnumerable(GuavaUtils.explode(servers, server ->
+        Iterables.transform(
+            server.getSegments().values(), segment -> new Object[]{server.getHost(), segment.getIdentifier()}
+        )
+      ));
     }
   }
 

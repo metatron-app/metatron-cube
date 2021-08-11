@@ -428,7 +428,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   public void testExplainInformationSchemaColumns() throws Exception
   {
     final String explanation =
-        "DruidOuterQueryRel(scanFilter=[AND(=($1, 'druid'), =($2, 'foo'))], scanProject=[$3, $7])\n"
+        "DruidOuterQueryRel(scanProject=[$3, $7])\n"
         + "  DruidValuesRel(table=[INFORMATION_SCHEMA.COLUMNS])\n";
 
     testQuery(

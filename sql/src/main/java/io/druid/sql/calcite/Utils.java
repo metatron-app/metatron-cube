@@ -457,6 +457,7 @@ public class Utils
     return rexNode.getKind() == SqlKind.AND ? ((RexCall) rexNode).getOperands() : Arrays.asList(rexNode);
   }
 
+  // todo : support other functions
   public static Object extractEq(int ref, List<RexNode> filters)
   {
     final Iterator<RexNode> iterator = filters.iterator();
