@@ -51,9 +51,14 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
 {
   public static SegmentMetadataQuery of(String dataSource, AnalysisType... analysisTypes)
   {
+    return of(dataSource, QuerySegmentSpec.ETERNITY, analysisTypes);
+  }
+
+  public static SegmentMetadataQuery of(String dataSource, QuerySegmentSpec spec, AnalysisType... analysisTypes)
+  {
     return new SegmentMetadataQuery(
         TableDataSource.of(dataSource),
-        QuerySegmentSpec.ETERNITY,
+        spec,
         null,
         null,
         null,

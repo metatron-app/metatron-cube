@@ -21,16 +21,26 @@ package io.druid.sql.calcite.table;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.common.guava.DSuppliers;
-import io.druid.common.guava.DSuppliers.Memoizing;
-import io.druid.common.guava.GuavaUtils;
+import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.DataSource;
+import io.druid.query.QueryRunners;
+import io.druid.query.QuerySegmentWalker;
+import io.druid.query.TableDataSource;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
+import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.timeline.DataSegment;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -44,64 +54,43 @@ import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 public class DruidTable implements TranslatableTable
 {
-  private final DataSource dataSource;
+  private static final Logger LOG = new Logger(DruidTable.class);
 
-  private final Memoizing<List<SegmentAnalysis>> supplier;
-  private final Memoizing<RowSignature> signature;
-  private final Memoizing<Statistic> statistic;
-  private final Memoizing<Map<String, Map<String, String>>> descriptors;
+  private final TableDataSource dataSource;
+  private final QuerySegmentWalker segmentWalker;
 
-  public DruidTable(DataSource dataSource, Memoizing<List<SegmentAnalysis>> supplier)
+  private RowSignature signature;
+  private Statistic statistic;
+  private Map<String, Map<String, String>> descriptors;
+
+  public DruidTable(TableDataSource dataSource, QuerySegmentWalker segmentWalker)
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
-    this.supplier = Preconditions.checkNotNull(supplier, "supplier");
-    this.signature = DSuppliers.memoize(
-        () -> {
-          Set<String> columns = Sets.newHashSet();
-          RowSignature.Builder builder = RowSignature.builder();
-          for (SegmentAnalysis schema : supplier.get()) {
-            for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
-              if (columns.add(entry.getKey())) {
-                builder.add(entry.getKey(), ValueDesc.of(entry.getValue().getType()));
-              }
-            }
-          }
-          return builder.sort().build();
-        }
-    );
-    this.descriptors = DSuppliers.memoize(
-        () -> {
-          Map<String, Map<String, String>> builder = Maps.newHashMap();
-          for (SegmentAnalysis schema : supplier.get()) {
-            for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
-              if (!GuavaUtils.isNullOrEmpty(entry.getValue().getDescriptor())) {
-                builder.putIfAbsent(entry.getKey(), entry.getValue().getDescriptor());
-              }
-            }
-          }
-          return builder;
-        }
-    );
-    Supplier<Long> rowNum = () -> supplier.get().stream().mapToLong(SegmentAnalysis::getNumRows).sum();
-    this.statistic = DSuppliers.memoize(() -> Statistics.of(rowNum.get(), ImmutableList.of()));
+    this.segmentWalker = Preconditions.checkNotNull(segmentWalker, "segmentWalker");
   }
 
-  public DruidTable check(long threshold)
+  public void update(DataSegment segment, boolean added)
   {
-    if (supplier.updated() > 0 && supplier.updated() + threshold < System.currentTimeMillis()) {
-      supplier.reset();
-      signature.reset();
-      descriptors.reset();
-      statistic.reset();
+    Supplier<Holder> update = Suppliers.memoize(
+        () -> build(segment.getDataSource(), new SpecificSegmentSpec(segment.toDescriptor()), segmentWalker)
+    );
+    if (signature != null && !Objects.equals(update.get().signature, signature)) {
+      signature = null;
     }
-    return this;
+    if (descriptors != null && !Objects.equals(update.get().descriptors, descriptors)) {
+      descriptors = null;
+    }
+    if (statistic != null) {
+      final long rowCount = update.get().rowCount;
+      statistic = Statistics.of(statistic.getRowCount() + (added ? rowCount : -rowCount), ImmutableList.of());
+    }
   }
 
   public DataSource getDataSource()
@@ -111,24 +100,80 @@ public class DruidTable implements TranslatableTable
 
   public RowSignature getRowSignature()
   {
-    return signature.get();
+    if (signature == null) {
+      updateFor(signature);
+    }
+    return signature;
   }
 
   public Map<String, Map<String, String>> getDescriptors()
   {
-    return descriptors.get();
+    if (descriptors == null) {
+      updateFor(descriptors);
+    }
+    return descriptors;
+  }
+
+  @Override
+  public Statistic getStatistic()
+  {
+    if (statistic == null) {
+      updateFor(statistic);
+    }
+    return statistic;
+  }
+
+  private synchronized void updateFor(Object needed)
+  {
+    if (needed == null) {
+      long start = System.currentTimeMillis();
+      Holder update = build(dataSource.getName(), QuerySegmentSpec.ETERNITY, segmentWalker);
+      this.signature = update.signature;
+      this.descriptors = update.descriptors;
+      this.statistic = Statistics.of(update.rowCount, ImmutableList.of());
+      LOG.info("Refreshed schema of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);
+    }
+  }
+
+  private static class Holder
+  {
+    private final RowSignature signature;
+    private final Map<String, Map<String, String>> descriptors;
+    private final long rowCount;
+
+    private Holder(RowSignature signature, Map<String, Map<String, String>> descriptors, long rowCount)
+    {
+      this.signature = signature;
+      this.descriptors = descriptors;
+      this.rowCount = rowCount;
+    }
+  }
+
+  private static Holder build(String dataSource, QuerySegmentSpec segmentSpec, QuerySegmentWalker segmentWalker)
+  {
+    SegmentMetadataQuery query = SegmentMetadataQuery.of(dataSource, segmentSpec, AnalysisType.INTERVAL);
+    Sequence<SegmentAnalysis> sequence = QueryRunners.run(query.withId(UUID.randomUUID().toString()), segmentWalker);
+
+    long rowNum = 0;
+    Set<String> columns = Sets.newHashSet();
+    RowSignature.Builder builder = RowSignature.builder();
+    Map<String, Map<String, String>> descriptors = Maps.newHashMap();
+    for (SegmentAnalysis schema : Lists.reverse(Sequences.toList(sequence))) {
+      for (Map.Entry<String, ColumnAnalysis> entry : schema.getColumns().entrySet()) {
+        if (columns.add(entry.getKey())) {
+          builder.add(entry.getKey(), ValueDesc.of(entry.getValue().getType()));
+          descriptors.put(entry.getKey(), entry.getValue().getDescriptor());
+        }
+      }
+      rowNum += schema.getNumRows();
+    }
+    return new Holder(builder.sort().build(), descriptors, rowNum);
   }
 
   @Override
   public Schema.TableType getJdbcTableType()
   {
     return Schema.TableType.TABLE;
-  }
-
-  @Override
-  public Statistic getStatistic()
-  {
-    return statistic.get();
   }
 
   @Override
