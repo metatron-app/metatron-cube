@@ -31,6 +31,29 @@ import java.io.IOException;
  */
 public interface IndexedInts extends IntIterable, Closeable
 {
+  static IndexedInts from(int[] array)
+  {
+    return new ArrayBasedIndexedInts(array);
+  }
+
+  static IndexedInts from(int v)
+  {
+    return new IndexedInts() {
+
+      @Override
+      public int size()
+      {
+        return 1;
+      }
+
+      @Override
+      public int get(int index)
+      {
+        return v;
+      }
+    };
+  }
+
   int size();
 
   int get(int index);
@@ -72,18 +95,19 @@ public interface IndexedInts extends IntIterable, Closeable
 
   default void close() throws IOException {}
 
-  abstract class SingleValued implements IndexedInts
+
+  abstract interface SingleValued extends IndexedInts
   {
     @Override
-    public final int size()
+    public default int size()
     {
       return 1;
     }
 
-    protected abstract int get();
+    int get();
 
     @Override
-    public int get(int index)
+    public default int get(int index)
     {
       return get();
     }

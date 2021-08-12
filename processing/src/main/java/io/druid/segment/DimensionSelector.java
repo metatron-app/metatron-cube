@@ -75,7 +75,7 @@ public interface DimensionSelector
    * @param id id to lookup the field name for
    * @return the field name for the given id
    */
-  public Comparable lookupName(int id);
+  public Object lookupName(int id);
 
   /**
    * returns without dimension or multivalue prefix

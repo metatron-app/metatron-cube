@@ -19,10 +19,10 @@
 
 package io.druid.query.topn;
 
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.Capabilities;
@@ -481,11 +481,7 @@ public class PooledTopNAlgorithm
           position += aggregatorSizes[j];
         }
 
-        resultBuilder.addEntry(
-            dimSelector.lookupName(i),
-            i,
-            vals
-        );
+        resultBuilder.addEntry(dimSelector.lookupName(i), i, vals);
       }
     }
   }

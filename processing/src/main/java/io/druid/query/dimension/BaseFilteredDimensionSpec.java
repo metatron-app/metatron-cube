@@ -150,7 +150,7 @@ public abstract class BaseFilteredDimensionSpec implements DimensionSpec
       }
 
       @Override
-      public Comparable lookupName(int id)
+      public Object lookupName(int id)
       {
         return selector.lookupName(reverseMapping[id]);
       }

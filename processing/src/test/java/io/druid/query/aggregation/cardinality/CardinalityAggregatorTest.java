@@ -141,7 +141,7 @@ public class CardinalityAggregatorTest
     }
 
     @Override
-    public Comparable lookupName(int i)
+    public Object lookupName(int i)
     {
       String val = lookup.get(i);
       return exFn == null ? val : exFn.apply(val);

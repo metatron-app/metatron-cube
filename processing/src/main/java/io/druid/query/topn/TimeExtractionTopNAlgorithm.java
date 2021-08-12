@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Comparable, Object[]>, TopNParams>
+public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Object, Object[]>, TopNParams>
 {
   public static final int[] EMPTY_INTS = new int[]{};
   private final TopNQuery query;
@@ -68,14 +68,14 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
   }
 
   @Override
-  protected Map<Comparable, Object[]> makeDimValAggregateStore(TopNParams params)
+  protected Map<Object, Object[]> makeDimValAggregateStore(TopNParams params)
   {
     return Maps.newHashMap();
   }
 
   @Override
   protected void scanAndAggregate(
-      TopNParams params, int[] dimValSelector, Map<Comparable, Object[]> aggregatesStore, int numProcessed
+      TopNParams params, int[] dimValSelector, Map<Object, Object[]> aggregatesStore, int numProcessed
   )
   {
     final Cursor cursor = params.getCursor();
@@ -83,16 +83,16 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
     final ColumnSelectorFactory factory = params.getFactory();
 
     final Aggregator[] aggregators = params.getAggregators();
-    final Function<Comparable, Object[]> populator = new Function<Comparable, Object[]>()
+    final Function<Object, Object[]> populator = new Function<Object, Object[]>()
     {
       @Override
-      public Object[] apply(Comparable comparable)
+      public Object[] apply(Object comparable)
       {
         return new Object[aggregators.length];
       }
     };
     while (!cursor.isDone()) {
-      final Comparable key = dimSelector.lookupName(dimSelector.getRow().get(0));
+      final Object key = dimSelector.lookupName(dimSelector.getRow().get(0));
       final Object[] values = aggregatesStore.computeIfAbsent(key, populator);
       for (int i = 0; i < aggregators.length; i++) {
         values[i] = aggregators[i].aggregate(values[i]);
@@ -106,12 +106,12 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
   protected void updateResults(
       TopNParams params,
       int[] dimValSelector,
-      Map<Comparable, Object[]> aggregatesStore,
+      Map<Object, Object[]> aggregatesStore,
       TopNResultBuilder resultBuilder
   )
   {
     final Aggregator[] aggregators = params.getAggregators();
-    for (Map.Entry<Comparable, Object[]> entry : aggregatesStore.entrySet()) {
+    for (Map.Entry<Object, Object[]> entry : aggregatesStore.entrySet()) {
       Object[] aggs = entry.getValue();
       if (aggs != null && aggs.length > 0) {
         final Object[] vals = new Object[aggs.length];
@@ -129,7 +129,7 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Co
   }
 
   @Override
-  protected void closeAggregators(TopNParams params, Map<Comparable, Object[]> stringMap)
+  protected void closeAggregators(TopNParams params, Map<Object, Object[]> stringMap)
   {
     super.closeAggregators(params, stringMap);
     stringMap.clear();

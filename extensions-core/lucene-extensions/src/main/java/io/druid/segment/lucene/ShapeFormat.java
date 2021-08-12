@@ -101,7 +101,7 @@ public enum ShapeFormat
             for (int i = 0; i < coordinates.length; i++) {
               coordinates[i] = ((Number) list.get(i)).doubleValue();
             }
-          } else if (value.getClass().isArray()) {
+          } else if (value != null && value.getClass().isArray()) {
             coordinates = new double[Array.getLength(value)];
             for (int i = 0; i < coordinates.length; i++) {
               coordinates[i] = ((Number) Array.get(value, i)).doubleValue();

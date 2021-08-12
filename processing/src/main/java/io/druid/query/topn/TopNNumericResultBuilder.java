@@ -23,6 +23,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -49,26 +51,7 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
   private final MinMaxPriorityQueue<DimValHolder> pQueue;
   private final Comparator<DimValHolder> dimValComparator;
   private final String[] aggFactoryNames;
-  private static final Comparator<Comparable> dimNameComparator = new Comparator<Comparable>()
-  {
-    @Override
-    public int compare(Comparable o1, Comparable o2)
-    {
-      int retval;
-      if (null == o1) {
-        if (null == o2) {
-          retval = 0;
-        } else {
-          retval = -1;
-        }
-      } else if (null == o2) {
-        retval = 1;
-      } else {
-        retval = o1.compareTo(o2);
-      }
-      return retval;
-    }
-  };
+
   private final int threshold;
   private final Comparator<Object> metricComparator;
 
@@ -101,7 +84,7 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
         int retVal = metricComparator.compare(d1.getTopNMetricVal(), d2.getTopNMetricVal());
 
         if (retVal == 0) {
-          retVal = -dimNameComparator.compare(d1.getDimName(), d2.getDimName());
+          retVal = -GuavaUtils.NULL_FIRST_NATURAL.compare(d1.getDimName(), d2.getDimName());
         }
 
         return retVal;
@@ -116,7 +99,7 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
 
   @Override
   public TopNNumericResultBuilder addEntry(
-      Comparable dimName,
+      Object dimName,
       Object dimValIndex,
       Object[] metricVals
   )

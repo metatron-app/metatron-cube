@@ -94,7 +94,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
     return new DelegatedDimensionSelector(selector)
     {
       @Override
-      public Comparable lookupName(int id)
+      public Object lookupName(int id)
       {
         return extractionFn.apply(delegate.lookupName(id));
       }

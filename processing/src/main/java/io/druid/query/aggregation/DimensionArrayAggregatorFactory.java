@@ -207,7 +207,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       final IndexedInts row = new IndexedInts.SingleValued()
       {
         @Override
-        protected final int get()
+        public final int get()
         {
           return selector.getRow().get(index);
         }

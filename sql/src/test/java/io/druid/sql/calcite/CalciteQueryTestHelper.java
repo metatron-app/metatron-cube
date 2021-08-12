@@ -446,7 +446,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
       try {
         comparison.arrayEquals(StringUtils.format("result #%d: %s", i + 1, sql), expected, actual);
       }
-      catch (ArrayComparisonFailure f) {
+      catch (AssertionError f) {
         TestHelper.printToExpected(results.rhs);
         failed(f);
       }

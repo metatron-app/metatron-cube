@@ -137,7 +137,7 @@ public class BitSetVirtualColumn implements VirtualColumn
           return new IndexedInts.SingleValued()
           {
             @Override
-            protected int get()
+            public int get()
             {
               return bitSet.nextSetBit(0);
             }
@@ -193,7 +193,7 @@ public class BitSetVirtualColumn implements VirtualColumn
       }
 
       @Override
-      public Comparable lookupName(int id)
+      public Object lookupName(int id)
       {
         return String.valueOf(id);
       }

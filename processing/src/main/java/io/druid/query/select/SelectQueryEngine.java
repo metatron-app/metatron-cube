@@ -121,10 +121,10 @@ public class SelectQueryEngine
                   final IndexedInts vals = selector.getRow();
 
                   if (vals.size() == 1) {
-                    final Comparable dimVal = selector.lookupName(vals.get(0));
+                    final Object dimVal = selector.lookupName(vals.get(0));
                     theEvent.put(dim, dimVal);
                   } else {
-                    List<Comparable> dimVals = Lists.newArrayList();
+                    List<Object> dimVals = Lists.newArrayList();
                     for (int i = 0; i < vals.size(); ++i) {
                       dimVals.add(selector.lookupName(vals.get(i)));
                     }

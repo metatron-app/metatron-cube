@@ -39,6 +39,7 @@ import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -418,11 +419,11 @@ public class ColumnSelectors
         } else if (indexed.size() == 1) {
           return selector.lookupName(indexed.get(0));
         } else {
-          final Comparable[] array = new Comparable[length];
+          final Object[] array = new Object[length];
           for (int i = 0; i < array.length; i++) {
             array[i] = selector.lookupName(indexed.get(i));
           }
-          return array;
+          return Arrays.asList(array);
         }
       }
     };
@@ -443,7 +444,7 @@ public class ColumnSelectors
         } else if (indexed.size() == 1) {
           return (String) selector.lookupName(indexed.get(0));
         } else {
-          final Comparable[] array = new Comparable[length];
+          final Object[] array = new Object[length];
           for (int i = 0; i < array.length; i++) {
             array[i] = selector.lookupName(indexed.get(i));
           }
@@ -489,7 +490,7 @@ public class ColumnSelectors
     }
 
     @Override
-    public Comparable lookupName(int id)
+    public Object lookupName(int id)
     {
       return id == 0 ? value : null;
     }

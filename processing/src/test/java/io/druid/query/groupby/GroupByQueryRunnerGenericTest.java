@@ -43,6 +43,7 @@ import io.druid.math.expr.Parser;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
+import io.druid.query.Druids;
 import io.druid.query.ModuleBuiltinFunctions;
 import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
@@ -109,6 +110,7 @@ import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.search.search.ContainsSearchQuerySpec;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
@@ -7100,5 +7102,37 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     Iterable<Row> results = runQuery(builder.build(), false);
     TestHelper.assertExpectedObjects(expected, results, "");
+  }
+
+  @Test
+  public void test3849()
+  {
+    StreamQuery inner = Druids.newSelectQueryBuilder()
+                              .dataSource(dataSource)
+                              .intervals(firstToThird)
+                              .columns("__time", "placementish", "index").streaming();
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource(inner)
+        .dimensions(DefaultDimensionSpec.of("placementish", "alias"))
+        .aggregators(rowsCount, new LongSumAggregatorFactory("idx", "index"))
+        .build();
+
+    String[] columns = new String[] {"alias", "rows", "idx"};
+    List<Row> expectedResults = createExpectedRows(
+        columns,
+        array("a", 2L, 282L),
+        array("preferred", 26L, 12446L),
+        array("b", 2L, 230L),
+        array("e", 2L, 324L),
+        array("h", 2L, 233L),
+        array("m", 6L, 5317L),
+        array("n", 2L, 235L),
+        array("p", 6L, 5405L),
+        array("t", 4L, 420L)
+    );
+
+    Iterable<Row> results = runQuery(query, true);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

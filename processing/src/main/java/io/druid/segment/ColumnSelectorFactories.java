@@ -656,7 +656,7 @@ public class ColumnSelectorFactories
         }
 
         @Override
-        public Comparable lookupName(int id)
+        public Object lookupName(int id)
         {
           final String value = in.get().getDimension(dimension).get(id);
           return extractionFn == null ? value : extractionFn.apply(value);
@@ -714,7 +714,7 @@ public class ColumnSelectorFactories
   )
   {
     // todo: this is semantically not consistent with others
-    final RowResolver resolver = RowResolver.of(schema.replaceDimensionToString(), BaseQuery.getVirtualColumns(query));
+    final RowResolver resolver = RowResolver.of(schema.replaceDimensionToMV(), BaseQuery.getVirtualColumns(query));
     final ColumnSelectorFactory factory = supplier.makeColumnSelectorFactory(resolver);
 
     final ValueMatcher matcher;

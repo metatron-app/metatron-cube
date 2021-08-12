@@ -21,7 +21,6 @@ package io.druid.query.aggregation;
 
 import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -117,7 +116,7 @@ public class FilteredAggregatorTest
                 }
 
                 @Override
-                public Comparable lookupName(int id)
+                public Object lookupName(int id)
                 {
                   switch (id) {
                     case 0:

@@ -68,7 +68,7 @@ public class IncrementalIndexSchema
       String metricName = pair.lhs;
       String outputName = mapping.getOrDefault(metricName, metricName);
       if (!outputName.equals(Column.TIME_COLUMN_NAME)) {
-        if (stringAsDimension && pair.rhs.isString()) {
+        if (stringAsDimension && (pair.rhs.isString() || pair.rhs.isMultiValued())) {
           dimensionSchemas.add(DimensionSchema.of(outputName, metricName, ValueType.STRING));
         } else {
           merics.add(new RelayAggregatorFactory(outputName, metricName, pair.rhs.typeName()));

@@ -438,7 +438,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   }
 
                   @Override
-                  public Comparable lookupName(int id)
+                  public Object lookupName(int id)
                   {
                     // TODO: needs update to DimensionSelector interface to allow multi-types, just use Strings for now
                     final Comparable value = dimValLookup.getValue(id);
@@ -663,11 +663,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     if (dimIdx.length == 1) {
                       return dimDim.getValue(dimIdx[0]);
                     }
-                    Comparable[] dimVals = new Comparable[dimIdx.length];
+                    final Object[] dimVals = new Object[dimIdx.length];
                     for (int i = 0; i < dimIdx.length; i++) {
                       dimVals[i] = dimDim.getValue(dimIdx[i]);
                     }
-                    return dimVals;
+                    return Arrays.asList(dimVals);
                   }
                 };
               }

@@ -114,7 +114,7 @@ public class ExpressionDimensionSpec implements DimensionSpec
       }
 
       @Override
-      public Comparable lookupName(int id)
+      public Object lookupName(int id)
       {
         mapping.put(dimension, selector.lookupName(id));
         return (Comparable) expr.eval(binding).value();

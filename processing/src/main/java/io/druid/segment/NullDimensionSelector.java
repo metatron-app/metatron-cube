@@ -56,7 +56,7 @@ public class NullDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public Comparable lookupName(int id)
+  public Object lookupName(int id)
   {
     return null;
   }

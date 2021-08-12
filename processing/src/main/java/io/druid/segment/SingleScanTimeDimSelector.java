@@ -94,7 +94,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
     return new IndexedInts.SingleValued()
     {
       @Override
-      protected final int get()
+      public final int get()
       {
         return dimensionValueIndex;
       }
@@ -108,7 +108,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
   }
 
   @Override
-  public Comparable lookupName(int id)
+  public Object lookupName(int id)
   {
     if (id == index) {
       return currentValue;

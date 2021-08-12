@@ -193,7 +193,7 @@ public class RowSignature implements io.druid.data.RowSignature
       return candidates;
     }
     for (int i = 0; i < columnTypes.size(); i++) {
-      if (columnTypes.get(i).isString()) {
+      if (columnTypes.get(i).isString() || columnTypes.get(i).isMultiValued()) {
         candidates.add(columnNames.get(i));
       }
     }
@@ -212,12 +212,12 @@ public class RowSignature implements io.druid.data.RowSignature
   }
 
   // for streaming sub query.. we don't have index
-  public RowSignature replaceDimensionToString()
+  public RowSignature replaceDimensionToMV()
   {
     List<ValueDesc> replaced = Lists.newArrayList(getColumnTypes());
     for (int i = 0; i < replaced.size(); i++) {
       if (ValueDesc.isDimension(replaced.get(i))) {
-        replaced.set(i, ValueDesc.STRING);
+        replaced.set(i, ValueDesc.MV_STRING);
       }
     }
     return RowSignature.of(getColumnNames(), replaced);

@@ -166,7 +166,7 @@ public class OrcFormatter implements Formatter
           for (int j = 0; j < length; j++) {
             setColumn(offset + j, values.get(j), elements, elementType);
           }
-        } else if (object.getClass().isArray()) {
+        } else if (object != null && object.getClass().isArray()) {
           length = Array.getLength(object);
           elements.ensureSize(offset + length, true);
           for (int j = 0; j < length; j++) {

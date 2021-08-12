@@ -29,7 +29,7 @@ import java.util.Map;
 public interface TopNResultBuilder
 {
   public TopNResultBuilder addEntry(
-      Comparable dimName,
+      Object dimName,
       Object dimValIndex,
       Object[] metricVals
   );

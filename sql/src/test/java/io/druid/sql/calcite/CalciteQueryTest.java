@@ -6284,4 +6284,27 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{15.0d}
     );
   }
+
+  @Test
+  public void test3849() throws Exception
+  {
+    testQuery(
+        "SELECT placementish, SUM(index) FROM ("
+        + "SELECT __time, placementish, index FROM \"mmapped-split\" limit 10000) GROUP BY placementish",
+        new Object[]{"a", 12270.807106018066D},
+        new Object[]{"preferred", 503332.5071372986D},
+        new Object[]{"b", 10279.01725769043D},
+        new Object[]{"e", 12086.472755432129D},
+        new Object[]{"h", 10348.278709411621D},
+        new Object[]{"m", 217725.42022705078D},
+        new Object[]{"n", 10362.731010437012D},
+        new Object[]{"p", 210865.67966461182D},
+        new Object[]{"t", 19394.10040664673D}
+    );
+    hook.verifyHooked(
+        "t3wFyhirTf2JD4PxhZd1pg==",
+        "GroupByQuery{dataSource='StreamQuery{dataSource='mmapped-split', columns=[placementish, index], limitSpec=LimitSpec{columns=[], limit=10000}}', dimensions=[DefaultDimensionSpec{dimension='placementish', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='index', inputType='double'}], outputColumns=[d0, a0]}",
+        "StreamQuery{dataSource='mmapped-split', columns=[placementish, index], limitSpec=LimitSpec{columns=[], limit=10000}}"
+    );
+  }
 }

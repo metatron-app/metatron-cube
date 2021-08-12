@@ -152,48 +152,80 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         return new ColumnSelectors.SingleValuedDimensionSelector(extractionFn.apply(null));
       }
     } else if (extractionFn != null) {
-      return new MimicDimension(ValueDesc.STRING, () -> extractionFn.apply(selector.get()));
+      return new SingleValued(ValueDesc.STRING, () -> extractionFn.apply(selector.get()));
     }
     final ValueDesc type = selector.type();
-    if (!type.isPrimitive()) {
-      return new MimicDimension(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
+    if (type.isPrimitive()) {
+      return new SingleValued(type, selector);
+    } else if (type.isMultiValued()) {
+      return new MulitiValued(type, selector);
     } else {
-      return new MimicDimension(type, () -> (Comparable) selector.get());
+      return new SingleValued(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
     }
   }
 
-  public static DimensionSelector mimicDimensionSelector(ValueDesc type, Supplier<? extends Comparable> supplier)
+  public static DimensionSelector mimicDimensionSelector(ValueDesc type, Supplier<Object> supplier)
   {
-    return new MimicDimension(type, supplier);
+    return new SingleValued(type, supplier);
   }
 
-  private static class MimicDimension implements DimensionSelector.SingleValued
+  private static class SingleValued extends MimicDimension implements DimensionSelector
   {
-    private final ValueDesc type;
-    private final Supplier<? extends Comparable> supplier;
+    private final IndexedInts.SingleValued row;
 
-    private final Object2IntMap<Comparable> valToId = new Object2IntOpenHashMap<>();
-    private final List<Comparable> idToVal = Lists.newArrayList();
-    private final IndexedInts row;
-
-    private MimicDimension(ValueDesc type, Supplier<? extends Comparable> supplier)
+    private SingleValued(ValueDesc type, Supplier<?> supplier)
     {
-      this.type = type;
-      this.supplier = supplier;
-      this.row = new IndexedInts.SingleValued()
-      {
-        @Override
-        protected final int get()
-        {
-          return valToId.computeIntIfAbsent(supplier.get(), value -> { idToVal.add(value);return idToVal.size() - 1; });
-        }
-      };
+      super(type, supplier);
+      this.row = () -> register(supplier.get());
     }
 
     @Override
     public IndexedInts getRow()
     {
       return row;
+    }
+  }
+
+  private static class MulitiValued extends MimicDimension
+  {
+    private MulitiValued(ValueDesc type, Supplier<?> selector)
+    {
+      super(type, selector);
+    }
+
+    @Override
+    public IndexedInts getRow()
+    {
+      final Object o = supplier.get();
+      if (o instanceof List) {
+        final List values = (List) o;
+        final int[] ids = new int[values.size()];
+        for (int i = 0; i < ids.length; i++) {
+          ids[i] = register(values.get(i));
+        }
+        return IndexedInts.from(ids);
+      }
+      return IndexedInts.from(register(o));
+    }
+  }
+
+  private static abstract class MimicDimension implements DimensionSelector
+  {
+    final ValueDesc type;
+    final Supplier<?> supplier;
+
+    final Object2IntMap<Object> valToId = new Object2IntOpenHashMap<>();
+    final List<Object> idToVal = Lists.newArrayList();
+
+    private MimicDimension(ValueDesc type, Supplier<?> supplier)
+    {
+      this.type = type;
+      this.supplier = supplier;
+    }
+
+    protected final int register(Object value)
+    {
+      return valToId.computeIntIfAbsent(value, v -> {idToVal.add(value);return idToVal.size() - 1;});
     }
 
     @Override
@@ -203,7 +235,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     }
 
     @Override
-    public Comparable lookupName(int id)
+    public Object lookupName(int id)
     {
       return idToVal.get(id);
     }
@@ -259,7 +291,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public Comparable lookupName(int id)
+      public Object lookupName(int id)
       {
         return id >= 0 && id < cardinality ? idToVal.get(id) : null;
       }

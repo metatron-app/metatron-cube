@@ -285,7 +285,7 @@ public class SegmentAnalyzer
                       if (id == nullIndex) {
                         ((MutableInt) accumulated[2]).increment();
                       }
-                      Comparable comparable = id == nullIndex ? "" : selector.lookupName(id);
+                      Object comparable = id == nullIndex ? "" : selector.lookupName(id);
                       if (accumulated[0] == null || comparator.compare(comparable, accumulated[0]) < 0) {
                         accumulated[0] = comparable;
                       }

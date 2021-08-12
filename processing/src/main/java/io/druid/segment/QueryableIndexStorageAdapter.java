@@ -69,6 +69,7 @@ import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.function.IntFunction;
 
@@ -487,7 +488,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Comparable lookupName(int id)
+                            public Object lookupName(int id)
                             {
                               return extractionFn.apply(column.lookupName(id));
                             }
@@ -529,7 +530,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public String lookupName(int id)
+                            public Object lookupName(int id)
                             {
                               return column.lookupName(id);
                             }
@@ -564,7 +565,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         final IndexedInts row = new IndexedInts.SingleValued()
                         {
                           @Override
-                          protected final int get()
+                          public final int get()
                           {
                             return column.getSingleValueRow(cursorOffset.getOffset());
                           }
@@ -585,7 +586,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Comparable lookupName(int id)
+                            public Object lookupName(int id)
                             {
                               return extractionFn.apply(column.lookupName(id));
                             }
@@ -633,7 +634,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public String lookupName(int id)
+                            public Object lookupName(int id)
                             {
                               return column.lookupName(id);
                             }
@@ -843,7 +844,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                                 for (int i = 0; i < length; i++) {
                                   strings[i] = columnVals.lookupName(multiValueRow.get(i));
                                 }
-                                return strings;
+                                return Arrays.asList(strings);
                               }
                             }
                           };

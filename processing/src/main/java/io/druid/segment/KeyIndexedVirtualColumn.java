@@ -116,7 +116,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         }
 
         @Override
-        public Comparable get()
+        public Object get()
         {
           if (indexer.version != version) {
             values = selector.getRow();
@@ -419,7 +419,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     }
 
     @Override
-    public Comparable lookupName(int id)
+    public Object lookupName(int id)
     {
       return selector.lookupName(id);
     }

@@ -34,6 +34,7 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.TableDataSource;
 import io.druid.query.TestQueryRunners;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
@@ -119,7 +120,7 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
   public static List<Row> runQuery(BaseAggregationQuery query, boolean checkCount)
   {
     List<Row> rows = Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
-    if (query instanceof GroupByQuery && checkCount) {
+    if (query instanceof GroupByQuery && query.getDataSource() instanceof TableDataSource && checkCount) {
       int sum = count((GroupByQuery) query);
       Assert.assertEquals(sum, rows.size());
     }
