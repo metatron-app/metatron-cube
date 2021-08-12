@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.schema;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicates;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -29,7 +29,6 @@ import com.google.inject.Inject;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.Pair;
 import io.druid.query.Query;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
@@ -43,19 +42,16 @@ import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.linq4j.Linq4j;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.FilterableTable;
-import org.apache.calcite.schema.ProjectableFilterableTable;
-import org.apache.calcite.schema.ScannableTable;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Table;
 import org.apache.calcite.schema.TableMacro;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.AbstractSchema;
-import org.apache.calcite.schema.impl.AbstractTable;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.Pair;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -224,10 +220,10 @@ public class InformationSchema extends AbstractSchema
     this.rootSchema = Preconditions.checkNotNull(rootSchema, "rootSchema");
     this.segmentWalker = segmentWalker;
     this.tableMap = ImmutableMap.<String, Table>of(
-        SCHEMATA_TABLE, new SchemataTable(),
-        TABLES_TABLE, new TablesTable(),
-        COLUMNS_TABLE, new ColumnsTable(),
-        SERVERS_TABLE, new ServersTable()
+        SCHEMATA_TABLE, new SchemataTable(SCHEMATA_SIGNATURE),
+        TABLES_TABLE, new TablesTable(TABLES_SIGNATURE),
+        COLUMNS_TABLE, new ColumnsTable(COLUMNS_SIGNATURE),
+        SERVERS_TABLE, new ServersTable(SERVERS_SIGNATURE)
     );
   }
 
@@ -237,8 +233,13 @@ public class InformationSchema extends AbstractSchema
     return tableMap;
   }
 
-  class SchemataTable extends AbstractTable implements ScannableTable
+  class SchemataTable extends SystemSchema.SystemTable
   {
+    public SchemataTable(RowSignature signature)
+    {
+      super(signature);
+    }
+
     @Override
     public Enumerable<Object[]> scan(final DataContext root)
     {
@@ -259,94 +260,72 @@ public class InformationSchema extends AbstractSchema
           }
       ));
     }
-
-    @Override
-    public RelDataType getRowType(final RelDataTypeFactory typeFactory)
-    {
-      return SCHEMATA_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
-    }
   }
 
   private static final int[] PROJECT_ALL = GuavaUtils.intsTo(TABLES_SIGNATURE.size());
 
-  class TablesTable extends AbstractTable implements ScannableTable, ProjectableFilterableTable
+  class TablesTable extends SystemSchema.SystemTable implements FilterableTable
   {
+    public TablesTable(RowSignature signature)
+    {
+      super(signature);
+    }
+
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
-      return scan(root, null, null);
+      return scan(root, ImmutableList.of());
     }
 
     @Override
-    public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters, int[] projects)
+    public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
     {
-      Preconditions.checkArgument(filters == null, "filter is not supported, yet");
+      return scan(filter(getAllTables(rootSchema), filters), null);
+    }
+
+    private Enumerable<Object[]> scan(Iterable<Pair<String[], Table>> tables, int[] projects)
+    {
       final int[] projection = projects == null ? PROJECT_ALL : projects;
-
-      return Linq4j.asEnumerable(GuavaUtils.explode(
-          rootSchema.getSubSchemaNames(),
-          schemaName -> {
-            final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
-            return Iterables.concat(
-                Iterables.transform(
-                    subSchema.getTableNames(),
-                    tableName -> {
-                      final Object[] row = new Object[projection.length];
-                      for (int i = 0; i < projection.length; i++) {
-                        switch (projection[i]) {
-                          case 0: row[i] = DRUID_CATALOG; continue;
-                          case 1: row[i] = schemaName; continue;
-                          case 2: row[i] = tableName; continue;
-                          case 3: row[i] = subSchema.getTable(tableName).getJdbcTableType().toString(); // todo
-                        }
-                      }
-                      return row;
-                    }
-                ),
-                Iterables.filter(Iterables.transform(
-                    subSchema.getFunctionNames(),
-                    functionName -> {
-                      if (getView(subSchema, functionName) == null) {
-                        return null;
-                      }
-                      final Object[] row = new Object[projection.length];
-                      for (int i = 0; i < projection.length; i++) {
-                        switch (projection[i]) {
-                          case 0: row[i] = DRUID_CATALOG; continue;
-                          case 1: row[i] = schemaName; continue;
-                          case 2: row[i] = functionName; continue;
-                          case 3: row[i] = "VIEW";
-                        }
-                      }
-                      return row;
-                    }
-                ), Predicates.notNull())
-            );
+      return Linq4j.asEnumerable(Iterables.transform(tables, table -> {
+        final Object[] row = new Object[projection.length];
+        for (int i = 0; i < projection.length; i++) {
+          switch (projection[i]) {
+            case 0: row[i] = DRUID_CATALOG; continue;
+            case 1: row[i] = table.left[0]; continue;
+            case 2: row[i] = table.left[1]; continue;
+            case 3: row[i] = table.right.getJdbcTableType().toString();
           }
-      ));
+        }
+        return row;
+      }));
     }
 
-    @Override
-    public RelDataType getRowType(final RelDataTypeFactory typeFactory)
+    @SuppressWarnings("unchecked")
+    private Iterable<Pair<String[], Table>> filter(Iterable<Pair<String[], Table>> tables, List<RexNode> filters)
     {
-      return TABLES_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
+      Predicate schemaName = Utils.extractFilter(1, filters);    // 1 : TABLES.indexOf("TABLE_SCHEMA")
+      if (schemaName != null) {
+        tables = Iterables.filter(tables, table -> schemaName.apply(table.left[0]));
+      }
+      Predicate tableName = Utils.extractFilter(2, filters);      // 2 : TABLES.indexOf("TABLE_NAME")
+      if (tableName != null) {
+        tables = Iterables.filter(tables, table -> tableName.apply(table.left[1]));
+      }
+      Predicate tableType = Utils.extractFilter(3, filters);      // 3 : TABLES.indexOf("TABLE_TYPE")
+      if (tableType != null) {
+        tables = Iterables.filter(tables, table -> tableType.apply(table.right.getJdbcTableType().name()));
+      }
+      return tables;
     }
   }
 
-  class ColumnsTable extends AbstractTable implements ScannableTable, FilterableTable
+  class ColumnsTable extends SystemSchema.SystemTable implements FilterableTable
   {
+    public ColumnsTable(RowSignature signature)
+    {
+      super(signature);
+    }
+
     @Override
     public Enumerable<Object[]> scan(DataContext root)
     {
@@ -354,16 +333,17 @@ public class InformationSchema extends AbstractSchema
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
     {
       Iterable<Pair<String[], Table>> tables = getAllTables(rootSchema);
-      String tableSchema = Objects.toString(Utils.extractEq(1, filters), null); // 1 : COLUMNS.indexOf("TABLE_SCHEMA")
-      if (tableSchema != null) {
-        tables = Iterables.filter(tables, table -> table.lhs[0].equals(tableSchema));
+      Predicate schemaName = Utils.extractFilter(1, filters);    // 1 : COLUMNS.indexOf("TABLE_SCHEMA")
+      if (schemaName != null) {
+        tables = Iterables.filter(tables, table -> schemaName.apply(table.left[0]));
       }
-      String tableName = Objects.toString(Utils.extractEq(2, filters), null);   // 2 : COLUMNS.indexOf("TABLE_NAME")
+      Predicate tableName = Utils.extractFilter(2, filters);     // 2 : COLUMNS.indexOf("TABLE_NAME")
       if (tableName != null) {
-        tables = Iterables.filter(tables, table -> table.lhs[1].equals(tableName));
+        tables = Iterables.filter(tables, table -> tableName.apply(table.left[1]));
       }
       return scan(tables);
     }
@@ -371,20 +351,8 @@ public class InformationSchema extends AbstractSchema
     private Enumerable<Object[]> scan(Iterable<Pair<String[], Table>> tables)
     {
       return Linq4j.asEnumerable(GuavaUtils.explode(
-          tables, table -> generateColumnMetadata(table.lhs[0], table.lhs[1], table.rhs)
+          tables, table -> generateColumnMetadata(table.left[0], table.left[1], table.right)
       ));
-    }
-
-    @Override
-    public RelDataType getRowType(final RelDataTypeFactory typeFactory)
-    {
-      return COLUMNS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
     }
 
     @Nullable
@@ -434,8 +402,13 @@ public class InformationSchema extends AbstractSchema
 
   private static final List<String> SERVERS_COLUMNS = SERVERS_SIGNATURE.getColumnNames();
 
-  class ServersTable extends AbstractTable implements ScannableTable
+  class ServersTable extends SystemSchema.SystemTable
   {
+    protected ServersTable(RowSignature signature)
+    {
+      super(signature);
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public Enumerable<Object[]> scan(final DataContext root)
@@ -460,32 +433,18 @@ public class InformationSchema extends AbstractSchema
           }
       ));
     }
-
-    @Override
-    public RelDataType getRowType(final RelDataTypeFactory typeFactory)
-    {
-      return SERVERS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_VIEW;
-    }
   }
 
   private static Iterable<Pair<String[], Table>> getAllTables(SchemaPlus rootSchema)
   {
-    Iterable<SchemaPlus> schemas = Iterables.transform(
-        rootSchema.getSubSchemaNames(), name -> rootSchema.getSubSchema(name)
+    Iterable<Pair<String[], Table>> tables = GuavaUtils.explode(
+        Iterables.transform(rootSchema.getSubSchemaNames(), name -> rootSchema.getSubSchema(name)),
+        schema -> Iterables.concat(
+            Iterables.transform(schema.getTableNames(), name -> Pair.of(new String[]{schema.getName(), name}, schema.getTable(name))),
+            Iterables.transform(schema.getFunctionNames(), name -> Pair.of(new String[]{schema.getName(), name}, getView(schema, name)))
+        )
     );
-    Iterable<Pair<String[], Table>> tables = GuavaUtils.explode(schemas, schema -> Iterables.transform(
-        schema.getTableNames(), name -> Pair.of(new String[]{schema.getName(), name}, schema.getTable(name))
-    ));
-    Iterable<Pair<String[], Table>> macros = GuavaUtils.explode(schemas, schema -> Iterables.transform(
-        schema.getFunctionNames(), name -> Pair.of(new String[]{schema.getName(), name}, getView(schema, name))
-    ));
-    return Iterables.filter(Iterables.concat(tables, macros), table -> table.rhs != null);
+    return Iterables.filter(tables, table -> table.right != null);
   }
 
   /**

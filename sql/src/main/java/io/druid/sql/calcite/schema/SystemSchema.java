@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -40,7 +41,6 @@ import io.druid.common.utils.Sequences;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.indexer.TaskStatusPlus;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.java.util.http.client.Request;
 import io.druid.query.QueryRunner;
@@ -81,9 +81,8 @@ import java.util.UUID;
 
 public class SystemSchema extends AbstractSchema
 {
-  private static final Logger log = new Logger(SystemSchema.class);
-
   public static final String NAME = "sys";
+
   private static final String SEGMENTS_TABLE = "segments";
   private static final String SERVERS_TABLE = "servers";
   private static final String SERVERS_EXTENDED_TABLE = "servers_extended";
@@ -180,7 +179,6 @@ public class SystemSchema extends AbstractSchema
 
   @Inject
   public SystemSchema(
-      final DruidSchema druidSchema,
       final TimelineServerView serverView,
       final CoordinatorClient coordinatorDruidLeaderClient,
       final IndexingServiceClient overlordDruidLeaderClient,
@@ -189,37 +187,15 @@ public class SystemSchema extends AbstractSchema
   )
   {
     Preconditions.checkNotNull(serverView, "serverView");
-    BytesAccumulatingResponseHandler responseHandler = new BytesAccumulatingResponseHandler();
-    this.tableMap = ImmutableMap.<String, Table>builder()
-      .put(
-          SEGMENTS_TABLE,
-          new SegmentsTable(serverView, jsonMapper)
-      )
-      .put(
-          SERVERS_TABLE,
-          new ServersTable(serverView)
-      )
-      .put(
-          SERVERS_EXTENDED_TABLE,
-          new ServersExtendedTable(serverView)
-      )
-      .put(
-          SERVER_SEGMENTS_TABLE,
-          new ServerSegmentsTable(serverView)
-      )
-      .put(
-          TASKS_TABLE,
-          new TasksTable(overlordDruidLeaderClient, jsonMapper, responseHandler)
-      )
-      .put(
-          LOCKS_TABLE,
-          new LocksTable(overlordDruidLeaderClient, jsonMapper)
-      )
-      .put(
-          FUNCTIONS_TABLE,
-          new FunctionsTable(operatorTable, jsonMapper)
-      )
-      .build();
+    tableMap = ImmutableMap.<String, Table>builder()
+        .put(SEGMENTS_TABLE, new SegmentsTable(SEGMENTS_SIGNATURE, serverView, jsonMapper))
+        .put(SERVERS_TABLE, new ServersTable(SERVERS_SIGNATURE, serverView))
+        .put(SERVERS_EXTENDED_TABLE, new ServersExtendedTable(SERVERS_EXTENDED_SIGNATURE, serverView))
+        .put(SERVER_SEGMENTS_TABLE, new ServerSegmentsTable(SERVER_SEGMENTS_SIGNATURE, serverView))
+        .put(TASKS_TABLE, new TasksTable(TASKS_SIGNATURE, overlordDruidLeaderClient, new BytesAccumulatingResponseHandler(), jsonMapper))
+        .put(LOCKS_TABLE, new LocksTable(LOCKS_SIGNATURE, overlordDruidLeaderClient, jsonMapper))
+        .put(FUNCTIONS_TABLE, new FunctionsTable(FUNCTIONS_SIGNATURE, operatorTable, jsonMapper))
+        .build();
   }
 
   @Override
@@ -228,42 +204,64 @@ public class SystemSchema extends AbstractSchema
     return tableMap;
   }
 
-  static class SegmentsTable extends AbstractTable implements FilterableTable
+  static abstract class SystemTable extends AbstractTable implements ScannableTable
+  {
+    private final RowSignature signature;
+
+    protected SystemTable(RowSignature signature) {this.signature = signature;}
+
+    @Override
+    public final RelDataType getRowType(RelDataTypeFactory typeFactory)
+    {
+      return signature.toRelDataType(typeFactory);
+    }
+
+    @Override
+    public final TableType getJdbcTableType()
+    {
+      return TableType.SYSTEM_TABLE;
+    }
+  }
+
+  static class SegmentsTable extends SystemTable implements FilterableTable
   {
     private final TimelineServerView serverView;
     private final ObjectMapper jsonMapper;
 
-    public SegmentsTable(TimelineServerView serverView, ObjectMapper jsonMapper)
+    public SegmentsTable(RowSignature signature, TimelineServerView serverView, ObjectMapper jsonMapper)
     {
+      super(signature);
       this.serverView = serverView;
       this.jsonMapper = jsonMapper;
     }
 
     @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory)
+    public Enumerable<Object[]> scan(DataContext root)
     {
-      return SEGMENTS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
+      return scan(serverView.getDataSources());
     }
 
     @Override
     public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
     {
-      Object extracted = Utils.extractEq(1, filters); // SEGMENTS_SIGNATURE.indexOf("datasource")
-      Iterable<ServerSelector> selectors;
-      if (extracted != null) {
-        selectors = serverView.getSelectors(String.valueOf(extracted));
-      } else {
-        selectors = Iterables.concat(
-            Iterables.transform(serverView.getDataSources(), dataSource -> serverView.getSelectors(dataSource))
-        );
+      return scan(filter(serverView.getDataSources(), filters));
+    }
+
+    private Enumerable<Object[]> scan(Iterable<String> dataSources)
+    {
+      Iterable<ServerSelector> selectors = GuavaUtils.explode(dataSources, ds -> serverView.getSelectors(ds));
+      return Linq4j.asEnumerable(Iterables.transform(selectors, selector -> toRow(selector)))
+                   .where(t -> t != null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Iterable<String> filter(Iterable<String> dataSources, List<RexNode> filters)
+    {
+      Predicate predicate = Utils.extractFilter(1, filters);    // SEGMENTS_SIGNATURE.indexOf("datasource")
+      if (predicate != null) {
+        dataSources = Iterables.filter(dataSources, predicate);
       }
-      return Linq4j.asEnumerable(Iterables.transform(selectors, selector -> toRow(selector))).where(t -> t != null);
+      return dataSources;
     }
 
     private Object[] toRow(ServerSelector input)
@@ -299,25 +297,14 @@ public class SystemSchema extends AbstractSchema
     }
   }
 
-  static class ServersTable extends AbstractTable implements ScannableTable, FilterableTable
+  static class ServersTable extends SystemTable implements FilterableTable
   {
     protected final TimelineServerView serverView;
 
-    public ServersTable(TimelineServerView serverView)
+    public ServersTable(RowSignature signature, TimelineServerView serverView)
     {
+      super(signature);
       this.serverView = serverView;
-    }
-
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory)
-    {
-      return SERVERS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
     }
 
     @Override
@@ -341,7 +328,7 @@ public class SystemSchema extends AbstractSchema
               extractHost(server.getHost()),
               (long) extractPort(server.getHostAndPort()),
               (long) extractPort(server.getHostAndTlsPort()),
-              toStringOrNull(server.getType()),
+              Objects.toString(server.getType(), null),
               server.getTier(),
               server.getCurrSize(),
               server.getMaxSize()
@@ -349,23 +336,24 @@ public class SystemSchema extends AbstractSchema
       ));
     }
 
+    @SuppressWarnings("unchecked")
     protected Iterable<ImmutableDruidServer> filter(Iterable<ImmutableDruidServer> servers, List<RexNode> filters)
     {
-      String serverName = Objects.toString(Utils.extractEq(0, filters), null);  // 0 : SERVERS.indexOf("server")
+      final Predicate serverName = Utils.extractFilter(0, filters);     // 0 : SERVERS.indexOf("server")
       if (serverName != null) {
-        servers = Iterables.filter(servers, server -> serverName.equals(server.getName()));
+        servers = Iterables.filter(servers, server -> serverName.apply(server.getName()));
       }
-      String hostName = Objects.toString(Utils.extractEq(1, filters), null);    // 1 : SERVERS.indexOf("host")
+      final Predicate hostName = Utils.extractFilter(1, filters);       // 1 : SERVERS.indexOf("host")
       if (hostName != null) {
-        servers = Iterables.filter(servers, server -> hostName.equals(server.getHost()));
+        servers = Iterables.filter(servers, server -> hostName.apply(server.getHost()));
       }
-      String serverType = Objects.toString(Utils.extractEq(4, filters), null);  // 4 : SERVERS.indexOf("server_type")
+      final Predicate serverType = Utils.extractFilter(4, filters);     // 4 : SERVERS.indexOf("server_type")
       if (serverType != null) {
-        servers = Iterables.filter(servers, server -> serverType.equals(server.getType()));
+        servers = Iterables.filter(servers, server -> serverType.apply(server.getType()));
       }
-      String tier = Objects.toString(Utils.extractEq(5, filters), null);        // 5 : SERVERS.indexOf("tier")
-      if (tier != null) {
-        servers = Iterables.filter(servers, server -> tier.equals(server.getTier()));
+      final Predicate tierName = Utils.extractFilter(5, filters);       // 5 : SERVERS.indexOf("tier")
+      if (tierName != null) {
+        servers = Iterables.filter(servers, server -> tierName.apply(server.getTier()));
       }
       return servers;
     }
@@ -373,15 +361,9 @@ public class SystemSchema extends AbstractSchema
 
   static class ServersExtendedTable extends ServersTable
   {
-    public ServersExtendedTable(TimelineServerView serverView)
+    public ServersExtendedTable(RowSignature signature, TimelineServerView serverView)
     {
-      super(serverView);
-    }
-
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory)
-    {
-      return SERVERS_EXTENDED_SIGNATURE.toRelDataType(typeFactory);
+      super(signature, serverView);
     }
 
     @Override
@@ -395,7 +377,7 @@ public class SystemSchema extends AbstractSchema
                 extractHost(server.getHost()),
                 (long) extractPort(server.getHostAndPort()),
                 (long) extractPort(server.getHostAndTlsPort()),
-                toStringOrNull(server.getType()),
+                Objects.toString(server.getType(), null),
                 server.getTier(),
                 server.getCurrSize(),
                 server.getMaxSize(),
@@ -427,25 +409,14 @@ public class SystemSchema extends AbstractSchema
     }
   }
 
-  private static class ServerSegmentsTable extends AbstractTable implements ScannableTable, FilterableTable
+  private static class ServerSegmentsTable extends SystemTable implements FilterableTable
   {
     private final TimelineServerView serverView;
 
-    public ServerSegmentsTable(TimelineServerView serverView)
+    public ServerSegmentsTable(RowSignature signature, TimelineServerView serverView)
     {
+      super(signature);
       this.serverView = serverView;
-    }
-
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory)
-    {
-      return SERVER_SEGMENTS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
     }
 
     @Override
@@ -457,51 +428,46 @@ public class SystemSchema extends AbstractSchema
     @Override
     public Enumerable<Object[]> scan(DataContext root, List<RexNode> filters)
     {
-      Iterable<ImmutableDruidServer> servers = serverView.getDruidServers();
-      String serverName = Objects.toString(Utils.extractEq(0, filters), null);  // 0 : SERVER_SEGMENTS.indexOf("server")
-      if (serverName != null) {
-        servers = Iterables.filter(servers, server -> serverName.equals(server.getName()));
-      }
-      return scan(servers);
+      return scan(filter(serverView.getDruidServers(), filters));
     }
 
     private Enumerable<Object[]> scan(Iterable<ImmutableDruidServer> servers)
     {
       return Linq4j.asEnumerable(GuavaUtils.explode(servers, server ->
-        Iterables.transform(
-            server.getSegments().values(), segment -> new Object[]{server.getHost(), segment.getIdentifier()}
-        )
+          Iterables.transform(
+              server.getSegments().values(), segment -> new Object[]{server.getHost(), segment.getIdentifier()}
+          )
       ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Iterable<ImmutableDruidServer> filter(Iterable<ImmutableDruidServer> servers, List<RexNode> filters)
+    {
+      Predicate predicate = Utils.extractFilter(0, filters);   // 0 : SERVER_SEGMENTS.indexOf("server")
+      if (predicate != null) {
+        servers = Iterables.filter(servers, server -> predicate.apply(server.getName()));
+      }
+      return servers;
     }
   }
 
-  static class TasksTable extends AbstractTable implements ScannableTable
+  static class TasksTable extends SystemTable
   {
     private final IndexingServiceClient druidLeaderClient;
     private final ObjectMapper jsonMapper;
     private final BytesAccumulatingResponseHandler responseHandler;
 
     public TasksTable(
+        RowSignature signature,
         IndexingServiceClient druidLeaderClient,
-        ObjectMapper jsonMapper,
-        BytesAccumulatingResponseHandler responseHandler
+        BytesAccumulatingResponseHandler responseHandler,
+        ObjectMapper jsonMapper
     )
     {
+      super(signature);
       this.druidLeaderClient = druidLeaderClient;
-      this.jsonMapper = jsonMapper;
       this.responseHandler = responseHandler;
-    }
-
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory)
-    {
-      return TASKS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
+      this.jsonMapper = jsonMapper;
     }
 
     @Override
@@ -566,10 +532,10 @@ public class SystemSchema extends AbstractSchema
                   task.getId(),
                   task.getType(),
                   task.getDataSource(),
-                  toStringOrNull(task.getCreatedTime()),
-                  toStringOrNull(task.getQueueInsertionTime()),
-                  toStringOrNull(task.getStatusCode()),
-                  toStringOrNull(task.getRunnerStatusCode()),
+                  Objects.toString(task.getCreatedTime(), null),
+                  Objects.toString(task.getQueueInsertionTime(), null),
+                  Objects.toString(task.getStatusCode(), null),
+                  Objects.toString(task.getRunnerStatusCode(), null),
                   task.getDuration() == null ? 0L : task.getDuration(),
                   hostAndPort,
                   task.getLocation().getHost(),
@@ -670,27 +636,16 @@ public class SystemSchema extends AbstractSchema
   {
   };
 
-  static class LocksTable extends AbstractTable implements ScannableTable
+  static class LocksTable extends SystemTable
   {
     private final IndexingServiceClient druidLeaderClient;
     private final ObjectMapper jsonMapper;
 
-    public LocksTable(IndexingServiceClient druidLeaderClient, ObjectMapper jsonMapper)
+    public LocksTable(RowSignature signature, IndexingServiceClient druidLeaderClient, ObjectMapper jsonMapper)
     {
+      super(signature);
       this.druidLeaderClient = druidLeaderClient;
       this.jsonMapper = jsonMapper;
-    }
-
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory)
-    {
-      return LOCKS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
     }
 
     @Override
@@ -709,27 +664,16 @@ public class SystemSchema extends AbstractSchema
     }
   }
 
-  static class FunctionsTable extends AbstractTable implements ScannableTable
+  static class FunctionsTable extends SystemTable
   {
     private final DruidOperatorTable operatorTable;
     private final ObjectMapper jsonMapper;
 
-    public FunctionsTable(DruidOperatorTable operatorTable, ObjectMapper jsonMapper)
+    public FunctionsTable(RowSignature signature, DruidOperatorTable operatorTable, ObjectMapper jsonMapper)
     {
+      super(signature);
       this.operatorTable = operatorTable;
       this.jsonMapper = jsonMapper;
-    }
-
-    @Override
-    public RelDataType getRowType(RelDataTypeFactory typeFactory)
-    {
-      return FUNCTIONS_SIGNATURE.toRelDataType(typeFactory);
-    }
-
-    @Override
-    public TableType getJdbcTableType()
-    {
-      return TableType.SYSTEM_TABLE;
     }
 
     @Override
@@ -737,13 +681,13 @@ public class SystemSchema extends AbstractSchema
     {
       List<Object[]> rows = Lists.newArrayList();
       for (OperatorKey key : operatorTable.getAggregators().keySet()) {
-        rows.add(new Object[] {key.getName(), "UDAF", key.isExternal()});
+        rows.add(new Object[]{key.getName(), "UDAF", key.isExternal()});
       }
       for (OperatorKey key : operatorTable.getOperatorConversions().keySet()) {
-        rows.add(new Object[] {key.getName(), "UDF", key.isExternal()});
+        rows.add(new Object[]{key.getName(), "UDF", key.isExternal()});
       }
       for (OperatorKey key : operatorTable.getDimFilterConversions().keySet()) {
-        rows.add(new Object[] {key.getName(), "UDF", key.isExternal()});
+        rows.add(new Object[]{key.getName(), "UDF", key.isExternal()});
       }
       Collections.sort(rows, new Comparator<Object[]>()
       {
@@ -775,15 +719,4 @@ public class SystemSchema extends AbstractSchema
 
     return HostAndPort.fromString(hostAndPort).getPortOrDefault(-1);
   }
-
-  @Nullable
-  private static String toStringOrNull(@Nullable final Object object)
-  {
-    if (object == null) {
-      return null;
-    }
-
-    return object.toString();
-  }
-
 }

@@ -155,7 +155,7 @@ public interface PredicateFunctions extends Function.Library
   }
 
   @Function.Named("regexp_like")
-  final class RegexpLike extends NamedFactory.StringType
+  final class RegexpLike extends NamedFactory.BooleanType
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
@@ -172,7 +172,7 @@ public interface PredicateFunctions extends Function.Library
       final String pattern = Evals.getConstantString(args.get(1));
       final Matcher matcher = Pattern.compile(pattern, flag).matcher("");
 
-      return new StringChild()
+      return new BooleanChild()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)

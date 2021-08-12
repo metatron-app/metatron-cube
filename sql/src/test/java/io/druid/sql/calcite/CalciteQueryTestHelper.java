@@ -339,7 +339,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     final TestQuerySegmentWalker walker = walker();
     final InProcessViewManager viewManager = new InProcessViewManager(CalciteTests.TEST_AUTHENTICATOR_ESCALATOR);
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig, viewManager);
-    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(druidSchema, walker);
+    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
 
     final PlannerFactory plannerFactory = new PlannerFactory(

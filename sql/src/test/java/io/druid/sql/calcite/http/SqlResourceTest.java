@@ -100,7 +100,7 @@ public class SqlResourceTest extends CalciteTestBase
     final PlannerConfig plannerConfig = new PlannerConfig();
     final QueryConfig queryConfig = new QueryConfig();
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
-    final SystemSchema systemSchema =CalciteTests.createMockSystemSchema(druidSchema, walker);
+    final SystemSchema systemSchema =CalciteTests.createMockSystemSchema(walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     req = EasyMock.createStrictMock(HttpServletRequest.class);
     EasyMock.expect(req.getRemoteAddr()).andReturn(null).once();

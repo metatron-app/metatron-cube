@@ -322,6 +322,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         new Object[]{"druid", "bview", "VIEW"},
         new Object[]{"INFORMATION_SCHEMA", "COLUMNS", "SYSTEM_TABLE"},
         new Object[]{"INFORMATION_SCHEMA", "SCHEMATA", "SYSTEM_TABLE"},
+        new Object[]{"INFORMATION_SCHEMA", "SERVERS", "SYSTEM_TABLE"},
         new Object[]{"INFORMATION_SCHEMA", "TABLES", "SYSTEM_TABLE"},
         new Object[]{"sys", "functions", "SYSTEM_TABLE"},
         new Object[]{"sys", "locks", "SYSTEM_TABLE"},
@@ -354,6 +355,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             new Object[]{"druid", "bview", "VIEW"},
             new Object[]{"INFORMATION_SCHEMA", "COLUMNS", "SYSTEM_TABLE"},
             new Object[]{"INFORMATION_SCHEMA", "SCHEMATA", "SYSTEM_TABLE"},
+            new Object[]{"INFORMATION_SCHEMA", "SERVERS", "SYSTEM_TABLE"},
             new Object[]{"INFORMATION_SCHEMA", "TABLES", "SYSTEM_TABLE"},
             new Object[]{"sys", "functions", "SYSTEM_TABLE"},
             new Object[]{"sys", "locks", "SYSTEM_TABLE"},
@@ -427,16 +429,23 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   @Test
   public void testExplainInformationSchemaColumns() throws Exception
   {
-    final String explanation =
+    final Object[] explanation = {
         "DruidOuterQueryRel(scanProject=[$3, $7])\n"
-        + "  DruidValuesRel(table=[INFORMATION_SCHEMA.COLUMNS])\n";
-
+        + "  DruidValuesRel(table=[INFORMATION_SCHEMA.COLUMNS])\n"
+    };
     testQuery(
         "EXPLAIN PLAN FOR\n"
         + "SELECT COLUMN_NAME, DATA_TYPE\n"
         + "FROM INFORMATION_SCHEMA.COLUMNS\n"
         + "WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME = 'foo'",
-        new Object[]{explanation}
+        explanation
+    );
+    testQuery(
+        "EXPLAIN PLAN FOR\n"
+        + "SELECT COLUMN_NAME, DATA_TYPE\n"
+        + "FROM INFORMATION_SCHEMA.COLUMNS\n"
+        + "WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME LIKE 'foo%'",
+        explanation
     );
   }
 

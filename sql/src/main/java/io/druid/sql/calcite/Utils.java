@@ -20,6 +20,7 @@
 package io.druid.sql.calcite;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -27,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
+import io.druid.query.filter.LikeDimFilter.LikeMatcher;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
@@ -457,8 +459,7 @@ public class Utils
     return rexNode.getKind() == SqlKind.AND ? ((RexCall) rexNode).getOperands() : Arrays.asList(rexNode);
   }
 
-  // todo : support other functions
-  public static Object extractEq(int ref, List<RexNode> filters)
+  public static Predicate extractFilter(int ref, List<RexNode> filters)
   {
     final Iterator<RexNode> iterator = filters.iterator();
     while (iterator.hasNext()) {
@@ -469,16 +470,57 @@ public class Utils
         if (op1.getKind() == SqlKind.INPUT_REF && op2.getKind() == SqlKind.LITERAL) {
           if (ref == ((RexInputRef) op1).getIndex()) {
             iterator.remove();
-            return QueryMaker.coerece(RexLiteral.value(op2), op2.getType());
+            Object coereced = QueryMaker.coerece(RexLiteral.value(op2), op2.getType());
+            return v -> Objects.equals(v, coereced);
           }
         } else if (op2.getKind() == SqlKind.INPUT_REF && op1.getKind() == SqlKind.LITERAL) {
           if (ref == ((RexInputRef) op2).getIndex()) {
             iterator.remove();
-            return QueryMaker.coerece(RexLiteral.value(op1), op1.getType());
+            Object coereced = QueryMaker.coerece(RexLiteral.value(op1), op1.getType());
+            return v -> Objects.equals(v, coereced);
           }
         }
+      } else if (node.getKind() == SqlKind.LIKE) {
+        RexNode op1 = ((RexCall) node).getOperands().get(0);
+        RexNode op2 = ((RexCall) node).getOperands().get(1);
+        if (op1.getKind() == SqlKind.INPUT_REF && op2.getKind() == SqlKind.LITERAL) {
+          if (ref == ((RexInputRef) op1).getIndex()) {
+            iterator.remove();
+            Object coereced = QueryMaker.coerece(RexLiteral.value(op2), op2.getType());
+            return LikeMatcher.from(String.valueOf(coereced), null).asPredicate();
+          }
+        }
+      } else if (node.getKind() == SqlKind.OR) {
+        return extractIn(ref, (RexCall) node);
       }
     }
     return null;
+  }
+
+  private static Predicate extractIn(int ref, RexCall node)
+  {
+    for (RexNode rex : node.getOperands()) {
+      if (rex.getKind() != SqlKind.EQUALS) {
+        return null;
+      }
+    }
+    RelDataType valueType = null;
+    Set<Object> values = Sets.newHashSet();
+    for (RexNode rex : node.getOperands()) {
+      RexNode op1 = ((RexCall) rex).getOperands().get(0);
+      RexNode op2 = ((RexCall) rex).getOperands().get(1);
+      if (op1.getKind() == SqlKind.INPUT_REF && op2.getKind() == SqlKind.LITERAL) {
+        if (ref != ((RexInputRef) op1).getIndex()) {
+          return null;
+        }
+        values.add(QueryMaker.coerece(RexLiteral.value(op2), op2.getType()));
+      } else if (op2.getKind() == SqlKind.INPUT_REF && op1.getKind() == SqlKind.LITERAL) {
+        if (ref != ((RexInputRef) op2).getIndex()) {
+          return null;
+        }
+        values.add(QueryMaker.coerece(RexLiteral.value(op1), op1.getType()));
+      }
+    }
+    return v -> values.contains(v);
   }
 }

@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.rule;
 
+import com.google.common.collect.ImmutableList;
 import io.druid.collections.IntList;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.rel.DruidRel;
@@ -64,7 +65,7 @@ public class DruidProjectableTableScanRule extends RelOptRule
     final IntList inputRefs = Utils.collectInputRefs(project.getProjects());
 
     final Enumerable<Object[]> projected = table.unwrap(ProjectableFilterableTable.class)
-                                                .scan(null, null, inputRefs.array());
+                                                .scan(null, ImmutableList.of(), inputRefs.array());
 
     call.transformTo(DruidValuesRel.of(scan, project, projected, queryMaker));
   }

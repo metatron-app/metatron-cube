@@ -135,7 +135,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     final PlannerConfig plannerConfig = new PlannerConfig();
     final QueryConfig queryConfig = new QueryConfig();
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
-    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(druidSchema, walker);
+    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
 
     injector = Initialization.makeInjectorWithModules(
@@ -726,7 +726,7 @@ public class DruidAvaticaHandlerTest extends CalciteTestBase
     final PlannerConfig plannerConfig = new PlannerConfig();
     final QueryConfig queryConfig = new QueryConfig();
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
-    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(druidSchema, walker);
+    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final List<Meta.Frame> frames = new ArrayList<>();
     DruidMeta smallFrameDruidMeta = new DruidMeta(

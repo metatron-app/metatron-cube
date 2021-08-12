@@ -53,6 +53,8 @@ import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.BytesAccumulatingResponseHandler;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.sql.calcite.planner.PlannerConfig;
+import io.druid.sql.calcite.schema.SystemSchema.ServersTable;
+import io.druid.sql.calcite.schema.SystemSchema.TasksTable;
 import io.druid.sql.calcite.table.RowSignature;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import io.druid.sql.calcite.util.CalciteTests;
@@ -193,7 +195,6 @@ public class SystemSchemaTest extends CalciteTestBase
     );
 
     schema = new SystemSchema(
-        druidSchema,
         serverView,
         coordinatorClient,
         indexingServiceClient,
@@ -314,7 +315,7 @@ public class SystemSchemaTest extends CalciteTestBase
 
     Assert.assertEquals(13, fields.size());
 
-    final SystemSchema.TasksTable tasksTable = (SystemSchema.TasksTable) schema.getTableMap().get("tasks");
+    final TasksTable tasksTable = (TasksTable) schema.getTableMap().get("tasks");
     final RelDataType sysRowType = tasksTable.getRowType(new JavaTypeFactoryImpl());
     final List<RelDataTypeField> sysFields = sysRowType.getFieldList();
     Assert.assertEquals(13, sysFields.size());
@@ -322,7 +323,7 @@ public class SystemSchemaTest extends CalciteTestBase
     Assert.assertEquals("task_id", sysFields.get(0).getName());
     Assert.assertEquals(SqlTypeName.VARCHAR, sysFields.get(0).getType().getSqlTypeName());
 
-    final SystemSchema.ServersTable serversTable = (SystemSchema.ServersTable) schema.getTableMap().get("servers");
+    final ServersTable serversTable = (ServersTable) schema.getTableMap().get("servers");
     final RelDataType serverRowType = serversTable.getRowType(new JavaTypeFactoryImpl());
     final List<RelDataTypeField> serverFields = serverRowType.getFieldList();
     Assert.assertEquals(8, serverFields.size());
@@ -465,8 +466,9 @@ public class SystemSchemaTest extends CalciteTestBase
   @Test
   public void testServersTable()
   {
-
-    SystemSchema.ServersTable serversTable = EasyMock.createMockBuilder(SystemSchema.ServersTable.class).withConstructor(serverView).createMock();
+    ServersTable serversTable = EasyMock.createMockBuilder(ServersTable.class)
+                                        .withConstructor(SystemSchema.SERVERS_SIGNATURE, serverView)
+                                        .createMock();
     EasyMock.replay(serversTable);
 
     EasyMock.expect(serverView.getDruidServers())
@@ -516,9 +518,9 @@ public class SystemSchemaTest extends CalciteTestBase
   public void testTasksTable() throws Exception
   {
 
-    SystemSchema.TasksTable tasksTable = EasyMock.createMockBuilder(SystemSchema.TasksTable.class)
-                                                 .withConstructor(indexingServiceClient, mapper, responseHandler)
-                                                 .createMock();
+    TasksTable tasksTable = EasyMock.createMockBuilder(TasksTable.class)
+                                    .withConstructor(SystemSchema.TASKS_SIGNATURE, indexingServiceClient, responseHandler, mapper)
+                                    .createMock();
     EasyMock.replay(tasksTable);
     EasyMock.expect(indexingServiceClient.makeRequest(HttpMethod.GET, "/tasks")).andReturn(request).anyTimes();
     SettableFuture<InputStream> future = SettableFuture.create();

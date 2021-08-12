@@ -461,36 +461,26 @@ public class CalciteTests
     );
   }
 
-  public static SystemSchema createMockSystemSchema(
-      final DruidSchema druidSchema,
-      final TestQuerySegmentWalker walker
-  )
+  public static SystemSchema createMockSystemSchema(TestQuerySegmentWalker walker)
   {
     final DruidLeaderClient druidLeaderClient = new DruidLeaderClient(
         EasyMock.createMock(HttpClient.class),
         "nodetype",
         "/simple/leader",
         new ServerDiscoverySelector(EasyMock.createMock(ServiceProvider.class))
-    )
-    {
-    };
+    );
     final CoordinatorClient coordinatorClient = new CoordinatorClient(
         EasyMock.createMock(DruidNode.class),
         EasyMock.createMock(HttpClient.class),
         getJsonMapper(),
         new ServerDiscoverySelector(EasyMock.createMock(ServiceProvider.class))
-    )
-    {
-    };
+    );
     final IndexingServiceClient indexingServiceClient = new IndexingServiceClient(
         EasyMock.createMock(HttpClient.class),
         getJsonMapper(),
         new ServerDiscoverySelector(EasyMock.createMock(ServiceProvider.class))
-    ){
-
-    };
+    );
     final SystemSchema schema = new SystemSchema(
-        druidSchema,
         new TestServerInventoryView(walker.getSegments()),
         coordinatorClient,
         indexingServiceClient,

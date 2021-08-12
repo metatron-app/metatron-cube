@@ -79,7 +79,7 @@ public class DruidStatementTest extends CalciteTestBase
         walker,
         plannerConfig
     );
-    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(druidSchema, walker);
+    final SystemSchema systemSchema = CalciteTests.createMockSystemSchema(walker);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     final PlannerFactory plannerFactory = new PlannerFactory(
         druidSchema,
