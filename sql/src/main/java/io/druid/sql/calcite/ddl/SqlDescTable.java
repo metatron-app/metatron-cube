@@ -19,20 +19,15 @@
 
 package io.druid.sql.calcite.ddl;
 
-import com.google.common.collect.Lists;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.schema.InformationSchema;
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSelect;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.sql.parser.SqlParserUtil;
-import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Util;
 
 import java.util.Arrays;
@@ -81,15 +76,16 @@ public class SqlDescTable
           );
     } else if (columnPattern != null) {
       SqlNode columnNameColumn = Utils.zero(InformationSchema.COLUMN_NAME);
-      if (columnPattern instanceof SqlCharStringLiteral) {
-        NlsString conditionString = ((SqlCharStringLiteral) columnPattern).getNlsString();
-        columnPattern = SqlCharStringLiteral.createCharString(
-            conditionString.getValue().toLowerCase(),
-            conditionString.getCharsetName(),
-            columnPattern.getParserPosition()
-        );
-        columnNameColumn = SqlStdOperatorTable.LOWER.createCall(SqlParserPos.ZERO, columnNameColumn);
-      }
+      // for case insensitive schema
+//      if (columnPattern instanceof SqlCharStringLiteral) {
+//        NlsString conditionString = ((SqlCharStringLiteral) columnPattern).getNlsString();
+//        columnPattern = SqlCharStringLiteral.createCharString(
+//            conditionString.getValue().toLowerCase(),
+//            conditionString.getCharsetName(),
+//            columnPattern.getParserPosition()
+//        );
+//        columnNameColumn = SqlStdOperatorTable.LOWER.createCall(SqlParserPos.ZERO, columnNameColumn);
+//      }
       columnFilter = Utils.createCondition(columnNameColumn, SqlStdOperatorTable.LIKE, columnPattern);
     }
 
@@ -101,15 +97,5 @@ public class SqlDescTable
     return new SqlSelect(
         SqlParserPos.ZERO, null, selectList, fromClause, where, null, null, null, null, null, null
     );
-  }
-
-  private static SqlNode createCondition(SqlNode left, SqlOperator op, SqlNode right)
-  {
-    List<Object> listCondition = Lists.newArrayList();
-    listCondition.add(left);
-    listCondition.add(new SqlParserUtil.ToTreeListItem(op, SqlParserPos.ZERO));
-    listCondition.add(right);
-
-    return SqlParserUtil.toTree(listCondition);
   }
 }
