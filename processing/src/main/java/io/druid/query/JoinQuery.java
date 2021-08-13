@@ -436,13 +436,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
           if (query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
-            BloomKFilter bloom = BloomFilterAggregator.build(resolver, leftJoinColumns, leftEstimated, values);
+            BloomKFilter bloom = BloomFilterAggregator.build(resolver, leftJoinColumns, values.size(), values);
             query1 = DataSources.applyFilter(query1, BloomDimFilter.of(rightJoinColumns, bloom));
             rightEstimated = rightEstimated > 0 && rightEstimated > broadcastThreshold ? rightEstimated >> 1 : rightEstimated;
             LOG.info(".. with bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
           }
-          leftEstimated = Math.min(leftEstimated, values.size());
-          if (leftEstimated < forcedFilterTinyThreshold && rightEstimated >= forcedFilterHugeThreshold) {
+          if (values.size() < forcedFilterTinyThreshold << 1 && rightEstimated >= forcedFilterHugeThreshold) {
             if (element.forceLeftToFilter(query0, query1) != null) {
               Iterator<Object[]> iterator = Iterators.transform(
                   values.iterator(), GuavaUtils.mapper(signature.columnNames, leftJoinColumns)
@@ -456,7 +455,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             }
           }
           if (rightEstimated > 0) {
-            currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
+            currentEstimation = resultEstimation(element, values.size(), rightEstimated);
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, true, signature, prefixAlias,
@@ -479,13 +478,12 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
           if (query1.hasFilters() && DataSources.isFilterableOn(query0, leftJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
-            BloomKFilter bloom = BloomFilterAggregator.build(resolver, rightJoinColumns, rightEstimated, values);
+            BloomKFilter bloom = BloomFilterAggregator.build(resolver, rightJoinColumns, values.size(), values);
             query0 = DataSources.applyFilter(query0, BloomDimFilter.of(leftJoinColumns, bloom));
             LOG.info("-- .. with bloom filter %s(%s) to %s (L)", rightAlias, BaseQuery.getDimFilter(query1), leftAlias);
             leftEstimated = leftEstimated > 0 && leftEstimated > broadcastThreshold ? leftEstimated >> 1 : leftEstimated;
           }
-          rightEstimated = Math.min(rightEstimated, values.size());
-          if (rightEstimated < forcedFilterTinyThreshold && leftEstimated >= forcedFilterHugeThreshold) {
+          if (values.size() < forcedFilterTinyThreshold << 1 && leftEstimated >= forcedFilterHugeThreshold) {
             if (element.forceRightToFilter(query0, query1) != null) {
               Iterator<Object[]> iterator = Iterators.transform(
                   values.iterator(), GuavaUtils.mapper(signature.columnNames, rightJoinColumns)
@@ -499,7 +497,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             }
           }
           if (leftEstimated > 0) {
-            currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
+            currentEstimation = resultEstimation(element, leftEstimated, values.size());
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, false, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes
