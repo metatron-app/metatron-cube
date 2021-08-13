@@ -35,6 +35,16 @@ import java.util.Set;
 
 public class SemiJoinFactory
 {
+  public static DimFilter from(List<String> fieldNames, Sequence<Object[]> fieldValues)
+  {
+    return from(fieldNames, fieldValues, true);
+  }
+
+  public static DimFilter from(List<String> fieldNames, Iterator<Object[]> iterator)
+  {
+    return from(fieldNames, iterator, true);
+  }
+
   public static DimFilter from(List<String> fieldNames, Sequence<Object[]> fieldValues, boolean allowDuplication)
   {
     return from(fieldNames, Sequences.toIterator(fieldValues), allowDuplication);

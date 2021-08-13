@@ -55,6 +55,7 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
     if (values.size() < TRIVIAL_SIZE) {
       return filter;
     }
+    final long start = System.currentTimeMillis();
     final BytesOutputStream output = new BytesOutputStream(8192);
     for (String value : values) {
       output.writeVarSizeBytes(StringUtils.toUtf8WithNullToEmpty(value));
@@ -63,7 +64,10 @@ public class CompressedInFilter extends DimFilter.FilterFactory implements DimFi
     final byte[] compressing = new byte[LZ4_COMP.maxCompressedLength(ref.length)];
     final int compressed = LZ4_COMP.compress(ref.bytes, 0, ref.length, compressing, 0);
     final int reduction = 100 * (ref.length - compressed) / ref.length;
-    LOG.info("-- compressed %,d bytes into %,d bytes (%d%% reduction)", ref.length, compressed, reduction);
+    LOG.info(
+        "-- compressed %,d bytes into %,d bytes (%d%% reduction, %d msec)",
+        ref.length, compressed, reduction, System.currentTimeMillis() - start
+    );
     return new CompressedInFilter(
         filter.getDimension(),
         ref.length,

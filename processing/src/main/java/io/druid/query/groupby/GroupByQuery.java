@@ -977,10 +977,6 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
       fields.add(query.getDimensions().get(outputNames.indexOf(column)));
     }
 
-    // todo: is this right?
-    boolean sortOnTime = query.isSortOnTimeForLimit(config.getGroupBy().isSortOnTime());
-    Granularity granularity = sortOnTime ? query.getGranularity() : Granularities.ALL;
-
     AggregatorFactory cardinality = new CardinalityAggregatorFactory(
         "$cardinality", null, fields, groupingSet, null, true, true, 0
     );
@@ -1001,8 +997,6 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
         .aggregators(cardinality)
         .setContext(query.getContext())
         .addContext(FINALIZE, true)
-        .addContext(GBY_CONVERT_TIMESERIES, true)
-        .addContext(ALL_DIMENSIONS_FOR_EMPTY, false)
         .addContext(POST_PROCESSING, new PostProcessingOperator.ReturnsRow<Row>()
         {
           @Override

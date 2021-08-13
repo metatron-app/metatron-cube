@@ -54,6 +54,7 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
     if (values.get(0).size() < TRIVIAL_SIZE) {
       return filter;
     }
+    final long start = System.currentTimeMillis();
     final int[] destLens = new int[values.size()];
     final byte[][] bytes = new byte[values.size()][];
     final BytesOutputStream output = new BytesOutputStream(8192);
@@ -66,7 +67,10 @@ public class CompressedInsFilter extends DimFilter.FilterFactory implements DimF
       final byte[] compressing = new byte[LZ4_COMP.maxCompressedLength(ref.length)];
       final int compressed = LZ4_COMP.compress(ref.bytes, 0, ref.length, compressing, 0);
       final int reduction = 100 * (ref.length - compressed) / ref.length;
-      LOG.info("-- compressed %,d bytes into %,d bytes (%d%% reduction)", ref.length, compressed, reduction);
+      LOG.info(
+          "-- compressed %,d bytes into %,d bytes (%d%% reduction, %d msec)",
+          ref.length, compressed, reduction, System.currentTimeMillis() - start
+      );
       destLens[i] = ref.length;
       bytes[i] = Arrays.copyOf(compressing, compressed);
     }
