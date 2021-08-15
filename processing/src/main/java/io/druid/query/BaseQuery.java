@@ -303,14 +303,14 @@ public abstract class BaseQuery<T> implements Query<T>
     return query instanceof LateralViewSupport ? ((LateralViewSupport) query).getLateralView() : null;
   }
 
-  public static ViewDataSource asView(Query query, List<String> columns)
+  public static ViewDataSource asView(Query query, DimFilter filter, List<String> columns)
   {
     Preconditions.checkArgument(query.getDataSource() instanceof TableDataSource);
     return new ViewDataSource(
         ((TableDataSource) query.getDataSource()).getName(),
         columns,
         getVirtualColumns(query),
-        getDimFilter(query),
+        filter,
         false
     );
   }

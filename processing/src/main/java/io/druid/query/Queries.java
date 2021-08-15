@@ -451,29 +451,6 @@ public class Queries
     return dataSource;
   }
 
-  public static List<DimensionSpec> extractInputFields(Query query, List<String> outputNames)
-  {
-    if (query instanceof ColumnsSupport) {
-      ColumnsSupport<?> columnsSupport = (ColumnsSupport<?>) query;
-      if (columnsSupport.getColumns().containsAll(outputNames)) {
-        return DefaultDimensionSpec.toSpec(outputNames);
-      }
-    }
-    if (query instanceof DimensionSupport) {
-      DimensionSupport<?> dimensionSupport = (DimensionSupport) query;
-      List<DimensionSpec> dimensionSpecs = dimensionSupport.getDimensions();
-      int[] indices = GuavaUtils.indexOf(DimensionSpecs.toOutputNames(dimensionSpecs), outputNames, true);
-      if (indices != null) {
-        List<DimensionSpec> extracted = Lists.newArrayList();
-        for (int index : indices) {
-          extracted.add(dimensionSpecs.get(index));
-        }
-        return extracted;
-      }
-    }
-    return null;
-  }
-
   public static long estimateCardinality(
       Query query,
       QuerySegmentWalker segmentWalker,

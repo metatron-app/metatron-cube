@@ -56,13 +56,14 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.bloomfilter.BloomFilterAggregator;
 import io.druid.query.aggregation.bloomfilter.BloomKFilter;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BloomDimFilter;
 import io.druid.query.filter.BloomDimFilter.Factory;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.SemiJoinFactory;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -584,26 +585,30 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       if (!element.isCrossJoin()) {
         Query query0 = queries.get(i);
         Query query1 = queries.get(i + 1);
-        if (joinType.isLeftDrivable() && query0.hasFilters() && rightEstimated > bloomFilterThreshold) {
+        if (joinType.isLeftDrivable() && rightEstimated > bloomFilterThreshold) {
           // left to right
-          Factory bloom = bloom(query0, leftJoinColumns, leftEstimated, query1, rightJoinColumns);
+          Query bloom = bloom(query0, leftJoinColumns, leftEstimated, query1, rightJoinColumns);
           if (bloom != null) {
-            LOG.info("-- applying bloom filter [%s] (L) to %s (R)", bloom.getBloomSource(), rightAlias);
-            queries.set(i + 1, DimFilters.and((FilterSupport) query1, bloom));
-            rightEstimated = Math.max(1, rightEstimated >>> 2);
+            LOG.info("-- applying bloom filter %s (L) to %s:%d (R)", leftAlias, rightAlias, rightEstimated);
+            queries.set(i + 1, bloom);
             rightBloomed = true;
           }
         }
-        if (joinType.isRightDrivable() && query1.hasFilters() && leftEstimated > bloomFilterThreshold) {
+        if (joinType.isRightDrivable() && leftEstimated > bloomFilterThreshold) {
           // right to left
-          Factory bloom = bloom(query1, rightJoinColumns, rightEstimated, query0, leftJoinColumns);
+          Query bloom = bloom(query1, rightJoinColumns, rightEstimated, query0, leftJoinColumns);
           if (bloom != null) {
-            LOG.info("-- applying bloom filter [%s] (R) to %s (L)", bloom.getBloomSource(), leftAlias);
-            queries.set(i, DimFilters.and((FilterSupport) query0, bloom));
-            leftEstimated = Math.max(1, leftEstimated >>> 2);
+            LOG.info("-- applying bloom filter %s (R) to %s:%d (L)", rightAlias, leftAlias, leftEstimated);
+            queries.set(i, bloom);
             leftBloomed = true;
           }
         }
+      }
+      if (rightBloomed) {
+        rightEstimated = Math.max(1, rightEstimated >>> 2);
+      }
+      if (leftBloomed) {
+        leftEstimated = Math.max(1, leftEstimated >>> 2);
       }
       if (element.isInnerJoin() && leftEstimated >= 0 && rightEstimated >= 0) {
         Query query0 = queries.get(i);
@@ -721,22 +726,45 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     return leftEstimation;
   }
 
-  // todo : disable bloom filter for trival fitler (KEY != NULL)
-  private static Factory bloom(
+  private static Query bloom(
       Query source, List<String> sourceJoinOn, long sourceCardinality,
       Query target, List<String> targetJoinOn
   )
   {
-    if (source instanceof StreamQuery && !Queries.isNestedQuery(source) &&
-        source.getContextValue(Query.LOCAL_POST_PROCESSING) == null &&
-        target instanceof FilterSupport && !Queries.isNestedQuery(target)) {
+    DimFilter filter = removeTrivials(removeFactory(BaseQuery.getDimFilter(source)), sourceJoinOn);
+    if (filter != null &&
+        DataSources.isDataNodeSourced(source) &&
+        source.getContextValue(Query.LOCAL_POST_PROCESSING) == null) {
       // this is evaluated in UnionQueryRunner
-      List<DimensionSpec> extracted = Queries.extractInputFields(target, targetJoinOn);
+      List<DimensionSpec> extracted = DataSources.findFilterableOn(target, targetJoinOn, q -> !Queries.isNestedQuery(q));
       if (extracted != null) {
-        return Factory.fields(extracted, BaseQuery.asView(source, sourceJoinOn), Ints.checkedCast(sourceCardinality));
+        ViewDataSource view = BaseQuery.asView(source, filter, sourceJoinOn);
+        Factory bloom = Factory.fields(extracted, view, Ints.checkedCast(sourceCardinality));
+        return DataSources.applyFilter(target, bloom, targetJoinOn);
       }
     }
     return null;
+  }
+
+  private static DimFilter removeFactory(DimFilter filter)
+  {
+    return filter == null ? null : DimFilters.rewrite(filter, f -> f instanceof DimFilter.Factory ? null : f);
+  }
+
+  private static DimFilter removeTrivials(DimFilter filter, List<String> joinColumns)
+  {
+    if (joinColumns.size() == 1 && DimFilters.not(SelectorDimFilter.of(joinColumns.get(0), null)).equals(filter)) {
+      return null;
+    }
+    if (filter instanceof AndDimFilter) {
+      boolean changed = false;
+      Set<DimFilter> filters = Sets.newLinkedHashSet(((AndDimFilter) filter).getFields());
+      for (String joinColumn : joinColumns) {
+        changed |= filters.remove(DimFilters.not(SelectorDimFilter.of(joinColumn, null)));
+      }
+      return changed ? DimFilters.and(Lists.newArrayList(filters)) : filter;
+    }
+    return filter;
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)

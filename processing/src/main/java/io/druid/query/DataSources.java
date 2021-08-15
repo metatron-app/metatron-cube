@@ -20,10 +20,14 @@
 package io.druid.query;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query.FilterSupport;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
@@ -31,8 +35,9 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.filter.Filters;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
 /**
  */
@@ -155,10 +160,7 @@ public class DataSources
   {
     if (query instanceof StreamQuery && query.getDataSource() instanceof TableDataSource) {
       StreamQuery stream = (StreamQuery) query;
-      if (stream.getContextValue(Query.POST_PROCESSING) != null) {
-        return false;
-      }
-      return stream.getLimitSpec().isNoop() || stream.getContextValue(Query.LOCAL_POST_PROCESSING) == null;
+      return stream.getLimitSpec().isNoop() && stream.getContextValue(Query.POST_PROCESSING) == null;
     }
     return false;
   }
@@ -176,22 +178,47 @@ public class DataSources
 
   public static boolean isFilterableOn(Query<?> query, List<String> columns)
   {
+    return isFilterableOn(query, columns, Predicates.alwaysTrue());
+  }
+
+  public static boolean isFilterableOn(Query<?> query, List<String> columns, Predicate<Query> predicate)
+  {
+    return findFilterableOn(query, columns, predicate) != null;
+  }
+
+  public static List<DimensionSpec> findFilterableOn(Query<?> query, List<String> columns, Predicate<Query> predicate)
+  {
     if (query instanceof Query.AggregationsSupport) {
       List<DimensionSpec> dimensions = BaseQuery.getDimensions(query);
-      List<String> invariant = DimensionSpecs.isAllDefault(dimensions) ? DimensionSpecs.toOutputNames(dimensions) : null;
-      return invariant != null && invariant.containsAll(columns);
+      if (!DimensionSpecs.isAllDefault(dimensions)) {
+        return null;
+      }
+      int[] indices = GuavaUtils.indexOf(DimensionSpecs.toOutputNames(dimensions), columns, true);
+      if (indices != null && predicate.apply(query)) {
+        if (Arrays.equals(indices, GuavaUtils.intsTo(columns.size()))) {
+          return dimensions;
+        }
+        List<DimensionSpec> extracted = Lists.newArrayList();
+        for (int index : indices) {
+          extracted.add(dimensions.get(index));
+        }
+        return extracted;
+      }
     } else if (query instanceof Query.ColumnsSupport) {
       List<String> invariant = ((Query.ColumnsSupport<?>) query).getColumns();
-      return invariant != null && invariant.containsAll(columns);
+      if (invariant != null && invariant.containsAll(columns) && predicate.apply(query)) {
+        return DefaultDimensionSpec.toSpec(columns);
+      }
     } else if (query instanceof JoinQuery.JoinHolder) {
       JoinQuery.JoinHolder holder = (JoinQuery.JoinHolder) query;
       for (Query<?> nested : holder.getQueries()) {
-        if (isFilterableOn(nested, columns)) {
-          return true;
+        List<DimensionSpec> filterable = findFilterableOn(nested, columns, predicate);
+        if (filterable != null) {
+          return filterable;
         }
       }
     }
-    return false;
+    return null;
   }
 
   public static Query applyFilter(Query<?> query, DimFilter filter)
@@ -199,7 +226,7 @@ public class DataSources
     return applyFilter(query, filter, Filters.getDependents(filter));
   }
 
-  private static Query applyFilter(Query<?> query, DimFilter filter, Set<String> dependents)
+  public static Query applyFilter(Query<?> query, DimFilter filter, Collection<String> dependents)
   {
     if (query instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<?> aggregations = (Query.AggregationsSupport) query;
@@ -221,9 +248,9 @@ public class DataSources
         Query applied = applyFilter(nested, filter, dependents);
         if (applied != null) {
           queries.set(i, applied);
-          return holder.withQueries(queries);
         }
       }
+      return holder.withQueries(queries);
     }
     return null;
   }
