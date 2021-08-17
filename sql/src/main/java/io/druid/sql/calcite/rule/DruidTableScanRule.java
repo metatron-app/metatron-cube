@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.rule;
 
-import com.google.common.collect.ImmutableList;
 import io.druid.sql.calcite.rel.DruidQueryRel;
 import io.druid.sql.calcite.rel.DruidValuesRel;
 import io.druid.sql.calcite.rel.QueryMaker;
@@ -28,7 +27,6 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.logical.LogicalTableScan;
-import org.apache.calcite.schema.FilterableTable;
 import org.apache.calcite.schema.ScannableTable;
 
 public class DruidTableScanRule extends RelOptRule
@@ -57,13 +55,6 @@ public class DruidTableScanRule extends RelOptRule
         call.transformTo(
             DruidValuesRel.of(scan, scannable.scan(null), queryMaker)
         );
-      } else {
-        final FilterableTable filterable = table.unwrap(FilterableTable.class);
-        if (filterable != null) {
-          call.transformTo(
-              DruidValuesRel.of(scan, filterable.scan(null, ImmutableList.of()), queryMaker)
-          );
-        }
       }
     }
   }
