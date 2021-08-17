@@ -84,6 +84,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
   private final List<DimensionSpec> fields;
   private final GroupingSetSpec groupingSets;
   private final byte[] bloomFilter;
+  private final Supplier<BloomKFilter> supplier;
   private final Supplier<HashCode> hash;
 
   @JsonCreator
@@ -98,6 +99,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
     this.fields = fields;
     this.groupingSets = groupingSets;
     this.bloomFilter = Preconditions.checkNotNull(bloomFilter);
+    this.supplier = Suppliers.memoize(() -> BloomKFilter.deserialize(bloomFilter));
     this.hash = Suppliers.memoize(() -> Hashing.sha512().hashBytes(bloomFilter));
     Preconditions.checkArgument(
         fieldNames != null ^ fields != null,
@@ -112,6 +114,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
                   .append(fieldNames)
                   .append(fields)
                   .append(groupingSets)
+                  .append(bloomFilter.length)
                   .append(hash.get().asBytes());
   }
 
@@ -154,7 +157,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
             return null;
           }
           final IntList ids = new IntList();
-          final BloomKFilter filter = BloomKFilter.deserialize(bloomFilter);
+          final BloomKFilter filter = supplier.get();
           dictionary.scan((x, b, o, l) -> {
             if (filter.testHash(Murmur3.hash64(b, o, l))) {
               ids.add(x);
@@ -182,7 +185,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
         );
         return new ValueMatcher()
         {
-          final BloomTest tester = new BloomTest(BloomKFilter.deserialize(bloomFilter));
+          final BloomTest tester = new BloomTest(supplier.get());
 
           @Override
           public boolean matches()

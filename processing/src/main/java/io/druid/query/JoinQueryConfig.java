@@ -26,16 +26,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class JoinQueryConfig
 {
   @JsonProperty
-  private int maxOutputRow = 1_000000;
+  private int maxOutputRow = 1_000_000;
 
   @JsonProperty
   private int hashJoinThreshold = 300_000;
 
   @JsonProperty
-  private int semiJoinThreshold = 5_000;
+  private int semiJoinThreshold = 20_000;
 
   @JsonProperty
-  private int broadcastJoinThreshold = 1_000;
+  private int broadcastJoinThreshold = 5_000;
 
   @JsonProperty
   private int bloomFilterThreshold = 500_000;
