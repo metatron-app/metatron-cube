@@ -30,6 +30,7 @@ import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
 import io.druid.query.filter.LikeDimFilter.LikeMatcher;
 import io.druid.sql.calcite.planner.Calcites;
+import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.RowSignature;
@@ -457,6 +458,31 @@ public class Utils
   public static List<RexNode> decomposeOnAnd(RexNode rexNode)
   {
     return rexNode.getKind() == SqlKind.AND ? ((RexCall) rexNode).getOperands() : Arrays.asList(rexNode);
+  }
+
+  public static Object extractLiteral(RexLiteral literal, PlannerContext context)
+  {
+    if (SqlTypeName.NUMERIC_TYPES.contains(literal.getTypeName())) {
+      return RexLiteral.value(literal);
+    } else if (SqlTypeName.CHAR_TYPES.contains(literal.getTypeName())) {
+      return RexLiteral.stringValue(literal);
+    } else if (SqlTypeName.TIMESTAMP == literal.getTypeName() || SqlTypeName.DATE == literal.getTypeName()) {
+      return Calcites.calciteDateTimeLiteralToJoda(literal, context.getTimeZone()).getMillis();
+    } else {
+      // Don't know how to filter on this kind of literal.
+      return null;
+    }
+  }
+
+  public static int extractSimpleCastedColumn(RexNode rex)
+  {
+    if (rex.getKind() == SqlKind.CAST) {
+      final ImmutableList<RexNode> operands = ((RexCall) rex).operands;
+      if (operands.size() == 1 && operands.get(0).getKind() == SqlKind.INPUT_REF) {
+        return ((RexInputRef) operands.get(0)).getIndex();
+      }
+    }
+    return -1;
   }
 
   public static Predicate extractFilter(int ref, List<RexNode> filters)

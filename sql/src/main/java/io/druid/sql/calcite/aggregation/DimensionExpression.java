@@ -66,7 +66,7 @@ public class DimensionExpression
     if (expression.isSimpleExtraction()) {
       return expression.getSimpleExtraction().toDimensionSpec(outputName);
     } else {
-      return new DefaultDimensionSpec(getVirtualColumnName(), getOutputName());
+      return DefaultDimensionSpec.of(getVirtualColumnName(), getOutputName());
     }
   }
 

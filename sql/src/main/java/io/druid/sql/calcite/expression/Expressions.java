@@ -30,8 +30,6 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Parser;
-import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.extraction.TimeFormatExtractionFn;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.LikeDimFilter;
@@ -40,7 +38,6 @@ import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.ordering.StringComparators;
-import io.druid.segment.column.Column;
 import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.filtration.BoundRefKey;
 import io.druid.sql.calcite.filtration.Bounds;
@@ -63,6 +60,7 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A collection of functions for translating from Calcite expressions into Druid objects.
@@ -398,106 +396,30 @@ public class Expressions
         final long rhsMillis = Calcites.calciteDateTimeLiteralToJoda(rhs, plannerContext.getTimeZone()).getMillis();
         return buildTimeFloorFilter(Row.TIME_COLUMN_NAME, queryGranularity, flippedKind, rhsMillis);
       }
-
-      // In the general case, lhs must be translatable to a SimpleExtraction to be simple-filterable.
-      if (!lhsExpression.isSimpleExtraction()) {
+      final Object literal = Utils.extractLiteral((RexLiteral) rhs, plannerContext);
+      if (literal == null) {
         return null;
       }
 
-      final String column = lhsExpression.getSimpleExtraction().getColumn();
-      final ExtractionFn extractionFn = lhsExpression.getSimpleExtraction().getExtractionFn();
-
-      if (column.equals(Column.TIME_COLUMN_NAME) && extractionFn instanceof TimeFormatExtractionFn) {
-        // Check if we can strip the extractionFn and convert the filter to a direct filter on __time.
-        // This allows potential conversion to query-level "intervals" later on, which is ideal for Druid queries.
-
-        final Granularity granularity = ExtractionFns.toQueryGranularity(extractionFn);
-        if (granularity != null) {
-          // lhs is FLOOR(__time TO granularity); rhs must be a timestamp
-          final long rhsMillis = Calcites.calciteDateTimeLiteralToJoda(rhs, plannerContext.getTimeZone()).getMillis();
-          final Interval rhsInterval = granularity.bucket(DateTimes.utc(rhsMillis));
-
-          // Is rhs aligned on granularity boundaries?
-          final boolean rhsAligned = rhsInterval.getStartMillis() == rhsMillis;
-
-          // Create a BoundRefKey that strips the extractionFn and compares __time as a number.
-          final BoundRefKey boundRefKey = new BoundRefKey(column, null, StringComparators.NUMERIC_NAME);
-
-          switch (flippedKind) {
-            case EQUALS:
-              return rhsAligned
-                     ? Bounds.interval(boundRefKey, rhsInterval)
-                     : Filtration.matchNothing();
-            case NOT_EQUALS:
-              return rhsAligned
-                     ? new NotDimFilter(Bounds.interval(boundRefKey, rhsInterval))
-                     : Filtration.matchEverything();
-            case GREATER_THAN:
-              return Bounds.greaterThanOrEqualTo(boundRefKey, String.valueOf(rhsInterval.getEndMillis()));
-            case GREATER_THAN_OR_EQUAL:
-              return rhsAligned
-                     ? Bounds.greaterThanOrEqualTo(boundRefKey, String.valueOf(rhsInterval.getStartMillis()))
-                     : Bounds.greaterThanOrEqualTo(boundRefKey, String.valueOf(rhsInterval.getEndMillis()));
-            case LESS_THAN:
-              return rhsAligned
-                     ? Bounds.lessThan(boundRefKey, String.valueOf(rhsInterval.getStartMillis()))
-                     : Bounds.lessThan(boundRefKey, String.valueOf(rhsInterval.getEndMillis()));
-            case LESS_THAN_OR_EQUAL:
-              return Bounds.lessThan(boundRefKey, String.valueOf(rhsInterval.getEndMillis()));
-            default:
-              throw new IllegalStateException("Shouldn't have got here...");
-          }
-        }
-      }
-
-      final String val;
-      final RexLiteral rhsLiteral = (RexLiteral) rhs;
-      if (SqlTypeName.NUMERIC_TYPES.contains(rhsLiteral.getTypeName())) {
-        val = String.valueOf(RexLiteral.value(rhsLiteral));
-      } else if (SqlTypeName.CHAR_TYPES.contains(rhsLiteral.getTypeName())) {
-        val = String.valueOf(RexLiteral.stringValue(rhsLiteral));
-      } else if (SqlTypeName.TIMESTAMP == rhsLiteral.getTypeName() || SqlTypeName.DATE == rhsLiteral.getTypeName()) {
-        val = String.valueOf(
-            Calcites.calciteDateTimeLiteralToJoda(
-                rhsLiteral,
-                plannerContext.getTimeZone()
-            ).getMillis()
+      final BoundRefKey boundRefKey;
+      if (lhsExpression.isSimpleExtraction()) {
+        boundRefKey = new BoundRefKey(
+            lhsExpression.getSimpleExtraction().getColumn(),
+            lhsExpression.getSimpleExtraction().getExtractionFn(),
+            Calcites.getStringComparatorForDataType(lhs.getType())
         );
       } else {
-        // Don't know how to filter on this kind of literal.
-        return null;
+        if (flippedKind != SqlKind.EQUALS) {
+          return null;
+        }
+        final int extracted = Utils.extractSimpleCastedColumn(lhs);
+        if (extracted < 0 || !rowSignature.columnType(extracted).isDimension()) {
+          return null;
+        }
+        boundRefKey = new BoundRefKey(rowSignature.columnName(extracted), null, StringComparators.LEXICOGRAPHIC_NAME);
       }
-
-      // Numeric lhs needs a numeric comparison.
-      final String comparator = Calcites.getStringComparatorForDataType(lhs.getType());
-      final BoundRefKey boundRefKey = new BoundRefKey(column, extractionFn, comparator);
-      final DimFilter filter;
-
       // Always use BoundDimFilters, to simplify filter optimization later (it helps to remember the comparator).
-      switch (flippedKind) {
-        case EQUALS:
-          filter = Bounds.equalTo(boundRefKey, val);
-          break;
-        case NOT_EQUALS:
-          filter = new NotDimFilter(Bounds.equalTo(boundRefKey, val));
-          break;
-        case GREATER_THAN:
-          filter = Bounds.greaterThan(boundRefKey, val);
-          break;
-        case GREATER_THAN_OR_EQUAL:
-          filter = Bounds.greaterThanOrEqualTo(boundRefKey, val);
-          break;
-        case LESS_THAN:
-          filter = Bounds.lessThan(boundRefKey, val);
-          break;
-        case LESS_THAN_OR_EQUAL:
-          filter = Bounds.lessThanOrEqualTo(boundRefKey, val);
-          break;
-        default:
-          throw new IllegalStateException("Shouldn't have got here...");
-      }
-
-      return filter;
+      return Bounds.toFilter(flippedKind, boundRefKey, Objects.toString(literal));
     } else if (kind == SqlKind.LIKE) {
       final List<RexNode> operands = ((RexCall) rexNode).getOperands();
       final DruidExpression druidExpression = toDruidExpression(

@@ -45,6 +45,16 @@ public interface RowSignature extends TypeResolver
     return getColumnNames().size();
   }
 
+  default String columnName(int index)
+  {
+    return index < 0 ? null : getColumnNames().get(index);
+  }
+
+  default ValueDesc columnType(int index)
+  {
+    return index < 0 ? null : getColumnTypes().get(index);
+  }
+
   default Iterable<Pair<String, ValueDesc>> columnAndTypes()
   {
     return GuavaUtils.zip(getColumnNames(), getColumnTypes());

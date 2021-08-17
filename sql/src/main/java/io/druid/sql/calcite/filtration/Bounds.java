@@ -26,7 +26,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.druid.java.util.common.ISE;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.NotDimFilter;
 import io.druid.query.ordering.StringComparators;
+import org.apache.calcite.sql.SqlKind;
 import org.joda.time.Interval;
 
 import java.util.Comparator;
@@ -116,6 +119,27 @@ public class Bounds
         boundRefKey.getComparator(),
         boundRefKey.getExtractionFn()
     );
+  }
+
+  public static DimFilter toFilter(SqlKind kind, BoundRefKey boundRefKey, String val)
+  {
+    // Always use BoundDimFilters, to simplify filter optimization later (it helps to remember the comparator).
+    switch (kind) {
+      case EQUALS:
+        return Bounds.equalTo(boundRefKey, val);
+      case NOT_EQUALS:
+        return new NotDimFilter(Bounds.equalTo(boundRefKey, val));
+      case GREATER_THAN:
+        return Bounds.greaterThan(boundRefKey, val);
+      case GREATER_THAN_OR_EQUAL:
+        return Bounds.greaterThanOrEqualTo(boundRefKey, val);
+      case LESS_THAN:
+        return Bounds.lessThan(boundRefKey, val);
+      case LESS_THAN_OR_EQUAL:
+        return Bounds.lessThanOrEqualTo(boundRefKey, val);
+      default:
+        throw new IllegalStateException("Shouldn't have got here...");
+    }
   }
 
   public static BoundDimFilter equalTo(final BoundRefKey boundRefKey, final String value)

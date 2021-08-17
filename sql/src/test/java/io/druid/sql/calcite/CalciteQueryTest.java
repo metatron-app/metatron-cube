@@ -1836,7 +1836,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .dimensions(DefaultDimensionSpec.of("dim1", "d0"))
             .filters(
                 OR(
-                    EXPR_FILTER("(CAST(dim1, 'LONG') == 10)"),
+                    SELECTOR("dim1", "10"),
                     AND(
                         EXPR_FILTER("(CAST(floor(CAST(dim1, 'FLOAT')), 'DOUBLE') == 10.00)"),
                         EXPR_FILTER("(CAST(dim1, 'FLOAT') > 9)"),
@@ -2308,7 +2308,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT COUNT(*) FROM druid.foo WHERE CAST(dim1 AS bigint) = 2",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .filters(EXPR_FILTER("(CAST(dim1, 'LONG') == 2)"))
+              .filters(SELECTOR("dim1", "2"))
               .aggregators(CountAggregatorFactory.of("a0"))
               .outputColumns("a0")
               .build(),

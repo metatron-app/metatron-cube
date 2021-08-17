@@ -19,54 +19,14 @@
 
 package io.druid.sql.calcite.expression;
 
-import io.druid.granularity.Granularity;
 import io.druid.query.extraction.CascadeExtractionFn;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.extraction.TimeFormatExtractionFn;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ExtractionFns
 {
-  /**
-   * Converts extractionFn to a QueryGranularity, if possible. This is the inverse of
-   * {@link #fromQueryGranularity(Granularity)}.
-   *
-   * @param extractionFn function
-   *
-   * @return query granularity, or null if extractionFn cannot be translated
-   */
-  public static Granularity toQueryGranularity(final ExtractionFn extractionFn)
-  {
-    if (extractionFn instanceof TimeFormatExtractionFn) {
-      final TimeFormatExtractionFn fn = (TimeFormatExtractionFn) extractionFn;
-      if (fn.getFormat() == null && fn.getTimeZone() == null && fn.getLocale() == null) {
-        return fn.getGranularity();
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Converts a QueryGranularity to an extractionFn, if possible. This is the inverse of
-   * {@link #toQueryGranularity(ExtractionFn)}. This will always return a non-null extractionFn if
-   * queryGranularity is non-null.
-   *
-   * @param queryGranularity granularity
-   *
-   * @return extractionFn, or null if queryGranularity is null
-   */
-  public static ExtractionFn fromQueryGranularity(final Granularity queryGranularity)
-  {
-    if (queryGranularity == null) {
-      return null;
-    } else {
-      return new TimeFormatExtractionFn(null, null, null, queryGranularity);
-    }
-  }
-
   /**
    * Cascade f and g, returning an ExtractionFn that computes g(f(x)). Null f or g are treated like identity functions.
    *
