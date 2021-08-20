@@ -137,6 +137,11 @@ public class PostProcessingOperators
     return append(context, Query.POST_PROCESSING, processor);
   }
 
+  public static Query<?> appendLocal(Query<?> query, PostProcessingOperator processor)
+  {
+    return query.withOverriddenContext(append(query.getContext(), Query.LOCAL_POST_PROCESSING, processor));
+  }
+
   public static Map<String, Object> appendLocal(Map<String, Object> context, PostProcessingOperator processor)
   {
     return append(context, Query.LOCAL_POST_PROCESSING, processor);

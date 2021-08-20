@@ -19,14 +19,23 @@
 
 package io.druid.segment;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Objects;
 
 /**
  */
 public class StringArray extends ObjectArray<String>
 {
+  public static StringArray of(Object object, String nullValue)
+  {
+    return new StringArray(new String[]{Objects.toString(object, nullValue)});
+  }
+
   public static StringArray of(Object[] array, String nullValue)
   {
     final String[] strings = new String[array.length];
@@ -41,8 +50,34 @@ public class StringArray extends ObjectArray<String>
     return new StringArray(Preconditions.checkNotNull(array));
   }
 
+  @JsonCreator
   public StringArray(String[] array)
   {
     super(array);
+  }
+
+  @JsonValue
+  public String[] getValue()
+  {
+    return array;
+  }
+
+  public static IntMap zip(List<StringArray> keys, int[] values)
+  {
+    IntMap mapping = new IntMap();
+    for (int i = 0; i < keys.size(); i++) {
+      mapping.put(keys.get(i), values[i]);
+    }
+    return mapping;
+  }
+
+  public static class IntMap extends HashMap<StringArray, Integer>
+  {
+    public IntMap() {}
+
+    public IntMap(java.util.Map<StringArray, Integer> m)
+    {
+      super(m);
+    }
   }
 }

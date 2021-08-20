@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
     @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
     @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
     @JsonSubTypes.Type(name = "broadcastJoin", value = BroadcastJoinProcessor.class),
+    @JsonSubTypes.Type(name = "explode", value = RowExploder.class),
     @JsonSubTypes.Type(name = "toMap", value = ToMapPostProcessor.class),
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),

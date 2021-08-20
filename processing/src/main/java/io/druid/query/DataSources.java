@@ -76,9 +76,14 @@ public class DataSources
            dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getQuery() instanceof FilterSupport;
   }
 
-  public static DataSource applyFilterAndProjection(DataSource dataSource, DimFilter filter, List<String> projection)
+  public static DataSource applyFilterAndProjection(
+      DataSource dataSource,
+      DimFilter filter,
+      List<String> projection,
+      boolean localize
+  )
   {
-    return applyProjection(applyFilter(dataSource, filter), projection);
+    return applyProjection(applyFilter(dataSource, filter), projection, localize);
   }
 
   public static DataSource applyFilter(DataSource dataSource, DimFilter filter)
@@ -105,7 +110,7 @@ public class DataSources
     throw new ISE("Not filter support %s", dataSource);
   }
 
-  public static DataSource applyProjection(DataSource dataSource, List<String> projection)
+  private static DataSource applyProjection(DataSource dataSource, List<String> projection, boolean localize)
   {
     final List<String> sourceColumns = Preconditions.checkNotNull(DataSources.getOutputColumns(dataSource));
     if (sourceColumns.equals(projection)) {
@@ -114,7 +119,7 @@ public class DataSources
     if (dataSource instanceof QueryDataSource) {
       final Query query = ((QueryDataSource) dataSource).getQuery();
       final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
-      if (query instanceof StreamQuery && ((StreamQuery) query).isView()) {
+      if (localize && query instanceof StreamQuery && ((StreamQuery) query).isView()) {
         // special handling
         final StreamQuery stream = ((StreamQuery) query);
         if (stream.getDataSource() instanceof TableDataSource && schema == null) {

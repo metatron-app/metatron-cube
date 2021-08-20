@@ -199,6 +199,11 @@ public class QueryRunners
     return runner.run(query, Maps.<String, Object>newHashMap());
   }
 
+  public static <T> Sequence<Object[]> runArray(Query.ArrayOutputSupport<T> query, QueryRunner<T> runner)
+  {
+    return query.array(runner.run(query, Maps.<String, Object>newHashMap()));
+  }
+
   // for QueryRunnerFactory.mergeRunners (using Query.estimatedInitialColumns)
   public static <T> QueryRunner<T> executeParallel(
       final Query<T> query,

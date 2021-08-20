@@ -21,6 +21,8 @@ package io.druid.jackson;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -28,7 +30,9 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.primitives.Ints;
 import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.guava.HostAndPort;
@@ -38,9 +42,8 @@ import io.druid.common.guava.Yielder;
 import io.druid.common.utils.Sequences;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BulkRow;
-
-
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
+import io.druid.segment.StringArray;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTimeZone;
 
@@ -71,7 +74,8 @@ public class DruidDefaultSerializersModule extends SimpleModule
             String tzId = jp.getText();
             try {
               return DateTimeZone.forID(tzId);
-            } catch(IllegalArgumentException e) {
+            }
+            catch (IllegalArgumentException e) {
               // also support Java timezone strings
               return DateTimeZone.forTimeZone(TimeZone.getTimeZone(tzId));
             }
@@ -153,7 +157,8 @@ public class DruidDefaultSerializersModule extends SimpleModule
                 yielder = yielder.next(null);
               }
               jgen.writeEndArray();
-            } finally {
+            }
+            finally {
               yielder.close();
             }
           }
@@ -250,6 +255,43 @@ public class DruidDefaultSerializersModule extends SimpleModule
               throws IOException
           {
             generator.writeBinary(bitSet.toByteArray());
+          }
+        }
+    );
+
+    addSerializer(
+        StringArray.IntMap.class,
+        new JsonSerializer<StringArray.IntMap>()
+        {
+          @Override
+          public void serialize(StringArray.IntMap map, JsonGenerator jgen, SerializerProvider provider) throws IOException
+          {
+            jgen.writeStartObject();
+            jgen.writeFieldName("k");
+            jgen.writeObject(map.keySet());
+            jgen.writeFieldName("v");
+            jgen.writeObject(Ints.toArray(map.values()));
+            jgen.writeEndObject();
+          }
+        }
+    );
+    addDeserializer(
+        StringArray.IntMap.class,
+        new JsonDeserializer<StringArray.IntMap>()
+        {
+          @Override
+          public StringArray.IntMap deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
+          {
+            Preconditions.checkArgument(jp.getCurrentToken() == JsonToken.START_OBJECT);
+            Preconditions.checkArgument(jp.nextToken() == JsonToken.FIELD_NAME);
+            Preconditions.checkArgument(jp.getText().equals("k"));
+            jp.nextToken();
+            List<StringArray> keys = jp.readValueAs(new TypeReference<List<StringArray>>(){});
+            Preconditions.checkArgument(jp.nextToken() == JsonToken.FIELD_NAME);
+            Preconditions.checkArgument(jp.getText().equals("v"));
+            jp.nextToken();
+            int[] values = jp.readValueAs(int[].class);
+            return StringArray.zip(keys, values);
           }
         }
     );
