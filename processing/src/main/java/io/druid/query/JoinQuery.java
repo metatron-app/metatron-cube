@@ -440,23 +440,21 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query0, segmentWalker));
           LOG.info("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
-          if (query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns) && !element.isCrossJoin()) {
+          if (values.size() < forcedFilterTinyThreshold << 1 && rightEstimated >= forcedFilterHugeThreshold &&
+              element.forceLeftToFilter(query0, query1) != null) {
+            Iterator<Object[]> iterator = Iterators.transform(
+                values.iterator(), GuavaUtils.mapper(signature.columnNames, leftJoinColumns)
+            );
+            DimFilter filter = SemiJoinFactory.from(rightJoinColumns, iterator);
+            query1 = DimFilters.and((FilterSupport) query1, filter);
+            rightEstimated = Math.max(1, rightEstimated >>> 1);
+            LOG.info("-- .. with forced filter %s to %s (R)", filter, rightAlias);
+          } else if (query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(resolver, leftJoinColumns, values.size(), values);
             query1 = DataSources.applyFilter(query1, BloomDimFilter.of(rightJoinColumns, bloom));
             rightEstimated = rightEstimated > 0 && rightEstimated > broadcastThreshold ? rightEstimated >> 1 : rightEstimated;
-            LOG.info(".. with bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
-          }
-          if (values.size() < forcedFilterTinyThreshold << 1 && rightEstimated >= forcedFilterHugeThreshold) {
-            if (element.forceLeftToFilter(query0, query1) != null) {
-              Iterator<Object[]> iterator = Iterators.transform(
-                  values.iterator(), GuavaUtils.mapper(signature.columnNames, leftJoinColumns)
-              );
-              DimFilter filter = SemiJoinFactory.from(rightJoinColumns, iterator);
-              query1 = DimFilters.and((FilterSupport) query1, filter);
-              rightEstimated = Math.max(1, rightEstimated >>> 1);
-              LOG.info("-- .. with forced filter %s to %s (R)", filter, rightAlias);
-            }
+            LOG.info("-- .. with bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
           }
           if (rightEstimated > 0) {
             query1 = query1.withOverriddenContext(
@@ -480,23 +478,21 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query1, segmentWalker));
           LOG.info("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
-          if (query1.hasFilters() && DataSources.isFilterableOn(query0, leftJoinColumns) && !element.isCrossJoin()) {
+          if (values.size() < forcedFilterTinyThreshold << 1 && leftEstimated >= forcedFilterHugeThreshold &&
+              element.forceRightToFilter(query0, query1) != null) {
+            Iterator<Object[]> iterator = Iterators.transform(
+                values.iterator(), GuavaUtils.mapper(signature.columnNames, rightJoinColumns)
+            );
+            DimFilter filter = SemiJoinFactory.from(leftJoinColumns, iterator);
+            query0 = DimFilters.and((FilterSupport) query0, filter);
+            leftEstimated = Math.max(1, leftEstimated >>> 1);
+            LOG.info("-- .. with forced filter %s to %s (L)", filter, leftAlias);
+          } else if (query1.hasFilters() && DataSources.isFilterableOn(query0, leftJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(resolver, rightJoinColumns, values.size(), values);
             query0 = DataSources.applyFilter(query0, BloomDimFilter.of(leftJoinColumns, bloom));
             LOG.info("-- .. with bloom filter %s(%s) to %s (L)", rightAlias, BaseQuery.getDimFilter(query1), leftAlias);
             leftEstimated = leftEstimated > 0 && leftEstimated > broadcastThreshold ? leftEstimated >> 1 : leftEstimated;
-          }
-          if (values.size() < forcedFilterTinyThreshold << 1 && leftEstimated >= forcedFilterHugeThreshold) {
-            if (element.forceRightToFilter(query0, query1) != null) {
-              Iterator<Object[]> iterator = Iterators.transform(
-                  values.iterator(), GuavaUtils.mapper(signature.columnNames, rightJoinColumns)
-              );
-              DimFilter filter = SemiJoinFactory.from(leftJoinColumns, iterator);
-              query0 = DimFilters.and((FilterSupport) query0, filter);
-              leftEstimated = Math.max(1, leftEstimated >>> 1);
-              LOG.info("-- .. with forced filter %s to %s (L)", filter, leftAlias);
-            }
           }
           if (leftEstimated > 0) {
             query0 = query0.withOverriddenContext(
