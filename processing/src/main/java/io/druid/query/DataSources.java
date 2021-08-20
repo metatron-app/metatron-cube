@@ -121,11 +121,24 @@ public class DataSources
       final RowSignature schema = ((QueryDataSource) dataSource).getSchema();
       if (localize && query instanceof StreamQuery && ((StreamQuery) query).isView()) {
         // special handling
-        final StreamQuery stream = ((StreamQuery) query);
-        if (stream.getDataSource() instanceof TableDataSource && schema == null) {
-          return ViewDataSource.of(getName(query), stream.getVirtualColumns(), stream.getFilter(), projection);
+        final PostProcessingOperator processor = (PostProcessingOperator) query.getContextValue(Query.LOCAL_POST_PROCESSING);
+        if (processor == null) {
+          final StreamQuery stream = ((StreamQuery) query);
+          if (stream.getDataSource() instanceof TableDataSource && schema == null) {
+            return ViewDataSource.of(getName(query), stream.getVirtualColumns(), stream.getFilter(), projection);
+          }
+          return QueryDataSource.of(stream.withColumns(projection), schema == null ? null : schema.retain(projection));
         }
-        return QueryDataSource.of(stream.withColumns(projection), schema == null ? null : schema.retain(projection));
+        PostProcessingOperator rewritten = PostProcessingOperators.rewriteLast(
+            processor,
+            p -> p instanceof BroadcastJoinProcessor ? ((BroadcastJoinProcessor) p).withOutputColumns(projection) : p
+        );
+        if (rewritten != processor) {
+          return QueryDataSource.of(
+              query.withOverriddenContext(Query.LOCAL_POST_PROCESSING, rewritten),
+              schema == null ? null : schema.retain(projection)
+          );
+        }
       }
       if (query instanceof Query.LastProjectionSupport) {
         return QueryDataSource.of(

@@ -237,7 +237,7 @@ public class PostProcessingOperators
       }
       return processor;
     } else {
-      return converter.apply(processor);
+      return processor == null ? null : converter.apply(processor);
     }
   }
 

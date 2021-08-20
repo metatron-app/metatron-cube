@@ -258,9 +258,6 @@ public class JoinElement
   public boolean isLeftSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isLeftDrivable()) {
-      if (DataSources.isBroadcasting(left)) {
-        return false;   // todo apply projection to broadcast processor if possible
-      }
       List<String> rightOutputColumns = DataSources.getOutputColumns(right);
       if (rightOutputColumns == null || GuavaUtils.containsAny(outputColumns, rightOutputColumns)) {
         return false;
@@ -273,9 +270,6 @@ public class JoinElement
   public boolean isRightSemiJoinable(DataSource left, DataSource right, List<String> outputColumns)
   {
     if (!GuavaUtils.isNullOrEmpty(outputColumns) && joinType.isRightDrivable()) {
-      if (DataSources.isBroadcasting(right)) {
-        return false;   // todo apply projection to broadcast processor if possible
-      }
       List<String> leftOutputColumns = DataSources.getOutputColumns(left);
       if (leftOutputColumns == null || GuavaUtils.containsAny(outputColumns, leftOutputColumns)) {
         return false;
