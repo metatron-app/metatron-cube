@@ -58,7 +58,7 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public int indexOf(String value)
+  public int indexOf(String value, int start)
   {
     return StringUtils.isNullOrEmpty(value) ? -1 : Integer.valueOf(value);
   }

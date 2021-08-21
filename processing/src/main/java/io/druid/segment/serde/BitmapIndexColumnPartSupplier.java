@@ -116,10 +116,10 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
       }
 
       @Override
-      public int getIndex(String value)
+      public int getIndex(String value, int start)
       {
         // GenericIndexed.indexOf satisfies contract needed by BitmapIndex.indexOf
-        return dictionary.indexOf(value);
+        return dictionary.indexOf(value, start);
       }
 
       @Override

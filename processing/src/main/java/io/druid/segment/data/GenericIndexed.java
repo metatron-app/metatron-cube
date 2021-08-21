@@ -182,9 +182,9 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
    * @return index of value, or negative number equal to (-(insertion point) - 1).
    */
   @Override
-  public int indexOf(T value)
+  public int indexOf(T value, int start)
   {
-    return bufferIndexed.indexOf(value);
+    return bufferIndexed.indexOf(value, start);
   }
 
   @Override
@@ -426,8 +426,13 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public int indexOf(T value)
+    {
+      return indexOf(value, 0);
+    }
+
+    @SuppressWarnings("unchecked")
+    public int indexOf(T value, int start)
     {
       if (!allowReverseLookup) {
         throw new UnsupportedOperationException("Reverse lookup not allowed.");
@@ -437,7 +442,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       }
       final Comparator<T> comparator = (Comparator<T>) strategy;
 
-      int minIndex = 0;
+      int minIndex = start < 0 ? -(start + 1) : start;
       int maxIndex = size - 1;
       while (minIndex <= maxIndex) {
         final int medianIndex = (minIndex + maxIndex) >>> 1;

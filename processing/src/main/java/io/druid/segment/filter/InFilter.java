@@ -27,6 +27,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -50,16 +52,17 @@ import it.unimi.dsi.fastutil.ints.IntSet;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  */
 public class InFilter implements Filter
 {
   private final String dimension;
-  private final Collection<String> values;
+  private final List<String> values;
   private final ExtractionFn extractionFn;
 
-  public InFilter(String dimension, Collection<String> values, ExtractionFn extractionFn)
+  public InFilter(String dimension, List<String> values, ExtractionFn extractionFn)
   {
     this.dimension = dimension;
     this.values = values;
@@ -74,18 +77,7 @@ public class InFilter implements Filter
       return null;  // extractionFn requires bitmap index
     }
     if (extractionFn == null) {
-      final Column column = selector.getColumn(dimension);
-      if (column == null) {
-        return BitmapHolder.exact(selector.createBoolean(values.contains("")));
-      }
-      final BitmapIndex bitmap = column.getBitmapIndex();
-      if (bitmap == null) {
-        return null;
-      }
-      return BitmapHolder.exact(DimFilters.union(
-          selector.getBitmapFactory(),
-          Iterables.transform(values, v -> bitmap.getBitmap(bitmap.getIndex(v)))
-      ));
+      return unionBitmaps(dimension, values, selector);
     } else {
       return BitmapHolder.exact(Filters.matchPredicate(
           dimension,
@@ -93,6 +85,23 @@ public class InFilter implements Filter
           context
       ));
     }
+  }
+
+  // values reagarded to be sorted
+  public static BitmapHolder unionBitmaps(String dimension, List<String> values, BitmapIndexSelector selector)
+  {
+    final Column column = selector.getColumn(dimension);
+    if (column == null) {
+      return BitmapHolder.exact(selector.createBoolean(!values.isEmpty() && "".equals(values.get(0))));
+    }
+    final BitmapIndex bitmap = column.getBitmapIndex();
+    if (bitmap == null) {
+      return null;
+    }
+    final Stream<ImmutableBitmap> stream = GuavaUtils.stateToInt(
+        values.stream(), (v, s) -> bitmap.getIndex(v, s)).mapToObj(x -> bitmap.getBitmap(x)
+    );
+    return BitmapHolder.exact(DimFilters.union(selector.getBitmapFactory(), () -> stream.iterator()));
   }
 
   @Override

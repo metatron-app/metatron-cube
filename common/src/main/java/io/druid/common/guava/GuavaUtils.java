@@ -53,6 +53,7 @@ import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -60,7 +61,12 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
+import java.util.function.ToIntBiFunction;
+import java.util.function.ToIntFunction;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 /**
  */
@@ -598,6 +604,66 @@ public class GuavaUtils
   public static <F, T> List<T> transform(List<F> fromList, Function<? super F, ? extends T> function)
   {
     return Lists.newArrayList(Iterables.transform(fromList, function));
+  }
+
+  public static <F, T> Stream<T> stateTo(Stream<F> stream, BiFunction<F, T, T> function)
+  {
+    return stateTo(stream, function, null);
+  }
+
+  public static <F, T> Stream<T> stateTo(Stream<F> stream, BiFunction<F, T, T> function, T start)
+  {
+    return stream.map(new java.util.function.Function<F, T>()
+    {
+      private T p = start;
+
+      @Override
+      public T apply(F input)
+      {
+        return p = function.apply(input, p);
+      }
+    });
+  }
+
+  public static <F> IntStream stateToInt(Stream<F> stream, ToIntBiFunction<F, Integer> function)
+  {
+    return stateToInt(stream, function, 0);
+  }
+
+  public static <F> IntStream stateToInt(Stream<F> stream, ToIntBiFunction<F, Integer> function, int start)
+  {
+    return stream.mapToInt(new ToIntFunction<F>()
+    {
+      private int p = start;
+
+      @Override
+      public int applyAsInt(F input)
+      {
+        return p = function.applyAsInt(input, p);
+      }
+    });
+  }
+
+  // should be no null in source
+  public static <T extends Comparable<? super T>> List<T> sortAndDedup(Collection<T> source)
+  {
+    final List<T> value = Lists.newArrayList(source);
+    Collections.sort(value);
+
+    return Lists.newArrayList(Iterators.filter(value.iterator(), new Predicate<T>()
+    {
+      private T prev;
+
+      @Override
+      public boolean apply(T input)
+      {
+        if (Objects.equals(prev, input)) {
+          return false;
+        }
+        prev = input;
+        return true;
+      }
+    }));
   }
 
   public static Function<Object[], Object[]> mapper(List<String> source, List<String> target)

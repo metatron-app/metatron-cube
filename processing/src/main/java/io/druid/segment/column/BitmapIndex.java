@@ -46,7 +46,12 @@ public interface BitmapIndex
    * @param value value to search for
    * @return index of value, or negative number equal to (-(insertion point) - 1).
    */
-  int getIndex(String value);
+  default int getIndex(String value)
+  {
+    return getIndex(value, 0);
+  }
+
+  int getIndex(String value, int start);
 
   ImmutableBitmap getBitmap(int idx);
 

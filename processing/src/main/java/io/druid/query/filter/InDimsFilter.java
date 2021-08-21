@@ -118,7 +118,8 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
         final List<BitmapHolder> holders = Lists.newArrayList();
         for (int i = 0; i < dimensions.size(); i++) {
           final String dimension = dimensions.get(i);
-          final BitmapHolder holder = new InFilter(dimension, values.get(i), null).getBitmapIndex(context);
+          final List<String> sorted = GuavaUtils.sortAndDedup(values.get(i));
+          final BitmapHolder holder = InFilter.unionBitmaps(dimension, sorted, context.indexSelector());
           if (holder != null) {
             holders.add(holder);
           }

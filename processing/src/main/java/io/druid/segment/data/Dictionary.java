@@ -29,6 +29,14 @@ public interface Dictionary<T> extends Indexed.Closeable<T>
 
   Boolean containsNull();     // null for unknown
 
+  @Override
+  default int indexOf(T value)
+  {
+    return indexOf(value, 0);
+  }
+
+  int indexOf(T value, int start);
+
   byte[] getAsRaw(int index);
 
   BufferRef getAsRef(int index);

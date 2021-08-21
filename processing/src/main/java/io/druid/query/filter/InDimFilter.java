@@ -50,6 +50,7 @@ import io.druid.segment.filter.InFilter;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -166,7 +167,7 @@ public class InDimFilter extends SingleInput implements RangeFilter, LogProvider
       if (keys.isEmpty()) {
         return this;
       } else {
-        return new InDimFilter(dimension, null, keys);
+        return new InDimFilter(dimension, keys, null);
       }
     }
     return this;
@@ -278,15 +279,15 @@ public class InDimFilter extends SingleInput implements RangeFilter, LogProvider
   {
     if (other instanceof InDimFilter) {
       InDimFilter in = (InDimFilter) other;
-      Set<String> set1 = Sets.newTreeSet(values);
-      Set<String> set2 = Sets.newTreeSet(in.values);
+      Set<String> set1 = Sets.newHashSet(values);
+      Set<String> set2 = Sets.newHashSet(in.values);
       switch (op) {
-        case AND: return new InDimFilter(dimension, extractionFn, Lists.newArrayList(Sets.intersection(set1, set2)));
-        case OR: return new InDimFilter(dimension, extractionFn, Lists.newArrayList(Sets.union(set1, set2)));
+        case AND: return new InDimFilter(dimension, Lists.newArrayList(Sets.intersection(set1, set2)), extractionFn);
+        case OR: return new InDimFilter(dimension, Lists.newArrayList(Sets.union(set1, set2)), extractionFn);
       }
     } else if (other instanceof SelectorDimFilter) {
       SelectorDimFilter select = (SelectorDimFilter) other;
-      int index = values.indexOf(select.getValue());
+      int index = Collections.binarySearch(values, select.getValue());
       switch (op) {
         case AND:
           return index >= 0 ? other : DimFilters.NONE;

@@ -241,7 +241,7 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
           return DimFilters.NONE;
         case OR:
           List<String> values = compare < 0 ? Arrays.asList(value, select.value) : Arrays.asList(select.value, value);
-          return new InDimFilter(dimension, extractionFn, values);
+          return new InDimFilter(dimension, values, extractionFn);
       }
     }
     throw new ISE("merge?? %s %s %s", this, op, other);

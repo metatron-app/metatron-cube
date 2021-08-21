@@ -115,7 +115,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
   @Override
   public ImmutableBitmap union(Iterable<ImmutableBitmap> bitmaps)
   {
-    final Iterator<ImmutableBitmap> iterator = bitmaps.iterator();
+    final Iterator<ImmutableBitmap> iterator = Iterables.filter(bitmaps, b -> !b.isEmpty()).iterator();
     if (!iterator.hasNext()) {
       return makeEmptyImmutableBitmap();
     }
