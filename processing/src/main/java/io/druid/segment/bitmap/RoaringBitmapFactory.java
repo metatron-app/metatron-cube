@@ -123,29 +123,35 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (!iterator.hasNext()) {
       return first;
     }
-    final BitSet bitSet = convert(first);
+    final BitSet bitSet = toBitset(first);
     while (iterator.hasNext()) {
-      copyTo(iterator.next(), bitSet);
-    }
-    if (bitSet.isEmpty()) {
-      return makeEmptyImmutableBitmap();
+      union(bitSet, iterator.next());
     }
     return from(bitSet);
   }
 
   @Override
-  public ImmutableBitmap intersection(Iterable<ImmutableBitmap> b)
+  public ImmutableBitmap intersection(Iterable<ImmutableBitmap> bitmaps)
   {
-    return super.intersection(Iterables.transform(b, bitmap -> unwrapLazy(bitmap)));
+    final Iterator<ImmutableBitmap> iterator = bitmaps.iterator();
+    if (!iterator.hasNext()) {
+      return makeEmptyImmutableBitmap();
+    }
+    final ImmutableBitmap first = iterator.next();
+    if (!iterator.hasNext()) {
+      return first;
+    }
+    final BitSet bitSet = toBitset(first);
+    while (iterator.hasNext() && !bitSet.isEmpty()) {
+      intersect(bitSet, iterator.next());
+    }
+    return from(bitSet);
   }
 
   // basically for bound filter.. a contains b
   public ImmutableBitmap difference(ImmutableBitmap a, ImmutableBitmap b, int length)
   {
-    if (a instanceof LazyImmutableBitmap) {
-      return a.difference(b);
-    }
-    return unwrapLazy(a).difference(unwrapLazy(b));
+    return from(difference(toBitset(a), b));
   }
 
   @Override
@@ -161,7 +167,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       return makeEmptyImmutableBitmap();
     }
     if (b.isEmpty()) {
-      return from(length, new IntIterators.Range(0, length - 1));
+      return from(length, new IntIterable.Range(0, length - 1));
     }
     return super.complement(unwrapLazy(b), length);
   }
@@ -177,7 +183,7 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     if (!iterator.hasNext()) {
       return first;
     }
-    final BitSet bitSet = convert(first);
+    final BitSet bitSet = toBitset(first);
     while (iterator.hasNext() && !bitSet.isEmpty()) {
       final ImmutableBitmap bitmap = iterator.next();
       if (bitmap.isEmpty()) {
@@ -206,41 +212,38 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     return finalize(bitSet);
   }
 
-  private static BitSet convert(final ImmutableBitmap bitmap)
+  private ImmutableBitmap finalize(final BitSet bitSet)
   {
-    if (bitmap instanceof LazyFromBitSet) {
-      return (BitSet) ((LazyFromBitSet) bitmap).bitSet.clone();
+    if (bitSet == null || bitSet.isEmpty()) {
+      return makeEmptyImmutableBitmap();
     }
-    return convert(bitmap.iterator());
+    return toBitmap(bitSet);
   }
 
-  private static BitSet convert(final IntIterator iterator)
+  public static BitSet toBitset(final ImmutableBitmap bitmap)
   {
-    final BitSet bitSet;
-    if (iterator instanceof IntIterators.MaxAware) {
-      bitSet = new BitSet(((IntIterators.MaxAware) iterator).max());
-    } else {
-      bitSet = new BitSet();
+    if (bitmap instanceof LazyImmutableBitmap) {
+      return ((LazyImmutableBitmap) bitmap).toBitSet();
     }
-    return copyTo(iterator, bitSet);
+    return union(new BitSet(), bitmap.iterator());
   }
 
-  public static ImmutableBitmap convert(BitSet bitSet)
+  public static ImmutableBitmap toBitmap(final BitSet bitSet)
   {
     return copyToBitmap(WrappedBitSetBitmap.iterator(bitSet));
   }
 
-  private static BitSet copyTo(final ImmutableBitmap bitmap, final BitSet bitSet)
+  private static BitSet union(final BitSet bitSet, final ImmutableBitmap bitmap)
   {
     if (bitmap instanceof LazyImmutableBitmap) {
-      ((LazyImmutableBitmap) bitmap).orWith(bitSet);
+      ((LazyImmutableBitmap) bitmap).or(bitSet);
     } else {
-      copyTo(bitmap.iterator(), bitSet);
+      union(bitSet, bitmap.iterator());
     }
     return bitSet;
   }
 
-  private static BitSet copyTo(final IntIterator iterator, final BitSet bitSet)
+  private static BitSet union(final BitSet bitSet, final IntIterator iterator)
   {
     while (iterator.hasNext()) {
       bitSet.set(iterator.next());
@@ -248,12 +251,47 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     return bitSet;
   }
 
-  private ImmutableBitmap finalize(final BitSet bitSet)
+  private static BitSet intersect(final BitSet bitSet, final ImmutableBitmap bitmap)
   {
-    if (bitSet == null || bitSet.isEmpty()) {
-      return makeEmptyImmutableBitmap();
+    if (bitmap.isEmpty()) {
+      bitSet.clear();
+    } else if (bitmap instanceof LazyImmutableBitmap) {
+      ((LazyImmutableBitmap) bitmap).and(bitSet);
+    } else {
+      intersect(bitSet, bitmap.iterator());
     }
-    return convert(bitSet);
+    return bitSet;
+  }
+
+  private static BitSet intersect(final BitSet bitSet, final IntIterator iterator)
+  {
+    int prev = 0;
+    while (iterator.hasNext()) {
+      final int x = iterator.next();
+      if (bitSet.get(x)) {
+        bitSet.clear(prev, x);
+        prev = x + 1;
+      }
+    }
+    bitSet.clear(prev, bitSet.length());
+    return bitSet;
+  }
+
+  private static BitSet difference(final BitSet bitSet, final ImmutableBitmap bitmap)
+  {
+    if (bitmap instanceof LazyImmutableBitmap) {
+      ((LazyImmutableBitmap) bitmap).andNot(bitSet);
+    } else {
+      difference(bitSet, bitmap.iterator());
+    }
+    return bitSet;
+  }
+
+  private static void difference(final BitSet bitSet, final IntIterator iterator)
+  {
+    while (iterator.hasNext()) {
+      bitSet.clear(iterator.next());
+    }
   }
 
   // should return -1 instead of NoSuchElementException
@@ -292,18 +330,22 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
       bbf.position(position + 4);   // skip
       final int from = VLongUtils.readUnsignedVarInt(bbf);
       final int to = from + VLongUtils.readUnsignedVarInt(bbf);
-      return from(to - from + 1, new IntIterators.Range(from, to));
+      return from(to - from + 1, new IntIterable.Range(from, to));
     } else if (cookie == SMALL_COOKIE) {
       bbf.position(position + 4);   // skip
       final int size = magic >>> 16;
       if (size == 0) {
         return makeEmptyImmutableBitmap();
       }
+      if (size == 1) {
+        final int ix = VLongUtils.readUnsignedVarInt(bbf);
+        return from(1, new IntIterable.Range(ix, ix));
+      }
       final int[] indices = new int[size];
       for (int i = 0; i < indices.length; i++) {
         indices[i] = (i == 0 ? 0 : indices[i - 1]) + VLongUtils.readUnsignedVarInt(bbf);
       }
-      return from(size, IntIterators.from(indices));
+      return from(size, new IntIterable.FromArray(indices));
     }
     return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(bbf));
   }
@@ -317,50 +359,116 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     }
   }
 
-  public static LazyImmutableBitmap from(final int cardinality, final IntIterator iterator)
+  public static LazyImmutableBitmap from(final int cardinality, final IntIterable iterable)
   {
     return new LazyImmutableBitmap(cardinality)
     {
       @Override
       public IntIterator iterator()
       {
-        return iterator.clone();
+        return iterable.iterator();
+      }
+
+      @Override
+      public BitSet toBitSet()
+      {
+        final BitSet bitSet;
+        if (iterable instanceof IntIterable.MaxAware) {
+          bitSet = new BitSet(((IntIterable.MaxAware) iterable).max());
+        } else {
+          bitSet = new BitSet();
+        }
+        if (iterable instanceof IntIterable.Range) {
+          ((IntIterable.Range) iterable).or(bitSet);
+        } else {
+          RoaringBitmapFactory.union(bitSet, iterator());
+        }
+        return bitSet;
+      }
+
+      @Override
+      public boolean get(int index)
+      {
+        if (iterable instanceof IntIterable.Range) {
+          return ((IntIterable.Range) iterable).get(index);
+        } else if (iterable instanceof IntIterable.FromArray) {
+          return ((IntIterable.FromArray) iterable).get(index);
+        }
+        return super.get(index);
+      }
+
+      @Override
+      public void or(BitSet target)
+      {
+        if (iterable instanceof IntIterable.Range) {
+          ((IntIterable.Range) iterable).or(target);
+        } else {
+          super.or(target);
+        }
+      }
+
+      @Override
+      public void and(BitSet target)
+      {
+        if (iterable instanceof IntIterable.Range) {
+          ((IntIterable.Range) iterable).and(target);
+        } else {
+          super.and(target);
+        }
+      }
+
+      @Override
+      public void andNot(BitSet target)
+      {
+        if (iterable instanceof IntIterable.Range) {
+          ((IntIterable.Range) iterable).andNot(target);
+        } else {
+          super.andNot(target);
+        }
       }
     };
   }
 
   public static LazyImmutableBitmap from(final BitSet bitSet)
   {
-    return new LazyFromBitSet(bitSet);
-  }
-
-  private static class LazyFromBitSet extends LazyImmutableBitmap
-  {
-    private final BitSet bitSet;
-
-    public LazyFromBitSet(BitSet bitSet)
+    return new LazyImmutableBitmap(bitSet.cardinality())
     {
-      super(bitSet.cardinality());
-      this.bitSet = bitSet;
-    }
+      @Override
+      public IntIterator iterator()
+      {
+        return WrappedBitSetBitmap.iterator(bitSet);
+      }
 
-    @Override
-    public IntIterator iterator()
-    {
-      return WrappedBitSetBitmap.iterator(bitSet);
-    }
+      @Override
+      public BitSet toBitSet()
+      {
+        return (BitSet) bitSet.clone();
+      }
 
-    @Override
-    public ImmutableBitmap difference(ImmutableBitmap otherBitmap)
-    {
-      return _difference((BitSet) bitSet.clone(), otherBitmap);
-    }
+      @Override
+      public boolean get(int value)
+      {
+        return bitSet.get(value);
+      }
 
-    @Override
-    public void orWith(BitSet target)
-    {
-      target.or(bitSet);
-    }
+      @Override
+      public void or(BitSet target)
+      {
+        target.or(bitSet);
+      }
+
+      @Override
+      public void and(BitSet target)
+      {
+        target.and(bitSet);
+      }
+
+      @Override
+      public void andNot(BitSet target)
+      {
+        target.andNot(bitSet);
+      }
+    };
   }
 
   private static abstract class LazyImmutableBitmap implements ImmutableBitmap
@@ -407,49 +515,39 @@ public final class RoaringBitmapFactory extends com.metamx.collections.bitmap.Ro
     @Override
     public ImmutableBitmap union(ImmutableBitmap otherBitmap)
     {
-      return materializer.get().union(otherBitmap);
+      return from(RoaringBitmapFactory.union(toBitSet(), otherBitmap));
     }
 
     @Override
     public ImmutableBitmap intersection(ImmutableBitmap otherBitmap)
     {
-      return materializer.get().intersection(otherBitmap);
+      return from(RoaringBitmapFactory.intersect(toBitSet(), otherBitmap));
     }
 
     @Override
     public ImmutableBitmap difference(ImmutableBitmap otherBitmap)
     {
-      if (otherBitmap instanceof LazyFromBitSet) {
-        return _difference(convert(iterator()), otherBitmap);
-      }
-      return from(convert(IntIterators.diff(iterator(), otherBitmap.iterator())));
+      return from(RoaringBitmapFactory.difference(toBitSet(), otherBitmap));
     }
 
-    public void orWith(BitSet target)
+    public BitSet toBitSet()
     {
-      final IntIterator iterator = iterator();
-      if (iterator instanceof IntIterators.Range) {
-        ((IntIterators.Range) iterator).union(target);
-      } else {
-        copyTo(iterator, target);
-      }
+      return RoaringBitmapFactory.union(new BitSet(), iterator());
     }
 
-    protected final LazyImmutableBitmap _difference(BitSet copy, ImmutableBitmap otherBitmap)
+    public void or(BitSet target)
     {
-      if (otherBitmap instanceof LazyFromBitSet) {
-        copy.andNot(((LazyFromBitSet) otherBitmap).bitSet);
-      } else {
-        final IntIterator iterator = otherBitmap.iterator();
-        if (iterator instanceof IntIterators.Range) {
-          ((IntIterators.Range) iterator).andNot(copy);
-        } else {
-          while (iterator.hasNext()) {
-            copy.clear(iterator.next());
-          }
-        }
-      }
-      return from(copy);
+      RoaringBitmapFactory.union(target, iterator());
+    }
+
+    public void and(BitSet target)
+    {
+      RoaringBitmapFactory.intersect(target, iterator());
+    }
+
+    public void andNot(BitSet target)
+    {
+      RoaringBitmapFactory.difference(target, iterator());
     }
   }
 }

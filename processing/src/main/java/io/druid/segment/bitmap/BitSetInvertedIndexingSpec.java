@@ -101,7 +101,7 @@ public class BitSetInvertedIndexingSpec implements SecondaryIndexingSpec
         writer.open();
         for (int i = 0; i < bitsets.size(); i++) {
           BitSet b = bitsets.get(i);
-          writer.add(b != null && !b.isEmpty() ? RoaringBitmapFactory.convert(b) : null);
+          writer.add(b != null && !b.isEmpty() ? RoaringBitmapFactory.toBitmap(b) : null);
         }
         writer.close();
         return builder.addSerde(new SerDe(writer));

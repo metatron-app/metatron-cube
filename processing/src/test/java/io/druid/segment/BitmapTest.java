@@ -23,6 +23,8 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.segment.bitmap.BitSetBitmapFactory;
+import io.druid.segment.bitmap.IntIterable;
+import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import org.junit.Assert;
 import org.junit.Test;
@@ -127,5 +129,40 @@ public class BitmapTest
     u = f.intersection(Arrays.asList(bitmaps));
     System.out.println("roaring(org) took.. " + (System.currentTimeMillis() - t) + " msec");
     Assert.assertEquals(size, u.size());
+  }
+
+  private final RoaringBitmapFactory F = new RoaringBitmapFactory();
+
+  @Test
+  public void testOptimized()
+  {
+    IntIterable set1 = new IntIterable.Range(1, 6);
+    IntIterable set2 = new IntIterable.FromArray(new int[] {2, 4, 6, 8});
+    IntIterable set3 = new IntIterable.Range(3, 7);
+    IntIterable set4 = new IntIterable.FromArray(new int[] {3, 4, 9});
+
+    ImmutableBitmap map1 = RoaringBitmapFactory.from(6, set1);
+    ImmutableBitmap map2 = RoaringBitmapFactory.from(4, set2);
+    ImmutableBitmap map3 = RoaringBitmapFactory.from(5, set3);
+    ImmutableBitmap map4 = RoaringBitmapFactory.from(3, set4);
+
+    check(F.union(Arrays.asList(map1, map2)), new int[]{1, 2, 3, 4, 5, 6, 8});
+    check(F.union(Arrays.asList(map1, map3)), new int[]{1, 2, 3, 4, 5, 6, 7});
+    check(F.union(Arrays.asList(map1, map4)), new int[]{1, 2, 3, 4, 5, 6, 9});
+    check(F.union(Arrays.asList(map2, map3)), new int[]{2, 3, 4, 5, 6, 7, 8});
+    check(F.union(Arrays.asList(map2, map4)), new int[]{2, 3, 4, 6, 8, 9});
+    check(F.union(Arrays.asList(map3, map4)), new int[]{3, 4, 5, 6, 7, 9});
+
+    check(F.intersection(Arrays.asList(map1, map2)), new int[]{2, 4, 6});
+    check(F.intersection(Arrays.asList(map1, map3)), new int[]{3, 4, 5, 6});
+    check(F.intersection(Arrays.asList(map1, map4)), new int[]{3, 4});
+    check(F.intersection(Arrays.asList(map2, map3)), new int[]{4, 6});
+    check(F.intersection(Arrays.asList(map2, map4)), new int[]{4});
+    check(F.intersection(Arrays.asList(map3, map4)), new int[]{3, 4});
+  }
+
+  private void check(ImmutableBitmap result, int[] expected)
+  {
+    Assert.assertTrue(IntIterators.elementsEqual(result.iterator(), IntIterators.from(expected)));
   }
 }

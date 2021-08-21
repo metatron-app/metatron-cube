@@ -27,7 +27,6 @@ import it.unimi.dsi.fastutil.objects.ObjectHeapPriorityQueue;
 import org.roaringbitmap.IntIterator;
 
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
 
@@ -41,11 +40,6 @@ public final class IntIterators
     {
       throw new UnsupportedOperationException();
     }
-  }
-
-  public static interface MaxAware extends IntIterator
-  {
-    int max();
   }
 
   public static final IntIterator EMPTY = new Abstract()
@@ -115,7 +109,7 @@ public final class IntIterators
     return new IntIterators.Mapped(iterator, mapping);
   }
 
-  public static final class Range implements MaxAware
+  public static final class Range implements IntIterator
   {
     private final int from;
     private final int to;
@@ -145,25 +139,9 @@ public final class IntIterators
     {
       return new Range(index, to);
     }
-
-    public void union(BitSet bitSet)
-    {
-      bitSet.set(from, to + 1);   // exclusive
-    }
-
-    public void andNot(BitSet bitSet)
-    {
-      bitSet.clear(from, to + 1);
-    }
-
-    @Override
-    public int max()
-    {
-      return to;
-    }
   }
 
-  public static final class FromArray extends Abstract implements MaxAware
+  public static final class FromArray extends Abstract
   {
     private int index;
     private final int[] array;
@@ -195,12 +173,6 @@ public final class IntIterators
     public IntIterator clone()
     {
       return new FromArray(array, index);
-    }
-
-    @Override
-    public int max()
-    {
-      return array[array.length - 1];
     }
   }
 
@@ -550,5 +522,18 @@ public final class IntIterators
         throw new UnsupportedOperationException("clone");
       }
     };
+  }
+
+  public static boolean elementsEqual(IntIterator iterator1, IntIterator iterator2)
+  {
+    while (iterator1.hasNext()) {
+      if (!iterator2.hasNext()) {
+        return false;
+      }
+      if (iterator1.next() != iterator2.next()) {
+        return false;
+      }
+    }
+    return !iterator2.hasNext();
   }
 }
