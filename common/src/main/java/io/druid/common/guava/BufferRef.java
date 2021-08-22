@@ -78,6 +78,20 @@ public class BufferRef implements Comparable<BufferRef>
     return Ints.compare(len1, len2);
   }
 
+  public int compareTo(byte[] value)
+  {
+    final int len1 = remaining();
+    final int len2 = value.length;
+    final int limit = Math.min(len1, len2);
+    for (int i = 0; i < limit; i++) {
+      final int cmp = Byte.compare(buffer.get(from + i), value[i]);
+      if (cmp != 0) {
+        return cmp;
+      }
+    }
+    return Ints.compare(len1, len2);
+  }
+
   private final static int ADDRESS_BITS_PER_WORD = 6;
   private static final int BIT_INDEX_MASK = 0b111111;
 

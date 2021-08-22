@@ -440,14 +440,39 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       if (StringUtils.isNullOrEmpty(value)) {
         return StringUtils.isNullOrEmpty(get(0)) ? 0 : -1;
       }
-      final Comparator<T> comparator = (Comparator<T>) strategy;
+      if (strategy instanceof ObjectStrategy.RawComparable) {
+        return binarySearchRaw(strategy.toBytes(value), start);
+      }
+      return binarySearch(value, (Comparator<T>) strategy, start);
+    }
 
+    private int binarySearch(final T value, final Comparator<T> comparator, final int start)
+    {
       int minIndex = start < 0 ? -(start + 1) : start;
       int maxIndex = size - 1;
       while (minIndex <= maxIndex) {
         final int medianIndex = (minIndex + maxIndex) >>> 1;
-        final T currValue = get(medianIndex);
-        final int comparison = comparator.compare(currValue, value);
+        final int comparison = comparator.compare(get(medianIndex), value);
+        if (comparison == 0) {
+          return medianIndex;
+        }
+        if (comparison < 0) {
+          minIndex = medianIndex + 1;
+        } else {
+          maxIndex = medianIndex - 1;
+        }
+      }
+
+      return -(minIndex + 1);
+    }
+
+    private int binarySearchRaw(final byte[] target, final int start)
+    {
+      int minIndex = start < 0 ? -(start + 1) : start;
+      int maxIndex = size - 1;
+      while (minIndex <= maxIndex) {
+        final int medianIndex = (minIndex + maxIndex) >>> 1;
+        final int comparison = getAsRef(medianIndex).compareTo(target);
         if (comparison == 0) {
           return medianIndex;
         }

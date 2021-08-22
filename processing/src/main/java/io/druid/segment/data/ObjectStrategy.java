@@ -46,7 +46,12 @@ public interface ObjectStrategy<T>
   {
   }
 
-  ObjectStrategy<String> STRING_STRATEGY = new CompareSupport<String>()
+  // marker
+  interface RawComparable<T> extends CompareSupport<T>
+  {
+  }
+
+  ObjectStrategy<String> STRING_STRATEGY = new RawComparable<String>()
   {
     @Override
     public Class<? extends String> getClazz()
@@ -63,10 +68,7 @@ public interface ObjectStrategy<T>
     @Override
     public byte[] toBytes(String val)
     {
-      if (val == null) {
-        return new byte[]{};
-      }
-      return StringUtils.toUtf8(val);
+      return StringUtils.toUtf8WithNullToEmpty(val);
     }
 
     @Override
