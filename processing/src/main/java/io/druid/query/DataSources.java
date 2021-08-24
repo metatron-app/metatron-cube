@@ -166,6 +166,11 @@ public class DataSources
     return query.getContextValue(Query.LOCAL_POST_PROCESSING) != null;
   }
 
+  public static boolean isDataLocalFilterable(Query<?> query, List<String> joinColumns)
+  {
+    return DataSources.isDataNodeSourced(query) && DataSources.isFilterableOn(query, joinColumns);
+  }
+
   public static boolean isDataNodeSourced(DataSource source)
   {
     if (source instanceof QueryDataSource) {

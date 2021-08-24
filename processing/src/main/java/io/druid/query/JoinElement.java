@@ -295,51 +295,6 @@ public class JoinElement
     return false;
   }
 
-  public Query.ArrayOutputSupport forceLeftToFilter(Query<?> left, Query<?> right)
-  {
-    if (DataSources.isDataNodeSourced(right) && DataSources.isFilterableOn(right, rightJoinColumns)) {
-      return convert(left, leftJoinColumns);
-    }
-    return null;
-  }
-
-  public Query.ArrayOutputSupport forceRightToFilter(Query<?> left, Query<?> right)
-  {
-    if (DataSources.isDataNodeSourced(left) && DataSources.isFilterableOn(left, leftJoinColumns)) {
-      return convert(right, rightJoinColumns);
-    }
-    return null;
-  }
-
-  private static Query.ArrayOutputSupport convert(Query<?> query, List<String> joinColumns)
-  {
-    if (query instanceof StreamQuery) {
-      StreamQuery stream = (StreamQuery) query;
-      List<String> columns = stream.getColumns();
-      if (columns != null && columns.containsAll(joinColumns)) {
-        return stream.withColumns(joinColumns);
-      }
-    } else if (query instanceof BaseAggregationQuery) {
-      BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
-      List<DimensionSpec> dimensions = aggregation.getDimensions();
-      List<String> columns = DimensionSpecs.toOutputNames(dimensions);
-      if (columns != null && columns.containsAll(joinColumns)) {
-        List<DimensionSpec> ordered = Lists.newArrayList();
-        for (String joinColumn : joinColumns) {
-          ordered.add(dimensions.get(columns.indexOf(joinColumn)));
-        }
-        return Druids.builderFor(aggregation)
-                     .dimensions(ordered).aggregators().postAggregators().havingSpec(null)
-                     .lateralViewSpec(null).limitSpec(null).outputColumns(joinColumns)
-                     .context(BaseQuery.copyContextForMeta(aggregation))
-                     .build();
-      }
-    } else if (query instanceof JoinQuery.JoinHolder) {
-      return ((JoinQuery.JoinHolder) query).withOutputColumns(joinColumns);
-    }
-    return null;
-  }
-
   public static ArrayOutputSupport toQuery(
       QuerySegmentWalker segmentWalker,
       DataSource dataSource,

@@ -47,6 +47,11 @@ public class SemiJoinFactory
     return from(fieldNames, Sequences.toIterator(fieldValues));
   }
 
+  public static DimFilter from(List<String> fieldNames, Iterable<Object[]> iterable)
+  {
+    return from(fieldNames, iterable.iterator());
+  }
+
   public static DimFilter from(List<String> fieldNames, Iterator<Object[]> iterator)
   {
     try {
