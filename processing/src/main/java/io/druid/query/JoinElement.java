@@ -398,20 +398,20 @@ public class JoinElement
   private static final int TRIVIAL_SIZE = 2000;
   private static final int ACCEPTABLE_SIZE = 10000;
 
-  private static long applyLimit(Query<?> query, long estimated)
+  private static long[] applyLimit(Query<?> query, long[] estimated)
   {
     LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
     if (limitSpec != null && limitSpec.hasLimit()) {
-      if (estimated > 0) {
-        estimated = Math.min(limitSpec.getLimit(), estimated);
+      if (estimated[0] > 0) {
+        estimated[0] = Math.min(limitSpec.getLimit(), estimated[0]);
       } else if (limitSpec.getLimit() < ACCEPTABLE_SIZE) {
-        estimated = limitSpec.getLimit();
+        estimated[0] = limitSpec.getLimit();
       }
     }
     return estimated;
   }
 
-  public static long estimatedNumRows(
+  public static long[] estimatedNumRows(
       DataSource dataSource,
       QuerySegmentSpec segmentSpec,
       Map<String, Object> context,
@@ -419,33 +419,33 @@ public class JoinElement
       QueryConfig config
   )
   {
-    long estimated = JoinQuery.estimatedNumRows(dataSource);
-    if (estimated > 0) {
+    long[] estimated = JoinQuery.estimatedCardinality(dataSource);
+    if (estimated[0] != Queries.NOT_EVALUATED) {
       return estimated;
     }
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       LimitSpec limitSpec = BaseQuery.getLimitSpec(query);
       if (limitSpec != null && limitSpec.hasLimit() && limitSpec.getLimit() < TRIVIAL_SIZE) {
-        return limitSpec.getLimit();
+        return new long[] {limitSpec.getLimit(), limitSpec.getLimit()};
       }
       if (query.getDataSource() instanceof QueryDataSource) {
         if (query instanceof StreamQuery) {
           StreamQuery stream = (StreamQuery) query;
           // ignore simple projections
           estimated = estimatedNumRows(query.getDataSource(), segmentSpec, context, segmentWalker, config);
-          if (estimated > 0 && stream.getFilter() != null) {
-            estimated = Math.max(1, estimated >>> 1);
+          if (estimated[0] > 0 && stream.getFilter() != null) {
+            estimated[0] = Math.max(1, estimated[0] >>> 1);
           }
           return applyLimit(stream, estimated);
         }
-        return -1;  // see later
+        return new long[]{Queries.NOT_EVALUATED, Queries.NOT_EVALUATED};  // see later
       }
       if (query instanceof BaseAggregationQuery) {
         BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
         estimated = Queries.estimateCardinality(aggregation.withHavingSpec(null), segmentWalker, config);
-        if (estimated > 0 && aggregation.getHavingSpec() != null) {
-          estimated = Math.max(1, estimated >>> 1);    // half
+        if (estimated[0] > 0 && aggregation.getHavingSpec() != null) {
+          estimated[0] = Math.max(1, estimated[0] >>> 1);    // half
         }
         return applyLimit(query, estimated);
       }
@@ -460,7 +460,7 @@ public class JoinElement
             segmentWalker
         ));
       }
-      return -1;
+      return new long[]{Queries.UNKNOWN, Queries.UNKNOWN};  // see later
     }
     return Queries.estimateCardinality(
         dataSource,

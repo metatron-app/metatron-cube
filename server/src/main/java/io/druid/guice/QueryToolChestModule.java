@@ -34,6 +34,8 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.SchemaQuery;
 import io.druid.query.SchemaQueryToolChest;
+import io.druid.query.FilterMetaQuery;
+import io.druid.query.FilterMetaQueryToolChest;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceQueryQueryToolChest;
 import io.druid.query.frequency.FrequencyQuery;
@@ -96,6 +98,7 @@ public class QueryToolChestModule implements Module
                   .put(SegmentMetadataQuery.class, SegmentMetadataQueryQueryToolChest.class)
                   .put(GroupByQuery.class, GroupByQueryQueryToolChest.class)
                   .put(SelectMetaQuery.class, SelectMetaQueryToolChest.class)
+                  .put(FilterMetaQuery.class, FilterMetaQueryToolChest.class)
                   .put(SchemaQuery.class, SchemaQueryToolChest.class)
                   .put(SelectQuery.class, SelectQueryQueryToolChest.class)
                   .put(StreamQuery.class, StreamQueryToolChest.class)

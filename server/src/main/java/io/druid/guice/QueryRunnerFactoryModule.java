@@ -25,6 +25,8 @@ import com.google.inject.multibindings.MapBinder;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryWatcher;
+import io.druid.query.FilterMetaQuery;
+import io.druid.query.FilterMetaQueryRunnerFactory;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQueryRunnerFactory;
 import io.druid.query.frequency.FrequencyQuery;
@@ -73,6 +75,7 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
                   .put(SegmentMetadataQuery.class, SegmentMetadataQueryRunnerFactory.class)
                   .put(GroupByQuery.class, GroupByQueryRunnerFactory.class)
                   .put(SelectMetaQuery.class, SelectMetaQueryRunnerFactory.class)
+                  .put(FilterMetaQuery.class, FilterMetaQueryRunnerFactory.class)
                   .put(SchemaQuery.class, SchemaQueryRunnerFactory.class)
                   .put(SelectQuery.class, SelectQueryRunnerFactory.class)
                   .put(StreamQuery.class, StreamQueryRunnerFactory.class)

@@ -17,27 +17,26 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.query;
 
-import io.druid.segment.filter.FilterContext;
+import com.google.inject.Inject;
+import io.druid.segment.Segment;
 
-import java.util.function.IntFunction;
+import java.util.concurrent.Future;
 
 /**
- * should not be used outside of lifecycle. don't do like this: Sequences.only(factory.makeCursors())
  */
-public interface Cursor extends ColumnSelectorFactory
+public class FilterMetaQueryRunnerFactory extends QueryRunnerFactory.Abstract<long[], FilterMetaQuery>
 {
-  long getStartTime();
-  long getRowTimestamp();
-  int offset();
-  void advance();
-  void advanceTo(int skip);    // it's not offset
-  boolean isDone();
-  void reset();
+  @Inject
+  public FilterMetaQueryRunnerFactory(FilterMetaQueryToolChest toolChest, QueryWatcher queryWatcher)
+  {
+    super(toolChest, queryWatcher);
+  }
 
-  default FilterContext getFilterContext() { return null;}
-  default IntFunction getAttachment(String name) { return null;}
-
-  abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor { }
+  @Override
+  public QueryRunner<long[]> _createRunner(Segment segment, Future<Object> optimizer)
+  {
+    return (query, responseContext) -> FilterMetaQueryEngine.process((FilterMetaQuery) query, segment, cache);
+  }
 }

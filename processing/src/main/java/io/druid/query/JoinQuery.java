@@ -85,6 +85,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 {
   public static final String HASHING = "$hash";
   public static final String CARDINALITY = "$cardinality";
+  public static final String ROWNUM = "$rownum";
 
   private static final Logger LOG = new Logger(JoinQuery.class);
 
@@ -297,25 +298,26 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     throw new IllegalStateException();
   }
 
-  public static final long ROWNUM_UNKNOWN = -1;
-  public static final long ROWNUM_NOT_EVALUATED = -2;
-
   // use it if already set
-  public static long estimatedNumRows(DataSource dataSource)
+  public static long[] estimatedCardinality(DataSource dataSource)
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
-      long estimate = query.getContextLong(CARDINALITY, ROWNUM_NOT_EVALUATED);
-      if (estimate == ROWNUM_NOT_EVALUATED) {
-        estimate = estimatedNumRows(query.getDataSource());
-        if (estimate > 0 && query instanceof AggregationsSupport) {
-          estimate = (long) Math.max(1, estimate * (1 - Math.pow(0.4, BaseQuery.getDimensions(query).size())));
-        }
+      long cardinality = query.getContextLong(CARDINALITY, Queries.NOT_EVALUATED);
+      if (cardinality != Queries.NOT_EVALUATED) {
+        return new long[]{cardinality, query.getContextLong(ROWNUM, Queries.NOT_EVALUATED)};
+      }
+      long[] estimate = estimatedCardinality(query.getDataSource());
+      if (estimate[0] > 0 && query instanceof Query.AggregationsSupport) {
+        estimate[0] = (long) Math.max(1, estimate[0] * (1 - Math.pow(0.4, BaseQuery.getDimensions(query).size())));
       }
       return estimate;
     }
-    return ROWNUM_NOT_EVALUATED;
+    return new long[]{Queries.NOT_EVALUATED, Queries.NOT_EVALUATED};
   }
+
+  private static final boolean LEFT_TO_RIGHT = true;
+  private static final boolean RIGHT_TO_LEFT = false;
 
   @Override
   @SuppressWarnings("unchecked")
@@ -335,7 +337,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     final int forcedFilterHugeThreshold = config.getForcedFilterHugeThreshold(this);
     final int forcedFilterTinyThreshold = config.getForcedFilterTinyThreshold(this);
 
-    long currentEstimation = ROWNUM_UNKNOWN;
+    final long[] currentEstimation = new long[]{Queries.UNKNOWN, Queries.UNKNOWN};
 
     final Map<String, Object> context = getContext();
     final QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
@@ -354,23 +356,23 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       DataSource left = i == 0 ? dataSources.get(leftAlias) : null;
       DataSource right = dataSources.get(rightAlias);
 
-      long leftEstimated = i == 0 ? estimatedNumRows(left) : currentEstimation;
-      if (leftEstimated == ROWNUM_NOT_EVALUATED) {
+      long[] leftEstimated = i == 0 ? estimatedCardinality(left) : currentEstimation;
+      if (leftEstimated[0] == Queries.NOT_EVALUATED) {
         leftEstimated = JoinElement.estimatedNumRows(left, segmentSpec, context, segmentWalker, config);
       }
-      long rightEstimated = estimatedNumRows(right);
-      if (rightEstimated == ROWNUM_NOT_EVALUATED) {
+      long[] rightEstimated = estimatedCardinality(right);
+      if (rightEstimated[0] == Queries.NOT_EVALUATED) {
         rightEstimated = JoinElement.estimatedNumRows(right, segmentSpec, context, segmentWalker, config);
       }
-      LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinTypeString(), leftAlias, leftEstimated, rightAlias, rightEstimated);
+      LOG.info(">> %s (%s:%d + %s:%d)", element.getJoinTypeString(), leftAlias, leftEstimated[0], rightAlias, rightEstimated[0]);
 
       if (!getContextBoolean(Query.OUTERMOST_JOIN, false)) {
-        element.earlyCheckMaxJoin(leftEstimated, rightEstimated, maxResult);
+        element.earlyCheckMaxJoin(leftEstimated[0], rightEstimated[0], maxResult);
       }
 
       // try convert semi-join to filter
       if (semiJoinThrehold > 0 && element.isInnerJoin() && outputColumns != null) {
-        if (i == 0 && isUnderThreshold(rightEstimated, semiJoinThrehold) && element.isLeftSemiJoinable(left, right, outputColumns)) {
+        if (i == 0 && isUnderThreshold(rightEstimated[0], semiJoinThrehold) && element.isLeftSemiJoinable(left, right, outputColumns)) {
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
           List<String> rightColumns = array.estimatedOutputColumns();
           if (rightColumns != null && rightColumns.containsAll(rightJoinColumns)) {
@@ -381,20 +383,20 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
                 leftJoinColumns, sequence, JoinElement.allowDuplication(left, leftJoinColumns)
             );
             DataSource filtered = DataSources.applyFilterAndProjection(left, converted.lhs, outputColumns, converted.rhs == null);
-            LOG.info("-- %s:%d (R) is merged into %s (L) as filter on %s", rightAlias, rightEstimated, leftAlias, leftJoinColumns);
+            LOG.info("-- %s:%d (R) is merged into %s (L) as filter on %s", rightAlias, rightEstimated[0], leftAlias, leftJoinColumns);
             Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context);
-            if (leftEstimated >= 0) {
-              currentEstimation = resultEstimation(element, leftEstimated, rightEstimated) >> 2;
-              query = query.withOverriddenContext(CARDINALITY, currentEstimation);
-            }
             if (converted.rhs != null) {
               query = PostProcessingOperators.appendLocal(query, converted.rhs);
             }
-            queries.add(query);
+            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
+            if (currentEstimation[0] == Queries.UNKNOWN) {
+              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]) >> 2;
+            }
+            queries.add(propagateCardinality(query, currentEstimation));
             continue;
           }
         }
-        if (isUnderThreshold(leftEstimated, semiJoinThrehold) && element.isRightSemiJoinable(left, right, outputColumns)) {
+        if (isUnderThreshold(leftEstimated[0], semiJoinThrehold) && element.isRightSemiJoinable(left, right, outputColumns)) {
           ArrayOutputSupport array = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           List<String> leftColumns = array.estimatedOutputColumns();
           if (leftColumns != null && leftColumns.containsAll(leftJoinColumns)) {
@@ -405,16 +407,16 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
                 rightJoinColumns, sequence, JoinElement.allowDuplication(right, rightJoinColumns)
             );
             DataSource filtered = DataSources.applyFilterAndProjection(right, converted.lhs, outputColumns, converted.rhs == null);
-            LOG.info("-- %s:%d (L) is merged into %s (R) as filter on %s", leftAlias, leftEstimated, rightAlias, rightJoinColumns);
+            LOG.info("-- %s:%d (L) is merged into %s (R) as filter on %s", leftAlias, leftEstimated[0], rightAlias, rightJoinColumns);
             Query query = JoinElement.toQuery(segmentWalker, filtered, segmentSpec, context);
-            if (rightEstimated >= 0) {
-              currentEstimation = resultEstimation(element, leftEstimated, rightEstimated) >> 2;
-              query = query.withOverriddenContext(CARDINALITY, currentEstimation);
-            }
             if (converted.rhs != null) {
               query = PostProcessingOperators.appendLocal(query, converted.rhs);
             }
-            queries.add(query);
+            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
+            if (currentEstimation[0] == Queries.UNKNOWN) {
+              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]) >> 2;
+            }
+            queries.add(propagateCardinality(query, currentEstimation));
             continue;
           }
         }
@@ -423,10 +425,10 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       if (i == 0 && broadcastThreshold > 0 &&
           DataSources.isDataNodeSourced(left) &&
           DataSources.isDataNodeSourced(right)) {
-        boolean leftBroadcast = joinType.isRightDrivable() && isUnderThreshold(leftEstimated, broadcastThreshold);
-        boolean rightBroadcast = joinType.isLeftDrivable() && isUnderThreshold(rightEstimated, broadcastThreshold);
+        boolean leftBroadcast = joinType.isRightDrivable() && isUnderThreshold(leftEstimated[0], broadcastThreshold);
+        boolean rightBroadcast = joinType.isLeftDrivable() && isUnderThreshold(rightEstimated[0], broadcastThreshold);
         if (leftBroadcast && rightBroadcast) {
-          if (leftEstimated > rightEstimated) {
+          if (leftEstimated[0] > rightEstimated[0]) {
             leftBroadcast = false;
           } else {
             rightBroadcast = false;
@@ -435,31 +437,24 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         if (leftBroadcast) {
           Query.ArrayOutputSupport query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           Query query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info("-- %s:%d (L) will be broadcasted to %s (R)", leftAlias, leftEstimated, rightAlias);
+          LOG.info("-- %s:%d (L) will be broadcasted to %s (R)", leftAlias, leftEstimated[0], rightAlias);
           RowSignature signature = Queries.relaySchema(query0, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query0, segmentWalker));
           LOG.info("-- %s (L) is materialized (%d rows)", leftAlias, values.size());
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
-          if (values.size() < forcedFilterTinyThreshold << 1 && rightEstimated >= forcedFilterHugeThreshold &&
+          if (values.size() < forcedFilterTinyThreshold << 1 && rightEstimated[0] >= forcedFilterHugeThreshold &&
               element.forceLeftToFilter(query0, query1) != null) {
             Iterator<Object[]> iterator = Iterators.transform(
                 values.iterator(), GuavaUtils.mapper(signature.columnNames, leftJoinColumns)
             );
             DimFilter filter = SemiJoinFactory.from(rightJoinColumns, iterator);
             query1 = DimFilters.and((FilterSupport) query1, filter);
-            rightEstimated = Math.max(1, rightEstimated >>> 1);
             LOG.info("-- .. with forced filter %s to %s (R)", filter, rightAlias);
           } else if (query0.hasFilters() && DataSources.isFilterableOn(query1, rightJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(resolver, leftJoinColumns, values.size(), values);
             query1 = DataSources.applyFilter(query1, BloomDimFilter.of(rightJoinColumns, bloom));
-            rightEstimated = rightEstimated > 0 && rightEstimated > broadcastThreshold ? rightEstimated >> 1 : rightEstimated;
             LOG.info("-- .. with bloom filter %s(%s) to %s (R)", leftAlias, BaseQuery.getDimFilter(query0), rightAlias);
-          }
-          if (rightEstimated > 0) {
-            query1 = query1.withOverriddenContext(
-                CARDINALITY, currentEstimation = resultEstimation(element, values.size(), rightEstimated)
-            );
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, true, signature, prefixAlias,
@@ -467,53 +462,58 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           );
           query1 = PostProcessingOperators.appendLocal(query1, processor);
           query1 = ((LastProjectionSupport) query1).withOutputColumns(null);
-          queries.add(query1);
+          if (element.isInnerJoin()) {
+            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
+            if (currentEstimation[0] == Queries.UNKNOWN) {
+              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
+            }
+          }
+          queries.add(propagateCardinality(query1, currentEstimation));
           continue;
         }
         if (rightBroadcast) {
           Query query0 = JoinElement.toQuery(segmentWalker, left, segmentSpec, context);
           Query.ArrayOutputSupport query1 = JoinElement.toQuery(segmentWalker, right, segmentSpec, context);
-          LOG.info("-- %s:%d (R) will be broadcasted to %s (L)", rightAlias, rightEstimated, leftAlias);
+          LOG.info("-- %s:%d (R) will be broadcasted to %s (L)", rightAlias, rightEstimated[0], leftAlias);
           RowSignature signature = Queries.relaySchema(query1, segmentWalker);
           List<Object[]> values = Sequences.toList(QueryRunners.runArray(query1, segmentWalker));
           LOG.info("-- %s (R) is materialized (%d rows)", rightAlias, values.size());
           byte[] bytes = writeBytes(mapper, BulkSequence.fromArray(Sequences.simple(values), signature, -1));
-          if (values.size() < forcedFilterTinyThreshold << 1 && leftEstimated >= forcedFilterHugeThreshold &&
+          if (values.size() < forcedFilterTinyThreshold << 1 && leftEstimated[0] >= forcedFilterHugeThreshold &&
               element.forceRightToFilter(query0, query1) != null) {
             Iterator<Object[]> iterator = Iterators.transform(
                 values.iterator(), GuavaUtils.mapper(signature.columnNames, rightJoinColumns)
             );
             DimFilter filter = SemiJoinFactory.from(leftJoinColumns, iterator);
             query0 = DimFilters.and((FilterSupport) query0, filter);
-            leftEstimated = Math.max(1, leftEstimated >>> 1);
             LOG.info("-- .. with forced filter %s to %s (L)", filter, leftAlias);
           } else if (query1.hasFilters() && DataSources.isFilterableOn(query0, leftJoinColumns) && !element.isCrossJoin()) {
             RowResolver resolver = RowResolver.of(signature, ImmutableList.of());
             BloomKFilter bloom = BloomFilterAggregator.build(resolver, rightJoinColumns, values.size(), values);
             query0 = DataSources.applyFilter(query0, BloomDimFilter.of(leftJoinColumns, bloom));
             LOG.info("-- .. with bloom filter %s(%s) to %s (L)", rightAlias, BaseQuery.getDimFilter(query1), leftAlias);
-            leftEstimated = leftEstimated > 0 && leftEstimated > broadcastThreshold ? leftEstimated >> 1 : leftEstimated;
-          }
-          if (leftEstimated > 0) {
-            query0 = query0.withOverriddenContext(
-                CARDINALITY, currentEstimation = resultEstimation(element, leftEstimated, values.size())
-            );
           }
           BroadcastJoinProcessor processor = new BroadcastJoinProcessor(
               mapper, config, element, false, signature, prefixAlias, asMap, outputAlias, outputColumns, maxOutputRow, bytes
           );
           query0 = PostProcessingOperators.appendLocal(query0, processor);
           query0 = ((LastProjectionSupport) query0).withOutputColumns(null);
-          queries.add(query0);
+          if (element.isInnerJoin()) {
+            currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
+            if (currentEstimation[0] == Queries.UNKNOWN) {
+              currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
+            }
+          }
+          queries.add(propagateCardinality(query0, currentEstimation));
           continue;
         }
       }
 
       // try hash-join
-      boolean leftHashing = i == 0 && joinType.isRightDrivable() && isUnderThreshold(leftEstimated, hashThreshold);
-      boolean rightHashing = joinType.isLeftDrivable() && isUnderThreshold(rightEstimated, hashThreshold);
+      boolean leftHashing = i == 0 && joinType.isRightDrivable() && isUnderThreshold(leftEstimated[0], hashThreshold);
+      boolean rightHashing = joinType.isLeftDrivable() && isUnderThreshold(rightEstimated[0], hashThreshold);
       if (leftHashing && rightHashing) {
-        if (leftEstimated > rightEstimated) {
+        if (leftEstimated[0] > rightEstimated[0]) {
           leftHashing = false;
         } else {
           rightHashing = false;
@@ -522,7 +522,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       if (i == 0) {
         List<String> sortOn = leftHashing || (joinType != LO && rightHashing) ? null : leftJoinColumns;
         LOG.info(
-            "-- %s:%d (L) (%s)", leftAlias, leftEstimated, leftHashing ? "hash" : sortOn != null ? "sort" : "-"
+            "-- %s:%d (L) (%s)", leftAlias, leftEstimated[0], leftHashing ? "hash" : sortOn != null ? "sort" : "-"
         );
         Query query = JoinElement.toQuery(segmentWalker, left, sortOn, segmentSpec, context);
         if (leftHashing) {
@@ -530,7 +530,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
         }
 
         if (leftHashing && element.isInnerJoin()
-            && isUnderThreshold(leftEstimated, semiJoinThrehold)
+            && isUnderThreshold(leftEstimated[0], semiJoinThrehold)
             && DataSources.isDataNodeSourced(query)
             && DataSources.isFilterableOn(right, rightJoinColumns)) {
           ArrayOutputSupport<?> array = (ArrayOutputSupport) query;
@@ -540,14 +540,14 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
             query = MaterializedQuery.of(left, Sequences.simple(outputColumns, values), query.getContext());
             Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, leftJoinColumns));
             right = DataSources.applyFilter(right, SemiJoinFactory.from(rightJoinColumns, keys.iterator()));
-            LOG.info("-- %s:%d (L) (hash) is applied to %s (R)", leftAlias, leftEstimated = values.size(), rightAlias);
+            LOG.info("-- %s:%d (L) (hash) is applied to %s (R)", leftAlias, leftEstimated[0] = values.size(), rightAlias);
           }
         }
-        queries.add(query.withOverriddenContext(CARDINALITY, leftEstimated));
+        queries.add(propagateCardinality(query, leftEstimated));
       }
       List<String> sortOn = rightHashing || (joinType != RO && leftHashing) ? null : rightJoinColumns;
       LOG.info(
-          "-- %s:%d (R) (%s)", rightAlias, rightEstimated, rightHashing ? "hash" : sortOn != null ? "sort" : "-"
+          "-- %s:%d (R) (%s)", rightAlias, rightEstimated[0], rightHashing ? "hash" : sortOn != null ? "sort" : "-"
       );
       Query query = JoinElement.toQuery(segmentWalker, right, sortOn, segmentSpec, context);
       if (rightHashing) {
@@ -556,7 +556,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
 
       left = QueryDataSource.of(GuavaUtils.lastOf(queries));
       if (rightHashing && element.isInnerJoin()
-          && isUnderThreshold(rightEstimated, semiJoinThrehold)
+          && isUnderThreshold(rightEstimated[0], semiJoinThrehold)
           && DataSources.isDataNodeSourced(query)
           && DataSources.isFilterableOn(left, leftJoinColumns)) {
         ArrayOutputSupport<?> array = (ArrayOutputSupport) query;
@@ -566,15 +566,22 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
           query = MaterializedQuery.of(right, Sequences.simple(outputColumns, values), query.getContext());
           Iterable<Object[]> keys = Iterables.transform(values, GuavaUtils.mapper(outputColumns, rightJoinColumns));
           left = DataSources.applyFilter(left, SemiJoinFactory.from(leftJoinColumns, keys.iterator()));
-          LOG.info("-- %s:%d (R) (hash) is applied to %s (L) as filter", rightAlias, rightEstimated = values.size(), leftAlias);
+          LOG.info("-- %s:%d (R) (hash) is applied to %s (L) as filter", rightAlias, rightEstimated[0] = values.size(), leftAlias);
           GuavaUtils.setLastOf(queries, ((QueryDataSource) left).getQuery());   // overwrite
         }
       }
-      queries.add(query.withOverriddenContext(CARDINALITY, rightEstimated));
+      queries.add(propagateCardinality(query, rightEstimated));
 
-      if (queries.get(i) instanceof MaterializedQuery || queries.get(i + 1) instanceof MaterializedQuery) {
-        if (leftEstimated >= 0 && rightEstimated >= 0) {
-          currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
+      if (queries.get(i) instanceof MaterializedQuery) {
+        currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
+        if (currentEstimation[0] == Queries.UNKNOWN) {
+          currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
+        }
+        continue;
+      } else if (queries.get(i + 1) instanceof MaterializedQuery) {
+        currentEstimation[0] = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
+        if (currentEstimation[0] == Queries.UNKNOWN) {
+          currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
         }
         continue;
       }
@@ -585,55 +592,65 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       if (!element.isCrossJoin()) {
         Query query0 = queries.get(i);
         Query query1 = queries.get(i + 1);
-        if (joinType.isLeftDrivable() && rightEstimated > bloomFilterThreshold) {
+        if (joinType.isLeftDrivable() && rightEstimated[0] > bloomFilterThreshold) {
           // left to right
-          Factory bloom = bloom(query0, leftJoinColumns, leftEstimated, query1, rightJoinColumns);
+          Factory bloom = bloom(query0, leftJoinColumns, leftEstimated[0], query1, rightJoinColumns);
           if (bloom != null) {
-            LOG.info("-- applying bloom filter %s (L) to %s:%d (R)", bloom.getBloomSource(), rightAlias, rightEstimated);
+            LOG.info("-- applying bloom filter %s (L) to %s:%d (R)", bloom.getBloomSource(), rightAlias, rightEstimated[0]);
             queries.set(i + 1, DataSources.applyFilter(query1, bloom, rightJoinColumns));
             rightBloomed = true;
           }
         }
-        if (joinType.isRightDrivable() && leftEstimated > bloomFilterThreshold) {
+        if (joinType.isRightDrivable() && leftEstimated[0] > bloomFilterThreshold) {
           // right to left
-          Factory bloom = bloom(query1, rightJoinColumns, rightEstimated, query0, leftJoinColumns);
+          Factory bloom = bloom(query1, rightJoinColumns, rightEstimated[0], query0, leftJoinColumns);
           if (bloom != null) {
-            LOG.info("-- applying bloom filter %s (R) to %s:%d (L)", bloom.getBloomSource(), leftAlias, leftEstimated);
+            LOG.info("-- applying bloom filter %s (R) to %s:%d (L)", bloom.getBloomSource(), leftAlias, leftEstimated[0]);
             queries.set(i, DataSources.applyFilter(query0, bloom, leftJoinColumns));
             leftBloomed = true;
           }
         }
       }
-      if (rightBloomed) {
-        rightEstimated = Math.max(1, rightEstimated >>> 2);
-      }
-      if (leftBloomed) {
-        leftEstimated = Math.max(1, leftEstimated >>> 2);
-      }
-      if (element.isInnerJoin() && leftEstimated >= 0 && rightEstimated >= 0) {
+      if (element.isInnerJoin() && leftEstimated[0] >= 0 && rightEstimated[0] >= 0) {
         Query query0 = queries.get(i);
         Query query1 = queries.get(i + 1);
-        if (!leftBloomed && leftEstimated < forcedFilterTinyThreshold && rightEstimated >= forcedFilterHugeThreshold) {
+        if (!leftBloomed && leftEstimated[0] < forcedFilterTinyThreshold && rightEstimated[0] >= forcedFilterHugeThreshold) {
           Query.ArrayOutputSupport<?> converted = element.forceLeftToFilter(query0, query1);
           if (converted != null) {
             DimFilter filter = SemiJoinFactory.from(rightJoinColumns, QueryRunners.runArray(converted, segmentWalker));
-            LOG.info("-- %s:%d (L) is applied to %s (R) as filter on %s", leftAlias, leftEstimated, rightAlias, rightJoinColumns);
-            rightEstimated = Math.max(1, rightEstimated >>> 2);
+            LOG.info("-- %s:%d (L) is applied to %s (R) as filter on %s", leftAlias, leftEstimated[0], rightAlias, rightJoinColumns);
+            rightEstimated[0] = Math.max(1, rightEstimated[0] >>> 2);
             queries.set(i + 1, DimFilters.and((FilterSupport) query1, filter));
           }
         }
-        if (!rightBloomed && leftEstimated >= forcedFilterHugeThreshold && rightEstimated < forcedFilterTinyThreshold) {
+        if (!rightBloomed && leftEstimated[0] >= forcedFilterHugeThreshold && rightEstimated[0] < forcedFilterTinyThreshold) {
           Query.ArrayOutputSupport<?> converted = element.forceRightToFilter(query0, query1);
           if (converted != null) {
             DimFilter filter = SemiJoinFactory.from(leftJoinColumns, QueryRunners.runArray(converted, segmentWalker));
-            LOG.info("-- %s:%d (R) is applied to %s (L) as filter on %s", rightAlias, rightEstimated, leftAlias, leftJoinColumns);
-            leftEstimated = Math.max(1, leftEstimated >>> 2);
+            LOG.info("-- %s:%d (R) is applied to %s (L) as filter on %s", rightAlias, rightEstimated[0], leftAlias, leftJoinColumns);
+            leftEstimated[0] = Math.max(1, leftEstimated[0] >>> 2);
             queries.set(i, DimFilters.and((FilterSupport) query0, filter));
           }
         }
       }
-      if (leftEstimated >= 0 && rightEstimated >= 0) {
-        currentEstimation = resultEstimation(element, leftEstimated, rightEstimated);
+      if (element.isInnerJoin() && rightEstimated[0] < rightEstimated[1]) {
+        long estimation = applySelectivity(leftEstimated, rightEstimated, RIGHT_TO_LEFT);
+        if (estimation == Queries.UNKNOWN && leftEstimated[0] >= 0) {
+          estimation = leftEstimated[0] >>> 2;
+        }
+        leftEstimated[0] = estimation;
+      }
+      if (element.isInnerJoin() && leftEstimated[0] < leftEstimated[1]) {
+        long estimation = applySelectivity(leftEstimated, rightEstimated, LEFT_TO_RIGHT);
+        if (estimation == Queries.UNKNOWN && rightEstimated[0] >= 0) {
+          estimation = rightEstimated[0] >>> 2;
+        }
+        rightEstimated[0] = estimation;
+      }
+      if (element.isInnerJoin() && (rightEstimated[0] < rightEstimated[1] || leftEstimated[0] < leftEstimated[1])) {
+        currentEstimation[0] = Math.max(leftEstimated[0], rightEstimated[0]);
+      } else {
+        currentEstimation[0] = roughEstimation(element, leftEstimated[0], rightEstimated[0]);
       }
     }
     // todo: properly handle filter converted semijoin
@@ -650,7 +667,7 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
       timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
     }
 
-    Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, CARDINALITY, currentEstimation);
+    Map<String, Object> joinContext = BaseQuery.copyContextForMeta(context, CARDINALITY, currentEstimation[0]);
     JoinHolder query = new JoinHolder(
         StringUtils.concat("+", aliases), queries, timeColumn, outputAlias, outputColumns, limit, joinContext
     );
@@ -677,6 +694,24 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     );
   }
 
+  private Query propagateCardinality(Query query, long[] currentEstimation)
+  {
+    return currentEstimation[0] > 0 ? query.withOverriddenContext(CARDINALITY, currentEstimation[0]) : query;
+  }
+
+  private long applySelectivity(long[] leftEstimation, long[] rightEstimation, boolean leftToRight)
+  {
+    if (leftEstimation[0] < 0 || rightEstimation[0] < 0) {
+      return Queries.UNKNOWN;
+    }
+    if (leftToRight && leftEstimation[1] > 0) {
+      return (long) (rightEstimation[0] * Math.max(0.04f, (float) leftEstimation[0] / leftEstimation[1]));
+    } else if (!leftToRight && rightEstimation[1] > 0) {
+      return (long) (leftEstimation[0] * Math.max(0.04f, (float) rightEstimation[0] / rightEstimation[1]));
+    }
+    return Queries.UNKNOWN;
+  }
+
   private static byte[] writeBytes(ObjectMapper objectMapper, Object value)
   {
     try {
@@ -692,10 +727,13 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
     return estimation >= 0 && threshold >= 0 && estimation <= threshold;
   }
 
-  private long resultEstimation(JoinElement element, long leftEstimation, long rightEstimated)
+  private long roughEstimation(JoinElement element, long leftEstimation, long rightEstimated)
   {
+    if (leftEstimation < 0 || rightEstimated < 0) {
+      return Queries.UNKNOWN;
+    }
     if (element.isCrossJoin()) {
-      return leftEstimation == 0 || rightEstimated == 0 ? 0 : leftEstimation * rightEstimated;
+      return leftEstimation * rightEstimated;
     }
     switch (element.getJoinType()) {
       case INNER:

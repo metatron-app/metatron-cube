@@ -29,9 +29,9 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.filter.Filter;
 
 import java.io.Closeable;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.function.IntFunction;
 
@@ -43,6 +43,9 @@ public class FilterContext implements Closeable
   protected final BitmapFactory factory;
   protected ImmutableBitmap baseBitmap;
   protected Map<String, IntFunction> attached;    // vc from filter (like lucene)
+
+  private Filter matcher;
+  private boolean fullScan;
 
   public FilterContext(BitmapIndexSelector selector)
   {
@@ -82,16 +85,19 @@ public class FilterContext implements Closeable
     return baseBitmap;
   }
 
-  public void setBaseBitmap(ImmutableBitmap baseBitmap)
+  public Filter getMatcher()
   {
-    this.baseBitmap = baseBitmap;
+    return matcher;
+  }
+
+  public boolean isFullScan()
+  {
+    return fullScan;
   }
 
   public void andBaseBitmap(ImmutableBitmap newBaseBitmap)
   {
-    baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(
-        factory, Arrays.asList(baseBitmap, newBaseBitmap)
-    );
+    baseBitmap = baseBitmap == null ? newBaseBitmap : DimFilters.intersection(factory, baseBitmap, newBaseBitmap);
   }
 
   public void attach(String column, IntFunction attachment)
@@ -117,6 +123,13 @@ public class FilterContext implements Closeable
   public boolean isAll(ImmutableBitmap bitmap)
   {
     return bitmap.size() == targetNumRows();
+  }
+
+  public void prepared(ImmutableBitmap baseBitmap, Filter matcher, boolean fullscan)
+  {
+    this.baseBitmap = baseBitmap;
+    this.matcher = matcher;
+    this.fullScan = fullscan;
   }
 
   @Override

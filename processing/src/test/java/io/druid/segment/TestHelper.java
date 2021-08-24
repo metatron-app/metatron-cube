@@ -64,6 +64,9 @@ import io.druid.query.Result;
 import io.druid.query.SchemaQuery;
 import io.druid.query.SchemaQueryRunnerFactory;
 import io.druid.query.SchemaQueryToolChest;
+import io.druid.query.FilterMetaQuery;
+import io.druid.query.FilterMetaQueryRunnerFactory;
+import io.druid.query.FilterMetaQueryToolChest;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.frequency.FrequencyQueryRunnerFactory;
@@ -239,6 +242,13 @@ public class TestHelper
                       new SelectMetaQueryRunnerFactory(
                           new SelectMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           new SelectMetaQueryEngine(),
+                          NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      FilterMetaQuery.class,
+                      new FilterMetaQueryRunnerFactory(
+                          new FilterMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
                           NOOP_QUERYWATCHER
                       )
                   )

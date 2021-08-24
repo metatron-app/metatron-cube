@@ -977,13 +977,14 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
       fields.add(query.getDimensions().get(outputNames.indexOf(column)));
     }
 
-    AggregatorFactory cardinality = new CardinalityAggregatorFactory(
-        "$cardinality", null, fields, groupingSet, null, true, true, 0
-    );
+    AggregatorFactory cardinality = CardinalityAggregatorFactory.dimensions("$cardinality", fields, groupingSet);
     if (query.getFilter() != null) {
       Map<String, String> mapping = QueryUtils.aliasMapping(this);
       if (!mapping.isEmpty()) {
-        query = query.withFilter(query.getFilter().withRedirection(mapping));
+        DimFilter redirected = query.getFilter().withRedirection(mapping);
+        if (redirected != query.getFilter()) {
+          query = query.withFilter(redirected);
+        }
       }
     }
 

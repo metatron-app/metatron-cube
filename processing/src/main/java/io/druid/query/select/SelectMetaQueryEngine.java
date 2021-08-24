@@ -36,6 +36,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.filter.FilterContext;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -91,8 +92,9 @@ public class SelectMetaQueryEngine
           @Override
           public Result<SelectMetaResultValue> apply(Cursor cursor)
           {
-            int row = offset.startDelta() == 0 ? cursor.getFullscanNumRows() : -1;
-            if (row < 0) {
+            int row = 0;
+            FilterContext context = offset.startDelta() == 0 ? cursor.getFilterContext() : null;
+            if (context == null || !context.isFullScan()) {
               for (row = 0, cursor.advanceTo(offset.startDelta()); !cursor.isDone(); cursor.advance()) {
                 row++;
               }

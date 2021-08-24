@@ -75,6 +75,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class),
     @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
+    @JsonSubTypes.Type(name = Query.FILTER_META, value = FilterMetaQuery.class),
     @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
     @JsonSubTypes.Type(name = "kmeans.nearest", value = FindNearestQuery.class),
     @JsonSubTypes.Type(name = "kmeans.tagging", value = KMeansTaggingQuery.class),
@@ -97,6 +98,7 @@ public interface Query<T> extends QueryContextKeys
   String DATASOURCE_METADATA = "dataSourceMetadata";
   String UNION_ALL = "unionAll";
   String JOIN = "join";
+  String FILTER_META = "filter.meta";
 
   DataSource getDataSource();
 

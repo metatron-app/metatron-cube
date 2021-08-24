@@ -50,8 +50,6 @@ import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.Query.ColumnsSupport;
-import io.druid.query.Query.DimensionSupport;
 import io.druid.query.Query.SchemaProvider;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -60,7 +58,6 @@ import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByMetaQuery;
@@ -68,8 +65,6 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.EventHolder;
-import io.druid.query.select.SelectMetaQuery;
-import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamQuery;
@@ -95,7 +90,6 @@ import io.druid.segment.column.Column;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -451,7 +445,10 @@ public class Queries
     return dataSource;
   }
 
-  public static long estimateCardinality(
+  public static final long UNKNOWN = -1;
+  public static final long NOT_EVALUATED = -2;
+
+  public static long[] estimateCardinality(
       Query query,
       QuerySegmentWalker segmentWalker,
       QueryConfig config
@@ -471,11 +468,11 @@ public class Queries
           segmentWalker
       );
     } else {
-      return -1;
+      return new long[] {UNKNOWN, UNKNOWN};
     }
   }
 
-  public static long estimateCardinality(
+  public static long[] estimateCardinality(
       DataSource dataSource,
       QuerySegmentSpec segmentSpec,
       DimFilter filter,
@@ -483,12 +480,11 @@ public class Queries
       QuerySegmentWalker segmentWalker
   )
   {
-    SelectMetaQuery query = SelectMetaQuery.of(dataSource, segmentSpec, filter, context);
-    Result<SelectMetaResultValue> result = Sequences.only(query.run(segmentWalker, null), null);
-    return result == null ? -1 : result.getValue().getTotalCount();
+    FilterMetaQuery query = FilterMetaQuery.of(dataSource, segmentSpec, filter, context);
+    return Sequences.only(query.run(segmentWalker, null), new long[] {0, 0});
   }
 
-  public static long estimateCardinality(
+  private static long[] estimateCardinality(
       TimeseriesQuery query,
       QuerySegmentWalker segmentWalker,
       QueryConfig config
@@ -499,7 +495,7 @@ public class Queries
     for (Interval interval : QueryUtils.analyzeInterval(segmentWalker, query)) {
       estimated += Iterables.size(granularity.getIterable(interval));
     }
-    return estimated;
+    return new long[]{estimated, NOT_EVALUATED};
   }
 
   private static long tryEstimateOnDictionary(GroupByQuery query, List<Segment> segments, long minCardinality)
@@ -541,31 +537,37 @@ public class Queries
       long minCardinality
   )
   {
+    final int numRows = segments.stream().mapToInt(Segment::getNumRows).sum();
+    if (numRows <= minCardinality) {
+      return numRows;
+    }
     if (query.getFilter() == null && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM << 1) {
       final long estimate = tryEstimateOnDictionary(query, segments, minCardinality);
       if (estimate >= 0 && estimate < minCardinality) {
         return estimate;
       }
     }
-    return estimateCardinality(query, segmentWalker, config);
+    return estimateCardinality(query, segmentWalker, config)[0];
   }
 
-  public static long estimateCardinality(GroupByQuery query, QuerySegmentWalker segmentWalker, QueryConfig config)
+  private static long[] estimateCardinality(GroupByQuery query, QuerySegmentWalker segmentWalker, QueryConfig config)
   {
     Map<String, Object> override = BaseQuery.copyContextForMeta(query);
     override.put(Query.FORCE_PARALLEL_MERGE, true);   // force parallel execution
     query = query.withOverriddenContext(override);
     Query<Row> metaQuery = new GroupByMetaQuery(query).rewriteQuery(segmentWalker, config);
 
-    return QueryRunners.run(metaQuery, segmentWalker).accumulate(new MutableLong(), (cardinality, row) ->
-    {
+    Sequence<Row> sequence = QueryRunners.run(metaQuery, segmentWalker);
+
+    long[] estimation = new long[]{0, NOT_EVALUATED};
+    sequence.accumulate(row -> {
       if (row instanceof CompactRow) {
-        cardinality.add(Rows.parseLong(((CompactRow) row).getValues()[1]));
+        estimation[0] += Rows.parseLong(((CompactRow) row).getValues()[1]);
       } else {
-        cardinality.add(row.getLongMetric("cardinality"));
+        estimation[0] += row.getLongMetric("cardinality");
       }
-      return cardinality;
-    }).longValue();
+    });
+    return estimation;
   }
 
   // for cubing

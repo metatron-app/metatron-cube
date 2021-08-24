@@ -38,6 +38,8 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
+import io.druid.query.FilterMetaQuery;
+import io.druid.query.FilterMetaQueryEngine;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
@@ -185,11 +187,10 @@ public class StreamQueryRunnerFactory
     if (filter == null || numRows <= splitRows) {
       return numRows;
     }
-    final SelectMetaQuery meta = SelectMetaQuery.of(
+    final FilterMetaQuery meta = FilterMetaQuery.of(
         query.getDataSource(), QuerySegmentSpec.ETERNITY, filter, BaseQuery.copyContextForMeta(query)
     );
     final MutableInt counter = new MutableInt();
-    final SelectMetaQueryEngine engine = new SelectMetaQueryEngine();
     for (Segment segment : segments) {
       final DimFilter optimized = filter.optimize(segment, query.getVirtualColumns());
       final QueryableIndex index = segment.asQueryableIndex(false);
@@ -202,8 +203,8 @@ public class StreamQueryRunnerFactory
           continue;
         }
       }
-      engine.process(meta.withFilter(optimized), segment, cache)
-            .accumulate(r -> counter.add(r.getValue().getTotalCount()));
+      FilterMetaQueryEngine.process(meta.withFilter(optimized), segment, cache)
+                           .accumulate(r -> counter.add(r[0]));
     }
     return counter.intValue();
   }

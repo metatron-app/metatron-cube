@@ -21,6 +21,8 @@ package io.druid.query;
 
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
+import io.druid.java.util.common.guava.Comparators;
 import io.druid.java.util.common.guava.nary.BinaryFn;
 
 import java.util.Comparator;
@@ -50,5 +52,30 @@ public abstract class ResultMergeQueryRunner<T> extends BySegmentSkippingQueryRu
     return query.getMergeOrdering(null);
   }
 
-  protected abstract BinaryFn<T,T,T> createMergeFn(Query<T> query);
+  protected abstract BinaryFn<T, T, T> createMergeFn(Query<T> query);
+
+  public static abstract class MergeAll<T> extends ResultMergeQueryRunner<T>
+  {
+    public MergeAll(QueryRunner<T> baseRunner)
+    {
+      super(baseRunner);
+    }
+
+    @Override
+    protected final Comparator<T> makeOrdering(Query<T> query)
+    {
+      return Comparators.alwaysEqual();
+    }
+
+    protected abstract BinaryFn.Identical<T> createMergeFn(Query<T> query);
+
+    @Override
+    public Sequence<T> doRun(QueryRunner<T> baseRunner, Query<T> query, Map<String, Object> context)
+    {
+      BinaryFn.Identical<T> merger = createMergeFn(query);
+      return Sequences.of(
+          baseRunner.run(query, context).accumulate((T) null, (p, c) -> p == null ? c : merger.apply(p, c))
+      );
+    }
+  }
 }

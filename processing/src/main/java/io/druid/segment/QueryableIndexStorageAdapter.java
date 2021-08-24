@@ -207,11 +207,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       }
       offset = new BitmapOffset(selector.getBitmapFactory(), baseBitmap, descending);
     }
-    context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters
 
-    final DimFilter valueMatcher = extracted.getValue();
+    final Filter matcher = Filters.toFilter(extracted.getValue(), resolver);
     final boolean fullscan =
-        Granularities.ALL.equals(granularity) && valueMatcher == null && actualInterval.contains(timeMinMax);
+        Granularities.isAll(granularity) && matcher == null && actualInterval.contains(timeMinMax);
+
+    context.prepared(baseBitmap, matcher, fullscan);  // this can be used for value/predicate filters
 
     return Sequences.withBaggage(
         Sequences.filter(
@@ -221,11 +222,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                 resolver,
                 granularity,
                 offset,
-                Filters.toFilter(valueMatcher, resolver),
                 timeMinMax.getStartMillis(),
                 timeMinMax.getEndMillis(),
                 descending,
-                fullscan,
                 context
             ).build(),
             Predicates.<Cursor>notNull()
@@ -262,7 +261,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final long minDataTimestamp;
     private final long maxDataTimestamp;
     private final boolean descending;
-    private final boolean fullscan;
 
     private final FilterContext context;
     private final Filter filter;
@@ -273,11 +271,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         RowResolver resolver,
         Granularity granularity,
         Offset offset,
-        Filter filter,
         long minDataTimestamp,
         long maxDataTimestamp,
         boolean descending,
-        boolean fullscan,
         FilterContext context
     )
     {
@@ -286,12 +282,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.resolver = resolver;
       this.granularity = granularity;
       this.offset = offset;
-      this.filter = filter;
       this.minDataTimestamp = minDataTimestamp;
       this.maxDataTimestamp = maxDataTimestamp;
       this.descending = descending;
-      this.fullscan = fullscan;
       this.context = context;
+      this.filter = context.getMatcher();
     }
 
     public Sequence<Cursor> build()
@@ -353,9 +348,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public int getFullscanNumRows()
+                    public FilterContext getFilterContext()
                     {
-                      return fullscan ? context.targetNumRows() : -1;
+                      return context;
                     }
 
                     @Override
