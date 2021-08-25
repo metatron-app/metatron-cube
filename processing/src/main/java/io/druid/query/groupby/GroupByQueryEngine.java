@@ -152,6 +152,8 @@ public class GroupByQueryEngine
   private static final int DEFAULT_INITIAL_CAPACITY = 1 << 10;
   private static final int BUFFER_POS = 2;
 
+  private static final int P = 31 * 31;
+
   private static class KeyValue
   {
     private final int[] array;
@@ -164,9 +166,12 @@ public class GroupByQueryEngine
     @Override
     public int hashCode()
     {
+      if (array.length == 1) {
+        return array[BUFFER_POS];
+      }
       int result = 1;
       for (int i = BUFFER_POS; i < array.length; i++) {
-        result = 31 * result + array[i];
+        result = P * result + array[i];
       }
       return result;
     }
@@ -175,6 +180,9 @@ public class GroupByQueryEngine
     public boolean equals(Object obj)
     {
       final int[] other = ((KeyValue) obj).array;
+      if (array.length == 1) {
+        return array[BUFFER_POS] == other[BUFFER_POS];
+      }
       for (int i = BUFFER_POS; i < array.length; i++) {
         if (array[i] != other[i]) {
           return false;
