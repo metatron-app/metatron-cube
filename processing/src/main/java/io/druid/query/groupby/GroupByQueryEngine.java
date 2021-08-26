@@ -83,6 +83,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 /**
  */
@@ -249,13 +250,15 @@ public class GroupByQueryEngine
         }
         simple &= dimensions[i] instanceof DimensionSelector.SingleValued;
       }
+      final KeyPool pool = new KeyPool(dimensions.length);
+
       if (simple) {
-        this.rowUpdater = new RowUpdater()
+        this.rowUpdater = new RowUpdater(pool)
         {
           @Override
           protected List<int[]> updateValues(final DimensionSelector[] dimensions)
           {
-            final int[] key = new int[BUFFER_POS + dimensions.length];
+            final int[] key = pool.get();
             for (int i = 0; i < dimensions.length; i++) {
               key[BUFFER_POS + i] = dimensions[i].getRow().get(0);
             }
@@ -263,7 +266,7 @@ public class GroupByQueryEngine
           }
         };
       } else {
-        this.rowUpdater = new RowUpdater();
+        this.rowUpdater = new RowUpdater(pool);
       }
 
       final ColumnSelectorFactory factory = VirtualColumns.wrap(providers, cursor);
@@ -356,8 +359,8 @@ public class GroupByQueryEngine
           if (unprocUnproc != null) {
             throw new ISE("Not enough memory to process the request.");
           }
-          unprocessedKeys = null;
         }
+        unprocessedKeys = null;
         cursor.advance();
       }
 
@@ -406,14 +409,20 @@ public class GroupByQueryEngine
       rowUpdater.close();
     }
 
-    private class RowUpdater implements java.util.function.Function<KeyValue, KeyValue>, Closeable
+    private class RowUpdater implements BiFunction<KeyValue, KeyValue, KeyValue>, Closeable
     {
       private int nextIndex;
       private int endPosition;
       private int maxPosition;
 
+      private final KeyPool pool;
       private final List<KeyValue> ordering = Lists.newArrayListWithCapacity(DEFAULT_INITIAL_CAPACITY);
       private final Map<KeyValue, KeyValue> positions = Maps.newHashMapWithExpectedSize(DEFAULT_INITIAL_CAPACITY);
+
+      public RowUpdater(KeyPool pool)
+      {
+        this.pool = pool;
+      }
 
       private int getNumRows()
       {
@@ -422,7 +431,7 @@ public class GroupByQueryEngine
 
       protected List<int[]> updateValues(final DimensionSelector[] dimensions)
       {
-        return updateRecursive(new int[BUFFER_POS + dimensions.length], 0, dimensions);
+        return updateRecursive(pool.get(), 0, dimensions);
       }
 
       private List<int[]> updateRecursive(final int[] key, final int index, final DimensionSelector[] dims)
@@ -437,36 +446,30 @@ public class GroupByQueryEngine
             key[BUFFER_POS + index] = row.get(0);
             return updateRecursive(key, index + 1, dims);
           }
-          List<int[]> retVal = null;
+          final int nextIx = index + 1;
           if (row instanceof IndexedInts.PreferIterator) {
             final IntIterator iterator = row.iterator();
+            key[BUFFER_POS + index] = iterator.nextInt();
+            List<int[]> retVal = updateRecursive(key, nextIx, dims);
             while (iterator.hasNext()) {
-              final int[] newKey = Arrays.copyOf(key, key.length);
+              final int[] newKey = pool.copyOf(key);
               newKey[BUFFER_POS + index] = iterator.nextInt();
-              List<int[]> unaggregatedBuffers = updateRecursive(newKey, index + 1, dims);
+              List<int[]> unaggregatedBuffers = updateRecursive(newKey, nextIx, dims);
               if (unaggregatedBuffers != null) {
-                if (retVal == null) {
-                  retVal = unaggregatedBuffers;
-                } else {
-                  retVal.addAll(unaggregatedBuffers);
-                }
+                retVal = merge(retVal, unaggregatedBuffers);
               }
             }
+            return retVal;
           } else {
-            for (int i = 0; i < size; i++) {
-              final int[] newKey = Arrays.copyOf(key, key.length);
+            key[BUFFER_POS + index] = row.get(0);
+            List<int[]> retVal = updateRecursive(key, nextIx, dims);
+            for (int i = 1; i < size; i++) {
+              final int[] newKey = pool.copyOf(key);
               newKey[BUFFER_POS + index] = row.get(i);
-              List<int[]> unaggregatedBuffers = updateRecursive(newKey, index + 1, dims);
-              if (unaggregatedBuffers != null) {
-                if (retVal == null) {
-                  retVal = unaggregatedBuffers;
-                } else {
-                  retVal.addAll(unaggregatedBuffers);
-                }
-              }
+              retVal = merge(retVal, updateRecursive(newKey, nextIx, dims));
             }
+            return retVal;
           }
-          return retVal;
         } else {
           return update(key);
         }
@@ -474,7 +477,7 @@ public class GroupByQueryEngine
 
       protected final List<int[]> update(final int[] key)
       {
-        final KeyValue position = positions.computeIfAbsent(new KeyValue(key), this);
+        final KeyValue position = positions.compute(new KeyValue(key), this);
         if (position == null) {
           return Lists.newArrayList(key);   // buffer full
         }
@@ -487,19 +490,24 @@ public class GroupByQueryEngine
       }
 
       @Override
-      public final KeyValue apply(final KeyValue array)
+      public final KeyValue apply(final KeyValue key, final KeyValue value)
       {
-        final int[] assigned = assign(array.array);
-        if (assigned == null) {
-          return null;
+        if (value == null) {
+          final int[] assigned = assign(key.array);
+          if (assigned == null) {
+            return null;
+          }
+          final int position0 = assigned[0];
+          final int position1 = assigned[1];
+          for (int i = 0; i < aggregators.length; i++) {
+            aggregators[i].init(metricValues[position0], position0, position1 + increments[i]);
+          }
+          ordering.add(key);
+          return key;
+        } else {
+          pool.done(key.array);
+          return value;
         }
-        final int position0 = assigned[0];
-        final int position1 = assigned[1];
-        for (int i = 0; i < aggregators.length; i++) {
-          aggregators[i].init(metricValues[position0], position0, position1 + increments[i]);
-        }
-        ordering.add(array);
-        return array;
       }
 
       private int[] assign(int[] array)
@@ -544,6 +552,40 @@ public class GroupByQueryEngine
         resources.close();
       }
     }
+  }
+
+  private static class KeyPool
+  {
+    private final int length;
+    private final List<int[]> pool = Lists.newArrayList();
+
+    private KeyPool(int length) {this.length = length;}
+
+    public int[] get()
+    {
+      return pool.isEmpty() ? new int[BUFFER_POS + length] : pool.remove(pool.size() - 1);
+    }
+
+    public int[] copyOf(final int[] source)
+    {
+      final int[] key = get();
+      System.arraycopy(source, BUFFER_POS, key, BUFFER_POS, length);
+      return key;
+    }
+
+    public void done(final int[] array)
+    {
+      pool.add(array);
+    }
+  }
+
+  private static List<int[]> merge(List<int[]> current, List<int[]> merged)
+  {
+    if (current == null) {
+      return merged;
+    }
+    current.addAll(merged);
+    return current;
   }
 
   // regard input is not ordered in specific way : todo
