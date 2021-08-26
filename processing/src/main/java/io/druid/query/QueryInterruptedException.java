@@ -87,6 +87,11 @@ public class QueryInterruptedException extends RuntimeException
     this.serviceName = serviceName;
   }
 
+  public QueryInterruptedException(String errorCode, String errorMessage)
+  {
+    this(errorCode, errorMessage, null, null, null, null);
+  }
+
   /**
    * Creates a new QueryInterruptedException wrapping an underlying exception. The errorMessage and errorClass
    * of this exception will be based on the highest non-QueryInterruptedException in the causality chain.

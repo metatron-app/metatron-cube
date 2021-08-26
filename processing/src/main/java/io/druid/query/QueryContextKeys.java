@@ -52,6 +52,7 @@ public interface QueryContextKeys
   String GBY_USE_RAW_UTF8 = "groupByUseRawUTF8";
   String GBY_USE_BULK_ROW = "groupByUseBulkRow";
   String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
+  String GBY_MAX_MULTIVALUE_DIMENSIONS = "groupByMaxMultivalueDimensions";
 
   // select.stream
   String STREAM_USE_BULK_ROW = "streamUseBulkRow";

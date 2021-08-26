@@ -49,6 +49,7 @@ import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.RowToArray;
@@ -533,6 +534,23 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     Iterable<Row> results = runQuery(query, true);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test(expected = QueryInterruptedException.class)
+  public void testGroupByMultiValue()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource(dataSource)
+        .intervals(firstToThird)
+        .dimensions(
+            DefaultDimensionSpec.of("placementish", "d0"),
+            DefaultDimensionSpec.of("placementish", "d1")
+        )
+        .aggregators(rowsCount, new LongSumAggregatorFactory("idx", "index"))
+        .addContext(Query.GBY_MAX_MULTIVALUE_DIMENSIONS, 1)
+        .build();
+    runQuery(query, false);
   }
 
   @Test

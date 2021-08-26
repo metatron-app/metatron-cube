@@ -169,7 +169,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return new SingleValued(type, supplier);
   }
 
-  private static class SingleValued extends MimicDimension implements DimensionSelector
+  private static class SingleValued extends MimicDimension implements DimensionSelector.SingleValued
   {
     private final IndexedInts.SingleValued row;
 
@@ -251,12 +251,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     {
       return valToId.getOrDefault(name, -1);
     }
-
-    @Override
-    public boolean withSortedDictionary()
-    {
-      return false;
-    }
   }
 
   public static DimensionSelector toFixedDimensionSelector(List<String> values)
@@ -306,12 +300,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       public int lookupId(Comparable name)
       {
         return valToId.get(name);
-      }
-
-      @Override
-      public boolean withSortedDictionary()
-      {
-        return false;
       }
     };
   }

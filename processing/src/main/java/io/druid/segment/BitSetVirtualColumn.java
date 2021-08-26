@@ -203,12 +203,6 @@ public class BitSetVirtualColumn implements VirtualColumn
       {
         return Integer.parseInt((String) name);
       }
-
-      @Override
-      public boolean withSortedDictionary()
-      {
-        return false;
-      }
     };
   }
 

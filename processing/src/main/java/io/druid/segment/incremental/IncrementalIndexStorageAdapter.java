@@ -462,12 +462,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     }
                     return dimValLookup.getId(name);
                   }
-
-                  @Override
-                  public boolean withSortedDictionary()
-                  {
-                    return false;
-                  }
                 };
               }
 

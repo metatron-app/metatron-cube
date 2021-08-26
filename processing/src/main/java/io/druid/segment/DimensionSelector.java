@@ -35,7 +35,7 @@ public interface DimensionSelector
    *
    * @return all values for the row as an IntBuffer
    */
-  public IndexedInts getRow();
+  IndexedInts getRow();
 
   /**
    * Value cardinality is the cardinality of the different occurring values.  If there were 4 rows:
@@ -49,7 +49,7 @@ public interface DimensionSelector
    *
    * @return the value cardinality
    */
-  public int getValueCardinality();
+  int getValueCardinality();
 
   /**
    * The Name is the String name of the actual field.  It is assumed that storage layers convert names
@@ -75,14 +75,14 @@ public interface DimensionSelector
    * @param id id to lookup the field name for
    * @return the field name for the given id
    */
-  public Object lookupName(int id);
+  Object lookupName(int id);
 
   /**
    * returns without dimension or multivalue prefix
    *
    * @return type
    */
-  public ValueDesc type();
+  ValueDesc type();
 
   /**
    * The ID is the int id value of the field.
@@ -90,9 +90,12 @@ public interface DimensionSelector
    * @param name field name to look up the id for
    * @return the id for the given field name
    */
-  public int lookupId(Comparable name);
+  int lookupId(Comparable name);
 
-  public boolean withSortedDictionary();
+  default boolean withSortedDictionary()
+  {
+    return false;
+  }
 
   interface SingleValued extends DimensionSelector
   {

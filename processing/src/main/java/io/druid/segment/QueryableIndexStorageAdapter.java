@@ -465,7 +465,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
 
                       final DictionaryEncodedColumn column = cachedColumn;
-
+                      final Dictionary<String> dictionary = column.dictionary();
                       if (columnDesc.getCapabilities().hasMultipleValues()) {
                         if (extractionFn != null) {
                           return new DimensionSelector()
@@ -479,13 +479,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public int getValueCardinality()
                             {
-                              return column.getCardinality();
+                              return dictionary.size();
                             }
 
                             @Override
                             public Object lookupName(int id)
                             {
-                              return extractionFn.apply(column.lookupName(id));
+                              return extractionFn.apply(dictionary.get(id));
                             }
 
                             @Override
@@ -505,11 +505,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public boolean withSortedDictionary()
                             {
-                              return column.dictionary().isSorted();
+                              return dictionary.isSorted() && extractionFn.preservesOrdering();
                             }
                           };
                         } else {
-                          final Dictionary<String> dictionary = column.dictionary();
                           return new DimensionSelector.WithRawAccess()
                           {
                             @Override
@@ -521,13 +520,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public int getValueCardinality()
                             {
-                              return column.getCardinality();
+                              return dictionary.size();
                             }
 
                             @Override
                             public Object lookupName(int id)
                             {
-                              return column.lookupName(id);
+                              return dictionary.get(id);
                             }
 
                             @Override
@@ -545,7 +544,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public int lookupId(Comparable name)
                             {
-                              return column.lookupId((String) name);
+                              return dictionary.indexOf((String) name);
                             }
 
                             @Override
@@ -577,13 +576,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public int getValueCardinality()
                             {
-                              return column.getCardinality();
+                              return dictionary.size();
                             }
 
                             @Override
                             public Object lookupName(int id)
                             {
-                              return extractionFn.apply(column.lookupName(id));
+                              return extractionFn.apply(dictionary.get(id));
                             }
 
                             @Override
@@ -603,11 +602,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public boolean withSortedDictionary()
                             {
-                              return column.dictionary().isSorted();
+                              return dictionary.isSorted() && extractionFn.preservesOrdering();
                             }
                           };
                         } else {
-                          final Dictionary<String> dictionary = column.dictionary();
                           return new DimensionSelector.Scannable()
                           {
                             @Override
@@ -625,13 +623,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public int getValueCardinality()
                             {
-                              return column.getCardinality();
+                              return dictionary.size();
                             }
 
                             @Override
                             public Object lookupName(int id)
                             {
-                              return column.lookupName(id);
+                              return dictionary.get(id);
                             }
 
                             @Override
@@ -655,7 +653,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public int lookupId(Comparable name)
                             {
-                              return column.lookupId((String) name);
+                              return dictionary.indexOf((String) name);
                             }
 
                             @Override

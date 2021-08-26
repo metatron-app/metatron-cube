@@ -128,10 +128,4 @@ public class SingleScanTimeDimSelector implements DimensionSelector
   {
     throw new UnsupportedOperationException("time column does not support lookups");
   }
-
-  @Override
-  public boolean withSortedDictionary()
-  {
-    return false;
-  }
 }

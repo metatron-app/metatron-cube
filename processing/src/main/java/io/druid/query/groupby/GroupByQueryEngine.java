@@ -47,6 +47,7 @@ import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -235,6 +236,7 @@ public class GroupByQueryEngine
       dimensions = new DimensionSelector[dimensionSpecs.size()];
 
       boolean simple = true;
+      int numMultivalueDimension = 0;
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
       for (int i = 0; i < dimensions.length; i++) {
@@ -248,7 +250,16 @@ public class GroupByQueryEngine
           indexedColumns.addAll(provider.targetColumns());
           providers.add(provider);
         }
-        simple &= dimensions[i] instanceof DimensionSelector.SingleValued;
+        if (!(dimensions[i] instanceof DimensionSelector.SingleValued)) {
+          numMultivalueDimension++;
+          simple = false;
+        }
+      }
+      final int maxMultiValueDimensions = config.getMaxMultiValueDimensions(query);
+      if (maxMultiValueDimensions >= 0 && numMultivalueDimension > maxMultiValueDimensions) {
+        throw new QueryInterruptedException(
+            QueryInterruptedException.RESOURCE_LIMIT_EXCEEDED, "too many multi-valued dimensions"
+        );
       }
       final KeyPool pool = new KeyPool(dimensions.length);
 

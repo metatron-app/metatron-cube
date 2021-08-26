@@ -128,6 +128,11 @@ public class QueryConfig
     return maxedBySystem(query, Query.FORCEDFILTER_TINY_THRESHOLD, getJoin().getForcedFilterTinyThreshold());
   }
 
+  public int getMaxMultiValueDimensions(Query<?> query)
+  {
+    return maxedBySystem(query, Query.GBY_MAX_MULTIVALUE_DIMENSIONS, getGroupBy().getMaxMultiValueDimensions());
+  }
+
   private int maxedBySystem(Query<?> query, String key, int systemMax)
   {
     if (!query.hasContext(key)) {

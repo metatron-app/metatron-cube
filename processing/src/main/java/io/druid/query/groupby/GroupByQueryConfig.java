@@ -73,6 +73,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private int maxStreamSubQueryPage = 4;
 
+  @JsonProperty
+  private int maxMultiValueDimensions = 3;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -221,5 +224,15 @@ public class GroupByQueryConfig
   public void setMaxStreamSubQueryPage(int maxStreamSubQueryPage)
   {
     this.maxStreamSubQueryPage = maxStreamSubQueryPage;
+  }
+
+  public int getMaxMultiValueDimensions()
+  {
+    return maxMultiValueDimensions;
+  }
+
+  public void setMaxMultiValueDimensions(int maxMultiValueDimensions)
+  {
+    this.maxMultiValueDimensions = maxMultiValueDimensions;
   }
 }
