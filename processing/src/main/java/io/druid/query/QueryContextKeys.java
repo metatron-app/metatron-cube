@@ -53,6 +53,7 @@ public interface QueryContextKeys
   String GBY_USE_BULK_ROW = "groupByUseBulkRow";
   String GBY_MAX_STREAM_SUBQUERY_PAGE = "groupByMaxStreamSubQueryPage";
   String GBY_MAX_MULTIVALUE_DIMENSIONS = "groupByMaxMultivalueDimensions";
+  String GBY_GROUPED_UNFOLD_DIMENSIONS = "groupByGroupedUnfoldDimensions";
 
   // select.stream
   String STREAM_USE_BULK_ROW = "streamUseBulkRow";
@@ -112,6 +113,8 @@ public interface QueryContextKeys
       GBY_USE_RAW_UTF8,
       GBY_USE_BULK_ROW,
       GBY_MAX_STREAM_SUBQUERY_PAGE,
+      GBY_MAX_MULTIVALUE_DIMENSIONS,
+      GBY_GROUPED_UNFOLD_DIMENSIONS,
       STREAM_USE_RAW_UTF8,
       STREAM_USE_BULK_ROW,
       STREAM_RAW_LOCAL_SPLIT_NUM,

@@ -536,23 +536,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
-  @Test(expected = QueryInterruptedException.class)
-  public void testGroupByMultiValue()
-  {
-    GroupByQuery query = GroupByQuery
-        .builder()
-        .dataSource(dataSource)
-        .intervals(firstToThird)
-        .dimensions(
-            DefaultDimensionSpec.of("placementish", "d0"),
-            DefaultDimensionSpec.of("placementish", "d1")
-        )
-        .aggregators(rowsCount, new LongSumAggregatorFactory("idx", "index"))
-        .addContext(Query.GBY_MAX_MULTIVALUE_DIMENSIONS, 1)
-        .build();
-    runQuery(query, false);
-  }
-
   @Test
   public void testGroupByGroupingSetRollup()
   {
@@ -7151,6 +7134,87 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     );
 
     Iterable<Row> results = runQuery(query, true);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test(expected = QueryInterruptedException.class)
+  public void test3876()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource(dataSource)
+        .intervals(firstToThird)
+        .dimensions(
+            DefaultDimensionSpec.of("placementish", "d0"),
+            DefaultDimensionSpec.of("placementish", "d1")
+        )
+        .aggregators(rowsCount, new LongSumAggregatorFactory("idx", "index"))
+        .addContext(Query.GBY_MAX_MULTIVALUE_DIMENSIONS, 1)
+        .build();
+    runQuery(query, false);
+  }
+
+  @Test
+  public void test3877()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .dataSource(dataSource)
+        .intervals(firstToThird)
+        .dimensions(
+            DefaultDimensionSpec.of("placementish", "d0"),
+            DefaultDimensionSpec.of("placementish", "d1")
+        )
+        .aggregators(rowsCount, new LongSumAggregatorFactory("idx", "index"))
+        .addContext(Query.GBY_GROUPED_UNFOLD_DIMENSIONS, false)
+        .build();
+
+    String[] columns = new String[] {"d0", "d1", "rows", "idx"};
+    List<Row> expectedResults = createExpectedRows(
+        columns,
+        array("a", "a", 2L, 282L),
+        array("a", "preferred", 2L, 282L),
+        array("b", "b", 2L, 230L),
+        array("b", "preferred", 2L, 230L),
+        array("e", "e", 2L, 324L),
+        array("e", "preferred", 2L, 324L),
+        array("h", "h", 2L, 233L),
+        array("h", "preferred", 2L, 233L),
+        array("m", "m", 6L, 5317L),
+        array("m", "preferred", 6L, 5317L),
+        array("n", "n", 2L, 235L),
+        array("n", "preferred", 2L, 235L),
+        array("p", "p", 6L, 5405L),
+        array("p", "preferred", 6L, 5405L),
+        array("preferred", "a", 2L, 282L),
+        array("preferred", "b", 2L, 230L),
+        array("preferred", "e", 2L, 324L),
+        array("preferred", "h", 2L, 233L),
+        array("preferred", "m", 6L, 5317L),
+        array("preferred", "n", 2L, 235L),
+        array("preferred", "p", 6L, 5405L),
+        array("preferred", "preferred", 26L, 12446L),
+        array("preferred", "t", 4L, 420L),
+        array("t", "preferred", 4L, 420L),
+        array("t", "t", 4L, 420L)
+    );
+    Iterable<Row> results = runQuery(query, true);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    expectedResults = createExpectedRows(
+        columns,
+        array("a", "a", 2L, 282L),
+        array("b", "b", 2L, 230L),
+        array("e", "e", 2L, 324L),
+        array("h", "h", 2L, 233L),
+        array("m", "m", 6L, 5317L),
+        array("n", "n", 2L, 235L),
+        array("p", "p", 6L, 5405L),
+        array("preferred", "preferred", 26L, 12446L),
+        array("t", "t", 4L, 420L)
+    );
+    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_GROUPED_UNFOLD_DIMENSIONS, true);
+    results = runQuery(query, false);   // todo cardinality estimation (timeseries query)
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

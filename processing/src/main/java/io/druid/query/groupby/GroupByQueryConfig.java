@@ -76,6 +76,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private int maxMultiValueDimensions = 3;
 
+  @JsonProperty
+  private boolean groupedUnfoldDimensions = false;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -231,8 +234,13 @@ public class GroupByQueryConfig
     return maxMultiValueDimensions;
   }
 
-  public void setMaxMultiValueDimensions(int maxMultiValueDimensions)
+  public void setGroupedUnfoldDimensions(boolean groupedUnfoldDimensions)
   {
-    this.maxMultiValueDimensions = maxMultiValueDimensions;
+    this.groupedUnfoldDimensions = groupedUnfoldDimensions;
+  }
+
+  public boolean isGroupedUnfoldDimensions()
+  {
+    return groupedUnfoldDimensions;
   }
 }

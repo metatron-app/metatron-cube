@@ -1,0 +1,20 @@
+{
+  "parser" : {
+    "format" : "tsv", "delimiter":"\t", "listDelimiter":","
+  },
+  "columns":[
+    "svc_mgmt_num", "bks_event_d0", "bks_event_d1", "bks_event_d2"
+  ],
+  "timestampSpec": {
+    "column":"X", "format":"yyyy-MM-dd", "missingValue": "1992-01-01"
+  },
+  "dimensionsSpec": {
+    "dimensions": [
+      "svc_mgmt_num", "bks_event_d0", "bks_event_d1", "bks_event_d2"
+    ]
+  },
+  "queryGran": "NONE",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false
+}

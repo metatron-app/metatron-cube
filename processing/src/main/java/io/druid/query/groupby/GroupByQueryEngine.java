@@ -255,11 +255,15 @@ public class GroupByQueryEngine
           simple = false;
         }
       }
-      final int maxMultiValueDimensions = config.getMaxMultiValueDimensions(query);
-      if (maxMultiValueDimensions >= 0 && numMultivalueDimension > maxMultiValueDimensions) {
-        throw new QueryInterruptedException(
-            QueryInterruptedException.RESOURCE_LIMIT_EXCEEDED, "too many multi-valued dimensions"
-        );
+      final boolean groupedUnfold = numMultivalueDimension == dimensions.length &&
+                                    config.isGroupedUnfoldDimensions(query);
+      if (!groupedUnfold) {
+        final int maxMultiValueDimensions = config.getMaxMultiValueDimensions(query);
+        if (maxMultiValueDimensions >= 0 && numMultivalueDimension > maxMultiValueDimensions) {
+          throw new QueryInterruptedException(
+              QueryInterruptedException.RESOURCE_LIMIT_EXCEEDED, "too many multi-valued dimensions"
+          );
+        }
       }
       final KeyPool pool = new KeyPool(dimensions.length);
 
@@ -274,6 +278,34 @@ public class GroupByQueryEngine
               key[BUFFER_POS + i] = dimensions[i].getRow().get(0);
             }
             return update(key);
+          }
+        };
+      } else if (groupedUnfold) {
+        this.rowUpdater = new RowUpdater(pool)
+        {
+          @Override
+          protected List<int[]> updateValues(final DimensionSelector[] dimensions)
+          {
+            final IndexedInts[] rows = new IndexedInts[dimensions.length];
+            rows[0] = dimensions[0].getRow();
+            final int length = rows[0].size();
+            for (int i = 1; i < dimensions.length; i++) {
+              rows[i] = dimensions[i].getRow();
+              Preconditions.checkArgument(length == rows[i].size(), "Inconsistent length of group dimension");
+            }
+            List<int[]> retVal = null;
+            for (int i = 0; i < length; i++) {
+              final int[] key = pool.get();
+              for (int j = 0; j < dimensions.length; j++) {
+                key[BUFFER_POS + j] = rows[j].get(i);
+              }
+              if (retVal == null) {
+                retVal = update(key);
+              } else {
+                retVal.add(key);
+              }
+            }
+            return retVal;
           }
         };
       } else {
