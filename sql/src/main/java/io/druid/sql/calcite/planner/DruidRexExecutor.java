@@ -67,7 +67,7 @@ public class DruidRexExecutor implements RexExecutor
       if (druidExpression == null) {
         reducedValues.add(constExp);
       } else {
-        final SqlTypeName sqlTypeName = constExp.getType().getSqlTypeName();
+        final SqlTypeName sqlTypeName = Calcites.getTypeName(constExp.getType());
         final Expr expr = Parser.parse(druidExpression.getExpression(), Utils.EMPTY_ROW_SIGNATURE);
         if (!Evals.isConstant(expr)) {
           reducedValues.add(constExp);

@@ -180,17 +180,17 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "DESC foo",
         new Object[]{"__time", "TIMESTAMP", "TIMESTAMP(3) NOT NULL", "NO", ""},
         new Object[]{"cnt", "BIGINT", "BIGINT NOT NULL", "NO", ""},
-        new Object[]{"dim1", "VARCHAR", "VARCHAR", "YES", ""},
-        new Object[]{"dim2", "VARCHAR", "VARCHAR", "YES", ""},
+        new Object[]{"dim1", "VARCHAR", "dimension.string", "YES", ""},
+        new Object[]{"dim2", "VARCHAR", "dimension.string", "YES", ""},
         new Object[]{"m1", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
         new Object[]{"m2", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
-        new Object[]{"unique_dim1", "OTHER", "OTHER", "YES", ""}
+        new Object[]{"unique_dim1", "OTHER", "hyperUnique", "YES", ""}
     );
     testQuery(
         "DESCRIBE foo2 '%1'",
-        new Object[]{"dim1", "VARCHAR", "VARCHAR", "YES", ""},
+        new Object[]{"dim1", "VARCHAR", "dimension.string", "YES", ""},
         new Object[]{"m1", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
-        new Object[]{"unique_dim1", "OTHER", "OTHER", "YES", ""}
+        new Object[]{"unique_dim1", "OTHER", "hyperUnique", "YES", ""}
     );
   }
 
@@ -992,6 +992,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
   }
 
   @Test
+  @Ignore("dimension is now any type, which disables implicit casting on it")
   public void testColumnComparison() throws Exception
   {
     testQuery(
@@ -5034,17 +5035,17 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
             .columns("T", "P", "w0$o0", "w0$o1", "w0$o2")
             .streaming(),
         new Object[]{T("2011-10-01"), 21726.0, 11997.0, 0.3062170421340279, 1.3226140238360753},
-        new Object[]{T("2012-01-01"), 9271.0, 11997.0, 1.5967039869308326, 2.7559559816102874}, 
+        new Object[]{T("2012-01-01"), 9271.0, 11997.0, 1.5967039869308326, 2.7559559816102874},
         new Object[]{T("2012-04-01"), 12191.0, 12492.0, 1.4952958011263764, 2.7622644591004146},
-        new Object[]{T("2012-07-01"), 16848.0, 14519.5, 0.401755397139793, -1.501216843045509}, 
+        new Object[]{T("2012-07-01"), 16848.0, 14519.5, 0.401755397139793, -1.501216843045509},
         new Object[]{T("2012-10-01"), 23296.0, 14519.5, 0.6739338133537466, -0.6383966096697862},
         new Object[]{T("2013-01-01"), 11453.0, 14519.5, 1.045305387409049, -0.1885411396699738},
         new Object[]{T("2013-04-01"), 16077.0, 16462.5, 0.5501507194929038, 1.5488704410249594},
-        new Object[]{T("2013-07-01"), 16153.0, 16115.0, 0.755644349565603, 1.8195994163140956}, 
+        new Object[]{T("2013-07-01"), 16153.0, 16115.0, 0.755644349565603, 1.8195994163140956},
         new Object[]{T("2013-10-01"), 38038.0, 16115.0, 1.7905670243406804, 3.4292297531370752},
-        new Object[]{T("2014-01-01"), 21774.0, 18963.5, 1.6367879443194426, 2.519639080416271}, 
-        new Object[]{T("2014-04-01"), 17169.0, 19471.5, 1.6757180527207403, 2.726705834534635}, 
-        new Object[]{T("2014-07-01"), 26899.0, 24336.5, 0.9252130623297218, 0.648594442385228}, 
+        new Object[]{T("2014-01-01"), 21774.0, 18963.5, 1.6367879443194426, 2.519639080416271},
+        new Object[]{T("2014-04-01"), 17169.0, 19471.5, 1.6757180527207403, 2.726705834534635},
+        new Object[]{T("2014-07-01"), 26899.0, 24336.5, 0.9252130623297218, 0.648594442385228},
         new Object[]{T("2014-10-01"), 27658.0, 24336.5, -0.6871980063130506, -1.986840042055673}
     );
   }
@@ -6091,7 +6092,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "  DruidJoinRel(joinType=[INNER], leftKeys=[0], rightKeys=[0], outputColumns=[3, 1])\n"
         + "    DruidQueryRel(table=[druid.foo], scanProject=[$0, $4])\n"
         + "    DruidQueryRel(table=[druid.foo2], scanProject=[$0, $3])\n",
-        newGroupBy()
+        new TopNQueryBuilder()
             .dataSource(
                 newJoin()
                     .dataSource("foo", newScan()
@@ -6107,18 +6108,19 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     .outputColumns("dim2", "m1")
                     .build()
             )
-            .dimensions(DefaultDimensionSpec.of("dim2", "d0"))
+            .dimension("dim2", "d0")
             .aggregators(GenericSumAggregatorFactory.ofDouble("a0", "m1"))
+            .metric(new DimensionTopNMetricSpec(null, null))
             .outputColumns("a0", "d0")
-            .limit(3)
+            .threshold(3)
             .build(),
         new Object[]{1.0, "en"},
-        new Object[]{1.0, "ru"},
-        new Object[]{1.0, "he"}
+        new Object[]{1.0, "he"},
+        new Object[]{1.0, "ru"}
     );
     hook.verifyHooked(
-        "uMcqWfYyKUJvrfKdsZ+8Cg==",
-        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[__time, m1]}, StreamQuery{dataSource='foo2', columns=[__time, dim2], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim2', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='m1', inputType='double'}], limitSpec=LimitSpec{columns=[], limit=3}, outputColumns=[a0, d0]}",
+        "JaDdXGLCfaCemK06RKStXw==",
+        "TopNQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[__time, m1]}, StreamQuery{dataSource='foo2', columns=[__time, dim2], $hash=true}], timeColumnName=__time}', dimensionSpec=DefaultDimensionSpec{dimension='dim2', outputName='d0'}, virtualColumns=[], topNMetricSpec=DimensionTopNMetricSpec{previousStop='null', ordering=lexicographic}, threshold=3, querySegmentSpec=null, filter=null, granularity='AllGranularity', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='m1', inputType='double'}], postAggregatorSpecs=[], outputColumns=[a0, d0]}",
         "StreamQuery{dataSource='foo', columns=[__time, m1]}",
         "StreamQuery{dataSource='foo2', columns=[__time, dim2], $hash=true}"
     );
@@ -6222,7 +6224,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .aggregators(
                   new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MIN"),
                   new RelayAggregatorFactory("a1", "m1", "double", "TIME_MIN"),
-                  new RelayAggregatorFactory("a2", "dim1", "string", "TIME_MIN"),
+                  new RelayAggregatorFactory("a2", "dim1", "dimension.string", "TIME_MIN"),
                   new RelayAggregatorFactory("a3", "a3:v", "long", "TIME_MIN"),
                   new RelayAggregatorFactory("a4", "a4:v", "double", "TIME_MIN"),
                   new RelayAggregatorFactory("a5", "a5:v", "string", "TIME_MIN")
@@ -6251,7 +6253,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .aggregators(
                   new RelayAggregatorFactory("a0", "cnt", "long", "TIME_MAX"),
                   new RelayAggregatorFactory("a1", "m1", "double", "TIME_MAX"),
-                  new RelayAggregatorFactory("a2", "dim1", "string", "TIME_MAX"),
+                  new RelayAggregatorFactory("a2", "dim1", "dimension.string", "TIME_MAX"),
                   new RelayAggregatorFactory("a3", "a3:v", "long", "TIME_MAX"),
                   new RelayAggregatorFactory("a4", "a4:v", "double", "TIME_MAX"),
                   new RelayAggregatorFactory("a5", "a5:v", "string", "TIME_MAX")
@@ -6305,6 +6307,34 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "t3wFyhirTf2JD4PxhZd1pg==",
         "GroupByQuery{dataSource='StreamQuery{dataSource='mmapped-split', columns=[placementish, index], limitSpec=LimitSpec{columns=[], limit=10000}}', dimensions=[DefaultDimensionSpec{dimension='placementish', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='index', inputType='double'}], outputColumns=[d0, a0]}",
         "StreamQuery{dataSource='mmapped-split', columns=[placementish, index], limitSpec=LimitSpec{columns=[], limit=10000}}"
+    );
+  }
+
+  @Test
+  public void test3880() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_NO_TOPN,
+        "WITH X AS (SELECT placementish, placement, index FROM \"mmapped-split\" LIMIT 10) "
+        + "SELECT A.placementish, SUM(A.index) FROM X A INNER JOIN X B ON A.placement = B.placement "
+        + "GROUP BY A.placementish "
+        + "LIMIT 10",
+        null,
+        new Object[]{"a", 1000.0D},
+        new Object[]{"preferred", 19000.0D},
+        new Object[]{"b", 1000.0D},
+        new Object[]{"e", 1000.0D},
+        new Object[]{"h", 1000.0D},
+        new Object[]{"m", 11000.0D},
+        new Object[]{"n", 1000.0D},
+        new Object[]{"p", 1000.0D},
+        new Object[]{"t", 2000.0D}
+    );
+    hook.verifyHooked(
+        "0Mkk145g6lpwCR46F4Z4Qg==",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='mmapped-split', columns=[placementish, placement, index], limitSpec=LimitSpec{columns=[], limit=10}, $hash=true}, StreamQuery{dataSource='mmapped-split', columns=[placement], limitSpec=LimitSpec{columns=[], limit=10}}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='placementish', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='index', inputType='double'}], limitSpec=LimitSpec{columns=[], limit=10}, outputColumns=[d0, a0]}",
+        "StreamQuery{dataSource='mmapped-split', columns=[placementish, placement, index], limitSpec=LimitSpec{columns=[], limit=10}, $hash=true}",
+        "StreamQuery{dataSource='mmapped-split', columns=[placement], limitSpec=LimitSpec{columns=[], limit=10}}"
     );
   }
 }

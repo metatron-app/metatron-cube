@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import com.google.common.primitives.Longs;
@@ -29,6 +30,8 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ordering.StringComparators;
+import io.druid.sql.calcite.DruidOtherType;
+import io.druid.sql.calcite.DruidType;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.InformationSchema;
 import io.druid.sql.calcite.schema.SystemSchema;
@@ -36,11 +39,13 @@ import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlCollation;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.type.DruidDimensionType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ConversionUtil;
 import org.apache.calcite.util.DateString;
@@ -102,9 +107,11 @@ public class Calcites
     return DEFAULT_CHARSET;
   }
 
-  public static SchemaPlus createRootSchema(final DruidSchema druidSchema,
-                                            final QuerySegmentWalker segmentWalker,
-                                            final SystemSchema systemSchema)
+  public static SchemaPlus createRootSchema(
+      final DruidSchema druidSchema,
+      final QuerySegmentWalker segmentWalker,
+      final SystemSchema systemSchema
+  )
   {
     final SchemaPlus rootSchema = CalciteSchema.createRootSchema(false, false).plus();
     rootSchema.add(DruidSchema.NAME, druidSchema);
@@ -135,13 +142,27 @@ public class Calcites
 
   }
 
-  public static ValueDesc getValueDescForRelDataType(RexNode rexNode)
+  public static SqlTypeName getTypeName(RelDataType dataType)
   {
-    return getValueDescForRelDataType(rexNode.getType());
+    if (dataType instanceof DruidType) {
+      ValueDesc type = ((DruidType) dataType).getDruidType();
+      if (type.isDimension() || type.isMultiValued()) {
+        return SqlTypeName.VARCHAR;
+      }
+    }
+    return dataType.getSqlTypeName();
   }
 
-  public static ValueDesc getValueDescForRelDataType(RelDataType dataType)
+  public static ValueDesc asValueDesc(RexNode rexNode)
   {
+    return asValueDesc(rexNode.getType());
+  }
+
+  public static ValueDesc asValueDesc(RelDataType dataType)
+  {
+    if (dataType instanceof DruidType) {
+      return ((DruidType) dataType).getDruidType();
+    }
     final SqlTypeName sqlTypeName = dataType.getSqlTypeName();
     if (SqlTypeName.BOOLEAN == sqlTypeName) {
       return ValueDesc.BOOLEAN;
@@ -160,11 +181,11 @@ public class Calcites
     } else if (SqlTypeName.GEOMETRY == sqlTypeName) {
       return ValueDesc.GEOMETRY;    // it's not working (todo)
     } else if (SqlTypeName.ARRAY == sqlTypeName) {
-      return ValueDesc.ofArray(getValueDescForRelDataType(dataType.getComponentType()));
+      return ValueDesc.ofArray(asValueDesc(dataType.getComponentType()));
     } else if (SqlTypeName.MAP == sqlTypeName) {
       return ValueDesc.ofMap(
-          getValueDescForRelDataType(dataType.getKeyType()),
-          getValueDescForRelDataType(dataType.getValueType())
+          asValueDesc(dataType.getKeyType()),
+          asValueDesc(dataType.getValueType())
       );
     } else if (dataType.isStruct()) {
       List<RelDataTypeField> fields = dataType.getFieldList();
@@ -173,7 +194,7 @@ public class Calcites
       for (int i = 0; i < fields.size(); i++) {
         RelDataTypeField field = fields.get(i);
         names[i] = field.getName();
-        types[i] = getValueDescForRelDataType(field.getType());
+        types[i] = asValueDesc(field.getType());
       }
       return ValueDesc.ofStruct(names, types);
     }
@@ -187,7 +208,7 @@ public class Calcites
 
   public static String getStringComparatorForDataType(RelDataType dataType)
   {
-    final ValueDesc valueType = getValueDescForRelDataType(dataType);
+    final ValueDesc valueType = asValueDesc(dataType);
     return getStringComparatorForValueType(valueType);
   }
 
@@ -369,11 +390,10 @@ public class Calcites
    */
   public static DateTime calciteDateTimeLiteralToJoda(final RexNode literal, final DateTimeZone timeZone)
   {
-    final SqlTypeName typeName = literal.getType().getSqlTypeName();
-    if (literal.getKind() != SqlKind.LITERAL || (typeName != SqlTypeName.TIMESTAMP && typeName != SqlTypeName.DATE)) {
-      throw new IAE("Expected literal but got[%s]", literal.getKind());
+    if (literal.getKind() != SqlKind.LITERAL) {
+      throw new IAE("Expected literal but got [%s]", literal.getKind());
     }
-
+    final SqlTypeName typeName = Calcites.getTypeName(literal.getType());
     if (typeName == SqlTypeName.TIMESTAMP) {
       final TimestampString timestampString = (TimestampString) RexLiteral.value(literal);
       return CALCITE_TIMESTAMP_PARSER.parse(timestampString.toString()).withZoneRetainFields(timeZone);
@@ -381,7 +401,7 @@ public class Calcites
       final DateString dateString = (DateString) RexLiteral.value(literal);
       return CALCITE_DATE_PARSER.parse(dateString.toString()).withZoneRetainFields(timeZone);
     } else {
-      throw new IAE("Expected TIMESTAMP or DATE but got[%s]", typeName);
+      throw new IAE("Expected TIMESTAMP or DATE but got [%s]", typeName);
     }
   }
 
@@ -445,5 +465,70 @@ public class Calcites
   public static String makePrefixedName(final String prefix, final String suffix)
   {
     return StringUtils.format("%s:%s", prefix, suffix);
+  }
+
+  public static RelDataType asRelDataType(ValueDesc columnType)
+  {
+    return asRelDataType(TYPE_FACTORY, columnType);
+  }
+
+  public static RelDataType asRelDataType(RelDataTypeFactory factory, ValueDesc columnType)
+  {
+    if (columnType.isDimension() || columnType.isMultiValued()) {
+      return factory.createTypeWithNullability(DruidDimensionType.of(columnType), true);  // for intern type
+    }
+    switch (columnType.type()) {
+      case STRING:
+        return createSqlTypeWithNullability(factory, SqlTypeName.VARCHAR, true);
+      case BOOLEAN:
+        return createSqlType(factory, SqlTypeName.BOOLEAN);
+      case LONG:
+        return createSqlType(factory, SqlTypeName.BIGINT);
+      case FLOAT:
+        return createSqlType(factory, SqlTypeName.FLOAT);
+      case DOUBLE:
+        return createSqlType(factory, SqlTypeName.DOUBLE);
+      case DATETIME:
+        return createSqlTypeWithNullability(factory, DateTime.class);
+      case COMPLEX:
+        if (columnType.isStruct()) {
+          final String[] description = columnType.getDescription();
+          if (description == null) {
+            RelDataType subType = factory.createSqlType(SqlTypeName.ANY);
+            return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
+          }
+          final List<String> fieldNames = Lists.newArrayList();
+          final List<RelDataType> fieldTypes = Lists.newArrayList();
+          for (int i = 1; i < description.length; i++) {
+            int index = description[i].indexOf(':');
+            fieldNames.add(description[i].substring(0, index));
+            fieldTypes.add(asRelDataType(factory, ValueDesc.of(description[i].substring(index + 1))));
+          }
+          return factory.createTypeWithNullability(
+              factory.createStructType(StructKind.PEEK_FIELDS, fieldTypes, fieldNames), true
+          );
+        } else if (columnType.isMap()) {
+          final String[] description = columnType.getDescription();
+          final RelDataType keyType = description != null ? asRelDataType(factory, ValueDesc.of(description[1]))
+                                                          : createSqlType(factory, SqlTypeName.VARCHAR);
+          final RelDataType valueType = description != null ? asRelDataType(factory, ValueDesc.of(description[2]))
+                                                            : factory.createSqlType(SqlTypeName.ANY);
+          return factory.createTypeWithNullability(factory.createMapType(keyType, valueType), true);
+        } else if (columnType.isArray()) {
+          final RelDataType subType = columnType.hasSubElement() ? asRelDataType(factory, columnType.subElement())
+                                                                 : factory.createSqlType(SqlTypeName.ANY);
+          return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
+        } else if (columnType.isBitSet()) {
+          return factory.createTypeWithNullability(
+              factory.createArrayType(createSqlType(factory, SqlTypeName.BOOLEAN), -1), true
+          );
+        } else if (ValueDesc.isGeometry(columnType)) {
+          return createSqlTypeWithNullability(factory, columnType.asClass());
+        }
+        return DruidOtherType.of(columnType);
+      default:
+        Class clazz = columnType.asClass();
+        return clazz == null || clazz == Object.class ? TYPE_FACTORY.createUnknownType() : TYPE_FACTORY.createType(clazz);
+    }
   }
 }

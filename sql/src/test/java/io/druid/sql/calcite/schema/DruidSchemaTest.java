@@ -169,10 +169,10 @@ public class DruidSchemaTest extends CalciteTestBase
     Assert.assertEquals(SqlTypeName.BIGINT, fields.get(1).getType().getSqlTypeName());
 
     Assert.assertEquals("dim1", fields.get(2).getName());
-    Assert.assertEquals(SqlTypeName.VARCHAR, fields.get(2).getType().getSqlTypeName());
+    Assert.assertEquals(SqlTypeName.ANY, fields.get(2).getType().getSqlTypeName());
 
     Assert.assertEquals("dim2", fields.get(3).getName());
-    Assert.assertEquals(SqlTypeName.VARCHAR, fields.get(3).getType().getSqlTypeName());
+    Assert.assertEquals(SqlTypeName.ANY, fields.get(3).getType().getSqlTypeName());
 
     Assert.assertEquals("m1", fields.get(4).getName());
     Assert.assertEquals(SqlTypeName.BIGINT, fields.get(4).getType().getSqlTypeName());
@@ -194,7 +194,7 @@ public class DruidSchemaTest extends CalciteTestBase
     Assert.assertEquals(SqlTypeName.TIMESTAMP, fields.get(0).getType().getSqlTypeName());
 
     Assert.assertEquals("dim2", fields.get(1).getName());
-    Assert.assertEquals(SqlTypeName.VARCHAR, fields.get(1).getType().getSqlTypeName());
+    Assert.assertEquals(SqlTypeName.ANY, fields.get(1).getType().getSqlTypeName());
 
     Assert.assertEquals("m1", fields.get(2).getName());
     Assert.assertEquals(SqlTypeName.BIGINT, fields.get(2).getType().getSqlTypeName());

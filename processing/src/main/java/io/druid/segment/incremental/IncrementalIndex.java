@@ -32,6 +32,7 @@ import com.google.common.collect.Maps;
 import io.druid.common.DateTimes;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
@@ -203,8 +204,8 @@ public abstract class IncrementalIndex implements Closeable
 
   private int ingestedNumRows;
   private long maxIngestedEventTime = -1;
-  private long minTimeMillis = Long.MAX_VALUE;
-  private long maxTimeMillis = Long.MIN_VALUE;
+  private long minTimeMillis = JodaUtils.MAX_INSTANT;
+  private long maxTimeMillis = JodaUtils.MIN_INSTANT;
 
   // dummy value for no rollup
   private final AtomicLong indexer = new AtomicLong();
@@ -631,7 +632,7 @@ public abstract class IncrementalIndex implements Closeable
 
   public boolean isTemporary()
   {
-    return minTimestampLimit == Long.MIN_VALUE;
+    return minTimestampLimit == JodaUtils.MIN_INSTANT;
   }
 
   public DimDim getDimensionValues(String dimension)
@@ -718,7 +719,7 @@ public abstract class IncrementalIndex implements Closeable
 
   public Iterable<Map.Entry<TimeAndDims, Object[]>> getAll()
   {
-    return getRangeOf(Long.MIN_VALUE, Long.MAX_VALUE, null);
+    return getRangeOf(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT, null);
   }
 
   public abstract Iterable<Map.Entry<TimeAndDims, Object[]>> getRangeOf(long from, long to, Boolean timeDescending);

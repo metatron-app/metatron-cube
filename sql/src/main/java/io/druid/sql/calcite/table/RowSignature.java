@@ -30,7 +30,6 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
-import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
@@ -66,7 +65,7 @@ public class RowSignature extends io.druid.query.RowSignature
     for (RelDataTypeField field : rowType.getFieldList()) {
       final String columnName = field.getName();
       final RelDataType dataType = field.getType();
-      final ValueDesc valueType = Calcites.getValueDescForRelDataType(dataType);
+      final ValueDesc valueType = Calcites.asValueDesc(dataType);
       rowSignatureBuilder.add(columnName, valueType);
     }
     return rowSignatureBuilder.build();
@@ -96,7 +95,7 @@ public class RowSignature extends io.druid.query.RowSignature
           continue;
         }
       }
-      final ValueDesc valueType = Calcites.getValueDescForRelDataType(field.getType());
+      final ValueDesc valueType = Calcites.asValueDesc(field.getType());
 
       rowSignatureBuilder.add(rowOrder.get(i), valueType);
     }
@@ -160,12 +159,11 @@ public class RowSignature extends io.druid.query.RowSignature
     final RelDataTypeFactory.Builder builder = typeFactory.builder();
     for (int i = 0; i < columnNames.size(); i++) {
       String columnName = columnNames.get(i);
-      ValueDesc columnType = columnTypes.get(i).unwrapDimension();
       RelDataType type;
       if (Row.TIME_COLUMN_NAME.equals(columnName)) {
         type = Calcites.createSqlType(typeFactory, SqlTypeName.TIMESTAMP);
       } else {
-        type = Utils.asRelDataType(typeFactory, columnType);
+        type = Calcites.asRelDataType(typeFactory, columnTypes.get(i));
       }
       builder.add(columnName, type);
     }

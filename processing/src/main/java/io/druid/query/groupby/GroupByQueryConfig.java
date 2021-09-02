@@ -74,7 +74,7 @@ public class GroupByQueryConfig
   private int maxStreamSubQueryPage = 4;
 
   @JsonProperty
-  private int maxMultiValueDimensions = 3;
+  private int maxMultiValueDimensions = -1;
 
   @JsonProperty
   private boolean groupedUnfoldDimensions = false;

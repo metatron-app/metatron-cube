@@ -32,6 +32,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.server.security.Access;
 import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycle;
+import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerResult;
 import org.apache.calcite.avatica.ColumnMetaData;
 import org.apache.calcite.avatica.ColumnMetaData.AvaticaType;
@@ -160,7 +161,7 @@ public class DruidStatement implements Closeable
 
   private static AvaticaType toAvaticaType(RelDataType type)
   {
-    final SqlTypeName sqlTypeName = type.getSqlTypeName();
+    final SqlTypeName sqlTypeName = Calcites.getTypeName(type);
     if (sqlTypeName == SqlTypeName.ARRAY) {
       return ColumnMetaData.array(
           toAvaticaType(type.getComponentType()), sqlTypeName.getName(), ColumnMetaData.Rep.ARRAY

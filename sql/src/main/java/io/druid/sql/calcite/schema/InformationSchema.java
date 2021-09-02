@@ -34,6 +34,7 @@ import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.jmx.JMXQuery;
 import io.druid.sql.calcite.Utils;
+import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.table.DruidTable;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.DataContext;
@@ -367,9 +368,10 @@ public class InformationSchema extends AbstractSchema
           field -> {
             final String name = field.getName();
             final RelDataType type = field.getType();
-            boolean isNumeric = SqlTypeName.NUMERIC_TYPES.contains(type.getSqlTypeName());
-            boolean isCharacter = SqlTypeName.CHAR_TYPES.contains(type.getSqlTypeName());
-            boolean isDateTime = SqlTypeName.DATETIME_TYPES.contains(type.getSqlTypeName());
+            final SqlTypeName sqlTypeName = Calcites.getTypeName(type);
+            boolean isNumeric = SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName);
+            boolean isCharacter = SqlTypeName.CHAR_TYPES.contains(sqlTypeName);
+            boolean isDateTime = SqlTypeName.DATETIME_TYPES.contains(sqlTypeName);
             String descriptor = null;
             if (table instanceof DruidTable) {
               descriptor = Objects.toString(((DruidTable) table).getDescriptors().get(name), "");
@@ -382,7 +384,7 @@ public class InformationSchema extends AbstractSchema
                 String.valueOf(field.getIndex()), // ORDINAL_POSITION
                 "", // COLUMN_DEFAULT
                 type.isNullable() ? "YES" : "NO", // IS_NULLABLE
-                type.getSqlTypeName().toString(), // DATA_TYPE
+                sqlTypeName.toString(), // DATA_TYPE
                 type.getFullTypeString(), // DATA_TYPE_EXTENDED
                 null, // CHARACTER_MAXIMUM_LENGTH
                 null, // CHARACTER_OCTET_LENGTH
@@ -392,7 +394,7 @@ public class InformationSchema extends AbstractSchema
                 isDateTime ? String.valueOf(type.getPrecision()) : null, // DATETIME_PRECISION
                 isCharacter ? type.getCharset().name() : null, // CHARACTER_SET_NAME
                 isCharacter ? type.getCollation().getCollationName() : null, // COLLATION_NAME
-                type.getSqlTypeName().getJdbcOrdinal(), // JDBC_TYPE (Druid extension)
+                sqlTypeName.getJdbcOrdinal(), // JDBC_TYPE (Druid extension)
                 descriptor
             };
           }

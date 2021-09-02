@@ -471,7 +471,7 @@ public class Evals
     }
     final ValueDesc type = arg.type();
     try {
-      if (type.isString()) {
+      if (type.isString() || type.isMultiValued()) {
         return formatter.parseDateTime(arg.asString());
       }
       final DateTimeZone timeZone = formatter.getZone();
@@ -492,7 +492,7 @@ public class Evals
     }
     final ValueDesc type = arg.type();
     try {
-      if (type.isString()) {
+      if (type.isString() || type.isMultiValued()) {
         final String string = arg.stringValue();
         if (StringUtils.isNumeric(string)) {
           return DateTimes.withZone(Long.valueOf(string), timeZone);

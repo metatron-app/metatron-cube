@@ -22,6 +22,7 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
+import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
@@ -76,7 +77,7 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
   @Override
   public long getTimestampFromEpoch()
   {
-    return timestamp == null ? Long.MIN_VALUE : timestamp.getMillis();
+    return timestamp == null ? JodaUtils.MIN_INSTANT : timestamp.getMillis();
   }
 
   @JsonProperty

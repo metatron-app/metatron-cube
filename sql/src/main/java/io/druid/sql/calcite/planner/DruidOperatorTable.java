@@ -43,7 +43,6 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.groupby.orderby.WindowContext;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
-import io.druid.sql.calcite.Utils;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.Aggregations;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
@@ -58,6 +57,7 @@ import io.druid.sql.calcite.aggregation.builtin.SumZeroSqlAggregator;
 import io.druid.sql.calcite.expression.AliasedOperatorConversion;
 import io.druid.sql.calcite.expression.BinaryOperatorConversion;
 import io.druid.sql.calcite.expression.BitSetCardinalityConversion;
+import io.druid.sql.calcite.expression.BitSetUnwrapConversion;
 import io.druid.sql.calcite.expression.DimFilterConversion;
 import io.druid.sql.calcite.expression.DirectOperatorConversion;
 import io.druid.sql.calcite.expression.DruidExpression;
@@ -65,7 +65,6 @@ import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.NominalBitSetToStringConversion;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
 import io.druid.sql.calcite.expression.UnaryPrefixOperatorConversion;
-import io.druid.sql.calcite.expression.BitSetUnwrapConversion;
 import io.druid.sql.calcite.expression.builtin.ArrayConstructorOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.BTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CastOperatorConversion;
@@ -254,11 +253,6 @@ public class DruidOperatorTable implements SqlOperatorTable
                           .stream()
                           .collect(Collectors.toMap(OperatorKey::of, java.util.function.Function.identity()));
 
-  private static final List<SqlOperatorConversion> LUCENE_FILTER_OPERATOR_CONVERSIONS =
-      ImmutableList.<SqlOperatorConversion>of(
-          new DirectOperatorConversion(SqlStdOperatorTable.ABS, "abs")
-      );
-
   private final Map<OperatorKey, SqlAggregator> aggregators;
   private final Map<OperatorKey, SqlOperatorConversion> operatorConversions;
   private final Map<OperatorKey, DimFilterConversion> dimFilterConversions;
@@ -289,7 +283,7 @@ public class DruidOperatorTable implements SqlOperatorTable
     for (AggregatorFactory.SQLBundle bundle : userAggregatorFactories) {
       final AggregatorFactory factory = (AggregatorFactory) bundle.aggregator;
       final ValueDesc type = Optional.fromNullable(factory.finalizedType()).or(ValueDesc.UNKNOWN);
-      final SqlReturnTypeInference retType = ReturnTypes.explicit(Utils.asRelDataType(type));
+      final SqlReturnTypeInference retType = ReturnTypes.explicit(Calcites.asRelDataType(type));
       final SqlAggFunction function = new DummyAggregatorFunction(bundle.opName, retType);
       final SqlAggregator aggregator = new DummySqlAggregator(function, bundle.aggregator, bundle.postAggregator);
       final OperatorKey operatorKey = OperatorKey.of(aggregator.calciteFunction(), true);
@@ -329,7 +323,7 @@ public class DruidOperatorTable implements SqlOperatorTable
         if (type == null || type.asClass() == Object.class) {
           continue;
         }
-        retType = ReturnTypes.explicit(Utils.asRelDataType(type));
+        retType = ReturnTypes.explicit(Calcites.asRelDataType(type));
       } else {
         retType = new SqlReturnTypeInference()
         {
@@ -339,7 +333,7 @@ public class DruidOperatorTable implements SqlOperatorTable
             List<Expr> operands = Lists.newArrayList();
             Map<String, ValueDesc> binding = Maps.newHashMap();
             for (int i = 0; i < opBinding.getOperandCount(); i++) {
-              final ValueDesc type = Calcites.getValueDescForRelDataType(opBinding.getOperandType(i));
+              final ValueDesc type = Calcites.asValueDesc(opBinding.getOperandType(i));
               if (opBinding.isOperandNull(i, false) || opBinding.isOperandLiteral(i, false)) {
                 operands.add(Evals.constant(opBinding.getOperandLiteralValue(i, type.asClass()), type));
               } else {
@@ -356,7 +350,7 @@ public class DruidOperatorTable implements SqlOperatorTable
             }
             ValueDesc type = factory.create(operands, resolver).returns();
             if (type != null && type.asClass() != null) {
-              return Utils.asRelDataType(type);
+              return Calcites.asRelDataType(type);
             }
             return null;
           }

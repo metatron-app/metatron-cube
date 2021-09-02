@@ -90,7 +90,7 @@ public class RelayAggregator implements SqlAggregator
     final List<VirtualColumn> virtualColumns = new ArrayList<>();
     final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
 
-    final ValueDesc valueDesc = Calcites.getValueDescForRelDataType(rexNode.getType());
+    final ValueDesc valueDesc = Calcites.asValueDesc(rexNode.getType());
     if (arg.isDirectColumnAccess()) {
       fieldName = arg.getDirectColumn();
     } else {

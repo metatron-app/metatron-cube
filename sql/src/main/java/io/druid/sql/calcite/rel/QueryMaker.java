@@ -271,7 +271,7 @@ public class QueryMaker
 
   private static Function<Object, Object> coerce(final RelDataType dataType, final DateTimeZone timeZone)
   {
-    final SqlTypeName sqlType = dataType.getSqlTypeName();
+    final SqlTypeName sqlType = Calcites.getTypeName(dataType);
     if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
       return value -> {
         if (value == null) {

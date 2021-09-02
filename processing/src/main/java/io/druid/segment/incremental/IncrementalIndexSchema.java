@@ -27,6 +27,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -76,7 +77,7 @@ public class IncrementalIndexSchema
       }
     }
     return new IncrementalIndexSchema.Builder()
-        .withMinTimestamp(Long.MIN_VALUE)
+        .withMinTimestamp(JodaUtils.MIN_INSTANT)
         .withQueryGranularity(Granularities.ALL)
         .withDimensionsSpec(new DimensionsSpec(dimensionSchemas, null, null))
         .withMetrics(merics)

@@ -175,7 +175,7 @@ public class SqlResource
 
       boolean needTypeConversion = false;
       for (int i = 0; i < fieldList.size(); i++) {
-        final SqlTypeName sqlTypeName = fieldList.get(i).getType().getSqlTypeName();
+        final SqlTypeName sqlTypeName = Calcites.getTypeName(fieldList.get(i).getType());
         timeColumns[i] = sqlTypeName == SqlTypeName.TIMESTAMP;
         dateColumns[i] = sqlTypeName == SqlTypeName.DATE;
         columnNames[i] = fieldList.get(i).getName();

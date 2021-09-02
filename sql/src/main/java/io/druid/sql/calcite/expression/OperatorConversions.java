@@ -446,10 +446,10 @@ public class OperatorConversions
 
         if (expectedFamily == SqlTypeFamily.ANY) {
           // ANY matches anything. This operand is all good; do nothing.
+        } else if (expectedFamily.getTypeNames().contains(Calcites.getTypeName(operandType))) {
+          // Operand came in with one of the expected types.
         } else if (expectedFamily == SqlTypeFamily.TIMESTAMP && operandType.getSqlTypeName() == SqlTypeName.BIGINT) {
           // accept implicitly.. todo
-        } else if (expectedFamily.getTypeNames().contains(operandType.getSqlTypeName())) {
-          // Operand came in with one of the expected types.
         } else if (operandType.getSqlTypeName() == SqlTypeName.NULL || SqlUtil.isNullLiteral(operand, true)) {
           // Null came in, check if operand is a nullable type.
           if (!nullableOperands.contains(i)) {

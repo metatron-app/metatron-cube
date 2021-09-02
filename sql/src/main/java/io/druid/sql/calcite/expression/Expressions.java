@@ -141,7 +141,7 @@ public class Expressions
   )
   {
     final SqlKind kind = rexNode.getKind();
-    final SqlTypeName sqlTypeName = rexNode.getType().getSqlTypeName();
+    final SqlTypeName sqlTypeName = Calcites.getTypeName(rexNode.getType());
 
     if (kind == SqlKind.INPUT_REF) {
       // Translate field references.

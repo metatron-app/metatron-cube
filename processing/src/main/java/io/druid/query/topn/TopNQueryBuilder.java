@@ -23,6 +23,8 @@ import com.google.common.collect.Lists;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
+import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -212,6 +214,11 @@ public class TopNQueryBuilder
   {
     dataSource = d;
     return this;
+  }
+
+  public TopNQueryBuilder dataSource(Query q)
+  {
+    return dataSource(QueryDataSource.of(q));
   }
 
   public TopNQueryBuilder dimension(String d)

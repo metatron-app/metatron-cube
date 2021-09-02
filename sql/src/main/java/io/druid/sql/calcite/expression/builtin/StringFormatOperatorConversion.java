@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
+import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCallBinding;
@@ -67,7 +68,7 @@ public class StringFormatOperatorConversion implements SqlOperatorConversion
     public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure)
     {
       final RelDataType firstArgType = callBinding.getOperandType(0);
-      if (SqlTypeName.CHAR_TYPES.contains(firstArgType.getSqlTypeName())) {
+      if (SqlTypeName.CHAR_TYPES.contains(Calcites.getTypeName(firstArgType))) {
         return true;
       } else {
         if (throwOnFailure) {

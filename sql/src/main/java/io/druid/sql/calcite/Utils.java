@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
-import io.druid.data.ValueDesc;
 import io.druid.query.filter.LikeDimFilter.LikeMatcher;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
@@ -46,8 +45,6 @@ import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -66,7 +63,6 @@ import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
-import org.joda.time.DateTime;
 
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -330,70 +326,6 @@ public class Utils
       uniqueNames.add(name);
     }
     return nameList;
-  }
-
-  public static RelDataType asRelDataType(ValueDesc columnType)
-  {
-    return asRelDataType(TYPE_FACTORY, columnType);
-  }
-
-  public static RelDataType asRelDataType(RelDataTypeFactory factory, ValueDesc columnType)
-  {
-    switch (columnType.type()) {
-      case STRING:
-        // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
-        return Calcites.createSqlTypeWithNullability(factory, SqlTypeName.VARCHAR, true);
-      case BOOLEAN:
-        return Calcites.createSqlType(factory, SqlTypeName.BOOLEAN);
-      case LONG:
-        return Calcites.createSqlType(factory, SqlTypeName.BIGINT);
-      case FLOAT:
-        return Calcites.createSqlType(factory, SqlTypeName.FLOAT);
-      case DOUBLE:
-        return Calcites.createSqlType(factory, SqlTypeName.DOUBLE);
-      case DATETIME:
-        return Calcites.createSqlTypeWithNullability(factory, DateTime.class);
-      case COMPLEX:
-        if (columnType.isStruct()) {
-          final String[] description = columnType.getDescription();
-          if (description == null) {
-            RelDataType subType = factory.createSqlType(SqlTypeName.ANY);
-            return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
-          }
-          final List<String> fieldNames = Lists.newArrayList();
-          final List<RelDataType> fieldTypes = Lists.newArrayList();
-          for (int i = 1; i < description.length; i++) {
-            int index = description[i].indexOf(':');
-            fieldNames.add(description[i].substring(0, index));
-            fieldTypes.add(asRelDataType(factory, ValueDesc.of(description[i].substring(index + 1))));
-          }
-          return factory.createTypeWithNullability(
-              factory.createStructType(StructKind.PEEK_FIELDS, fieldTypes, fieldNames), true
-          );
-        } else if (columnType.isMap()) {
-          final String[] description = columnType.getDescription();
-          final RelDataType keyType = description != null ? asRelDataType(factory, ValueDesc.of(description[1]))
-                                                          : Calcites.createSqlType(factory, SqlTypeName.VARCHAR);
-          final RelDataType valueType = description != null ? asRelDataType(factory, ValueDesc.of(description[2]))
-                                                            : factory.createSqlType(SqlTypeName.ANY);
-          return factory.createTypeWithNullability(factory.createMapType(keyType, valueType), true);
-        } else if (columnType.isArray()) {
-          final RelDataType subType = columnType.hasSubElement() ? asRelDataType(factory, columnType.subElement())
-                                                                 : factory.createSqlType(SqlTypeName.ANY);
-          return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
-        } else if (columnType.isBitSet()) {
-          return factory.createTypeWithNullability(
-              factory.createArrayType(Calcites.createSqlType(factory, SqlTypeName.BOOLEAN), -1), true
-          );
-        } else if (ValueDesc.isGeometry(columnType)) {
-          return Calcites.createSqlTypeWithNullability(factory, columnType.asClass());
-        }
-
-        return Calcites.createSqlTypeWithNullability(factory, SqlTypeName.OTHER, true);
-      default:
-        Class clazz = columnType.asClass();
-        return clazz == null || clazz == Object.class ? TYPE_FACTORY.createUnknownType() : TYPE_FACTORY.createType(clazz);
-    }
   }
 
   public static List<String> getFieldNames(RelRoot root)

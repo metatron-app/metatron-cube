@@ -28,6 +28,7 @@ import io.druid.java.util.common.ISE;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
+import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
@@ -91,8 +92,8 @@ public class CastOperatorConversion implements SqlOperatorConversion
       return null;
     }
 
-    final SqlTypeName fromType = operand.getType().getSqlTypeName();
-    final SqlTypeName toType = rexNode.getType().getSqlTypeName();
+    final SqlTypeName fromType = Calcites.getTypeName(operand.getType());
+    final SqlTypeName toType = Calcites.getTypeName(rexNode.getType());
 
     if (SqlTypeName.CHAR_TYPES.contains(fromType) && SqlTypeName.DATETIME_TYPES.contains(toType)) {
       return castCharToDateTime(plannerContext, operandExpression, toType, rowSignature);

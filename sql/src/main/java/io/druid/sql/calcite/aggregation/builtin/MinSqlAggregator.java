@@ -77,7 +77,7 @@ public class MinSqlAggregator implements SqlAggregator
     }
 
     final DruidExpression arg = Iterables.getOnlyElement(arguments);
-    final ValueDesc valueDesc = Calcites.getValueDescForRelDataType(aggregateCall.getType());
+    final ValueDesc valueDesc = Calcites.asValueDesc(aggregateCall.getType());
 
     final String fieldName;
     final String expression;
