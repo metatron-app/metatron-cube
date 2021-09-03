@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
 import io.druid.cache.Cache;
+import io.druid.collections.IntList;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
@@ -235,8 +236,8 @@ public class GroupByQueryEngine
       List<DimensionSpec> dimensionSpecs = query.getDimensions();
       dimensions = new DimensionSelector[dimensionSpecs.size()];
 
-      boolean simple = true;
-      int numMultivalueDimension = 0;
+      IntList svDimensions = new IntList(dimensions.length);
+      IntList mvDimensions = new IntList(dimensions.length);
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
       for (int i = 0; i < dimensions.length; i++) {
@@ -250,24 +251,14 @@ public class GroupByQueryEngine
           indexedColumns.addAll(provider.targetColumns());
           providers.add(provider);
         }
-        if (!(dimensions[i] instanceof DimensionSelector.SingleValued)) {
-          numMultivalueDimension++;
-          simple = false;
-        }
-      }
-      final boolean groupedUnfold = numMultivalueDimension == dimensions.length &&
-                                    config.isGroupedUnfoldDimensions(query);
-      if (!groupedUnfold) {
-        final int maxMultiValueDimensions = config.getMaxMultiValueDimensions(query);
-        if (maxMultiValueDimensions >= 0 && numMultivalueDimension > maxMultiValueDimensions) {
-          throw new QueryInterruptedException(
-              QueryInterruptedException.RESOURCE_LIMIT_EXCEEDED, "too many multi-valued dimensions"
-          );
+        if (dimensions[i] instanceof DimensionSelector.SingleValued) {
+          svDimensions.add(i);
+        } else {
+          mvDimensions.add(i);
         }
       }
       final KeyPool pool = new KeyPool(dimensions.length);
-
-      if (simple) {
+      if (mvDimensions.isEmpty()) {
         this.rowUpdater = new RowUpdater(pool)
         {
           @Override
@@ -280,35 +271,54 @@ public class GroupByQueryEngine
             return update(key);
           }
         };
-      } else if (groupedUnfold) {
+      } else if (config.isGroupedUnfoldDimensions(query)) {
+        final int[] svxs = svDimensions.array();
+        final int[] mvxs = mvDimensions.array();
         this.rowUpdater = new RowUpdater(pool)
         {
+          private final IndexedInts[] rows = new IndexedInts[mvxs.length];
+
           @Override
           protected List<int[]> updateValues(final DimensionSelector[] dimensions)
           {
-            final IndexedInts[] rows = new IndexedInts[dimensions.length];
-            rows[0] = dimensions[0].getRow();
+            final int[] key = pool.get();
+            for (int x : svxs) {
+              key[BUFFER_POS + x] = dimensions[x].getRow().get(0);
+            }
+            rows[0] = dimensions[mvxs[0]].getRow();
             final int length = rows[0].size();
-            for (int i = 1; i < dimensions.length; i++) {
-              rows[i] = dimensions[i].getRow();
+            if (length == 0) {
+              return null;
+            }
+            for (int i = 1; i < rows.length; i++) {
+              rows[i] = dimensions[mvxs[i]].getRow();
               Preconditions.checkArgument(length == rows[i].size(), "Inconsistent length of group dimension");
             }
-            List<int[]> retVal = null;
-            for (int i = 0; i < length; i++) {
-              final int[] key = pool.get();
-              for (int j = 0; j < dimensions.length; j++) {
-                key[BUFFER_POS + j] = rows[j].get(i);
+            for (int mx = 0; mx < mvxs.length; mx++) {
+              key[BUFFER_POS + mvxs[mx]] = rows[mx].get(0);
+            }
+            List<int[]> retVal = update(key);
+            for (int ix = 1; ix < length; ix++) {
+              final int[] copy = svxs.length == 0 ? pool.get() : pool.copyOf(key);
+              for (int mx = 0; mx < mvxs.length; mx++) {
+                copy[BUFFER_POS + mvxs[mx]] = rows[mx].get(ix);
               }
               if (retVal == null) {
-                retVal = update(key);
+                retVal = update(copy);
               } else {
-                retVal.add(key);
+                retVal.add(copy);
               }
             }
             return retVal;
           }
         };
       } else {
+        final int maxMultiValueDimensions = config.getMaxMultiValueDimensions(query);
+        if (maxMultiValueDimensions >= 0 && mvDimensions.size() > maxMultiValueDimensions) {
+          throw new QueryInterruptedException(
+              QueryInterruptedException.RESOURCE_LIMIT_EXCEEDED, "too many multi-valued dimensions"
+          );
+        }
         this.rowUpdater = new RowUpdater(pool);
       }
 
@@ -611,9 +621,11 @@ public class GroupByQueryEngine
 
     public int[] copyOf(final int[] source)
     {
-      final int[] key = get();
-      System.arraycopy(source, BUFFER_POS, key, BUFFER_POS, length);
-      return key;
+      final int[] cached = get();
+      if (cached != source) {
+        System.arraycopy(source, BUFFER_POS, cached, BUFFER_POS, length);
+      }
+      return cached;
     }
 
     public void done(final int[] array)

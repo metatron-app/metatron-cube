@@ -181,12 +181,12 @@ public class SimpleTest extends CalciteQueryTestHelper
             "[T114_금융_신용카드사, APP_IT_티월드다이렉트(tworlddirect.com), T114_음식_치킨, APP_생활_도미노피자(Dominopizza)]"}
     );
     testQuery(
-        "SELECT bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
-        + "WHERE svc_mgmt_num = '10000497' GROUP BY bks_event_d0, bks_event_d1, bks_event_d2",
-        new Object[]{"APP", "APP_IT", "APP_IT_티월드다이렉트(tworlddirect.com)", 1L},
-        new Object[]{"APP", "APP_생활", "APP_생활_도미노피자(Dominopizza)", 1L},
-        new Object[]{"T114", "T114_금융", "T114_금융_신용카드사", 1L},
-        new Object[]{"T114", "T114_음식", "T114_음식_치킨", 1L}
+        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
+        + "WHERE svc_mgmt_num = '10000497' GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
+        new Object[]{"10", "APP", "APP_IT", "APP_IT_티월드다이렉트(tworlddirect.com)", 1L},
+        new Object[]{"10", "APP", "APP_생활", "APP_생활_도미노피자(Dominopizza)", 1L},
+        new Object[]{"10", "T114", "T114_금융", "T114_금융_신용카드사", 1L},
+        new Object[]{"10", "T114", "T114_음식", "T114_음식_치킨", 1L}
     );
   }
 }

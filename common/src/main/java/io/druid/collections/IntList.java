@@ -21,6 +21,8 @@ package io.druid.collections;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntIterators;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -182,6 +184,16 @@ public class IntList implements Iterable<Integer>, IntConsumer
   public Iterator<Integer> iterator()
   {
     return Ints.asList(array()).iterator();
+  }
+
+  public IntIterator intIterator()
+  {
+    if (size == 0) {
+      return IntIterators.EMPTY_ITERATOR;
+    } else if (size == 1) {
+      return IntIterators.singleton(baseArray[0]);
+    }
+    return IntIterators.wrap(baseArray, 0, size);
   }
 
   public boolean isEmpty()
