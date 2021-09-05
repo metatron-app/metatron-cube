@@ -23,8 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.primitives.Longs;
-import com.google.common.primitives.UnsignedBytes;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
@@ -32,7 +30,6 @@ import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.StringUtils;
 import io.netty.util.internal.StringUtil;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.format.DateTimeFormatter;
@@ -93,7 +90,9 @@ public class StringComparators
     @Override
     public final int compare(String s, String s2)
     {
-      if (Strings.isNullOrEmpty(s)) {
+      if (s == s2) {
+        return 0;
+      } else if (Strings.isNullOrEmpty(s)) {
         return Strings.isNullOrEmpty(s2) ? 0 : -1;
       } else if (Strings.isNullOrEmpty(s2)) {
         return Strings.isNullOrEmpty(s) ? 0 : 1;
@@ -110,10 +109,7 @@ public class StringComparators
     @Override
     protected final int _compare(String s, String s2)
     {
-      return UnsignedBytes.lexicographicalComparator().compare(
-          StringUtils.toUtf8(s),
-          StringUtils.toUtf8(s2)
-      );
+      return s.compareTo(s2);
     }
 
     @Override
@@ -384,8 +380,8 @@ public class StringComparators
     protected final int _compare(String s, String s2)
     {
       // try quick path
-      Long l1 = s.indexOf('.') < 0 ? Longs.tryParse(s) : null;
-      Long l2 = s2.indexOf('.') < 0 ? Longs.tryParse(s2) : null;
+      Long l1 = s.indexOf('.') < 0 ? GuavaUtils.tryParseLong(s) : null;
+      Long l2 = s2.indexOf('.') < 0 ? GuavaUtils.tryParseLong(s2) : null;
 
       if (l1 != null) {
         if (l2 != null) {
