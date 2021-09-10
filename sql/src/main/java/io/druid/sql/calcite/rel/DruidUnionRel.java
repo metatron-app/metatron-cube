@@ -20,7 +20,10 @@
 package io.druid.sql.calcite.rel;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Suppliers;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.CombinedDataSource;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -36,6 +39,9 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -85,7 +91,8 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
   @Override
   public DruidQuery makeDruidQuery(final boolean finalizeAggregations)
   {
-    RelDataType dataType0 = null;
+    RelDataTypeFactory typeFactory = getCluster().getTypeFactory();
+    List<RelDataType> converted = GuavaUtils.transform(rowType.getFieldList(), RelDataTypeField::getType);
     RowSignature signature0 = null;
     List<Query> queries = Lists.newArrayList();
     for (RelNode relNode : rels) {
@@ -98,18 +105,32 @@ public class DruidUnionRel extends DruidRel implements DruidRel.LeafRel
         return null;
       }
       queries.add(druidQuery.getQuery());
-      if (dataType0 == null) {
-        dataType0 = druidQuery.getOutputRowType();
-        signature0 = druidQuery.getOutputRowSignature();
+
+      RowSignature signature1 = druidQuery.getOutputRowSignature();
+      if (signature0 == null) {
+        signature0 = signature1;
       } else {
-        Preconditions.checkArgument(dataType0.toString().equals(druidQuery.getOutputRowType().toString()));
-        Preconditions.checkArgument(signature0.equals(druidQuery.getOutputRowSignature()));
+        Preconditions.checkArgument(
+            Iterables.elementsEqual(signature0.getColumnTypes(), signature1.getColumnTypes()),
+            "Inconsistent type %s with %s", signature0, signature1
+        );
+      }
+      List<RelDataTypeField> fields = druidQuery.getOutputRowType().getFieldList();
+      for (int i = 0; i < converted.size(); i++) {
+        if (converted.get(i).getSqlTypeName() != SqlTypeName.ANY) {
+          continue;
+        }
+        RelDataType type = fields.get(i).getType();
+        if (converted.get(i).isNullable() && !type.isNullable()) {
+          type = typeFactory.createTypeWithNullability(type, true);
+        }
+        converted.set(i, type);
       }
     }
-    final RelDataType dataType = dataType0;
+    final RelDataType dataType = typeFactory.createStructType(converted, rowType.getFieldNames());
     final RowSignature signature = signature0;
-    final Query query = UnionAllQuery.union(queries, limit)
-                                     .withOverriddenContext(getPlannerContext().copyQueryContext());
+    final Query query = UnionAllQuery.union(queries, limit, getPlannerContext().copyQueryContext())
+                                     .withSchema(Suppliers.ofInstance(signature));
     return new DruidQuery()
     {
       @Override

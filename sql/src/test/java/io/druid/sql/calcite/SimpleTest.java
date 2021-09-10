@@ -189,4 +189,29 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"10", "T114", "T114_음식", "T114_음식_치킨", 1L}
     );
   }
+
+  @Test
+  public void test3887() throws Exception
+  {
+    testQuery(
+        "SELECT bks_event_d0 FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000498') "
+        + " UNION ALL "
+        + "SELECT bks_event_d1 FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000499')",
+        new Object[]{"[T114, APP, T114, APP]"},
+        new Object[]{"[T114_금융, APP_IT, T114_음식, APP_생활]"}
+    );
+    testQuery(
+        "SELECT purpose, count(*) as cnt "
+        + "FROM ( SELECT bks_event_d0 as purpose FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000498') "
+        + " UNION ALL "
+        + "SELECT bks_event_d1 as purpose FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000499')"
+        + ") GROUP BY purpose",
+        new Object[]{"T114", 2L},
+        new Object[]{"APP", 2L},
+        new Object[]{"T114_금융", 1L},
+        new Object[]{"APP_IT", 1L},
+        new Object[]{"T114_음식", 1L},
+        new Object[]{"APP_생활", 1L}
+    );
+  }
 }

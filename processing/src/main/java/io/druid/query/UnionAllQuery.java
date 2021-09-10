@@ -59,18 +59,23 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
 
   public static UnionAllQuery union(List<Query> queries)
   {
-    return union(queries, -1, -1);
+    return union(queries, -1, -1, null);
   }
 
   public static UnionAllQuery union(List<Query> queries, int limit)
   {
-    return union(queries, limit, -1);
+    return union(queries, limit, -1, null);
+  }
+
+  public static UnionAllQuery union(List<Query> queries, int limit, Map<String, Object> context)
+  {
+    return union(queries, limit, -1, context);
   }
 
   @SuppressWarnings("unchecked")
-  public static UnionAllQuery union(List<Query> queries, int limit, int parallelism)
+  public static UnionAllQuery union(List<Query> queries, int limit, int parallelism, Map<String, Object> context)
   {
-    return new UnionAllQuery(null, queries, false, limit, -1, Maps.newHashMap());
+    return new UnionAllQuery(null, queries, false, limit, -1, context != null ? context : Maps.newHashMap());
   }
 
   public static UnionAllQuery union(
