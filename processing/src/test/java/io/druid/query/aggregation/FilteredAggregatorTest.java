@@ -44,7 +44,6 @@ import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import org.junit.Assert;
 import org.junit.Test;
@@ -102,11 +101,7 @@ public class FilteredAggregatorTest
                 @Override
                 public IndexedInts getRow()
                 {
-                  if (selector.getIndex() % 3 == 2) {
-                    return new ArrayBasedIndexedInts(new int[]{1});
-                  } else {
-                    return new ArrayBasedIndexedInts(new int[]{0});
-                  }
+                  return IndexedInts.from(selector.getIndex() % 3 == 2 ? 1 : 0);
                 }
 
                 @Override

@@ -556,14 +556,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else {
                         // using an anonymous class is faster than creating a class that stores a copy of the value
-                        final IndexedInts row = new IndexedInts.SingleValued()
-                        {
-                          @Override
-                          public final int get()
-                          {
-                            return column.getSingleValueRow(cursorOffset.getOffset());
-                          }
-                        };
+                        final IndexedInts row = IndexedInts.from(
+                            () -> column.getSingleValueRow(cursorOffset.getOffset())
+                        );
                         if (extractionFn != null) {
                           return new DimensionSelector()
                           {

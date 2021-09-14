@@ -114,17 +114,7 @@ public class CompressedVSizeIntsV3WriterTest
     );
     CompressedVSizeIntsV3Writer writer = new CompressedVSizeIntsV3Writer(compression, offsetWriter, valueWriter);
     CompressedVSizedIndexedIntV3Supplier supplierFromIterable = CompressedVSizedIndexedIntV3Supplier.fromIterable(
-        Iterables.transform(
-            vals, new Function<int[], IndexedInts>()
-            {
-              @Nullable
-              @Override
-              public IndexedInts apply(@Nullable final int[] input)
-              {
-                return new ArrayBasedIndexedInts(input);
-              }
-            }
-        ), offsetChunkFactor, maxValue, byteOrder, compression
+        Iterables.transform(vals, IndexedInts::from), offsetChunkFactor, maxValue, byteOrder, compression
     );
     writer.open();
     for (int[] val : vals) {

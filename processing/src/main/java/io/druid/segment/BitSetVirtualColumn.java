@@ -29,7 +29,6 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import it.unimi.dsi.fastutil.ints.IntIterator;
 
@@ -130,18 +129,11 @@ public class BitSetVirtualColumn implements VirtualColumn
       {
         final BitSet bitSet = (BitSet) selector.get();
         if (bitSet == null) {
-          return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+          return IndexedInts.EMPTY;
         }
         final int cardinality = bitSet.cardinality();
         if (cardinality == 1) {
-          return new IndexedInts.SingleValued()
-          {
-            @Override
-            public int get()
-            {
-              return bitSet.nextSetBit(0);
-            }
-          };
+          return IndexedInts.from(bitSet.nextSetBit(0));
         }
         return new IndexedInts.PreferIterator()
         {

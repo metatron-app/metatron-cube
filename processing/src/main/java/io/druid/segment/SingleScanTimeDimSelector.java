@@ -90,15 +90,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
     // otherwise, if the current timestamp is the same as the previous timestamp,
     // keep using the same dimension value index
 
-    final int dimensionValueIndex = index;
-    return new IndexedInts.SingleValued()
-    {
-      @Override
-      public final int get()
-      {
-        return dimensionValueIndex;
-      }
-    };
+    return IndexedInts.from(index);
   }
 
   @Override

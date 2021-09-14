@@ -21,6 +21,7 @@ package io.druid.sql.calcite;
 
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
+import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -35,6 +36,12 @@ public class SimpleTest extends CalciteQueryTestHelper
     walker = TestHelper.newWalker().withQueryHook(hook);
     walker.addIndex("cdis", "cdis_schema.json", "cdis.tbl", true);
     walker.populate("cdis");
+  }
+
+  @After
+  public void teadown()
+  {
+    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(false);
   }
 
   @Override
@@ -212,6 +219,34 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"APP_IT", 1L},
         new Object[]{"T114_음식", 1L},
         new Object[]{"APP_생활", 1L}
+    );
+  }
+
+  @Test
+  public void test3891() throws Exception
+  {
+    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
+    testQuery(
+        "SELECT purpose, occupation, count(*) as cnt FROM ("
+        + "  SELECT bks_event_d0 as purpose, age_group as occupation FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000498') "
+        + "    UNION ALL "
+        + "  SELECT bks_event_d1 as purpose, age_group as occupation FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000499')"
+        + ") "
+        + "GROUP BY purpose, occupation",
+        new Object[]{"APP", "10", 2L},
+        new Object[]{"APP_IT", "10", 1L},
+        new Object[]{"APP_생활", "10", 1L},
+        new Object[]{"T114", "10", 2L},
+        new Object[]{"T114_금융", "10", 1L},
+        new Object[]{"T114_음식", "10", 1L}
+    );
+    testQuery(
+        PLANNER_CONFIG_DEFAULT,
+        "SELECT cdis.bks_event_d0, cdis.age_group, count(*) FROM cdis INNER JOIN cdis cdis2 ON cdis.svc_mgmt_num = cdis2.svc_mgmt_num"
+        + " GROUP BY cdis.bks_event_d0, cdis.age_group",
+        null,
+        new Object[]{"APP", "10", 2L},
+        new Object[]{"T114", "10", 2L}
     );
   }
 }

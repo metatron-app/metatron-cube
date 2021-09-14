@@ -35,7 +35,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -171,12 +170,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
   private static class SingleValued extends MimicDimension implements DimensionSelector.SingleValued
   {
-    private final IndexedInts.SingleValued row;
+    private final IndexedInts row;
 
     private SingleValued(ValueDesc type, Supplier<?> supplier)
     {
       super(type, supplier);
-      this.row = () -> register(supplier.get());
+      this.row = IndexedInts.from(() -> register(supplier.get()));
     }
 
     @Override
@@ -268,7 +267,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       index[i] = id;
     }
     final int cardinality = idToVal.size();
-    final IndexedInts indexedInts = new ArrayBasedIndexedInts(index);
+    final IndexedInts indexedInts = IndexedInts.from(index);
 
     return new DimensionSelector()
     {

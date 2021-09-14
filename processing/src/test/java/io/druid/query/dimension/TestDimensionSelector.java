@@ -21,7 +21,6 @@ package io.druid.query.dimension;
 
 import io.druid.data.ValueDesc;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 
 /**
@@ -41,7 +40,7 @@ class TestDimensionSelector implements DimensionSelector
   @Override
   public IndexedInts getRow()
   {
-    return new ArrayBasedIndexedInts(new int[]{2, 4, 6});
+    return IndexedInts.from(new int[]{2, 4, 6});
   }
 
   @Override

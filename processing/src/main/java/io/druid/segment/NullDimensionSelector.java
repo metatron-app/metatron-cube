@@ -27,14 +27,7 @@ public class NullDimensionSelector implements DimensionSelector
 {
   public static final DimensionSelector STRING_TYPE = new NullDimensionSelector(ValueDesc.STRING);
 
-  public static final IndexedInts SINGLETON = new IndexedInts.SingleValued()
-  {
-    @Override
-    public int get()
-    {
-      return 0;
-    }
-  };
+  public static final IndexedInts SINGLETON = IndexedInts.from(0);
 
   private final ValueDesc type;
 

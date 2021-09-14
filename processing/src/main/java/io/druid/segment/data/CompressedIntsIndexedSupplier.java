@@ -71,10 +71,11 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     final int div = Integer.numberOfTrailingZeros(sizePer);
     final int rem = sizePer - 1;
     final boolean powerOf2 = sizePer == (1 << div);
-    if(powerOf2) {
-      return new CompressedIndexedInts() {
+    if (powerOf2) {
+      return new CompressedIndexedInts()
+      {
         @Override
-        public int get(int index)
+        public int get(final int index)
         {
           // optimize division and remainder for powers of 2
           final int bufferNum = index >> div;

@@ -25,33 +25,68 @@ import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.function.IntSupplier;
 
 /**
  * Get a int an index (array or list lookup abstraction without boxing).
  */
 public interface IndexedInts extends IntIterable, Closeable
 {
-  static IndexedInts from(int[] array)
+  IndexedInts EMPTY = new IndexedInts()
   {
-    return new ArrayBasedIndexedInts(array);
+    @Override
+    public int size() { return 0;}
+
+    @Override
+    public int get(int index) { return -1;}
+  };
+
+  abstract class SingleValued implements IndexedInts
+  {
+    @Override
+    public final int size() { return 1;}
+  }
+
+  public static IndexedInts from(IntSupplier supplier)
+  {
+    return new IndexedInts.SingleValued()
+    {
+      @Override
+      public int get(int index) { return index == 0 ? supplier.getAsInt() : -1;}
+    };
   }
 
   static IndexedInts from(int v)
   {
-    return new IndexedInts() {
+    return new SingleValued()
+    {
+      @Override
+      public int get(int index) { return index == 0 ? v : -1;}
+    };
+  }
 
+  static IndexedInts from(final int[] array)
+  {
+    return new IndexedInts()
+    {
       @Override
       public int size()
       {
-        return 1;
+        return array.length;
       }
 
       @Override
       public int get(int index)
       {
-        return v;
+        return array[index];
       }
     };
+  }
+
+  static IndexedInts from(int[] array, int length)
+  {
+    return length == 0 ? EMPTY : from(array.length == length ? array : Arrays.copyOf(array, length));
   }
 
   int size();
@@ -95,24 +130,6 @@ public interface IndexedInts extends IntIterable, Closeable
 
   default void close() throws IOException {}
 
-
-  abstract interface SingleValued extends IndexedInts
-  {
-    @Override
-    public default int size()
-    {
-      return 1;
-    }
-
-    int get();
-
-    @Override
-    public default int get(int index)
-    {
-      return get();
-    }
-  }
-
   // marker.. use iterator instead of size + get
-  interface PreferIterator extends IndexedInts {}
+  interface PreferIterator extends IndexedInts { }
 }

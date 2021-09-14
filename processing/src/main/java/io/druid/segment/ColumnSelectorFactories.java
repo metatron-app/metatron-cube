@@ -49,7 +49,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.Column;
-import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -629,7 +628,7 @@ public class ColumnSelectorFactories
         {
           final List<String> dimensionValues = in.get().getDimension(dimension);
           if (dimensionValues == null) {
-            return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+            return IndexedInts.EMPTY;
           }
           final int length = dimensionValues.size();
 

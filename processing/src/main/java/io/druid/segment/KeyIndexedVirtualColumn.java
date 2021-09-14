@@ -35,7 +35,6 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
@@ -266,7 +265,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           }
         }
         if (virtual == 0) {
-          return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+          return IndexedInts.EMPTY;
         }
         final int size = virtual;
 

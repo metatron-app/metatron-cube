@@ -26,7 +26,6 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 
 import java.util.ArrayList;
@@ -140,7 +139,7 @@ public abstract class BaseFilteredDimensionSpec implements DimensionSpec
           }
         }
 
-        return new ArrayBasedIndexedInts(Ints.toArray(result));
+        return IndexedInts.from(Ints.toArray(result));
       }
 
       @Override

@@ -134,6 +134,9 @@ public class GroupByQueryQueryToolChest extends BaseAggregationQueryToolChest<Gr
         if (maxPage < 1 || (grouping != null && grouping.length > 0) || !QueryUtils.coveredBy(innerQuery, groupBy)) {
           return super.run(groupBy, responseContext);
         }
+        if (groupBy.getDimensions().size() > 1 && config.isGroupedUnfoldDimensions(query)) {
+          return super.run(groupBy, responseContext);
+        }
         // this is about using less heap, not about performance
         return runStreaming(groupBy, responseContext);
       }

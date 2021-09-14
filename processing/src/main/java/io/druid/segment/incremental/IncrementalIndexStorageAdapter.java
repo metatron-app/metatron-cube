@@ -58,7 +58,6 @@ import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnMeta;
-import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
@@ -377,7 +376,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
                 final int maxId = dimValLookup.size();
 
-                return new DimensionSelector()
+                class MultiValued implements DimensionSelector
                 {
                   @Override
                   public IndexedInts getRow()
@@ -395,40 +394,26 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
                   private IndexedInts toIndexedInts(int[] indices)
                   {
-                    int length = 0;
-                    int[] values = null;
                     if (indices == null || indices.length == 0) {
-                      final int id = dimValLookup.getId(null);
-                      if (id < 0 || id >= maxId) {
-                        return EmptyIndexedInts.EMPTY_INDEXED_INTS;
-                      }
-                      length = 1;
-                      values = new int[] {id};
-                    } else if (indices != null && indices.length > 0) {
-                      values = new int[indices.length];
-                      for (int i = 0; i < indices.length; i++) {
-                        final int id = indices[i];
-                        if (id < maxId) {
-                          values[length++] = id;
-                        }
+                      return toIndexed(dimValLookup.getId(null));
+                    }
+                    if (indices.length == 1) {
+                      return toIndexed(indices[0]);
+                    }
+                    int length = 0;
+                    final int[] values = new int[indices.length];
+                    for (int i = 0; i < indices.length; i++) {
+                      final int id = indices[i];
+                      if (id < maxId) {
+                        values[length++] = id;
                       }
                     }
+                    return IndexedInts.from(values, length);
+                  }
 
-                    final int[] vals = values.length == length ? values : Arrays.copyOf(values, length);
-                    return new IndexedInts()
-                    {
-                      @Override
-                      public int size()
-                      {
-                        return vals.length;
-                      }
-
-                      @Override
-                      public int get(int index)
-                      {
-                        return vals[index];
-                      }
-                    };
+                  protected final IndexedInts toIndexed(int id)
+                  {
+                    return id < 0 || id >= maxId ? IndexedInts.EMPTY : IndexedInts.from(id);
                   }
 
                   @Override
@@ -461,6 +446,22 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                       );
                     }
                     return dimValLookup.getId(name);
+                  }
+                }
+
+                if (pivotIx >= 0 || dimensionDesc.getCapabilities().hasMultipleValues()) {
+                  return new MultiValued();
+                }
+                class SingleValued extends MultiValued implements DimensionSelector.SingleValued { }
+                return new SingleValued()
+                {
+                  @Override
+                  public IndexedInts getRow()
+                  {
+                    final int[][] dims = currEntry.getKey().getDims();
+                    return toIndexed(
+                        dimIndex < dims.length && dims[dimIndex] != null ? dims[dimIndex][0] : dimValLookup.getId(null)
+                    );
                   }
                 };
               }
