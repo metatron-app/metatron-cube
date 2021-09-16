@@ -242,11 +242,12 @@ public class SimpleTest extends CalciteQueryTestHelper
     );
     testQuery(
         PLANNER_CONFIG_DEFAULT,
-        "SELECT cdis.bks_event_d0, cdis.age_group, count(*) FROM cdis INNER JOIN cdis cdis2 ON cdis.svc_mgmt_num = cdis2.svc_mgmt_num"
-        + " GROUP BY cdis.bks_event_d0, cdis.age_group",
-        null,
-        new Object[]{"APP", "10", 2L},
-        new Object[]{"T114", "10", 2L}
+        "SELECT cdis.age_group, cdis.bks_event_d0, count(*) FROM cdis INNER JOIN cdis cdis2 ON cdis.svc_mgmt_num = cdis2.svc_mgmt_num"
+        + " GROUP BY cdis.age_group, cdis.bks_event_d0",
+        new Object[]{"", "APP", 2L},
+        new Object[]{"", "T114", 2L},
+        new Object[]{"10", "APP", 2L},
+        new Object[]{"10", "T114", 2L}
     );
   }
 }

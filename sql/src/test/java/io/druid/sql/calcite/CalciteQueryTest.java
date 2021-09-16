@@ -6319,7 +6319,6 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "SELECT A.placementish, SUM(A.index) FROM X A INNER JOIN X B ON A.placement = B.placement "
         + "GROUP BY A.placementish "
         + "LIMIT 10",
-        null,
         new Object[]{"a", 1000.0D},
         new Object[]{"preferred", 19000.0D},
         new Object[]{"b", 1000.0D},

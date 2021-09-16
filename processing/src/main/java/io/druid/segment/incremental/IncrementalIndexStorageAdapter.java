@@ -448,10 +448,10 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     return dimValLookup.getId(name);
                   }
                 }
-
                 if (pivotIx >= 0 || dimensionDesc.getCapabilities().hasMultipleValues()) {
                   return new MultiValued();
                 }
+
                 class SingleValued extends MultiValued implements DimensionSelector.SingleValued { }
                 return new SingleValued()
                 {

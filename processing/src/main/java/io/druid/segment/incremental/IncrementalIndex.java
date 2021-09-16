@@ -74,6 +74,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiFunction;
 
 /**
  */
@@ -951,13 +952,11 @@ public abstract class IncrementalIndex implements Closeable
         return null;
       }
       final Object raw = row.getRaw(fieldName);
-      if (raw instanceof Comparable) {
-        return new int[]{addVal(raw)};
-      } else if (raw instanceof List) {
+      if (raw instanceof List) {
         capabilities.setHasMultipleValues(true);
         return addVals((List<Comparable>) raw);
       }
-      return null;
+      return new int[]{addVal(raw)};
     }
 
     @SuppressWarnings("unchecked")
@@ -977,11 +976,15 @@ public abstract class IncrementalIndex implements Closeable
       if (dimValues.size() == 1) {
         return new int[]{addVal(dimValues.get(0))};
       }
-      final Comparable[] dimArray = dimValues.toArray(new Comparable[0]);
-      if (multiValueHandling.sortFirst()) {
-        Arrays.sort(dimArray, GuavaUtils.NULL_FIRST_NATURAL);
-      }
       final int[] indices = new int[dimValues.size()];
+      if (multiValueHandling == MultiValueHandling.ARRAY) {
+        for (int i = 0; i < indices.length; i++) {
+          indices[i] = addVal(dimValues.get(i));
+        }
+        return indices;
+      }
+      final Comparable[] dimArray = dimValues.toArray(new Comparable[0]);
+      Arrays.sort(dimArray, GuavaUtils.NULL_FIRST_NATURAL);
       for (int i = 0; i < indices.length; i++) {
         indices[i] = addVal(dimArray[i]);
       }
@@ -1331,7 +1334,7 @@ public abstract class IncrementalIndex implements Closeable
     }
   }
 
-  static final class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>
+  static final class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>, BiFunction<T, Integer, Integer>
   {
     private final Class<T> clazz;
     private final Map<T, Integer> valueToId = Maps.newHashMap();
@@ -1353,8 +1356,7 @@ public abstract class IncrementalIndex implements Closeable
     public int getId(T value)
     {
       synchronized (valueToId) {
-        final Integer id = valueToId.get(value);
-        return id == null ? -1 : id;
+        return valueToId.getOrDefault(value, -1);
       }
     }
 
@@ -1386,20 +1388,7 @@ public abstract class IncrementalIndex implements Closeable
     public int add(T value)
     {
       synchronized (valueToId) {
-        Integer prev = valueToId.get(value);
-        if (prev != null) {
-          estimatedSize += Integer.BYTES;
-          return prev;
-        }
-        final int index = valueToId.size();
-        valueToId.put(value, index);
-        idToValue.add(value);
-        if (value != null) {
-          minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
-          maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
-        }
-        estimatedSize += estimator.estimate(value) + Integer.BYTES;
-        return index;
+        return valueToId.compute(value, this);
       }
     }
 
@@ -1440,6 +1429,23 @@ public abstract class IncrementalIndex implements Closeable
       synchronized (valueToId) {
         return new OnHeapDimLookup<T>(idToValue, size(), clazz);
       }
+    }
+
+    @Override
+    public Integer apply(T key, Integer prev)
+    {
+      if (prev != null) {
+        estimatedSize += Integer.BYTES;
+        return prev;
+      }
+      if (key != null) {
+        minValue = minValue == null || minValue.compareTo(key) > 0 ? key : minValue;
+        maxValue = maxValue == null || maxValue.compareTo(key) < 0 ? key : maxValue;
+      }
+      estimatedSize += estimator.estimate(key) + Integer.BYTES;
+      final int index = idToValue.size();
+      idToValue.add(key);
+      return index;
     }
   }
 
