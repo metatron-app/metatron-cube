@@ -80,38 +80,6 @@ public class GroupByRules
       filter = null;
     }
 
-    // Compute existingAggregations for SqlAggregator impls that want it.
-    final List<Aggregation> existingAggregationsWithSameFilter = new ArrayList<>();
-    for (Aggregation existingAggregation : existingAggregations) {
-      if (filter == null) {
-        final boolean doesMatch = existingAggregation.getAggregatorFactories().stream().allMatch(
-            factory -> !(factory instanceof FilteredAggregatorFactory)
-        );
-
-        if (doesMatch) {
-          existingAggregationsWithSameFilter.add(existingAggregation);
-        }
-      } else {
-        final boolean doesMatch = existingAggregation.getAggregatorFactories().stream().allMatch(
-            factory -> factory instanceof FilteredAggregatorFactory &&
-                       ((FilteredAggregatorFactory) factory).getFilter().equals(filter)
-        );
-
-        if (doesMatch) {
-          existingAggregationsWithSameFilter.add(
-              Aggregation.create(
-                  sourceRowSignature,
-                  existingAggregation.getVirtualColumns(),
-                  existingAggregation.getAggregatorFactories().stream()
-                                     .map(factory -> ((FilteredAggregatorFactory) factory).getAggregator())
-                                     .collect(Collectors.toList()),
-                  existingAggregation.getPostAggregator()
-              )
-          );
-        }
-      }
-    }
-
     Aggregation aggregation = plannerContext.getOperatorTable().lookupAggregator(
         plannerContext,
         sourceRowSignature,
@@ -119,19 +87,41 @@ public class GroupByRules
         name,
         call,
         project,
-        existingAggregationsWithSameFilter,
         finalizeAggregations
     );
+    if (aggregation == null || filter == null) {
+      return aggregation;
+    }
+    if (!aggregation.getAggregatorFactories().isEmpty()) {
+      return aggregation.filter(sourceRowSignature, filter);
+    }
 
-    if (aggregation == null) {
-      return null;
-    } else {
-      // Check if this refers to the existingAggregationsWithSameFilter. If so, no need to apply the filter.
-      if (isUsingExistingAggregation(aggregation, existingAggregationsWithSameFilter)) {
-        return aggregation;
-      } else {
-        return aggregation.filter(sourceRowSignature, filter);
+    // Compute existingAggregations for SqlAggregator impls that want it.
+    final List<Aggregation> existingAggregationsWithSameFilter = new ArrayList<>();
+    for (Aggregation existingAggregation : existingAggregations) {
+      final boolean doesMatch = existingAggregation.getAggregatorFactories().stream().allMatch(
+          factory -> factory instanceof FilteredAggregatorFactory &&
+                     ((FilteredAggregatorFactory) factory).getFilter().equals(filter)
+      );
+
+      if (doesMatch) {
+        existingAggregationsWithSameFilter.add(
+            Aggregation.create(
+                sourceRowSignature,
+                existingAggregation.getVirtualColumns(),
+                existingAggregation.getAggregatorFactories().stream()
+                                   .map(factory -> ((FilteredAggregatorFactory) factory).getAggregator())
+                                   .collect(Collectors.toList()),
+                existingAggregation.getPostAggregator()
+            )
+        );
       }
+    }
+    // Check if this refers to the existingAggregationsWithSameFilter. If so, no need to apply the filter.
+    if (isUsingExistingAggregation(aggregation, existingAggregationsWithSameFilter)) {
+      return aggregation;
+    } else {
+      return aggregation.filter(sourceRowSignature, filter);
     }
   }
 
@@ -143,16 +133,12 @@ public class GroupByRules
       final List<Aggregation> existingAggregations
   )
   {
-    if (!aggregation.getAggregatorFactories().isEmpty()) {
-      return false;
-    }
-
     final Set<String> existingAggregationNames = existingAggregations
         .stream()
         .flatMap(xs -> xs.getAggregatorFactories().stream())
         .map(AggregatorFactory::getName)
         .collect(Collectors.toSet());
 
-    return aggregation.getPostAggregator().getDependentFields().stream().allMatch(existingAggregationNames::contains);
+    return existingAggregationNames.containsAll(aggregation.getPostAggregator().getDependentFields());
   }
 }

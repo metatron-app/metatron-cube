@@ -91,10 +91,10 @@ public class DruidTypeSystem implements RelDataTypeSystem
   public RelDataType deriveSumType(final RelDataTypeFactory typeFactory, final RelDataType argumentType)
   {
     // Widen all sums to 64-bits regardless of the size of the inputs.
-
-    if (SqlTypeName.INT_TYPES.contains(argumentType.getSqlTypeName())) {
+    final SqlTypeName typeName = argumentType.getSqlTypeName();
+    if (SqlTypeName.INT_TYPES.contains(typeName)) {
       return Calcites.createSqlType(typeFactory, SqlTypeName.BIGINT);
-    } else if (SqlTypeName.DECIMAL.equals(argumentType.getSqlTypeName())) {
+    } else if (SqlTypeName.DECIMAL.equals(typeName)) {
       return Calcites.createSqlType(typeFactory, SqlTypeName.DECIMAL);
     } else {
       return Calcites.createSqlType(typeFactory, SqlTypeName.DOUBLE);

@@ -28,17 +28,17 @@ import org.apache.calcite.sql.SqlCollation;
 
 import java.nio.charset.Charset;
 
-public class DruidDimensionType extends BasicSqlType implements DruidType
+public class DruidAnyType extends BasicSqlType implements DruidType
 {
-  public static DruidDimensionType of(ValueDesc druidType)
+  public static DruidAnyType of(ValueDesc druidType, boolean nullable)
   {
-    return new DruidDimensionType(druidType, true);
+    return new DruidAnyType(druidType, nullable);
   }
 
   private final ValueDesc druidType;
   private final boolean nullable;
 
-  private DruidDimensionType(ValueDesc druidType, boolean nullable)
+  private DruidAnyType(ValueDesc druidType, boolean nullable)
   {
     super(DruidTypeSystem.INSTANCE, SqlTypeName.ANY, 0, 0);
     this.druidType = Preconditions.checkNotNull(druidType);
@@ -71,9 +71,9 @@ public class DruidDimensionType extends BasicSqlType implements DruidType
   }
 
   @Override
-  public DruidDimensionType createWithNullability(boolean nullable)
+  public DruidAnyType createWithNullability(boolean nullable)
   {
-    return this.nullable ^ nullable ? new DruidDimensionType(druidType, nullable) : this;
+    return this.nullable ^ nullable ? of(druidType, nullable) : this;
   }
 
   @Override

@@ -20,7 +20,9 @@
 package io.druid.sql.calcite.planner;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import com.google.common.primitives.Longs;
@@ -30,7 +32,6 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ordering.StringComparators;
-import io.druid.sql.calcite.DruidOtherType;
 import io.druid.sql.calcite.DruidType;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.InformationSchema;
@@ -45,7 +46,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlCollation;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.type.DruidDimensionType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.ConversionUtil;
 import org.apache.calcite.util.DateString;
@@ -61,6 +61,7 @@ import org.joda.time.format.ISODateTimeFormat;
 
 import java.lang.reflect.Type;
 import java.nio.charset.Charset;
+import java.util.Collection;
 import java.util.List;
 import java.util.NavigableSet;
 
@@ -431,24 +432,15 @@ public class Calcites
     return DateTimes.EPOCH.plusDays(date).withZoneRetainFields(timeZone);
   }
 
-  /**
-   * Checks if a RexNode is a literal int or not. If this returns true, then {@code RexLiteral.intValue(literal)} can be
-   * used to get the value of the literal.
-   *
-   * @param rexNode the node
-   *
-   * @return true if this is an int
-   */
-  public static boolean isIntLiteral(final RexNode rexNode)
+  public static String findUnusedPrefix(final String basePrefix, final Collection<String> strings)
   {
-    return rexNode instanceof RexLiteral && SqlTypeName.INT_TYPES.contains(rexNode.getType().getSqlTypeName());
-  }
-
-  public static String findUnusedPrefix(final String basePrefix, final NavigableSet<String> strings)
-  {
+    if (!Iterables.any(strings, s -> s.startsWith(basePrefix))) {
+      return basePrefix;
+    }
+    NavigableSet<String> current = Sets.newTreeSet(strings);
     String prefix = basePrefix;
 
-    while (!isUnusedPrefix(prefix, strings)) {
+    while (!isUnusedPrefix(prefix, current)) {
       prefix = "_" + prefix;
     }
 
@@ -464,7 +456,7 @@ public class Calcites
 
   public static String makePrefixedName(final String prefix, final String suffix)
   {
-    return StringUtils.format("%s:%s", prefix, suffix);
+    return prefix + ":" + suffix;
   }
 
   public static RelDataType asRelDataType(ValueDesc columnType)
@@ -475,7 +467,7 @@ public class Calcites
   public static RelDataType asRelDataType(RelDataTypeFactory factory, ValueDesc columnType)
   {
     if (columnType.isDimension() || columnType.isMultiValued()) {
-      return factory.createTypeWithNullability(DruidDimensionType.of(columnType), true);  // for intern type
+      return factory.createTypeWithNullability(DruidType.any(columnType, true), true);  // for intern type
     }
     switch (columnType.type()) {
       case STRING:
@@ -525,7 +517,7 @@ public class Calcites
         } else if (ValueDesc.isGeometry(columnType)) {
           return createSqlTypeWithNullability(factory, columnType.asClass());
         }
-        return DruidOtherType.of(columnType);
+        return DruidType.other(columnType);
       default:
         Class clazz = columnType.asClass();
         return clazz == null || clazz == Object.class ? TYPE_FACTORY.createUnknownType() : TYPE_FACTORY.createType(clazz);

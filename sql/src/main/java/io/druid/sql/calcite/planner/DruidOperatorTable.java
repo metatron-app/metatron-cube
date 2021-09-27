@@ -389,7 +389,6 @@ public class DruidOperatorTable implements SqlOperatorTable
       final String name,
       final AggregateCall aggregateCall,
       final Project project,
-      final List<Aggregation> existingAggregations,
       final boolean finalizeAggregations
   )
   {
@@ -403,7 +402,6 @@ public class DruidOperatorTable implements SqlOperatorTable
           name,
           aggregateCall,
           project,
-          existingAggregations,
           finalizeAggregations
       );
     } else {
@@ -543,7 +541,6 @@ public class DruidOperatorTable implements SqlOperatorTable
         String name,
         AggregateCall aggregateCall,
         Project project,
-        List<Aggregation> existingAggregations,
         boolean finalize
     )
     {

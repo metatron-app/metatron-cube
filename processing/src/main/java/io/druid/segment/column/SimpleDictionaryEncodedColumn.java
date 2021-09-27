@@ -68,6 +68,7 @@ public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
     return column.get(rowNum);
   }
 
+  @Override
   public void scan(final IntIterator iterator, final IntScanner scanner)
   {
     column.scan(iterator, scanner);

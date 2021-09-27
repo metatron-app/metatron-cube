@@ -19,10 +19,11 @@
 
 package io.druid.sql.calcite.planner;
 
-import com.google.common.collect.ImmutableSortedSet;
 import io.druid.sql.calcite.util.CalciteTestBase;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 public class CalcitesTest extends CalciteTestBase
 {
@@ -42,14 +43,14 @@ public class CalcitesTest extends CalciteTestBase
   @Test
   public void testFindUnusedPrefix()
   {
-    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "bar")));
-    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "bar", "x")));
-    Assert.assertEquals("_x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "bar", "x0")));
-    Assert.assertEquals("_x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "bar", "x4")));
-    Assert.assertEquals("__x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "xa", "_x2xx", "x0")));
-    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "xa", "_x2xx", " x")));
-    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "_xbxx")));
-    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "xa", "_x")));
-    Assert.assertEquals("__x", Calcites.findUnusedPrefix("x", ImmutableSortedSet.of("foo", "x1a", "_x90")));
+    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "bar")));
+    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "bar", "x")));
+    Assert.assertEquals("_x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "bar", "x0")));
+    Assert.assertEquals("_x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "bar", "x4")));
+    Assert.assertEquals("__x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "xa", "_x2xx", "x0")));
+    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "xa", "_x2xx", " x")));
+    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "_xbxx")));
+    Assert.assertEquals("x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "xa", "_x")));
+    Assert.assertEquals("__x", Calcites.findUnusedPrefix("x", Arrays.asList("foo", "x1a", "_x90")));
   }
 }

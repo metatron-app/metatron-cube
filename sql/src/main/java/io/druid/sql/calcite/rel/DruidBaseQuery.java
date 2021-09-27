@@ -95,7 +95,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 
 /**
  * A fully formed Druid query, built from a {@link PartialDruidQuery}. The work to develop this query is done
@@ -214,49 +213,31 @@ public class DruidBaseQuery implements DruidQuery
   )
   {
     final Project project = partialQuery.getScanProject();
-
     if (project == null || partialQuery.getAggregate() != null) {
       return null;
     }
 
-    final List<DruidExpression> expressions = new ArrayList<>();
+    final String prefix = Calcites.findUnusedPrefix("v", sourceRowSignature.getColumnNames());
 
-    for (final RexNode rexNode : project.getChildExps()) {
-      final DruidExpression expression = Expressions.toDruidExpression(
-          plannerContext,
-          sourceRowSignature,
-          rexNode
-      );
+    int virtualColumnNameCounter = 0;
+    final List<String> rowOrder = new ArrayList<>();
+    final List<VirtualColumn> virtualColumns = new ArrayList<>();
 
+    for (RexNode rexNode : project.getChildExps()) {
+      final DruidExpression expression = Expressions.toDruidExpression(plannerContext, sourceRowSignature, rexNode);
       if (expression == null) {
         throw new CannotBuildQueryException(project, rexNode);
-      } else {
-        expressions.add(expression);
       }
-    }
-
-    final List<String> directColumns = new ArrayList<>();
-    final List<VirtualColumn> virtualColumns = new ArrayList<>();
-    final List<String> rowOrder = new ArrayList<>();
-
-    final String virtualColumnPrefix = Calcites.findUnusedPrefix(
-        "v",
-        new TreeSet<>(sourceRowSignature.getColumnNames())
-    );
-    int virtualColumnNameCounter = 0;
-
-    for (DruidExpression expression : expressions) {
       if (expression.isDirectColumnAccess()) {
-        directColumns.add(expression.getDirectColumn());
         rowOrder.add(expression.getDirectColumn());
       } else {
-        String virtualColumnName = virtualColumnPrefix + virtualColumnNameCounter++;
+        String virtualColumnName = prefix + virtualColumnNameCounter++;
         virtualColumns.add(expression.toVirtualColumn(virtualColumnName));
         rowOrder.add(virtualColumnName);
       }
     }
 
-    return new SelectProjection(directColumns, virtualColumns, RowSignature.from(rowOrder, project.getRowType()));
+    return new SelectProjection(virtualColumns, RowSignature.from(rowOrder, project.getRowType()));
   }
 
   @Nullable
@@ -398,7 +379,7 @@ public class DruidBaseQuery implements DruidQuery
             sortColumns.add(OrderByColumnSpec.desc(rowOrdering.get(orderKey.getFieldIndex())));
             break;
           default:
-            throw new UnsupportedOperationException("not supports " + orderKey.getDirection());
+            throw new UOE("not supported direction [%s]", orderKey.getDirection());
         }
       }
       Integer increment = null;
@@ -545,10 +526,7 @@ public class DruidBaseQuery implements DruidQuery
   {
     final List<String> rowOrder = new ArrayList<>();
     final List<PostAggregator> aggregations = new ArrayList<>();
-    final String outputNamePrefix = Calcites.findUnusedPrefix(
-        basePrefix,
-        new TreeSet<>(inputRowSignature.getColumnNames())
-    );
+    final String outputNamePrefix = Calcites.findUnusedPrefix(basePrefix, inputRowSignature.getColumnNames());
 
     int outputNameCounter = 0;
     for (final RexNode postAggregatorRexNode : project.getChildExps()) {
@@ -600,7 +578,7 @@ public class DruidBaseQuery implements DruidQuery
   {
     final Aggregate aggregate = Preconditions.checkNotNull(partialQuery.getAggregate());
     final List<DimensionExpression> dimensions = new ArrayList<>();
-    final String outputNamePrefix = Calcites.findUnusedPrefix("d", new TreeSet<>(sourceRowSignature.getColumnNames()));
+    final String outputNamePrefix = Calcites.findUnusedPrefix("d", sourceRowSignature.getColumnNames());
     int outputNameCounter = 0;
 
     for (int i : aggregate.getGroupSet()) {
@@ -653,7 +631,7 @@ public class DruidBaseQuery implements DruidQuery
   {
     final Aggregate aggregate = Preconditions.checkNotNull(partialQuery.getAggregate());
     final List<Aggregation> aggregations = new ArrayList<>();
-    final String outputNamePrefix = Calcites.findUnusedPrefix("a", new TreeSet<>(sourceRowSignature.getColumnNames()));
+    final String outputNamePrefix = Calcites.findUnusedPrefix("a", sourceRowSignature.getColumnNames());
 
     for (int i = 0; i < aggregate.getAggCallList().size(); i++) {
       final String aggName = outputNamePrefix + i;
@@ -777,7 +755,7 @@ public class DruidBaseQuery implements DruidQuery
       } else if (collation.getDirection() == RelFieldCollation.Direction.DESCENDING) {
         direction = Direction.DESCENDING;
       } else {
-        throw new ISE("Don't know what to do with direction[%s]", collation.getDirection());
+        throw new UOE("not supported direction [%s]", collation.getDirection());
       }
 
       // use natural ordering.. what so ever

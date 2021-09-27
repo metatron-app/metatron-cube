@@ -21,8 +21,19 @@ package io.druid.sql.calcite;
 
 import io.druid.data.ValueDesc;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.type.DruidAnyType;
 
 public interface DruidType extends RelDataType
 {
   ValueDesc getDruidType();
+
+  static DruidType any(ValueDesc druidType, boolean nullable)
+  {
+    return DruidAnyType.of(druidType, nullable);
+  }
+
+  static DruidType other(ValueDesc druidType)
+  {
+    return DruidOtherType.of(druidType);
+  }
 }

@@ -57,7 +57,6 @@ public class MinSqlAggregator implements SqlAggregator
       final String name,
       final AggregateCall aggregateCall,
       final Project project,
-      final List<Aggregation> existingAggregations,
       final boolean finalizeAggregations
   )
   {

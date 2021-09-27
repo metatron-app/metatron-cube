@@ -70,7 +70,6 @@ public class RelayAggregator implements SqlAggregator
       String name,
       AggregateCall aggregateCall,
       Project project,
-      List<Aggregation> existingAggregations,
       boolean finalizeAggregations
   )
   {

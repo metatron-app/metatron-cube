@@ -60,7 +60,6 @@ public class CountSqlAggregator implements SqlAggregator
       final String name,
       final AggregateCall aggregateCall,
       final Project project,
-      final List<Aggregation> existingAggregations,
       final boolean finalizeAggregations
   )
   {
@@ -88,7 +87,6 @@ public class CountSqlAggregator implements SqlAggregator
             name,
             aggregateCall,
             project,
-            existingAggregations,
             finalizeAggregations
         );
       } else {

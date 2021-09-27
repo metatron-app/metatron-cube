@@ -141,7 +141,6 @@ public class Expressions
   )
   {
     final SqlKind kind = rexNode.getKind();
-    final SqlTypeName sqlTypeName = Calcites.getTypeName(rexNode.getType());
 
     if (kind == SqlKind.INPUT_REF) {
       // Translate field references.
@@ -170,6 +169,7 @@ public class Expressions
         return DruidExpression.fromExpression(DruidExpression.nullLiteral());
       } else {
         final Comparable value = RexLiteral.value(rexNode);
+        final SqlTypeName sqlTypeName = Calcites.getTypeName(rexNode.getType());
         if (SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName)) {
           return DruidExpression.fromExpression(DruidExpression.numberLiteral((Number) value, sqlTypeName));
         } else if (SqlTypeFamily.INTERVAL_DAY_TIME == sqlTypeName.getFamily()) {

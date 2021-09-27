@@ -27,24 +27,16 @@ import java.util.Objects;
 
 public class SelectProjection
 {
-  private final List<String> directColumns;
   private final List<VirtualColumn> virtualColumns;
   private final RowSignature outputRowSignature;
 
   public SelectProjection(
-      final List<String> directColumns,
       final List<VirtualColumn> virtualColumns,
       final RowSignature outputRowSignature
   )
   {
-    this.directColumns = directColumns;
     this.virtualColumns = virtualColumns;
     this.outputRowSignature = outputRowSignature;
-  }
-
-  public List<String> getDirectColumns()
-  {
-    return directColumns;
   }
 
   public List<VirtualColumn> getVirtualColumns()
@@ -67,23 +59,21 @@ public class SelectProjection
       return false;
     }
     final SelectProjection that = (SelectProjection) o;
-    return Objects.equals(directColumns, that.directColumns) &&
-           Objects.equals(virtualColumns, that.virtualColumns) &&
+    return Objects.equals(virtualColumns, that.virtualColumns) &&
            Objects.equals(outputRowSignature, that.outputRowSignature);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(directColumns, virtualColumns, outputRowSignature);
+    return Objects.hash(virtualColumns, outputRowSignature);
   }
 
   @Override
   public String toString()
   {
     return "SelectProjection{" +
-           "directColumns=" + directColumns +
-           ", virtualColumns=" + virtualColumns +
+           "virtualColumns=" + virtualColumns +
            ", outputRowSignature=" + outputRowSignature +
            '}';
   }

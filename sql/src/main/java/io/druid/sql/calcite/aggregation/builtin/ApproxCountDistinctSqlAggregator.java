@@ -49,6 +49,7 @@ import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.Optionality;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -75,7 +76,6 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
       final String name,
       final AggregateCall aggregateCall,
       final Project project,
-      final List<Aggregation> existingAggregations,
       final boolean finalizeAggregations
   )
   {
@@ -124,7 +124,7 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
 
   private static class ApproxCountDistinctSqlAggFunction extends SqlAggFunction
   {
-    ApproxCountDistinctSqlAggFunction()
+    private ApproxCountDistinctSqlAggFunction()
     {
       super(
           NAME,
@@ -135,7 +135,8 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
           OperandTypes.ANY,
           SqlFunctionCategory.STRING,
           false,
-          false
+          false,
+          Optionality.FORBIDDEN
       );
     }
   }
