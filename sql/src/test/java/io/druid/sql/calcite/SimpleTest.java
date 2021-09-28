@@ -250,4 +250,14 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"10", "T114", 2L}
     );
   }
+
+  @Test
+  public void test3896() throws Exception
+  {
+    testQuery(
+        PLANNER_CONFIG_DEFAULT,
+        "SELECT count(*) FROM cdis INNER JOIN cdis cdis2 ON cdis.svc_mgmt_num = cdis2.svc_mgmt_num",
+        new Object[]{2L}
+    );
+  }
 }

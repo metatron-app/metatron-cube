@@ -188,6 +188,9 @@ public class Utils
 
   public static int[] revert(int[] indices)
   {
+    if (indices.length == 0) {
+      return indices;
+    }
     final int[] mapping = new int[Ints.max(indices) + 1];
     Arrays.fill(mapping, -1);
     for (int i = 0; i < indices.length; i++) {
