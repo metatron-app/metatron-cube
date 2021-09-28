@@ -64,13 +64,13 @@ public class BufferRef implements Comparable<BufferRef>
   }
 
   @Override
-  public int compareTo(BufferRef o)
+  public int compareTo(final BufferRef o)
   {
     final int len1 = remaining();
     final int len2 = o.remaining();
     final int limit = from + Math.min(len1, len2);
     for (int i = from, j = o.from; i < limit; i++, j++) {
-      final int cmp = Byte.compare(buffer.get(i), o.buffer.get(j));
+      final int cmp = Integer.compare(buffer.get(i) & 0xff, o.buffer.get(j) & 0xff);
       if (cmp != 0) {
         return cmp;
       }
@@ -78,13 +78,13 @@ public class BufferRef implements Comparable<BufferRef>
     return Ints.compare(len1, len2);
   }
 
-  public int compareTo(byte[] value)
+  public int compareTo(final byte[] value)
   {
     final int len1 = remaining();
     final int len2 = value.length;
     final int limit = Math.min(len1, len2);
     for (int i = 0; i < limit; i++) {
-      final int cmp = Byte.compare(buffer.get(from + i), value[i]);
+      final int cmp = Integer.compare(buffer.get(from + i) & 0xff, value[i] & 0xff);
       if (cmp != 0) {
         return cmp;
       }
@@ -92,16 +92,16 @@ public class BufferRef implements Comparable<BufferRef>
     return Ints.compare(len1, len2);
   }
 
-  private final static int ADDRESS_BITS_PER_WORD = 6;
+  private static final int ADDRESS_BITS_PER_WORD = 6;
   private static final int BIT_INDEX_MASK = 0b111111;
 
-  public boolean get(int index)
+  public boolean get(final int index)
   {
     final long word = getIxWord(index);
     return word != 0 && (word & 1L << (index & BIT_INDEX_MASK)) != 0;
   }
 
-  private long getIxWord(int index)
+  private long getIxWord(final int index)
   {
     if (index >= remaining() * Byte.SIZE) {
       return 0L;
