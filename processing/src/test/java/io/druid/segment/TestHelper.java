@@ -47,7 +47,9 @@ import io.druid.jackson.ObjectMappers;
 import io.druid.query.DefaultGenericQueryMetricsFactory;
 import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
-import io.druid.query.JoinQuery;
+import io.druid.query.FilterMetaQuery;
+import io.druid.query.FilterMetaQueryRunnerFactory;
+import io.druid.query.FilterMetaQueryToolChest;
 import io.druid.query.JoinQueryConfig;
 import io.druid.query.NoopQueryWatcher;
 import io.druid.query.Query;
@@ -64,10 +66,6 @@ import io.druid.query.Result;
 import io.druid.query.SchemaQuery;
 import io.druid.query.SchemaQueryRunnerFactory;
 import io.druid.query.SchemaQueryToolChest;
-import io.druid.query.FilterMetaQuery;
-import io.druid.query.FilterMetaQueryRunnerFactory;
-import io.druid.query.FilterMetaQueryToolChest;
-import io.druid.query.UnionAllQuery;
 import io.druid.query.frequency.FrequencyQuery;
 import io.druid.query.frequency.FrequencyQueryRunnerFactory;
 import io.druid.query.frequency.FrequencyQueryToolChest;
@@ -166,134 +164,131 @@ public class TestHelper
 
   public static final QueryWatcher NOOP_QUERYWATCHER = NoopQueryWatcher.instance();
 
-  public static final QueryConfig QUERY_CONFIG = new QueryConfig();
-
   private static final StupidPool<ByteBuffer> GBY_POOL = StupidPool.heap(10 * 1024 * 1024);
   private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(StupidPool.heap(1024 * 1024));
 
-  public static final QueryRunnerFactoryConglomerate CONGLOMERATE = new DefaultQueryRunnerFactoryConglomerate(
-      ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>builder()
-                  .put(
-                      TimeBoundaryQuery.class,
-                      new TimeBoundaryQueryRunnerFactory(NOOP_QUERYWATCHER)
-                  )
-                  .put(
-                      SegmentMetadataQuery.class,
-                      new SegmentMetadataQueryRunnerFactory(
-                          new SegmentMetadataQueryQueryToolChest(
-                              QUERY_CONFIG.getSegmentMeta()
-                          ),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      StreamQuery.class,
-                      new StreamQueryRunnerFactory(
-                          new StreamQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          new StreamQueryEngine(),
-                          QUERY_CONFIG,
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      SelectQuery.class,
-                      new SelectQueryRunnerFactory(
-                          new SelectQueryQueryToolChest(
-                              new SelectQueryEngine(),
-                              DefaultGenericQueryMetricsFactory.instance()
-                          ),
-                          new SelectQueryEngine(),
-                          QUERY_CONFIG.getSelect(),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      TimeseriesQuery.class,
-                      new TimeseriesQueryRunnerFactory(
-                          new TimeseriesQueryQueryToolChest(),
-                          new TimeseriesQueryEngine(),
-                          QUERY_CONFIG,
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      TopNQuery.class,
-                      new TopNQueryRunnerFactory(
-                          StupidPool.heap(10 * 1024 * 1024),
-                          new TopNQueryQueryToolChest(
-                              QUERY_CONFIG.getTopN(),
-                              new TopNQueryEngine(StupidPool.heap(10 * 1024 * 1024))
-                          ),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      GroupByQuery.class,
-                      new GroupByQueryRunnerFactory(
-                          GBY_ENGINE,
-                          NOOP_QUERYWATCHER,
-                          QUERY_CONFIG,
-                          new GroupByQueryQueryToolChest(QUERY_CONFIG, GBY_ENGINE, GBY_POOL),
-                          GBY_POOL
-                      )
-                  )
-                  .put(
-                      SelectMetaQuery.class,
-                      new SelectMetaQueryRunnerFactory(
-                          new SelectMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          new SelectMetaQueryEngine(),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      FilterMetaQuery.class,
-                      new FilterMetaQueryRunnerFactory(
-                          new FilterMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      SchemaQuery.class,
-                      new SchemaQueryRunnerFactory(
-                          new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      SearchQuery.class,
-                      new SearchQueryRunnerFactory(
-                          new SearchQueryQueryToolChest(
-                              new SearchQueryConfig()
-                          ),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      FindNearestQuery.class,
-                      new FindNearestQueryRunnerFactory(
-                          new FindNearestQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          new StreamQueryEngine(),
-                          QUERY_CONFIG,
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      FrequencyQuery.class,
-                      new FrequencyQueryRunnerFactory(
-                          new FrequencyQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
-                          NOOP_QUERYWATCHER
-                      )
-                  )
-                  .put(
-                      UnionAllQuery.class,
-                      new TestQueryRunnerFactory()
-                  )
-                  .put(
-                      JoinQuery.JoinHolder.class,
-                      new TestQueryRunnerFactory()
-                  )
-                  .build()
-  );
+  public static final QueryRunnerFactoryConglomerate CONGLOMERATE = newConglometator();
+
+  public static QueryRunnerFactoryConglomerate newConglometator()
+  {
+    final QueryConfig config = new QueryConfig();
+    return new DefaultQueryRunnerFactoryConglomerate(
+        config,
+        ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>builder()
+            .put(
+                TimeBoundaryQuery.class,
+                new TimeBoundaryQueryRunnerFactory(NOOP_QUERYWATCHER)
+            )
+            .put(
+                SegmentMetadataQuery.class,
+                new SegmentMetadataQueryRunnerFactory(
+                    new SegmentMetadataQueryQueryToolChest(
+                        config.getSegmentMeta()
+                    ),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                StreamQuery.class,
+                new StreamQueryRunnerFactory(
+                    new StreamQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    new StreamQueryEngine(),
+                    config,
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                SelectQuery.class,
+                new SelectQueryRunnerFactory(
+                    new SelectQueryQueryToolChest(
+                        new SelectQueryEngine(),
+                        DefaultGenericQueryMetricsFactory.instance()
+                    ),
+                    new SelectQueryEngine(),
+                    config.getSelect(),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                TimeseriesQuery.class,
+                new TimeseriesQueryRunnerFactory(
+                    new TimeseriesQueryQueryToolChest(),
+                    new TimeseriesQueryEngine(),
+                    config,
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                TopNQuery.class,
+                new TopNQueryRunnerFactory(
+                    StupidPool.heap(10 * 1024 * 1024),
+                    new TopNQueryQueryToolChest(
+                        config.getTopN(),
+                        new TopNQueryEngine(StupidPool.heap(10 * 1024 * 1024))
+                    ),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                GroupByQuery.class,
+                new GroupByQueryRunnerFactory(
+                    GBY_ENGINE,
+                    NOOP_QUERYWATCHER,
+                    config,
+                    new GroupByQueryQueryToolChest(config, GBY_ENGINE, GBY_POOL),
+                    GBY_POOL
+                )
+            )
+            .put(
+                SelectMetaQuery.class,
+                new SelectMetaQueryRunnerFactory(
+                    new SelectMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    new SelectMetaQueryEngine(),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                FilterMetaQuery.class,
+                new FilterMetaQueryRunnerFactory(
+                    new FilterMetaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                SchemaQuery.class,
+                new SchemaQueryRunnerFactory(
+                    new SchemaQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                SearchQuery.class,
+                new SearchQueryRunnerFactory(
+                    new SearchQueryQueryToolChest(
+                        new SearchQueryConfig()
+                    ),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                FindNearestQuery.class,
+                new FindNearestQueryRunnerFactory(
+                    new FindNearestQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    new StreamQueryEngine(),
+                    config,
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .put(
+                FrequencyQuery.class,
+                new FrequencyQueryRunnerFactory(
+                    new FrequencyQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
+                    NOOP_QUERYWATCHER
+                )
+            )
+            .build()
+    );
+  }
 
   public static <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> factoryFor(Class clazz)
   {
@@ -314,7 +309,7 @@ public class TestHelper
 
   public static TestQuerySegmentWalker newWalker()
   {
-    return new TestQuerySegmentWalker(CONGLOMERATE, QUERY_CONFIG);
+    return new TestQuerySegmentWalker(newConglometator());
   }
 
   public static class TestQueryRunnerFactory implements QueryRunnerFactory

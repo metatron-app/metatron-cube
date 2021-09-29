@@ -1131,13 +1131,15 @@ public class RealtimeIndexTaskTest
         taskStorage,
         taskActionToolbox
     );
+    final QueryConfig config = new QueryConfig();
     final QueryRunnerFactoryConglomerate conglomerate = new DefaultQueryRunnerFactoryConglomerate(
+        config,
         ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>of(
             TimeseriesQuery.class,
             new TimeseriesQueryRunnerFactory(
                 new TimeseriesQueryQueryToolChest(),
                 new TimeseriesQueryEngine(),
-                new QueryConfig(),
+                config,
                 NoopQueryWatcher.instance()
             )
         )

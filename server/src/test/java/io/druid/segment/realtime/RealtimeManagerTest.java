@@ -39,7 +39,6 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularities;
-import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.parsers.ParseException;
@@ -139,13 +138,13 @@ public class RealtimeManagerTest
         "test",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
+        new UniformGranularitySpec(Granularities.HOUR, Granularities.NONE, null)
     );
     schema2 = new DataSchema(
         "testV2",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
+        new UniformGranularitySpec(Granularities.HOUR, Granularities.NONE, null)
     );
     RealtimeIOConfig ioConfig = new RealtimeIOConfig(
         new FirehoseFactory()
@@ -296,7 +295,7 @@ public class RealtimeManagerTest
         "testing",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("ignore")},
-        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null)
+        new UniformGranularitySpec(Granularities.HOUR, Granularities.NONE, null)
     );
 
     FireDepartment department_0 = new FireDepartment(schema3, ioConfig, tuningConfig_0);
@@ -304,6 +303,12 @@ public class RealtimeManagerTest
 
     QueryRunnerFactoryConglomerate conglomerate = new QueryRunnerFactoryConglomerate()
     {
+      @Override
+      public QueryConfig getConfig()
+      {
+        return null;
+      }
+
       @Override
       public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
       {

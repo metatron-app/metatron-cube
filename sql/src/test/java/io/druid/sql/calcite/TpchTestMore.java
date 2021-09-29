@@ -20,7 +20,6 @@
 package io.druid.sql.calcite;
 
 import io.druid.query.JoinQueryConfig;
-import io.druid.query.QueryConfig;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Before;
 import org.junit.Test;
@@ -28,14 +27,7 @@ import org.junit.Test;
 public class TpchTestMore extends CalciteQueryTestHelper
 {
   private static final MiscQueryHook hook = new MiscQueryHook();
-  private static final QueryConfig config = new QueryConfig();
-  private static final TestQuerySegmentWalker walker;
-
-  static {
-    walker = TpchTestHelper.walker.duplicate()
-                                  .withQueryConfig(config)
-                                  .withQueryHook(hook);
-  }
+  private static final TestQuerySegmentWalker walker = TpchTestHelper.walker.duplicate().withQueryHook(hook);
 
   @Override
   protected TestQuerySegmentWalker walker()
@@ -52,7 +44,7 @@ public class TpchTestMore extends CalciteQueryTestHelper
   private void p3542()
   {
     // left broadcast + sort (see StreamQuery.getMergeOrdering)
-    JoinQueryConfig join = config.getJoin();
+    JoinQueryConfig join = walker.getQueryConfig().getJoin();
     join.setHashJoinThreshold(-1);
     join.setSemiJoinThreshold(-1);
     join.setBroadcastJoinThreshold(51);
@@ -131,7 +123,7 @@ public class TpchTestMore extends CalciteQueryTestHelper
 
   private JoinQueryConfig p3798()
   {
-    JoinQueryConfig join = config.getJoin();
+    JoinQueryConfig join = walker.getQueryConfig().getJoin();
     join.setHashJoinThreshold(-1);
     join.setSemiJoinThreshold(-1);
     join.setBroadcastJoinThreshold(-1);
@@ -238,7 +230,7 @@ public class TpchTestMore extends CalciteQueryTestHelper
   @Test
   public void test3852() throws Exception
   {
-    JoinQueryConfig join = config.getJoin();
+    JoinQueryConfig join = walker.getQueryConfig().getJoin();
     join.setSemiJoinThreshold(100000);
     join.setBroadcastJoinThreshold(51);
     join.setForcedFilterHugeThreshold(5000);

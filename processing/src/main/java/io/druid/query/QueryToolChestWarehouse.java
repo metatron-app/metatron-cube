@@ -23,7 +23,7 @@ package io.druid.query;
  */
 public interface QueryToolChestWarehouse
 {
-  public QueryConfig getQueryConfig();
+  QueryConfig getQueryConfig();
 
-  public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query);
+  <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query);
 }

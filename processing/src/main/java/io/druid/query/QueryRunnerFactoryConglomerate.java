@@ -28,5 +28,7 @@ public interface QueryRunnerFactoryConglomerate
     return findFactory(query == null ? null : query.getClass());
   }
 
+  QueryConfig getConfig();
+
   <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz);
 }

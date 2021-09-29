@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import io.druid.client.cache.MapCache;
 import io.druid.concurrent.Execs;
@@ -38,9 +37,7 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.java.util.emitter.service.ServiceEmitter;
-import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
-import io.druid.query.Query;
-import io.druid.query.QueryRunnerFactory;
+import io.druid.query.NoopQueryRunnerFactoryConglomerate;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -204,7 +201,7 @@ public class RealtimePlumberSchoolTest
 
     realtimePlumberSchool = new RealtimePlumberSchool(
         emitter,
-        new DefaultQueryRunnerFactoryConglomerate(Maps.<Class<? extends Query>, QueryRunnerFactory>newHashMap()),
+        new NoopQueryRunnerFactoryConglomerate(),
         dataSegmentPusher,
         announcer,
         segmentPublisher,

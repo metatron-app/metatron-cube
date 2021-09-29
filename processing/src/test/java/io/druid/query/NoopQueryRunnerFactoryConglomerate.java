@@ -24,6 +24,12 @@ package io.druid.query;
 public class NoopQueryRunnerFactoryConglomerate implements QueryRunnerFactoryConglomerate
 {
   @Override
+  public QueryConfig getConfig()
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
   {
     throw new UnsupportedOperationException();

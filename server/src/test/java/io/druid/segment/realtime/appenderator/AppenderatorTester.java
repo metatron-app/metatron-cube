@@ -193,6 +193,7 @@ public class AppenderatorTester implements AutoCloseable
         return segment;
       }
     };
+    QueryConfig config = new QueryConfig();
     appenderator = Appenderators.createRealtime(
         schema,
         tuningConfig,
@@ -202,11 +203,12 @@ public class AppenderatorTester implements AutoCloseable
         indexIO,
         indexMerger,
         new DefaultQueryRunnerFactoryConglomerate(
+            config,
             ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>of(
                 TimeseriesQuery.class, new TimeseriesQueryRunnerFactory(
                     new TimeseriesQueryQueryToolChest(),
                     new TimeseriesQueryEngine(),
-                    new QueryConfig(),
+                    config,
                     TestHelper.NOOP_QUERYWATCHER
                 )
             )

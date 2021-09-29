@@ -44,6 +44,7 @@ import io.druid.query.DefaultQueryMetrics;
 import io.druid.query.Druids;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -92,6 +93,7 @@ public class ServerManagerTest
 {
   private ServerManager serverManager;
   private MyQueryRunnerFactory factory;
+  private QueryConfig config;
   private CountDownLatch queryWaitLatch;
   private CountDownLatch queryWaitYieldLatch;
   private CountDownLatch queryNotifyLatch;
@@ -106,9 +108,10 @@ public class ServerManagerTest
     queryWaitYieldLatch = new CountDownLatch(1);
     queryNotifyLatch = new CountDownLatch(1);
     factory = new MyQueryRunnerFactory(queryWaitLatch, queryWaitYieldLatch, queryNotifyLatch);
+    config = new QueryConfig();
     serverManagerExec = Executors.newFixedThreadPool(2);
     serverManager = new ServerManager(
-        new QueryManager(),
+        new QueryManager(config),
         new SegmentLoader()
         {
           @Override
@@ -140,6 +143,12 @@ public class ServerManagerTest
         },
         new QueryRunnerFactoryConglomerate()
         {
+          @Override
+          public QueryConfig getConfig()
+          {
+            return config;
+          }
+
           @Override
           public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(Class clazz)
           {

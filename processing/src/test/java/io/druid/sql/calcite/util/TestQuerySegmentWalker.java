@@ -363,16 +363,15 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     }
   }
 
-  public TestQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate, QueryConfig config)
+  public TestQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate)
   {
-    this(TestHelper.JSON_MAPPER, conglomerate, Execs.newDirectExecutorService(), config, new PopulatingMap(), q -> {});
+    this(TestHelper.JSON_MAPPER, conglomerate, Execs.newDirectExecutorService(), new PopulatingMap(), q -> {});
   }
 
   private TestQuerySegmentWalker(
       ObjectMapper mapper,
       QueryRunnerFactoryConglomerate conglomerate,
       ExecutorService executor,
-      QueryConfig queryConfig,
       PopulatingMap timeLines,
       Consumer<Query<?>> hook
   )
@@ -380,7 +379,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     this.mapper = mapper;
     this.conglomerate = conglomerate;
     this.executor = executor;
-    this.queryConfig = queryConfig;
+    this.queryConfig = conglomerate.getConfig();
     this.timeLines = timeLines;
     this.handler = new ForwardHandler(
         new DruidNode("test", "test", 0),
@@ -398,7 +397,6 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         mapper,
         conglomerate,
         executor,
-        queryConfig,
         timeLines,
         hook
     );
@@ -410,7 +408,6 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         objectMapper,
         conglomerate,
         executor,
-        queryConfig,
         timeLines,
         hook
     );
@@ -422,19 +419,6 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         mapper,
         conglomerate,
         executor,
-        queryConfig,
-        timeLines,
-        hook
-    );
-  }
-
-  public TestQuerySegmentWalker withQueryConfig(QueryConfig queryConfig)
-  {
-    return new TestQuerySegmentWalker(
-        mapper,
-        conglomerate,
-        executor,
-        queryConfig,
         timeLines,
         hook
     );
@@ -446,7 +430,6 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
         mapper,
         conglomerate,
         executor,
-        queryConfig,
         timeLines,
         hook
     );
@@ -461,9 +444,8 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     duplicate.populators.putAll(timeLines.populators);
     return new TestQuerySegmentWalker(
         mapper,
-        conglomerate,
+        TestHelper.newConglometator(),
         executor,
-        queryConfig,
         duplicate,
         hook
     );

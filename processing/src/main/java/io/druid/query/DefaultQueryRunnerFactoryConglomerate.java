@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 
 import java.util.Map;
@@ -27,19 +28,34 @@ import java.util.Map;
 */
 public class DefaultQueryRunnerFactoryConglomerate implements QueryRunnerFactoryConglomerate
 {
+  private final QueryConfig queryConfig;
   private final Map<Class<? extends Query>, QueryRunnerFactory> factories;
 
   @Inject
   public DefaultQueryRunnerFactoryConglomerate(
+      QueryConfig queryConfig,
       Map<Class<? extends Query>, QueryRunnerFactory> factories
   )
   {
+    this.queryConfig = queryConfig;
     this.factories = factories;
+  }
+
+  @VisibleForTesting
+  public DefaultQueryRunnerFactoryConglomerate(Map<Class<? extends Query>, QueryRunnerFactory> factories)
+  {
+    this(new QueryConfig(), factories);
   }
 
   public Map<Class<? extends Query>, QueryRunnerFactory> getFactories()
   {
     return factories;
+  }
+
+  @Override
+  public QueryConfig getConfig()
+  {
+    return queryConfig;
   }
 
   @Override
