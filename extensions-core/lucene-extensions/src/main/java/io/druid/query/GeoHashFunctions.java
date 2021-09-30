@@ -41,7 +41,7 @@ public class GeoHashFunctions implements Function.Library
   public static class ToGeoHash extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       twoOrThree(args);
       return new StringChild()
@@ -167,7 +167,7 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToCenterWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()
@@ -250,7 +250,7 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()

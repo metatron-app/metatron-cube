@@ -391,7 +391,7 @@ public interface BuiltinFunctions extends Function.Library
   class Regex extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       twoOrThree(args);
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
@@ -1938,7 +1938,7 @@ public interface BuiltinFunctions extends Function.Library
   final class ConcatFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       return new StringChild()
       {
@@ -1959,7 +1959,7 @@ public interface BuiltinFunctions extends Function.Library
   final class FormatFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       atLeastOne(args);
       final String format = Evals.getConstantString(args.get(0));
@@ -1987,7 +1987,7 @@ public interface BuiltinFunctions extends Function.Library
   final class RepeatFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       return new StringChild()
@@ -2019,7 +2019,7 @@ public interface BuiltinFunctions extends Function.Library
   final class LPadFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       atLeastThree(args);
       final int length = Evals.getConstantInt(args.get(1));
@@ -2044,7 +2044,7 @@ public interface BuiltinFunctions extends Function.Library
   final class RPadFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       atLeastThree(args);
       final int length = Evals.getConstantInt(args.get(1));
@@ -2069,7 +2069,7 @@ public interface BuiltinFunctions extends Function.Library
   final class UpperFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()
@@ -2088,7 +2088,7 @@ public interface BuiltinFunctions extends Function.Library
   final class LowerFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()
@@ -2108,7 +2108,7 @@ public interface BuiltinFunctions extends Function.Library
   final class SplitRegex extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       return new StringChild()
@@ -2195,7 +2195,7 @@ public interface BuiltinFunctions extends Function.Library
   final class ProperFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()
@@ -2241,7 +2241,7 @@ public interface BuiltinFunctions extends Function.Library
   final class LeftFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       if (Evals.isConstant(args.get(1))) {
@@ -2295,7 +2295,7 @@ public interface BuiltinFunctions extends Function.Library
   final class RightFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       if (Evals.isConstant(args.get(1))) {
@@ -2349,7 +2349,7 @@ public interface BuiltinFunctions extends Function.Library
   class MidFunc extends NamedFactory.StringType
   {
     @Override
-    public final Function create(List<Expr> args, TypeResolver resolver)
+    public final StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       if (Evals.isConstant(args.get(1)) && Evals.isConstant(args.get(2))) {
@@ -2494,7 +2494,7 @@ public interface BuiltinFunctions extends Function.Library
   final class ReplaceFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       return new StringChild()
@@ -2518,7 +2518,7 @@ public interface BuiltinFunctions extends Function.Library
   final class TrimFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()
@@ -2538,7 +2538,7 @@ public interface BuiltinFunctions extends Function.Library
   final class BtrimFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
       return new StringChild()
@@ -2559,7 +2559,7 @@ public interface BuiltinFunctions extends Function.Library
   final class LtrimFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
       return new StringChild()
@@ -2580,7 +2580,7 @@ public interface BuiltinFunctions extends Function.Library
   final class RtrimFunc extends NamedFactory.StringType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public StringChild create(List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
       return new StringChild()

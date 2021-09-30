@@ -79,7 +79,7 @@ public interface EsriFunctions extends Function.Library
   class ST_AsText extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public StringChild create(final List<Expr> args, TypeResolver context)
     {
       exactOne(args);
       return new StringChild()

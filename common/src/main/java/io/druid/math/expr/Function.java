@@ -245,6 +245,9 @@ public interface Function
       {
         return ValueDesc.STRING;
       }
+
+      @Override
+      public abstract StringChild create(List<Expr> args, TypeResolver resolver);
     }
 
     public static abstract class BooleanType extends NamedFactory implements FixedTyped
@@ -291,7 +294,7 @@ public interface Function
       }
     }
 
-    public abstract class HoldingChild<T> implements Function
+    public static abstract class HoldingChild<T> implements Function
     {
       private final T holder;
 

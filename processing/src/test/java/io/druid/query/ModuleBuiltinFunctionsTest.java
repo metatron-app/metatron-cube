@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -26,6 +27,8 @@ import io.druid.math.expr.Parser;
 import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Map;
 
 public class ModuleBuiltinFunctionsTest
 {
@@ -53,5 +56,17 @@ public class ModuleBuiltinFunctionsTest
 
     Assert.assertEquals(1058442040386139741L, Evals.eval(Parser.parse("murmur64('navis')"), null).longValue());
     Assert.assertEquals(29, Evals.eval(Parser.parse("murmur64('navis') % 32"), null).longValue());
+  }
+
+  @Test
+  public void testToJson() throws Exception
+  {
+    String json = "{\"context\":{\"key1\": \"value1\", \"key2\":\"value2\"}}";
+    Map<String, Object> map = TestHelper.JSON_MAPPER.readValue(json, new TypeReference<Map<String, Object>>() {});
+
+    Assert.assertEquals(
+        "{\"key1\":\"value1\",\"key2\":\"value2\"}",
+        Evals.evalValue(Parser.parse("toJson(context)"), Parser.withMap(map))
+    );
   }
 }

@@ -38,7 +38,7 @@ public class GeoHexFunctions implements Function.Library
   public static class ToGeoHex extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       return new StringChild()
@@ -107,7 +107,7 @@ public class GeoHexFunctions implements Function.Library
   public static class GeoHexToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()

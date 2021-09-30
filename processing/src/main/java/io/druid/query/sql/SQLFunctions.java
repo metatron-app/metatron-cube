@@ -140,7 +140,7 @@ public interface SQLFunctions extends Function.Library
   public class TimestampFormatExprMacro extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public StringChild create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 1 || args.size() > 3) {
         throw new IAE("Function[%s] must have 1 to 3 arguments", name());

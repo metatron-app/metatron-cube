@@ -209,7 +209,7 @@ public class GeomFunctions implements Function.Library
   public static abstract class GeomTo extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       return new StringChild()

@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
@@ -261,12 +262,35 @@ public class ModuleBuiltinFunctions implements Function.Library
   private static final long NULL64 = Murmur3.hash64(StringUtils.EMPTY_BYTES);
 
   @Function.Named("murmur64")
-  public static class Murmur64 extends Murmur32
+  public static final class Murmur64 extends Murmur32
   {
     @Override
     protected ExprEval hashBytes(byte[] bytes)
     {
       return ExprEval.of(bytes.length == 0 ? NULL64 : Murmur3.hash64(bytes));
+    }
+  }
+
+  @Function.Named("toJson")
+  public static final class ToJson extends NamedFactory.StringType
+  {
+    @Override
+    public StringChild create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args);
+      return new StringChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          try {
+            return ExprEval.of(jsonMapper.writeValueAsString(Evals.evalValue(args.get(0), bindings)));
+          }
+          catch (Exception e) {
+            throw Throwables.propagate(e);
+          }
+        }
+      };
     }
   }
 }

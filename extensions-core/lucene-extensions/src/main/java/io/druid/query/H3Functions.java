@@ -105,7 +105,7 @@ public class H3Functions implements Function.Library
   public static class ToH3Address extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       final H3Core instance = H3.get();
@@ -185,7 +185,7 @@ public class H3Functions implements Function.Library
   public static class H3ToCenterWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       final H3Core instance = H3.get();
@@ -281,7 +281,7 @@ public class H3Functions implements Function.Library
   public static class H3ToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringChild create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       final H3Core instance = H3.get();

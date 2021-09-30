@@ -440,7 +440,7 @@ public class Evals
       if (longVal != null) {
         return ExprEval.of(new BigDecimal(longVal));
       }
-      return ExprEval.of(new BigDecimal(Rows.parseDouble(eval.value(), null)));
+      return ExprEval.of(BigDecimal.valueOf(Rows.parseDouble(eval.value(), null)));
     }
     throw new IAE("not supported type %s", castTo);
   }
@@ -640,7 +640,7 @@ public class Evals
     } else if (expr instanceof UnaryNotExpr) {
       return new UnaryNotExpr(expr);
     } else {
-      return unary; // unknown type..
+      return unary; // unknown type
     }
   }
 
