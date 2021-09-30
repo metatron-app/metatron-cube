@@ -260,9 +260,9 @@ public abstract class BaseAggregationQueryToolChest<T extends BaseAggregationQue
     return new CacheStrategy<Row, Object[], T>()
     {
       @Override
-      public byte[] computeCacheKey(T query)
+      public byte[] computeCacheKey(T query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(queryCode())
                          .append(query.getGranularity())
                          .append(query.getFilter())

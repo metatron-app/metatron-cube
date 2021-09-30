@@ -33,9 +33,10 @@ public interface CacheStrategy<T, CacheType, QueryType extends Query<T>>
    * Computes the cache key for the given query
    *
    * @param query the query to compute a cache key for
+   * @param limit
    * @return the cache key
    */
-  byte[] computeCacheKey(QueryType query);
+  byte[] computeCacheKey(QueryType query, int limit);
 
   /**
    * Returns the class type of what is used in the cache

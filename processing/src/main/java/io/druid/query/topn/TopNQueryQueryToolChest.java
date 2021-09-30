@@ -293,9 +293,9 @@ public class TopNQueryQueryToolChest
       ));
 
       @Override
-      public byte[] computeCacheKey(TopNQuery query)
+      public byte[] computeCacheKey(TopNQuery query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(TOPN_QUERY)
                          .append(query.getVirtualColumns())
                          .append(query.getDimensionSpec())

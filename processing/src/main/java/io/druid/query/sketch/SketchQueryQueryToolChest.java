@@ -108,9 +108,9 @@ public class SketchQueryQueryToolChest extends QueryToolChest.CacheSupport<Objec
     return new IdenticalCacheStrategy()
     {
       @Override
-      public byte[] computeCacheKey(SketchQuery query)
+      public byte[] computeCacheKey(SketchQuery query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(SKETCH_QUERY)
                          .append(query.getSketchOp())
                          .append(query.getSketchParam())

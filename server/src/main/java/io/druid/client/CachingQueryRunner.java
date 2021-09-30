@@ -162,7 +162,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
 
   private Cache.NamedKey createKey(Query<T> query, CacheStrategy<T, Object, Query<T>> strategy)
   {
-    final byte[] queryKey = strategy.computeCacheKey(query);
+    final byte[] queryKey = strategy.computeCacheKey(query, cacheConfig.getKeyLimit());
     if (queryKey != null) {
       return CacheUtil.computeSegmentCacheKey(segmentIdentifier, segmentDescriptor, queryKey);
     }

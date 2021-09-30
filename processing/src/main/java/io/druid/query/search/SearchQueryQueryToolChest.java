@@ -229,9 +229,9 @@ public class SearchQueryQueryToolChest
     return new CacheStrategy<Result<SearchResultValue>, Object, SearchQuery>()
     {
       @Override
-      public byte[] computeCacheKey(SearchQuery query)
+      public byte[] computeCacheKey(SearchQuery query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(SEARCH_QUERY)
                          .append(query.getLimit())
                          .append(query.isValueOnly())

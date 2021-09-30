@@ -69,9 +69,9 @@ public class FilterMetaQueryToolChest extends QueryToolChest.CacheSupport<long[]
     return new IdenticalCacheStrategy()
     {
       @Override
-      public byte[] computeCacheKey(FilterMetaQuery query)
+      public byte[] computeCacheKey(FilterMetaQuery query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(query.getType())
                          .append(query.getFilter())
                          .append(query.getVirtualColumns())

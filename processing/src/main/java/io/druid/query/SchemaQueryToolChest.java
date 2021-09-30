@@ -112,7 +112,7 @@ public class SchemaQueryToolChest extends QueryToolChest.CacheSupport<Schema, Sc
     return new IdenticalCacheStrategy()
     {
       @Override
-      public byte[] computeCacheKey(SchemaQuery query)
+      public byte[] computeCacheKey(SchemaQuery query, int limit)
       {
         return new byte[]{SCHEMA_QUERY};
       }

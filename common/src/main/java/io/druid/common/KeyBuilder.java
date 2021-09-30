@@ -19,6 +19,7 @@
 
 package io.druid.common;
 
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.BytesOutputStream;
 import org.joda.time.Interval;
@@ -41,92 +42,114 @@ public class KeyBuilder
     }
   };
 
-  public static KeyBuilder get()
+  public static KeyBuilder get(int limit)
   {
-    return new KeyBuilder(BUILDERS.get());
+    return new KeyBuilder(BUILDERS.get(), limit);
   }
 
   private static final byte SEPARATOR = (byte) 0xff;
 
   private final BytesOutputStream output;
+  private final int limit;
 
-  private KeyBuilder(BytesOutputStream output)
+  private KeyBuilder(BytesOutputStream output, int limit)
   {
     this.output = output;
+    this.limit = limit;
     output.clear();
   }
 
   public KeyBuilder append(byte value)
   {
-    output.write(value);
+    if (output.size() < limit) {
+      output.write(value);
+    }
     return this;
   }
 
   public KeyBuilder append(byte[] value)
   {
-    output.write(value);
+    if (output.size() < limit) {
+      output.write(value);
+    }
     return this;
   }
 
   public KeyBuilder append(boolean val)
   {
-    output.writeBoolean(val);
+    if (output.size() < limit) {
+      output.writeBoolean(val);
+    }
     return this;
   }
 
   public KeyBuilder append(boolean... vals)
   {
-    for (boolean val : vals) {
-      output.writeBoolean(val);
+    if (output.size() < limit) {
+      for (boolean val : vals) {
+        output.writeBoolean(val);
+      }
     }
     return this;
   }
 
   public KeyBuilder append(int val)
   {
-    output.writeInt(val);
+    if (output.size() < limit) {
+      output.writeInt(val);
+    }
     return this;
   }
 
   public KeyBuilder append(int... vals)
   {
     for (int val : vals) {
-      output.writeInt(val);
+      if (output.size() < limit) {
+        output.writeInt(val);
+      }
     }
     return this;
   }
 
   public KeyBuilder append(float val)
   {
-    output.writeFloat(val);
+    if (output.size() < limit) {
+      output.writeFloat(val);
+    }
     return this;
   }
 
   public KeyBuilder append(float... vals)
   {
     for (float val : vals) {
-      output.writeFloat(val);
+      if (output.size() < limit) {
+        output.writeFloat(val);
+      }
     }
     return this;
   }
 
   public KeyBuilder append(double val)
   {
-    output.writeDouble(val);
+    if (output.size() < limit) {
+      output.writeDouble(val);
+    }
     return this;
   }
 
   public KeyBuilder append(double... vals)
   {
     for (double val : vals) {
-      output.writeDouble(val);
+      if (output.size() < limit) {
+        output.writeDouble(val);
+      }
     }
     return this;
   }
 
   public KeyBuilder append(Cacheable cacheable)
   {
-    if (cacheable != null) {
+    if (cacheable != null && output.size() < limit) {
       return cacheable.getCacheKey(this);
     }
     return this;
@@ -134,17 +157,33 @@ public class KeyBuilder
 
   public KeyBuilder append(List<? extends Cacheable> cacheables)
   {
-    if (cacheables != null) {
-      for (Cacheable cacheable : cacheables) {
-        cacheable.getCacheKey(sp());
+    if (GuavaUtils.isNullOrEmpty(cacheables)) {
+      Iterator<? extends Cacheable> iterator = cacheables.iterator();
+      for (;iterator.hasNext() && output.size() < limit;iterator.next()) {
+        iterator.next().getCacheKey(sp());
       }
+    }
+    return this;
+  }
+
+  public KeyBuilder appendAll(List<List<String>> strings)
+  {
+    if (strings == null || output.size() >= limit) {
+      return this;
+    }
+    Iterator<List<String>> iterator = strings.iterator();
+    if (!iterator.hasNext()) {
+      return this;
+    }
+    while (iterator.hasNext() && output.size() < limit) {
+      append(iterator.next());
     }
     return this;
   }
 
   public KeyBuilder append(Iterable<String> strings)
   {
-    if (strings == null) {
+    if (strings == null || output.size() >= limit) {
       return this;
     }
     Iterator<String> iterator = strings.iterator();
@@ -152,7 +191,7 @@ public class KeyBuilder
       return this;
     }
     output.write(StringUtils.toUtf8WithNullToEmpty(iterator.next()));
-    while (iterator.hasNext()) {
+    while (iterator.hasNext() && output.size() < limit) {
       output.write(SEPARATOR);
       output.write(StringUtils.toUtf8WithNullToEmpty(iterator.next()));
     }
@@ -161,7 +200,7 @@ public class KeyBuilder
 
   public KeyBuilder append(String string)
   {
-    if (string != null) {
+    if (string != null && output.size() < limit) {
       output.write(StringUtils.toUtf8(string));
     }
     return this;
@@ -169,8 +208,14 @@ public class KeyBuilder
 
   public KeyBuilder append(String first, String... remaining)
   {
+    if (output.size() >= limit) {
+      return this;
+    }
     output.write(StringUtils.toUtf8WithNullToEmpty(first));
     for (String string : remaining) {
+      if (output.size() >= limit) {
+        break;
+      }
       output.write(SEPARATOR);
       output.write(StringUtils.toUtf8WithNullToEmpty(string));
     }
@@ -179,46 +224,56 @@ public class KeyBuilder
 
   public KeyBuilder append(Enum value)
   {
-    output.writeByte(value.ordinal());
+    if (output.size() < limit) {
+      output.writeByte(value.ordinal());
+    }
     return this;
   }
 
   public KeyBuilder append(EnumSet<?> values)
   {
     for (Enum value : values) {
-      output.writeByte(value.ordinal());
+      if (output.size() < limit) {
+        output.writeByte(value.ordinal());
+      }
     }
     return this;
   }
 
   public KeyBuilder append(Object value)
   {
-    return append(Objects.toString(value, null));
+    return output.size() < limit ? append(Objects.toString(value, null)) : this;
   }
 
   public KeyBuilder appendIntervals(List<Interval> intervals)
   {
     for (Interval interval : intervals) {
-      appendInterval(interval);
+      if (output.size() < limit) {
+        appendInterval(interval);
+      }
     }
     return this;
   }
 
   public KeyBuilder appendInterval(Interval interval)
   {
-    output.writeLong(interval.getStartMillis());
-    output.writeLong(interval.getEndMillis());
+    if (output.size() < limit) {
+      output.writeLong(interval.getStartMillis());
+      output.writeLong(interval.getEndMillis());
+    }
     return this;
   }
 
   public KeyBuilder sp()
   {
-    output.write(SEPARATOR);
+    if (output.size() < limit) {
+      output.write(SEPARATOR);
+    }
     return this;
   }
 
   public byte[] build()
   {
-    return output.toByteArray();
+    return output.size() < limit ? output.toByteArray() : null;
   }
 }

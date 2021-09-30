@@ -137,9 +137,9 @@ public class TimeBoundaryQueryQueryToolChest
     return new CacheStrategy<Result<TimeBoundaryResultValue>, Object, TimeBoundaryQuery>()
     {
       @Override
-      public byte[] computeCacheKey(TimeBoundaryQuery query)
+      public byte[] computeCacheKey(TimeBoundaryQuery query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(TIMEBOUNDARY_QUERY)
                          .append(query.getBound())
                          .build();

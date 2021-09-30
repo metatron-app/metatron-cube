@@ -125,9 +125,9 @@ public class SelectMetaQueryToolChest
     return new IdenticalCacheStrategy()
     {
       @Override
-      public byte[] computeCacheKey(SelectMetaQuery query)
+      public byte[] computeCacheKey(SelectMetaQuery query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(SELECT_META_QUERY)
                          .append(query.getFilter())
                          .append(query.getGranularity())

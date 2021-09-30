@@ -220,7 +220,7 @@ public class CachingQueryRunnerTest
     Cache.NamedKey cacheKey = CacheUtil.computeSegmentCacheKey(
         StringUtils.toUtf8(segmentIdentifier),
         segmentDescriptor,
-        cacheStrategy.computeCacheKey(query)
+        cacheStrategy.computeCacheKey(query, 1000)
     );
 
     HashMap<String, Object> context = new HashMap<String, Object>();
@@ -264,7 +264,7 @@ public class CachingQueryRunnerTest
     Cache.NamedKey cacheKey = CacheUtil.computeSegmentCacheKey(
         StringUtils.toUtf8(segmentIdentifier),
         segmentDescriptor,
-        cacheStrategy.computeCacheKey(query)
+        cacheStrategy.computeCacheKey(query, 1000)
     );
 
     Cache cache = MapCache.create(1024 * 1024);

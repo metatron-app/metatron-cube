@@ -151,9 +151,9 @@ public class SegmentMetadataQueryQueryToolChest
     return new IdenticalCacheStrategy()
     {
       @Override
-      public byte[] computeCacheKey(SegmentMetadataQuery query)
+      public byte[] computeCacheKey(SegmentMetadataQuery query, int limit)
       {
-        return KeyBuilder.get()
+        return KeyBuilder.get(limit)
                          .append(SEGMENT_METADATA_QUERY)
                          .append(query.getToInclude())
                          .append(query.getColumns())

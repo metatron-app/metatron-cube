@@ -25,7 +25,7 @@ public interface Cacheable
 {
   default byte[] getCacheKey()
   {
-    return getCacheKey(KeyBuilder.get()).build();
+    return getCacheKey(KeyBuilder.get(Integer.MAX_VALUE)).build();
   }
 
   KeyBuilder getCacheKey(KeyBuilder builder);

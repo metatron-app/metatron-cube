@@ -85,7 +85,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
   {
     return builder.append(DimFilterCacheKey.INS_CACHE_ID)
                   .append(dimensions).sp()
-                  .append(values);
+                  .appendAll(values);
   }
 
   @Override

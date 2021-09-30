@@ -46,6 +46,10 @@ public class CacheConfig
   private int cacheBulkMergeLimit = Integer.MAX_VALUE;
 
   @JsonProperty
+  @Min(256)
+  private int keyLimit = 4096;
+
+  @JsonProperty
   private List<String> cacheable = Arrays.asList();
 
   @JsonProperty
@@ -73,6 +77,11 @@ public class CacheConfig
   public int getCacheBulkMergeLimit()
   {
     return cacheBulkMergeLimit;
+  }
+
+  public int getKeyLimit()
+  {
+    return keyLimit;
   }
 
   public boolean isQueryCacheable(Query query)
