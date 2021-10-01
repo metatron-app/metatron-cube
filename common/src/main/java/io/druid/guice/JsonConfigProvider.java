@@ -142,7 +142,6 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
     );
   }
 
-  @SuppressWarnings("unchecked")
   public static <T> void bind(
       Binder binder,
       String propertyBase,
@@ -154,7 +153,6 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
     bind(binder, propertyBase, clazz, null, instanceKey, supplierKey);
   }
 
-  @SuppressWarnings("unchecked")
   public static <T> void bind(
       Binder binder,
       String propertyBase,

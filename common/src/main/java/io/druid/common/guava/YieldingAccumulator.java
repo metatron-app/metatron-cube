@@ -16,7 +16,7 @@ package io.druid.common.guava;
 
 /**
  * A YieldingAccumulator is used along with a Yielder in order to replicate continuations in Java.  I'm still not sure
- * this is such a great idea, but it's there.  We shall see.
+ * if this is such a great idea, but it's there.  We shall see.
  *
  * The accumulated has its accumulate() method called and has the option of "yielding" its response by calling
  * yield() before returning as response.  If it chooses not to yield its response, then it expects to get called

@@ -128,7 +128,7 @@ public class DataSegment implements Comparable<DataSegment>
 
   private final String identifier;
 
-  // allow update cause it's only set in segments reproted from historical nodes
+  // allow update because it's only set in segments reproted from historical nodes
   // see MetadataSegmentManager.dedupSegment()
   private int numRows;
 

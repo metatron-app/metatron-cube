@@ -288,7 +288,7 @@ public class JodaUtils
     if (index + 1 < formatString.length()) {
       String substring = formatString.substring(index + 1).trim();
       if (substring.charAt(0) == ',') {
-        substring = substring.substring(1, substring.length());
+        substring = substring.substring(1);
       }
       if (!substring.isEmpty()) {
         String[] parameters = substring.split(",");
@@ -370,7 +370,7 @@ public class JodaUtils
       }
     }
     if (prev < formatString.length()) {
-      b.append(DateTimeFormat.forPattern(formatString.substring(prev, formatString.length())));
+      b.append(DateTimeFormat.forPattern(formatString.substring(prev)));
     }
     DateTimeFormatter formatter = b.toFormatter();
     if (locale != null) {

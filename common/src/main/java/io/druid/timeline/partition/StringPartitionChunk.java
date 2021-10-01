@@ -89,7 +89,6 @@ public class StringPartitionChunk<T> implements PartitionChunk<T>
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public boolean equals(Object o)
   {
     if (this == o) {

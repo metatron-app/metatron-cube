@@ -175,10 +175,10 @@ public interface Formatter
           builder.append(CSV_QUOTE);
         }
       } else if (value instanceof Number) {
-        builder.append(String.valueOf(value));
+        builder.append(value);
       } else {
         final String str = mapper.writeValueAsString(value);
-        builder.append(str.substring(1, str.length() - 1));   // strip quotation
+        builder.append(str, 1, str.length() - 1);   // strip quotation
       }
     }
 

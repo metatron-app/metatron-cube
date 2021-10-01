@@ -35,9 +35,9 @@ import java.io.Closeable;
  *
  * Note that commit() is being called *after* advance.
  * 
- * This object acts a lot like an Iterator, but it doesn't extend the Iterator interface because it extends
- * Closeable and it is very important that the close() method doesn't get forgotten, which is easy to do if this
- * gets passed around as an Iterator.
+ * This object acts a lot like an Iterator, but it doesn't extend the Iterator interface because it extends Closeable,
+ * and it is very important that the close() method doesn't get forgotten, which is easy to do if this
+ * gets past around as an Iterator.
  * <p>
  * The implementation of this interface only needs to be minimally thread-safe. The methods ##start(), ##advance(),
  * ##currRow() and ##makeCommitter() are all called from the same thread.  ##makeCommitter(), however, returns a callback

@@ -927,7 +927,7 @@ public interface DateTimeFunctions extends Function.Library
       final DateTimeFormatter outputFormat = (DateTimeFormatter) parameter.get("output.formatter");
       return new StringChild()
       {
-        private StringBuilder builder = new StringBuilder();
+        private final StringBuilder builder = new StringBuilder();
         private long prevTime = -1;
         private String prevValue;
 

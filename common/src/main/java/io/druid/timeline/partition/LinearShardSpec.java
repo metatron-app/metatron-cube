@@ -35,7 +35,7 @@ public class LinearShardSpec implements ShardSpec
     return new LinearShardSpec(partitionNum);
   }
 
-  private int partitionNum;
+  private final int partitionNum;
 
   @JsonCreator
   public LinearShardSpec(

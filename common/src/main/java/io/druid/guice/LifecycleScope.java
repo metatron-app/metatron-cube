@@ -37,7 +37,7 @@ public class LifecycleScope implements Scope
   private final Lifecycle.Stage stage;
 
   private Lifecycle lifecycle;
-  private List<Object> instances = Lists.newLinkedList();
+  private final List<Object> instances = Lists.newLinkedList();
 
   public LifecycleScope(Lifecycle.Stage stage)
   {

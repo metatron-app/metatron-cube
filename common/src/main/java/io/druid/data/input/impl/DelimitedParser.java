@@ -154,7 +154,7 @@ public class DelimitedParser implements Parser<String, Object>
       }
       int splitEnd = string.indexOf(separator, index);
       if (splitEnd < 0) {
-        splits.add(string.substring(index, string.length()));
+        splits.add(string.substring(index));
         break;
       }
       splits.add(string.substring(index, splitEnd));

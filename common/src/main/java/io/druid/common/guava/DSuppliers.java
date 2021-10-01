@@ -197,7 +197,7 @@ public class DSuppliers
     @Override
     public T get()
     {
-      // A 2-field variant of Double Checked Locking.
+      // A 2-field variant of Double-Checked Locking.
       if (initialized < 0) {
         synchronized (this) {
           if (initialized < 0) {

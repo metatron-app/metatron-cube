@@ -147,10 +147,13 @@ public interface Function
       validateType(args, types);
     }
 
-    private void validateType(List<Expr> args, ValueDesc[] types)
+    private void validateType(List<Expr> args, ValueDesc... types)
     {
-      int limit = Math.min(args.size(), types.length);
+      final int limit = Math.min(args.size(), types.length);
       for (int i = 0; i < limit; i++) {
+        if (types[i] == null) {
+          continue;
+        }
         ValueDesc returns = args.get(i).returns();
         if (!types[i].equals(returns)) {
           throw new IAE(INVALID_TYPE, i, name, types[i], returns);

@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * A class which implements SearchableVersionedDataFinder can find a DataDescriptor which describes the most up to
- * date version of data given a base descriptor and a matching pattern. "Version" is completely dependent on the
+ * A class which implements SearchableVersionedDataFinder can find a DataDescriptor which describes the most
+ * up-to-date version of data given a base descriptor and a matching pattern. "Version" is completely dependent on the
  * implementation but is commonly equal to the "last modified" timestamp.
  *
  * This is implemented explicitly for URIExtractionNamespaceFunctionFactory
@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
 public interface SearchableVersionedDataFinder<DataDescriptor>
 {
   /**
-   * Get's a DataDescriptor to the latest "version" of a data quantum starting with descriptorBase and matching based on pattern
+   * Gets a DataDescriptor to the latest "version" of a data quantum starting with descriptorBase and matching based on pattern
    *
    * @param descriptorBase The base unit of describing the data.
    * @param pattern        A pattern which must match in order for a DataDescriptor to be considered.
@@ -46,7 +46,7 @@ public interface SearchableVersionedDataFinder<DataDescriptor>
   DataDescriptor getLatestVersion(DataDescriptor descriptorBase, @Nullable final Pattern pattern);
 
   /**
-   * Get's list of DataDescriptors to the all data quantums starting with descriptorBase and matching based on pattern
+   * Gets list of DataDescriptors to the all data quantums starting with descriptorBase and matching based on pattern
    *
    * @param descriptorBase The base unit of describing the data.
    * @param pattern        A pattern which must match in order for a DataDescriptor to be considered.

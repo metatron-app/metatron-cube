@@ -218,7 +218,7 @@ public class Formatters implements ForwardConstants
     public Map<String, Object> close() throws IOException
     {
       if (rowNum == 0) {
-        nextSheet();    // make empty sheet.. or poi makes invalid excel file
+        nextSheet();    // make empty sheet.. or poi makes invalid Excel file
       }
       try (CountingOutputStream output = new CountingOutputStream(sink.openBufferedStream())) {
         try {

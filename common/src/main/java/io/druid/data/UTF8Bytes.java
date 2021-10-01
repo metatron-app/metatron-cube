@@ -64,7 +64,6 @@ public final class UTF8Bytes implements Comparable<UTF8Bytes>
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public int compareTo(UTF8Bytes o)
   {
     return COMPARATOR.compare(value, o.value);

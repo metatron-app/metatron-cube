@@ -71,7 +71,7 @@ public class Comparators
       return NULL_FIRST(
           (List<Object> o1, List<Object> o2) ->
           {
-            int min = Math.min(o1.size(), o2.size());
+            final int min = Math.min(o1.size(), o2.size());
             for (int i = 0; i < min; i++) {
               int ret = element.compare(o1.get(i), o2.get(i));
               if (ret != 0) {
@@ -131,7 +131,6 @@ public class Comparators
     return new Comparator<Object[]>()
     {
       @Override
-      @SuppressWarnings("unchecked")
       public int compare(Object[] o1, Object[] o2)
       {
         int compare = 0;

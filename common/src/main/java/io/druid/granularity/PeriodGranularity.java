@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import io.druid.common.DateTimes;
 import io.druid.common.KeyBuilder;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.UOE;
 import org.joda.time.Chronology;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -453,7 +454,7 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
   private long truncateMillisPeriod(final long t)
   {
     // toStandardDuration assumes days are always 24h, and hours are always 60 minutes,
-    // which may not always be the case, e.g if there are daylight saving changes.
+    // which may not always be the case, e.g. if there are daylight saving changes.
     if (chronology.days().isPrecise() && chronology.hours().isPrecise()) {
       final long millis = period.toStandardDuration().getMillis();
       long offset = t % millis - origin % millis;
@@ -462,9 +463,8 @@ public class PeriodGranularity extends Granularity implements JsonSerializable
       }
       return t - offset;
     } else {
-      throw new UnsupportedOperationException(
-          "Period cannot be converted to milliseconds as some fields mays vary in length with chronology "
-          + chronology.toString()
+      throw new UOE(
+          "Period cannot be converted to milliseconds as some fields mays vary in length with chronology %s", chronology
       );
     }
   }

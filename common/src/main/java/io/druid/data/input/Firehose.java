@@ -26,9 +26,9 @@ import java.io.Closeable;
  * abstraction.  In order to add a new type of source for realtime data ingestion, all you need to do is implement
  * one of these and register it with the Main.
  *
- * This object acts a lot like an Iterator, but it doesn't extend the Iterator interface because it extends
- * Closeable and it is very important that the close() method doesn't get forgotten, which is easy to do if this
- * gets passed around as an Iterator.
+ * This object acts a lot like an Iterator, but it doesn't extend the Iterator interface because it extends Closeable,
+ * and it is very important that the close() method doesn't get forgotten, which is easy to do if this
+ * gets past around as an Iterator.
  * <p>
  * The implementation of this interface only needs to be minimally thread-safe. The three methods ##hasMore(),
  * ##nextRow() and ##commit() are all called from the same thread.  ##commit(), however, returns a callback

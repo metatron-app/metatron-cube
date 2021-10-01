@@ -46,7 +46,7 @@ import java.util.Set;
 public interface InputRowParser<T>
 {
   /**
-   * Parse an input into list of {@link InputRow}. List can contains null for rows that should be thrown away,
+   * Parse an input into list of {@link InputRow}. List can contain null for rows that should be thrown away,
    * or throws {@code ParseException} if the input is unparseable. This method should never return null otherwise
    * lots of things will break.
    */
@@ -87,7 +87,7 @@ public interface InputRowParser<T>
     Iterator<InputRow> parseStream(Object input) throws IOException;
 
     // not like other parsers handling 'ignoreInvalidRows' in outside, it shoud be done in inside
-    // exceptions thrown in hasNext() will always be propagated cause it's not possible to overcome that in streaming world
+    // exceptions thrown in hasNext() will always be propagated because it's not possible to overcome that in streaming world
     Streaming<T> withIgnoreInvalidRows(boolean ignoreInvalidRows);
   }
 

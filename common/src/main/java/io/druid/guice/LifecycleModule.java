@@ -46,7 +46,7 @@ public class LifecycleModule implements Module
    *
    * Eagerly loaded classes will *not* be automatically added to the Lifecycle unless they are bound to the proper
    * scope.  That is, they are generally eagerly loaded because the loading operation will produce some beneficial
-   * side-effect even if nothing actually directly depends on the instance.
+   * side effect even if nothing actually directly depends on the instance.
    *
    * This mechanism exists to allow the {@link io.druid.java.util.common.lifecycle.Lifecycle} to be the primary entry point from the injector, not to
    * auto-register things with the {@link io.druid.java.util.common.lifecycle.Lifecycle}.  It is also possible to just bind things eagerly with Guice,
@@ -67,7 +67,7 @@ public class LifecycleModule implements Module
    *
    * Eagerly loaded classes will *not* be automatically added to the Lifecycle unless they are bound to the proper
    * scope.  That is, they are generally eagerly loaded because the loading operation will produce some beneficial
-   * side-effect even if nothing actually directly depends on the instance.
+   * side effect even if nothing actually directly depends on the instance.
    *
    * This mechanism exists to allow the {@link io.druid.java.util.common.lifecycle.Lifecycle} to be the primary entry point from the injector, not to
    * auto-register things with the {@link io.druid.java.util.common.lifecycle.Lifecycle}.  It is also possible to just bind things eagerly with Guice,
@@ -89,7 +89,7 @@ public class LifecycleModule implements Module
    *
    * Eagerly loaded classes will *not* be automatically added to the Lifecycle unless they are bound to the proper
    * scope.  That is, they are generally eagerly loaded because the loading operation will produce some beneficial
-   * side-effect even if nothing actually directly depends on the instance.
+   * side effect even if nothing actually directly depends on the instance.
    *
    * This mechanism exists to allow the {@link io.druid.java.util.common.lifecycle.Lifecycle} to be the primary entry point from the injector, not to
    * auto-register things with the {@link io.druid.java.util.common.lifecycle.Lifecycle}.  It is also possible to just bind things eagerly with Guice,
@@ -111,7 +111,7 @@ public class LifecycleModule implements Module
    *
    * Eagerly loaded classes will *not* be automatically added to the Lifecycle unless they are bound to the proper
    * scope.  That is, they are generally eagerly loaded because the loading operation will produce some beneficial
-   * side-effect even if nothing actually directly depends on the instance.
+   * side effect even if nothing actually directly depends on the instance.
    *
    * This mechanism exists to allow the {@link io.druid.java.util.common.lifecycle.Lifecycle} to be the primary entry point
    * from the injector, not to auto-register things with the {@link io.druid.java.util.common.lifecycle.Lifecycle}.  It is
@@ -150,7 +150,7 @@ public class LifecycleModule implements Module
       public void start() throws Exception
       {
         for (KeyHolder<?> holder : eagerClasses) {
-          injector.getInstance(holder.getKey()); // Pull the key so as to "eagerly" load up the class.
+          injector.getInstance(holder.getKey()); // Pull the key to "eagerly" load up the class.
         }
         super.start();
       }

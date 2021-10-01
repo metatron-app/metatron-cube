@@ -66,8 +66,7 @@ public interface Row extends Comparable<Row>, Expr.NumericBinding
   List<String> getDimension(String dimension);
 
   /**
-   * Returns the raw dimension value for the given column name. This is different from #getDimension which
-   * all values to strings before returning them.
+   * Returns the raw dimension value for the given column name.
    *
    * @param dimension the column name of the dimension requested
    *

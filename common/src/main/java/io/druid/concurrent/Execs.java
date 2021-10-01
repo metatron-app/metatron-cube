@@ -67,7 +67,7 @@ import java.util.concurrent.TimeoutException;
  */
 public class Execs
 {
-  private static Logger log = new Logger(Execs.class);
+  private static final Logger log = new Logger(Execs.class);
 
   public static ExecutorService singleThreaded(@NotNull String nameFormat)
   {

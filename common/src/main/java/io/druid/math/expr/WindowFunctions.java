@@ -61,7 +61,7 @@ public interface WindowFunctions extends Function.Library
 
     protected abstract WindowFunction newInstance(List<Expr> args, WindowContext context);
 
-    protected abstract class WindowFunction implements Function
+    protected abstract static class WindowFunction implements Function
     {
       protected final WindowContext context;
 
@@ -115,7 +115,7 @@ public interface WindowFunctions extends Function.Library
 
     protected final class StatelessWindowFunction extends WindowFunction
     {
-      protected StatelessWindowFunction(List<Expr> args, WindowContext context)
+      private StatelessWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
       }
@@ -138,7 +138,7 @@ public interface WindowFunctions extends Function.Library
 
   abstract class FrameFunctionFactory extends Factory
   {
-    protected abstract class FrameFunction extends WindowFunction
+    protected abstract static class FrameFunction extends WindowFunction
     {
       protected final int[] window;
 
@@ -289,11 +289,11 @@ public interface WindowFunctions extends Function.Library
       return new NthWindowFunction(args, context);
     }
 
-    protected final class NthWindowFunction extends WindowFunction
+    protected static final class NthWindowFunction extends WindowFunction
     {
       private final int nth;
 
-      protected NthWindowFunction(List<Expr> args, WindowContext context)
+      private NthWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
         nth = Evals.getConstantNumber(parameters.get(0)).intValue() - 1;
@@ -317,11 +317,11 @@ public interface WindowFunctions extends Function.Library
       return new LagWindowFunction(args, context);
     }
 
-    protected final class LagWindowFunction extends WindowFunction
+    protected static final class LagWindowFunction extends WindowFunction
     {
       private final int delta;
 
-      protected LagWindowFunction(List<Expr> args, WindowContext context)
+      private LagWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
         delta = Evals.getConstantNumber(parameters.get(0)).intValue();
@@ -345,11 +345,11 @@ public interface WindowFunctions extends Function.Library
       return new LeadWindowFunction(args, context);
     }
 
-    protected final class LeadWindowFunction extends WindowFunction
+    protected static final class LeadWindowFunction extends WindowFunction
     {
       private final int delta;
 
-      protected LeadWindowFunction(List<Expr> args, WindowContext context)
+      private LeadWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
         delta = Evals.getConstantNumber(parameters.get(0)).intValue();
@@ -373,13 +373,13 @@ public interface WindowFunctions extends Function.Library
       return new DeltaWindowFunction(args, context);
     }
 
-    protected final class DeltaWindowFunction extends WindowFunction
+    protected static final class DeltaWindowFunction extends WindowFunction
     {
       private long longPrev;
       private float floatPrev;
       private double doublePrev;
 
-      protected DeltaWindowFunction(List<Expr> args, WindowContext context)
+      private DeltaWindowFunction(List<Expr> args, WindowContext context)
       {
         super(args, context);
       }
@@ -481,7 +481,7 @@ public interface WindowFunctions extends Function.Library
       return new RunningSumFunction(args, context);
     }
 
-    class RunningSumFunction extends RunningSum0Function
+    static class RunningSumFunction extends RunningSum0Function
     {
       int counter;
 
@@ -526,7 +526,7 @@ public interface WindowFunctions extends Function.Library
       return new RunningSum0Function(args, context);
     }
 
-    class RunningSum0Function extends FrameFunction
+    static class RunningSum0Function extends FrameFunction
     {
       private long longSum;
       private double doubleSum;
@@ -586,7 +586,7 @@ public interface WindowFunctions extends Function.Library
       return new RunningMinFunction(args, context);
     }
 
-    private class RunningMinFunction extends FrameFunction
+    private static class RunningMinFunction extends FrameFunction
     {
       private Comparable prev;
 
@@ -628,7 +628,7 @@ public interface WindowFunctions extends Function.Library
       return new RunningMaxFunction(args, context);
     }
 
-    private class RunningMaxFunction extends FrameFunction
+    private static class RunningMaxFunction extends FrameFunction
     {
       private Comparable prev;
 
@@ -685,7 +685,7 @@ public interface WindowFunctions extends Function.Library
       return new RankFunction(args, context);
     }
 
-    private class RankFunction extends WindowFunction implements FixedTyped.LongType
+    private static class RankFunction extends WindowFunction implements FixedTyped.LongType
     {
       private long prevRank;
       private Object prev;
@@ -724,7 +724,7 @@ public interface WindowFunctions extends Function.Library
       return new DenseRankFunction(args, context);
     }
 
-    private class DenseRankFunction extends WindowFunction implements FixedTyped.LongType
+    private static class DenseRankFunction extends WindowFunction implements FixedTyped.LongType
     {
       private long prevRank;
       private Object prev;
@@ -763,7 +763,7 @@ public interface WindowFunctions extends Function.Library
       return new RunningMeanFunction(args, context);
     }
 
-    class RunningMeanFunction extends RunningSumFunction implements FixedTyped.DoubleType
+    static class RunningMeanFunction extends RunningSumFunction implements FixedTyped.DoubleType
     {
       protected RunningMeanFunction(List<Expr> args, WindowContext context)
       {
@@ -785,7 +785,7 @@ public interface WindowFunctions extends Function.Library
 
   abstract class RunningStats extends FrameFunctionFactory implements FixedTyped.DoubleType
   {
-    class StatsFunction extends FrameFunction implements FixedTyped.DoubleType
+    static class StatsFunction extends FrameFunction implements FixedTyped.DoubleType
     {
       final StorelessUnivariateStatistic statistic;
 
@@ -900,7 +900,7 @@ public interface WindowFunctions extends Function.Library
       };
     }
 
-    abstract class PercentileFunction extends FrameFunction
+    abstract static class PercentileFunction extends FrameFunction
     {
       protected final ValueType type;
 

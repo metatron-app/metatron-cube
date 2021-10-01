@@ -47,7 +47,7 @@ public class OrderedMergeIterator<T> implements Iterator<T>
 {
   private final PriorityQueue<PeekingIterator<T>> pQueue;
 
-  private PeekingIterator<PeekingIterator<T>> iterOfIterators;
+  private final PeekingIterator<PeekingIterator<T>> iterOfIterators;
   private final Comparator<T> comparator;
 
   public OrderedMergeIterator(

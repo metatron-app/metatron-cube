@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ValueType;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * NOTE: 
@@ -76,11 +77,7 @@ public class NewSpatialDimensionSchema extends DimensionSchema
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
-    NewSpatialDimensionSchema that = (NewSpatialDimensionSchema) o;
-
-    return dims != null ? dims.equals(that.dims) : that.dims == null;
-
+    return Objects.equals(dims, ((NewSpatialDimensionSchema) o).dims);
   }
 
   @Override

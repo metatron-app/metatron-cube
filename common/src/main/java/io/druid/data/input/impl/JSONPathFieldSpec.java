@@ -80,10 +80,10 @@ public class JSONPathFieldSpec
 
     JSONPathFieldSpec that = (JSONPathFieldSpec) o;
 
-    if (!Objects.equals(expr, expr)) {
+    if (!Objects.equals(expr, that.expr)) {
       return false;
     }
-    if (!Objects.equals(name, name)) {
+    if (!Objects.equals(name, that.name)) {
       return false;
     }
     if (type != that.type) {

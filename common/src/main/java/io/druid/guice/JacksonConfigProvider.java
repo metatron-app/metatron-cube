@@ -33,10 +33,11 @@ import io.druid.common.guava.DSuppliers;
  */
 public class JacksonConfigProvider<T> implements Provider<Supplier<T>>
 {
+  @SuppressWarnings("unchecked")
   public static <T> void bind(Binder binder, String key, Class<T> clazz, T defaultVal)
   {
-    binder.bind(Key.get(Types.newParameterizedType(Supplier.class, clazz)))
-          .toProvider((Provider) of(key, clazz, defaultVal))
+    binder.bind((Key) Key.get(Types.newParameterizedType(Supplier.class, clazz)))
+          .toProvider(of(key, clazz, defaultVal))
           .in(LazySingleton.class);
   }
 

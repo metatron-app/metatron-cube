@@ -62,7 +62,6 @@ public class Pair<K, V> extends io.druid.java.util.common.Pair<K, V> implements 
     return KEY_COMP(GuavaUtils.<K>noNullableNatural());
   }
 
-  @SuppressWarnings("unchecked")
   public static <K, V> Comparator<Map.Entry<K, V>> KEY_COMP(final Comparator<K> comparator)
   {
     return new Comparator<Map.Entry<K, V>>()

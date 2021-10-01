@@ -36,7 +36,7 @@ public class JSONPathSpec
       @JsonProperty("fields") List<JSONPathFieldSpec> fields
   )
   {
-    this.useFieldDiscovery = useFieldDiscovery == null ? true : useFieldDiscovery;
+    this.useFieldDiscovery = useFieldDiscovery == null || useFieldDiscovery;
     this.fields = fields == null ? ImmutableList.<JSONPathFieldSpec>of() : fields;
   }
 

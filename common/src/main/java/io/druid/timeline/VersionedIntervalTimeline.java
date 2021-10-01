@@ -51,13 +51,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  *
  * After loading objects via the add() method, the lookup(Interval) method can be used to get the list of the most
  * recent objects (according to the version) that match the given interval.  The intent is that objects represent
- * a certain time period and when you do a lookup(), you are asking for all of the objects that you need to look
+ * a certain time period and when you do a lookup(), you are asking for all the objects that you need to look
  * at in order to get a correct answer about that time period.
  *
  * The findOvershadowed() method returns a list of objects that will never be returned by a call to lookup() because
  * they are overshadowed by some other object.  This can be used in conjunction with the add() and remove() methods
  * to achieve "atomic" updates.  First add new items, then check if those items caused anything to be overshadowed, if
- * so, remove the overshadowed elements and you have effectively updated your data set without any user impact.
+ * so, remove the overshadowed elements, and you have effectively updated your data set without any user impact.
  */
 public class VersionedIntervalTimeline<VersionType, ObjectType> implements TimelineLookup<VersionType, ObjectType>
 {
@@ -96,7 +96,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     } else if (from2 == null) {
       from = from1.getStartMillis();
     } else {
-      from = from1.getStartMillis() < from2.getStartMillis() ? from1.getStartMillis() : from2.getStartMillis();
+      from = Math.min(from1.getStartMillis(), from2.getStartMillis());
     }
     Interval to1 = completePartitionsTimeline.lastKey();
     Interval to2 = incompletePartitionsTimeline.lastKey();
@@ -106,7 +106,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     } else if (from2 == null) {
       to = to1.getEndMillis();
     } else {
-      to = to1.getEndMillis() > to2.getEndMillis() ? to1.getEndMillis() : to2.getEndMillis();
+      to = Math.max(to1.getEndMillis(), to2.getEndMillis());
     }
     return new Interval(from, to);
   }
@@ -415,7 +415,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
    * @param timeline
    * @param key
    * @param entry
-   * @return boolean flag indicating whether or not we inserted or discarded something
+   * @return boolean flag indicating whether we inserted or discarded something
    */
   private boolean addAtKey(
       NavigableMap<Interval, TimelineEntry> timeline,

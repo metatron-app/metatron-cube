@@ -88,7 +88,7 @@ public class LoadBalancingPool<T> implements Supplier<ResourceHolder<T>>
 
   private class CountingHolder implements ResourceHolder<T>, Comparable<CountingHolder>
   {
-    private AtomicInteger count = new AtomicInteger(0);
+    private final AtomicInteger count = new AtomicInteger(0);
     private final T object;
 
     public CountingHolder(final T object)

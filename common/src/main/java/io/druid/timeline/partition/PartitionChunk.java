@@ -22,7 +22,7 @@ package io.druid.timeline.partition;
 /**
  * A PartitionChunk represents a chunk of a partitioned(sharded) space.  It has knowledge of whether it is
  * the start of the domain of partitions, the end of the domain, if it abuts another partition and where it stands
- * inside of a sorted collection of partitions.
+ * inside a sorted collection of partitions.
  *
  * The ordering of PartitionChunks is based entirely upon the partition boundaries defined inside the concrete
  * PartitionChunk class.  That is, the payload (the object returned by getObject()) should *not* be involved in

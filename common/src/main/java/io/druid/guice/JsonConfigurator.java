@@ -152,9 +152,7 @@ public class JsonConfigurator
         String path = "";
         try {
           Class<?> beanClazz = violation.getRootBeanClass();
-          final Iterator<Path.Node> iter = violation.getPropertyPath().iterator();
-          while (iter.hasNext()) {
-            Path.Node next = iter.next();
+          for (Path.Node next : violation.getPropertyPath()) {
             if (next.getKind() == ElementKind.PROPERTY) {
               final String fieldName = next.getName();
               final Field theField = beanClazz.getDeclaredField(fieldName);
@@ -169,8 +167,7 @@ public class JsonConfigurator
               final String pathPart = noAnnotationValue ? fieldName : annotation.value();
               if (path.isEmpty()) {
                 path += pathPart;
-              }
-              else {
+              } else {
                 path += "." + pathPart;
               }
             }

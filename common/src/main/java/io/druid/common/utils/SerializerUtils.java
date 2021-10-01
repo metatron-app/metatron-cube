@@ -20,7 +20,6 @@
 package io.druid.common.utils;
 
 import com.google.common.io.ByteStreams;
-import com.google.common.primitives.Ints;
 import io.druid.java.util.common.StringUtils;
 
 import java.io.IOException;

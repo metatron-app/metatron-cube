@@ -20,7 +20,6 @@
 package io.druid.common.config;
 
 import com.google.common.base.Throwables;
-import com.google.common.util.concurrent.Callables;
 import org.apache.logging.log4j.core.util.Cancellable;
 import org.apache.logging.log4j.core.util.ShutdownCallbackRegistry;
 

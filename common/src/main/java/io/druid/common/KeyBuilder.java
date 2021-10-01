@@ -33,7 +33,7 @@ import java.util.Objects;
  */
 public class KeyBuilder
 {
-  private static ThreadLocal<BytesOutputStream> BUILDERS = new ThreadLocal<BytesOutputStream>()
+  private static final ThreadLocal<BytesOutputStream> BUILDERS = new ThreadLocal<BytesOutputStream>()
   {
     @Override
     protected BytesOutputStream initialValue()
@@ -157,9 +157,9 @@ public class KeyBuilder
 
   public KeyBuilder append(List<? extends Cacheable> cacheables)
   {
-    if (GuavaUtils.isNullOrEmpty(cacheables)) {
+    if (!GuavaUtils.isNullOrEmpty(cacheables)) {
       Iterator<? extends Cacheable> iterator = cacheables.iterator();
-      for (;iterator.hasNext() && output.size() < limit;iterator.next()) {
+      while (iterator.hasNext() && output.size() < limit) {
         iterator.next().getCacheKey(sp());
       }
     }
