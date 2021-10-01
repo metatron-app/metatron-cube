@@ -40,7 +40,7 @@ public abstract class LongMinBufferAggregator extends BufferAggregator.NullSuppo
       return new LongMinBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Long current = selector.get();
           if (current != null) {
@@ -52,7 +52,7 @@ public abstract class LongMinBufferAggregator extends BufferAggregator.NullSuppo
       return new LongMinBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Long current = selector.get();
@@ -72,7 +72,7 @@ public abstract class LongMinBufferAggregator extends BufferAggregator.NullSuppo
       buf.putLong(Byte.BYTES + position, current);
     } else {
       final long prev = buf.getLong(Byte.BYTES + position);
-      if (Long.compare(current, prev) < 0) {
+      if (current < prev) {
         buf.putLong(Byte.BYTES + position, current);
       }
     }

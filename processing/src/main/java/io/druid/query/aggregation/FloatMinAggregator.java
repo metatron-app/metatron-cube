@@ -65,7 +65,7 @@ public abstract class FloatMinAggregator implements Aggregator<MutableFloat>
       return new FloatMinAggregator()
       {
         @Override
-        public final MutableFloat aggregate(MutableFloat current)
+        public MutableFloat aggregate(MutableFloat current)
         {
           if (predicate.matches()) {
             final Float value = selector.get();

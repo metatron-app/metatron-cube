@@ -39,7 +39,7 @@ public abstract class DoubleSumAggregator implements Aggregator<MutableDouble>
   static final Combiner<Number> COMBINER = new Combiner.Abstract<Number>()
   {
     @Override
-    protected final Number _combine(Number param1, Number param2)
+    protected Number _combine(Number param1, Number param2)
     {
       return param1.doubleValue() + param2.doubleValue();
     }

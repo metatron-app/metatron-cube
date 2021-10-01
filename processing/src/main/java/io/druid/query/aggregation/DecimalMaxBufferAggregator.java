@@ -39,7 +39,7 @@ public abstract class DecimalMaxBufferAggregator extends DecimalBufferAggregator
       return new DecimalMaxBufferAggregator(metric)
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final BigDecimal decimal = selector.get();
           if (decimal != null) {
@@ -54,10 +54,10 @@ public abstract class DecimalMaxBufferAggregator extends DecimalBufferAggregator
       return new DecimalMaxBufferAggregator(metric)
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final BigDecimal decimal = selector.get();
-          if (decimal != null) {
+          if (decimal != null && predicate.matches()) {
             final BigDecimal current = read(buf, position1);
             if (current == null || decimal.compareTo(current) > 0) {
               write(buf, position1, decimal);

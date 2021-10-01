@@ -40,7 +40,7 @@ public abstract class FloatMaxBufferAggregator extends BufferAggregator.NullSupp
       return new FloatMaxBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Float current = selector.get();
           if (current != null) {
@@ -52,7 +52,7 @@ public abstract class FloatMaxBufferAggregator extends BufferAggregator.NullSupp
       return new FloatMaxBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Float current = selector.get();

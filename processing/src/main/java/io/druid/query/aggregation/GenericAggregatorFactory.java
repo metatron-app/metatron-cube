@@ -126,7 +126,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     return new Aggregators.DelegatedAggregator(factorize(factory, elementType))
     {
       @Override
-      public final Object aggregate(Object current)
+      public Object aggregate(Object current)
       {
         final List values = selector.get();
         if (current == null) {
@@ -157,7 +157,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory.TypeRes
     return new Aggregators.DelegatedBufferAggregator(factorizeBuffered(factory, elementType))
     {
       @Override
-      public final void aggregate(ByteBuffer buf, int position0, int position1)
+      public void aggregate(ByteBuffer buf, int position0, int position1)
       {
         List values = selector.get();
         for (int i = 0; i < values.size(); i++) {

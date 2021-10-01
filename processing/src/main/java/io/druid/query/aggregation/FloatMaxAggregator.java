@@ -68,7 +68,7 @@ public abstract class FloatMaxAggregator implements Aggregator<MutableFloat>
       return new FloatMaxAggregator()
       {
         @Override
-        public final MutableFloat aggregate(MutableFloat current)
+        public MutableFloat aggregate(MutableFloat current)
         {
           if (predicate.matches()) {
             final Float value = selector.get();

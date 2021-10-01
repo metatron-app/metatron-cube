@@ -97,7 +97,7 @@ public class DoubleMaxAggregatorFactory extends AggregatorFactory implements Agg
     return new Combiner.Abstract<Number>()
     {
       @Override
-      protected final Number _combine(Number param1, Number param2)
+      protected Number _combine(Number param1, Number param2)
       {
         return Math.max(param1.doubleValue(), param2.doubleValue());
       }

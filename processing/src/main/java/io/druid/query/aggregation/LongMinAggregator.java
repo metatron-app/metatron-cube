@@ -35,7 +35,7 @@ public abstract class LongMinAggregator implements Aggregator<MutableLong>
   static final Combiner<Number> COMBINER = new Combiner.Abstract<Number>()
   {
     @Override
-    protected final Number _combine(Number lhs, Number rhs)
+    protected Number _combine(Number lhs, Number rhs)
     {
       return Math.min(lhs.longValue(), rhs.longValue());
     }
@@ -70,7 +70,7 @@ public abstract class LongMinAggregator implements Aggregator<MutableLong>
       return new LongMinAggregator()
       {
         @Override
-        public final MutableLong aggregate(MutableLong current)
+        public MutableLong aggregate(MutableLong current)
         {
           if (predicate.matches()) {
             final Long value = selector.get();

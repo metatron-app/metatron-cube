@@ -23,5 +23,5 @@ package io.druid.query.aggregation;
 */
 public interface MetricManipulationFn
 {
-  public Object manipulate(AggregatorFactory factory, Object object);
+  Object manipulate(AggregatorFactory factory, Object object);
 }

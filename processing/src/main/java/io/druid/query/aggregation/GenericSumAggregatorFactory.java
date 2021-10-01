@@ -218,7 +218,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
           return new Combiner.Abstract<BigDecimal>()
           {
             @Override
-            protected final BigDecimal _combine(BigDecimal param1, BigDecimal param2)
+            protected BigDecimal _combine(BigDecimal param1, BigDecimal param2)
             {
               return param1.add(param2);
             }

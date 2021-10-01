@@ -46,7 +46,7 @@ public class ValueDesc implements Serializable, Cacheable
 {
   private static final Interner<String> INTERNER = Interners.newStrongInterner();
 
-  // primitives (should be conform with JsonValue of ValueType)
+  // primitives (should be conformed with JsonValue of ValueType)
   public static final String STRING_TYPE = "string";
   public static final String FLOAT_TYPE = "float";
   public static final String DOUBLE_TYPE = "double";
@@ -429,7 +429,7 @@ public class ValueDesc implements Serializable, Cacheable
     this.clazz = clazz;
   }
 
-  // complex types are case sensitive (same with serde-name) but primitive types are not.. hate this
+  // complex types are case-sensitive (same with serde-name) but primitive types are not.. hate that
   private String normalize(String typeName)
   {
     ValueType valueType = ValueType.of(typeName);

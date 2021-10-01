@@ -46,7 +46,7 @@ public abstract class LongSumBufferAggregator implements BufferAggregator
       return new LongSumBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           final Long current = selector.get();
           if (current != null) {
@@ -58,7 +58,7 @@ public abstract class LongSumBufferAggregator implements BufferAggregator
       return new LongSumBufferAggregator()
       {
         @Override
-        public final void aggregate(ByteBuffer buf, int position0, int position1)
+        public void aggregate(ByteBuffer buf, int position0, int position1)
         {
           if (predicate.matches()) {
             final Long current = selector.get();

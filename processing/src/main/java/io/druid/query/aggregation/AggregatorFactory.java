@@ -78,8 +78,8 @@ public abstract class AggregatorFactory implements Cacheable
    * <p>
    * Mostly, it's not dependent to inner state of AggregatorFactory. So I've changed to return function
    *
-   * @param lhs The left hand side of the combine
-   * @param rhs The right hand side of the combine
+   * @param lhs The left-hand side of the combine
+   * @param rhs The right-hand side of the combine
    *
    * @return an object representing the combination of lhs and rhs, this can be a new object or a mutation of the inputs
    */
@@ -171,7 +171,7 @@ public abstract class AggregatorFactory implements Cacheable
   public abstract int getMaxIntermediateSize();
 
   /**
-   * This AggregatorFactory returns EstimableAggregator which provides more closer estimation of memory usage in ingestion
+   * This AggregatorFactory returns EstimableAggregator which provides closer estimation of memory usage in ingestion
    *
    * @return
    */

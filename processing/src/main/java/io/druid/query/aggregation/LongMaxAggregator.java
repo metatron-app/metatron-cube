@@ -35,7 +35,7 @@ public abstract class LongMaxAggregator implements Aggregator<MutableLong>
   static final Combiner<Number> COMBINER = new Combiner.Abstract<Number>()
   {
     @Override
-    protected final Number _combine(Number lhs, Number rhs)
+    protected Number _combine(Number lhs, Number rhs)
     {
       return Math.max(lhs.longValue(), rhs.longValue());
     }
@@ -70,7 +70,7 @@ public abstract class LongMaxAggregator implements Aggregator<MutableLong>
       return new LongMaxAggregator()
       {
         @Override
-        public final MutableLong aggregate(MutableLong current)
+        public MutableLong aggregate(MutableLong current)
         {
           if (predicate.matches()) {
             final Long value = selector.get();

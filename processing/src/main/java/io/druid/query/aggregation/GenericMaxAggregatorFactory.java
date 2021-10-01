@@ -211,7 +211,7 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
     return new Combiner.Abstract<Object>()
     {
       @Override
-      protected final Object _combine(Object lhs, Object rhs)
+      protected Object _combine(Object lhs, Object rhs)
       {
         return comparator.compare(lhs, rhs) >= 0 ? lhs : rhs;
       }

@@ -41,7 +41,7 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory implements 
   private final String fieldName;
   private final String timeFormat;
 
-  private DefaultTimestampSpec timestampSpec;
+  private final DefaultTimestampSpec timestampSpec;
 
   @JsonCreator
   public TimestampMaxAggregatorFactory(

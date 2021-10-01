@@ -105,9 +105,9 @@ public class DecimalMetricSerde implements ComplexMetricSerde
           } else if (raw instanceof BigInteger) {
             decimal = new BigDecimal((BigInteger) raw);
           } else if (raw instanceof Double || raw instanceof Float) {
-            decimal = new BigDecimal(((Number) raw).doubleValue());
+            decimal = BigDecimal.valueOf(((Number) raw).doubleValue());
           } else {
-            decimal = new BigDecimal(((Number) raw).longValue());
+            decimal = BigDecimal.valueOf(((Number) raw).longValue());
           }
         } else if (raw instanceof String) {
           decimal = new BigDecimal((String) raw);

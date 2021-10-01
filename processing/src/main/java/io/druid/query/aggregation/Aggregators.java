@@ -64,7 +64,6 @@ public class Aggregators
     return values;
   }
 
-  @SuppressWarnings("unchecked")
   public static void close(Aggregator[] aggregators)
   {
     for (int i = 0; i < aggregators.length; i++) {
@@ -72,7 +71,6 @@ public class Aggregators
     }
   }
 
-  @SuppressWarnings("unchecked")
   public static class DelegatedAggregator<T> implements Aggregator<T>
   {
     final Aggregator<T> delegate;
@@ -231,13 +229,12 @@ public class Aggregators
           final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
           @Override
-          @SuppressWarnings("unchecked")
           public TimeTagged aggregate(TimeTagged current)
           {
             final long timestamp = timeSelector.get();
             if (current == null) {
               current = new TimeTagged(timestamp, selector.get());
-            } else if (Long.compare(timestamp, current.timestamp) < 0) {
+            } else if (timestamp < current.timestamp) {
               current.timestamp = timestamp;
               current.value = selector.get();
             }
@@ -256,13 +253,12 @@ public class Aggregators
           final LongColumnSelector timeSelector = factory.makeLongColumnSelector(Row.TIME_COLUMN_NAME);
 
           @Override
-          @SuppressWarnings("unchecked")
           public TimeTagged aggregate(TimeTagged current)
           {
             final long timestamp = timeSelector.get();
             if (current == null) {
               current = new TimeTagged(timestamp, selector.get());
-            } else if (Long.compare(timestamp, current.timestamp) > 0) {
+            } else if (timestamp > current.timestamp) {
               current.timestamp = timestamp;
               current.value = selector.get();
             }
@@ -449,7 +445,7 @@ public class Aggregators
           {
             final Number time1 = (Number) ((List) param1).get(0);
             final Number time2 = (Number) ((List) param2).get(0);
-            return Long.compare(time1.longValue(), time2.longValue()) < 0 ? param1 : param2;
+            return time1.longValue() < time2.longValue() ? param1 : param2;
           }
         };
       case TIME_MAX:
@@ -460,7 +456,7 @@ public class Aggregators
           {
             final Number time1 = (Number) ((List) param1).get(0);
             final Number time2 = (Number) ((List) param2).get(0);
-            return Long.compare(time1.longValue(), time2.longValue()) > 0 ? param1 : param2;
+            return time1.longValue() > time2.longValue() ? param1 : param2;
           }
         };
       default:

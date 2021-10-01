@@ -65,7 +65,7 @@ public abstract class DoubleMinAggregator implements Aggregator<MutableDouble>
       return new DoubleMinAggregator()
       {
         @Override
-        public final MutableDouble aggregate(MutableDouble current)
+        public MutableDouble aggregate(MutableDouble current)
         {
           if (predicate.matches()) {
             final Double value = selector.get();

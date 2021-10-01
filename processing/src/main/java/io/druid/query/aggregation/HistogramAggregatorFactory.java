@@ -32,6 +32,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class HistogramAggregatorFactory extends AggregatorFactory implements AggregatorFactory.CubeSupport
 {
@@ -221,13 +222,13 @@ public class HistogramAggregatorFactory extends AggregatorFactory implements Agg
     if (!Arrays.equals(breaks, that.breaks)) {
       return false;
     }
-    if (breaksList != null ? !breaksList.equals(that.breaksList) : that.breaksList != null) {
+    if (!Objects.equals(breaksList, that.breaksList)) {
       return false;
     }
-    if (fieldName != null ? !fieldName.equals(that.fieldName) : that.fieldName != null) {
+    if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
-    if (name != null ? !name.equals(that.name) : that.name != null) {
+    if (!Objects.equals(name, that.name)) {
       return false;
     }
 

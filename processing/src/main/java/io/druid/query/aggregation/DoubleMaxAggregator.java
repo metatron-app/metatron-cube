@@ -66,7 +66,7 @@ public abstract class DoubleMaxAggregator implements Aggregator<MutableDouble>
       return new DoubleMaxAggregator()
       {
         @Override
-        public final MutableDouble aggregate(MutableDouble current)
+        public MutableDouble aggregate(MutableDouble current)
         {
           if (predicate.matches()) {
             final Float value = selector.get();
@@ -107,7 +107,7 @@ public abstract class DoubleMaxAggregator implements Aggregator<MutableDouble>
       return new DoubleMaxAggregator()
       {
         @Override
-        public final MutableDouble aggregate(MutableDouble current)
+        public MutableDouble aggregate(MutableDouble current)
         {
           if (predicate.matches()) {
             final Double value = selector.get();
