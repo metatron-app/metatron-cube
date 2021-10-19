@@ -146,6 +146,8 @@
                                 <argument>app.metatron.extensions.contrib:druid-kafka-eight-simple-consumer</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions.contrib:kafka-emitter</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-jfreechart-extensions</argument>
                             </arguments>
                         </configuration>
                     </execution>
