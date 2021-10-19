@@ -84,6 +84,9 @@ public class DBScanPostProcessor extends PostProcessingOperator.ReturnsArray imp
                 @Override
                 public Centroid apply(Object[] input)
                 {
+                  if (input.length == 1) {
+                    return new Centroid((double[]) input[0]);
+                  }
                   final double[] point = new double[input.length];
                   for (int i = 0; i < input.length; i++) {
                     point[i] = ((Number) input[i]).doubleValue();

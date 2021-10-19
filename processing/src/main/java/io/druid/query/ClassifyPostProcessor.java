@@ -69,18 +69,18 @@ public class ClassifyPostProcessor implements PostProcessingOperator.UnionSuppor
 
         List<Sequence<Object>> tagged = Lists.newArrayList();
         for (Pair<Query, Sequence> pair : sequences) {
+          Sequence sequence = pair.rhs;
+          List<String> outputColumns = sequence.columns();
+          List<String> finalColumns = outputColumns == null ? null : GuavaUtils.concat(outputColumns, tagColumn);
           if (pair.lhs instanceof Query.ArrayOutputSupport) {
             Query.ArrayOutputSupport stream = (Query.ArrayOutputSupport) pair.lhs;
-            List<String> outputColumns = stream.estimatedOutputColumns();
-            Sequence sequence = stream.array(pair.rhs);
             if (outputColumns != null) {
-              sequence = Sequences.map(sequence, classifier.init(outputColumns));
+              sequence = Sequences.map(finalColumns, stream.array(sequence), classifier.init(outputColumns));
             }
-            tagged.add(sequence);
           } else {
-            // tabular
-            tagged.add(Sequences.map(pair.rhs, classifier));
+            sequence = Sequences.map(finalColumns, sequence, classifier);
           }
+          tagged.add(sequence);
         }
         return Sequences.concat(tagged);
       }

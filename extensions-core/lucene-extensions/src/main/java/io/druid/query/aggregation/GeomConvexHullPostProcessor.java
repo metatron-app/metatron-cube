@@ -20,8 +20,10 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -58,13 +60,14 @@ public class GeomConvexHullPostProcessor extends ReturnsArray<Object[]>
       @JsonProperty("convexExpression") String convexExpression
   )
   {
-    this.columns = Preconditions.checkNotNull(columns, "'columns cannot be null");
+    this.columns = columns;
     this.tagColumn = tagColumn;
     this.geomColumn = Preconditions.checkNotNull(geomColumn, "'geomColumn' can not be null");
     this.convexExpression = Strings.emptyToNull(convexExpression);
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<String> getColumns()
   {
     return columns;
@@ -91,19 +94,21 @@ public class GeomConvexHullPostProcessor extends ReturnsArray<Object[]>
   @Override
   public QueryRunner<Object[]> postProcess(final QueryRunner<Object[]> baseRunner)
   {
-    if (columns.indexOf(geomColumn) < 0 || (tagColumn != null && columns.indexOf(tagColumn) < 0)) {
-      return baseRunner;
-    }
-    final int tagIx = tagColumn == null ? -1 : columns.indexOf(tagColumn);
-    final int geomIx = columns.indexOf(geomColumn);
-    Preconditions.checkArgument(tagIx != geomIx);
-
     return new QueryRunner<Object[]>()
     {
       @Override
       public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         final Sequence<Object[]> sequence = baseRunner.run(query, responseContext);
+
+        final Optional<List<String>> optional = Optional.fromNullable(sequence.columns());
+        final List<String> columns = optional.isPresent() ? optional.get() : GeomConvexHullPostProcessor.this.columns;
+        if (columns == null || !columns.contains(geomColumn) || (tagColumn != null && !columns.contains(tagColumn))) {
+          return sequence;
+        }
+        final int tagIx = tagColumn == null ? -1 : columns.indexOf(tagColumn);
+        final int geomIx = columns.indexOf(geomColumn);
+        Preconditions.checkArgument(tagIx != geomIx);
 
         final Expr expr = Strings.isNullOrEmpty(convexExpression) ? null : Parser.parse(convexExpression);
         final Map<Object, BatchConvexHull> convexHulls = Maps.newHashMap();
