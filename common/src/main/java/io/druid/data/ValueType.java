@@ -101,7 +101,7 @@ public enum ValueType
     }
 
     @Override
-    public Comparator numericComparator()
+    public Comparator comparator()
     {
       return Comparators.NULL_FIRST((n1, n2) -> Float.compare(((Number) n1).floatValue(), ((Number) n2).floatValue()));
     }
@@ -138,7 +138,7 @@ public enum ValueType
     }
 
     @Override
-    public Comparator numericComparator()
+    public Comparator comparator()
     {
       return Comparators.NULL_FIRST((n1, n2) -> Long.compare(((Number) n1).longValue(), ((Number) n2).longValue()));
     }
@@ -175,7 +175,7 @@ public enum ValueType
     }
 
     @Override
-    public Comparator numericComparator()
+    public Comparator comparator()
     {
       return Comparators.NULL_FIRST((n1, n2) -> Double.compare(((Number) n1).doubleValue(), ((Number) n2).doubleValue()));
     }
@@ -272,11 +272,6 @@ public enum ValueType
   public Comparator comparator()
   {
     return GuavaUtils.NULL_FIRST_NATURAL;
-  }
-
-  public Comparator numericComparator()
-  {
-    return comparator();
   }
 
   public Object cast(Object value)
