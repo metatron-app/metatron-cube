@@ -201,7 +201,7 @@ public class DruidStatement implements Closeable
     synchronized (lock) {
       try {
         ensure(State.NEW);
-        PlannerResult result = lifecycle.plan();
+        PlannerResult result = lifecycle.plan(maxRowCount);
         Access access = lifecycle.authorize();
         if (!access.isAllowed()) {
           throw new ForbiddenException(access.toString());

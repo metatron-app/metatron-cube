@@ -43,7 +43,7 @@ public class SqlQuery
   )
   {
     this.query = Preconditions.checkNotNull(query, "query");
-    this.resultFormat = resultFormat == null ? ResultFormat.OBJECT : resultFormat;
+    this.resultFormat = resultFormat == null ? ResultFormat.OBJECT.INSTANCE : resultFormat;
     this.header = header;
     this.context = context == null ? ImmutableMap.of() : context;
   }
@@ -84,7 +84,7 @@ public class SqlQuery
     final SqlQuery sqlQuery = (SqlQuery) o;
     return header == sqlQuery.header &&
            Objects.equals(query, sqlQuery.query) &&
-           resultFormat == sqlQuery.resultFormat &&
+           resultFormat.getClass() == sqlQuery.resultFormat.getClass() &&
            Objects.equals(context, sqlQuery.context);
   }
 

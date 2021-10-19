@@ -49,6 +49,7 @@ import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerResult;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -58,9 +59,12 @@ import org.joda.time.format.ISODateTimeFormat;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -104,7 +108,7 @@ public class SqlResource
   ) throws SQLException, IOException
   {
     final String explain = String.format("EXPLAIN PLAN WITH IMPLEMENTATION FOR %s", sqlQuery);
-    return execute(new SqlQuery(explain, null, false, contextFromParam(req)), req);
+    return execute(new SqlQuery(explain, null, false, QueryResource.contextFromParam(req)), req);
   }
 
   @POST
@@ -117,7 +121,33 @@ public class SqlResource
   ) throws SQLException, IOException
   {
     req.setAttribute(QueryResource.GET_FEATURE, true);
-    return execute(new SqlQuery(sqlQuery, null, false, contextFromParam(req)), req);
+    return execute(new SqlQuery(sqlQuery, null, false, QueryResource.contextFromParam(req)), req);
+  }
+
+  @POST
+  @Consumes(MediaType.TEXT_PLAIN)
+  @Path("/chart/{type}")
+  public Response getChart(
+      String sqlQuery,
+      @PathParam("type") String type,
+      @Context HttpServletRequest req
+  ) throws SQLException, IOException
+  {
+    ResultFormat format = jsonMapper.convertValue(ImmutableMap.of("type", type), ResultFormat.class);
+    return execute(new SqlQuery(sqlQuery, format, false, QueryResource.contextFromParam(req)), req);
+  }
+
+  @GET
+  @Path("/custom")
+  public Response getCustom(
+      @QueryParam("query")  String query,
+      @Context HttpServletRequest req
+  ) throws SQLException, IOException
+  {
+    Map<String, Object> output = QueryResource.contextFromParam(req, "output.");
+    ResultFormat format = jsonMapper.convertValue(output, ResultFormat.class);
+    Map<String, Object> context = Maps.filterKeys(QueryResource.contextFromParam(req), s -> !output.containsKey(s));
+    return execute(new SqlQuery(query, format, false, Maps.newHashMap(context)), req);
   }
 
   @POST
@@ -128,7 +158,7 @@ public class SqlResource
       @Context HttpServletRequest req
   ) throws SQLException, IOException
   {
-    return execute(new SqlQuery(sqlQuery, null, false, contextFromParam(req)), req);
+    return execute(new SqlQuery(sqlQuery, null, false, QueryResource.contextFromParam(req)), req);
   }
 
   @POST
@@ -161,7 +191,7 @@ public class SqlResource
     try {
       currThread.setName(String.format("%s[sql_%s]", currThreadName, lifecycle.getQueryId()));
 
-      PlannerResult result = lifecycle.plan();
+      PlannerResult result = lifecycle.plan(-1);
       Access access = lifecycle.authorize(req);
       if (!access.isAllowed()) {
         throw new ForbiddenException(access.toString());
@@ -175,12 +205,14 @@ public class SqlResource
 
       boolean needTypeConversion = false;
       for (int i = 0; i < fieldList.size(); i++) {
-        final SqlTypeName sqlTypeName = Calcites.getTypeName(fieldList.get(i).getType());
+        RelDataType dataType = fieldList.get(i).getType();
+        SqlTypeName sqlTypeName = Calcites.getTypeName(dataType);
         timeColumns[i] = sqlTypeName == SqlTypeName.TIMESTAMP;
         dateColumns[i] = sqlTypeName == SqlTypeName.DATE;
         columnNames[i] = fieldList.get(i).getName();
         needTypeConversion |= timeColumns[i] || dateColumns[i];
       }
+      final RowSignature signature = RowSignature.from(result.rowType());
 
       Sequence<Object[]> sequence = lifecycle.execute();
       if (needTypeConversion) {
@@ -207,13 +239,13 @@ public class SqlResource
       }
 
       final Yielder<Object[]> yielder0 = Yielders.each(sequence);
+      final ResultFormat format = sqlQuery.getResultFormat();
 
       try {
         return Response.ok(
             new StreamingOutput()
             {
               @Override
-              @SuppressWarnings("unchecked")
               public void write(final OutputStream outputStream) throws IOException, WebApplicationException
               {
                 Exception e = null;
@@ -222,30 +254,14 @@ public class SqlResource
                 final MutableInt counter = new MutableInt();
                 final CountingOutputStream os = new CountingOutputStream(outputStream);
 
-                final ResultFormat.Writer formatter;
-                if (req.getAttribute(QueryResource.GET_FEATURE) == null) {
-                  formatter = sqlQuery.getResultFormat().createFormatter(os, jsonMapper);
-                } else {
-                  RowSignature signature = RowSignature.from(result.rowType());
-                  int geomIndex = signature.getColumnTypes().indexOf(ValueDesc.GEOMETRY);
-                  OutputDecorator<Object[]> decorator = jsonMapper.convertValue(
-                      ImmutableMap.of(
-                          "format", "geojson",
-                          "geomIndex", geomIndex,
-                          "columnNames", signature.getColumnNames()
-                      ),
-                      OutputDecorator.class
-                  );
-                  formatter = new DelegatedWriter(jsonMapper.getFactory().createGenerator(os), decorator);
-                }
-
-                try (final ResultFormat.Writer writer = formatter) {
+                final RowSignature signature = RowSignature.from(result.rowType());
+                try (final ResultFormat.Writer writer = getWriter(os, signature)) {
                   writer.start();
                   if (sqlQuery.includeHeader()) {
-                    writer.writeHeader(columnNames);
+                    writer.writeHeader();
                   }
                   for (;!yielder.isDone(); yielder = yielder.next(null)) {
-                    writer.writeRow(columnNames, yielder.get());
+                    writer.writeRow(yielder.get());
                     counter.increment();
                   }
                   writer.end();
@@ -260,8 +276,26 @@ public class SqlResource
                 lifecycle.emitLogsAndMetrics(e, remoteAddr, os.getCount(), counter.intValue());
                 currThread.setName(currThreadName);
               }
+
+              @SuppressWarnings("unchecked")
+              private ResultFormat.Writer getWriter(CountingOutputStream os, RowSignature signature) throws IOException
+              {
+                if (req.getAttribute(QueryResource.GET_FEATURE) == null) {
+                  return format.createFormatter(os, jsonMapper, signature);
+                }
+                int geomIndex = signature.getColumnTypes().indexOf(ValueDesc.GEOMETRY);
+                OutputDecorator<Object[]> decorator = jsonMapper.convertValue(
+                    ImmutableMap.of(
+                        "format", "geojson",
+                        "geomIndex", geomIndex,
+                        "columnNames", signature.getColumnNames()
+                    ),
+                    OutputDecorator.class
+                );
+                return new DelegatedWriter(jsonMapper.getFactory().createGenerator(os), decorator);
+              }
             }
-        ).build();
+        ).type(format.contentType()).build();
       }
       catch (Throwable e) {
         // make sure to close yielder if anything happened before starting to serialize the response.
@@ -303,16 +337,5 @@ public class SqlResource
       thread.setName(currThreadName = currThreadName.substring(0, index));
     }
     return currThreadName;
-  }
-
-  private Map<String, Object> contextFromParam(HttpServletRequest req)
-  {
-    Map<String, Object> context = Maps.newHashMap();
-    Enumeration<String> names = req.getParameterNames();
-    while (names.hasMoreElements()) {
-      String name = names.nextElement();
-      context.put(name, req.getParameter(name));
-    }
-    return context;
   }
 }

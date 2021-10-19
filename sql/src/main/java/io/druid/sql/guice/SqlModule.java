@@ -19,17 +19,20 @@
 
 package io.druid.sql.guice;
 
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
-import com.google.inject.Module;
 import com.google.inject.multibindings.Multibinder;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.PolyBind;
+import io.druid.initialization.DruidModule;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.server.initialization.jetty.JettyBindings;
@@ -49,6 +52,7 @@ import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.sql.calcite.view.ViewManager;
+import io.druid.sql.http.ResultFormat;
 import io.druid.sql.http.SqlResource;
 import org.apache.calcite.avatica.server.AbstractAvaticaHandler;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -58,9 +62,10 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Properties;
 
-public class SqlModule implements Module
+public class SqlModule implements DruidModule
 {
   private static final String PROPERTY_SQL_ENABLE = "druid.sql.enable";
   private static final String PROPERTY_SQL_ENABLE_JSON_OVER_HTTP = "druid.sql.http.enable";
@@ -72,6 +77,14 @@ public class SqlModule implements Module
 
   public SqlModule()
   {
+  }
+
+  @Override
+  public List<? extends Module> getJacksonModules()
+  {
+    return ImmutableList.<Module>of(
+        new SimpleModule("SqlModule").registerSubtypes(ResultFormat.class)
+    );
   }
 
   @Override
@@ -89,7 +102,10 @@ public class SqlModule implements Module
       Multibinder.newSetBinder(binder, SqlAggregator.class);
 
       // Add empty AggregatorFactory binder.
-      Multibinder<AggregatorFactory.SQLBundle> set = Multibinder.newSetBinder(binder, AggregatorFactory.SQLBundle.class);
+      Multibinder<AggregatorFactory.SQLBundle> set = Multibinder.newSetBinder(
+          binder,
+          AggregatorFactory.SQLBundle.class
+      );
 
       // for simplicity
       SqlBindings.addAggregator(binder, new RelayAggregatorFactory.TimeFirst("<name>", "<columnName>", null));

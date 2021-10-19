@@ -138,12 +138,12 @@ public class SqlLifecycle
     return plannerContext.getQueryId();
   }
 
-  public PlannerResult plan() throws ValidationException, RelConversionException, SqlParseException
+  public PlannerResult plan(long maxRowCount) throws ValidationException, RelConversionException, SqlParseException
   {
     synchronized (lock) {
       transition(State.INITIALIZED, State.PLANNED);
       try (DruidPlanner planner = this.planner) {
-        return plannerResult = planner.plan(sql, brokerServerView);
+        return plannerResult = planner.plan(sql, brokerServerView, maxRowCount);
       }
     }
   }

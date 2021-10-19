@@ -110,7 +110,13 @@ public class DruidPlanner implements Closeable, ForwardConstants
     this.queryMaker = queryMaker;
   }
 
-  public PlannerResult plan(final String sql, final BrokerServerView brokerServerView)
+  public PlannerResult plan(String sql, BrokerServerView brokerServerView)
+      throws SqlParseException, ValidationException, RelConversionException
+  {
+    return plan(sql, brokerServerView, -1);
+  }
+
+  public PlannerResult plan(final String sql, final BrokerServerView brokerServerView, long maxRowCount)
       throws SqlParseException, ValidationException, RelConversionException
   {
     final SqlNode source = planner.parse(sql);

@@ -29,7 +29,7 @@ public class DelegatedWriter implements ResultFormat.Writer
   private final JsonGenerator jsonGenerator;
   private final OutputDecorator<Object[]> decorator;
 
-  public DelegatedWriter(JsonGenerator jsonGenerator, OutputDecorator<Object[]> decorator)
+  DelegatedWriter(JsonGenerator jsonGenerator, OutputDecorator<Object[]> decorator)
   {
     this.jsonGenerator = jsonGenerator;
     this.decorator = decorator;
@@ -42,13 +42,13 @@ public class DelegatedWriter implements ResultFormat.Writer
   }
 
   @Override
-  public void writeHeader(String[] columnNames) throws IOException
+  public void writeHeader() throws IOException
   {
     // not in format
   }
 
   @Override
-  public void writeRow(String[] columnNames, Object[] row) throws IOException
+  public void writeRow(Object[] row) throws IOException
   {
     decorator.serialize(jsonGenerator, null, row);
   }

@@ -21,15 +21,16 @@ package io.druid.sql.http;
 
 import com.fasterxml.jackson.core.io.SerializedString;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.query.RowSignature;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
 public class ArrayLinesWriter extends ArrayWriter
 {
-  public ArrayLinesWriter(final OutputStream outputStream, final ObjectMapper jsonMapper) throws IOException
+  ArrayLinesWriter(OutputStream outputStream, ObjectMapper jsonMapper, RowSignature signature) throws IOException
   {
-    super(outputStream, jsonMapper);
+    super(outputStream, jsonMapper, signature);
     jsonGenerator.setRootValueSeparator(new SerializedString("\n"));
   }
 

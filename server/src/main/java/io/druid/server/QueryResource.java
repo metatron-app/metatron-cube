@@ -30,6 +30,7 @@ import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import io.druid.common.guava.Sequence;
@@ -80,6 +81,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
+import java.sql.SQLException;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -493,5 +496,23 @@ public class QueryResource
                      .entity(getOutputWriter().writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(e, node)))
                      .build();
     }
+  }
+
+  public static Map<String, Object> contextFromParam(HttpServletRequest req)
+  {
+    return contextFromParam(req, null);
+  }
+
+  public static Map<String, Object> contextFromParam(HttpServletRequest req, String prefix)
+  {
+    Map<String, Object> context = Maps.newHashMap();
+    Enumeration<String> names = req.getParameterNames();
+    while (names.hasMoreElements()) {
+      String name = names.nextElement();
+      if (prefix == null || name.startsWith(prefix)) {
+        context.put(prefix == null ? name : name.substring(prefix.length()), req.getParameter(name));
+      }
+    }
+    return context;
   }
 }

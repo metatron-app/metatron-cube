@@ -21,6 +21,7 @@ package io.druid.sql.http;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.query.RowSignature;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -29,11 +30,13 @@ public class ArrayWriter implements ResultFormat.Writer
 {
   final JsonGenerator jsonGenerator;
   final OutputStream outputStream;
+  final RowSignature signature;
 
-  public ArrayWriter(final OutputStream outputStream, final ObjectMapper jsonMapper) throws IOException
+  ArrayWriter(OutputStream outputStream, ObjectMapper jsonMapper, RowSignature signature) throws IOException
   {
     this.jsonGenerator = jsonMapper.getFactory().createGenerator(outputStream);
     this.outputStream = outputStream;
+    this.signature = signature;
   }
 
   @Override
@@ -43,13 +46,13 @@ public class ArrayWriter implements ResultFormat.Writer
   }
 
   @Override
-  public void writeHeader(final String[] columnNames) throws IOException
+  public void writeHeader() throws IOException
   {
-    jsonGenerator.writeObject(columnNames);
+    jsonGenerator.writeObject(signature.getColumnNames());
   }
 
   @Override
-  public void writeRow(final String[] columnNames, final Object[] value) throws IOException
+  public void writeRow(final Object[] value) throws IOException
   {
     jsonGenerator.writeObject(value);
   }

@@ -33,7 +33,7 @@ public class SqlQueryTest
   public void testSerde() throws Exception
   {
     final ObjectMapper jsonMapper = TestHelper.makeJsonMapper();
-    final SqlQuery query = new SqlQuery("SELECT 1", ResultFormat.ARRAY, false, ImmutableMap.of("useCache", false));
+    final SqlQuery query = new SqlQuery("SELECT 1", ResultFormat.ARRAY.INSTANCE, false, ImmutableMap.of("useCache", false));
     Assert.assertEquals(query, jsonMapper.readValue(jsonMapper.writeValueAsString(query), SqlQuery.class));
   }
 }

@@ -1928,27 +1928,15 @@ public class TpchTest extends TpchTestHelper
           "StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY]}"
       );
     } else {
-      if (bloomFilter) {
-        hook.verifyHooked(
-            "iOiXptowcExUDgBNFVMF+g==",
-            "TimeseriesQuery{dataSource='lineitem', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME], $hash=true}, StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE]}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY]}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(a0 > 300)'}, outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='C_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d1'}, DefaultDimensionSpec{dimension='O_ORDERKEY', outputName='d2'}, DefaultDimensionSpec{dimension='O_ORDERDATE', outputName='d3'}, DefaultDimensionSpec{dimension='O_TOTALPRICE', outputName='d4'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d4', direction=descending}, OrderByColumnSpec{dimension='d3', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=100}, outputColumns=[d0, d1, d2, d3, d4, a0]}",
-            "StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME], $hash=true}",
-            "StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE]}",
-            "StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY]}",
-            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(a0 > 300)'}, outputColumns=[d0], $hash=true}"
-        );
-      } else {
-        hook.verifyHooked(
-            "iOiXptowcExUDgBNFVMF+g==",
-            "TimeseriesQuery{dataSource='lineitem', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
-            "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME], $hash=true}, StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE]}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY]}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(a0 > 300)'}, outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='C_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d1'}, DefaultDimensionSpec{dimension='O_ORDERKEY', outputName='d2'}, DefaultDimensionSpec{dimension='O_ORDERDATE', outputName='d3'}, DefaultDimensionSpec{dimension='O_TOTALPRICE', outputName='d4'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d4', direction=descending}, OrderByColumnSpec{dimension='d3', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=100}, outputColumns=[d0, d1, d2, d3, d4, a0]}",
-            "StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME], $hash=true}",
-            "StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE]}",
-            "StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY]}",
-            "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(a0 > 300)'}, outputColumns=[d0], $hash=true}"
-        );
-      }
+      hook.verifyHooked(
+          "iOiXptowcExUDgBNFVMF+g==",
+          "TimeseriesQuery{dataSource='lineitem', aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
+          "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME], $hash=true}, StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE]}], timeColumnName=__time}, StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY]}], timeColumnName=__time}, GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(a0 > 300)'}, outputColumns=[d0], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='C_NAME', outputName='d0'}, DefaultDimensionSpec{dimension='C_CUSTKEY', outputName='d1'}, DefaultDimensionSpec{dimension='O_ORDERKEY', outputName='d2'}, DefaultDimensionSpec{dimension='O_ORDERDATE', outputName='d3'}, DefaultDimensionSpec{dimension='O_TOTALPRICE', outputName='d4'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d4', direction=descending}, OrderByColumnSpec{dimension='d3', direction=ascending}, OrderByColumnSpec{dimension='d2', direction=ascending}], limit=100}, outputColumns=[d0, d1, d2, d3, d4, a0]}",
+          "StreamQuery{dataSource='customer', columns=[C_CUSTKEY, C_NAME], $hash=true}",
+          "StreamQuery{dataSource='orders', columns=[O_CUSTKEY, O_ORDERDATE, O_ORDERKEY, O_TOTALPRICE]}",
+          "StreamQuery{dataSource='lineitem', columns=[L_ORDERKEY, L_QUANTITY]}",
+          "GroupByQuery{dataSource='lineitem', dimensions=[DefaultDimensionSpec{dimension='L_ORDERKEY', outputName='d0'}], aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='L_QUANTITY', inputType='long'}], havingSpec=ExpressionHavingSpec{expression='(a0 > 300)'}, outputColumns=[d0], $hash=true}"
+      );
     }
   }
 

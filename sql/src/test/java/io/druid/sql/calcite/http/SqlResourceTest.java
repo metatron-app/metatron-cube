@@ -208,7 +208,7 @@ public class SqlResourceTest extends CalciteTestBase
     final List<Map<String, Object>> rows = doPost(
         new SqlQuery(
             "SELECT __time, CAST(__time AS DATE) AS t2 FROM druid.foo LIMIT 1",
-            ResultFormat.OBJECT,
+            ResultFormat.OBJECT.INSTANCE,
             false,
             null
         )
@@ -228,7 +228,7 @@ public class SqlResourceTest extends CalciteTestBase
     final List<Map<String, Object>> rows = doPost(
         new SqlQuery(
             "SELECT __time, CAST(__time AS DATE) AS t2 FROM druid.foo LIMIT 1",
-            ResultFormat.OBJECT,
+            ResultFormat.OBJECT.INSTANCE,
             false,
             ImmutableMap.of(PlannerContext.CTX_SQL_TIME_ZONE, "America/Los_Angeles")
         )
@@ -246,7 +246,7 @@ public class SqlResourceTest extends CalciteTestBase
   public void testFieldAliasingSelect() throws Exception
   {
     final List<Map<String, Object>> rows = doPost(
-        new SqlQuery("SELECT dim2 \"x\", dim2 \"y\" FROM druid.foo LIMIT 1", ResultFormat.OBJECT, false, null)
+        new SqlQuery("SELECT dim2 \"x\", dim2 \"y\" FROM druid.foo LIMIT 1", ResultFormat.OBJECT.INSTANCE, false, null)
     ).rhs;
 
     Assert.assertEquals(
@@ -261,7 +261,7 @@ public class SqlResourceTest extends CalciteTestBase
   public void testFieldAliasingGroupBy() throws Exception
   {
     final List<Map<String, Object>> rows = doPost(
-        new SqlQuery("SELECT dim2 \"x\", dim2 \"y\" FROM druid.foo GROUP BY dim2", ResultFormat.OBJECT, false, null)
+        new SqlQuery("SELECT dim2 \"x\", dim2 \"y\" FROM druid.foo GROUP BY dim2", ResultFormat.OBJECT.INSTANCE, false, null)
     ).rhs;
 
     Assert.assertEquals(
@@ -286,7 +286,7 @@ public class SqlResourceTest extends CalciteTestBase
             Arrays.asList("2000-01-01T00:00:00.000Z", 1, "", "a", 1.0, 1.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null),
             Arrays.asList("2000-01-02T00:00:00.000Z", 1, "10.1", nullStr, 2.0, 2.0, "io.druid.query.aggregation.hyperloglog.HyperLogLogCollector", null)
         ),
-        doPost(new SqlQuery(query, ResultFormat.ARRAY, false, null), new TypeReference<List<List<Object>>>() {}).rhs
+        doPost(new SqlQuery(query, ResultFormat.ARRAY.INSTANCE, false, null), new TypeReference<List<List<Object>>>() {}).rhs
     );
   }
 
@@ -294,7 +294,7 @@ public class SqlResourceTest extends CalciteTestBase
   public void testArrayLinesResultFormat() throws Exception
   {
     final String query = "SELECT *, CASE dim2 WHEN '' THEN dim2 END FROM foo LIMIT 2";
-    final String response = doPostRaw(new SqlQuery(query, ResultFormat.ARRAYLINES, false, null)).rhs;
+    final String response = doPostRaw(new SqlQuery(query, ResultFormat.ARRAYLINES.INSTANCE, false, null)).rhs;
     //final String nullStr = NullHandling.replaceWithDefault() ? "" : null;
     final String nullStr = "";
 
@@ -317,7 +317,7 @@ public class SqlResourceTest extends CalciteTestBase
   public void testArrayLinesResultFormatWithHeader() throws Exception
   {
     final String query = "SELECT *, CASE dim2 WHEN '' THEN dim2 END FROM foo LIMIT 2";
-    final String response = doPostRaw(new SqlQuery(query, ResultFormat.ARRAYLINES, true, null)).rhs;
+    final String response = doPostRaw(new SqlQuery(query, ResultFormat.ARRAYLINES.INSTANCE, true, null)).rhs;
     //final String nullStr = NullHandling.replaceWithDefault() ? "" : null;
     final String nullStr = "";
 
@@ -345,7 +345,7 @@ public class SqlResourceTest extends CalciteTestBase
   {
     Map<String, Object> queryContext = ImmutableMap.of(Query.QUERYID, DUMMY_QUERY_ID);
     final List<Map<String, Object>> rows = doPost(
-        new SqlQuery("EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo", ResultFormat.OBJECT, false, queryContext)
+        new SqlQuery("EXPLAIN PLAN FOR SELECT COUNT(*) AS cnt FROM druid.foo", ResultFormat.OBJECT.INSTANCE, false, queryContext)
     ).rhs;
 
     Assert.assertEquals(
@@ -365,7 +365,7 @@ public class SqlResourceTest extends CalciteTestBase
     final QueryInterruptedException exception = doPost(
         new SqlQuery(
             "SELECT dim3 FROM druid.foo",
-            ResultFormat.OBJECT,
+            ResultFormat.OBJECT.INSTANCE,
             false,
             null
         )
@@ -382,7 +382,7 @@ public class SqlResourceTest extends CalciteTestBase
   public void testCannotConvert() throws Exception
   {
     // SELECT + ORDER unsupported
-    Throwable exception = doPost(new SqlQuery("SELECT dim1 FROM druid.foo ORDER BY dim1", ResultFormat.OBJECT, false,null)).lhs;
+    Throwable exception = doPost(new SqlQuery("SELECT dim1 FROM druid.foo ORDER BY dim1", ResultFormat.OBJECT.INSTANCE.INSTANCE, false,null)).lhs;
     Assert.assertNotNull(exception);
   }
 
