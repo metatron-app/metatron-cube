@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
+import io.druid.indexer.hadoop.ExcelInputRowParser;
+import io.druid.indexer.hadoop.ExcelLoadSpecResolver;
 import io.druid.indexing.common.task.HadoopConverterTask;
 import io.druid.indexing.common.task.HadoopIndexTask;
 import io.druid.initialization.DruidModule;
@@ -44,6 +46,8 @@ public class IndexingHadoopDruidModule implements DruidModule
             .registerSubtypes(HadoopIndexTask.class)
             .registerSubtypes(HadoopConverterTask.class)
             .registerSubtypes(HadoopConverterTask.ConverterSubTask.class)
+            .registerSubtypes(ExcelLoadSpecResolver.class)
+            .registerSubtypes(ExcelInputRowParser.class)
     );
   }
 

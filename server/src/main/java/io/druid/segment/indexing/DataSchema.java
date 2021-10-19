@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.input.Evaluation;
 import io.druid.data.input.InputRowParsers;
@@ -34,6 +35,7 @@ import io.druid.data.input.Validation;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.impl.ParseSpec;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Parser;
@@ -132,7 +134,15 @@ public class DataSchema
 
   private InputRowParser createInputRowParser(ObjectMapper mapper, boolean ignoreInvalidRows)
   {
-    InputRowParser inputRowParser = mapper.convertValue(parser, InputRowParser.class);
+    Map<String, Object> spec = parser;
+    if (!parser.containsKey("parseSpec")) {
+      ParseSpec parseSpec = mapper.convertValue(parser, ParseSpec.class);
+      if (parseSpec != null) {
+        spec = Maps.newHashMap(parser);
+        spec.put("parseSpec", parseSpec);
+      }
+    }
+    InputRowParser inputRowParser = mapper.convertValue(spec, InputRowParser.class);
     if (inputRowParser instanceof InputRowParser.Streaming) {
       inputRowParser = ((InputRowParser.Streaming) inputRowParser).withIgnoreInvalidRows(ignoreInvalidRows);
     }

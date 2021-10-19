@@ -20,6 +20,7 @@
 package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.java.util.common.IAE;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.TimestampSpec;
@@ -35,6 +36,7 @@ import java.util.Set;
 
 /**
  */
+@JsonTypeName("hadoopyString")
 public class HadoopyStringInputRowParser implements InputRowParser<Object>
 {
   private final StringInputRowParser parser;

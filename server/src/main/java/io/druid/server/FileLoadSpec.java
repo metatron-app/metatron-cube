@@ -176,6 +176,21 @@ public class FileLoadSpec implements ForwardConstants, ReadConstants
     return properties;
   }
 
+  public FileLoadSpec withExternalFormat(String extension, String inputFormat)
+  {
+    return new FileLoadSpec(
+        basePath,
+        paths,
+        extension,
+        inputFormat,
+        schema,
+        overwrite,
+        temporary,
+        tuningConfig,
+        properties
+    );
+  }
+
   public FileLoadSpec augment(
       boolean overwrite,
       boolean temporary,

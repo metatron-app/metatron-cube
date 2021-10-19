@@ -43,6 +43,7 @@ import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class TypeStringResolver extends AbstractResolver
 {
@@ -69,6 +70,9 @@ public class TypeStringResolver extends AbstractResolver
     if (resolved.size() == 0) {
       throw new IAE("Cannot resolve path %s + %s", basePath, paths);
     }
+    String extension = Objects.toString(properties.get("extension"), null);
+    String inputFormat = Objects.toString(properties.get("inputFormat"), null);
+
     RowSignature signature = RowSignature.fromTypeString(typeString, ValueDesc.STRING);
     TimestampSpec timestampSpec = null;
     if (timeExpression != null) {
@@ -89,6 +93,6 @@ public class TypeStringResolver extends AbstractResolver
     parser.put("dimensionsSpec", DimensionsSpec.ofStringDimensions(dimensions));
     DataSchema dataSchema = new DataSchema(dataSource, parser, metrics.toArray(new AggregatorFactory[0]), granularity);
     BaseTuningConfig config = tuningConfigFromProperties(properties, mapper);
-    return new FileLoadSpec(null, resolved, null, null, dataSchema, null, null, config, properties);
+    return new FileLoadSpec(null, resolved, extension, inputFormat, dataSchema, null, null, config, properties);
   }
 }

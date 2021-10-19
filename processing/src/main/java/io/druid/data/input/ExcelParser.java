@@ -75,8 +75,13 @@ public class ExcelParser
       throws IOException
   {
     ParsedIterator parsed = toRowIterator(workbook, Ints.asList(sheetIndices));
+    if (!parsed.hasNext()) {
+      return parsed;
+    }
     if (extractColumns) {
       parsed = wrapWithColumnExtractor(parsed);
+    } else {
+      parsed.next();
     }
     return parsed;
   }

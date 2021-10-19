@@ -21,6 +21,7 @@ package io.druid.indexer.hadoop;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import io.druid.data.ParsingFail;
@@ -40,6 +41,7 @@ import java.util.Set;
 
 /**
  */
+@JsonTypeName("excel")
 public class ExcelInputRowParser implements InputRowParser<ExcelRow>
 {
   private final ParseSpec parseSpec;
