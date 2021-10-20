@@ -276,12 +276,25 @@ public class RowSignature implements io.druid.data.RowSignature
   public RowSignature alias(Map<String, String> alias)
   {
     if (!alias.isEmpty() && GuavaUtils.containsAny(alias.keySet(), columnNames)) {
-      List<String> aliased = Lists.newArrayList();
-      for (String name : columnNames) {
-        aliased.add(alias.getOrDefault(name, name));
-      }
-      return RowSignature.of(aliased, columnTypes);
+      return RowSignature.of(_alias(columnNames, alias), columnTypes);
     }
     return this;
+  }
+
+  public static List<String> alias(List<String> columnNames, Map<String, String> alias)
+  {
+    if (!alias.isEmpty() && GuavaUtils.containsAny(alias.keySet(), columnNames)) {
+      return _alias(columnNames, alias);
+    }
+    return columnNames;
+  }
+
+  private static List<String> _alias(List<String> columnNames, Map<String, String> alias)
+  {
+    List<String> aliased = Lists.newArrayList();
+    for (String name : columnNames) {
+      aliased.add(alias.getOrDefault(name, name));
+    }
+    return aliased;
   }
 }

@@ -133,16 +133,26 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   }
 
   // should be called after processed
-  public List<String> getFinalColumns(Map<String, String> alias)
+  public List<String> getOutputColumns(List<String> projection, Map<String, String> alias)
   {
-    if (alias.isEmpty()) {
+    if (projection == null) {
       return context.getOutputColumns();
     }
-    List<String> aliased = Lists.newArrayList();
-    for (String name : context.getOutputColumns()) {
-      aliased.add(alias.getOrDefault(name, name));
+    if (alias.isEmpty()) {
+      return projection;
     }
-    return aliased;
+    List<String> keys = Lists.newArrayList();
+    List<String> values = Lists.newArrayList();
+    for (Map.Entry<String, String> mapping : alias.entrySet()) {
+      keys.add(mapping.getKey());
+      values.add(mapping.getValue());
+    }
+    List<String> projected = Lists.newArrayList();
+    for (String column : projection) {
+      final int index = values.indexOf(column);
+      projected.add(index < 0 ? column : keys.get(index));
+    }
+    return projected;
   }
 
   private static class PartitionDefinition

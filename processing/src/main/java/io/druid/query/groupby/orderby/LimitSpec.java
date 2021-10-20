@@ -51,6 +51,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = LimitSpec.class)
 @JsonSubTypes(value = {
@@ -354,7 +355,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
         public List<Object[]> apply(List<Row> input)
         {
           return Lists.transform(input, GroupByQueryEngine.rowToArray(
-              outputColumns != null ? outputColumns : processor.getFinalColumns(alias)));
+              processor.getOutputColumns(outputColumns, alias)));
         }
       }, LimitSpec.<Object[]>listLimiter(limit));
     }
@@ -364,7 +365,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
       public Sequence<Object[]> apply(List<Row> input)
       {
         final List<Object[]> processed = Lists.transform(input, GroupByQueryEngine.rowToArray(
-            outputColumns != null ? outputColumns : processor.getFinalColumns(alias))
+            processor.getOutputColumns(outputColumns, alias))
         );
         final Comparator<Object[]> ordering = processor.ordering().toArrayOrdering(columns, false);
         if (limit > 0 && limit <= input.size()) {
@@ -439,7 +440,7 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     for (WindowingSpec window : windowingSpecs) {
       columns = window.evolve(columns);
     }
-    return columns;
+    return RowSignature.alias(columns, alias);
   }
 
   @Override
@@ -498,10 +499,10 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
     if (!super.equals(limitSpec)) {
       return false;
     }
-    if (nodeLimit != null ? !nodeLimit.equals(limitSpec.nodeLimit) : limitSpec.nodeLimit != null) {
+    if (!Objects.equals(segmentLimit, limitSpec.segmentLimit)) {
       return false;
     }
-    if (segmentLimit != null ? !segmentLimit.equals(limitSpec.segmentLimit) : limitSpec.segmentLimit != null) {
+    if (!Objects.equals(nodeLimit, limitSpec.nodeLimit)) {
       return false;
     }
     if (!windowingSpecs.equals(limitSpec.windowingSpecs)) {
@@ -518,8 +519,8 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
   public int hashCode()
   {
     int result = super.hashCode();
-    result = 31 * result + (segmentLimit != null ? segmentLimit.hashCode() : 0);
-    result = 31 * result + (nodeLimit != null ? nodeLimit.hashCode() : 0);
+    result = 31 * result + Objects.hashCode(segmentLimit);
+    result = 31 * result + Objects.hashCode(nodeLimit);
     result = 31 * result + windowingSpecs.hashCode();
     result = 31 * result + alias.hashCode();
     return result;
