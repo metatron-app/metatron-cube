@@ -294,9 +294,8 @@ public class DruidPlanner implements Closeable, ForwardConstants
     Map<String, Object> context = ImmutableMap.of(
         Query.FORWARD_URL, LOCAL_TEMP_URL, Query.FORWARD_CONTEXT, forwardContext
     );
-    Query<Map<String, Object>> query = queryMaker.prepareQuery(
-        druidQuery.getQuery().withOverriddenContext(context)
-    );
+    Query<Map<String, Object>> query = queryMaker.prepareQuery(druidQuery.getQuery())
+                                                 .withOverriddenContext(context);
     Map<String, Object> result = Sequences.only(QueryRunners.run(query, queryMaker.getSegmentWalker()), null);
     if (result == null) {
       return makeResult(Arrays.asList("success", "reason"), Arrays.asList(false, "empty"));
@@ -437,9 +436,8 @@ public class DruidPlanner implements Closeable, ForwardConstants
     context.put(Query.FORWARD_URL, source.getDirectory());
     context.put(Query.FORWARD_CONTEXT, forwardContext);
 
-    Query<Map<String, Object>> query = queryMaker.prepareQuery(
-        druidQuery.getQuery().withOverriddenContext(context)
-    );
+    Query<Map<String, Object>> query = queryMaker.prepareQuery(druidQuery.getQuery())
+                                                 .withOverriddenContext(context);
     Map<String, Object> result = Sequences.only(QueryRunners.run(query, queryMaker.getSegmentWalker()), null);
     if (result == null) {
       return makeResult(Arrays.asList("success", "reason"), Arrays.asList(false, "empty"));
