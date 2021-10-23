@@ -22,6 +22,7 @@ package io.druid.data;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
+import io.druid.data.input.ShapeFileResolver;
 import io.druid.initialization.DruidModule;
 
 import java.util.Arrays;
@@ -39,6 +40,7 @@ public class GeoToolsDruidModule implements DruidModule
             .registerSubtypes(GeoToolsFunctions.class)
             .registerSubtypes(ConstantQuery.class)
             .registerSubtypes(EnvelopeAggregatorFactory.class)
+            .registerSubtypes(ShapeFileResolver.class)
     );
   }
 
