@@ -51,6 +51,7 @@ import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.metadata.DescExtractor;
 import io.druid.query.LocatedSegmentDescriptor;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.jmx.JMXQuery;
 import io.druid.segment.IndexIO;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -80,6 +81,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -1354,6 +1356,19 @@ public class DruidShell extends CommonShell.WithUtils
       int numRow = runAndDump(writer, null, sql, mediaType, brokerURLs);
       writer.println(String.format("> Retrieved %d rows in %,d msec", numRow, (System.currentTimeMillis() - start)));
     }
+    catch (QueryInterruptedException e) {
+      writer.println(String.format(
+          "> Failed from %s[%s] by exception : %s",
+          e.getHost(),
+          e.getServiceName(),
+          e.getMessage()
+      ));
+      if (e.getErrorStack() != null) {
+        for (String s : e.getErrorStack()) {
+          writer.println(String.format("  %s", s));
+        }
+      }
+    }
     catch (Exception e) {
       writer.println(String.format("> Failed by exception : %s", e));
     }
@@ -1597,12 +1612,7 @@ public class DruidShell extends CommonShell.WithUtils
         return (T) response.getStatus();
       }
       if (!response.getStatus().equals(HttpResponseStatus.OK)) {
-        throw new ISE(
-            "Error while fetching from [%s], status[%s] content[%s]",
-            requestURL,
-            response.getStatus(),
-            response.getContent()
-        );
+        throw fail(requestURL, response, jsonMapper);
       }
       if (resultType == CONTENTS) {
         return (T) response.getContent();
@@ -1611,6 +1621,21 @@ public class DruidShell extends CommonShell.WithUtils
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
+    }
+  }
+
+  private static QueryInterruptedException fail(URL requestURL, StatusResponseHolder response, ObjectMapper mapper)
+  {
+    try {
+      throw mapper.readValue(response.getContent(), QueryInterruptedException.class);
+    }
+    catch (IOException e) {
+      throw new ISE(
+          "Error while fetching from [%s], status[%s] content[%s]",
+          requestURL,
+          response.getStatus(),
+          response.getContent()
+      );
     }
   }
 
