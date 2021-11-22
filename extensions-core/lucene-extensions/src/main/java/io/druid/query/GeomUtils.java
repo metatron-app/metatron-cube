@@ -156,6 +156,13 @@ public class GeomUtils
       return null;
     } else if (ValueDesc.isGeometry(eval.type())) {
       return (Geometry) eval.value();
+    } else if (eval.type().isString()) {
+      // reagard WKT
+      try {
+        return GeomUtils.toGeometry(GeomUtils.newWKTReader().read(eval.value()));
+      }
+      catch (Exception e) {
+      }
     }
     return null;
   }
