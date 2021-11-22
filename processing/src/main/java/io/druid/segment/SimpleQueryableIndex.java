@@ -124,7 +124,7 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public long getSerializedSize()
   {
-    return fileMapper.getSerializedSize();
+    return fileMapper == null ? 0 : fileMapper.getSerializedSize();
   }
 
   @Override
@@ -154,6 +154,9 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public long getSerializedSize(String columnName)
   {
+    if (fileMapper == null) {
+      return 0;
+    }
     final io.druid.java.util.common.io.smoosh.Metadata metadata = fileMapper.getMetadata(columnName);
     return metadata == null ? 0 : metadata.getLength();
   }
@@ -175,7 +178,9 @@ public class SimpleQueryableIndex implements QueryableIndex
   @Override
   public void close()
   {
-    fileMapper.close();
+    if (fileMapper != null) {
+      fileMapper.close();
+    }
   }
 
   @Override

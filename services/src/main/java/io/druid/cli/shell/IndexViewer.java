@@ -445,7 +445,7 @@ public class IndexViewer extends CommonShell.WithUtils
       Column column = index.getColumn(columnName);
       ColumnCapabilities capabilities = column.getCapabilities();
 
-      long columnSize = index.getSerializedSize(columnName);
+      long columnSize = offset[2] - offset[1];
       boolean dimensionsType = dimensions.contains(columnName);
 
       String columnType = columnName.equals(Row.TIME_COLUMN_NAME) ? "timestamp" : dimensionsType ? "dimension" : "metric";

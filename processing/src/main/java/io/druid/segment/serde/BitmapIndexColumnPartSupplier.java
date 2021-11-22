@@ -64,7 +64,7 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
   @Override
   public BitmapIndex get()
   {
-    final Dictionary<String> dictionary = provider.get();
+    final Dictionary<String> dictionary = provider == null ? null : provider.get();
     return new BitmapIndex.CumulativeSupport()
     {
       @Override
