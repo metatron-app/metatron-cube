@@ -16,7 +16,6 @@ package io.druid.java.util.common.parsers;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Sets;
-import org.joda.time.DateTime;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -44,26 +43,12 @@ public class ParserUtils
     return names;
   }
 
-  /**
-   * Factored timestamp parsing into its own Parser class, but leaving this here
-   * for compatibility
-   *
-   * @param format
-   *
-   * @return
-   */
-  public static Function<String, DateTime> createTimestampParser(final String format)
-  {
-    return TimestampParser.createTimestampParser(format);
-  }
-
   public static void validateFields(Iterable<String> fieldNames)
   {
     Set<String> uniqueNames = Sets.newHashSet();
     for (String fieldName : fieldNames) {
-      String next = fieldName.toLowerCase();
-      if (!uniqueNames.add(next)) {
-        throw new ParseException("Duplicate column entries found : %s", next);
+      if (!uniqueNames.add(fieldName)) {
+        throw new ParseException("Duplicate column entries found : %s", fieldName);
       }
     }
   }
