@@ -24,9 +24,9 @@ import com.google.common.collect.Iterables;
 import io.druid.cache.Cache;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
-import io.druid.java.util.common.ISE;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Segment;
+import io.druid.segment.SegmentMissingException;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.filter.FilterContext;
 import org.joda.time.Interval;
@@ -47,7 +47,7 @@ public class FilterMetaQueryEngine
     }
     final StorageAdapter adapter = segment.asStorageAdapter(false);
     if (adapter == null) {
-      throw new ISE("Segment [%s] is unmapped.. retry", segment.getIdentifier());
+      throw new SegmentMissingException("Segment [%s] is unmapped.. retry", segment.getIdentifier());
     }
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,

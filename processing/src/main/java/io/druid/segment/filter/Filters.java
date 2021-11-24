@@ -19,13 +19,11 @@
 
 package io.druid.segment.filter;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.BoundType;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -39,13 +37,13 @@ import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.cache.Cache;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -149,20 +147,7 @@ public class Filters
    */
   public static List<Filter> toFilters(List<DimFilter> dimFilters, final TypeResolver resolver)
   {
-    return ImmutableList.copyOf(
-        FunctionalIterable
-            .create(dimFilters)
-            .transform(
-                new Function<DimFilter, Filter>()
-                {
-                  @Override
-                  public Filter apply(DimFilter input)
-                  {
-                    return input.toFilter(resolver);
-                  }
-                }
-            )
-    );
+    return GuavaUtils.transform(dimFilters, input -> input.toFilter(resolver));
   }
 
   /**
@@ -176,6 +161,16 @@ public class Filters
   public static Filter toFilter(DimFilter dimFilter, TypeResolver resolver)
   {
     return dimFilter == null ? null : dimFilter.toFilter(resolver);
+  }
+
+  public static boolean matchAll(Filter matcher)
+  {
+    return matcher == null || matcher == Filters.ALL;
+  }
+
+  public static boolean matchNone(Filter matcher)
+  {
+    return matcher == Filters.NONE;
   }
 
   @SuppressWarnings("unchecked")

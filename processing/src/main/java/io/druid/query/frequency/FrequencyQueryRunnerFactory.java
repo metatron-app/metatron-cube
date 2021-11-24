@@ -83,7 +83,7 @@ public class FrequencyQueryRunnerFactory extends QueryRunnerFactory.Abstract<Obj
       {
         final CountMinSketch sketch = (CountMinSketch) Futures.getUnchecked(optimizer);
         return QueryRunnerHelper.makeCursorBasedQueryConcat(
-            segment.asStorageAdapter(true),
+            segment,
             query,
             cache,
             processor((FrequencyQuery) query, sketch)

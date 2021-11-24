@@ -92,17 +92,21 @@ public class SelectMetaQueryEngine
           @Override
           public Result<SelectMetaResultValue> apply(Cursor cursor)
           {
-            int row = 0;
-            FilterContext context = offset.startDelta() == 0 ? cursor.getFilterContext() : null;
-            if (context == null || !context.isFullScan()) {
-              for (row = 0, cursor.advanceTo(offset.startDelta()); !cursor.isDone(); cursor.advance()) {
-                row++;
-              }
-            }
             return new Result<>(
                 DateTimes.utc(cursor.getStartTime()),
-                new SelectMetaResultValue(ImmutableMap.of(segmentId, row))
+                new SelectMetaResultValue(ImmutableMap.of(segmentId, countNumRows(cursor)))
             );
+          }
+
+          private int countNumRows(Cursor cursor)
+          {
+            FilterContext context = offset.startDelta() == 0 ? cursor.getFilterContext() : null;
+            if (context != null && context.isFullScan()) {
+              return context.targetNumRows();
+            }
+            int row = 0;
+            for (cursor.advanceTo(offset.startDelta()); !cursor.isDone(); cursor.advance(), row++) {}
+            return row;
           }
         }
     );

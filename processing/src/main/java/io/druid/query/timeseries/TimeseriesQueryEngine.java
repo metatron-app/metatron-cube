@@ -32,13 +32,12 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.BaseQuery;
+import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
-import io.druid.segment.SegmentMissingException;
-import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
@@ -64,15 +63,7 @@ public class TimeseriesQueryEngine
       final Cache cache
   )
   {
-    final StorageAdapter adapter = segment.asStorageAdapter(true);
-    if (adapter == null) {
-      throw new SegmentMissingException(
-          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
-      );
-    }
-    return Sequences.explode(
-        query.estimatedInitialColumns(), adapter.makeCursors(query, cache), processor(query, compact)
-    );
+    return QueryRunnerHelper.makeCursorBasedQueryConcat(segment, query, cache, processor(query, compact));
   }
 
   public static Function<Cursor, Sequence<Row>> processor(final TimeseriesQuery query, final boolean compact)
@@ -113,7 +104,6 @@ public class TimeseriesQueryEngine
                 }
 
                 @Override
-                @SuppressWarnings("unchecked")
                 public Row next()
                 {
                   final long timestamp = BaseQuery.getUniversalTimestamp(query, cursor.getStartTime());

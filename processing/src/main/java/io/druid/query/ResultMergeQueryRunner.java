@@ -74,7 +74,7 @@ public abstract class ResultMergeQueryRunner<T> extends BySegmentSkippingQueryRu
     {
       BinaryFn.Identical<T> merger = createMergeFn(query);
       return Sequences.of(
-          baseRunner.run(query, context).accumulate((T) null, (p, c) -> p == null ? c : merger.apply(p, c))
+          baseRunner.run(query, context).accumulate((T) null, (p, c) -> p == null ? c : c == null ? p : merger.apply(p, c))
       );
     }
   }

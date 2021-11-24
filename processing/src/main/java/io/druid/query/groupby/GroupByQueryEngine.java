@@ -63,7 +63,6 @@ import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.IndexProvidingSelector;
 import io.druid.segment.Rowboat;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
@@ -111,9 +110,8 @@ public class GroupByQueryEngine
       final Cache cache
   )
   {
-    StorageAdapter adapter = Preconditions.checkNotNull(segment.asStorageAdapter(true), "segment swapped");
     Sequence<Object[]> sequence = QueryRunnerHelper.makeCursorBasedQueryConcat(
-        adapter, query, cache,
+        segment, query, cache,
         cursor -> new RowIterator(query, config, cursor, intermediateResultsBufferPool, 1).asArray()
     );
     final OrderedLimitSpec segmentLimit = query.getLimitSpec().getSegmentLimit();
@@ -126,20 +124,12 @@ public class GroupByQueryEngine
   // for cube
   public Sequence<Rowboat> processRowboat(final GroupByQuery query, final Segment segment)
   {
-    final StorageAdapter adapter = Preconditions.checkNotNull(segment.asStorageAdapter(true), "segment swapped");
     final QueryConfig config = new QueryConfig();
     return QueryRunnerHelper.makeCursorBasedQueryConcat(
-        adapter,
+        segment,
         query,
         null,
-        new Function<Cursor, Sequence<Rowboat>>()
-        {
-          @Override
-          public Sequence<Rowboat> apply(final Cursor cursor)
-          {
-            return new RowIterator(query, config, cursor, intermediateResultsBufferPool, Cuboids.PAGES).asRowboat();
-          }
-        }
+        cursor -> new RowIterator(query, config, cursor, intermediateResultsBufferPool, Cuboids.PAGES).asRowboat()
     );
   }
 

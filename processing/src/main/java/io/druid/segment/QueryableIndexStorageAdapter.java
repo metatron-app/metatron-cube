@@ -210,7 +210,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final Filter matcher = Filters.toFilter(extracted.getValue(), resolver);
     final boolean fullscan =
-        Granularities.isAll(granularity) && matcher == null && actualInterval.contains(timeMinMax);
+        Granularities.isAll(granularity) && Filters.matchAll(matcher) && actualInterval.contains(timeMinMax);
 
     context.prepared(baseBitmap, matcher, fullscan);  // this can be used for value/predicate filters
 
@@ -314,30 +314,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
                   final long timeEnd = Math.min(interval.getEndMillis(), actualInterval.getEndMillis());
 
-                  if (descending) {
-                    for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLong(offset.getOffset()) < timeEnd) {
-                        break;
-                      }
-                    }
-                  } else {
-                    for (; offset.withinBounds(); offset.increment()) {
-                      if (timestamps.getLong(offset.getOffset()) >= timeStart) {
-                        break;
-                      }
-                    }
-                  }
-
-                  final Offset baseOffset =
-                      descending ?
-                      minDataTimestamp >= timeStart ? offset : new DescTimestampCheck(offset, timestamps, timeStart) :
-                      maxDataTimestamp < timeEnd ? offset : new AscTimestampCheck(offset, timestamps, timeEnd);
+                  final Offset baseOffset = toBaseOffset(timeStart, timeEnd);
 
                   return new Cursor.ExprSupport()
                   {
                     private final Offset initOffset = baseOffset.clone();
                     private final ValueMatcher filterMatcher =
-                        filter == null ? ValueMatcher.TRUE : filter.makeMatcher(this);
+                        Filters.matchAll(filter) ? ValueMatcher.TRUE : filter.makeMatcher(this);
                     private Offset cursorOffset = baseOffset;
 
                     {
@@ -900,19 +883,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public byte[] getAsRaw()
                             {
-                              return rawAccess.getAsRaw(offset.getOffset());
+                              return rawAccess.getAsRaw(cursorOffset.getOffset());
                             }
 
                             @Override
                             public BufferRef getAsRef()
                             {
-                              return rawAccess.getAsRef(offset.getOffset());
+                              return rawAccess.getAsRef(cursorOffset.getOffset());
                             }
 
                             @Override
                             public <R> R apply(Tools.Function<R> function)
                             {
-                              return rawAccess.apply(offset.getOffset(), function);
+                              return rawAccess.apply(cursorOffset.getOffset(), function);
                             }
 
                             @Override
@@ -1095,6 +1078,29 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
                   };
                 }
+
+                private Offset toBaseOffset(long timeStart, long timeEnd)
+                {
+                  if (!offset.withinBounds() || Filters.matchNone(filter)) {
+                    return Offset.EMPTY;
+                  }
+                  if (descending) {
+                    for (; offset.withinBounds(); offset.increment()) {
+                      if (timestamps.getLong(offset.getOffset()) < timeEnd) {
+                        break;
+                      }
+                    }
+                  } else {
+                    for (; offset.withinBounds(); offset.increment()) {
+                      if (timestamps.getLong(offset.getOffset()) >= timeStart) {
+                        break;
+                      }
+                    }
+                  }
+                  return descending ?
+                         minDataTimestamp >= timeStart ? offset : new DescTimestampCheck(offset, timestamps, timeStart) :
+                         maxDataTimestamp < timeEnd ? offset : new AscTimestampCheck(offset, timestamps, timeEnd);
+                }
               }
           ),
           new Closeable()
@@ -1172,7 +1178,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
-    protected final boolean timeInRange(long current)
+    protected boolean timeInRange(long current)
     {
       return current < timeLimit;
     }
@@ -1199,7 +1205,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
-    protected final boolean timeInRange(long current)
+    protected boolean timeInRange(long current)
     {
       return current >= timeLimit;
     }

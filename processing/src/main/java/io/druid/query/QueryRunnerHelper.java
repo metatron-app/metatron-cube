@@ -27,6 +27,9 @@ import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
 import io.druid.segment.Cursor;
 import io.druid.segment.CursorFactory;
+import io.druid.segment.Segment;
+import io.druid.segment.SegmentMissingException;
+import io.druid.segment.StorageAdapter;
 
 import java.util.Arrays;
 import java.util.List;
@@ -49,16 +52,19 @@ public class QueryRunnerHelper
   }
 
   public static <T> Sequence<T> makeCursorBasedQueryConcat(
-      final CursorFactory factory,
+      final Segment segment,
       final Query<?> query,
       final Cache cache,
       final Function<Cursor, Sequence<T>> mapFn
   )
   {
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
+    if (adapter == null) {
+      throw new SegmentMissingException("local segment is swapped or unmapped");
+    }
     List<String> columns = query.estimatedInitialColumns();
-    return Sequences.concat(
-        columns, Sequences.filterNull(Sequences.map(columns, factory.makeCursors(query, cache), mapFn))
-    );
+    Sequence<Cursor> cursors = Sequences.filter(adapter.makeCursors(query, cache), cursor -> !cursor.isDone());
+    return Sequences.concat(columns, Sequences.filterNull(Sequences.map(columns, cursors, mapFn)));
   }
 
   public static <T> QueryRunner<T> toManagementRunner(

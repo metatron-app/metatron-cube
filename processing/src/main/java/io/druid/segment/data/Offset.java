@@ -30,4 +30,31 @@ public interface Offset extends ReadableOffset
   boolean withinBounds();
 
   Offset clone();
+
+  Offset EMPTY = new Offset()
+  {
+    @Override
+    public boolean increment()
+    {
+      return false;
+    }
+
+    @Override
+    public boolean withinBounds()
+    {
+      return false;
+    }
+
+    @Override
+    public Offset clone()
+    {
+      return this;
+    }
+
+    @Override
+    public int getOffset()
+    {
+      return -1;
+    }
+  };
 }

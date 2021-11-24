@@ -30,7 +30,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
@@ -49,7 +48,6 @@ import io.druid.segment.DimensionSelector.SingleValued;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -74,17 +72,10 @@ public class StreamQueryEngine
       final Cache cache
   )
   {
-    final StorageAdapter adapter = segment.asStorageAdapter(true);
-    if (adapter == null) {
-      throw new ISE(
-          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
-      );
-    }
-
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
     return QueryRunnerHelper.makeCursorBasedQueryConcat(
-        adapter,
+        segment,
         query,
         cache,
         processor(query, config, counter)
