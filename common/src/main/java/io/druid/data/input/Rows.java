@@ -20,10 +20,13 @@
 package io.druid.data.input;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Murmur3;
+import io.druid.common.utils.Sequences;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.StringUtils;
 import org.joda.time.DateTime;
@@ -110,6 +113,16 @@ public class Rows extends io.druid.data.Rows
         return event;
       }
     };
+  }
+
+  public static Sequence<Object[]> rowToArray(Sequence<Row> sequence)
+  {
+    return rowToArray(Preconditions.checkNotNull(sequence.columns()).toArray(new String[0]), sequence);
+  }
+
+  public static Sequence<Object[]> rowToArray(String[] columnNames, Sequence<Row> sequence)
+  {
+    return Sequences.map(sequence, rowToArray(columnNames));
   }
 
   public static Function<Row, Object[]> rowToArray(final String[] columnNames)

@@ -141,7 +141,7 @@ public class Queries
       return jsonMapper.convertValue(object, expected);
     }
     catch (Exception ex) {
-      LOG.warn(ex, "Failed to convert to " + expected.getClass().getSimpleName());
+      LOG.warn(ex, "Failed to convert to %s", expected.getSimpleName());
     }
     return null;
   }
@@ -358,7 +358,6 @@ public class Queries
         }
       };
 
-  @SuppressWarnings("unchecked")
   public static <I> Sequence<I> convertBack(Query<I> subQuery, Sequence<Row> sequence)
   {
     if (subQuery instanceof BaseAggregationQuery) {

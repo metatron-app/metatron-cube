@@ -23,10 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
-import io.druid.common.utils.Sequences;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 
@@ -62,10 +60,7 @@ public class RowToArray extends PostProcessingOperator.ReturnsArray<Row>
       @Override
       public Sequence<Object[]> run(Query query, Map responseContext)
       {
-        return Sequences.map(
-            baseRunner.run(query, responseContext),
-            Rows.rowToArray(columnNames.toArray(new String[0]))
-        );
+        return Rows.rowToArray(columnNames.toArray(new String[0]), baseRunner.run(query, responseContext));
       }
     };
   }

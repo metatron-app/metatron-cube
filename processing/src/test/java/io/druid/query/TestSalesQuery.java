@@ -366,7 +366,7 @@ public class TestSalesQuery extends TestHelper
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    // node limit
+    // segment limit
     expectedResults = createExpectedRows(
         columnNames,
         array("2011-01-01", "10024", 170L, 11.100000000000001, 19497.0),
@@ -384,15 +384,15 @@ public class TestSalesQuery extends TestHelper
     results = runQuery(query.withLimitSpec(limitSpec));
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
-    // segment limit
+    // node limit
     expectedResults = createExpectedRows(
         columnNames,
         array("2011-01-01", "10024", 170L, 11.100000000000001, 19497.0),
-        array("2011-01-01", "10035", 202L, 9.600000000000003, 14008.0),
+        array("2011-01-01", "10035", 263L, 12.500000000000004, 16532.0),
+        array("2011-01-01", "10009", 229L, 12.500000000000004, 13690.0),
         array("2011-01-01", "98115", 90L, 5.4, 12403.0),
+        array("2011-01-01", "10011", 193L, 11.500000000000004, 10142.0),
         array("2011-01-01", "47905", 6L, 0.0, 8769.0),
-        array("2011-01-01", "10009", 159L, 7.500000000000003, 8338.0),
-        array("2011-01-01", "10011", 127L, 6.800000000000002, 7824.0),
         array("2011-01-01", "19711", 44L, 0.0, 7329.0),
         array("2011-01-01", "98105", 120L, 8.400000000000002, 7314.0),
         array("2011-01-01", "55407", 21L, 0.0, 6645.0),
@@ -407,14 +407,14 @@ public class TestSalesQuery extends TestHelper
         columnNames,
         array("2011-01-01", "10024", 230L, 14.900000000000002, 21655.0),
         array("2011-01-01", "10035", 227L, 10.400000000000004, 15524.0),
+        array("2011-01-01", "10009", 229L, 12.500000000000004, 13690.0),
         array("2011-01-01", "98115", 90L, 5.4, 12403.0),
+        array("2011-01-01", "10011", 193L, 11.500000000000004, 10142.0),
         array("2011-01-01", "47905", 6L, 0.0, 8769.0),
-        array("2011-01-01", "10009", 159L, 7.500000000000003, 8338.0),
-        array("2011-01-01", "10011", 127L, 6.800000000000002, 7824.0),
+        array("2011-01-01", "94122", 203L, 14.750000000000004, 7712.0),
         array("2011-01-01", "48205", 12L, 0.1, 6506.0),
         array("2011-01-01", "98105", 91L, 6.400000000000001, 6153.0),
-        array("2011-01-01", "98103", 118L, 6.4, 6105.0),
-        array("2011-01-01", "94122", 157L, 11.350000000000003, 5968.0)
+        array("2011-01-01", "98103", 118L, 6.4, 6105.0)
     );
     limitSpec = new LimitSpec(
         OrderByColumnSpec.descending("Profit"), 10, OrderedLimitSpec.of(15), OrderedLimitSpec.of(15), null, null

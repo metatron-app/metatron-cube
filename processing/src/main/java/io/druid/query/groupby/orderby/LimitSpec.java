@@ -170,8 +170,8 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
   )
   {
     super(columns, limit);
-    this.segmentLimit = segmentLimit;
-    this.nodeLimit = nodeLimit;
+    this.segmentLimit = segmentLimit != null && segmentLimit.getLimit() > 0 ? segmentLimit : null;
+    this.nodeLimit = nodeLimit != null && nodeLimit.getLimit() > 0 ? nodeLimit : null;
     this.windowingSpecs = windowingSpecs == null ? ImmutableList.<WindowingSpec>of() : windowingSpecs;
     this.alias = alias == null ? ImmutableMap.of() : alias;
     this.resolver = resolver;
@@ -211,6 +211,11 @@ public class LimitSpec extends OrderedLimitSpec implements RowSignature.Evolving
   }
 
   public LimitSpec withLimit(int limit)
+  {
+    return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, resolver);
+  }
+
+  public LimitSpec withNodeLimit(OrderedLimitSpec nodeLimit)
   {
     return new LimitSpec(columns, limit, segmentLimit, nodeLimit, windowingSpecs, alias, resolver);
   }

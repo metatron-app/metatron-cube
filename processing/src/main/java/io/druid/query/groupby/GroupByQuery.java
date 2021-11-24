@@ -77,7 +77,6 @@ import io.druid.query.groupby.having.AlwaysHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
-import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.ordering.Direction;
@@ -503,6 +502,9 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     GroupByQuery query = this;
+    if (query.getContextValue(Query.LOCAL_POST_PROCESSING) != null) {
+      return query;
+    }
     GroupByQueryConfig groupByConfig = queryConfig.getGroupBy();
     if (query.getContextBoolean(GBY_PRE_ORDERING, groupByConfig.isPreOrdering())) {
       query = query.tryPreOrdering();
@@ -774,7 +776,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   {
     private GroupingSetSpec groupingSets;
 
-    public Builder() { }
+    public Builder() {}
 
     public Builder(BaseAggregationQuery aggregationQuery)
     {
@@ -835,7 +837,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
     return "GroupByQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            (getQuerySegmentSpec() == null ? "" : ", querySegmentSpec=" + getQuerySegmentSpec()) +
-           (granularity == null || granularity.equals(Granularities.ALL) ? "" : ", filter=" + filter) +
+           (granularity == null || Granularities.isAll(granularity) ? "" : ", filter=" + filter) +
            ", dimensions=" + dimensions +
            (filter == null ? "" : ", filter=" + filter) +
            (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
@@ -843,7 +845,7 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
            (aggregatorSpecs.isEmpty() ? "" : ", aggregatorSpecs=" + aggregatorSpecs) +
            (postAggregatorSpecs.isEmpty() ? "" : ", postAggregatorSpecs=" + postAggregatorSpecs) +
            (havingSpec == null ? "" : ", havingSpec=" + havingSpec) +
-           (limitSpec == NoopLimitSpec.INSTANCE ? "" : ", limitSpec=" + limitSpec) +
+           (limitSpec.isNoop() ? "" : ", limitSpec=" + limitSpec) +
            (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
            (lateralView == null ? "" : "lateralView=" + lateralView) +
            toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT, JoinQuery.HASHING) +
@@ -853,17 +855,17 @@ public class GroupByQuery extends BaseAggregationQuery implements Query.Rewritin
   @Override
   public Comparator<Row> getMergeOrdering(List<String> columns)
   {
-    return isBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getRowOrdering();
+    return isBySegment(this) ? GuavaUtils.<Row>nullFirstNatural() : getCompactRowOrdering();
   }
 
-  @SuppressWarnings("unchecked")
-  private Comparator<Row> getRowOrdering()
+  Comparator<Row> getCompactRowOrdering()
   {
     return new Comparator<Row>()
     {
-      private final Comparator[] comparators = DimensionSpecs.toComparator(getDimensions(), true);
+      private final Comparator[] comparators = DimensionSpecs.toComparator(dimensions, true);
 
       @Override
+      @SuppressWarnings("unchecked")
       public int compare(Row lhs, Row rhs)
       {
         final Object[] values1 = ((CompactRow) lhs).getValues();

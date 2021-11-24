@@ -186,13 +186,10 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     if (this == o) {
       return true;
     }
-    if (!super.equals(o)) {
-      return false;
-    }
     if (!(o instanceof OrderByColumnSpec)) {
       return false;
     }
-    return dimension.equals(((OrderByColumnSpec) o).dimension);
+    return super.equals(o) && dimension.equals(((OrderByColumnSpec) o).dimension);
   }
 
   @Override

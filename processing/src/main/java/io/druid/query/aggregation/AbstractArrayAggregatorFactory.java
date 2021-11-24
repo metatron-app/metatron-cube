@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.Comparators;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
 
@@ -72,26 +73,11 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   @Override
   public Comparator getComparator()
   {
-    final Comparator comparator = delegate.getComparator();
-    return new Comparator<List<Object>>()
-    {
-      @Override
-      public int compare(List<Object> o1, List<Object> o2)
-      {
-        int min = Math.min(o1.size(), o2.size());
-        for (int i = 0; i < min; i++) {
-          int ret = comparator.compare(o1.get(i), o2.get(i));
-          if (ret != 0) {
-            return ret;
-          }
-        }
-        return o1.size() - o2.size();
-      }
-    };
+    return Comparators.toListComparator(delegate.getComparator());
   }
 
   @Override
-  public Combiner combiner()
+  public Combiner<List<Object>> combiner()
   {
     return new Combiner<List<Object>>()
     {

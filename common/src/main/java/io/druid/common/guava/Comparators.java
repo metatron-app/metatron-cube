@@ -67,25 +67,28 @@ public class Comparators
         return GuavaUtils.NULL_FIRST_NATURAL;
     }
     if (valueDesc.isArray()) {
-      final Comparator element = toComparator(valueDesc.subElement(null));
-      return NULL_FIRST(
-          (List<Object> o1, List<Object> o2) ->
-          {
-            final int min = Math.min(o1.size(), o2.size());
-            for (int i = 0; i < min; i++) {
-              int ret = element.compare(o1.get(i), o2.get(i));
-              if (ret != 0) {
-                return ret;
-              }
-            }
-            return o1.size() - o2.size();
-          }
-      );
+      return NULL_FIRST(toListComparator(toComparator(valueDesc.subElement(null))));
     }
     if (valueDesc.isStruct()) {
       // todo
     }
     return GuavaUtils.NULL_FIRST_NATURAL;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Comparator<List<Object>> toListComparator(Comparator elementComp)
+  {
+    return (List<Object> o1, List<Object> o2) ->
+    {
+      final int min = Math.min(o1.size(), o2.size());
+      for (int i = 0; i < min; i++) {
+        int ret = elementComp.compare(o1.get(i), o2.get(i));
+        if (ret != 0) {
+          return ret;
+        }
+      }
+      return o1.size() - o2.size();
+    };
   }
 
   public static Comparator<Object[]> NF_ARRAY = new Comparator<Object[]>()

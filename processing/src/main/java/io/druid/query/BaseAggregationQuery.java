@@ -25,18 +25,20 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.IntTagged;
+import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.ISE;
@@ -63,6 +65,7 @@ import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -269,26 +272,7 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
   @Override
   public Sequence<Object[]> array(Sequence<Row> sequence)
   {
-    if (!BaseQuery.isBrokerSide(this)) {
-      return Sequences.map(sequence, CompactRow.UNWRAP);
-    }
-    final String[] columns = Preconditions.checkNotNull(sequence.columns()).toArray(new String[0]);
-    final int timeIndex = Arrays.asList(columns).indexOf(Row.TIME_COLUMN_NAME);
-    return Sequences.map(
-        sequence,
-        new Function<Row, Object[]>()
-        {
-          @Override
-          public Object[] apply(Row input)
-          {
-            final Object[] array = new Object[columns.length];
-            for (int i = 0; i < columns.length; i++) {
-              array[i] = timeIndex == i ? input.getTimestampFromEpoch() : input.getRaw(columns[i]);
-            }
-            return array;
-          }
-        }
-    );
+    return BaseQuery.isBrokerSide(this) ? Rows.rowToArray(sequence) : Sequences.map(sequence, CompactRow.UNWRAP);
   }
 
   protected String getLocalSplitStrategy()
@@ -299,12 +283,53 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
     return "evenSpaced";
   }
 
+  public List<IntTagged<Comparator>> toComparator(OrderedLimitSpec orderings)
+  {
+    return toComparator(getLimitOrdering(orderings));
+  }
+
+  public List<IntTagged<Comparator>> toComparator(List<OrderByColumnSpec> orderings)
+  {
+    final int dimension = 1 + getDimensions().size();
+    final List<String> columnNames = estimatedInitialColumns();
+    final Map<String, Comparator<?>> comparatorMap = toComparatorMap();
+    final List<IntTagged<Comparator>> comparators = Lists.newArrayList();
+
+    for (OrderByColumnSpec ordering : orderings) {
+      int index = columnNames.lastIndexOf(ordering.getDimension());
+      if (index < 0) {
+        continue; // not existing column.. ignore
+      }
+      Comparator<?> comparator = ordering.getComparator();
+      if (index >= dimension) {
+        comparator = comparatorMap.get(ordering.getDimension());
+        if (ordering.getDirection() == Direction.DESCENDING) {
+          comparator = Comparators.REVERT(comparator);
+        }
+      }
+      comparators.add(IntTagged.of(index, comparator));
+    }
+    return comparators;
+  }
+
+  private Map<String, Comparator<?>> toComparatorMap()
+  {
+    Map<String, Comparator<?>> comparatorMap = Maps.newHashMap();
+    for (DimensionSpec dimensionSpec : getDimensions()) {
+      comparatorMap.put(dimensionSpec.getOutputName(), DimensionSpecs.toComparator(dimensionSpec));
+    }
+    for (AggregatorFactory aggregator : getAggregatorSpecs()) {
+      comparatorMap.put(aggregator.getName(), aggregator.getComparator());
+    }
+    for (PostAggregator aggregator : getPostAggregatorSpecs()) {
+      comparatorMap.put(aggregator.getName(), aggregator.getComparator());
+    }
+    return comparatorMap;
+  }
+
   public List<OrderByColumnSpec> getLimitOrdering(OrderedLimitSpec limiting)
   {
     List<OrderByColumnSpec> ordering = limiting.getColumns();
-    if (GuavaUtils.isNullOrEmpty(ordering)) {
-      ordering = getLimitSpec().getColumns();
-    }
     if (GuavaUtils.isNullOrEmpty(ordering)) {
       ordering = DimensionSpecs.asOrderByColumnSpec(getDimensions());
     }

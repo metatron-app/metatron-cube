@@ -36,9 +36,8 @@ import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderedLimitSpec;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -100,18 +99,14 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
   @Override
   public Sequence<Row> toMergeStream(boolean parallel, boolean compact)
   {
+    Collection<Object[]> values = mapping.values();
     final OrderedLimitSpec nodeLimit = groupBy.getLimitSpec().getNodeLimit();
-    if (nodeLimit != null && nodeLimit.hasLimit() && nodeLimit.getLimit() < mapping.size()) {
-      Sequence<Object[]> sequence = GroupByQueryEngine.takeTopN(groupBy, nodeLimit).apply(
-          Sequences.simple(mapping.values())
-      );
+    if (nodeLimit != null && nodeLimit.getLimit() > 0) {
+      Sequence<Object[]> sequence = GroupByQueryEngine.takeTopN(groupBy, nodeLimit, values);
       if (LimitSpecs.inGroupByOrdering(groupBy, nodeLimit)) {
         return Sequences.map(sequence, GroupByQueryEngine.arrayToRow(groupBy, compact));
       }
-      List<Object[]> list = Sequences.toList(sequence);
-      Comparator[] comparators = DimensionSpecs.toComparator(groupBy.getDimensions());
-      Collections.sort(list, Comparators.toArrayComparator(comparators));
-      return Sequences.simple(Iterables.transform(list, GroupByQueryEngine.arrayToRow(groupBy, compact)));
+      values = Sequences.toList(sequence);
     }
 
     // sort all
@@ -120,18 +115,24 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
         Granularities.isAll(groupBy.getGranularity()) ? 1 : 0
     );
     final long start = System.currentTimeMillis();
-    final Object[][] array = mapping.values().toArray(new Object[0][]);
-    if (parallel) {
-      Arrays.parallelSort(array, cmp);
-    } else {
-      Arrays.sort(array, cmp);
-    }
+    final Object[][] array = sortRows(values, cmp, parallel);
     LOG.debug("Took %d msec for sorting %,d rows", (System.currentTimeMillis() - start), array.length);
 
     return Sequences.simple(
         groupBy.estimatedInitialColumns(),
         Iterables.transform(Arrays.asList(array), GroupByQueryEngine.arrayToRow(groupBy, compact))
     );
+  }
+
+  private static Object[][] sortRows(Collection<Object[]> values, Comparator<Object[]> cmp, boolean parallel)
+  {
+    final Object[][] array = values.toArray(new Object[0][]);
+    if (parallel) {
+      Arrays.parallelSort(array, cmp);
+    } else {
+      Arrays.sort(array, cmp);
+    }
+    return array;
   }
 
   @Override
@@ -227,20 +228,20 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey01(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       return Objects.equals(values[0], ((MergeKey) o).values[0]);
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return Objects.hashCode(values[0]);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       return comparator.compare(values[0], o.values[0]);
     }
@@ -251,20 +252,19 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey11(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       return true;
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return 0;
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       return 0;
     }
@@ -275,21 +275,21 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey02(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       final MergeKey other = (MergeKey) o;
       return Objects.equals(values[0], other.values[0]) && Objects.equals(values[1], other.values[1]);
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return 31 * Objects.hashCode(values[0]) + Objects.hashCode(values[1]);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       int compare = comparator.compare(values[0], o.values[0]);
       if (compare == 0) {
@@ -304,21 +304,21 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey12(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       final MergeKey other = (MergeKey) o;
       return Objects.equals(values[1], other.values[1]);
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return 31 * Objects.hashCode(values[1]);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       return comparator.compare(values[1], o.values[1]);
     }
@@ -329,7 +329,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey03(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       final MergeKey other = (MergeKey) o;
       return Objects.equals(values[0], other.values[0]) &&
@@ -338,14 +338,14 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return 31 * 31 * Objects.hashCode(values[0]) + 31 * Objects.hashCode(values[1]) + Objects.hashCode(values[2]);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       int compare = comparator.compare(values[0], o.values[0]);
       if (compare == 0) {
@@ -363,7 +363,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey13(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       final MergeKey other = (MergeKey) o;
       return Objects.equals(values[1], other.values[1]) &&
@@ -371,14 +371,14 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return 31 * Objects.hashCode(values[1]) + Objects.hashCode(values[2]);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       int compare = comparator.compare(values[1], o.values[1]);
       if (compare == 0) {
@@ -393,7 +393,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey04(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       final MergeKey other = (MergeKey) o;
       return Objects.equals(values[0], other.values[0]) &&
@@ -403,7 +403,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return 31 * 31 * 31 * Objects.hashCode(values[0]) +
              31 * 31 * Objects.hashCode(values[1]) +
@@ -413,7 +413,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
 
     @Override
     @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       int compare = comparator.compare(values[0], o.values[0]);
       if (compare == 0) {
@@ -434,7 +434,7 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     private MergeKey14(Object[] values) {super(values);}
 
     @Override
-    public final boolean equals(Object o)
+    public boolean equals(Object o)
     {
       final MergeKey other = (MergeKey) o;
       return Objects.equals(values[1], other.values[1]) &&
@@ -443,14 +443,14 @@ public final class MergeIndexParallel extends MergeIndex.GroupByMerge
     }
 
     @Override
-    public final int hashCode()
+    public int hashCode()
     {
       return 31 * 31 * Objects.hashCode(values[1]) + 31 * Objects.hashCode(values[2]) + Objects.hashCode(values[3]);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public final int compareTo(MergeKey o)
+    public int compareTo(MergeKey o)
     {
       int compare = comparator.compare(values[1], o.values[1]);
       if (compare == 0) {

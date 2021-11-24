@@ -240,6 +240,9 @@ public class GroupByQueryRunnerFactory
     if (query.getLimitSpec().getSegmentLimit() != null) {
       return null;  // not sure of this
     }
+    if (query.getLimitSpec().getNodeLimit() != null) {
+      return null;  // todo
+    }
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
     if (dimensionSpecs.isEmpty()) {
       return null;  // use timeseries query
