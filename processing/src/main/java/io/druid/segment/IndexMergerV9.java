@@ -135,17 +135,7 @@ public class IndexMergerV9 extends IndexMerger
     progress.start();
     progress.progress();
 
-    List<Metadata> metadataList = Lists.transform(
-        adapters,
-        new Function<IndexableAdapter, Metadata>()
-        {
-          @Override
-          public Metadata apply(IndexableAdapter input)
-          {
-            return input.getMetadata();
-          }
-        }
-    );
+    List<Metadata> metadataList = Lists.transform(adapters, IndexableAdapter::getMetadata);
 
     AggregatorFactory[] combiningMetricAggs = null;
     if (metricAggs != null) {

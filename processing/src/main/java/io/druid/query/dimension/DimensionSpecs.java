@@ -221,18 +221,9 @@ public class DimensionSpecs
       final ColumnSelectorFactory columnFactory
   )
   {
-    return Lists.newArrayList(
-        Lists.transform(
-            Preconditions.checkNotNull(dimensionSpecs),
-            new Function<DimensionSpec, DimensionSelector>()
-            {
-              @Override
-              public DimensionSelector apply(DimensionSpec input)
-              {
-                return columnFactory.makeDimensionSelector(input);
-              }
-            }
-        )
+    return GuavaUtils.transform(
+        Preconditions.checkNotNull(dimensionSpecs),
+        dimSpec -> columnFactory.makeDimensionSelector(dimSpec)
     );
   }
 }

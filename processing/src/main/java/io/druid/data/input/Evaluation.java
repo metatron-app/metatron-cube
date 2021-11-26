@@ -21,7 +21,6 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -90,13 +89,7 @@ public class Evaluation
   public RowEvaluator<InputRow> toEvaluator(final TypeResolver.Updatable resolver)
   {
     final RowExprBinding bindings = new RowExprBinding(outputName, resolver);
-    final List<Expr> parsedExpressions = Lists.newArrayList(Lists.transform(
-        expressions, new Function<String, Expr>()
-        {
-          @Override
-          public Expr apply(String input) { return Parser.parse(input, resolver); }
-        }
-    ));
+    final List<Expr> parsedExpressions = GuavaUtils.transform(expressions, expr -> Parser.parse(expr, resolver));
 
     return new RowEvaluator<InputRow>()
     {

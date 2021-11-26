@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.Comparators;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
@@ -272,18 +273,7 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static List<String> toNames(List<AggregatorFactory> aggregators)
   {
-    return Lists.newArrayList(
-        Lists.transform(
-            aggregators, new Function<AggregatorFactory, String>()
-            {
-              @Override
-              public String apply(AggregatorFactory input)
-              {
-                return input.getName();
-              }
-            }
-        )
-    );
+    return GuavaUtils.transform(aggregators, AggregatorFactory::getName);
   }
 
   public static List<String> toNames(List<AggregatorFactory> aggregators, List<PostAggregator> postAggregators)

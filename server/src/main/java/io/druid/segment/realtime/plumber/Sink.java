@@ -20,13 +20,13 @@
 package io.druid.segment.realtime.plumber;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.java.util.common.ISE;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -43,7 +43,6 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -225,16 +224,7 @@ public class Sink implements Iterable<FireHydrant>
         version,
         ImmutableMap.<String, Object>of(),
         Lists.<String>newArrayList(),
-        Lists.transform(
-            Arrays.asList(schema.getAggregators()), new Function<AggregatorFactory, String>()
-            {
-              @Override
-              public String apply(@Nullable AggregatorFactory input)
-              {
-                return input.getName();
-              }
-            }
-        ),
+        GuavaUtils.transform(Arrays.asList(schema.getAggregators()), AggregatorFactory::getName),
         shardSpec,
         null,
         0

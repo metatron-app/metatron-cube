@@ -31,18 +31,17 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.emitter.EmittingLogger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.task.Task;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.Pair;
+import io.druid.java.util.emitter.EmittingLogger;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -551,29 +550,9 @@ public class TaskLockbox
             )
         );
 
-        return Lists.newArrayList(
-            FunctionalIterable
-                .create(searchIntervals)
-                .filter(
-                    new Predicate<Interval>()
-                    {
-                      @Override
-                      public boolean apply(@Nullable Interval searchInterval)
-                      {
-                        return searchInterval != null && searchInterval.overlaps(interval);
-                      }
-                    }
-                )
-                .transform(
-                    new Function<Interval, TaskLockPosse>()
-                    {
-                      @Override
-                      public TaskLockPosse apply(Interval interval)
-                      {
-                        return dsRunning.get(interval);
-                      }
-                    }
-                )
+        return GuavaUtils.transform(
+            Iterables.filter(searchIntervals, i -> i != null && i.overlaps(interval)),
+            i -> dsRunning.get(i)
         );
       }
     }

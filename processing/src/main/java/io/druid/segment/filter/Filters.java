@@ -25,6 +25,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
@@ -452,6 +453,9 @@ public class Filters
 
   public static Set<String> getDependents(DimFilter filter)
   {
+    if (filter == null) {
+      return ImmutableSet.of();
+    }
     Set<String> handler = Sets.newHashSet();
     if (filter != null) {
       filter.addDependent(handler);

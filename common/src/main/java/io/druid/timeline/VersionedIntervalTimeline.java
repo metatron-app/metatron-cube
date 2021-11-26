@@ -226,6 +226,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     return null;
   }
 
+  @Override
   public PartitionHolder<ObjectType> findEntry(Interval interval, VersionType version)
   {
     lock.readLock().lock();
@@ -257,6 +258,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
    * @return Holders representing the interval that the objects exist for, PartitionHolders
    *         are guaranteed to be complete
    */
+  @Override
   public List<TimelineObjectHolder<VersionType, ObjectType>> lookup(Interval interval)
   {
     lock.readLock().lock();

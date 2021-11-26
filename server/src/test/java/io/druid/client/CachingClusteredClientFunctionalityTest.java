@@ -37,6 +37,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.segment.TestHelper;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -175,7 +176,7 @@ public class CachingClusteredClientFunctionalityTest {
   {
     return new CachingClusteredClient(
         null,
-        CachingClusteredClientTest.WAREHOUSE,
+        TestHelper.newWalker(),
         new TimelineServerView()
         {
           @Override
@@ -237,7 +238,7 @@ public class CachingClusteredClientFunctionalityTest {
         },
         NoopQueryWatcher.instance(),
         cache,
-        CachingClusteredClientTest.jsonMapper,
+        TestHelper.JSON_MAPPER,
         backgroundExecutorService,
         backgroundExecutorService,
         new QueryConfig(),

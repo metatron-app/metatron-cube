@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.filtration;
 
-import com.google.common.base.Function;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -93,19 +92,7 @@ public class Bounds
 
   public static List<Range<BoundValue>> toRanges(final List<BoundDimFilter> bounds)
   {
-    return ImmutableList.copyOf(
-        Lists.transform(
-            bounds,
-            new Function<BoundDimFilter, Range<BoundValue>>()
-            {
-              @Override
-              public Range<BoundValue> apply(BoundDimFilter bound)
-              {
-                return toRange(bound);
-              }
-            }
-        )
-    );
+    return ImmutableList.copyOf(Lists.transform(bounds, bound -> toRange(bound)));
   }
 
   public static BoundDimFilter toFilter(final BoundRefKey boundRefKey, final Range<BoundValue> range)

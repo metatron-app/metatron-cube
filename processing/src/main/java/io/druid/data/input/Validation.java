@@ -23,14 +23,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.data.ValueDesc;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.RowBinding;
@@ -120,15 +119,7 @@ public class Validation
         "Must have either expression or expressions"
     );
     this.exclusions = exclusion == null ? exclusions : Arrays.asList(exclusion);
-    this.parsedExpressions = Lists.newArrayList(
-        Lists.transform(
-            this.exclusions, new Function<String, Expr>()
-            {
-              @Override
-              public Expr apply(String input) { return Parser.parse(input); }
-            }
-        )
-    );
+    this.parsedExpressions = GuavaUtils.transform(this.exclusions, expr -> Parser.parse(expr));
   }
 
   @JsonProperty

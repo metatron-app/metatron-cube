@@ -53,7 +53,6 @@ import io.druid.indexer.path.PathSpec;
 import io.druid.initialization.Initialization;
 import io.druid.jackson.FunctionModule;
 import io.druid.jackson.ObjectMappers;
-import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
@@ -157,7 +156,6 @@ public class HadoopDruidIndexerConfig
     );
   }
 
-  @SuppressWarnings("unchecked")
   public static HadoopDruidIndexerConfig fromFile(File file)
   {
     try {
@@ -168,7 +166,6 @@ public class HadoopDruidIndexerConfig
     }
   }
 
-  @SuppressWarnings("unchecked")
   public static HadoopDruidIndexerConfig fromString(String str)
   {
     // This is a map to try and prevent dependency screwbally-ness
@@ -180,7 +177,6 @@ public class HadoopDruidIndexerConfig
     }
   }
 
-  @SuppressWarnings("unchecked")
   public static HadoopDruidIndexerConfig fromDistributedFileSystem(String path)
   {
     try {
@@ -240,14 +236,7 @@ public class HadoopDruidIndexerConfig
       shardSpecLookups.put(
           entry.getKey(), actualSpec.getLookup(
               Lists.transform(
-                  entry.getValue(), new Function<HadoopyShardSpec, ShardSpec>()
-                  {
-                    @Override
-                    public ShardSpec apply(HadoopyShardSpec input)
-                    {
-                      return input.getActualSpecWithDefault();
-                    }
-                  }
+                  entry.getValue(), HadoopyShardSpec::getActualSpecWithDefault
               )
           )
       );
@@ -358,7 +347,7 @@ public class HadoopDruidIndexerConfig
   {
     Optional<SortedSet<Interval>> setOptional = schema.getDataSchema().getGranularitySpec().bucketIntervals();
     if (setOptional.isPresent()) {
-      return Optional.of((List<Interval>) JodaUtils.condenseIntervals(setOptional.get()));
+      return Optional.of(JodaUtils.condenseIntervals(setOptional.get()));
     } else {
       return Optional.absent();
     }
@@ -470,10 +459,10 @@ public class HadoopDruidIndexerConfig
   public Optional<Set<Interval>> getSegmentGranularIntervals()
   {
     return Optional.fromNullable(
-        (Set<Interval>) schema.getDataSchema()
-                              .getGranularitySpec()
-                              .bucketIntervals()
-                              .orNull()
+        schema.getDataSchema()
+              .getGranularitySpec()
+              .bucketIntervals()
+              .orNull()
     );
   }
 
@@ -481,36 +470,29 @@ public class HadoopDruidIndexerConfig
   {
     Optional<Set<Interval>> intervals = getSegmentGranularIntervals();
     if (intervals.isPresent()) {
-      return FunctionalIterable
-              .create(intervals.get())
-              .transformCat(
-                  new Function<Interval, Iterable<Bucket>>()
+      return GuavaUtils.explode(
+          intervals.get(),
+          input -> {
+            final DateTime bucketTime = input.getStart();
+            final List<HadoopyShardSpec> specs = schema.getTuningConfig().getShardSpecs().get(bucketTime.getMillis());
+            if (specs == null) {
+              return ImmutableList.of();
+            }
+
+            return Iterables.transform(
+                specs,
+                new Function<HadoopyShardSpec, Bucket>()
+                {
+                  int i = 0;
+
+                  @Override
+                  public Bucket apply(HadoopyShardSpec input)
                   {
-                    @Override
-                    public Iterable<Bucket> apply(Interval input)
-                    {
-                      final DateTime bucketTime = input.getStart();
-                      final List<HadoopyShardSpec> specs = schema.getTuningConfig().getShardSpecs().get(bucketTime.getMillis());
-                      if (specs == null) {
-                        return ImmutableList.of();
-                      }
-
-                      return FunctionalIterable
-                          .create(specs)
-                          .transform(
-                              new Function<HadoopyShardSpec, Bucket>()
-                              {
-                                int i = 0;
-
-                                @Override
-                                public Bucket apply(HadoopyShardSpec input)
-                                {
-                                  return new Bucket(input.getShardNum(), bucketTime, i++);
-                                }
-                              }
-                          );
-                    }
+                    return new Bucket(input.getShardNum(), bucketTime, i++);
                   }
+                }
+            );
+          }
       );
     } else {
       return Arrays.asList();

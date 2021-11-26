@@ -21,13 +21,12 @@ package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import io.druid.common.Cacheable;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.ISE;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -45,18 +44,9 @@ import java.util.Objects;
  */
 public class OrderByColumnSpec extends OrderingSpec implements Cacheable
 {
-  public static final Function<OrderByColumnSpec, String> GET_DIMENSION = new Function<OrderByColumnSpec, String>()
-  {
-    @Override
-    public String apply(OrderByColumnSpec input)
-    {
-      return input.getDimension();
-    }
-  };
-
   public static List<String> getColumns(List<OrderByColumnSpec> orderByColumnSpecs)
   {
-    return orderByColumnSpecs == null ? null : Lists.newArrayList(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
+    return orderByColumnSpecs == null ? null : GuavaUtils.transform(orderByColumnSpecs, OrderByColumnSpec::getDimension);
   }
 
   public static boolean isSimpleTimeOrdering(List<OrderByColumnSpec> orderByColumnSpecs)

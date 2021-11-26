@@ -19,11 +19,9 @@
 
 package io.druid.firehose.kafka;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import io.druid.common.guava.HostAndPort;
-import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import kafka.api.FetchRequest;
 import kafka.api.FetchRequestBuilder;
@@ -155,33 +153,16 @@ public class KafkaSimpleConsumer
 
   private Iterable<BytesMessageWithOffset> filterAndDecode(Iterable<MessageAndOffset> kafkaMessages, final long offset)
   {
-    return FunctionalIterable
-        .create(kafkaMessages)
-        .filter(
-            new Predicate<MessageAndOffset>()
-            {
-              @Override
-              public boolean apply(MessageAndOffset msgAndOffset)
-              {
-                return msgAndOffset.offset() >= offset;
-              }
-            }
-        )
-        .transform(
-            new Function<MessageAndOffset, BytesMessageWithOffset>()
-            {
-
-              @Override
-              public BytesMessageWithOffset apply(MessageAndOffset msgAndOffset)
-              {
-                ByteBuffer bb = msgAndOffset.message().payload();
-                byte[] payload = new byte[bb.remaining()];
-                bb.get(payload);
-                // add nextOffset here, thus next fetch will use nextOffset instead of current offset
-                return new BytesMessageWithOffset(payload, msgAndOffset.nextOffset(), partitionId);
-              }
-            }
-        );
+    return Iterables.transform(
+        Iterables.filter(kafkaMessages, mo -> mo.offset() >= offset),
+        mo -> {
+          ByteBuffer bb = mo.message().payload();
+          byte[] payload = new byte[bb.remaining()];
+          bb.get(payload);
+          // add nextOffset here, thus next fetch will use nextOffset instead of current offset
+          return new BytesMessageWithOffset(payload, mo.nextOffset(), partitionId);
+        }
+    );
   }
 
   private long getOffset(boolean earliest) throws InterruptedException
@@ -197,7 +178,7 @@ public class KafkaSimpleConsumer
     OffsetRequest request = new OffsetRequest(
         requestInfo, kafka.api.OffsetRequest.CurrentVersion(), clientId
     );
-    OffsetResponse response = null;
+    OffsetResponse response;
     try {
       response = consumer.getOffsetsBefore(request);
     }
@@ -219,7 +200,7 @@ public class KafkaSimpleConsumer
 
   public Iterable<BytesMessageWithOffset> fetch(long offset, int timeoutMs) throws InterruptedException
   {
-    FetchResponse response = null;
+    FetchResponse response;
     Broker previousLeader = leaderBroker;
     while (true) {
       ensureConsumer(previousLeader);
@@ -238,7 +219,7 @@ public class KafkaSimpleConsumer
       }
       catch (Exception e) {
         ensureNotInterrupted(e);
-        log.warn(e, "caughte exception in fetch {} - {}", topic, partitionId);
+        log.warn(e, "caughte exception in fetch [%s:%s]", topic, partitionId);
         response = null;
       }
 
@@ -266,7 +247,6 @@ public class KafkaSimpleConsumer
           stopConsumer();
           previousLeader = leaderBroker;
           leaderBroker = null;
-          continue;
         }
       } else {
         break;

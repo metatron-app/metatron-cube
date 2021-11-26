@@ -27,14 +27,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import io.druid.java.util.common.guava.FunctionalIterable;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.indexer.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.SegmentInsertAction;
 import io.druid.indexing.common.actions.SegmentListUsedAction;
 import io.druid.indexing.common.actions.SegmentLoadAction;
 import io.druid.indexing.common.actions.TaskActionClient;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.loading.SegmentLoadingException;
@@ -47,6 +46,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -135,8 +135,8 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    final boolean isForce = force == null ? false : force;
-    final boolean isValidate = validate == null ? true : validate;
+    final boolean isForce = force != null && force;
+    final boolean isValidate = validate == null || validate;
     if (id == null) {
       if (segment == null) {
         return create(dataSource, interval, indexSpec, isForce, isValidate, context);
@@ -207,31 +207,30 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
               null
           )
       );
-      segmentsToUpdate = FunctionalIterable
-          .create(segments)
-          .filter(
-              new Predicate<DataSegment>()
-              {
-                @Override
-                public boolean apply(DataSegment segment)
-                {
-                  final Integer segmentVersion = segment.getBinaryVersion();
-                  if (!CURR_VERSION_INTEGER.equals(segmentVersion)) {
-                    return true;
-                  } else if (force) {
-                    log.info(
-                        "Segment[%s] already at version[%s], forcing conversion",
-                        segment.getIdentifier(),
-                        segmentVersion
-                    );
-                    return true;
-                  } else {
-                    log.info("Skipping[%s], already version[%s]", segment.getIdentifier(), segmentVersion);
-                    return false;
-                  }
-                }
+      segmentsToUpdate = Iterables.filter(
+          segments,
+          new Predicate<DataSegment>()
+          {
+            @Override
+            public boolean apply(DataSegment segment)
+            {
+              final Integer segmentVersion = segment.getBinaryVersion();
+              if (!CURR_VERSION_INTEGER.equals(segmentVersion)) {
+                return true;
+              } else if (force) {
+                log.info(
+                    "Segment[%s] already at version[%s], forcing conversion",
+                    segment.getIdentifier(),
+                    segmentVersion
+                );
+                return true;
+              } else {
+                log.info("Skipping[%s], already version[%s]", segment.getIdentifier(), segmentVersion);
+                return false;
               }
-          );
+            }
+          }
+      );
     } else {
       log.info("I'm in a subless mood.");
       segmentsToUpdate = Collections.singleton(segment);
@@ -287,7 +286,7 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
 
     ConvertSegmentTask that = (ConvertSegmentTask) o;
 
-    if (segment != null ? !segment.equals(that.segment) : that.segment != null) {
+    if (!Objects.equals(segment, that.segment)) {
       return false;
     }
 
@@ -327,8 +326,8 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
       );
       this.segment = segment;
       this.indexSpec = indexSpec == null ? IndexSpec.DEFAULT : indexSpec;
-      this.force = force == null ? false : force;
-      this.validate = validate == null ? true : validate;
+      this.force = force != null && force;
+      this.validate = validate == null || validate;
     }
 
     @JsonProperty

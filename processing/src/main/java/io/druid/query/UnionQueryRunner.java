@@ -19,10 +19,8 @@
 
 package io.druid.query;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.Sequence;
-
 
 import java.util.List;
 import java.util.Map;
@@ -43,24 +41,13 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
   {
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof UnionDataSource) {
-      final List<Sequence<T>> sequences = Lists.transform(
+      final List<Sequence<T>> sequences = GuavaUtils.transform(
           ((UnionDataSource) dataSource).getDataSources(),
-          new Function<String, Sequence<T>>()
-          {
-            @Override
-            public Sequence<T> apply(String singleSource)
-            {
-              return baseRunner.run(
-                  query.withDataSource(TableDataSource.of(singleSource)),
-                  responseContext
-              );
-            }
-          }
+          ds -> baseRunner.run(query.withDataSource(TableDataSource.of(ds)), responseContext)
       );
       return QueryUtils.mergeSort(query, sequences);
     } else {
       return baseRunner.run(query, responseContext);
     }
   }
-
 }

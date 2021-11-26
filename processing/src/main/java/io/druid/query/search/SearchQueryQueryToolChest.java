@@ -27,6 +27,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.IdentityFunction;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
@@ -276,28 +277,26 @@ public class SearchQueryQueryToolChest
             return new Result<>(
                 new DateTime(((Number) result.get(0)).longValue()),
                 new SearchResultValue(
-                    Lists.newArrayList(
-                        Lists.transform(
-                            (List) result.get(1),
-                            new Function<Object, SearchHit>()
-                            {
-                              @Override
-                              public SearchHit apply(@Nullable Object input)
-                              {
-                                if (input instanceof Map) {
-                                  return new SearchHit(
-                                      (String) ((Map) input).get("dimension"),
-                                      (String) ((Map) input).get("value"),
-                                      (Integer) ((Map) input).get("count")
-                                  );
-                                } else if (input instanceof SearchHit) {
-                                  return (SearchHit) input;
-                                } else {
-                                  throw new IAE("Unknown format [%s]", input.getClass());
-                                }
-                              }
+                    GuavaUtils.transform(
+                        (List) result.get(1),
+                        new Function<Object, SearchHit>()
+                        {
+                          @Override
+                          public SearchHit apply(@Nullable Object input)
+                          {
+                            if (input instanceof Map) {
+                              return new SearchHit(
+                                  (String) ((Map) input).get("dimension"),
+                                  (String) ((Map) input).get("value"),
+                                  (Integer) ((Map) input).get("count")
+                              );
+                            } else if (input instanceof SearchHit) {
+                              return (SearchHit) input;
+                            } else {
+                              throw new IAE("Unknown format [%s]", input.getClass());
                             }
-                        )
+                          }
+                        }
                     )
                 )
             );

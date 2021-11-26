@@ -150,7 +150,7 @@ public class GroupByQueryEngine
     @Override
     public int hashCode()
     {
-      if (array.length == 1) {
+      if (array.length == BUFFER_POS + 1) {
         return array[BUFFER_POS];
       }
       int result = 1;
@@ -164,7 +164,7 @@ public class GroupByQueryEngine
     public boolean equals(Object obj)
     {
       final int[] other = ((KeyValue) obj).array;
-      if (array.length == 1) {
+      if (array.length == BUFFER_POS + 1) {
         return array[BUFFER_POS] == other[BUFFER_POS];
       }
       for (int i = BUFFER_POS; i < array.length; i++) {

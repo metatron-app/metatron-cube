@@ -280,23 +280,6 @@ public class IndexMerger
     return merge(indexes, rollup, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
   }
 
-  private static List<String> getLexicographicMergedDimensions(List<IndexableAdapter> indexes)
-  {
-    return mergeIndexed(
-        Lists.transform(
-            indexes,
-            new Function<IndexableAdapter, Iterable<String>>()
-            {
-              @Override
-              public Iterable<String> apply(IndexableAdapter input)
-              {
-                return input.getDimensionNames();
-              }
-            }
-        )
-    );
-  }
-
   private static List<String> getLongestSharedDimOrder(List<IndexableAdapter> indexes)
   {
     int maxSize = 0;
@@ -340,10 +323,23 @@ public class IndexMerger
     List<String> commonDimOrder = getLongestSharedDimOrder(indexes);
     if (commonDimOrder == null) {
       log.warn("Indexes have incompatible dimension orders, using lexicographic order.");
-      return getLexicographicMergedDimensions(indexes);
+      return mergeIndexed(Lists.transform(indexes, IndexableAdapter::getDimensionNames));
     } else {
       return commonDimOrder;
     }
+  }
+
+  private static <T extends Comparable> List<T> mergeIndexed(final List<Iterable<T>> indexedLists)
+  {
+    Set<T> retVal = Sets.newTreeSet(GuavaUtils.nullFirstNatural());
+
+    for (Iterable<T> indexedList : indexedLists) {
+      for (T val : indexedList) {
+        retVal.add(val);
+      }
+    }
+
+    return Lists.newArrayList(retVal);
   }
 
   private static List<String> getMergedMetrics(List<IndexableAdapter> indexes)
@@ -1058,19 +1054,6 @@ public class IndexMerger
       dimLookup[i] = values.indexOf(indexed.get(i));
     }
     return dimLookup;
-  }
-
-  private static <T extends Comparable> List<T> mergeIndexed(final List<Iterable<T>> indexedLists)
-  {
-    Set<T> retVal = Sets.newTreeSet(GuavaUtils.nullFirstNatural());
-
-    for (Iterable<T> indexedList : indexedLists) {
-      for (T val : indexedList) {
-        retVal.add(val);
-      }
-    }
-
-    return Lists.newArrayList(retVal);
   }
 
   private void createIndexDrdFile(

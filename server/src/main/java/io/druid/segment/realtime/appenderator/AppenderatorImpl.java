@@ -50,7 +50,6 @@ import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.RetryUtils;
 import io.druid.java.util.common.guava.CloseQuietly;
-import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
@@ -84,7 +83,6 @@ import io.druid.segment.realtime.FireHydrant;
 import io.druid.segment.realtime.plumber.Sink;
 import io.druid.server.coordination.DataSegmentAnnouncer;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
@@ -162,7 +160,7 @@ public class AppenderatorImpl implements Appenderator
   private volatile long nextFlush;
   private volatile FileLock basePersistDirLock = null;
   private volatile FileChannel basePersistDirLockChannel = null;
-  private AtomicBoolean closed = new AtomicBoolean(false);
+  private final AtomicBoolean closed = new AtomicBoolean(false);
 
   public AppenderatorImpl(
       DataSchema schema,
@@ -361,44 +359,18 @@ public class AppenderatorImpl implements Appenderator
       throw new IllegalStateException("Don't query me, bro.");
     }
 
-    final Iterable<SegmentDescriptor> specs = FunctionalIterable
-        .create(intervals)
-        .transformCat(
-            new Function<Interval, Iterable<TimelineObjectHolder<String, Sink>>>()
-            {
-              @Override
-              public Iterable<TimelineObjectHolder<String, Sink>> apply(final Interval interval)
-              {
-                return sinkTimeline.lookup(interval);
-              }
-            }
+    final String dataSource = schema.getDataSource();
+    final Iterable<SegmentDescriptor> specs = GuavaUtils.explode(
+        GuavaUtils.explode(
+            intervals, interval -> sinkTimeline.lookup(interval)
+        ),
+        holder -> Iterables.transform(
+            holder.getObject(),
+            chunk -> new SegmentDescriptor(
+                dataSource, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
+            )
         )
-        .transformCat(
-            new Function<TimelineObjectHolder<String, Sink>, Iterable<SegmentDescriptor>>()
-            {
-              @Override
-              public Iterable<SegmentDescriptor> apply(final TimelineObjectHolder<String, Sink> holder)
-              {
-                return FunctionalIterable
-                    .create(holder.getObject())
-                    .transform(
-                        new Function<PartitionChunk<Sink>, SegmentDescriptor>()
-                        {
-                          @Override
-                          public SegmentDescriptor apply(final PartitionChunk<Sink> chunk)
-                          {
-                            return new SegmentDescriptor(
-                                schema.getDataSource(),
-                                holder.getInterval(),
-                                holder.getVersion(),
-                                chunk.getChunkNumber()
-                            );
-                          }
-                        }
-                    );
-              }
-            }
-        );
+    );
 
     return getQueryRunnerForSegments(query, specs);
   }
@@ -494,98 +466,97 @@ public class AppenderatorImpl implements Appenderator
             factory.mergeRunners(
                 resolved,
                 queryExecutorService,
-                FunctionalIterable
-                    .create(specs)
-                    .transform(
-                        new Function<SegmentDescriptor, QueryRunner<T>>()
-                        {
-                          @Override
-                          public QueryRunner<T> apply(final SegmentDescriptor descriptor)
-                          {
-                            final PartitionHolder<Sink> holder = sinkTimeline.findEntry(
-                                descriptor.getInterval(),
-                                descriptor.getVersion()
-                            );
-                            if (holder == null) {
-                              return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
-                            }
+                Iterables.transform(
+                    specs,
+                    new Function<SegmentDescriptor, QueryRunner<T>>()
+                    {
+                      @Override
+                      public QueryRunner<T> apply(final SegmentDescriptor descriptor)
+                      {
+                        final PartitionHolder<Sink> holder = sinkTimeline.findEntry(
+                            descriptor.getInterval(),
+                            descriptor.getVersion()
+                        );
+                        if (holder == null) {
+                          return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
+                        }
 
-                            final PartitionChunk<Sink> chunk = holder.getChunk(descriptor.getPartitionNumber());
-                            if (chunk == null) {
-                              return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
-                            }
+                        final PartitionChunk<Sink> chunk = holder.getChunk(descriptor.getPartitionNumber());
+                        if (chunk == null) {
+                          return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
+                        }
 
-                            final Sink theSink = chunk.getObject();
-                            final String sinkSegmentIdentifier = theSink.getSegment().getIdentifier();
+                        final Sink theSink = chunk.getObject();
+                        final String sinkSegmentIdentifier = theSink.getSegment().getIdentifier();
 
-                            return new SpecificSegmentQueryRunner<>(
-                                withPerSinkMetrics(
-                                    new BySegmentQueryRunner<>(
-                                        toolchest,
-                                        sinkSegmentIdentifier,
-                                        descriptor.getInterval().getStart(),
-                                        factory.mergeRunners(
-                                            resolved,
-                                            Execs.newDirectExecutorService(),
-                                            Iterables.transform(
-                                                theSink,
-                                                new Function<FireHydrant, QueryRunner<T>>()
-                                                {
-                                                  @Override
-                                                  public QueryRunner<T> apply(final FireHydrant hydrant)
-                                                  {
-                                                    // Hydrant might swap at any point, but if it's swapped at the start
-                                                    // then we know it's *definitely* swapped.
-                                                    final boolean hydrantDefinitelySwapped = hydrant.hasSwapped();
-
-                                                    if (skipIncrementalSegment && !hydrantDefinitelySwapped) {
-                                                      return NoopQueryRunner.instance();
-                                                    }
-
-                                                    // Prevent the underlying segment from swapping when its being iterated
-                                                    final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
-                                                    try {
-                                                      QueryRunner<T> baseRunner = QueryRunners.withResource(
-                                                          factory.createRunner(segment.lhs, optimizer),
-                                                          segment.rhs
-                                                      );
-
-                                                      // 1) Only use caching if data is immutable
-                                                      // 2) Hydrants are not the same between replicas, make sure cache is local
-                                                      if (hydrantDefinitelySwapped && cache.isLocal()) {
-                                                        return new CachingQueryRunner<>(
-                                                            makeHydrantCacheIdentifier(hydrant, segment.lhs),
-                                                            descriptor,
-                                                            objectMapper,
-                                                            cache,
-                                                            toolchest,
-                                                            baseRunner,
-                                                            Execs.newDirectExecutorService(),
-                                                            cacheConfig
-                                                        );
-                                                      } else {
-                                                        return baseRunner;
-                                                      }
-                                                    }
-                                                    catch (RuntimeException e) {
-                                                      CloseQuietly.close(segment.rhs);
-                                                      throw e;
-                                                    }
-                                                  }
-                                                }
-                                            ),
-                                            null
-                                        )
-                                    ),
+                        return new SpecificSegmentQueryRunner<>(
+                            withPerSinkMetrics(
+                                new BySegmentQueryRunner<>(
                                     toolchest,
                                     sinkSegmentIdentifier,
-                                    cpuTimeAccumulator
+                                    descriptor.getInterval().getStart(),
+                                    factory.mergeRunners(
+                                        resolved,
+                                        Execs.newDirectExecutorService(),
+                                        Iterables.transform(
+                                            theSink,
+                                            new Function<FireHydrant, QueryRunner<T>>()
+                                            {
+                                              @Override
+                                              public QueryRunner<T> apply(final FireHydrant hydrant)
+                                              {
+                                                // Hydrant might swap at any point, but if it's swapped at the start
+                                                // then we know it's *definitely* swapped.
+                                                final boolean hydrantDefinitelySwapped = hydrant.hasSwapped();
+
+                                                if (skipIncrementalSegment && !hydrantDefinitelySwapped) {
+                                                  return NoopQueryRunner.instance();
+                                                }
+
+                                                // Prevent the underlying segment from swapping when its being iterated
+                                                final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
+                                                try {
+                                                  QueryRunner<T> baseRunner = QueryRunners.withResource(
+                                                      factory.createRunner(segment.lhs, optimizer),
+                                                      segment.rhs
+                                                  );
+
+                                                  // 1) Only use caching if data is immutable
+                                                  // 2) Hydrants are not the same between replicas, make sure cache is local
+                                                  if (hydrantDefinitelySwapped && cache.isLocal()) {
+                                                    return new CachingQueryRunner<>(
+                                                        makeHydrantCacheIdentifier(hydrant, segment.lhs),
+                                                        descriptor,
+                                                        objectMapper,
+                                                        cache,
+                                                        toolchest,
+                                                        baseRunner,
+                                                        Execs.newDirectExecutorService(),
+                                                        cacheConfig
+                                                    );
+                                                  } else {
+                                                    return baseRunner;
+                                                  }
+                                                }
+                                                catch (RuntimeException e) {
+                                                  CloseQuietly.close(segment.rhs);
+                                                  throw e;
+                                                }
+                                              }
+                                            }
+                                        ),
+                                        null
+                                    )
                                 ),
-                                new SpecificSegmentSpec(descriptor)
-                            );
-                          }
-                        }
-                    ),
+                                toolchest,
+                                sinkSegmentIdentifier,
+                                cpuTimeAccumulator
+                            ),
+                            new SpecificSegmentSpec(descriptor)
+                        );
+                      }
+                    }
+                ),
                 null
             )
         ),

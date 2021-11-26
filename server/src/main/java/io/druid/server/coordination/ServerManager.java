@@ -21,6 +21,7 @@ package io.druid.server.coordination;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -39,7 +40,7 @@ import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Smile;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.FunctionalIterable;
+import io.druid.java.util.common.UOE;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.BySegmentQueryRunner;
@@ -72,13 +73,11 @@ import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.server.ForwardHandler;
 import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -310,7 +309,7 @@ public class ServerManager implements ForwardingSegmentWalker
 
     DataSource dataSource = query.getDataSource();
     if (!(dataSource instanceof TableDataSource)) {
-      throw new UnsupportedOperationException("data source type '" + dataSource.getClass().getName() + "' unsupported");
+      throw new UOE("data source type '%s' unsupported", dataSource.getClass());
     }
     final String dataSourceName = getDataSourceName(dataSource);
 
@@ -320,52 +319,18 @@ public class ServerManager implements ForwardingSegmentWalker
       return NoopQueryRunner.instance();
     }
 
-    FunctionalIterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = FunctionalIterable
-        .create(intervals)
-        .transformCat(
-            new Function<Interval, Iterable<TimelineObjectHolder<String, ReferenceCountingSegment>>>()
-            {
-              @Override
-              public Iterable<TimelineObjectHolder<String, ReferenceCountingSegment>> apply(Interval input)
-              {
-                return timeline.lookup(input);
-              }
-            }
-        )
-        .transformCat(
-            new Function<TimelineObjectHolder<String, ReferenceCountingSegment>, Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>>>()
-            {
-              @Override
-              public Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> apply(
-                  @Nullable
-                  final TimelineObjectHolder<String, ReferenceCountingSegment> holder
-              )
-              {
-                if (holder == null) {
-                  return null;
-                }
-
-                return FunctionalIterable
-                    .create(holder.getObject())
-                    .transform(
-                        new Function<PartitionChunk<ReferenceCountingSegment>, Pair<SegmentDescriptor, ReferenceCountingSegment>>()
-                        {
-                          @Override
-                          public Pair<SegmentDescriptor, ReferenceCountingSegment> apply(PartitionChunk<ReferenceCountingSegment> chunk)
-                          {
-                            return Pair.of(
-                                new SegmentDescriptor(
-                                    dataSourceName,
-                                    holder.getInterval(),
-                                    holder.getVersion(),
-                                    chunk.getChunkNumber()
-                                ), chunk.getObject()
-                            );
-                          }
-                        }
-                    );
-              }
-            }
+    Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments =
+        GuavaUtils.explode(
+            Iterables.filter(GuavaUtils.explode(intervals, i -> timeline.lookup(i)), Predicates.notNull()),
+            holder -> Iterables.transform(
+                holder.getObject(),
+                chunk -> Pair.of(
+                    new SegmentDescriptor(
+                        dataSourceName, holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
+                    ),
+                    chunk.getObject()
+                )
+            )
         );
 
     return toQueryRunner(query, Lists.newArrayList(segments));
@@ -389,28 +354,22 @@ public class ServerManager implements ForwardingSegmentWalker
       return NoopQueryRunner.instance();
     }
 
-    List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList(
-        Iterables.transform(
-            specs, new Function<SegmentDescriptor, Pair<SegmentDescriptor, ReferenceCountingSegment>>()
-            {
-              @Override
-              public Pair<SegmentDescriptor, ReferenceCountingSegment> apply(SegmentDescriptor input)
-              {
-                PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
-                    input.getInterval(), input.getVersion()
-                );
-                if (entry != null) {
-                  PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(input.getPartitionNumber());
-                  if (chunk != null) {
-                    return Pair.of(input, chunk.getObject());
-                  }
-                }
-                return Pair.of(input, null);
-              }
+    Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Iterables.transform(
+        specs,
+        input -> {
+          PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
+              input.getInterval(), input.getVersion()
+          );
+          if (entry != null) {
+            PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(input.getPartitionNumber());
+            if (chunk != null) {
+              return Pair.of(input, chunk.getObject());
             }
-        )
+          }
+          return Pair.of(input, null);
+        }
     );
-    return toQueryRunner(query, segments);
+    return toQueryRunner(query, Lists.newArrayList(segments));
   }
 
   private <T> QueryRunner<T> toQueryRunner(

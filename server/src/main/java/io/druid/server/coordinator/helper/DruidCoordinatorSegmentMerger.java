@@ -30,9 +30,9 @@ import com.google.common.collect.Multiset;
 import com.google.inject.Inject;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.config.JacksonConfigManager;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
-import io.druid.java.util.common.guava.FunctionalIterable;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
 import io.druid.server.coordinator.CoordinatorStats;
@@ -178,15 +178,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
   {
     final List<DataSegment> segments = segmentsToMerge.getSegments();
     final List<String> segmentNames = Lists.transform(
-        segments,
-        new Function<DataSegment, String>()
-        {
-          @Override
-          public String apply(DataSegment input)
-          {
-            return input.getIdentifier();
-          }
-        }
+        segments, DataSegment::getIdentifier
     );
 
     log.info("[%s] Found %d segments to merge %s", dataSource, segments.size(), segmentNames);
@@ -230,7 +222,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
     public List<DataSegment> getSegments()
     {
       return ImmutableSet.copyOf(
-          FunctionalIterable.create(timelineObjects).transformCat(
+          GuavaUtils.explode(timelineObjects,
               new Function<Pair<TimelineObjectHolder<String, DataSegment>, Interval>, Iterable<DataSegment>>()
               {
                 @Override

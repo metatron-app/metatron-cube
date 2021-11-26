@@ -383,7 +383,6 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     return new PartitionEvaluator()
     {
       @Override
-      @SuppressWarnings("unchecked")
       public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
       {
         if (partition.isEmpty()) {
@@ -456,8 +455,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
           for (int i = 0; i < sortedKeys.length; i++) {
             sortedKeys[i] = StringUtils.concat(separator, pivotColumns[i].array());
           }
-          allColumns.removeAll(partitionColumns);
-          allColumns.removeAll(Arrays.asList(sortedKeys));
+          partitionColumns.forEach(allColumns::remove);
+          Arrays.asList(sortedKeys).forEach(allColumns::remove);
           String[] remainingColumns = allColumns.toArray(new String[0]);
           Arrays.sort(remainingColumns);
           // rewrite with whole pivot columns

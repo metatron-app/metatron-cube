@@ -438,20 +438,8 @@ public class AppenderatorPlumber implements Plumber
       @Override
       public Void apply(Throwable throwable)
       {
-        final List<String> segmentIdentifierStrings = Lists.transform(
-            segmentsToPush,
-            new Function<SegmentIdentifier, String>()
-            {
-              @Override
-              public String apply(SegmentIdentifier input)
-              {
-                return input.getIdentifierAsString();
-              }
-            }
-        );
-
         log.makeAlert(throwable, "Failed to publish merged indexes[%s]", schema.getDataSource())
-           .addData("segments", segmentIdentifierStrings)
+           .addData("segments", Lists.transform(segmentsToPush, SegmentIdentifier::getIdentifierAsString))
            .emit();
 
         if (shuttingDown) {
