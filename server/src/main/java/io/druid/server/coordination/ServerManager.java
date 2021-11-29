@@ -29,6 +29,7 @@ import com.google.inject.Inject;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
+import io.druid.collections.IntList;
 import io.druid.collections.String2IntMap;
 import io.druid.collections.String2LongMap;
 import io.druid.common.guava.GuavaUtils;
@@ -56,6 +57,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryRunners;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReferenceCountingSegmentQueryRunner;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
@@ -73,9 +75,11 @@ import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.server.ForwardHandler;
 import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.SegmentKey;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
+import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.joda.time.Interval;
 
 import java.io.IOException;
@@ -88,7 +92,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
-public class ServerManager implements ForwardingSegmentWalker
+public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalker.DenseSupport
 {
   private static final EmittingLogger log = new EmittingLogger(ServerManager.class);
 
@@ -370,6 +374,30 @@ public class ServerManager implements ForwardingSegmentWalker
         }
     );
     return toQueryRunner(query, Lists.newArrayList(segments));
+  }
+
+  @Override
+  public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, List<SegmentKey> keys, List<IntList> partitions)
+  {
+    String dataSourceName = getDataSourceName(query.getDataSource());
+    VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
+    if (timeline == null) {
+      return NoopQueryRunner.instance();
+    }
+    List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList();
+    for (int i = 0; i < keys.size(); i++) {
+      SegmentKey key = keys.get(i);
+      PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(key.getInterval(), key.getVersion());
+
+      IntIterator iterator = partitions.get(i).intIterator();
+      while (iterator.hasNext()) {
+        int partition = iterator.nextInt();
+        SegmentDescriptor desc = new SegmentDescriptor(dataSourceName, key.getInterval(), key.getVersion(), partition);
+        PartitionChunk<ReferenceCountingSegment> chunk = entry == null ? null : entry.getChunk(partition);
+        segments.add(Pair.of(desc, chunk == null ? null : chunk.getObject()));
+      }
+    }
+    return toQueryRunner(query, segments);
   }
 
   private <T> QueryRunner<T> toQueryRunner(

@@ -20,10 +20,13 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.collections.IntList;
 import io.druid.concurrent.Execs;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.timeline.SegmentKey;
 import org.joda.time.Interval;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -81,4 +84,9 @@ public interface QuerySegmentWalker
    * @return the Queryable object with the given SegmentSpecs
    */
   <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs);
+
+  interface DenseSupport extends QuerySegmentWalker
+  {
+    <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, List<SegmentKey> keys, List<IntList> partitions);
+  }
 }

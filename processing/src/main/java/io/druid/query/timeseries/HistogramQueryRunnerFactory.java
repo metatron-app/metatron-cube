@@ -64,7 +64,7 @@ public class HistogramQueryRunnerFactory extends QueryRunnerFactory.Abstract<Row
         HistogramQuery query = (HistogramQuery) input;
         ItemsSketch converted = segment.asStorageAdapter(true).makeCursors(query, cache).accumulate(
             null, (current, cursor) -> {
-              ItemsSketch<Integer> sketch = ItemsSketch.getInstance(1024, GuavaUtils.noNullableNatural());
+              ItemsSketch<Integer> sketch = ItemsSketch.getInstance(8192, GuavaUtils.INTEGER_COMPARATOR);
               DimensionSelector selector = cursor.makeDimensionSelector(query.getDimensionSpec());
               if (selector instanceof DimensionSelector.Scannable) {
                 ((DimensionSelector.Scannable) selector).scan(

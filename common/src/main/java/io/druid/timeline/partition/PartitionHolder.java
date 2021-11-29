@@ -20,7 +20,6 @@
 package io.druid.timeline.partition;
 
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -112,17 +111,12 @@ public class PartitionHolder<T> implements Iterable<PartitionChunk<T>>
 
   public PartitionChunk<T> getChunk(final int partitionNum)
   {
-    final Iterator<PartitionChunk<T>> retVal = Iterators.filter(
-        holderSet.iterator(), new Predicate<PartitionChunk<T>>()
-    {
-      @Override
-      public boolean apply(PartitionChunk<T> input)
-      {
-        return input.getChunkNumber() == partitionNum;
-      }
+    if (holderSet.size() == 1 && partitionNum == holderSet.get(0).getChunkNumber()) {
+      return holderSet.get(0);
     }
+    final Iterator<PartitionChunk<T>> retVal = Iterators.filter(
+        holderSet.iterator(), input -> input.getChunkNumber() == partitionNum
     );
-
     return retVal.hasNext() ? retVal.next() : null;
   }
 

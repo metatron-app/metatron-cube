@@ -56,7 +56,6 @@ public class JodaStuff
     return client.setSerializerFactory(mapper.getSerializerFactory().withAdditionalSerializers(serializers));
   }
 
-  @SuppressWarnings("unchecked")
   static SimpleModule register(SimpleModule module)
   {
     module.addKeyDeserializer(DateTime.class, new DateTimeKeyDeserializer());

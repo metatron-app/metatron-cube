@@ -69,7 +69,7 @@ import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.spec.MultipleSpecificSegmentSpec;
+import io.druid.query.spec.DenseSegmentsSpec;
 import io.druid.segment.ObjectArray;
 import io.druid.server.ServiceTypes;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -452,7 +452,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           final DruidServer server = entry.getKey();
           final List<SegmentDescriptor> descriptors = entry.getValue();
 
-          final Query<T> running = prepared.withQuerySegmentSpec(new MultipleSpecificSegmentSpec(descriptors));
+          final Query<T> running = prepared.withQuerySegmentSpec(DenseSegmentsSpec.of(dataSource, descriptors));
           final QueryRunner runner = serverView.getQueryRunner(running, server);
           if (runner == null) {
             LOG.info("server [%s] has disappeared.. skipping", server);

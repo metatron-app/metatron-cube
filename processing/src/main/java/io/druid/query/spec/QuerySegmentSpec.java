@@ -37,6 +37,7 @@ import java.util.List;
     @JsonSubTypes.Type(name = "segments", value = MultipleSpecificSegmentSpec.class),
     @JsonSubTypes.Type(name = "segment", value = SpecificSegmentSpec.class),
     @JsonSubTypes.Type(name = "expression", value = IntervalExpressionQuerySpec.class),
+    @JsonSubTypes.Type(name = "dense", value = DenseSegmentsSpec.class),
 })
 public interface QuerySegmentSpec
 {

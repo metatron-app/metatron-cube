@@ -89,6 +89,8 @@ public class GuavaUtils
   @SuppressWarnings("unchecked")
   public static final Comparator NULL_FIRST_NATURAL = Comparators.NULL_FIRST(NO_NULLABLE_NATURAL);
 
+  public static final Comparator<Integer> INTEGER_COMPARATOR = (i1, i2) -> Integer.compare(i1, i2);
+
   public static final Comparator TIME_COMPARATOR =
       (t1, t2) -> Long.compare(((Number) t1).longValue(), ((Number) t2).longValue());
 
@@ -373,6 +375,11 @@ public class GuavaUtils
   public static <T, V> Iterable<V> explode(Iterable<T> iterable, Function<T, Iterable<V>> function)
   {
     return Iterables.concat(Iterables.transform(iterable, function));
+  }
+
+  public static <T, V> Iterator<V> explode(Iterator<T> iterable, Function<T, Iterator<V>> function)
+  {
+    return Iterators.concat(Iterators.transform(iterable, function));
   }
 
   @SuppressWarnings("unchecked")

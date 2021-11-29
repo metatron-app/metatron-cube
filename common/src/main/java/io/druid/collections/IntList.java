@@ -19,6 +19,8 @@
 
 package io.druid.collections;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import it.unimi.dsi.fastutil.ints.IntIterator;
@@ -34,6 +36,12 @@ import java.util.stream.IntStream;
  */
 public class IntList implements Iterable<Integer>, IntConsumer
 {
+  @JsonCreator
+  public static IntList of(int... values)
+  {
+    return new IntList(values);
+  }
+
   private int[] baseArray;
   private int size;
 
@@ -141,6 +149,7 @@ public class IntList implements Iterable<Integer>, IntConsumer
     return this;
   }
 
+  @JsonValue
   public int[] array()
   {
     return Arrays.copyOfRange(baseArray, 0, size);
@@ -204,6 +213,27 @@ public class IntList implements Iterable<Integer>, IntConsumer
   public void clear()
   {
     size = 0;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    IntList other = (IntList) o;
+    if (size != other.size) {
+      return false;
+    }
+    for (int i = 0; i < size ;i++) {
+      if (baseArray[i] != other.baseArray[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

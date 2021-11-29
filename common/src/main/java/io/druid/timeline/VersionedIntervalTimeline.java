@@ -231,6 +231,13 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
   {
     lock.readLock().lock();
     try {
+      TreeMap<VersionType, TimelineEntry> entryMap = allTimelineEntries.get(interval);
+      if (entryMap != null) {
+        TimelineEntry foundEntry = entryMap.get(version);
+        if (foundEntry != null) {
+          return new ImmutablePartitionHolder<ObjectType>(foundEntry.getPartitionHolder());
+        }
+      }
       for (Map.Entry<Interval, TreeMap<VersionType, TimelineEntry>> entry : allTimelineEntries.entrySet()) {
         if (entry.getKey().equals(interval) || entry.getKey().contains(interval)) {
           TimelineEntry foundEntry = entry.getValue().get(version);
@@ -577,6 +584,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
       }
     }
 
+    // this trimming thing is very stupid idea. but it infested over all kind of modules, let it in that way.
     if (retVal.isEmpty()) {
       return retVal;
     }
