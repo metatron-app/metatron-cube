@@ -27,13 +27,12 @@ import org.junit.Test;
 
 public class SimpleTest extends CalciteQueryTestHelper
 {
-  private static MiscQueryHook hook = new MiscQueryHook();
-  private static TestQuerySegmentWalker walker;
+  private static final MiscQueryHook hook = new MiscQueryHook();
+  private static final TestQuerySegmentWalker walker = TestHelper.newWalker().withQueryHook(hook);
 
   @BeforeClass
   public static void setUp() throws Exception
   {
-    walker = TestHelper.newWalker().withQueryHook(hook);
     walker.addIndex("cdis", "cdis_schema.json", "cdis.tbl", true);
     walker.populate("cdis");
   }
@@ -258,6 +257,26 @@ public class SimpleTest extends CalciteQueryTestHelper
         PLANNER_CONFIG_DEFAULT,
         "SELECT count(*) FROM cdis INNER JOIN cdis cdis2 ON cdis.svc_mgmt_num = cdis2.svc_mgmt_num",
         new Object[]{2L}
+    );
+  }
+
+  @Test
+  public void testLatestEarliest() throws Exception
+  {
+    testQuery(
+        "WITH X AS ("
+        + " SELECT * FROM "
+        + " (VALUES"
+        + "   (0, 'A', 1, null, null),"
+        + "   (0, 'B', null, 2, null),"
+        + "   (0, 'C', null, null, 3),"
+        + "   (1, 'A', 4, null, null),"
+        + "   (1, 'B', null, 5, null),"
+        + "   (1, 'C', null, null, 6)"
+        + " ) AS T (__time, asset, p1, p2, p3)"
+        + ")"
+        + " SELECT LATEST(p1), LATEST(p2), EARLIEST(p3) FROM X",
+        new Object[]{4, 5, 3}
     );
   }
 }

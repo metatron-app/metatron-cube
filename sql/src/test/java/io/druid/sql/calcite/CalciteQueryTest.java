@@ -6231,7 +6231,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               )
               .outputColumns("a0", "a1", "a2", "a3", "a4", "a5")
               .build(),
-        new Object[]{1L, 1.0d, "", 2L, 2.0d, "1"}
+        new Object[]{1L, 1.0d, "10.1", 2L, 2.0d, "1"}
     );
   }
 

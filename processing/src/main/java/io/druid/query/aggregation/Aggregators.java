@@ -233,10 +233,16 @@ public class Aggregators
           {
             final long timestamp = timeSelector.get();
             if (current == null) {
-              current = new TimeTagged(timestamp, selector.get());
+              Object value = selector.get();
+              if (value != null) {
+                current = new TimeTagged(timestamp, value);
+              }
             } else if (timestamp < current.timestamp) {
-              current.timestamp = timestamp;
-              current.value = selector.get();
+              Object value = selector.get();
+              if (value != null) {
+                current.timestamp = timestamp;
+                current.value = value;
+              }
             }
             return current;
           }
@@ -257,10 +263,16 @@ public class Aggregators
           {
             final long timestamp = timeSelector.get();
             if (current == null) {
-              current = new TimeTagged(timestamp, selector.get());
+              Object value = selector.get();
+              if (value != null) {
+                current = new TimeTagged(timestamp, value);
+              }
             } else if (timestamp > current.timestamp) {
-              current.timestamp = timestamp;
-              current.value = selector.get();
+              Object value = selector.get();
+              if (value != null) {
+                current.timestamp = timestamp;
+                current.value = value;
+              }
             }
             return current;
           }
