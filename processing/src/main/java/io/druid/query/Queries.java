@@ -28,10 +28,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.yahoo.memory.Memory;
-import com.yahoo.memory.UnsafeUtil;
-import com.yahoo.memory.WritableMemory;
-import com.yahoo.sketches.ArrayOfItemsSerDe;
+import com.yahoo.sketches.quantiles.DictionarySketch;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import io.druid.cache.Cache;
@@ -41,8 +38,6 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.BytesInputStream;
-import io.druid.data.input.BytesOutputStream;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -624,7 +619,7 @@ public class Queries
     }
     ValueDesc inputType = type.unwrapDimension();
     AggregatorFactory aggregator = new GenericSketchAggregatorFactory(
-        "$SKETCH", fieldName, null, inputType, SketchOp.QUANTILE, 4096, orderingSpec, false
+        "$SKETCH", fieldName, null, inputType, SketchOp.QUANTILE, DictionarySketch.DEFAULT_K, orderingSpec, false
     );
     PostAggregator postAggregator = SketchQuantilesPostAggregator.quantile(
         "$SPLIT", "$SKETCH", QuantileOperation.of(splitType, numSplits + 1, maxThreshold, true)
@@ -639,11 +634,12 @@ public class Queries
     Comparator comparator = orderingSpec == null ? GuavaUtils.noNullableNatural() : orderingSpec.getComparator();
 
     Object[] histogram = null;
-    if (type.isDimension() && allQueryable && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM) {
-      histogram = makeColumnHistogramOn(segments, column, comparator, query.withQuerySegmentSpec(null), cache);
+    if (type.isDimension() && allQueryable && segments.size() < QueryRunners.MAX_QUERY_PARALLELISM << 1) {
+      ItemsSketch<String> sketch = makeColumnSketch(segments, query.toHistogramQuery(column, comparator), cache);
+      histogram = sketch == null ? null : toHistogram(postAggregator, sketch);
     }
     if (histogram == null && segments.size() == 1) {
-      histogram = makeColumnHistogramOn(segments.get(0), query.withQuerySegmentSpec(null), cache);
+      histogram = makeColumnHistogramOn(segments.get(0), query, cache);
     }
     if (histogram == null && type.isDimension() && allQueryable && segmentWalker != null) {
       histogram = makeColumnHistogramOn(query.toHistogramQuery(column, comparator), segmentWalker);
@@ -655,20 +651,14 @@ public class Queries
     return histogram;
   }
 
-  @SuppressWarnings("unchecked")
-  private static Object[] makeColumnHistogramOn(
-      List<Segment> segments,
-      DimensionSpec dimensionSpec,
-      Comparator comparator,
-      TimeseriesQuery query,
-      Cache cache
-  )
+  public static ItemsSketch<String> makeColumnSketch(List<Segment> segments, HistogramQuery query, Cache cache)
   {
-    ItemsUnion union = null;
+    ItemsUnion<String> union = null;
     for (Segment segment : segments) {
-      union = segment.asStorageAdapter(true).makeCursors(query, cache).accumulate(union, (current, cursor) -> {
-        ItemsSketch<Integer> sketch = ItemsSketch.getInstance(8192, GuavaUtils.INTEGER_COMPARATOR);
-        DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
+      HistogramQuery prepared = prepare(query, segment);
+      union = segment.asStorageAdapter(true).makeCursors(prepared, cache).accumulate(union, (current, cursor) -> {
+        DictionarySketch sketch = DictionarySketch.of(DictionarySketch.DEFAULT_K);
+        DimensionSelector selector = cursor.makeDimensionSelector(prepared.getDimensionSpec());
         ItemsSketch.rand.setSeed(0);
         if (selector instanceof DimensionSelector.Scannable) {
           ((DimensionSelector.Scannable) selector).scan(
@@ -687,32 +677,33 @@ public class Queries
             }
           }
         }
-        ArrayOfItemsSerDe converter = new ArrayItemConverter(selector);
-        Memory memory = Memory.wrap(sketch.toByteArray(converter));
-        ItemsSketch instance = ItemsSketch.getInstance(memory, comparator, converter);
+        ItemsSketch<String> instance = sketch.convert(selector);
         if (current == null) {
-          return ItemsUnion.getInstance(instance);
+          return DictionarySketch.toUnion(instance);
         }
         current.update(instance);
         return current;
       });
     }
-    if (union != null) {
-      PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
-      return (Object[]) postAggregator.processor(TypeResolver.UNKNOWN).compute(
-          DateTime.now(), GuavaUtils.mutableMap("$SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
-      );
+    return union == null ? null : DictionarySketch.getResult(union);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T extends Query> T prepare(T query, Segment segment)
+  {
+    if (segment instanceof Segment.WithDescriptor) {
+      query = (T) query.withQuerySegmentSpec(((Segment.WithDescriptor) segment).asSpec());
     }
-    return null;
+    return query;
   }
 
   private static Object[] makeColumnHistogramOn(Segment segment, TimeseriesQuery query, Cache cache)
   {
     TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
-    Row row = Sequences.only(engine.process(query, segment, false, cache), null);
+    Row row = Sequences.only(engine.process(prepare(query, segment), segment, false, cache), null);
     if (row != null) {
-      PostAggregator postAggregator = query.getPostAggregatorSpecs().get(0);
-      return (Object[]) postAggregator.processor(TypeResolver.UNKNOWN).compute(row.getTimestamp(), ((MapBasedRow) row).getEvent());
+      PostAggregator.Processor processor = query.getPostAggregatorSpecs().get(0).processor(TypeResolver.UNKNOWN);
+      return (Object[]) processor.compute(row.getTimestamp(), ((MapBasedRow) row).getEvent());
     }
     return null;
   }
@@ -723,18 +714,20 @@ public class Queries
     ItemsUnion union = QueryRunners.run(query, segmentWalker).accumulate(null, (current, row) -> {
       ItemsSketch instance = (ItemsSketch) row.get("$SKETCH");
       if (current == null) {
-        return ItemsUnion.getInstance(instance);
+        return DictionarySketch.toUnion(instance);
       }
       current.update(instance);
       return current;
     });
-    if (union != null) {
-      PostAggregator.Processor processor = query.getPostAggregator().processor(TypeResolver.UNKNOWN);
-      return (Object[]) processor.compute(
-          DateTime.now(), GuavaUtils.mutableMap("$SKETCH", TypedSketch.of(ValueDesc.STRING, union.getResult()))
-      );
-    }
-    return null;
+    return union == null ? null : toHistogram(query.getPostAggregator(), DictionarySketch.getResult(union));
+  }
+
+  private static Object[] toHistogram(PostAggregator postAggregator, ItemsSketch sketch)
+  {
+    PostAggregator.Processor processor = postAggregator.processor(TypeResolver.UNKNOWN);
+    return (Object[]) processor.compute(
+        DateTime.now(), GuavaUtils.mutableMap("$SKETCH", TypedSketch.of(ValueDesc.STRING, sketch))
+    );
   }
 
   private static boolean allQueryableIndex(List<Segment> segments)
@@ -748,42 +741,6 @@ public class Queries
       }
     }
     return true;
-  }
-
-  public static class ArrayItemConverter extends ArrayOfItemsSerDe
-  {
-    private final DimensionSelector selector;
-
-    public ArrayItemConverter(DimensionSelector selector) {this.selector = selector;}
-
-    @Override
-    public byte[] serializeToByteArray(Object[] items)
-    {
-      final BytesOutputStream output = new BytesOutputStream();
-      output.writeInt(0);
-      for (int i = 0; i < items.length; i++) {
-        output.writeUnsignedVarInt((Integer) items[i]);
-      }
-      final byte[] bytes = output.toByteArray();
-      WritableMemory.wrap(bytes).putInt(0, bytes.length - Integer.BYTES);
-      return bytes;
-    }
-
-    @Override
-    public Object[] deserializeFromMemory(Memory mem, int numItems)
-    {
-      UnsafeUtil.checkBounds(0, Integer.BYTES, mem.getCapacity());
-      final byte[] bytes = new byte[mem.getInt(0)];
-      UnsafeUtil.checkBounds(Integer.BYTES, bytes.length, mem.getCapacity());
-      mem.getByteArray(Integer.BYTES, bytes, 0, bytes.length);
-
-      final BytesInputStream input = new BytesInputStream(bytes);
-      final Object[] dictionary = new String[numItems];
-      for (int i = 0; i < dictionary.length; i++) {
-        dictionary[i] = selector.lookupName(input.readUnsignedVarInt());
-      }
-      return dictionary;
-    }
   }
 
   public static boolean isNestedQuery(Query<?> query)

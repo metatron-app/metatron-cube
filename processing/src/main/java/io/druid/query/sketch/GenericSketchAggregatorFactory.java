@@ -109,7 +109,6 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolv
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Aggregator factorize(final ColumnSelectorFactory metricFactory)
   {
     if (merge) {

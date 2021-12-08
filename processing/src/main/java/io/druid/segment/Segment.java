@@ -23,6 +23,8 @@ import io.druid.query.Query;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.spec.SpecificSegmentSpec;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -136,6 +138,11 @@ public interface Segment extends SchemaProvider, Closeable
     public SegmentDescriptor getDescriptor()
     {
       return descriptor;
+    }
+
+    public QuerySegmentSpec asSpec()
+    {
+      return new SpecificSegmentSpec(descriptor);
     }
 
     @Override

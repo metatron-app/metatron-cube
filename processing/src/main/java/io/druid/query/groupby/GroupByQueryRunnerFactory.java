@@ -254,15 +254,17 @@ public class GroupByQueryRunnerFactory
       int splitCardinality = query.getContextInt(Query.GBY_LOCAL_SPLIT_CARDINALITY, gbyConfig.getLocalSplitCardinality());
       if (splitCardinality > 1) {
         splitCardinality = Math.min(splitCardinality, maxResults);
+        long start = System.currentTimeMillis();
         long cardinality = Queries.estimateCardinality(query, segments, segmentWalker, config, splitCardinality);
         if (cardinality <= 0) {
           return null;    // failed ?
         }
+        long elapsed = System.currentTimeMillis() - start;
         numSplit = (int) Math.ceil(cardinality * 1.2 / splitCardinality);
         if (numSplit > 1) {
-          logger.info("Expected cardinality %d, split into %d queries", cardinality, numSplit);
+          logger.info("Expected cardinality %d, split into %d queries (%d msec)", cardinality, numSplit, elapsed);
         } else {
-          logger.info("Expected cardinality %d. not splitting..", cardinality);
+          logger.info("Expected cardinality %d. no split (%d msec)", cardinality, elapsed);
         }
       }
     }

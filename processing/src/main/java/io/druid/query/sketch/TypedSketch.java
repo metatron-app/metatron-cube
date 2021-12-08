@@ -27,6 +27,7 @@ import com.yahoo.memory.Memory;
 import com.yahoo.sketches.ArrayOfDoublesSerDe;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 import com.yahoo.sketches.ArrayOfLongsSerDe;
+import com.yahoo.sketches.quantiles.DictionarySketch;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
@@ -159,7 +160,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
       @SuppressWarnings("unchecked")
       public byte[] sketchToBytes()
       {
-        return sketch.getResult().toByteArray(toItemsSerDe(type));
+        return DictionarySketch.getResult(sketch).toByteArray(toItemsSerDe(type));
       }
     };
   }

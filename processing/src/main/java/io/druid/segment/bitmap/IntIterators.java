@@ -59,7 +59,17 @@ public final class IntIterators
 
   public static IntIterator from(int[] array)
   {
-    return new IntIterators.FromArray(array);
+    return from(array, array.length);
+  }
+
+  public static IntIterator from(int[] array, int limit)
+  {
+    return from(array, 0, limit);
+  }
+
+  public static IntIterator from(int[] array, int start, int limit)
+  {
+    return new IntIterators.FromArray(array, start, limit);
   }
 
   public static IntIterator sort(IntIterator... iterators)
@@ -111,13 +121,11 @@ public final class IntIterators
 
   public static final class Range implements IntIterator
   {
-    private final int from;
     private final int to;
     private int index;
 
     public Range(int from, int to)
     {
-      this.from = from;
       this.to = to;
       this.index = from;
     }
@@ -145,34 +153,36 @@ public final class IntIterators
   {
     private int index;
     private final int[] array;
+    private final int limit;
 
-    public FromArray(int[] array)
+    public FromArray(int[] array, int limit)
     {
-      this(array, 0);
+      this(array, 0, limit);
     }
 
-    public FromArray(int[] array, int index)
+    public FromArray(int[] array, int index, int limit)
     {
       this.array = array;
+      this.limit = limit;
       this.index = index;
     }
 
     @Override
     public boolean hasNext()
     {
-      return index < array.length;
+      return index < limit;
     }
 
     @Override
     public int next()
     {
-      return index < array.length ? array[index++] : -1;
+      return index < limit ? array[index++] : -1;
     }
 
     @Override
     public IntIterator clone()
     {
-      return new FromArray(array, index);
+      return new FromArray(array, index, limit);
     }
   }
 

@@ -23,7 +23,6 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
 import com.yahoo.sketches.Family;
-import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
@@ -56,20 +55,14 @@ public class SketchWriter extends ColumnPartWriter.Abstract<Pair<String, Integer
 
   private CountingOutputStream quantileOut = null;
   private CountingOutputStream thetaOut = null;
-  private int numWritten = 0;
 
-  private ItemsUnion quantile;
+  private ItemsUnion<String> quantile;
   private Union theta;
 
   public SketchWriter(IOPeon ioPeon, String filenameBase)
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
-  }
-
-  public ItemsSketch getQuantile()
-  {
-    return quantile.getResult();
   }
 
   public Sketch getTheta()
@@ -88,7 +81,6 @@ public class SketchWriter extends ColumnPartWriter.Abstract<Pair<String, Integer
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public void add(Pair<String, Integer> pair) throws IOException
   {
     for (int i = 0; i < pair.rhs; i++) {

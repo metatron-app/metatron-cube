@@ -21,6 +21,7 @@ package io.druid.query.sketch;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.yahoo.sketches.Family;
+import com.yahoo.sketches.quantiles.DictionarySketch;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
@@ -357,7 +358,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<ItemsSketch> toSketch(TypedSketch<ItemsUnion> input)
     {
-      return input == null ? null : TypedSketch.of(input.type(), input.value().getResult());
+      return input == null ? null : TypedSketch.of(input.type(), DictionarySketch.getResult(input.value()));
     }
   }
 

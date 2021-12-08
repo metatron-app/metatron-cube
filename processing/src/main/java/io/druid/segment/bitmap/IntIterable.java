@@ -98,7 +98,7 @@ public interface IntIterable
     @Override
     public IntIterator iterator()
     {
-      return new IntIterators.FromArray(array);
+      return IntIterators.from(array);
     }
 
     public boolean get(int index)
