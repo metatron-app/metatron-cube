@@ -180,8 +180,8 @@ public class BloomDimFilter implements LogProvider, BestEffort
         if (groupingSets != null) {
           grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
         }
-        final HashAggregator<BloomTest> aggregator = new HashAggregator.ScanSupport<BloomTest>(
-            null, selectors, grouping, false
+        final HashAggregator<BloomTest> aggregator = new HashAggregator<BloomTest>(
+            null, selectors, grouping, false, false
         );
         return new ValueMatcher()
         {

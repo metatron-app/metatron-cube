@@ -54,7 +54,7 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector otherHalf = HyperLogLogCollector.makeLatestCollector();
 
       for (int i = 0; i < numThings; ++i) {
-        long[] hashedVal = Murmur3.hash128(random.nextLong());
+        long hashedVal = Murmur3.hash64(random.nextLong());
 
         allCombined.add(hashedVal);
         if (i % 2 == 0) {
@@ -78,7 +78,7 @@ public class HyperLogLogCollectorTest
 
 
   /**
-   * This is a very long running test, disabled by default.
+   * This is a very long-running test, disabled by default.
    * It is meant to catch issues when combining a large numer of HLL objects.
    *
    * It compares adding all the values to one HLL vs.
@@ -102,7 +102,7 @@ public class HyperLogLogCollectorTest
     for (count = 0; count < 100_000_000; ++count) {
       md.update(Integer.toString(count).getBytes());
 
-      long[] hashed = Murmur3.hash128(md.digest());
+      long hashed = Murmur3.hash64(md.digest());
 
       tmp.add(hashed);
       simple.add(hashed);
@@ -118,11 +118,9 @@ public class HyperLogLogCollectorTest
     System.out.println("True cardinality " + n);
     System.out.println("Rolling buffer cardinality " + rolling.estimateCardinality());
     System.out.println("Simple  buffer cardinality " + simple.estimateCardinality());
-    System.out.println(
-        String.format(
-            "Rolling cardinality estimate off by %4.1f%%",
-            100 * (1 - rolling.estimateCardinality() / n)
-        )
+    System.out.printf(
+        "Rolling cardinality estimate off by %4.1f%%%n",
+        100 * (1 - rolling.estimateCardinality() / n)
     );
 
     Assert.assertEquals(n, simple.estimateCardinality(), n * 0.05);
@@ -139,7 +137,7 @@ public class HyperLogLogCollectorTest
 
     for (count = 0; count < 50_000_000; ++count) {
       HyperLogLogCollector theCollector = HyperLogLogCollector.makeLatestCollector();
-      theCollector.add(Murmur3.hash128(count));
+      theCollector.add(Murmur3.hash64(count));
       rolling.fold(theCollector);
     }
     System.out.printf("testHighCardinalityRollingFold2 took %d ms%n", System.currentTimeMillis() - start);
@@ -148,11 +146,9 @@ public class HyperLogLogCollectorTest
 
     System.out.println("True cardinality " + n);
     System.out.println("Rolling buffer cardinality " + rolling.estimateCardinality());
-    System.out.println(
-        String.format(
-            "Rolling cardinality estimate off by %4.1f%%",
-            100 * (1 - rolling.estimateCardinality() / n)
-        )
+    System.out.printf(
+        "Rolling cardinality estimate off by %4.1f%%%n",
+        100 * (1 - rolling.estimateCardinality() / n)
     );
 
     Assert.assertEquals(n, rolling.estimateCardinality(), n * 0.05);
@@ -169,7 +165,7 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector otherHalf = HyperLogLogCollector.makeLatestCollector();
 
       for (int i = 0; i < numThings; ++i) {
-        long[] hashedVal = Murmur3.hash128(random.nextLong());
+        long hashedVal = Murmur3.hash64(random.nextLong());
 
         allCombined.add(hashedVal);
         if (i % 2 == 0) {
@@ -202,7 +198,7 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector otherHalf = HyperLogLogCollector.makeLatestCollector();
 
       for (int i = 0; i < numThings; ++i) {
-        long[] hashedVal = Murmur3.hash128(random.nextLong());
+        long hashedVal = Murmur3.hash64(random.nextLong());
 
         allCombined.add(hashedVal);
         if (i % 2 == 0) {
@@ -238,7 +234,7 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector otherHalf = HyperLogLogCollector.makeLatestCollector();
 
       for (int i = 0; i < numThings; ++i) {
-        long[] hashedVal = Murmur3.hash128(random.nextLong());
+        long hashedVal = Murmur3.hash64(random.nextLong());
 
         allCombined.add(hashedVal);
         if (i % 2 == 0) {
@@ -410,17 +406,17 @@ public class HyperLogLogCollectorTest
     byte[] arr1 = new byte[DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE];
     Arrays.fill(arr1, (byte) 0x11);
     ByteBuffer buffer1 = ByteBuffer.wrap(arr1);
-    buffer1.put(0, DEFAULT.VERSION);
-    buffer1.put(1, (byte) 0);
-    buffer1.putShort(2, (short) (2047));
-    buffer1.put(HyperLogLogCollector.HEADER_NUM_BYTES, (byte) 0x1);
+    buffer1.put(HyperLogLogCollector.VERSION_BYTE, DEFAULT.VERSION);
+    buffer1.put(HyperLogLogCollector.REGISTER_OFFSET_BYTE, (byte) 0);
+    buffer1.putShort(HyperLogLogCollector.NUM_NON_ZERO_REGISTERS_BYTE, (short) (2047));
+    buffer1.put(DEFAULT.HEADER_NUM_BYTES, (byte) 0x1);
 
     byte[] arr2 = new byte[DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE];
     Arrays.fill(arr2, (byte) 0x11);
     ByteBuffer buffer2 = ByteBuffer.wrap(arr2);
-    buffer2.put(0, DEFAULT.VERSION);
-    buffer2.put(1, (byte) 0);
-    buffer2.putShort(2, (short) (2048));
+    buffer2.put(HyperLogLogCollector.VERSION_BYTE, DEFAULT.VERSION);
+    buffer2.put(HyperLogLogCollector.REGISTER_OFFSET_BYTE, (byte) 0);
+    buffer2.putShort(HyperLogLogCollector.NUM_NON_ZERO_REGISTERS_BYTE, (short) (2048));
 
     HyperLogLogCollector collector = HyperLogLogCollector.from(buffer1);
     collector.fold(buffer2);
@@ -522,7 +518,7 @@ public class HyperLogLogCollectorTest
 
       int numThings = 500000;
       for (int i = 0; i < numThings; i++) {
-        long[] hashedVal = Murmur3.hash128(random.nextLong());
+        long hashedVal = Murmur3.hash64(random.nextLong());
 
         if (i < 1000) {
           smallVals.add(hashedVal);
@@ -555,7 +551,7 @@ public class HyperLogLogCollectorTest
       int numThings = 500000;
       for (int i = 0; i < numThings; i++) {
         md.update(Integer.toString(random.nextInt()).getBytes());
-        long[] hashedVal = Murmur3.hash128(random.nextLong());
+        long hashedVal = Murmur3.hash64(random.nextLong());
 
         if (i % 2 == 0) {
           evenVals.add(hashedVal);
@@ -576,10 +572,9 @@ public class HyperLogLogCollectorTest
 
   private static final int[] valsToCheck = {10, 20, 50, 100, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 1000000, 2000000};
   private static final double[] expectedVals = {
-      10.024493827539368, 20.098296726168925, 49.59570259762845, 100.42231726408892,
-      972.1900032558896, 1987.5153223192158, 6144.000000000001, 10240.000000000004,
-      20480.00000000001, 49152.000000000065, 96256.00000000025, 962560.0000000251,
-      1966080.0000001048
+      10.024493827539368, 20.098296726168925, 50.62047119544231, 99.37233005831612, 983.4737783567551,
+      1971.741175017651, 6144.000000000001, 10240.000000000004, 20480.00000000001, 49152.000000000065,
+      94208.00000000025, 1040384.0000000293, 2062336.0000001153
   };
 
 
@@ -591,7 +586,7 @@ public class HyperLogLogCollectorTest
     int valsToCheckIndex = 0;
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
-      collector.add(Murmur3.hash128(random.nextLong()));
+      collector.add(Murmur3.hash64(random.nextLong()));
       if (i == valsToCheck[valsToCheckIndex] - 1) {
         Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
         ++valsToCheckIndex;
@@ -610,7 +605,7 @@ public class HyperLogLogCollectorTest
                   .put(0, DEFAULT.VERSION)
     );
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
-      collector.add(Murmur3.hash128(random.nextLong()));
+      collector.add(Murmur3.hash64(random.nextLong()));
       if (i == valsToCheck[valsToCheckIndex] - 1) {
         Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
         ++valsToCheckIndex;
@@ -630,7 +625,7 @@ public class HyperLogLogCollectorTest
                                                      .limit(DEFAULT.NUM_BYTES_FOR_DENSE_STORAGE);
     HyperLogLogCollector collector = HyperLogLogCollector.from(buffer);
     for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
-      collector.add(Murmur3.hash128(random.nextLong()));
+      collector.add(Murmur3.hash64(random.nextLong()));
       if (i == valsToCheck[valsToCheckIndex] - 1) {
         Assert.assertEquals(expectedVals[valsToCheckIndex], collector.estimateCardinality(), 0.0d);
         ++valsToCheckIndex;
@@ -638,30 +633,30 @@ public class HyperLogLogCollectorTest
     }
   }
 
+  @Test
   @Ignore
   public void test() throws Exception
   {
-    Random random = new Random(0L);
-
-    final int[] valsToCheck = {
-        10, 20, 50, 100, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 1000000, 2000000, 5000000, 10000000
-    };
-    for (int x = 11; x <= 16; x++) {
-      random.setSeed(0);
-      HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector(x);
-      System.out.println("-----------> param = " + x);
-      int valsToCheckIndex = 0;
-      for (int i = 0; i < valsToCheck[valsToCheck.length - 1]; ++i) {
-        collector.add(Murmur3.hash128(random.nextLong()));
-        if (i == valsToCheck[valsToCheckIndex] - 1) {
-          System.out.printf(
-              "%8d --> %s (%d bytes) %n",
-              valsToCheck[valsToCheckIndex],
-              collector.estimateCardinality() / valsToCheck[valsToCheckIndex] * 100,
-              collector.toByteArray().length
-          );
-          ++valsToCheckIndex;
+    final Random random = new Random(0L);
+    for (int x : new int[]{1000000000}) {
+      System.out.printf("------------- %,d\n", x);
+      for (int b = 11; b <= 24; b++) {
+        random.setSeed(0);
+        long p = System.currentTimeMillis();
+        HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector(b);
+        for (int y = 0; y < x; y++) {
+          collector.add(Murmur3.hash64(random.nextLong()));
         }
+        System.out.printf(
+            "%d --> (%d::%d:%d) %.3f%% (%d KB, %d msec)%n",
+            b,
+            collector.getMaxOverflowValue(),
+            collector.getRegisterOffset(),
+            collector.getNumNonZeroRegisters(),
+            100f * (x - collector.estimateCardinality()) / x,
+            collector.toByteArray().length / 1024,
+            System.currentTimeMillis() - p
+        );
       }
     }
   }
@@ -673,7 +668,7 @@ public class HyperLogLogCollectorTest
     HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
 
     for (int i = 0; i < 100; ++i) {
-      collector.add(Murmur3.hash128(random.nextLong()));
+      collector.add(Murmur3.hash64(random.nextLong()));
     }
 
     Assert.assertEquals(
@@ -705,12 +700,12 @@ public class HyperLogLogCollectorTest
   {
     HyperLogLogCollector collector1 = HyperLogLogCollector.makeLatestCollector();
     HyperLogLogCollector collector2 = HyperLogLogCollector.makeLatestCollector();
-    collector1.add(Murmur3.hash128(0));
+    collector1.add(Murmur3.hash64(0));
     HyperUniquesAggregatorFactory factory = new HyperUniquesAggregatorFactory("foo", "bar");
     Comparator comparator = factory.getComparator();
     for (int i = 1; i < 100; i = i + 2) {
-      collector1.add(Murmur3.hash128(i));
-      collector1.add(Murmur3.hash128(i + 1));
+      collector1.add(Murmur3.hash64(i));
+      collector1.add(Murmur3.hash64(i + 1));
       Assert.assertEquals(1, comparator.compare(collector1, collector2));
       Assert.assertEquals(1, Double.compare(collector1.estimateCardinality(), collector2.estimateCardinality()));
     }
@@ -726,13 +721,13 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector collector1 = HyperLogLogCollector.makeLatestCollector();
       int j = rand.nextInt(50);
       for (int l = 0; l < j; ++l) {
-        collector1.add(Murmur3.hash128(rand.nextLong()));
+        collector1.add(Murmur3.hash64(rand.nextLong()));
       }
 
       HyperLogLogCollector collector2 = HyperLogLogCollector.makeLatestCollector();
       int k = j + 1 + rand.nextInt(5);
       for (int l = 0; l < k; ++l) {
-        collector2.add(Murmur3.hash128(rand.nextLong()));
+        collector2.add(Murmur3.hash64(rand.nextLong()));
       }
 
       Assert.assertEquals(
@@ -745,13 +740,13 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector collector1 = HyperLogLogCollector.makeLatestCollector();
       int j = rand.nextInt(500);
       for (int l = 0; l < j; ++l) {
-        collector1.add(Murmur3.hash128(rand.nextLong()));
+        collector1.add(Murmur3.hash64(rand.nextLong()));
       }
 
       HyperLogLogCollector collector2 = HyperLogLogCollector.makeLatestCollector();
       int k = j + 2 + rand.nextInt(5);
       for (int l = 0; l < k; ++l) {
-        collector2.add(Murmur3.hash128(rand.nextLong()));
+        collector2.add(Murmur3.hash64(rand.nextLong()));
       }
 
       Assert.assertEquals(
@@ -764,13 +759,13 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector collector1 = HyperLogLogCollector.makeLatestCollector();
       int j = rand.nextInt(100000);
       for (int l = 0; l < j; ++l) {
-        collector1.add(Murmur3.hash128(rand.nextLong()));
+        collector1.add(Murmur3.hash64(rand.nextLong()));
       }
 
       HyperLogLogCollector collector2 = HyperLogLogCollector.makeLatestCollector();
       int k = j + 20000 + rand.nextInt(100000);
       for (int l = 0; l < k; ++l) {
-        collector2.add(Murmur3.hash128(rand.nextLong()));
+        collector2.add(Murmur3.hash64(rand.nextLong()));
       }
 
       Assert.assertEquals(
@@ -792,13 +787,13 @@ public class HyperLogLogCollectorTest
       HyperLogLogCollector leftCollector = HyperLogLogCollector.makeLatestCollector();
       int j = rand.nextInt(9000) + 5000;
       for (int l = 0; l < j; ++l) {
-        leftCollector.add(Murmur3.hash128(rand.nextLong()));
+        leftCollector.add(Murmur3.hash64(rand.nextLong()));
       }
 
       HyperLogLogCollector rightCollector = HyperLogLogCollector.makeLatestCollector();
       int k = rand.nextInt(9000) + 5000;
       for (int l = 0; l < k; ++l) {
-        rightCollector.add(Murmur3.hash128(rand.nextLong()));
+        rightCollector.add(Murmur3.hash64(rand.nextLong()));
       }
 
       // when
@@ -942,7 +937,7 @@ public class HyperLogLogCollectorTest
           ++count;
           error = computeError(error, count, i, startTime, collector);
         }
-        collector.add(Murmur3.hash128(random.nextLong()));
+        collector.add(Murmur3.hash64(random.nextLong()));
       }
 
       ++count;

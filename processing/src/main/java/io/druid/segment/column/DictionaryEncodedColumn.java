@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import io.druid.segment.Tools;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import org.apache.lucene.util.fst.FST;

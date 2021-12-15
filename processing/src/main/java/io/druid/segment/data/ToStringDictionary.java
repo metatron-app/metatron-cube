@@ -94,6 +94,12 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
+  public void scan(int index, Tools.Scanner scanner)
+  {
+    throw new UnsupportedOperationException("scan");
+  }
+
+  @Override
   public void scan(Tools.Scanner scanner)
   {
     throw new UnsupportedOperationException("scan");

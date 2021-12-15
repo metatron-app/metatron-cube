@@ -41,13 +41,15 @@ public interface Dictionary<T> extends Indexed.Closeable<T>
 
   BufferRef getAsRef(int index);
 
-  <R> R apply(int index, Tools.Function<R> function);
-
   int sizeOfWords();
 
   long getSerializedSize();
 
   void scan(Tools.Scanner scanner);
+
+  void scan(int index, Tools.Scanner scanner);
+
+  <R> R apply(int index, Tools.Function<R> function);
 
   void close();
 }

@@ -73,7 +73,7 @@ public class CountMinSketch implements Comparable<CountMinSketch>, HashCollector
   @Override
   public void collect(DimensionSelector.Scannable scannable)
   {
-    collect(scannable.apply((ix, buffer, offset, length) -> Murmur3.hash64wrap(buffer, offset, length)).longValue());
+    scannable.scan((ix, buffer, offset, length) -> collect(Murmur3.hash64(buffer, offset, length)));
   }
 
   public void collect(long hash64)

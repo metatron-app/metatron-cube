@@ -268,6 +268,11 @@ public class Murmur3
   }
 
   @VisibleForTesting
+  public static long hash64(long x) {
+    return hash64(Longs.toByteArray(x), 0, Long.BYTES, 0);
+  }
+
+  @VisibleForTesting
   public static long[] hash128(long x) {
     return hash128(Longs.toByteArray(x), 0, Long.BYTES, 0);
   }

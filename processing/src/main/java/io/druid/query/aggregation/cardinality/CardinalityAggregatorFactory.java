@@ -21,7 +21,6 @@ package io.druid.query.aggregation.cardinality;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import io.druid.common.KeyBuilder;
@@ -61,60 +60,6 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory
     return new CardinalityAggregatorFactory(name, null, dimensions, groupingSets, null, true, true, 0);
   }
 
-  @JsonTypeName("cardinality12")
-  public static class B12 extends CardinalityAggregatorFactory
-  {
-    @JsonCreator
-    public B12(
-        @JsonProperty("name") final String name,
-        @JsonProperty("fieldNames") final List<String> fieldNames,
-        @JsonProperty("fields") final List<DimensionSpec> fields,
-        @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
-        @JsonProperty("predicate") final String predicate,
-        @JsonProperty("byRow") final boolean byRow,
-        @JsonProperty("round") final boolean round
-    )
-    {
-      super(name, fieldNames, fields, groupingSets, predicate, byRow, round, 12);
-    }
-  }
-
-  @JsonTypeName("cardinality14")
-  public static class B14 extends CardinalityAggregatorFactory
-  {
-    @JsonCreator
-    public B14(
-        @JsonProperty("name") final String name,
-        @JsonProperty("fieldNames") final List<String> fieldNames,
-        @JsonProperty("fields") final List<DimensionSpec> fields,
-        @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
-        @JsonProperty("predicate") final String predicate,
-        @JsonProperty("byRow") final boolean byRow,
-        @JsonProperty("round") final boolean round
-    )
-    {
-      super(name, fieldNames, fields, groupingSets, predicate, byRow, round, 14);
-    }
-  }
-
-  @JsonTypeName("cardinality16")
-  public static class B16 extends CardinalityAggregatorFactory
-  {
-    @JsonCreator
-    public B16(
-        @JsonProperty("name") final String name,
-        @JsonProperty("fieldNames") final List<String> fieldNames,
-        @JsonProperty("fields") final List<DimensionSpec> fields,
-        @JsonProperty("groupingSets") final GroupingSetSpec groupingSets,
-        @JsonProperty("predicate") final String predicate,
-        @JsonProperty("byRow") final boolean byRow,
-        @JsonProperty("round") final boolean round
-    )
-    {
-      super(name, fieldNames, fields, groupingSets, predicate, byRow, round, 16);
-    }
-  }
-
   private static final byte CACHE_TYPE_ID = (byte) 0x8;
 
   private final boolean round;
@@ -135,7 +80,10 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory
     super(name, predicate, fieldNames, fields, groupingSets, byRow);
     this.round = round;
     this.b = b == 0 ? DEFAULT_B_PARAM : b;
-    Preconditions.checkArgument(b == 0 || (11 <= b && b <= 16), "invalid b argument " + b);
+    Preconditions.checkArgument(
+        b == 0 || (HyperLogLogCollector.CONTEXT_START <= b && b <= HyperLogLogCollector.CONTEXT_END),
+        "invalid b argument %d", b
+    );
   }
 
   public CardinalityAggregatorFactory(String name, List<String> fieldNames, boolean byRow)

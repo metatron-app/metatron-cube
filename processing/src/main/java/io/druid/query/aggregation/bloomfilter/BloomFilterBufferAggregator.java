@@ -28,7 +28,7 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class BloomFilterBufferAggregator extends HashBufferAggregator.ScanSupport<BloomFilterBufferAggregator.Collector>
+public class BloomFilterBufferAggregator extends HashBufferAggregator<BloomFilterBufferAggregator.Collector>
 {
   private final int maxNumEntries;
 
@@ -40,8 +40,14 @@ public class BloomFilterBufferAggregator extends HashBufferAggregator.ScanSuppor
       final int maxNumEntries
   )
   {
-    super(predicate, selectorList, groupings, byRow);
+    super(predicate, selectorList, groupings, byRow, false);
     this.maxNumEntries = maxNumEntries;
+  }
+
+  @Override
+  protected Class<Collector> collectorClass()
+  {
+    return Collector.class;
   }
 
   @Override

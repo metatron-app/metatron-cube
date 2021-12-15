@@ -23,8 +23,10 @@ import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.input.BytesOutputStream;
+import io.druid.query.aggregation.HashCollector.ScanSupport;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DimensionSelector.Scannable;
 import io.druid.segment.data.IndexedInts;
 
 import javax.annotation.Nullable;
@@ -33,7 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public class HashIterator<T extends HashCollector>
+public abstract class HashIterator<T extends HashCollector>
 {
   // aggregator can be shared by multi threads
   protected static final ThreadLocal<BytesOutputStream> BUFFERS = new ThreadLocal<BytesOutputStream>()
@@ -232,6 +234,37 @@ public class HashIterator<T extends HashCollector>
         final byte[] value = _toValue(selector, row.get(i), rawAccess);
         collector.collect(new Object[] {value}, value == null ? NULL_REF : new BytesRef(value));
       }
+    }
+  }
+
+  protected static abstract class BaseAggregator<T extends HashCollector> extends HashIterator<T>
+  {
+    public BaseAggregator(
+        ValueMatcher predicate,
+        List<DimensionSelector> selectorList,
+        int[][] groupings,
+        boolean byRow,
+        boolean needValue
+    )
+    {
+      super(predicate, selectorList, groupings, byRow, needValue);
+    }
+
+    @Override
+    protected Consumer<T> toConsumer(List<DimensionSelector> selectorList)
+    {
+      if (collectorClass() != null && ScanSupport.class.isAssignableFrom(collectorClass())) {
+        if (selectorList.size() == 1 && selectorList.get(0) instanceof Scannable) {
+          final Scannable selector = (Scannable) selectorList.get(0);
+          return collector -> ((ScanSupport) collector).collect(selector);
+        }
+      }
+      return super.toConsumer(selectorList);
+    }
+
+    protected Class<T> collectorClass()
+    {
+      return null;  // class of custom collector
     }
   }
 }

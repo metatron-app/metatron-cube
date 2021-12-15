@@ -623,6 +623,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
+                            public void scan(Tools.Scanner scanner)
+                            {
+                              dictionary.scan(row.get(0), scanner);
+                            }
+
+                            @Override
                             public <R> R apply(Tools.Function<R> function)
                             {
                               return dictionary.apply(row.get(0), function);

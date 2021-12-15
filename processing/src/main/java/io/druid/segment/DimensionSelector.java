@@ -110,8 +110,10 @@ public interface DimensionSelector
   // aka. dictionary with single value without extract function
   interface Scannable extends SingleValued, WithRawAccess
   {
-    void scan(IntIterator iterator, IntScanner scanner);
+    void scan(IntIterator iterator, IntScanner scanner);    // rowID to dictId
 
-    <T> T apply(Tools.Function<T> function);
+    void scan(Tools.Scanner scanner);         // on current
+
+    <T> T apply(Tools.Function<T> function);  // on current
   }
 }

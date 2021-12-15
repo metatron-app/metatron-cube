@@ -372,7 +372,7 @@ public class BloomKFilter implements HashCollector.ScanSupport
   @Override
   public void collect(DimensionSelector.Scannable scannable)
   {
-    addHash(scannable.apply((ix, buffer, offset, length) -> Murmur3.hash64wrap(buffer, offset, length)).longValue());
+    scannable.scan((ix, buffer, offset, length) -> addHash(Murmur3.hash64(buffer, offset, length)));
   }
 
   public static void collect(ByteBuffer collector, int position, BytesRef key)
@@ -382,11 +382,7 @@ public class BloomKFilter implements HashCollector.ScanSupport
 
   public static void collect(ByteBuffer collector, int position, DimensionSelector.Scannable scannable)
   {
-    addHash(
-        collector,
-        position,
-        scannable.apply((ix, buffer, offset, length) -> Murmur3.hash64wrap(buffer, offset, length)).longValue()
-    );
+    scannable.scan((ix, buffer, offset, length) -> addHash(collector, position, Murmur3.hash64(buffer, offset, length)));
   }
 
   public boolean test(BytesRef key)

@@ -172,6 +172,12 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     bufferIndexed.scan(scanner);
   }
 
+  @Override
+  public void scan(int index, Tools.Scanner scanner)
+  {
+    bufferIndexed.scan(index, scanner);
+  }
+
   /**
    * Returns the index of "value" in this GenericIndexed object, or (-(insertion point) - 1) if the value is not
    * present, in the manner of Arrays.binarySearch. This strengthens the contract of Indexed, which only guarantees
@@ -359,6 +365,23 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
         endOffset = theBuffer.getInt(offset + Integer.BYTES);
       }
       return BufferRef.of(theBuffer, valuesOffset + startOffset, valuesOffset + endOffset);
+    }
+
+    public final void scan(final int index, final Tools.Scanner function)
+    {
+      final ByteBuffer copyBuffer = bufferForRead();
+      final int startOffset;
+      final int endOffset;
+
+      if (index == 0) {
+        startOffset = 4;
+        endOffset = copyBuffer.getInt(indexOffset);
+      } else {
+        final int offset = indexOffset + (index - 1) * 4;
+        startOffset = copyBuffer.getInt(offset) + 4;
+        endOffset = copyBuffer.getInt(offset + Integer.BYTES);
+      }
+      function.scan(index, copyBuffer, valuesOffset + startOffset, endOffset - startOffset);
     }
 
     public final <R> R apply(final int index, final Tools.Function<R> function)

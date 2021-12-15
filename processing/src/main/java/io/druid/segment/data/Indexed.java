@@ -19,8 +19,10 @@
 
 package io.druid.segment.data;
 
-public interface Indexed<T> extends SizedIterable<T>
+public interface Indexed<T> extends Iterable<T>
 {
+  int size();
+
   T get(int index);
 
   /**

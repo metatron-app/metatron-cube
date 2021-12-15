@@ -64,51 +64,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     }
   }
 
-  @JsonTypeName("hyperUnique12")
-  public static class B12 extends HyperUniquesAggregatorFactory
-  {
-    @JsonCreator
-    public B12(
-        @JsonProperty("name") String name,
-        @JsonProperty("fieldName") String fieldName,
-        @JsonProperty("predicate") String predicate,
-        @JsonProperty("round") boolean round
-    )
-    {
-      super(name, fieldName, predicate, round, 12);
-    }
-  }
-
-  @JsonTypeName("hyperUnique14")
-  public static class B14 extends HyperUniquesAggregatorFactory
-  {
-    @JsonCreator
-    public B14(
-        @JsonProperty("name") String name,
-        @JsonProperty("fieldName") String fieldName,
-        @JsonProperty("predicate") String predicate,
-        @JsonProperty("round") boolean round
-    )
-    {
-      super(name, fieldName, predicate, round, 14);
-    }
-  }
-
-  @JsonTypeName("hyperUnique16")
-  public static class B16 extends HyperUniquesAggregatorFactory
-  {
-    @JsonCreator
-    public B16(
-        @JsonProperty("name") String name,
-        @JsonProperty("fieldName") String fieldName,
-        @JsonProperty("predicate") String predicate,
-        @JsonProperty("round") boolean round
-    )
-    {
-      super(name, fieldName, predicate, round, 16);
-    }
-  }
-
   private static final byte CACHE_TYPE_ID = 0x5;
 
   private final String name;
@@ -133,7 +88,10 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     this.predicate = predicate;
     this.round = round;
     this.b = b == 0 ? CardinalityAggregatorFactory.DEFAULT_B_PARAM : b;
-    Preconditions.checkArgument(b == 0 || (11 <= b && b <= 16), "invalid b argument " + b);
+    Preconditions.checkArgument(
+        b == 0 || (HyperLogLogCollector.CONTEXT_START <= b && b <= HyperLogLogCollector.CONTEXT_END),
+        "invalid b argument %d", b
+    );
   }
 
   public HyperUniquesAggregatorFactory(String name, String fieldName)
