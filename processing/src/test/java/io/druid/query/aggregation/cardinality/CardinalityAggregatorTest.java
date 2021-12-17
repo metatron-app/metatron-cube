@@ -171,16 +171,11 @@ public class CardinalityAggregatorTest
     combine(values1, values2): 7 distinct values
    */
   private static final List<String[]> values1 = dimensionValues(
-      "a", "b", "c", "a", "a", null, "b", "b", "b", "b", "a", "a"
+      "a", "b", "c", "a", "a", null, "b",
+      "b", "b", "b", "a", "a"
   );
   private static final List<String[]> values2 = dimensionValues(
-      "a",
-      "b",
-      "c",
-      "x",
-      "a",
-      "e",
-      "b",
+      "a", "b", "c", "x", "a", "e", "b",
       new String[]{null, "x"},
       new String[]{"x", null},
       new String[]{"y", "x"},
@@ -207,7 +202,11 @@ public class CardinalityAggregatorTest
     );
   }
 
-  private static HyperLogLogCollector aggregate(List<DimensionSelector> selectorList, CardinalityAggregator agg, HyperLogLogCollector aggregate)
+  private static HyperLogLogCollector aggregate(
+      List<DimensionSelector> selectorList,
+      CardinalityAggregator agg,
+      HyperLogLogCollector aggregate
+  )
   {
     aggregate = agg.aggregate(aggregate);
 
@@ -250,50 +249,29 @@ public class CardinalityAggregatorTest
     dim1 = new TestDimensionSelector(values1, null);
     dim2 = new TestDimensionSelector(values2, null);
 
-    selectorList = Lists.newArrayList(
-        (DimensionSelector) dim1,
-        dim2
-    );
+    selectorList = Lists.newArrayList(dim1, dim2);
 
-    rowAggregatorFactory = new CardinalityAggregatorFactory(
-        "billy",
-        Lists.newArrayList("dim1", "dim2"),
-        true
-    );
+    rowAggregatorFactory = new CardinalityAggregatorFactory("billy", Lists.newArrayList("dim1", "dim2"), true);
 
-    valueAggregatorFactory = new CardinalityAggregatorFactory(
-        "billy",
-        Lists.newArrayList("dim1", "dim2"),
-        true
-    );
-
+    valueAggregatorFactory = new CardinalityAggregatorFactory("billy", Lists.newArrayList("dim1", "dim2"), true);
 
     String superJsFn = "function(str) { return 'super-' + str; }";
     ExtractionFn superFn = new JavaScriptExtractionFn(superJsFn, false, JavaScriptConfig.getDefault());
     dim1WithExtraction = new TestDimensionSelector(values1, superFn);
     dim2WithExtraction = new TestDimensionSelector(values2, superFn);
-    selectorListWithExtraction = Lists.newArrayList(
-        (DimensionSelector) dim1WithExtraction,
-        dim2WithExtraction
-    );
+    selectorListWithExtraction = Lists.newArrayList(dim1WithExtraction, dim2WithExtraction);
 
     String helloJsFn = "function(str) { return 'hello' }";
     ExtractionFn helloFn = new JavaScriptExtractionFn(helloJsFn, false, JavaScriptConfig.getDefault());
     dim1ConstantVal = new TestDimensionSelector(values1, helloFn);
     dim2ConstantVal = new TestDimensionSelector(values2, helloFn);
-    selectorListConstantVal = Lists.newArrayList(
-        (DimensionSelector) dim1ConstantVal,
-        dim2ConstantVal
-    );
+    selectorListConstantVal = Lists.newArrayList(dim1ConstantVal, dim2ConstantVal);
   }
 
   @Test
   public void testAggregateRows() throws Exception
   {
-    CardinalityAggregator agg = new CardinalityAggregator(
-        selectorList,
-        true
-    );
+    CardinalityAggregator agg = new CardinalityAggregator(null, selectorList, null, true, 11);
 
     HyperLogLogCollector aggregate = null;
     for (int i = 0; i < values1.size(); ++i) {
@@ -320,10 +298,7 @@ public class CardinalityAggregatorTest
   @Test
   public void testBufferAggregateRows() throws Exception
   {
-    CardinalityBufferAggregator agg = new CardinalityBufferAggregator(
-        selectorList,
-        true
-    );
+    CardinalityBufferAggregator agg = new CardinalityBufferAggregator(selectorList, true);
 
     int maxSize = rowAggregatorFactory.getMaxIntermediateSize();
     ByteBuffer buf = ByteBuffer.allocate(maxSize + 64);
@@ -341,10 +316,7 @@ public class CardinalityAggregatorTest
   @Test
   public void testBufferAggregateValues() throws Exception
   {
-    CardinalityBufferAggregator agg = new CardinalityBufferAggregator(
-        selectorList,
-        false
-    );
+    CardinalityBufferAggregator agg = new CardinalityBufferAggregator(selectorList, false);
 
     int maxSize = valueAggregatorFactory.getMaxIntermediateSize();
     ByteBuffer buf = ByteBuffer.allocate(maxSize + 64);
@@ -362,8 +334,8 @@ public class CardinalityAggregatorTest
   @Test
   public void testCombineRows()
   {
-    List<DimensionSelector> selector1 = Lists.newArrayList((DimensionSelector) dim1);
-    List<DimensionSelector> selector2 = Lists.newArrayList((DimensionSelector) dim2);
+    List<DimensionSelector> selector1 = Lists.newArrayList(dim1);
+    List<DimensionSelector> selector2 = Lists.newArrayList(dim2);
 
     CardinalityAggregator agg1 = new CardinalityAggregator(selector1, true);
     CardinalityAggregator agg2 = new CardinalityAggregator(selector2, true);
@@ -395,8 +367,8 @@ public class CardinalityAggregatorTest
   @Test
   public void testCombineValues()
   {
-    List<DimensionSelector> selector1 = Lists.newArrayList((DimensionSelector) dim1);
-    List<DimensionSelector> selector2 = Lists.newArrayList((DimensionSelector) dim2);
+    List<DimensionSelector> selector1 = Lists.newArrayList(dim1);
+    List<DimensionSelector> selector2 = Lists.newArrayList(dim2);
 
     CardinalityAggregator agg1 = new CardinalityAggregator(selector1, false);
     CardinalityAggregator agg2 = new CardinalityAggregator(selector2, false);

@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation.hyperloglog;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.Murmur3;
@@ -28,7 +27,6 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.util.Arrays;
@@ -572,10 +570,9 @@ public class HyperLogLogCollectorTest
 
   private static final int[] valsToCheck = {10, 20, 50, 100, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 1000000, 2000000};
   private static final double[] expectedVals = {
-      10.024493827539368, 20.098296726168925, 50.62047119544231, 99.37233005831612, 983.4737783567551,
-      1971.741175017651, 6144.000000000001, 10240.000000000004, 20480.00000000001, 49152.000000000065,
-      94208.00000000025, 1040384.0000000293, 2062336.0000001153
-  };
+      10.024493827539368, 19.088683691179465, 48.5714465122633, 96.22559448406093, 988.3287786549159,
+      1940.552755020314, 4946.192042635218, 9856.238157443717, 19766.04029402571, 50006.46134633821,
+      100147.71106631085, 1003869.1748353346, 2020698.4016976922};
 
 
   @Test
@@ -638,7 +635,7 @@ public class HyperLogLogCollectorTest
   public void test() throws Exception
   {
     final Random random = new Random(0L);
-    for (int x : new int[]{1000000000}) {
+    for (int x : new int[]{1000, 10000, 100000, 1000000, 10000000}) {
       System.out.printf("------------- %,d\n", x);
       for (int b = 11; b <= 24; b++) {
         random.setSeed(0);
@@ -886,19 +883,7 @@ public class HyperLogLogCollectorTest
     );
 
     List<HyperLogLogCollector> collectors = Lists.transform(
-        objects, new Function<String, HyperLogLogCollector>()
-        {
-          @Nullable
-          @Override
-          public HyperLogLogCollector apply(
-              @Nullable String s
-          )
-          {
-            return HyperLogLogCollector.from(
-                ByteBuffer.wrap(Base64.decodeBase64(s))
-            );
-          }
-        }
+        objects, s -> HyperLogLogCollector.from(ByteBuffer.wrap(Base64.decodeBase64(s)))
     );
 
     Collection<List<HyperLogLogCollector>> permutations = Collections2.permutations(collectors);
@@ -911,7 +896,7 @@ public class HyperLogLogCollectorTest
       }
       Assert.assertEquals(29, collector.getMaxOverflowValue());
       Assert.assertEquals(366, collector.getMaxOverflowRegister());
-      Assert.assertEquals(1.0428416000002949E7, collector.estimateCardinality(), 1);
+      Assert.assertEquals(1.0429189446653817E7, collector.estimateCardinality(), 1);
     }
   }
 
@@ -943,6 +928,20 @@ public class HyperLogLogCollectorTest
       ++count;
       error = computeError(error, count, numThings, startTime, collector);
     }
+  }
+
+  @Test
+  public void test3947()
+  {
+    HyperLogLogCollector collector = HyperLogLogCollector.makeLatestCollector();
+    collector.add(Murmur3.hash64("4".getBytes()));
+    collector.add(Murmur3.hash64("43".getBytes()));
+    Assert.assertEquals(2, collector.estimateCardinality(), 0.1);
+
+    collector = HyperLogLogCollector.makeLatestCollector();
+    collector.add(Murmur3.hash128("4".getBytes()));
+    collector.add(Murmur3.hash128("43".getBytes()));
+    Assert.assertEquals(1, collector.estimateCardinality(), 0.1);
   }
 
   private double computeError(double error, int count, int numThings, long startTime, HyperLogLogCollector collector)

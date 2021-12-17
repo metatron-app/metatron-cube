@@ -480,10 +480,12 @@ public final class HyperLogLogCollector implements Comparable<HyperLogLogCollect
     addOnBucket(bucket, positionOf1);
   }
 
+  // use high bits for bucket. Murmur3 seemed coliding frequently in lower 32 bits
   public void add(final long hashedValue)
   {
-    final int bucket = (int) (hashedValue & context.BUCKET_MASK);
-    final byte positionOf1 = (byte) (Long.numberOfLeadingZeros(hashedValue) + 1);      // ~23 for 100M, ~32 for 1B
+    final int bucket = (int) (hashedValue >>> -context.BITS_FOR_BUCKETS);
+    // ~23 for 100M, ~32 for 1B
+    final byte positionOf1 = (byte) (Long.numberOfLeadingZeros(hashedValue << context.BITS_FOR_BUCKETS) + 1);
     addOnBucket(bucket, positionOf1);
   }
 

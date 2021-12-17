@@ -19,10 +19,13 @@
 
 package io.druid.sql.calcite;
 
+import io.druid.data.Pair;
 import io.druid.query.JoinQueryConfig;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.List;
 
 public class TpchTestMore extends CalciteQueryTestHelper
 {
@@ -39,6 +42,13 @@ public class TpchTestMore extends CalciteQueryTestHelper
   public void before()
   {
     hook.clear();
+  }
+
+  @Override
+  protected <T extends Throwable> Pair<String, List<Object[]>> failed(T ex) throws T
+  {
+    hook.printHooked();
+    throw ex;
   }
 
   private void p3542()
@@ -250,6 +260,21 @@ public class TpchTestMore extends CalciteQueryTestHelper
         "StreamQuery{dataSource='partsupp', filter=InDimsFilter{dimensions=[PS_SUPPKEY, PS_PARTKEY], values=[[1, 722], [1, 773], [1, 800], [10, 194], [10, 209], [10, 275], [10, 467], [10, 659], [10, 733], [10, 966], [..176 more]]}, columns=[PS_PARTKEY, PS_SUPPKEY, PS_SUPPLYCOST]}",
         "StreamQuery{dataSource='orders', columns=[O_ORDERDATE, O_ORDERKEY]}",
         "StreamQuery{dataSource='nation', columns=[N_NAME, N_NATIONKEY], $hash=true}"
+    );
+  }
+
+  @Test
+  public void test3947() throws Exception
+  {
+    //9665|442|3|1|11|14766.84|0.06|0.00|R|F|1994-05-11|1994-06-28|1994-06-04|TAKE BACK RETURN|MAIL|y across the quickly even frays? fluffi|
+    //9665|912|43|2|5|9064.55|0.02|0.04|A|F|1994-06-27|1994-06-12|1994-07-21|NONE|RAIL|ly ironic tithes |
+    //9665|584|4|3|50|74229.00|0.02|0.04|R|F|1994-07-31|1994-07-12|1994-08-11|TAKE BACK RETURN|REG AIR| ironic deposits. final warhorses h|
+    testQuery(
+        "SELECT L_ORDERKEY, COUNT(DISTINCT L_SUPPKEY) AS CNTSUPP"
+        + "  FROM lineitem"
+        + "  WHERE L_RECEIPTDATE > L_COMMITDATE AND L_ORDERKEY IS NOT NULL AND L_ORDERKEY=9665"
+        + "  GROUP BY L_ORDERKEY",
+        new Object[]{"9665", 2L}
     );
   }
 }
