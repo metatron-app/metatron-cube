@@ -341,14 +341,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     Predicate<QueryableDruidServer> predicate = null;
     if (queryConfig.isUseHistoricalNodesOnlyForLuceneFilter()
         && DimFilters.hasAnyLucene(BaseQuery.getDimFilter(query))) {
-      predicate = new Predicate<QueryableDruidServer>()
-      {
-        @Override
-        public boolean apply(QueryableDruidServer input)
-        {
-          return ServiceTypes.HISTORICAL.equals(input.getServer().getType());
-        }
-      };
+      predicate = q -> ServiceTypes.HISTORICAL.equals(q.getServer().getType());
     }
 
     final Map<QueryableDruidServer, MutableInt> counts = new HashMap<>();
@@ -370,16 +363,16 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       }
     }
 
-    final Query<T> prepared = prepareQuery(query, populateCache);
-    final List<String> columns = prepared.estimatedOutputColumns();
-    final Comparator<T> ordering = prepared.getMergeOrdering(columns);
+    final Query<T> localized = prepareQuery(query, populateCache);
+    final List<String> columns = localized.estimatedOutputColumns();
+    final Comparator<T> mergeOrdering = query.getMergeOrdering(columns);    // should use ordering of query in broker
 
     return new Supplier<Sequence<T>>()
     {
       @Override
       public Sequence<T> get()
       {
-        CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(strategy, prepared);
+        CacheAccessor cacheAccessor = strategy == null ? null : new CacheAccessor(strategy, localized);
 
         List<ListenableFuture<Sequence>> sequencesByInterval = Lists.newArrayList();
         if (cacheAccessor != null && !cachedResults.isEmpty()) {
@@ -387,7 +380,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         }
         addSequencesFromServer(sequencesByInterval);
 
-        Sequence<T> sequence = mergeCachedAndUncachedSequences(prepared, ordering, columns, sequencesByInterval);
+        Sequence<T> sequence = mergeCachedAndUncachedSequences(localized, mergeOrdering, columns, sequencesByInterval);
         if (cachedResults.size() > 0 && cacheAccessor != null && LOG.isDebugEnabled()) {
           sequence = Sequences.withBaggage(
               sequence,
@@ -438,12 +431,12 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       private void addSequencesFromServer(List<ListenableFuture<Sequence>> listOfSequences)
       {
         final Function<T, T> deserializer = toolChest.makePreComputeManipulatorFn(
-            prepared, MetricManipulatorFns.deserializing()
+            localized, MetricManipulatorFns.deserializing()
         );
         final Function<Result<BySegmentResultValue<T>>, Sequence<T>> populator = bySegmentPopulator(
             columns, deserializer, strategy, cachePopulatorMap
         );
-        final int parallelism = queryConfig.getQueryParallelism(prepared);
+        final int parallelism = queryConfig.getQueryParallelism(localized);
         final Execs.ExecutorQueue<Sequence> queue = new Execs.ExecutorQueue(parallelism);
 
         // Loop through each server, setting up the query and initiating it.
@@ -452,7 +445,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           final DruidServer server = entry.getKey();
           final List<SegmentDescriptor> descriptors = entry.getValue();
 
-          final Query<T> running = prepared.withQuerySegmentSpec(DenseSegmentsSpec.of(dataSource, descriptors));
+          final Query<T> running = localized.withQuerySegmentSpec(DenseSegmentsSpec.of(dataSource, descriptors));
           final QueryRunner runner = serverView.getQueryRunner(running, server);
           if (runner == null) {
             LOG.info("server [%s] has disappeared.. skipping", server);
@@ -467,7 +460,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             );
           } else if (!explicitBySegment) {
             queue.add(() -> QueryUtils.mergeSort(
-                columns, ordering, Sequences.map(runner.run(running, responseContext), populator))
+                columns, mergeOrdering, Sequences.map(runner.run(running, responseContext), populator))
             );
           } else {
             queue.add(() -> Sequences.map(
