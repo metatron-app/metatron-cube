@@ -43,6 +43,7 @@ import io.druid.jackson.JodaStuff;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.http.client.HttpClient;
@@ -68,6 +69,7 @@ import io.druid.query.ReferenceCountingSegmentQueryRunner;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.spec.DenseSegmentsSpec;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
@@ -483,7 +485,6 @@ public class BrokerServerView implements TimelineServerView
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public void registerTimelineCallback(final Executor exec, final TimelineCallback callback)
   {
     timelineCallbacks.put(callback, exec);
@@ -557,9 +558,14 @@ public class BrokerServerView implements TimelineServerView
   )
   {
     // called from CachingClusteredClient.. it's always MultipleSpecificSegmentSpec
-    final MultipleSpecificSegmentSpec segmentSpec = (MultipleSpecificSegmentSpec) query.getQuerySegmentSpec();
-
-    final List<SegmentDescriptor> specs = segmentSpec.getDescriptors();
+    final List<SegmentDescriptor> specs;
+    if (query.getQuerySegmentSpec() instanceof MultipleSpecificSegmentSpec) {
+      specs = ((MultipleSpecificSegmentSpec) query.getQuerySegmentSpec()).getDescriptors();
+    } else if (query.getQuerySegmentSpec() instanceof DenseSegmentsSpec) {
+      specs = ((DenseSegmentsSpec) query.getQuerySegmentSpec()).getDescriptors();
+    } else {
+      throw new UOE("Invalid segment spec for broker %s", query.getQuerySegmentSpec());
+    }
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
       log.warn("Unknown query type, [%s]", query.getClass());

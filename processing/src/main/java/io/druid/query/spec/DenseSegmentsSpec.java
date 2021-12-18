@@ -20,6 +20,7 @@
 package io.druid.query.spec;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -106,6 +107,12 @@ public class DenseSegmentsSpec implements QuerySegmentSpec
     if (walker instanceof QuerySegmentWalker.DenseSupport) {
       return ((QuerySegmentWalker.DenseSupport) walker).getQueryRunnerForSegments(query, keys, partitions);
     }
+    return walker.getQueryRunnerForSegments(query, getDescriptors());
+  }
+
+  @JsonIgnore
+  public List<SegmentDescriptor> getDescriptors()
+  {
     List<SegmentDescriptor> descriptors = Lists.newArrayList();
     for (int i = 0; i < keys.size(); i++) {
       SegmentKey key = keys.get(i);
@@ -114,7 +121,7 @@ public class DenseSegmentsSpec implements QuerySegmentSpec
         descriptors.add(new SegmentDescriptor(dataSource, key.getInterval(), key.getVersion(), iterator.nextInt()));
       }
     }
-    return walker.getQueryRunnerForSegments(query, descriptors);
+    return descriptors;
   }
 
   @Override
