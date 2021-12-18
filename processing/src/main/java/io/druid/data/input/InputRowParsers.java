@@ -48,7 +48,7 @@ import java.util.Set;
  */
 public class InputRowParsers
 {
-  private static Logger LOG = new Logger(InputRowParser.class);
+  private static final Logger LOG = new Logger(InputRowParser.class);
 
   public static <T> InputRowParser<T> wrap(
       final InputRowParser<T> parser,

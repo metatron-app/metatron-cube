@@ -152,6 +152,9 @@ public class StringInputRowParser implements InputRowParser
 
   private Map<String, Object> parseString(String inputString)
   {
+    if (inputString.length() > 0 && inputString.charAt(0) == '\uFEFF') {
+      inputString = inputString.substring(1);   // skip BOM
+    }
     try {
       return parser.parseToMap(inputString);
     }
