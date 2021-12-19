@@ -50,7 +50,7 @@ public class ColumnAnalysis
   private final Comparable maxValue;
   private final String errorMessage;
 
-  private boolean numeric;
+  private final boolean numeric;
 
   @JsonCreator
   public ColumnAnalysis(

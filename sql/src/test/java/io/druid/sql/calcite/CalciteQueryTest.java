@@ -115,12 +115,13 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
       GroupByQuery.SORT_ON_TIME, false
   );
 
-  private static MiscQueryHook hook = new MiscQueryHook();
+  private static MiscQueryHook hook;
   private static TestQuerySegmentWalker walker;
 
   @BeforeClass
   public static void setUp() throws Exception
   {
+    hook = new MiscQueryHook();
     walker = CalciteTests.createMockWalker(Files.createTempDir()).withQueryHook(hook);
     walker.getQueryConfig().getJoin().setSemiJoinThreshold(-1);
     walker.getQueryConfig().getJoin().setBroadcastJoinThreshold(-1);
@@ -179,17 +180,17 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     testQuery(
         "DESC foo",
         new Object[]{"__time", "TIMESTAMP", "TIMESTAMP(3) NOT NULL", "NO", ""},
-        new Object[]{"cnt", "BIGINT", "BIGINT NOT NULL", "NO", ""},
+        new Object[]{"cnt", "BIGINT", "BIGINT", "YES", ""},
         new Object[]{"dim1", "VARCHAR", "dimension.string", "YES", ""},
         new Object[]{"dim2", "VARCHAR", "dimension.string", "YES", ""},
-        new Object[]{"m1", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
-        new Object[]{"m2", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
+        new Object[]{"m1", "DOUBLE", "DOUBLE", "YES", ""},
+        new Object[]{"m2", "DOUBLE", "DOUBLE", "YES", ""},
         new Object[]{"unique_dim1", "OTHER", "hyperUnique", "YES", ""}
     );
     testQuery(
         "DESCRIBE foo2 '%1'",
         new Object[]{"dim1", "VARCHAR", "dimension.string", "YES", ""},
-        new Object[]{"m1", "DOUBLE", "DOUBLE NOT NULL", "NO", ""},
+        new Object[]{"m1", "DOUBLE", "DOUBLE", "YES", ""},
         new Object[]{"unique_dim1", "OTHER", "hyperUnique", "YES", ""}
     );
   }
@@ -376,11 +377,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + "FROM INFORMATION_SCHEMA.COLUMNS\n"
         + "WHERE TABLE_SCHEMA = 'druid' AND TABLE_NAME = 'foo'",
         new Object[]{"__time", "TIMESTAMP", "NO"},
-        new Object[]{"cnt", "BIGINT", "NO"},
+        new Object[]{"cnt", "BIGINT", "YES"},
         new Object[]{"dim1", "VARCHAR", "YES"},
         new Object[]{"dim2", "VARCHAR", "YES"},
-        new Object[]{"m1", "DOUBLE", "NO"},
-        new Object[]{"m2", "DOUBLE", "NO"},
+        new Object[]{"m1", "DOUBLE", "YES"},
+        new Object[]{"m2", "DOUBLE", "YES"},
         new Object[]{"unique_dim1", "OTHER", "YES"}
     );
   }
@@ -404,11 +405,11 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         null,
         ImmutableList.of(
             new Object[]{"__time", "TIMESTAMP", "NO"},
-            new Object[]{"cnt", "BIGINT", "NO"},
+            new Object[]{"cnt", "BIGINT", "YES"},
             new Object[]{"dim1", "VARCHAR", "YES"},
             new Object[]{"dim2", "VARCHAR", "YES"},
-            new Object[]{"m1", "DOUBLE", "NO"},
-            new Object[]{"m2", "DOUBLE", "NO"},
+            new Object[]{"m1", "DOUBLE", "YES"},
+            new Object[]{"m2", "DOUBLE", "YES"},
             new Object[]{"unique_dim1", "OTHER", "YES"}
         )
     );
@@ -945,7 +946,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     .build()
             )
             .dimensions(DefaultDimensionSpec.of("d0", "_d0"))
-            .aggregators(CountAggregatorFactory.of("a0"))
+            .aggregators(CountAggregatorFactory.of("a0", "d1"))
             .havingSpec(EXPR_HAVING("(a0 > 1)"))
             .outputColumns("_d0", "a0")
             .build(),
@@ -1561,7 +1562,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT COUNT(cnt) FROM druid.foo",
         Druids.newTimeseriesQueryBuilder()
               .dataSource(CalciteTests.DATASOURCE1)
-              .aggregators(CountAggregatorFactory.of("a0"))
+              .aggregators(CountAggregatorFactory.of("a0", "cnt"))
               .outputColumns("a0")
               .build(),
         new Object[]{6L}
@@ -1860,27 +1861,28 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
               .dataSource(CalciteTests.DATASOURCE1)
               .aggregators(
                   CountAggregatorFactory.of("a0"),
-                  CountAggregatorFactory.of("a1", "dim1"),
-                  RelayAggregatorFactory.min("a2", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
-                  RelayAggregatorFactory.max("a3", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
-                  GenericSumAggregatorFactory.ofLong("a4:sum", "cnt"),
-                  CountAggregatorFactory.of("a4:count"),
-                  GenericSumAggregatorFactory.ofLong("a5", "cnt"),
-                  GenericMinAggregatorFactory.ofLong("a6", "cnt"),
-                  GenericMaxAggregatorFactory.ofLong("a7", "cnt")
+                  CountAggregatorFactory.of("a1", "cnt"),
+                  CountAggregatorFactory.of("a2", "dim1"),
+                  RelayAggregatorFactory.min("a3", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
+                  RelayAggregatorFactory.max("a4", "dim1", ValueDesc.STRING_DIMENSION_TYPE),
+                  GenericSumAggregatorFactory.ofLong("a5:sum", "cnt"),
+                  CountAggregatorFactory.of("a5:count"),
+                  GenericSumAggregatorFactory.ofLong("a6", "cnt"),
+                  GenericMinAggregatorFactory.ofLong("a7", "cnt"),
+                  GenericMaxAggregatorFactory.ofLong("a8", "cnt")
               )
               .postAggregators(
                   new ArithmeticPostAggregator(
-                      "a4",
+                      "a5",
                       "quotient",
                       ImmutableList.of(
-                          new FieldAccessPostAggregator(null, "a4:sum"),
-                          new FieldAccessPostAggregator(null, "a4:count")
+                          new FieldAccessPostAggregator(null, "a5:sum"),
+                          new FieldAccessPostAggregator(null, "a5:count")
                       )
                   ),
-                  EXPR_POST_AGG("p0", "((a5 + a6) + a7)")
+                  EXPR_POST_AGG("p0", "((a6 + a7) + a8)")
               )
-              .outputColumns("a0", "a0", "a1", "a2", "a3", "a4", "a5", "p0")
+              .outputColumns("a0", "a1", "a2", "a3", "a4", "a5", "a6", "p0")
               .build(),
         new Object[]{6L, 6L, 5L, "1", "def", 1L, 6L, 8L}
     );
@@ -3084,14 +3086,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                     .filters(SELECTOR("m1", "5.0"))
                     .aggregators(GenericMaxAggregatorFactory.ofLong("a0", "__time"))
                     .postAggregators(EXPR_POST_AGG("p0", "timestamp_floor(a0,'PT1H','','UTC')"))
-                    .outputColumns("p0", "d1")
+                    .outputColumns("p0", "d1", "d0")
                     .build()
             )
             .dimensions(
                 DefaultDimensionSpec.of("p0", "_d0"),
                 DefaultDimensionSpec.of("d1", "_d1")
             )
-            .aggregators(CountAggregatorFactory.of("a0"))
+            .aggregators(CountAggregatorFactory.of("a0", "d0"))
             .outputColumns("_d0", "_d1", "a0")
             .build(),
         new Object[]{978393600000L, "def", 1L}
@@ -5765,14 +5767,14 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         DefaultDimensionSpec.of("m2", "d1"),
                         DefaultDimensionSpec.of("dim1", "d2")
                     )
-                    .outputColumns("d0", "d2")
+                    .outputColumns("d0", "d1", "d2")
                     .build()
             )
             .dimensions(
                 DefaultDimensionSpec.of("d0", "_d0"),
                 DefaultDimensionSpec.of("d2", "_d1")
             )
-            .aggregators(CountAggregatorFactory.of("a0"))
+            .aggregators(CountAggregatorFactory.of("a0", "d1"))
             .limitSpec(LimitSpec.of(OrderByColumnSpec.asc("a0")))
             .outputColumns("a0")
             .build(),

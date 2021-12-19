@@ -139,7 +139,7 @@ public class Calcites
       }
     }
     builder.append("'");
-    return isPlainAscii ? builder.toString() : "U&" + builder.toString();
+    return isPlainAscii ? builder.toString() : "U&" + builder;
 
   }
 
@@ -473,13 +473,13 @@ public class Calcites
       case STRING:
         return createSqlTypeWithNullability(factory, SqlTypeName.VARCHAR, true);
       case BOOLEAN:
-        return createSqlType(factory, SqlTypeName.BOOLEAN);
+        return createSqlTypeWithNullability(factory, SqlTypeName.BOOLEAN, true);
       case LONG:
-        return createSqlType(factory, SqlTypeName.BIGINT);
+        return createSqlTypeWithNullability(factory, SqlTypeName.BIGINT, true);
       case FLOAT:
-        return createSqlType(factory, SqlTypeName.FLOAT);
+        return createSqlTypeWithNullability(factory, SqlTypeName.FLOAT, true);
       case DOUBLE:
-        return createSqlType(factory, SqlTypeName.DOUBLE);
+        return createSqlTypeWithNullability(factory, SqlTypeName.DOUBLE, true);
       case DATETIME:
         return createSqlTypeWithNullability(factory, DateTime.class);
       case COMPLEX:
