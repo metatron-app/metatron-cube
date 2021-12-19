@@ -79,7 +79,7 @@ public class WindowContext implements TypeResolver, Expr.WindowContext, Function
   {
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.partitionColumnTypes = GuavaUtils.transform(this.partitionColumns, this);
-    this.orderingSpecs = partitionColumns == null ? ImmutableList.<OrderByColumnSpec>of() : orderingSpecs;
+    this.orderingSpecs = orderingSpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderingSpecs;
     return this;
   }
 

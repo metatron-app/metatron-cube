@@ -200,6 +200,29 @@ public interface WindowFunctions extends Function.Library
     }
   }
 
+  @Function.Named("$nvlPrev")
+  final class NvlPrev extends Factory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new WindowFunction(args, context)
+      {
+        private ExprEval prev = ExprEval.UNKNOWN;
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          final ExprEval current = context.evaluate(context.index(), fieldExpr);
+          if (current.isNull() && !prev.isNull()) {
+            return prev;
+          }
+          return prev = current;
+        }
+      };
+    }
+  }
+
   @Function.Named("$next")
   final class Next extends StatelessFactory
   {
@@ -207,6 +230,42 @@ public interface WindowFunctions extends Function.Library
     protected ExprEval invoke(WindowContext context, Expr inputExpr)
     {
       return context.evaluate(context.index() + 1, inputExpr);
+    }
+  }
+
+  @Function.Named("$nvlNext")
+  final class NvlNext extends Factory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new WindowFunction(args, context)
+      {
+        private int index;
+        private ExprEval prev = ExprEval.UNKNOWN;
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          int ix = context.index();
+          if (index > 0 && ix < index) {
+            return prev;
+          }
+          ExprEval current = context.evaluate(ix++, fieldExpr);
+          if (!current.isNull()) {
+            return current;
+          }
+          for (; ix < context.size(); ix++) {
+            current = context.evaluate(ix, fieldExpr);
+            if (!current.isNull()) {
+              index = ix;
+              return prev = current;
+            }
+          }
+          index = context.size();
+          return prev = ExprEval.of(null, current.type());
+        }
+      };
     }
   }
 

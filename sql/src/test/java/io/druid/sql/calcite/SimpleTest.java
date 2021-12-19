@@ -279,4 +279,31 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{4, 5, 3}
     );
   }
+
+  @Test
+  public void test3955() throws Exception
+  {
+    testQuery(
+        "WITH X AS ("
+        + " SELECT * FROM "
+        + " (VALUES"
+        + "   (0, 'A', 1, null, null),"
+        + "   (0, 'B', null, 2, null),"
+        + "   (0, 'C', null, null, 3),"
+        + "   (1, 'A', 4, null, null),"
+        + "   (1, 'B', null, 5, null),"
+        + "   (1, 'C', null, null, 6)"
+        + " ) AS T (__time, asset, p1, p2, p3)"
+        + ")"
+        + " SELECT nvlPrev(p1) over (), nvlNext(p1) over (),"
+        + "        nvlPrev(p2) over (), nvlNext(p2) over (),"
+        + "        nvlPrev(p3) over (), nvlNext(p3) over () FROM X",
+        new Object[]{1L, 1L, null, 2L, null, 3L},
+        new Object[]{1L, 4L, 2L, 2L, null, 3L},
+        new Object[]{1L, 4L, 2L, 5L, 3L, 3L},
+        new Object[]{4L, 4L, 2L, 5L, 3L, 6L},
+        new Object[]{4L, null, 5L, 5L, 3L, 6L},
+        new Object[]{4L, null, 5L, null, 6L, 6L}
+    );
+  }
 }
