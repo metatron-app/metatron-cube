@@ -3246,8 +3246,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                         .granularity(Granularities.DAY)
                         .aggregators(CARDINALITY("a0:a", DefaultDimensionSpec.of("cnt")))
                         .postAggregators(
-                            new HyperUniqueFinalizingPostAggregator("a0", "a0:a", true),
-                            EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')")
+                            EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1D','','UTC')"),
+                            new HyperUniqueFinalizingPostAggregator("a0", "a0:a", true)
                         )
                         .outputColumns("a0")
                         .build()
@@ -5810,9 +5810,9 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                   GenericSumAggregatorFactory.ofDouble("a1", "m2")
               )
               .postAggregators(
-                  EXPR_POST_AGG("p0", "(a0 + a1)"),
-                  EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1Y','','UTC')")
-              )
+                  EXPR_POST_AGG("d0", "timestamp_floor(__time,'P1Y','','UTC')"),
+                  EXPR_POST_AGG("p0", "(a0 + a1)")
+                  )
               .limitSpec(LimitSpec.of(OrderByColumnSpec.desc("d0")))
               .outputColumns("d0", "a0", "p0")
               .descending(true)

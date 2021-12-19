@@ -916,7 +916,7 @@ public class DruidBaseQuery implements DruidQuery
       } else {
         postAggregator = new MathPostAggregator(dimension.getOutputName(), expression.getExpression());
       }
-      postAggregators.add(postAggregator);
+      postAggregators.add(0, postAggregator);   // for timestamp accessing post processors
     }
 
     return new TimeseriesQuery(
