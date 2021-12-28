@@ -186,6 +186,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_NOT_TRUE, "isFalse"))
           .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_TRUE, "isTrue"))
           .add(new DirectOperatorConversion(SqlStdOperatorTable.IS_NOT_FALSE, "isTrue"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.JSON_VALUE, "json_value"))
           .add(new UnaryPrefixOperatorConversion(SqlStdOperatorTable.NOT, "!"))
           .add(new UnaryPrefixOperatorConversion(SqlStdOperatorTable.UNARY_MINUS, "-"))
           .add(new BinaryOperatorConversion(SqlStdOperatorTable.MULTIPLY, "*"))
@@ -334,7 +335,9 @@ public class DruidOperatorTable implements SqlOperatorTable
             Map<String, ValueDesc> binding = Maps.newHashMap();
             for (int i = 0; i < opBinding.getOperandCount(); i++) {
               final ValueDesc type = Calcites.asValueDesc(opBinding.getOperandType(i));
-              if (opBinding.isOperandNull(i, false) || opBinding.isOperandLiteral(i, false)) {
+              if (opBinding.isOperandNull(i, false)) {
+                operands.add(Evals.constant(null, type));
+              } else if (opBinding.isOperandLiteral(i, false)) {
                 operands.add(Evals.constant(opBinding.getOperandLiteralValue(i, type.asClass()), type));
               } else {
                 String identifier = "p" + i;

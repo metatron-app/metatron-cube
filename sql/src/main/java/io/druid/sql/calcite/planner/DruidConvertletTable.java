@@ -21,10 +21,14 @@ package io.druid.sql.calcite.planner;
 
 import com.google.common.collect.ImmutableList;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.UOE;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlJsonValueEmptyOrErrorBehavior;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
@@ -35,6 +39,7 @@ import org.apache.calcite.sql2rel.StandardConvertletTable;
 import org.joda.time.DateTimeZone;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,6 +127,8 @@ public class DruidConvertletTable implements SqlRexConvertletTable
       table.put(operator, STANDARD_CONVERTLET);
     }
 
+    table.put(SqlStdOperatorTable.JSON_VALUE, new JsonValueConvertlet());
+
     return table;
   }
 
@@ -160,6 +167,33 @@ public class DruidConvertletTable implements SqlRexConvertletTable
       } else {
         throw new ISE("Should not have got here, operator was: %s", operator);
       }
+    }
+  }
+
+  /**
+   * JSON_VALUE(jsonValue, path [ RETURNING type ] [ { ERROR | NULL | DEFAULT expr } ON EMPTY ] [ { ERROR | NULL | DEFAULT expr } ON ERROR ] )
+   */
+  private static class JsonValueConvertlet implements SqlRexConvertlet
+  {
+    @Override
+    public RexNode convertCall(final SqlRexContext cx, final SqlCall call)
+    {
+      SqlDataTypeSpec type = call.operand(6);
+      RelDataType retType = cx.getTypeFactory().createTypeWithNullability(type.deriveType(cx.getValidator()), true);
+      RexNode arg0 = cx.convertExpression(call.operand(0));
+      RexNode arg1 = cx.convertExpression(call.operand(1));
+      RexNode arg2 = cx.getRexBuilder().makeLiteral(Calcites.asValueDesc(retType).toString());  // on empty => on error
+      RexNode arg3;
+      switch ((SqlJsonValueEmptyOrErrorBehavior) SqlLiteral.value(call.operand(2))) {
+        case ERROR:
+          throw new UOE("Not supports ERROR behavior");
+        case DEFAULT:
+          arg3 = cx.convertExpression(call.operand(3));
+          break;
+        default:
+          arg3 = cx.getRexBuilder().makeNullLiteral(retType);
+      }
+      return cx.getRexBuilder().makeCall(retType, call.getOperator(), Arrays.asList(arg0, arg1, arg2, arg3));
     }
   }
 }

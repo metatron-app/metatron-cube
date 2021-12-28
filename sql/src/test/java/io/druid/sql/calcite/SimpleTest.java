@@ -306,4 +306,36 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{4L, null, 5L, null, 6L, 6L}
     );
   }
+
+  @Test
+  public void test3962() throws Exception
+  {
+    testQuery(
+        "WITH X AS ("
+        + " SELECT * FROM "
+        + " (VALUES"
+        + "   (0, '{\"a\": \"[1,2]\", \"b\": [1,2], \"c\": \"hi\", \"d\": 3}')"
+        + " ) AS T (__time, v)"
+        + ")"
+        + "SELECT cast(v as int),"
+        + "       json_value(v, '$.a'),"
+        + "       json_value(v, '$.b'),"
+        + "       json_value(v, '$.b' DEFAULT 'x' ON EMPTY),"
+        + "       json_value(v, '$.b' DEFAULT __time ON EMPTY),"
+        + "       json_value(v, '$.c'),"
+        + "       json_value(v, '$.d' RETURNING int) FROM X",
+        new Object[]{null, "[1,2]", "", "x", "0", "hi", 3}
+    );
+    testQuery(
+        "WITH X AS ("
+        + " SELECT * FROM "
+        + " (VALUES"
+        + "   (0, 'k1', '{\"field1\":\"value1\", \"field2\": 2}'),"
+        + "   (0, 'k2', '{\"field1\":\"noval1\", \"field2\": 2}')"
+        + " ) AS T (__time, assetId, ctx)"
+        + ")"
+        + "SELECT * FROM X WHERE json_value(ctx, '$.field1') like 'value%'",
+        new Object[]{0, "k1", "{\"field1\":\"value1\", \"field2\": 2}"}
+    );
+  }
 }

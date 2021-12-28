@@ -190,11 +190,12 @@ public interface Function
       }
     }
 
-    public void atLeastTwo(List<Expr> args)
+    public void atLeastTwo(List<Expr> args, ValueDesc... types)
     {
       if (args.size() < 2) {
         throw new IAE(AT_LEAST_TWO_PARAM, name);
       }
+      validateType(args, types);
     }
 
     public void atLeastThree(List<Expr> args)

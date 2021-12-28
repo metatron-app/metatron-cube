@@ -70,6 +70,7 @@ public class Parser
     register(BitSetFunctions.class);
     register(DateTimeFunctions.class);
     register(ExcelFunctions.class);
+    register(JsonFunctions.class);
   }
 
   public static void register(Class parent)
@@ -108,7 +109,8 @@ public class Parser
            parent == PredicateFunctions.class ||
            parent == BitSetFunctions.class ||
            parent == DateTimeFunctions.class ||
-           parent == ExcelFunctions.class;
+           parent == ExcelFunctions.class ||
+           parent == JsonFunctions.class;
   }
 
   private static Iterable<Function.Factory> getFunctions(Class parent)

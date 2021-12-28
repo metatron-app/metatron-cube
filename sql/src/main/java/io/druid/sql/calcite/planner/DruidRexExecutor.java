@@ -98,7 +98,9 @@ public class DruidRexExecutor implements RexExecutor
         } else if (SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName)) {
           final BigDecimal bigDecimal;
 
-          if (exprResult.type().isDecimal()) {
+          if (exprResult.isNull()) {
+            bigDecimal = null;
+          } else if (exprResult.type().isDecimal()) {
             bigDecimal = (BigDecimal) exprResult.value();
           } else if (exprResult.type().isLong()) {
             bigDecimal = BigDecimal.valueOf(exprResult.asLong());

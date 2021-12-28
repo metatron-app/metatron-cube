@@ -242,6 +242,11 @@ public class Evals
     return eval(arg, Expr.NULL_BINDING);
   }
 
+  public static ExprEval getConstantEval(Expr arg, ValueDesc castTo)
+  {
+    return castTo(eval(arg, Expr.NULL_BINDING), castTo);
+  }
+
   public static Object getConstant(Expr arg)
   {
     return getConstantEval(arg).value();
@@ -336,6 +341,9 @@ public class Evals
   // do not use except flattening purpose
   static Expr toConstant(ExprEval eval)
   {
+    if (eval.isNull()) {
+      return new RelayExpr(eval);
+    }
     final ValueDesc type = eval.type();
     switch (type.type()) {
       case BOOLEAN:

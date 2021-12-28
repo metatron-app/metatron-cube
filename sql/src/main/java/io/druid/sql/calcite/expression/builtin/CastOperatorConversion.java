@@ -64,6 +64,7 @@ public class CastOperatorConversion implements SqlOperatorConversion
     // Timestamps are treated as longs (millis since the epoch) in Druid expressions.
     builder.put(SqlTypeName.TIMESTAMP, ValueDesc.LONG);
     builder.put(SqlTypeName.DATE, ValueDesc.LONG);
+    builder.put(SqlTypeName.ANY, ValueDesc.UNKNOWN);
 
     EXPRESSION_TYPES = builder.build();
   }

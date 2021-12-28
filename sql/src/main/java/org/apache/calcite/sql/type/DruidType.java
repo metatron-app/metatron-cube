@@ -22,25 +22,29 @@ package org.apache.calcite.sql.type;
 import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.sql.calcite.DruidType;
 import io.druid.sql.calcite.planner.DruidTypeSystem;
 import org.apache.calcite.sql.SqlCollation;
 
 import java.nio.charset.Charset;
 
-public class DruidAnyType extends BasicSqlType implements DruidType
+public class DruidType extends BasicSqlType
 {
-  public static DruidAnyType of(ValueDesc druidType, boolean nullable)
+  public static DruidType any(ValueDesc druidType, boolean nullable)
   {
-    return new DruidAnyType(druidType, nullable);
+    return new DruidType(SqlTypeName.ANY, druidType, nullable);
+  }
+
+  public static DruidType other(ValueDesc druidType)
+  {
+    return new DruidType(SqlTypeName.OTHER, druidType, true);
   }
 
   private final ValueDesc druidType;
   private final boolean nullable;
 
-  private DruidAnyType(ValueDesc druidType, boolean nullable)
+  private DruidType(SqlTypeName typeName, ValueDesc druidType, boolean nullable)
   {
-    super(DruidTypeSystem.INSTANCE, SqlTypeName.ANY, 0, 0);
+    super(DruidTypeSystem.INSTANCE, typeName);
     this.druidType = Preconditions.checkNotNull(druidType);
     this.nullable = nullable;
     computeDigest();
@@ -71,12 +75,11 @@ public class DruidAnyType extends BasicSqlType implements DruidType
   }
 
   @Override
-  public DruidAnyType createWithNullability(boolean nullable)
+  public DruidType createWithNullability(boolean nullable)
   {
-    return this.nullable ^ nullable ? of(druidType, nullable) : this;
+    return this.nullable ^ nullable ? new DruidType(getSqlTypeName(), druidType, nullable) : this;
   }
 
-  @Override
   public ValueDesc getDruidType()
   {
     return druidType;

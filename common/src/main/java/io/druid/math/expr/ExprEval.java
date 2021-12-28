@@ -98,6 +98,22 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return new ExprEval(val, defaultType == null ? ValueDesc.UNKNOWN : defaultType);
   }
 
+  public static ExprEval nullOf(ValueDesc type)
+  {
+    switch (type.type()) {
+      case BOOLEAN:  return NULL_BOOL;
+      case FLOAT:    return NULL_FLOAT;
+      case LONG:     return NULL_LONG;
+      case DOUBLE:   return NULL_DOUBLE;
+      case STRING:   return NULL_STRING;
+      case DATETIME: return NULL_DATETIME;
+    }
+    if (type.isMap()) {
+      return NULL_MAP;
+    }
+    return new ExprEval(null, type);
+  }
+
   public static ExprEval of(Object value, ValueDesc type)
   {
     if (value instanceof ExprEval) {

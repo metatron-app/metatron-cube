@@ -130,7 +130,6 @@ public class OperatorConversions
   public static class OperatorBuilder
   {
     private final String name;
-    private SqlKind kind = SqlKind.OTHER_FUNCTION;
     private SqlReturnTypeInference returnTypeInference;
     private SqlFunctionCategory functionCategory = SqlFunctionCategory.USER_DEFINED_FUNCTION;
 
@@ -306,7 +305,7 @@ public class OperatorConversions
       }
       return new SqlFunction(
           name,
-          kind,
+          SqlKind.OTHER_FUNCTION,
           Preconditions.checkNotNull(returnTypeInference, "returnTypeInference"),
           operandTypeInference,
           theOperandTypeChecker,
