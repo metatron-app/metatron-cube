@@ -164,7 +164,7 @@ public enum DescExtractor
               String column = args.get(0).eval(bindings).asString();
               Map<String, String> values = mapping.get(column);
               if (values == null) {
-                return ExprEval.of(null, ValueDesc.STRING);
+                return ExprEval.NULL_STRING;
               }
               String value = args.get(1).eval(bindings).asString();
               return ExprEval.of(values.get(value));

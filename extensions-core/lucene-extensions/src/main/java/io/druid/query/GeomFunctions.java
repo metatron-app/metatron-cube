@@ -230,7 +230,7 @@ public class GeomFunctions implements Function.Library
             catch (IOException e) {
             }
           }
-          return ExprEval.of((String) null);
+          return ExprEval.NULL_STRING;
         }
       };
     }
@@ -445,7 +445,7 @@ public class GeomFunctions implements Function.Library
           final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
           if (geom1 == null || geom2 == null) {
-            return ExprEval.of(null, ValueDesc.DOUBLE);
+            return ExprEval.NULL_DOUBLE;
           }
           return ExprEval.of(new HausdorffSimilarityMeasure().measure(geom1, geom2));
         }
@@ -818,7 +818,7 @@ public class GeomFunctions implements Function.Library
           final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
           if (geom1 == null || geom2 == null) {
-            return ExprEval.of(null, ValueDesc.DOUBLE);
+            return ExprEval.NULL_DOUBLE;
           }
           return ExprEval.of(geom1.distance(geom2));
         }

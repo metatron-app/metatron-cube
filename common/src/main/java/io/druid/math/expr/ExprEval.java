@@ -69,7 +69,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
   public static ExprEval bestEffortOf(Object val, ValueDesc defaultType)
   {
     if (val == null) {
-      return defaultType == null ? NULL_STRING : ExprEval.of(null, defaultType);
+      return ExprEval.nullOf(defaultType);
     }
     if (val instanceof ExprEval) {
       return (ExprEval) val;
@@ -100,6 +100,9 @@ public class ExprEval extends Pair<Object, ValueDesc>
 
   public static ExprEval nullOf(ValueDesc type)
   {
+    if (type == null) {
+      return NULL_STRING;
+    }
     switch (type.type()) {
       case BOOLEAN:  return NULL_BOOL;
       case FLOAT:    return NULL_FLOAT;
@@ -172,7 +175,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return bool ? TRUE : FALSE;
   }
 
-  public ExprEval(Object lhs, ValueDesc rhs)
+  private ExprEval(Object lhs, ValueDesc rhs)
   {
     super(lhs, rhs);
   }
@@ -344,11 +347,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return 0;
   }
 
-  public ExprEval defaultValue(ValueDesc unkown)
+  public ExprEval defaultValue()
   {
     switch (rhs.type()) {
       case BOOLEAN:
-        return ExprEval.of(false);
+        return ExprEval.FALSE;
       case FLOAT:
         return ExprEval.of(0F);
       case DOUBLE:
@@ -356,10 +359,10 @@ public class ExprEval extends Pair<Object, ValueDesc>
       case LONG:
         return ExprEval.of(0L);
       case STRING:
-        return ExprEval.of((String) null);
+        return ExprEval.NULL_STRING;
       case DATETIME:
-        return ExprEval.of((DateTime) null);
+        return ExprEval.NULL_DATETIME;
     }
-    return ExprEval.of(null, unkown);
+    return this;
   }
 }

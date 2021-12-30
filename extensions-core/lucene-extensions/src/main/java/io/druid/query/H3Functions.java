@@ -91,7 +91,7 @@ public class H3Functions implements Function.Library
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.of(null, ValueDesc.LONG);
+            return ExprEval.NULL_LONG;
           }
           final Point point = geometry.getCentroid();
           final int precision = Evals.evalInt(args.get(1), bindings);

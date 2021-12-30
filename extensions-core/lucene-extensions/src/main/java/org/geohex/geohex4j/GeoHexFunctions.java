@@ -69,7 +69,7 @@ public class GeoHexFunctions implements Function.Library
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.of(null, ValueDesc.STRING);
+            return ExprEval.NULL_STRING;
           }
           final org.locationtech.jts.geom.Point point = geometry.getCentroid();
           final int precision = Evals.evalInt(args.get(1), bindings);

@@ -211,7 +211,7 @@ public interface SQLFunctions extends Function.Library
         {
           final String value = arg.eval(bindings).asString();
           if (value == null) {
-            return ExprEval.of(null, ValueDesc.LONG);
+            return ExprEval.NULL_LONG;
           }
 
           try {
@@ -220,7 +220,7 @@ public interface SQLFunctions extends Function.Library
           catch (IllegalArgumentException e) {
             // Catch exceptions potentially thrown by formatter.parseDateTime. Our docs say that unparseable timestamps
             // are returned as nulls.
-            return ExprEval.of(null, ValueDesc.LONG);
+            return ExprEval.NULL_LONG;
           }
         }
       };

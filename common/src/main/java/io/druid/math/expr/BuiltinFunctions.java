@@ -683,7 +683,7 @@ public interface BuiltinFunctions extends Function.Library
                 @Override
                 public boolean canAdapt(Object o)
                 {
-                  return Map.class.isInstance(o);
+                  return o instanceof Map;
                 }
               }
           );
@@ -704,7 +704,7 @@ public interface BuiltinFunctions extends Function.Library
                 @Override
                 public boolean canAdapt(Object o)
                 {
-                  return List.class.isInstance(o);
+                  return o instanceof List;
                 }
               }
           );
@@ -1324,7 +1324,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           final Double x = Evals.evalDouble(args.get(0), bindings);
-          return ExprEval.of(x == null ? null : eval(x));
+          return x == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x));
         }
       };
     }
@@ -1346,7 +1346,7 @@ public interface BuiltinFunctions extends Function.Library
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
-            return ExprEval.of(x == null ? null : eval(x));
+            return x == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x));
           }
         };
       } else {
@@ -1356,7 +1356,7 @@ public interface BuiltinFunctions extends Function.Library
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
-            return ExprEval.of(x == null ? null : eval(x));
+            return x == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x));
           }
         };
       }
@@ -1381,7 +1381,7 @@ public interface BuiltinFunctions extends Function.Library
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
-            return ExprEval.of(x == null ? null : eval(x));
+            return x == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x));
           }
         };
       } else if (type.isLong()) {
@@ -1391,7 +1391,7 @@ public interface BuiltinFunctions extends Function.Library
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
             final Long x = Evals.evalLong(args.get(0), bindings);
-            return ExprEval.of(x == null ? null : eval(x));
+            return x == null ? ExprEval.NULL_LONG : ExprEval.of(eval(x));
           }
         };
       } else {
@@ -1401,7 +1401,7 @@ public interface BuiltinFunctions extends Function.Library
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
-            return ExprEval.of(x == null ? null : eval(x));
+            return x == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x));
           }
         };
       }
@@ -1427,7 +1427,7 @@ public interface BuiltinFunctions extends Function.Library
         {
           final Double x = Evals.evalDouble(args.get(0), bindings);
           final Double y = Evals.evalDouble(args.get(1), bindings);
-          return ExprEval.of(x == null || y == null ? null : eval(x, y));
+          return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x, y));
         }
       };
     }
@@ -1451,7 +1451,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
             final Float y = Evals.evalFloat(args.get(1), bindings);
-            return ExprEval.of(x == null || y == null ? null : eval(x, y));
+            return x == null || y == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x, y));
           }
         };
       } else {
@@ -1462,7 +1462,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
             final Double y = Evals.evalDouble(args.get(1), bindings);
-            return ExprEval.of(x == null || y == null ? null : eval(x, y));
+            return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x, y));
           }
         };
       }
@@ -1489,7 +1489,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             final Long x = Evals.evalLong(args.get(0), bindings);
             final Long y = Evals.evalLong(args.get(1), bindings);
-            return ExprEval.of(x == null || y == null ? null : eval(x, y));
+            return x == null || y == null ? ExprEval.NULL_LONG : ExprEval.of(eval(x, y));
           }
         };
       } else if (type1.isFloat() && type2.isFloat()) {
@@ -1500,7 +1500,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
             final Float y = Evals.evalFloat(args.get(1), bindings);
-            return ExprEval.of(x == null || y == null ? null : eval(x, y));
+            return x == null || y == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x, y));
           }
         };
       } else {
@@ -1511,7 +1511,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
             final Double y = Evals.evalDouble(args.get(1), bindings);
-            return ExprEval.of(x == null || y == null ? null : eval(x, y));
+            return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x, y));
           }
         };
       }
@@ -1632,7 +1632,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             Float x = Evals.evalFloat(args.get(0), bindings);
             Integer y = Evals.evalInt(args.get(1), bindings);
-            return ExprEval.of(x == null || y == null ? null : Math.scalb(x, y));
+            return x == null || y == null ? ExprEval.NULL_FLOAT : ExprEval.of(Math.scalb(x, y));
           }
         };
       } else {
@@ -1643,7 +1643,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             Double x = Evals.evalDouble(args.get(0), bindings);
             Integer y = Evals.evalInt(args.get(1), bindings);
-            return ExprEval.of(x == null || y == null ? null : Math.scalb(x, y));
+            return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(Math.scalb(x, y));
           }
         };
       }
@@ -1719,7 +1719,7 @@ public interface BuiltinFunctions extends Function.Library
             return Evals.castTo(args.get(0).eval(bindings), castTo);
           }
           catch (Exception e) {
-            return ExprEval.of(null, castTo);
+            return ExprEval.nullOf(castTo);
           }
         }
       };
@@ -1828,7 +1828,7 @@ public interface BuiltinFunctions extends Function.Library
           if (args.size() % 2 != 1) {
             return Evals.castTo(args.get(args.size() - 1).eval(bindings), type);
           }
-          return Evals.castTo(leftVal.defaultValue(type), type);
+          return Evals.castTo(leftVal.defaultValue(), type);
         }
       };
     }
@@ -1873,7 +1873,7 @@ public interface BuiltinFunctions extends Function.Library
           if (size % 2 == 1) {
             return Evals.castTo(args.get(size - 1).eval(bindings), type);
           }
-          return ExprEval.of(null, type);
+          return ExprEval.nullOf(type);
         }
       };
     }
@@ -2034,7 +2034,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           String input = Evals.evalString(args.get(0), bindings);
-          return ExprEval.of(input == null ? null : Strings.padStart(input, length, padding));
+          return input == null ? ExprEval.NULL_STRING : ExprEval.of(Strings.padStart(input, length, padding));
         }
       };
     }
@@ -2059,7 +2059,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           String input = Evals.evalString(args.get(0), bindings);
-          return ExprEval.of(input == null ? null : Strings.padEnd(input, length, padding));
+          return input == null ? ExprEval.NULL_STRING : ExprEval.of(Strings.padEnd(input, length, padding));
         }
       };
     }
@@ -2078,7 +2078,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
-          return ExprEval.of(input == null ? null : input.toUpperCase());
+          return input == null ? ExprEval.NULL_STRING : ExprEval.of(input.toUpperCase());
         }
       };
     }
@@ -2097,7 +2097,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
-          return ExprEval.of(input == null ? null : input.toLowerCase());
+          return input == null ? ExprEval.NULL_STRING : ExprEval.of(input.toLowerCase());
         }
       };
     }
@@ -2118,14 +2118,14 @@ public interface BuiltinFunctions extends Function.Library
         {
           ExprEval inputEval = args.get(0).eval(bindings);
           if (inputEval.isNull()) {
-            return ExprEval.of((String) null);
+            return ExprEval.NULL_STRING;
           }
           String input = inputEval.asString();
           String splitter = args.get(1).eval(bindings).asString();
           int index = (int) args.get(2).eval(bindings).longValue();
 
           String[] split = input.split(splitter);
-          return ExprEval.of(index >= split.length ? null : split[index]);
+          return index >= split.length ? ExprEval.NULL_STRING : ExprEval.of(split[index]);
         }
       };
     }
@@ -2173,19 +2173,19 @@ public interface BuiltinFunctions extends Function.Library
         {
           ExprEval inputEval = args.get(0).eval(bindings);
           if (inputEval.isNull()) {
-            return ExprEval.of((String) null);
+            return ExprEval.NULL_STRING;
           }
           String input = inputEval.asString();
           int index = (int) args.get(2).eval(bindings).longValue();
           if (index < 0) {
-            return ExprEval.of((String) null);
+            return ExprEval.NULL_STRING;
           }
           for (String x : splitter.split(input)) {
             if (index-- == 0) {
               return ExprEval.of(x);
             }
           }
-          return ExprEval.of((String) null);
+          return ExprEval.NULL_STRING;
         }
       };
     }
@@ -2379,7 +2379,7 @@ public interface BuiltinFunctions extends Function.Library
     protected ExprEval eval(String input, int start, int end)
     {
       if (input == null || start >= input.length()) {
-        return ExprEval.of(null, ValueDesc.STRING);
+        return ExprEval.NULL_STRING;
       }
       if (end < 0) {
         return ExprEval.of(input.substring(start));
@@ -2396,7 +2396,7 @@ public interface BuiltinFunctions extends Function.Library
     protected ExprEval eval(String input, int start, int length)
     {
       if (input == null || start >= input.length()) {
-        return ExprEval.of(null, ValueDesc.STRING);
+        return ExprEval.NULL_STRING;
       }
       if (length < 0) {
         return ExprEval.of(input.substring(start));
@@ -2663,7 +2663,7 @@ public interface BuiltinFunctions extends Function.Library
           {
             final ExprEval eval = Evals.eval(args.get(0), bindings);
             if (eval.isNull()) {
-              return new ExprEval(null, struct);
+              return ExprEval.nullOf(struct);
             }
             final List value = (List) eval.value();
             final Object[] array = new Object[fieldTypes.length];

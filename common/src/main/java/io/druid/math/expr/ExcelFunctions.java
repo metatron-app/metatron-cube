@@ -208,7 +208,7 @@ public interface ExcelFunctions extends Function.Library
       return new NPVFunction(args, context);
     }
 
-    private class NPVFunction extends WindowFunction
+    private static class NPVFunction extends WindowFunction
     {
       private final double discountRate;
       private double[] values;
@@ -232,7 +232,7 @@ public interface ExcelFunctions extends Function.Library
         if (!context.hasMore()) {
           return ExprEval.of(FinanceLib.npv(discountRate, Arrays.copyOfRange(values, 0, context.size())));
         }
-        return ExprEval.of(null, ValueDesc.DOUBLE);
+        return ExprEval.NULL_DOUBLE;
       }
 
       @Override
@@ -253,7 +253,7 @@ public interface ExcelFunctions extends Function.Library
       return new IRRFunction(args, context);
     }
 
-    private class IRRFunction extends WindowFunction
+    private static class IRRFunction extends WindowFunction
     {
       private final double guess;
       private double[] values;
@@ -274,7 +274,7 @@ public interface ExcelFunctions extends Function.Library
         if (!context.hasMore()) {
           return ExprEval.of(Irr.irr(Arrays.copyOfRange(values, 0, context.size()), guess));
         }
-        return ExprEval.of(null, ValueDesc.DOUBLE);
+        return ExprEval.NULL_DOUBLE;
       }
 
       @Override
@@ -298,7 +298,7 @@ public interface ExcelFunctions extends Function.Library
       return new MIRRFunction(args, context);
     }
 
-    private class MIRRFunction extends WindowFunction
+    private static class MIRRFunction extends WindowFunction
     {
       private final double financeRate;
       private final double reinvestRate;
@@ -321,7 +321,7 @@ public interface ExcelFunctions extends Function.Library
         if (!context.hasMore()) {
           return ExprEval.of(mirr(Arrays.copyOfRange(values, 0, context.size()), financeRate, reinvestRate));
         }
-        return ExprEval.of(null, ValueDesc.DOUBLE);
+        return ExprEval.NULL_DOUBLE;
       }
 
       // copied from org.apache.poi.ss.formula.functions.Mirr (private method)

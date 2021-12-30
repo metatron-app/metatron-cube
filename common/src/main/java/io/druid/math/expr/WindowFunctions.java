@@ -263,7 +263,7 @@ public interface WindowFunctions extends Function.Library
             }
           }
           index = context.size();
-          return prev = ExprEval.of(null, current.type());
+          return prev = ExprEval.nullOf(current.type());
         }
       };
     }
@@ -297,7 +297,7 @@ public interface WindowFunctions extends Function.Library
               return context.evaluate(i, fieldExpr);
             }
           }
-          return ExprEval.of(null, fieldType);
+          return ExprEval.nullOf(fieldType);
         }
       };
     }
@@ -332,7 +332,7 @@ public interface WindowFunctions extends Function.Library
               return context.evaluate(i, fieldExpr);
             }
           }
-          return ExprEval.of(null, fieldType);
+          return ExprEval.nullOf(fieldType);
         }
       };
     }
@@ -456,7 +456,7 @@ public interface WindowFunctions extends Function.Library
       {
         Object current = Evals.evalValue(fieldExpr, context);
         if (current == null) {
-          return ExprEval.of(null, fieldType);
+          return ExprEval.nullOf(fieldType);
         }
         if (context.index() == 0) {
           switch (fieldType.type()) {
@@ -571,7 +571,7 @@ public interface WindowFunctions extends Function.Library
       @Override
       protected ExprEval current(WindowContext context)
       {
-        return counter == 0 ? ExprEval.of(null, fieldType) : super.current(context);
+        return counter == 0 ? ExprEval.nullOf(fieldType) : super.current(context);
       }
     }
   }
@@ -1016,7 +1016,7 @@ public interface WindowFunctions extends Function.Library
         protected ExprEval current(WindowContext context)
         {
           if (index == 0) {
-            return ExprEval.of(null, ValueDesc.of(type));
+            return ExprEval.nullOf(ValueDesc.of(type));
           }
           Arrays.sort(values, 0, index);
           final int x = (int) (index * 0.5);
@@ -1098,7 +1098,7 @@ public interface WindowFunctions extends Function.Library
       {
         final Object current = Evals.evalValue(fieldExpr, context);
         if (current == null) {
-          return ExprEval.of(null, ValueDesc.MAP);
+          return ExprEval.nullOf(ValueDesc.MAP);
         }
         final Number number = (Number) current;
         if (type == ValueType.LONG) {

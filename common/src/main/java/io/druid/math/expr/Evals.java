@@ -441,7 +441,7 @@ public class Evals
         return ExprEval.of(eval.asDateTime());
     }
     if (eval.isNull()) {
-      return ExprEval.of(null, castTo);
+      return ExprEval.nullOf(castTo);
     }
     if (castTo.isDecimal()) {
       final Long longVal = Rows.parseLong(eval.value(), null);
@@ -655,7 +655,7 @@ public class Evals
   public static Expr nullExpr(ValueDesc type)
   {
     ValueDesc desc = type.isUnknown() ? ValueDesc.STRING : type;
-    return asExpr(desc, Suppliers.memoize(() -> ExprEval.of(null, desc)));
+    return asExpr(desc, Suppliers.memoize(() -> ExprEval.nullOf(desc)));
   }
 
   public static Expr asExpr(ValueDesc desc, Supplier<ExprEval> value)

@@ -83,7 +83,7 @@ public interface DateTimeFunctions extends Function.Library
   final class SecondsBetween extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Seconds.secondsBetween(t1, t2).getSeconds();
     }
@@ -93,7 +93,7 @@ public interface DateTimeFunctions extends Function.Library
   final class MinutesBetween extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Minutes.minutesBetween(t1, t2).getMinutes();
     }
@@ -103,7 +103,7 @@ public interface DateTimeFunctions extends Function.Library
   final class HoursBetween extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Hours.hoursBetween(t1, t2).getHours();
     }
@@ -113,7 +113,7 @@ public interface DateTimeFunctions extends Function.Library
   final class DaysBetween extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Days.daysBetween(t1, t2).getDays();
     }
@@ -123,7 +123,7 @@ public interface DateTimeFunctions extends Function.Library
   final class DateDiff extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Days.daysBetween(t1, t2).getDays();
     }
@@ -133,7 +133,7 @@ public interface DateTimeFunctions extends Function.Library
   final class WeeksBetween extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Weeks.weeksBetween(t1, t2).getWeeks();
     }
@@ -143,7 +143,7 @@ public interface DateTimeFunctions extends Function.Library
   final class MonthsBetween extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Months.monthsBetween(t1, t2).getMonths();
     }
@@ -153,7 +153,7 @@ public interface DateTimeFunctions extends Function.Library
   final class YearsBetween extends TimeBetween
   {
     @Override
-    protected final int eval(DateTime t1, DateTime t2)
+    protected int eval(DateTime t1, DateTime t2)
     {
       return Years.yearsBetween(t1, t2).getYears();
     }
@@ -496,7 +496,7 @@ public interface DateTimeFunctions extends Function.Library
   final class AddTime extends BinaryTimeMath
   {
     @Override
-    protected final ExprEval eval(DateTime base, Period period)
+    protected ExprEval eval(DateTime base, Period period)
     {
       return ExprEval.of(base.plus(period));
     }
@@ -506,7 +506,7 @@ public interface DateTimeFunctions extends Function.Library
   final class SubTime extends BinaryTimeMath
   {
     @Override
-    protected final ExprEval eval(DateTime base, Period period)
+    protected ExprEval eval(DateTime base, Period period)
     {
       return ExprEval.of(base.minus(period));
     }
@@ -790,7 +790,7 @@ public interface DateTimeFunctions extends Function.Library
 
     protected ExprEval invalid(ExprEval value)
     {
-      return ExprEval.of(null, value.type());
+      return ExprEval.nullOf(value.type());
     }
 
     static abstract class LongType extends DateTimeInput
@@ -946,7 +946,7 @@ public interface DateTimeFunctions extends Function.Library
           }
           final DateTime dateTime = Evals.toDateTime(eval, formatter);
           if (dateTime == null) {
-            return ExprEval.of((String) null);
+            return ExprEval.NULL_STRING;
           }
           if (prevValue == null || dateTime.getMillis() != prevTime) {
             prevTime = dateTime.getMillis();
