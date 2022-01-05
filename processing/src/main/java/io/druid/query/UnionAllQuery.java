@@ -48,6 +48,7 @@ import org.joda.time.Interval;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
@@ -78,6 +79,7 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     return new UnionAllQuery(null, queries, false, limit, -1, context != null ? context : Maps.newHashMap());
   }
 
+  @SuppressWarnings("unchecked")
   public static UnionAllQuery union(
       List<Query> queries,
       Query.SchemaProvider provider,
@@ -250,7 +252,6 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     throw new IllegalStateException();
   }
 
-  @SuppressWarnings("unchecked")
   public UnionAllQuery withQueries(List<Query> queries)
   {
     return newInstance(null, GuavaUtils.cast(queries), parallelism, getContext());
@@ -262,7 +263,6 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     return newInstance(query, null, parallelism, getContext());
   }
 
-  @SuppressWarnings("unchecked")
   public UnionAllQuery withParallelism(int parallelism)
   {
     return newInstance(query, queries, parallelism, getContext());
@@ -302,16 +302,16 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
     if (sortOnUnion != that.sortOnUnion) {
       return false;
     }
-    if (queries != null ? !queries.equals(that.queries) : that.queries != null) {
-      return false;
-    }
-    if (query != null ? !query.equals(that.query) : that.query != null) {
-      return false;
-    }
     if (limit != that.limit) {
       return false;
     }
     if (parallelism != that.parallelism) {
+      return false;
+    }
+    if (!Objects.equals(queries, that.queries)) {
+      return false;
+    }
+    if (!Objects.equals(query, that.query)) {
       return false;
     }
     return true;
@@ -441,20 +441,13 @@ public class UnionAllQuery<T> extends BaseQuery<T> implements Query.RewritingQue
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig)
   {
     if (query != null && query.getDataSource() instanceof UnionDataSource) {
-      return withQueries(Lists.<Query>newArrayList(Iterables.transform(
-          ((UnionDataSource) query.getDataSource()).getDataSources(),
-          new Function<String, Query<T>>()
-          {
-            @Override
-            public Query<T> apply(String dataSource)
-            {
-              return query.withDataSource(TableDataSource.of(dataSource));
-            }
-          }
-      ))).withSchema(Suppliers.memoize(() -> Queries.relaySchema(query, segmentWalker)));
+      List<String> dataSources = ((UnionDataSource) query.getDataSource()).getDataSources();
+      List<Query> queries = GuavaUtils.transform(dataSources, ds -> query.withDataSource(TableDataSource.of(ds)));
+      return withQueries(queries).withSchema(Suppliers.memoize(() -> Queries.relaySchema(query, segmentWalker)));
     }
     return this;
   }

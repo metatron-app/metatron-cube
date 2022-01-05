@@ -52,6 +52,7 @@ import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Ignore;
@@ -82,17 +83,13 @@ public class SchemalessTestSimple
     return Arrays.asList(
         new Object[][]{
             {
-                new IncrementalIndexSegment(incrementalIndex, null)
+                new IncrementalIndexSegment(incrementalIndex, DataSegment.asKey("test"))
             },
             {
-                new QueryableIndexSegment(
-                    "test", persistedIncrementalIndex
-                )
+                new QueryableIndexSegment(persistedIncrementalIndex, DataSegment.asKey("test"))
             },
             {
-                new QueryableIndexSegment(
-                    "test", mergedIncrementalIndex
-                )
+                new QueryableIndexSegment(mergedIncrementalIndex, DataSegment.asKey("test"))
             }
         }
     );

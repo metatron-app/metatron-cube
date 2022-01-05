@@ -54,6 +54,7 @@ import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
+import io.druid.timeline.DataSegment;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 import org.junit.AfterClass;
@@ -190,15 +191,7 @@ public abstract class BaseFilterTest
           {
             final IncrementalIndex index = input.buildIncrementalIndex();
             return Pair.<StorageAdapter, Closeable>of(
-                new IncrementalIndexStorageAdapter(index),
-                new Closeable()
-                {
-                  @Override
-                  public void close() throws IOException
-                  {
-                    index.close();
-                  }
-                }
+                new IncrementalIndexStorageAdapter(index, DataSegment.asKey("test")), index
             );
           }
         },
@@ -209,15 +202,7 @@ public abstract class BaseFilterTest
           {
             final QueryableIndex index = input.buildMMappedIndex();
             return Pair.<StorageAdapter, Closeable>of(
-                new QueryableIndexStorageAdapter(index, "test-mmapped"),
-                new Closeable()
-                {
-                  @Override
-                  public void close() throws IOException
-                  {
-                    index.close();
-                  }
-                }
+                new QueryableIndexStorageAdapter(index, DataSegment.asKey("test-mmapped")), index
             );
           }
         },
@@ -228,15 +213,7 @@ public abstract class BaseFilterTest
           {
             final QueryableIndex index = input.buildMMappedMergedIndex();
             return Pair.<StorageAdapter, Closeable>of(
-                new QueryableIndexStorageAdapter(index, "test-mmappedMerged"),
-                new Closeable()
-                {
-                  @Override
-                  public void close() throws IOException
-                  {
-                    index.close();
-                  }
-                }
+                new QueryableIndexStorageAdapter(index, DataSegment.asKey("test-mmappedMerged")), index
             );
           }
         }

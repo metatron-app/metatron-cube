@@ -47,6 +47,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -142,7 +143,7 @@ public class GroupByQueryRunnerFactoryTest
 
     closerRule.closeLater(incrementalIndex);
 
-    return new IncrementalIndexSegment(incrementalIndex, "test");
+    return new IncrementalIndexSegment(incrementalIndex, DataSegment.asKey("test"));
   }
 
   private GroupByQueryRunnerFactory createFactory()

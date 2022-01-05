@@ -52,18 +52,12 @@ public class CacheTestSegmentLoader implements SegmentLoader
   @Override
   public Segment getSegment(final DataSegment segment) throws SegmentLoadingException
   {
-    return new AbstractSegment()
+    return new AbstractSegment(segment)
     {
-      @Override
-      public String getIdentifier()
-      {
-        return segment.getIdentifier();
-      }
-
       @Override
       public Interval getInterval()
       {
-        return segment.getInterval();
+        return descriptor.getInterval();
       }
 
       @Override

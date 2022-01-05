@@ -44,6 +44,7 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query.SchemaProvider;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -77,9 +78,9 @@ import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSpecVirtualColumn;
 import io.druid.segment.QueryableIndex;
-import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.QueryableIndexSelector;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.Dictionary;
@@ -358,7 +359,7 @@ public class Queries
     if (subQuery instanceof BaseAggregationQuery) {
       return Sequences.map(sequence, GuavaUtils.<Row, I>caster());
     }
-    throw new UnsupportedOperationException("cannot convert to " + subQuery.getType() + " result");
+    throw new UOE("Cannot convert result of query[%s] to row", subQuery.getType());
   }
 
   public static Query iterate(Query query, QueryVisitor visitor)
@@ -655,7 +656,7 @@ public class Queries
   {
     ItemsUnion<String> union = null;
     for (Segment segment : segments) {
-      HistogramQuery prepared = prepare(query, segment);
+      HistogramQuery prepared = Segments.prepare(query, segment);
       union = segment.asStorageAdapter(true).makeCursors(prepared, cache).accumulate(union, (current, cursor) -> {
         DictionarySketch sketch = DictionarySketch.of(DictionarySketch.DEFAULT_K);
         DimensionSelector selector = cursor.makeDimensionSelector(prepared.getDimensionSpec());
@@ -688,19 +689,10 @@ public class Queries
     return union == null ? null : DictionarySketch.getResult(union);
   }
 
-  @SuppressWarnings("unchecked")
-  private static <T extends Query> T prepare(T query, Segment segment)
-  {
-    if (segment instanceof Segment.WithDescriptor) {
-      query = (T) query.withQuerySegmentSpec(((Segment.WithDescriptor) segment).asSpec());
-    }
-    return query;
-  }
-
   private static Object[] makeColumnHistogramOn(Segment segment, TimeseriesQuery query, Cache cache)
   {
     TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
-    Row row = Sequences.only(engine.process(prepare(query, segment), segment, false, cache), null);
+    Row row = Sequences.only(engine.process(Segments.prepare(query, segment), segment, false, cache), null);
     if (row != null) {
       PostAggregator.Processor processor = query.getPostAggregatorSpecs().get(0).processor(TypeResolver.UNKNOWN);
       return (Object[]) processor.compute(row.getTimestamp(), ((MapBasedRow) row).getEvent());
@@ -733,10 +725,7 @@ public class Queries
   private static boolean allQueryableIndex(List<Segment> segments)
   {
     for (Segment segment : segments) {
-      while (segment instanceof Segment.Delegated) {
-        segment = ((Segment.Delegated) segment).getSegment();
-      }
-      if (!(segment instanceof QueryableIndexSegment)) {
+      if (segment.asQueryableIndex(false) == null) {
         return false;
       }
     }

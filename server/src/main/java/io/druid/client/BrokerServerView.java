@@ -74,6 +74,7 @@ import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.ReferenceCountingSegment.LocalSegment;
 import io.druid.segment.Segment;
 import io.druid.server.DruidNode;
 import io.druid.server.ServiceTypes;
@@ -384,17 +385,17 @@ public class BrokerServerView implements TimelineServerView
       if (localServer == null) {
         return false;
       }
-      VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline =
+      VersionedIntervalTimeline<String, LocalSegment> timeline =
           localServer.getLocalTimelineView().remove(dataSource);
       if (timeline == null) {
         return false;
       }
-      for (PartitionChunk<ReferenceCountingSegment> chunk : timeline.clear()) {
-        try (ReferenceCountingSegment segment = chunk.getObject()) {
-          serverRemovedSegment(node.getMetadata(), segment.dataSegment);
+      for (PartitionChunk<LocalSegment> chunk : timeline.clear()) {
+        try (LocalSegment segment = chunk.getObject()) {
+          serverRemovedSegment(node.getMetadata(), segment.getDescriptor());
         }
         catch (IOException e) {
-          log.info(e, "Failed to close local segment %s", chunk.getObject().dataSegment);
+          log.info(e, "Failed to close local segment %s", chunk.getObject().getDescriptor());
         }
       }
       timelines.remove(dataSource);
@@ -554,7 +555,7 @@ public class BrokerServerView implements TimelineServerView
 
   private <T> QueryRunner<T> toRunner(
       final Query<T> query,
-      final Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> indexMap
+      final Map<String, VersionedIntervalTimeline<String, LocalSegment>> indexMap
   )
   {
     // called from CachingClusteredClient.. it's always MultipleSpecificSegmentSpec
@@ -574,23 +575,23 @@ public class BrokerServerView implements TimelineServerView
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-    final TimelineLookup<String, ReferenceCountingSegment> timeline = indexMap.get(DataSources.getName(query));
+    final TimelineLookup<String, LocalSegment> timeline = indexMap.get(DataSources.getName(query));
     if (timeline == null) {
       return NoopQueryRunner.instance();
     }
 
-    final List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList(
+    final List<Pair<SegmentDescriptor, LocalSegment>> segments = Lists.newArrayList(
         Iterables.transform(
-            specs, new Function<SegmentDescriptor, Pair<SegmentDescriptor, ReferenceCountingSegment>>()
+            specs, new Function<SegmentDescriptor, Pair<SegmentDescriptor, LocalSegment>>()
             {
               @Override
-              public Pair<SegmentDescriptor, ReferenceCountingSegment> apply(SegmentDescriptor input)
+              public Pair<SegmentDescriptor, LocalSegment> apply(SegmentDescriptor input)
               {
-                PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
+                PartitionHolder<LocalSegment> entry = timeline.findEntry(
                     input.getInterval(), input.getVersion()
                 );
                 if (entry != null) {
-                  PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(input.getPartitionNumber());
+                  PartitionChunk<LocalSegment> chunk = entry.getChunk(input.getPartitionNumber());
                   if (chunk != null) {
                     return Pair.of(input, chunk.getObject());
                   }
@@ -602,7 +603,7 @@ public class BrokerServerView implements TimelineServerView
     );
 
     final List<Segment> targets = Lists.newArrayList();
-    for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
+    for (Pair<SegmentDescriptor, LocalSegment> segment : segments) {
       Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
       if (target != null) {
         targets.add(target);
@@ -621,10 +622,10 @@ public class BrokerServerView implements TimelineServerView
 
     final Iterable<QueryRunner<T>> queryRunners = Iterables.transform(
         segments,
-        new Function<Pair<SegmentDescriptor, ReferenceCountingSegment>, QueryRunner<T>>()
+        new Function<Pair<SegmentDescriptor, LocalSegment>, QueryRunner<T>>()
         {
           @Override
-          public QueryRunner<T> apply(Pair<SegmentDescriptor, ReferenceCountingSegment> input)
+          public QueryRunner<T> apply(Pair<SegmentDescriptor, LocalSegment> input)
           {
             if (input.rhs == null) {
               return new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs);
@@ -657,14 +658,14 @@ public class BrokerServerView implements TimelineServerView
   // copied from server manager, except cache populator
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
       final QueryRunnerFactory<T, Query<T>> factory,
-      final ReferenceCountingSegment adapter,
-      final SegmentDescriptor segmentDescriptor,
+      final LocalSegment segment,
+      final SegmentDescriptor descriptor,
       final Future<Object> optimizer,
       final CPUTimeMetricBuilder<T> reporter
   )
   {
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(segmentDescriptor);
+    SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(descriptor);
     return reporter.accumulate(
         new SpecificSegmentQueryRunner<T>(
             new MetricsEmittingQueryRunner<T>(
@@ -672,20 +673,20 @@ public class BrokerServerView implements TimelineServerView
                 toolChest,
                 new BySegmentQueryRunner<T>(
                     toolChest,
-                    adapter.getIdentifier(),
-                    adapter.getInterval().getStart(),
+                    segment.getIdentifier(),
+                    segment.getInterval().getStart(),
                     new MetricsEmittingQueryRunner<T>(
                             emitter,
                             toolChest,
                             new ReferenceCountingSegmentQueryRunner<T>(
-                                factory, adapter, segmentDescriptor, optimizer
+                                factory, segment, descriptor, optimizer
                             ),
                             QueryMetrics::reportSegmentTime,
-                            queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
+                            queryMetrics -> queryMetrics.segment(segment.getIdentifier())
                         )
                 ),
                 QueryMetrics::reportSegmentAndCacheTime,
-                queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
+                queryMetrics -> queryMetrics.segment(segment.getIdentifier())
             ).withWaitMeasuredFromNow(),
             segmentSpec
         )

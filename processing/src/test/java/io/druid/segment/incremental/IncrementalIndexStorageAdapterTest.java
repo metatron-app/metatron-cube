@@ -53,6 +53,7 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.data.IndexedInts;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -138,7 +139,7 @@ public class IncrementalIndexStorageAdapterTest
                     .addAggregator(new LongSumAggregatorFactory("cnt", "cnt"))
                     .build(),
         new QueryConfig(),
-        new IncrementalIndexSegment(index, null),
+        new IncrementalIndexSegment(index, DataSegment.asKey("test")),
         false
     );
 
@@ -199,7 +200,7 @@ public class IncrementalIndexStorageAdapterTest
                     )
                     .build(),
         new QueryConfig(),
-        new IncrementalIndexSegment(index, null),
+        new IncrementalIndexSegment(index, DataSegment.asKey("test")),
         false
     );
 
@@ -242,7 +243,7 @@ public class IncrementalIndexStorageAdapterTest
         )
     );
 
-    IncrementalIndexStorageAdapter adapter = new IncrementalIndexStorageAdapter(index);
+    IncrementalIndexStorageAdapter adapter = new IncrementalIndexStorageAdapter(index, DataSegment.asKey("test"));
 
     for (boolean descending : Arrays.asList(false, true)) {
       Sequence<Cursor> cursorSequence = adapter.makeCursors(
@@ -307,7 +308,7 @@ public class IncrementalIndexStorageAdapterTest
                                       )
                                   )
                                   .build(),
-            new IncrementalIndexSegment(index, null)
+            new IncrementalIndexSegment(index, DataSegment.asKey("test"))
         ),
         Lists.<Result<TopNResultValue>>newLinkedList()
     );
@@ -348,7 +349,7 @@ public class IncrementalIndexStorageAdapterTest
                     .setDimFilter(DimFilters.dimEquals("sally", null))
                     .build(),
         new QueryConfig(),
-        new IncrementalIndexSegment(index, null),
+        new IncrementalIndexSegment(index, DataSegment.asKey("test")),
         false
     );
 
@@ -376,7 +377,7 @@ public class IncrementalIndexStorageAdapterTest
       );
     }
 
-    final StorageAdapter sa = new IncrementalIndexStorageAdapter(index);
+    final StorageAdapter sa = new IncrementalIndexStorageAdapter(index, DataSegment.asKey("test"));
 
     Sequence<Cursor> cursors = sa.makeCursors(
         null,

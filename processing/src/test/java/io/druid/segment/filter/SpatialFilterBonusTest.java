@@ -35,13 +35,11 @@ import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
-import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.filter.SpatialDimFilter;
-import io.druid.query.timeseries.DefaultTimeseriesQueryMetricsFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
@@ -57,6 +55,7 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Test;
@@ -104,13 +103,13 @@ public class SpatialFilterBonusTest
     return Arrays.asList(
         new Object[][]{
             {
-                new IncrementalIndexSegment(rtIndex, "incremental")
+                new IncrementalIndexSegment(rtIndex, DataSegment.asKey("incremental"))
             },
             {
-                new QueryableIndexSegment("mmaped", mMappedTestIndex)
+                new QueryableIndexSegment(mMappedTestIndex, DataSegment.asKey("mmaped"))
             },
             {
-                new QueryableIndexSegment("merged", mergedRealtimeIndex)
+                new QueryableIndexSegment(mergedRealtimeIndex, DataSegment.asKey("merged"))
             }
         }
     );

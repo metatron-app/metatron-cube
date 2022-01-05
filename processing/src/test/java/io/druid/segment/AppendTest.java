@@ -53,6 +53,7 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Before;
@@ -124,7 +125,7 @@ public class AppendTest
             new Interval("2011-01-14T22:00:00.000Z/2011-01-16T00:00:00.000Z")
         )
     );
-    segment = new QueryableIndexSegment(null, appendedIndex);
+    segment = new QueryableIndexSegment(appendedIndex, DataSegment.asKey("appended"));
 
     // (3, 4) cover overlapping segments of the form
     // |------------|
@@ -139,7 +140,7 @@ public class AppendTest
             new Interval("2011-01-13T00:00:00.000Z/2011-01-14T00:00:00.000Z")
         )
     );
-    segment2 = new QueryableIndexSegment(null, append2);
+    segment2 = new QueryableIndexSegment(append2, DataSegment.asKey("appended2"));
 
     // (5, 6, 7) test gaps that can be created in data because of rows being discounted
     // |-------------|
@@ -157,7 +158,7 @@ public class AppendTest
             new Interval("2011-01-18T00:00:00.000Z/2011-01-21T00:00:00.000Z")
         )
     );
-    segment3 = new QueryableIndexSegment(null, append3);
+    segment3 = new QueryableIndexSegment(append3, DataSegment.asKey("appended3"));
   }
 
   @Test

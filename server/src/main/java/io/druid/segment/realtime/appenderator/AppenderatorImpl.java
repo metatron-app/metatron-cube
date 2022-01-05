@@ -487,13 +487,12 @@ public class AppenderatorImpl implements Appenderator
                         }
 
                         final Sink theSink = chunk.getObject();
-                        final String sinkSegmentIdentifier = theSink.getSegment().getIdentifier();
 
                         return new SpecificSegmentQueryRunner<>(
                             withPerSinkMetrics(
                                 new BySegmentQueryRunner<>(
                                     toolchest,
-                                    sinkSegmentIdentifier,
+                                    theSink.getIdentifier(),
                                     descriptor.getInterval().getStart(),
                                     factory.mergeRunners(
                                         resolved,
@@ -549,7 +548,7 @@ public class AppenderatorImpl implements Appenderator
                                     )
                                 ),
                                 toolchest,
-                                sinkSegmentIdentifier,
+                                theSink.getIdentifier(),
                                 cpuTimeAccumulator
                             ),
                             new SpecificSegmentSpec(descriptor)
@@ -978,13 +977,13 @@ public class AppenderatorImpl implements Appenderator
     }
 
     log.info("Shutting down immediately...");
-    for (Map.Entry<SegmentIdentifier, Sink> entry : sinks.entrySet()) {
+    for (Sink sink : sinks.values()) {
       try {
-        segmentAnnouncer.unannounceSegment(entry.getValue().getSegment());
+        segmentAnnouncer.unannounceSegment(sink.getSegment());
       }
       catch (Exception e) {
         log.makeAlert(e, "Failed to unannounce segment[%s]", schema.getDataSource())
-           .addData("identifier", entry.getKey().getIdentifierAsString())
+           .addData("identifier", sink.getIdentifier())
            .emit();
       }
     }
@@ -1173,6 +1172,7 @@ public class AppenderatorImpl implements Appenderator
             }
         );
 
+        DataSegment template = identifier.toDataSegment();
         List<FireHydrant> hydrants = Lists.newArrayList();
         for (File hydrantDir : sinkFiles) {
           final int hydrantNumber = Integer.parseInt(hydrantDir.getName());
@@ -1186,12 +1186,13 @@ public class AppenderatorImpl implements Appenderator
               throw new ISE("Missing hydrant [%,d] in sinkDir [%s].", hydrants.size(), sinkDir);
             }
 
+            QueryableIndex index = indexIO.loadIndex(hydrantDir);
+            DataSegment segment = template.withDimensions(Lists.newArrayList(index.getAvailableDimensions()))
+                                          .withMetrics(Lists.newArrayList(index.getAvailableMetrics()))
+                                          .withNumRows(index.getNumRows());
             hydrants.add(
                 new FireHydrant(
-                    new QueryableIndexSegment(
-                        identifier.getIdentifierAsString(),
-                        indexIO.loadIndex(hydrantDir)
-                    ),
+                    new QueryableIndexSegment(index, segment),
                     hydrantDir,
                     hydrantNumber
                 )

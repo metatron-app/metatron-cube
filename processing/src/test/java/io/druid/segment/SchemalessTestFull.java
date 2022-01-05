@@ -53,6 +53,7 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Ignore;
@@ -905,9 +906,7 @@ public class SchemalessTestFull
     );
 
     runTests(
-        new QueryableIndexSegment(
-            "test", SchemalessIndex.getMergedIncrementalIndex(0, 0)
-        ),
+        new QueryableIndexSegment(SchemalessIndex.getMergedIncrementalIndex(0, 0), DataSegment.asKey("test")),
         expectedTimeseriesResults,
         expectedFilteredTimeSeriesResults,
         expectedTopNResults,
@@ -988,9 +987,7 @@ public class SchemalessTestFull
     );
 
     runTests(
-        new QueryableIndexSegment(
-            "test", SchemalessIndex.getMergedIncrementalIndex(1, 1)
-        ),
+        new QueryableIndexSegment(SchemalessIndex.getMergedIncrementalIndex(1, 1), DataSegment.asKey("test")),
         expectedTimeseriesResults,
         expectedFilteredTimeSeriesResults,
         expectedTopNResults,
@@ -1117,9 +1114,8 @@ public class SchemalessTestFull
     );
 
     runTests(
-        new QueryableIndexSegment(
-            "test", SchemalessIndex.getMergedIncrementalIndex(new int[]{6, 7, 8})
-        )
+        new QueryableIndexSegment(SchemalessIndex.getMergedIncrementalIndex(new int[]{6, 7, 8}), DataSegment.asKey(
+            "test"))
         ,
         expectedTimeseriesResults,
         expectedFilteredTimeSeriesResults,
@@ -1307,7 +1303,7 @@ public class SchemalessTestFull
     );
 
     runTests(
-        new QueryableIndexSegment("test", SchemalessIndex.getMergedIncrementalIndexDiffMetrics()),
+        new QueryableIndexSegment(SchemalessIndex.getMergedIncrementalIndexDiffMetrics(), DataSegment.asKey("test")),
         expectedTimeseriesResults,
         expectedFilteredTimeSeriesResults,
         expectedTopNResults,
@@ -1355,7 +1351,7 @@ public class SchemalessTestFull
   {
     for (Pair<QueryableIndex, String> entry : getIndexes(index1, index2)) {
       runTests(
-          new QueryableIndexSegment("test", entry.lhs),
+          new QueryableIndexSegment(entry.lhs, DataSegment.asKey("test")),
           expectedTimeseriesResults,
           expectedFilteredTimeseriesResults,
           expectedTopNResults,

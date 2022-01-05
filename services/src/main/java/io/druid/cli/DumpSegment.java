@@ -34,7 +34,6 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import io.airlift.airline.Command;
 import io.airlift.airline.Option;
-import io.druid.common.guava.Accumulator;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.concurrent.Execs;
@@ -67,6 +66,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.data.IndexedInts;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.chrono.ISOChronology;
@@ -202,7 +202,7 @@ public class DumpSegment extends GuiceRunnable
   private void runDump(final Injector injector, final QueryableIndex index) throws IOException
   {
     final ObjectMapper objectMapper = injector.getInstance(Key.get(ObjectMapper.class, Json.class));
-    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(index, "");
+    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(index, DataSegment.asKey("dump"));
 
     // Empty columnNames => include all columns
     if (columnNames.isEmpty()) {
@@ -337,12 +337,13 @@ public class DumpSegment extends GuiceRunnable
   }
 
 
+  @SuppressWarnings("unchecked")
   private static <T> Sequence<T> executeQuery(final Injector injector, final QueryableIndex index, final Query<T> query)
   {
-    final QueryRunnerFactoryConglomerate conglomerate = injector.getInstance(QueryRunnerFactoryConglomerate.class);
-    final QueryRunnerFactory factory = conglomerate.findFactory(query);
-    final QueryRunner<T> runner = factory.createRunner(new QueryableIndexSegment("segment", index), null);
-    final Sequence results = factory.getToolchest().mergeResults(
+    QueryRunnerFactory factory = injector.getInstance(QueryRunnerFactoryConglomerate.class).findFactory(query);
+    QueryableIndexSegment segment = new QueryableIndexSegment(index, DataSegment.asKey("segment"));
+    QueryRunner<T> runner = factory.createRunner(segment, null);
+    Sequence results = factory.getToolchest().mergeResults(
         factory.mergeRunners(query, Execs.newDirectExecutorService(), ImmutableList.<QueryRunner>of(runner), null)
     ).run(query, Maps.<String, Object>newHashMap());
     return (Sequence<T>) results;
@@ -350,17 +351,7 @@ public class DumpSegment extends GuiceRunnable
 
   private static <T> void evaluateSequenceForSideEffects(final Sequence<T> sequence)
   {
-    sequence.accumulate(
-        null,
-        new Accumulator<Object, T>()
-        {
-          @Override
-          public Object accumulate(Object accumulated, T in)
-          {
-            return null;
-          }
-        }
-    );
+    sequence.accumulate(null, (accumulated, in) -> null);
   }
 
   private static ObjectColumnSelector makeSelector(

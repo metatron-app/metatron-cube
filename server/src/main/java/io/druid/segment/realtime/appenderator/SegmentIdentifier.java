@@ -22,6 +22,8 @@ package io.druid.segment.realtime.appenderator;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
@@ -117,6 +119,21 @@ public class SegmentIdentifier
         segment.getInterval(),
         segment.getVersion(),
         segment.getShardSpecWithDefault()
+    );
+  }
+
+  public DataSegment toDataSegment()
+  {
+    return new DataSegment(
+        dataSource,
+        interval,
+        version,
+        ImmutableMap.of(),
+        ImmutableList.of(),
+        ImmutableList.of(),
+        shardSpec,
+        null,
+        0
     );
   }
 }

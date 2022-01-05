@@ -110,7 +110,7 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     final File segmentFiles = getSegmentFiles(segment);
     final QueryableIndex index = factory.factorize(segmentFiles);
 
-    return new QueryableIndexSegment(segment.getIdentifier(), index);
+    return new QueryableIndexSegment(index, segment);
   }
 
   @Override

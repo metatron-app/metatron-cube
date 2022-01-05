@@ -22,27 +22,41 @@ package io.druid.segment;
 import io.druid.query.Query;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
-import io.druid.query.SegmentDescriptor;
-import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
 
 /**
+ *
  */
 public interface Segment extends SchemaProvider, Closeable
 {
-  String getIdentifier();
+  DataSegment getDescriptor();
   Interval getInterval();
-  QueryableIndex asQueryableIndex(boolean forQuery);
-  StorageAdapter asStorageAdapter(boolean forQuery);
   long getLastAccessTime();
   boolean isIndexed();
   int getNumRows();
 
-  Segment cuboidFor(Query<?> query);
+  default String getIdentifier()
+  {
+    return getDescriptor().getIdentifier();
+  }
+
+  default SpecificSegmentSpec asSpec()
+  {
+    return new SpecificSegmentSpec(getDescriptor().toDescriptor());
+  }
+
+  default Segment cuboidFor(Query<?> query)
+  {
+    return null;
+  }
+
+  QueryableIndex asQueryableIndex(boolean forQuery);
+  StorageAdapter asStorageAdapter(boolean forQuery);
 
   class Delegated implements Segment
   {
@@ -53,9 +67,15 @@ public interface Segment extends SchemaProvider, Closeable
       this.segment = segment;
     }
 
-    public Segment getSegment()
+    public Segment getDelegated()
     {
       return segment;
+    }
+
+    @Override
+    public DataSegment getDescriptor()
+    {
+      return segment.getDescriptor();
     }
 
     @Override
@@ -122,33 +142,6 @@ public interface Segment extends SchemaProvider, Closeable
     public void close() throws IOException
     {
       segment.close();
-    }
-  }
-
-  class WithDescriptor extends Delegated
-  {
-    private final SegmentDescriptor descriptor;
-
-    public WithDescriptor(Segment segment, SegmentDescriptor descriptor)
-    {
-      super(segment);
-      this.descriptor = descriptor;
-    }
-
-    public SegmentDescriptor getDescriptor()
-    {
-      return descriptor;
-    }
-
-    public QuerySegmentSpec asSpec()
-    {
-      return new SpecificSegmentSpec(descriptor);
-    }
-
-    @Override
-    public String toString()
-    {
-      return descriptor.toString();
     }
   }
 }

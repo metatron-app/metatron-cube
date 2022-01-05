@@ -69,6 +69,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -112,8 +113,10 @@ public class VirtualColumnTest
     QueryableIndex index2 = TestHelper.persistRealtimeAndLoadMMapped(index1);
 
     final List<QueryRunner<Row>> runners = Arrays.asList(
-        QueryRunnerTestHelper.makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1")),
-        QueryRunnerTestHelper.makeQueryRunner(factory, "index2", new QueryableIndexSegment("index2", index2))
+        QueryRunnerTestHelper.makeQueryRunner(factory, new IncrementalIndexSegment(index1, DataSegment.asKey(
+            "index1"))),
+        QueryRunnerTestHelper.makeQueryRunner(factory, new QueryableIndexSegment(index2, DataSegment.asKey(
+            "index2")))
     );
     return transformToConstructionFeeder(runners);
   }

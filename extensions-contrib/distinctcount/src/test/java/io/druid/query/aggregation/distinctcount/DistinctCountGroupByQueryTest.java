@@ -47,6 +47,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
@@ -131,7 +132,7 @@ public class DistinctCountGroupByQueryTest
             new DistinctCountAggregatorFactory("UV", visitor_id, null)
         )
         .build();
-    final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);
+    final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, DataSegment.asKey("test"));
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(
         factory,

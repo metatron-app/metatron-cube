@@ -64,6 +64,7 @@ import io.druid.segment.data.Offset;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
+import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
@@ -80,18 +81,18 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   private static final Logger LOG = new Logger(QueryableIndexStorageAdapter.class);
 
   private final QueryableIndex index;
-  private final String segmentId;
+  private final DataSegment segment;
 
-  public QueryableIndexStorageAdapter(QueryableIndex index, String segmentId)
+  public QueryableIndexStorageAdapter(QueryableIndex index, DataSegment segment)
   {
     this.index = Preconditions.checkNotNull(index);
-    this.segmentId = Preconditions.checkNotNull(segmentId);
+    this.segment = Preconditions.checkNotNull(segment);
   }
 
   @Override
   public String getSegmentIdentifier()
   {
-    return segmentId;
+    return segment.getIdentifier();
   }
 
   @Override
@@ -192,7 +193,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     }
 
     final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver);
-    final FilterContext context = Filters.createFilterContext(selector, cache, segmentId);
+    final FilterContext context = Filters.createFilterContext(selector, cache, segment.getIdentifier());
 
     final long start = System.currentTimeMillis();
     final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);

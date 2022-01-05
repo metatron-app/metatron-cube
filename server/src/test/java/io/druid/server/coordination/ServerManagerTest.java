@@ -617,11 +617,9 @@ public class ServerManagerTest
     private final Object lock = new Object();
     private volatile boolean closed = false;
 
-    SegmentForTesting(
-        String version,
-        Interval interval
-    )
+    SegmentForTesting(String version, Interval interval)
     {
+      super(DataSegment.asKey("test"));
       this.version = version;
       this.interval = interval;
     }
@@ -634,12 +632,6 @@ public class ServerManagerTest
     public Interval getInterval()
     {
       return interval;
-    }
-
-    @Override
-    public String getIdentifier()
-    {
-      return version;
     }
 
     public boolean isClosed()

@@ -56,6 +56,7 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.timeline.DataSegment;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -90,8 +91,7 @@ public class SegmentMetadataQueryTest
     QueryableIndex index = rollup ? TestIndex.getMMappedTestIndex() : TestIndex.getNoRollupMMappedTestIndex();
     return QueryRunnerTestHelper.makeQueryRunner(
         factory,
-        segmentId,
-        new QueryableIndexSegment(segmentId, index)
+        new QueryableIndexSegment(index, DataSegment.asKey(segmentId))
     );
   }
 
@@ -105,8 +105,7 @@ public class SegmentMetadataQueryTest
     IncrementalIndex index = rollup ? TestIndex.getIncrementalTestIndex() : TestIndex.getNoRollupIncrementalTestIndex();
     return QueryRunnerTestHelper.makeQueryRunner(
         factory,
-        segmentId,
-        new IncrementalIndexSegment(index, segmentId)
+        new IncrementalIndexSegment(index, DataSegment.asKey(segmentId))
     );
   }
 

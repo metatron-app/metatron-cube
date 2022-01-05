@@ -24,12 +24,10 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.java.util.common.ISE;
-import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -44,7 +42,6 @@ import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.Interval;
 
 import javax.annotation.concurrent.GuardedBy;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,6 +64,7 @@ public class Sink implements Iterable<FireHydrant>
   private final CopyOnWriteArrayList<FireHydrant> hydrants = new CopyOnWriteArrayList<FireHydrant>();
   private final LinkedHashSet<String> dimOrder = Sets.newLinkedHashSet();
   private final AtomicInteger numRowsExcludingCurrIndex = new AtomicInteger();
+  private final DataSegment template;
 
   private final Map<String, Map<String, String>> columnDescs;
   private final ObjectMapper mapper;
@@ -121,6 +119,17 @@ public class Sink implements Iterable<FireHydrant>
     }
     this.hydrants.addAll(hydrants);
     this.mapper = objectMapper;
+    this.template = new DataSegment(
+        schema.getDataSource(),
+        interval,
+        version,
+        ImmutableMap.of(),
+        ImmutableList.of(),
+        ImmutableList.of(),
+        shardSpec,
+        null,
+        0
+    );
 
     makeNewCurrIndex(interval.getStartMillis());
   }
@@ -128,6 +137,11 @@ public class Sink implements Iterable<FireHydrant>
   public String getVersion()
   {
     return version;
+  }
+
+  public int getPartitionNum()
+  {
+    return shardSpec == null ? 0 : shardSpec.getPartitionNum();
   }
 
   public Interval getInterval()
@@ -218,17 +232,12 @@ public class Sink implements Iterable<FireHydrant>
 
   public DataSegment getSegment()
   {
-    return new DataSegment(
-        schema.getDataSource(),
-        interval,
-        version,
-        ImmutableMap.<String, Object>of(),
-        Lists.<String>newArrayList(),
-        GuavaUtils.transform(Arrays.asList(schema.getAggregators()), AggregatorFactory::getName),
-        shardSpec,
-        null,
-        0
-    );
+    return template;
+  }
+
+  public String getIdentifier()
+  {
+    return template.getIdentifier();
   }
 
   public int getNumRows()
@@ -297,7 +306,8 @@ public class Sink implements Iterable<FireHydrant>
         }
         numRowsExcludingCurrIndex.addAndGet(old.rowCountInMemory());
       }
-      currHydrant = new FireHydrant(newIndex, getSegment().getIdentifier(), newCount);
+      DataSegment segment = template.withDimensionsMetrics(newIndex.getDimensionNames(), newIndex.getMetricNames());
+      currHydrant = new FireHydrant(new IncrementalIndexSegment(newIndex, segment), newCount);
       hydrants.add(currHydrant);
     }
 

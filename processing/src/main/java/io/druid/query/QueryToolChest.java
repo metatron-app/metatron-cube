@@ -37,11 +37,10 @@ import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.Cursor;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import io.druid.timeline.LogicalSegment;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.Interval;
@@ -286,7 +285,6 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     throw new UnsupportedOperationException("asMap");
   }
 
-  @SuppressWarnings("unchecked")
   public <I> Query<I> prepareSubQuery(Query<ResultType> outerQuery, Query<I> innerQuery)
   {
     innerQuery = innerQuery.withOverriddenContext(BaseQuery.copyContextForMeta(outerQuery.getContext()));
@@ -325,8 +323,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
         return Sequences.empty();
       }
       String sources = StringUtils.join(query.getDataSource().getNames(), '_');
-      StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(sources, accumulated);
-      Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
+      String id = DataSegment.toSegmentId(sources, accumulated.getInterval(), "temporary", 0);
+      Segment segment = new IncrementalIndexSegment(accumulated, DataSegment.asKey(id));
 
       Sequence<Sequence<ResultType>> sequences = Sequences.map(
           Sequences.simple(query.getIntervals()),

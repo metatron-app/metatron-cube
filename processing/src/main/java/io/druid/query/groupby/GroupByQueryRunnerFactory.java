@@ -57,10 +57,10 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
-import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.Cuboids;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.Interval;
 
@@ -171,8 +171,7 @@ public class GroupByQueryRunnerFactory
 
       final Group group = new Group();
       for (Segment segment : segments) {
-        SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor());
-        Sequence<Row> sequence = QueryRunners.run(timeseries.withQuerySegmentSpec(segmentSpec), segmentWalker);
+        Sequence<Row> sequence = QueryRunners.run(Segments.prepare(timeseries, segment), segmentWalker);
         long cardinality = sequence.accumulate(new MutableLong(), new Accumulator<MutableLong, Row>()
         {
           @Override

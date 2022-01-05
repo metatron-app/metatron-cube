@@ -43,6 +43,7 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -130,7 +131,7 @@ public class DataSourceMetadataQueryTest
         (QueryRunnerFactory) new DataSourceMetadataQueryRunnerFactory(
             new DataSourceQueryQueryToolChest(DefaultGenericQueryMetricsFactory.instance()),
             TestHelper.NOOP_QUERYWATCHER
-        ), new IncrementalIndexSegment(rtIndex, "test")
+        ), new IncrementalIndexSegment(rtIndex, DataSegment.asKey("test"))
     );
     DataSourceMetadataQuery dataSourceMetadataQuery = Druids.newDataSourceMetadataQueryBuilder()
                                                             .dataSource("testing")

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
@@ -1876,20 +1875,8 @@ public class KafkaIndexTaskTest
   private Set<SegmentDescriptor> publishedDescriptors() throws IOException
   {
     return FluentIterable.from(
-        metadataStorageCoordinator.getUsedSegmentsForInterval(
-            DATA_SCHEMA.getDataSource(),
-            new Interval("0000/3000")
-        )
-    ).transform(
-        new Function<DataSegment, SegmentDescriptor>()
-        {
-          @Override
-          public SegmentDescriptor apply(DataSegment input)
-          {
-            return input.toDescriptor();
-          }
-        }
-    ).toSet();
+        metadataStorageCoordinator.getUsedSegmentsForInterval(DATA_SCHEMA.getDataSource(), new Interval("0000/3000"))
+    ).transform(DataSegment::toDescriptor).toSet();
   }
 
   private void unlockAppenderatorBasePersistDirForTask(KafkaIndexTask task)

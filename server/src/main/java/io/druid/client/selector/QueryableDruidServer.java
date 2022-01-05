@@ -25,9 +25,9 @@ import com.google.common.collect.Maps;
 import io.druid.client.DirectDruidClient;
 import io.druid.client.DruidServer;
 import io.druid.client.QueryableServer;
-import io.druid.client.ReferenceCountingSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.ReferenceCountingSegment.LocalSegment;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.NoneShardSpec;
@@ -44,7 +44,7 @@ public class QueryableDruidServer implements QueryableServer
 {
   private final DruidServer server;
   private final DirectDruidClient client;
-  private final Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> localTimelineView = Maps.newHashMap();
+  private final Map<String, VersionedIntervalTimeline<String, LocalSegment>> localTimelineView = Maps.newHashMap();
 
   public QueryableDruidServer(DruidServer server, DirectDruidClient client)
   {
@@ -70,7 +70,7 @@ public class QueryableDruidServer implements QueryableServer
 
   public Interval getLocalDataSourceCoverage(String dataSource)
   {
-    VersionedIntervalTimeline<String, ReferenceCountingSegment> segmentMap = localTimelineView.get(dataSource);
+    VersionedIntervalTimeline<String, LocalSegment> segmentMap = localTimelineView.get(dataSource);
     if (segmentMap != null) {
       return segmentMap.coverage();
     }
@@ -80,16 +80,15 @@ public class QueryableDruidServer implements QueryableServer
   public Map<String, Object> getLocalDataSourceMetaData(Iterable<String> dataSources, final String queryId)
   {
     for (String dataSource : dataSources) {
-      VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = localTimelineView.get(dataSource);
+      VersionedIntervalTimeline<String, LocalSegment> timeline = localTimelineView.get(dataSource);
       Map<String, Object> found = timeline.find(
-          new Function<Map.Entry<Interval, TreeMap<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>.TimelineEntry>>, Map<String, Object>>()
+          new Function<Map.Entry<Interval, TreeMap<String, VersionedIntervalTimeline<String, LocalSegment>.TimelineEntry>>, Map<String, Object>>()
           {
             @Override
-            public Map<String, Object> apply(Map.Entry<Interval, TreeMap<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>.TimelineEntry>> input)
+            public Map<String, Object> apply(Map.Entry<Interval, TreeMap<String, VersionedIntervalTimeline<String, LocalSegment>.TimelineEntry>> input)
             {
-              for (VersionedIntervalTimeline<String, ReferenceCountingSegment>.TimelineEntry entry : input.getValue()
-                                                                                                          .values()) {
-                for (PartitionChunk<ReferenceCountingSegment> chunk : entry.getPartitionHolder()) {
+              for (VersionedIntervalTimeline<String, LocalSegment>.TimelineEntry entry : input.getValue().values()) {
+                for (PartitionChunk<LocalSegment> chunk : entry.getPartitionHolder()) {
                   Map<String, Object> metaData = chunk.getObject().metaData();
                   if (metaData != null && queryId.equals(metaData.get("queryId"))) {
                     return metaData;
@@ -107,18 +106,16 @@ public class QueryableDruidServer implements QueryableServer
     return null;
   }
 
-  public Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> getLocalTimelineView()
+  public Map<String, VersionedIntervalTimeline<String, LocalSegment>> getLocalTimelineView()
   {
     return localTimelineView;
   }
 
   public boolean addLocalDataSource(String dataSource)
   {
-    VersionedIntervalTimeline<String, ReferenceCountingSegment> segmentMap = localTimelineView.get(dataSource);
+    VersionedIntervalTimeline<String, LocalSegment> segmentMap = localTimelineView.get(dataSource);
     if (segmentMap == null) {
-      localTimelineView.put(
-          dataSource, new VersionedIntervalTimeline<String, ReferenceCountingSegment>()
-      );
+      localTimelineView.put(dataSource, new VersionedIntervalTimeline<String, LocalSegment>());
       return true;
     }
     return false;
@@ -126,19 +123,10 @@ public class QueryableDruidServer implements QueryableServer
 
   public void addIndex(DataSegment segment, QueryableIndex index, Map<String, Object> metaData)
   {
-    String dataSource = segment.getDataSource();
-    VersionedIntervalTimeline<String, ReferenceCountingSegment> segmentMap = localTimelineView.get(dataSource);
-    if (segmentMap == null) {
-      localTimelineView.put(
-          dataSource,
-          segmentMap = new VersionedIntervalTimeline<String, ReferenceCountingSegment>()
-      );
-    }
-    ReferenceCountingSegment countingSegment = new ReferenceCountingSegment(
-        segment,
-        new QueryableIndexSegment(segment.getIdentifier(), index),
-        metaData
+    VersionedIntervalTimeline<String, LocalSegment> segmentMap = localTimelineView.computeIfAbsent(
+        segment.getDataSource(), ds -> new VersionedIntervalTimeline<String, LocalSegment>()
     );
+    LocalSegment countingSegment = new LocalSegment(new QueryableIndexSegment(index, segment), metaData);
     segmentMap.add(segment.getInterval(), segment.getVersion(), NoneShardSpec.instance().createChunk(countingSegment));
   }
 }

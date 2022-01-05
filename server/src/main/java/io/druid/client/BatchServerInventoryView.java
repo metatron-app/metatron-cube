@@ -134,9 +134,7 @@ public class BatchServerInventoryView extends AbstractCuratorServerInventoryView
     for (String segmentId : Iterables.filter(existing, segmentId -> !filtered.contains(DataSegment.asKey(segmentId)))) {
       removeSingleInventory(container, segmentId);
     }
-    zNodes.put(inventoryKey, Sets.newHashSet(
-        Iterables.transform(filtered, segment -> segment.getIdentifier())
-    ));
+    zNodes.put(inventoryKey, Sets.newHashSet(Iterables.transform(filtered, DataSegment::getIdentifier)));
 
     return container;
   }

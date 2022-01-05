@@ -19,10 +19,12 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Preconditions;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
+import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
 /**
@@ -30,18 +32,16 @@ import org.joda.time.Interval;
 public class IncrementalIndexSegment extends AbstractSegment
 {
   private final IncrementalIndex index;
-  private final String segmentIdentifier;
 
-  public IncrementalIndexSegment(IncrementalIndex index, String segmentIdentifier)
+  public IncrementalIndexSegment(IncrementalIndex index, DataSegment descriptor)
   {
-    this.index = index;
-    this.segmentIdentifier = segmentIdentifier;
+    super(descriptor);
+    this.index = Preconditions.checkNotNull(index);
   }
 
-  @Override
-  public String getIdentifier()
+  public IncrementalIndex getIndex()
   {
-    return segmentIdentifier;
+    return index;
   }
 
   @Override
@@ -60,7 +60,7 @@ public class IncrementalIndexSegment extends AbstractSegment
   public StorageAdapter asStorageAdapter(boolean forQuery)
   {
     accessed(forQuery);
-    return new IncrementalIndexStorageAdapter(index, segmentIdentifier);
+    return new IncrementalIndexStorageAdapter(index, descriptor);
   }
 
   @Override

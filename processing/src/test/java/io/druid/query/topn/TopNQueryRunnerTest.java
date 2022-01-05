@@ -2885,7 +2885,7 @@ public class TopNQueryRunnerTest extends QueryRunnerTestHelper
                         topNResult
                     )
                 ),
-                QueryRunnerTestHelper.segmentId,
+                QueryRunnerTestHelper.descriptor.getIdentifier(),
                 new Interval("1970-01-01T00:00:00.000Z/2020-01-01T00:00:00.000Z")
             )
         )

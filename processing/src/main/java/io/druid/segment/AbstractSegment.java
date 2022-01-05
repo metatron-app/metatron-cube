@@ -19,13 +19,26 @@
 
 package io.druid.segment;
 
-import io.druid.query.Query;
+import com.google.common.base.Preconditions;
+import io.druid.timeline.DataSegment;
 
 import java.io.IOException;
 
 public abstract class AbstractSegment implements Segment
 {
+  protected final DataSegment descriptor;
   protected volatile long lastAccessTime;
+
+  protected AbstractSegment(DataSegment descriptor)
+  {
+    this.descriptor = Preconditions.checkNotNull(descriptor, "descriptor");
+  }
+
+  @Override
+  public DataSegment getDescriptor()
+  {
+    return descriptor;
+  }
 
   protected void accessed(boolean forQuery)
   {
@@ -38,12 +51,6 @@ public abstract class AbstractSegment implements Segment
   public long getLastAccessTime()
   {
     return lastAccessTime;
-  }
-
-  @Override
-  public Segment cuboidFor(Query<?> query)
-  {
-    return null;
   }
 
   public void close() throws IOException {}

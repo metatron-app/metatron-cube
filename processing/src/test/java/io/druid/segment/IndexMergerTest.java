@@ -50,6 +50,7 @@ import io.druid.segment.incremental.IncrementalIndexAdapter;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -1840,9 +1841,8 @@ public class IndexMergerTest
         tmpDirMerged,
         indexSpec
     );
-    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(
-        closer.closeLater(INDEX_IO.loadIndex(merged)), "test-merged"
-    );
+    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(closer.closeLater(INDEX_IO.loadIndex(merged)), DataSegment.asKey(
+        "test-merged"));
     Assert.assertEquals(ImmutableSet.of("A", "C"), ImmutableSet.copyOf(adapter.getAvailableMetrics()));
 
   }
@@ -1912,9 +1912,8 @@ public class IndexMergerTest
         tmpDirMerged,
         indexSpec
     );
-    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(
-        closer.closeLater(INDEX_IO.loadIndex(merged)), "test-merged"
-    );
+    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(closer.closeLater(INDEX_IO.loadIndex(merged)), DataSegment.asKey(
+        "test-merged"));
     Assert.assertEquals(ImmutableSet.of("A", "C"), ImmutableSet.copyOf(adapter.getAvailableMetrics()));
 
   }
@@ -1978,9 +1977,8 @@ public class IndexMergerTest
     );
 
     // Since D was not present in any of the indices, it is not present in the output
-    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(
-        closer.closeLater(INDEX_IO.loadIndex(merged)), "test-merged"
-    );
+    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(closer.closeLater(INDEX_IO.loadIndex(merged)), DataSegment.asKey(
+        "test-merged"));
     Assert.assertEquals(ImmutableSet.of("A", "B", "C"), ImmutableSet.copyOf(adapter.getAvailableMetrics()));
 
   }
@@ -2021,9 +2019,8 @@ public class IndexMergerTest
         tmpDirMerged,
         indexSpec
     );
-    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(
-        closer.closeLater(INDEX_IO.loadIndex(merged)), "test-merged"
-    );
+    final QueryableIndexStorageAdapter adapter = new QueryableIndexStorageAdapter(closer.closeLater(INDEX_IO.loadIndex(merged)), DataSegment.asKey(
+        "test-merged"));
     Assert.assertEquals(ImmutableSet.of("A", "B", "C"), ImmutableSet.copyOf(adapter.getAvailableMetrics()));
   }
 

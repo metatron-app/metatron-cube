@@ -97,7 +97,7 @@ public class AppenderatorDriver implements Closeable
 
   static class SegmentWithState
   {
-    private SegmentIdentifier segmentIdentifier;
+    private final SegmentIdentifier segmentIdentifier;
     private SegmentState state;
 
     @JsonCreator

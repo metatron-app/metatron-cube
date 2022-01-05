@@ -85,6 +85,7 @@ import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import io.druid.segment.serde.StringMetricSerde;
+import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.util.fst.FST;
 import org.joda.time.Interval;
@@ -243,7 +244,7 @@ public class IndexMergerV9 extends IndexMerger
         SimpleQueryableIndex index = new SimpleQueryableIndex(
             dataInterval, columnNames, dimNames, bitmapFactory, columns, null, smooshedFiles, segmentMetadata
         );
-        QueryableIndexSegment segment = new QueryableIndexSegment(dataInterval.toString(), index);
+        QueryableIndexSegment segment = new QueryableIndexSegment(index, DataSegment.asKey(dataInterval.toString()));
 
         StupidPool<ByteBuffer> heapPool = StupidPool.heap(Cuboids.BUFFER_SIZE, Cuboids.PAGES);
         GroupByQueryEngine engine = new GroupByQueryEngine(heapPool);

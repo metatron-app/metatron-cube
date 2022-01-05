@@ -38,6 +38,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,7 +67,7 @@ public class IngestSegmentFirehoseTest
     QueryableIndex qi = null;
     try {
       qi = indexIO.loadIndex(segmentDir);
-      StorageAdapter sa = new QueryableIndexStorageAdapter(qi, "test-segment");
+      StorageAdapter sa = new QueryableIndexStorageAdapter(qi, DataSegment.asKey("test-segment"));
       WindowedStorageAdapter wsa = new WindowedStorageAdapter(sa, sa.getInterval());
       IngestSegmentFirehose firehose = new IngestSegmentFirehose(
           ImmutableList.of(wsa, wsa),

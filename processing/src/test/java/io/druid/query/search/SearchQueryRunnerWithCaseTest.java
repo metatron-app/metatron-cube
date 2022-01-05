@@ -37,6 +37,7 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -90,10 +91,10 @@ public class SearchQueryRunnerWithCaseTest
 
     return transformToConstructionFeeder(
         Arrays.asList(
-            makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1")),
-            makeQueryRunner(factory, "index2", new IncrementalIndexSegment(index2, "index2")),
-            makeQueryRunner(factory, "index3", new QueryableIndexSegment("index3", index3)),
-            makeQueryRunner(factory, "index4", new QueryableIndexSegment("index4", index4))
+            makeQueryRunner(factory, new IncrementalIndexSegment(index1, DataSegment.asKey("index1"))),
+            makeQueryRunner(factory, new IncrementalIndexSegment(index2, DataSegment.asKey("index2"))),
+            makeQueryRunner(factory, new QueryableIndexSegment(index3, DataSegment.asKey("index3"))),
+            makeQueryRunner(factory, new QueryableIndexSegment(index4, DataSegment.asKey("index4")))
         )
     );
   }

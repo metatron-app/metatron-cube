@@ -80,11 +80,11 @@ import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
-import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestLoadSpec;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -223,10 +223,9 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                 DataSegment segmentSpec = new DataSegment(
                     ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
                 );
-                String identifier = segmentSpec.getIdentifier();
                 Segment segment = mmapped ? new QueryableIndexSegment(
-                    identifier, TestHelper.persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec())) :
-                                  new IncrementalIndexSegment(entry.getValue(), identifier);
+                    TestHelper.persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec()), segmentSpec) :
+                                  new IncrementalIndexSegment(entry.getValue(), segmentSpec);
                 segments.add(Pair.of(segmentSpec, segment));
               }
             }
@@ -464,13 +463,13 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
 
   public TestQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)
   {
-    timeLines.addSegment(descriptor, new IncrementalIndexSegment(index, descriptor.getIdentifier()));
+    timeLines.addSegment(descriptor, new IncrementalIndexSegment(index, descriptor));
     return this;
   }
 
   public TestQuerySegmentWalker add(DataSegment descriptor, QueryableIndex index)
   {
-    timeLines.addSegment(descriptor, new QueryableIndexSegment(descriptor.getIdentifier(), index));
+    timeLines.addSegment(descriptor, new QueryableIndexSegment(index, descriptor));
     return this;
   }
 
@@ -697,7 +696,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     List<QueryRunner<T>> missingSegments = Lists.newArrayList();
     for (Pair<SegmentDescriptor, Segment> segment : segments) {
       if (segment.rhs != null) {
-        targets.add(new Segment.WithDescriptor(segment.rhs, segment.lhs));
+        targets.add(Segments.withLimt(segment.rhs, segment.lhs));
       } else {
         missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
       }
@@ -734,7 +733,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                     segment.getInterval().getStart(),
                     factory.createRunner(segment, optimizer)
                 ),
-                new SpecificSegmentSpec(((Segment.WithDescriptor) segment).getDescriptor())
+                segment.asSpec()
             );
           }
         });

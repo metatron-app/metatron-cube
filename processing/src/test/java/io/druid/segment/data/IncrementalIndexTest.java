@@ -57,6 +57,7 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -316,7 +317,7 @@ public class IncrementalIndexTest
                                   .aggregators(queryAggregatorFactories)
                                   .build();
 
-    final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);
+    final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, DataSegment.asKey("test"));
     final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,
@@ -420,7 +421,7 @@ public class IncrementalIndexTest
     final Interval queryInterval = new Interval("1900-01-01T00:00:00Z/2900-01-01T00:00:00Z");
     final List<ListenableFuture<?>> indexFutures = Lists.newArrayListWithExpectedSize(concurrentThreads);
     final List<ListenableFuture<?>> queryFutures = Lists.newArrayListWithExpectedSize(concurrentThreads);
-    final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, null);
+    final Segment incrementalIndexSegment = new IncrementalIndexSegment(index, DataSegment.asKey("test"));
     final TimeseriesQueryQueryToolChest toolChest = new TimeseriesQueryQueryToolChest();
     final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
         toolChest,

@@ -42,6 +42,7 @@ import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -126,7 +127,7 @@ public class TopNQueryQueryToolChestTest
     );
     QueryRunner<Result<TopNResultValue>> runner = QueryRunnerTestHelper.makeQueryRunner(
         factory,
-        new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(), segmentId)
+        new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(), DataSegment.asKey(segmentId))
     );
 
     Map<String, Object> context = Maps.newHashMap();

@@ -37,6 +37,7 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.timeline.DataSegment;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -100,21 +101,21 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
         TestCases.rtIndex,
         QueryRunnerTestHelper.makeQueryRunner(
             factory,
-            new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(), segmentId)
+            new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(), DataSegment.asKey(segmentId))
         )
     );
     testCaseMap.put(
         TestCases.mMappedTestIndex,
         QueryRunnerTestHelper.makeQueryRunner(
             factory,
-            new QueryableIndexSegment(segmentId, TestIndex.getMMappedTestIndex())
+            new QueryableIndexSegment(TestIndex.getMMappedTestIndex(), DataSegment.asKey(segmentId))
         )
     );
     testCaseMap.put(
         TestCases.mergedRealtimeIndex,
         QueryRunnerTestHelper.makeQueryRunner(
             factory,
-            new QueryableIndexSegment(segmentId, TestIndex.mergedRealtimeIndex())
+            new QueryableIndexSegment(TestIndex.mergedRealtimeIndex(), DataSegment.asKey(segmentId))
         )
     );
     //Thread.sleep(10000);

@@ -70,6 +70,7 @@ import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.server.ForwardHandler;
@@ -432,7 +433,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
     for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
       Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
       if (target != null) {
-        targets.add(new Segment.WithDescriptor(segment.rhs, segment.lhs));
+        targets.add(Segments.withLimt(segment.rhs, segment.lhs));
       } else {
         missingSegments.add(new ReportTimelineMissingSegmentQueryRunner<T>(segment.lhs));
       }
@@ -522,9 +523,7 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
       public QueryRunner<T> apply(final Segment segment)
       {
         final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-        final Segment adapter = ((Segment.WithDescriptor) segment).getSegment();
-        final SegmentDescriptor descriptor = ((Segment.WithDescriptor) segment).getDescriptor();
-        final SpecificSegmentSpec segmentSpec = new SpecificSegmentSpec(descriptor);
+        final SpecificSegmentSpec segmentSpec = segment.asSpec();
         return reporter.accumulate(
             new SpecificSegmentQueryRunner<T>(
                 new MetricsEmittingQueryRunner<T>(
@@ -532,11 +531,11 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
                     toolChest,
                     new BySegmentQueryRunner<T>(
                         toolChest,
-                        adapter.getIdentifier(),
-                        adapter.getInterval().getStart(),
+                        segment.getIdentifier(),
+                        segment.getInterval().getStart(),
                         new CachingQueryRunner<T>(
-                            adapter.getIdentifier(),
-                            descriptor,
+                            segment.getIdentifier(),
+                            segmentSpec.getDescriptor(),
                             objectMapper,
                             cache,
                             toolChest,
@@ -545,19 +544,19 @@ public class ServerManager implements ForwardingSegmentWalker, QuerySegmentWalke
                                 toolChest,
                                 new ReferenceCountingSegmentQueryRunner<T>(
                                     factory,
-                                    (ReferenceCountingSegment) adapter,
-                                    descriptor,
+                                    Segments.unwrap(segment, ReferenceCountingSegment.class),
+                                    segmentSpec.getDescriptor(),
                                     optimizer
                                 ),
                                 QueryMetrics::reportSegmentTime,
-                                queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
+                                queryMetrics -> queryMetrics.segment(segment.getIdentifier())
                             ),
                             cachingExec,
                             cacheConfig
                         )
                     ),
                     QueryMetrics::reportSegmentAndCacheTime,
-                    queryMetrics -> queryMetrics.segment(adapter.getIdentifier())
+                    queryMetrics -> queryMetrics.segment(segment.getIdentifier())
                 ).withWaitMeasuredFromNow(),
                 segmentSpec
             )

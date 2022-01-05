@@ -110,7 +110,7 @@ public class YeOldePlumberSchool implements PlumberSchool
     );
 
     // Temporary directory to hold spilled segments.
-    final File persistDir = new File(tmpSegmentDir, theSink.getSegment().getIdentifier());
+    final File persistDir = new File(tmpSegmentDir, theSink.getIdentifier());
 
     // Set of spilled segments. Will be merged at the end.
     final Set<File> spilled = Sets.newHashSet();
@@ -185,12 +185,14 @@ public class YeOldePlumberSchool implements PlumberSchool
               indexes.add(indexIO.loadIndex(oneSpill));
             }
 
-            fileToUpload = new File(tmpSegmentDir, "merged");
-            theIndexMerger.mergeQueryableIndex(indexes, schema.getGranularitySpec().isRollup(), schema.getAggregators(), fileToUpload, config.getIndexSpec());
+            fileToUpload = theIndexMerger.mergeQueryableIndex(
+                indexes,
+                schema.getGranularitySpec().isRollup(),
+                schema.getAggregators(),
+                new File(tmpSegmentDir, "merged"),
+                config.getIndexSpec()
+            );
           }
-
-          // Map merged segment so we can extract dimensions
-          final QueryableIndex mappedSegment = indexIO.loadIndex(fileToUpload);
 
           final DataSegment template = indexIO.decorateMeta(theSink.getSegment(), fileToUpload);
           final DataSegment segment = dataSegmentPusher.push(fileToUpload, template);

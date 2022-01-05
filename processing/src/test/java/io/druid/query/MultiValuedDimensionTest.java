@@ -59,6 +59,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.junit.AfterClass;
@@ -152,8 +153,8 @@ public class MultiValuedDimensionTest
 
     Sequence<Row> result = helper.runQueryOnSegmentsObjs(
         ImmutableList.<Segment>of(
-            new QueryableIndexSegment("sid1", queryableIndex),
-            new IncrementalIndexSegment(incrementalIndex, "sid2")
+            new QueryableIndexSegment(queryableIndex, DataSegment.asKey("sid1")),
+            new IncrementalIndexSegment(incrementalIndex, DataSegment.asKey("sid2"))
         ),
         query
     );
@@ -172,8 +173,8 @@ public class MultiValuedDimensionTest
 
     result = helper.runQueryOnSegmentsObjs(
         ImmutableList.<Segment>of(
-            new QueryableIndexSegment("sid1", queryableIndex),
-            new IncrementalIndexSegment(incrementalIndex, "sid2")
+            new QueryableIndexSegment(queryableIndex, DataSegment.asKey("sid1")),
+            new IncrementalIndexSegment(incrementalIndex, DataSegment.asKey("sid2"))
         ),
         query
     );
@@ -203,8 +204,8 @@ public class MultiValuedDimensionTest
 
     Sequence<Row> result = helper.runQueryOnSegmentsObjs(
         ImmutableList.<Segment>of(
-            new QueryableIndexSegment("sid1", queryableIndex),
-            new IncrementalIndexSegment(incrementalIndex, "sid2")
+            new QueryableIndexSegment(queryableIndex, DataSegment.asKey("sid1")),
+            new IncrementalIndexSegment(incrementalIndex, DataSegment.asKey("sid2"))
         ),
         query
     );
@@ -251,8 +252,8 @@ public class MultiValuedDimensionTest
 
     Sequence<Row> result = helper.runQueryOnSegmentsObjs(
         ImmutableList.<Segment>of(
-            new QueryableIndexSegment("sid1", queryableIndex),
-            new IncrementalIndexSegment(incrementalIndex, "sid2")
+            new QueryableIndexSegment(queryableIndex, DataSegment.asKey("sid1")),
+            new IncrementalIndexSegment(incrementalIndex, DataSegment.asKey("sid2"))
         ),
         query
     );
@@ -297,7 +298,7 @@ public class MultiValuedDimensionTest
     );
     QueryRunner<Result<TopNResultValue>> runner = QueryRunnerTestHelper.makeQueryRunner(
         factory,
-        new QueryableIndexSegment("sid1", queryableIndex)
+        new QueryableIndexSegment(queryableIndex, DataSegment.asKey("sid1"))
     );
     Map<String, Object> context = Maps.newHashMap();
     Sequence<Result<TopNResultValue>> result = runner.run(query, context);

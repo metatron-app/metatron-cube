@@ -42,22 +42,14 @@ public class FireHydrant
   private long persistingTime;
   private final Object swapLock = new Object();
 
-  public FireHydrant(
-      IncrementalIndex index,
-      String segmentIdentifier,
-      int count
-  )
+  public FireHydrant(IncrementalIndexSegment index, int count)
   {
-    this.index = index;
-    this.adapter = new ReferenceCountingSegment(new IncrementalIndexSegment(index, segmentIdentifier));
+    this.index = index.getIndex();
+    this.adapter = new ReferenceCountingSegment(index);
     this.count = count;
   }
 
-  public FireHydrant(
-      QueryableIndexSegment adapter,
-      File persistedPath,
-      int count
-  )
+  public FireHydrant(QueryableIndexSegment adapter, File persistedPath, int count)
   {
     this.index = null;
     this.adapter = new ReferenceCountingSegment(adapter);
@@ -129,7 +121,7 @@ public class FireHydrant
 
   public void persisted(QueryableIndex index, File persistedPath, long persistingTime)
   {
-    final QueryableIndexSegment swapping = new QueryableIndexSegment(adapter.getIdentifier(), index);
+    final QueryableIndexSegment swapping = new QueryableIndexSegment(index, adapter.getDescriptor());
     synchronized (swapLock) {
       try {
         adapter.close();

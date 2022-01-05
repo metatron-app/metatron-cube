@@ -25,14 +25,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
-import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.logger.Logger;
 import io.druid.common.guava.Files;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.JobHelper;
+import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexStorageAdapter;
 import io.druid.segment.realtime.firehose.IngestSegmentFirehose;
@@ -95,7 +95,7 @@ public class DatasourceRecordReader extends RecordReader<NullWritable, InputRow>
               numRows += index.getNumRows();
 
               return new WindowedStorageAdapter(
-                  new QueryableIndexStorageAdapter(index, segment.getSegment().getIdentifier()),
+                  new QueryableIndexStorageAdapter(index, segment.getSegment()),
                   segment.getInterval()
               );
             }

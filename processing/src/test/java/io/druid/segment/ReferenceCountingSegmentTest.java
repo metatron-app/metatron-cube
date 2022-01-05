@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.google.common.base.Throwables;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.Interval;
@@ -45,14 +46,8 @@ public class ReferenceCountingSegmentTest
   public void setUp() throws Exception
   {
     segment = new ReferenceCountingSegment(
-        new AbstractSegment()
+        new AbstractSegment(DataSegment.asKey("test_segment"))
         {
-          @Override
-          public String getIdentifier()
-          {
-            return "test_segment";
-          }
-
           @Override
           public Interval getInterval()
           {

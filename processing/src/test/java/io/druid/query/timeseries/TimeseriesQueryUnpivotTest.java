@@ -46,6 +46,7 @@ import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -115,8 +116,8 @@ public class TimeseriesQueryUnpivotTest
 
     return transformToConstructionFeeder(
         Arrays.asList(
-            makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1")),
-            makeQueryRunner(factory, "index2", new QueryableIndexSegment("index2", index2))
+            makeQueryRunner(factory, new IncrementalIndexSegment(index1, DataSegment.asKey("index1"))),
+            makeQueryRunner(factory, new QueryableIndexSegment(index2, DataSegment.asKey("index2")))
         )
     );
   }

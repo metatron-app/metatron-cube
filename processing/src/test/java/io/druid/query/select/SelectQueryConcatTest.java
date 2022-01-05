@@ -31,6 +31,7 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -50,7 +51,8 @@ public class SelectQueryConcatTest
 
   private final IncrementalIndex index = TestIndex.makeRealtimeIndex(input, true);
 
-  private final QueryRunner queryRunner = QueryRunnerTestHelper.makeQueryRunner(factory, "index", new IncrementalIndexSegment(index, "index"));
+  private final QueryRunner queryRunner = QueryRunnerTestHelper.makeQueryRunner(factory, new IncrementalIndexSegment(
+      index, DataSegment.asKey("index")));
 
   private Druids.SelectQueryBuilder testBuilder()
   {

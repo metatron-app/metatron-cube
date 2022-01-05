@@ -268,7 +268,6 @@ public class JoinQuery extends BaseQuery<Object[]> implements Query.RewritingQue
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public JoinQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new JoinQuery(

@@ -49,6 +49,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -159,9 +160,10 @@ public class InitializationTest
     c_jar.createNewFile();
     final ClassLoader loader = Initialization.getClassLoaderForExtension(null, some_extension_dir);
     final URL[] expectedURLs = new URL[]{
-        a_jar.toURI().toURL(), b_jar.toURI().toURL(), c_jar.toURI().toURL(), some_extension_dir.toURI().toURL()
+        some_extension_dir.toURI().toURL(), a_jar.toURI().toURL(), b_jar.toURI().toURL(), c_jar.toURI().toURL()
     };
     final URL[] actualURLs = ((URLClassLoader) loader).getURLs();
+    Arrays.sort(actualURLs, Comparator.comparing(URL::getPath));
     Assert.assertArrayEquals(expectedURLs, actualURLs);
   }
 

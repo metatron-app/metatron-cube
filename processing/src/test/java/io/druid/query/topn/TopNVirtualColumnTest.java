@@ -41,6 +41,7 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,10 +85,14 @@ public class TopNVirtualColumnTest
     QueryableIndex index2 = TestHelper.persistRealtimeAndLoadMMapped(index1);
 
     final List<QueryRunner<Result<TopNResultValue>>> runners = Arrays.asList(
-        QueryRunnerTestHelper.makeQueryRunner(factory1, "index1", new IncrementalIndexSegment(index1, "index1")),
-        QueryRunnerTestHelper.makeQueryRunner(factory1, "index2", new QueryableIndexSegment("index2", index2)),
-        QueryRunnerTestHelper.makeQueryRunner(factory2, "index1", new IncrementalIndexSegment(index1, "index1")),
-        QueryRunnerTestHelper.makeQueryRunner(factory2, "index2", new QueryableIndexSegment("index2", index2))
+        QueryRunnerTestHelper.makeQueryRunner(factory1, new IncrementalIndexSegment(index1, DataSegment.asKey(
+            "index1"))),
+        QueryRunnerTestHelper.makeQueryRunner(factory1, new QueryableIndexSegment(index2, DataSegment.asKey(
+            "index2"))),
+        QueryRunnerTestHelper.makeQueryRunner(factory2, new IncrementalIndexSegment(index1, DataSegment.asKey(
+            "index1"))),
+        QueryRunnerTestHelper.makeQueryRunner(factory2, new QueryableIndexSegment(index2, DataSegment.asKey(
+            "index2")))
     );
 
     return transformToConstructionFeeder(runners);

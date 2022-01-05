@@ -23,27 +23,22 @@ import com.google.common.base.Preconditions;
 import io.druid.query.Query;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
+import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
 import java.io.IOException;
 
 /**
-*/
+ *
+ */
 public class QueryableIndexSegment extends AbstractSegment
 {
   private final QueryableIndex index;
-  private final String identifier;
 
-  public QueryableIndexSegment(final String segmentIdentifier, QueryableIndex index)
+  public QueryableIndexSegment(QueryableIndex index, DataSegment descriptor)
   {
+    super(descriptor);
     this.index = Preconditions.checkNotNull(index);
-    this.identifier = Preconditions.checkNotNull(segmentIdentifier);
-  }
-
-  @Override
-  public String getIdentifier()
-  {
-    return identifier;
   }
 
   @Override
@@ -63,7 +58,7 @@ public class QueryableIndexSegment extends AbstractSegment
   public StorageAdapter asStorageAdapter(boolean forQuery)
   {
     accessed(forQuery);
-    return new QueryableIndexStorageAdapter(index, identifier);
+    return new QueryableIndexStorageAdapter(index, descriptor);
   }
 
   @Override
@@ -71,7 +66,7 @@ public class QueryableIndexSegment extends AbstractSegment
   {
     final QueryableIndex cuboid = index.cuboidFor(query);
     if (cuboid != null) {
-      return new QueryableIndexSegment(identifier, cuboid);
+      return new QueryableIndexSegment(cuboid, descriptor);
     }
     return null;
   }

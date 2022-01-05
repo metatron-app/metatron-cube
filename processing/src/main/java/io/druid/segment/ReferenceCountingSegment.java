@@ -20,13 +20,16 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.Query;
 import io.druid.query.Schema;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReferenceCountingSegment extends Segment.Delegated
@@ -157,5 +160,22 @@ public class ReferenceCountingSegment extends Segment.Delegated
            "baseSegment=" + segment +
            ", numReferences=" + numReferences +
            '}';
+  }
+
+  public static class LocalSegment extends ReferenceCountingSegment
+  {
+    private final Map<String, Object> metaData;
+
+    public LocalSegment(Segment baseSegment, Map<String, Object> metaData)
+    {
+      super(baseSegment);
+      this.metaData = Maps.newLinkedHashMap(metaData);
+      this.metaData.put("registered", new DateTime().toString());
+    }
+
+    public Map<String, Object> metaData()
+    {
+      return metaData;
+    }
   }
 }

@@ -40,6 +40,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -120,7 +121,7 @@ public class TimeseriesQueryRunnerBonusTest
 
     final QueryRunner<Row> runner = makeQueryRunner(
         factory,
-        new IncrementalIndexSegment(index, null)
+        new IncrementalIndexSegment(index, DataSegment.asKey("test"))
     );
 
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()

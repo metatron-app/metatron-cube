@@ -37,6 +37,7 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
@@ -91,7 +92,7 @@ public class DistinctCountTimeseriesQueryTest
                                   .build();
 
     final Iterable<Row> results = Sequences.toList(
-        engine.process(query, new IncrementalIndexSegment(index, null), false),
+        engine.process(query, new IncrementalIndexSegment(index, DataSegment.asKey("test")), false),
         Lists.<Row>newLinkedList()
     );
 

@@ -33,15 +33,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
+import io.druid.indexer.TaskStatus;
+import io.druid.indexing.common.TaskLock;
+import io.druid.indexing.common.TaskToolbox;
+import io.druid.indexing.common.actions.SegmentListUsedAction;
+import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
-import io.druid.indexing.common.TaskLock;
-import io.druid.indexer.TaskStatus;
-import io.druid.indexing.common.TaskToolbox;
-import io.druid.indexing.common.actions.SegmentListUsedAction;
-import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.segment.IndexIO;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
@@ -73,7 +73,7 @@ public abstract class MergeTaskBase extends AbstractFixedIntervalTask
     super(
         // _not_ the version, just something uniqueish
         id != null ? id : String.format(
-            "merge_%s_%s", computeProcessingID(dataSource, segments), new DateTime().toString()
+            "merge_%s_%s", computeProcessingID(dataSource, segments), new DateTime()
         ),
         dataSource,
         computeMergedInterval(segments),
@@ -135,14 +135,7 @@ public abstract class MergeTaskBase extends AbstractFixedIntervalTask
           getId(),
           Lists.transform(
               segments,
-              new Function<DataSegment, String>()
-              {
-                @Override
-                public String apply(DataSegment input)
-                {
-                  return input.getIdentifier();
-                }
-              }
+              DataSegment::getIdentifier
           )
       );
 

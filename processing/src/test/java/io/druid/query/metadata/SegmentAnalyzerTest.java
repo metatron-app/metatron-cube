@@ -33,6 +33,7 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.timeline.DataSegment;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -58,14 +59,14 @@ public class SegmentAnalyzerTest
   private void testIncrementalWorksHelper(EnumSet<SegmentMetadataQuery.AnalysisType> analyses) throws Exception
   {
     final List<SegmentAnalysis> results = getSegmentAnalysises(
-        new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(), null),
+        new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(), DataSegment.asKey("test")),
         analyses
     );
 
     Assert.assertEquals(1, results.size());
 
     final SegmentAnalysis analysis = results.get(0);
-    Assert.assertEquals(null, analysis.getId());
+    Assert.assertEquals("test", analysis.getId());
 
     final Map<String, ColumnAnalysis> columns = analysis.getColumns();
 
@@ -113,7 +114,7 @@ public class SegmentAnalyzerTest
   private void testMappedWorksHelper(EnumSet<SegmentMetadataQuery.AnalysisType> analyses) throws Exception
   {
     final List<SegmentAnalysis> results = getSegmentAnalysises(
-        new QueryableIndexSegment("test_1", TestIndex.getMMappedTestIndex()),
+        new QueryableIndexSegment(TestIndex.getMMappedTestIndex(), DataSegment.asKey("test_1")),
         analyses
     );
 

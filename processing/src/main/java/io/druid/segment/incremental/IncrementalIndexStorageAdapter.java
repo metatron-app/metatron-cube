@@ -74,26 +74,18 @@ import java.util.Map;
 public class IncrementalIndexStorageAdapter implements StorageAdapter
 {
   private final IncrementalIndex index;
-  private final String segmentIdentifier;
+  private final DataSegment segment;
 
-  public IncrementalIndexStorageAdapter(IncrementalIndex index, String segmentIdentifier)
+  public IncrementalIndexStorageAdapter(IncrementalIndex index, DataSegment segment)
   {
-    this.index = index;
-    this.segmentIdentifier = segmentIdentifier;
-  }
-
-  public IncrementalIndexStorageAdapter(IncrementalIndex index)
-  {
-    this(index, null);
+    this.index = Preconditions.checkNotNull(index, "index");
+    this.segment = Preconditions.checkNotNull(segment, "segment");
   }
 
   @Override
   public String getSegmentIdentifier()
   {
-    if (segmentIdentifier == null) {
-      throw new UnsupportedOperationException();
-    }
-    return segmentIdentifier;
+    return segment.getIdentifier();
   }
 
   @Override
@@ -700,30 +692,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     public Object[] getValue()
     {
       return currEntry.getValue();
-    }
-  }
-
-  public static class Temporary extends IncrementalIndexStorageAdapter
-  {
-    private final String dataSource;
-
-    public Temporary(String dataSource, IncrementalIndex index)
-    {
-      super(index);
-      this.dataSource = Preconditions.checkNotNull(dataSource);
-    }
-
-    @Override
-    public String getSegmentIdentifier()
-    {
-      final Interval bucket = getInterval();
-      // return dummy segment id to avoid exceptions in select engine
-      return DataSegment.toSegmentId(
-          dataSource,
-          bucket,
-          "temporary",
-          0
-      );
     }
   }
 }

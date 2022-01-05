@@ -24,7 +24,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -282,22 +281,10 @@ public class AppenderatorPlumber implements Plumber
   {
     segments.put(identifier.getInterval().getStartMillis(), identifier);
     try {
-      segmentAnnouncer.announceSegment(
-          new DataSegment(
-              identifier.getDataSource(),
-              identifier.getInterval(),
-              identifier.getVersion(),
-              ImmutableMap.<String, Object>of(),
-              ImmutableList.<String>of(),
-              ImmutableList.<String>of(),
-              identifier.getShardSpec(),
-              null,
-              0
-          )
-      );
+      segmentAnnouncer.announceSegment(identifier.toDataSegment());
     }
     catch (IOException e) {
-      log.makeAlert(e, "Failed to announce new segment[%s]", identifier.getDataSource())
+      log.makeAlert(e, "Failed to announce new segment[%s]", identifier)
          .addData("interval", identifier.getInterval())
          .emit();
     }
@@ -333,14 +320,15 @@ public class AppenderatorPlumber implements Plumber
     final Granularity segmentGranularity = schema.getGranularitySpec().getSegmentGranularity();
     final Period windowPeriod = config.getWindowPeriod();
 
-    final DateTime truncatedNow = segmentGranularity.bucketStart(new DateTime());
+    final DateTime current = new DateTime();
+    final DateTime truncatedNow = segmentGranularity.bucketStart(current);
     final long windowMillis = windowPeriod.toStandardDuration().getMillis();
 
     log.info(
         "Expect to run at [%s]",
-        new DateTime().plus(
+        current.plus(
             new Duration(
-                System.currentTimeMillis(),
+                current.getMillis(),
                 segmentGranularity.increment(truncatedNow).getMillis() + windowMillis
             )
         )

@@ -71,6 +71,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.timeline.DataSegment;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 import org.junit.rules.TemporaryFolder;
@@ -370,7 +371,7 @@ public class AggregationTestHelper
           public Segment apply(File segmentDir)
           {
             try {
-              return new QueryableIndexSegment("", indexIO.loadIndex(segmentDir));
+              return new QueryableIndexSegment(indexIO.loadIndex(segmentDir), DataSegment.asKey(""));
             }
             catch (IOException ex) {
               throw Throwables.propagate(ex);

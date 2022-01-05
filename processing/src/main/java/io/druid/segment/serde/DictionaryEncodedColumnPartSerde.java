@@ -387,7 +387,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
               size += dictionary.getSerializedSize();
 
-              if (Feature.MULTI_VALUE.isSet(flags)) {
+              if (version == VERSION.LEGACY_MULTI_VALUE || Feature.MULTI_VALUE.isSet(flags)) {
                 size += multiValuedColumn.getSerializedSize();
               } else {
                 size += singleValuedColumn.getSerializedSize();
@@ -412,7 +412,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                 dictionary.writeToChannel(channel);
               }
 
-              if (Feature.MULTI_VALUE.isSet(flags)) {
+              if (version == VERSION.LEGACY_MULTI_VALUE || Feature.MULTI_VALUE.isSet(flags)) {
                 if (multiValuedColumn != null) {
                   multiValuedColumn.writeToChannel(channel);
                 }

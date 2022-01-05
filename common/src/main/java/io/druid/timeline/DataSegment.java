@@ -334,60 +334,92 @@ public class DataSegment implements Comparable<DataSegment>
     return identifier;
   }
 
+  @JsonIgnore
+  public int getPartitionNumber()
+  {
+    return shardSpec == null ? 0 : shardSpec.getPartitionNum();
+  }
+
+  @JsonIgnore
   public SegmentDescriptor toDescriptor()
   {
-    return new SegmentDescriptor(dataSource, interval, version, shardSpec == null ? 0 : shardSpec.getPartitionNum());
+    return new SegmentDescriptor(dataSource, interval, version, getPartitionNumber());
   }
 
   public DataSegment withDataSource(String dataSource)
   {
-    return builder(this).dataSource(dataSource).build();
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
   }
 
   public DataSegment withInterval(Interval interval)
   {
-    return builder(this).interval(interval).build();
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
+  }
+
+  public DataSegment withVersion(String version)
+  {
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
   }
 
   public DataSegment withLoadSpec(Map<String, Object> loadSpec)
   {
-    return builder(this).loadSpec(loadSpec).build();
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
   }
 
   public DataSegment withDimensions(List<String> dimensions)
   {
-    return builder(this).dimensions(dimensions).build();
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
   }
 
   public DataSegment withMetrics(List<String> metrics)
   {
-    return builder(this).metrics(metrics).build();
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
+  }
+
+  public DataSegment withDimensionsMetrics(List<String> dimensions, List<String> metrics)
+  {
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
+  }
+
+  public DataSegment withShardSpec(ShardSpec shardSpec)
+  {
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
+  }
+
+  public DataSegment withBinaryVersion(int binaryVersion)
+  {
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
   }
 
   public DataSegment withSize(long size)
   {
-    return builder(this).size(size).build();
+    return new DataSegment(
+        dataSource, interval, version, loadSpec, dimensions, metrics, shardSpec, binaryVersion, size, numRows
+    );
   }
 
   public DataSegment withNumRows(int numRows)
   {
     this.numRows = numRows;
     return this;
-  }
-
-  public DataSegment withVersion(String version)
-  {
-    return builder(this).version(version).build();
-  }
-
-  public DataSegment withBinaryVersion(int binaryVersion)
-  {
-    return builder(this).binaryVersion(binaryVersion).build();
-  }
-
-  public DataSegment withShardSpec(ShardSpec shardSpec)
-  {
-    return builder(this).shardSpec(shardSpec).build();
   }
 
   public DataSegment withMinimum()

@@ -27,12 +27,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
-import io.druid.java.util.common.FileUtils;
 import io.druid.client.DruidDataSource;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.HadoopDruidDetermineConfigurationJob;
 import io.druid.indexer.HadoopDruidIndexerConfig;
@@ -43,6 +42,7 @@ import io.druid.indexer.HadoopTuningConfig;
 import io.druid.indexer.JobHelper;
 import io.druid.indexer.Jobby;
 import io.druid.indexer.SQLMetadataStorageUpdaterJobHandler;
+import io.druid.java.util.common.FileUtils;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
 import io.druid.metadata.MetadataSegmentManagerConfig;
 import io.druid.metadata.MetadataStorageConnectorConfig;
@@ -300,7 +300,6 @@ public class HadoopConverterJobTest
     Assert.assertEquals("wrong segment count", 4, segments.size());
     Assert.assertTrue(converterJob.getLoadedBytes() > 0);
     Assert.assertTrue(converterJob.getWrittenBytes() > 0);
-    Assert.assertTrue(converterJob.getWrittenBytes() > converterJob.getLoadedBytes());
 
     Assert.assertEquals(oldSemgments.size(), segments.size());
 
@@ -346,7 +345,6 @@ public class HadoopConverterJobTest
           Sets.<String>newHashSet(newSegment.getDimensions())
       );
       Assert.assertEquals(oldSegment.getVersion() + "_converted", newSegment.getVersion());
-      Assert.assertTrue(oldSegment.getSize() < newSegment.getSize());
       Assert.assertEquals(oldSegment.getBinaryVersion(), newSegment.getBinaryVersion());
     }
   }
