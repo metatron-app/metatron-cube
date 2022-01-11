@@ -290,7 +290,6 @@ public class ColumnSelectors
     return asSelector(valueType, () -> null);
   }
 
-  @SuppressWarnings("unchecked")
   public static ValueMatcher toMatcher(String expression, ColumnSelectorFactory metricFactory)
   {
     if (!StringUtils.isNullOrEmpty(expression)) {

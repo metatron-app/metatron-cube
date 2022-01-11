@@ -23,7 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Range;
 import io.druid.common.KeyBuilder;
@@ -228,21 +231,6 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     return upperStrict;
   }
 
-  public ValueType typeOfBound(TypeResolver resolver)
-  {
-    if (extractionFn == null) {
-      ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING).unwrapDimension();
-      if (comparatorType == null || comparatorType.equals(StringComparators.NUMERIC_NAME)) {
-        return resolved.type();
-      }
-      ValueDesc desc = comparatorType == null ? resolved : ValueDesc.of(comparatorType);
-      if (desc != null && desc.isPrimitive()) {
-        return desc.type();
-      }
-    }
-    return ValueType.STRING;
-  }
-
   @JsonProperty
   @JsonInclude(Include.NON_NULL)
   public String getComparatorType()
@@ -308,7 +296,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     );
   }
 
-  public BoundDimFilter withType(ValueDesc type)
+  public BoundDimFilter withComparatorType(String comparatorType)
   {
     return new BoundDimFilter(
         dimension,
@@ -316,7 +304,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
         upper,
         lowerStrict,
         upperStrict,
-        type.typeName(),
+        Preconditions.checkNotNull(comparatorType),
         extractionFn
     );
   }
@@ -355,17 +343,87 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     return builder.toString();
   }
 
-  public BoundDimFilter withComparatorType(String comparatorType)
+  private ValueType typeOfBound(TypeResolver resolver)
   {
-    return new BoundDimFilter(
-        dimension,
-        lower,
-        upper,
-        lowerStrict,
-        upperStrict,
-        Preconditions.checkNotNull(comparatorType),
-        extractionFn
-    );
+    if (extractionFn == null) {
+      ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING).unwrapDimension();
+      if (comparatorType == null || comparatorType.equals(StringComparators.NUMERIC_NAME)) {
+        return resolved.type();
+      }
+      ValueDesc desc = comparatorType == null ? resolved : ValueDesc.of(comparatorType);
+      if (desc != null && desc.isPrimitive()) {
+        return desc.type();
+      }
+    }
+    return ValueType.STRING;
+  }
+
+  @SuppressWarnings("unchecked")
+  public Predicate toPredicate(TypeResolver resolver)
+  {
+    final ValueType type = typeOfBound(resolver);
+    final String lowerValue = Strings.emptyToNull(getLower());
+    final String upperValue = Strings.emptyToNull(getUpper());
+
+    final Object lower = lowerValue != null ? (Comparable) type.cast(lowerValue) : null;
+    final Object upper = upperValue != null ? (Comparable) type.cast(upperValue) : null;
+
+    final Comparator comparator = type.isNumeric() ? type.comparator() : getComparator();
+    final Predicate predicate = toPredicate(lower, lowerStrict, upper, upperStrict, comparator);
+    if (type.isNumeric()) {
+      return v -> v != null && predicate.apply(v);
+    }
+    final Function func = extractionFn != null ? extractionFn :
+                          type == ValueType.STRING ? GuavaUtils.NULLABLE_TO_STRING_FUNC : Functions.identity();
+
+    // lower bound allows null && upper bound allows null
+    final boolean allowNull = lower == null && !lowerStrict || upper == null && !upperStrict;
+    final boolean allowOnlyNull = allowNull && lower == null && upper == null;
+
+    return v -> {
+      final Object value = func.apply(v);
+      if (value == null) {
+        return allowNull;
+      } else if (allowOnlyNull) {
+        return false;
+      }
+      return predicate.apply(value);
+    };
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Predicate toPredicate(
+      final Object lower,
+      final boolean lowerStrict,
+      final Object upper,
+      final boolean upperStrict,
+      final Comparator comparator
+  )
+  {
+    if (lower != null && upper != null) {
+      if (lowerStrict && upperStrict) {
+        return v -> comparator.compare(lower, v) < 0 && comparator.compare(upper, v) > 0;
+      } else if (lowerStrict) {
+        return v -> comparator.compare(lower, v) < 0 && comparator.compare(upper, v) >= 0;
+      } else if (upperStrict) {
+        return v -> comparator.compare(lower, v) <= 0 && comparator.compare(upper, v) > 0;
+      } else {
+        return v -> comparator.compare(lower, v) <= 0 && comparator.compare(upper, v) >= 0;
+      }
+    } else if (lower != null) {
+      if (lowerStrict) {
+        return v -> comparator.compare(lower, v) < 0;
+      } else {
+        return v -> comparator.compare(lower, v) <= 0;
+      }
+    } else if (upper != null) {
+      if (upperStrict) {
+        return v -> comparator.compare(upper, v) > 0;
+      } else {
+        return v -> comparator.compare(upper, v) >= 0;
+      }
+    }
+    return v -> false;
   }
 
   @Override
@@ -380,10 +438,10 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
 
     BoundDimFilter that = (BoundDimFilter) o;
 
-    if (isLowerStrict() != that.isLowerStrict()) {
+    if (lowerStrict != that.lowerStrict) {
       return false;
     }
-    if (isUpperStrict() != that.isUpperStrict()) {
+    if (upperStrict != that.upperStrict) {
       return false;
     }
     if (!Objects.equals(comparatorType, that.comparatorType)) {
@@ -398,20 +456,12 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     if (!Objects.equals(lower, that.lower)) {
       return false;
     }
-    return getExtractionFn() != null
-           ? getExtractionFn().equals(that.getExtractionFn())
-           : that.getExtractionFn() == null;
-
+    return Objects.equals(extractionFn, that.extractionFn);
   }
 
   @Override
   public int hashCode()
   {
-    int result = Objects.hash(dimension, lower, upper);
-    result = 31 * result + (isLowerStrict() ? 1 : 0);
-    result = 31 * result + (isUpperStrict() ? 1 : 0);
-    result = 31 * result + Objects.hashCode(comparatorType);
-    result = 31 * result + (getExtractionFn() != null ? getExtractionFn().hashCode() : 0);
-    return result;
+    return Objects.hash(dimension, lower, upper, lowerStrict, upperStrict, comparatorType, extractionFn);
   }
 }

@@ -81,7 +81,6 @@ public class SelectorFilter implements Filter
     }
     if (valueType.isDimension()) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
-      @SuppressWarnings("unchecked")
       final int index = selector.lookupId(value);
       if (index < 0) {
         return BooleanValueMatcher.of(false);

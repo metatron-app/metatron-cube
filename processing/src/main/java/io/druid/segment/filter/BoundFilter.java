@@ -19,15 +19,10 @@
 
 package io.druid.segment.filter;
 
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.Cacheable;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.data.ValueType;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
@@ -40,7 +35,6 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.BitmapIndex.CumulativeSupport;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.Iterator;
 
 public class BoundFilter implements Filter
@@ -60,14 +54,11 @@ public class BoundFilter implements Filter
   {
     // asserted to existing dimension
     if (boundDimFilter.isLexicographic() && boundDimFilter.getExtractionFn() == null) {
-      return BitmapHolder.exact(toRangeBitmap(context, boundDimFilter.getDimension()));
+      return BitmapHolder.exact(toRangeBitmap(context));
     }
     return BitmapHolder.exact(Filters.matchPredicate(
         boundDimFilter.getDimension(),
-        toPredicate(
-            boundDimFilter.typeOfBound(context.indexSelector()),
-            boundDimFilter.getExtractionFn()
-        ),
+        boundDimFilter.toPredicate(context.indexSelector()),
         context
     ));
   }
@@ -76,12 +67,12 @@ public class BoundFilter implements Filter
   private static final int[] NONE = new int[]{0, 0};
 
   // can be slower..
-  private ImmutableBitmap toRangeBitmap(FilterContext context, String dimension)
+  private ImmutableBitmap toRangeBitmap(FilterContext context)
   {
     final BitmapIndexSelector selector = context.indexSelector();
-    final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
-    final int[] range = toRange(bitmapIndex);
+    final BitmapIndex bitmapIndex = selector.getBitmapIndex(boundDimFilter.getDimension());
 
+    final int[] range = toRange(selector);
     if (range == ALL) {
       return selector.createBoolean(true);
     } else if (range == NONE || range[0] >= range[1]) {
@@ -135,10 +126,11 @@ public class BoundFilter implements Filter
   }
 
   @SuppressWarnings("unchecked")
-  private int[] toRange(BitmapIndex bitmapIndex)
+  private int[] toRange(BitmapIndexSelector selector)
   {
+    final BitmapIndex bitmapIndex = selector.getBitmapIndex(boundDimFilter.getDimension());
     if (bitmapIndex == null || bitmapIndex.getCardinality() == 0) {
-      return toPredicate(ValueType.STRING, boundDimFilter.getExtractionFn()).apply(null) ? ALL : NONE;
+      return boundDimFilter.toPredicate(selector).apply(null) ? ALL : NONE;
     }
     final String lower = Strings.emptyToNull(boundDimFilter.getLower());
     final String upper = Strings.emptyToNull(boundDimFilter.getUpper());
@@ -241,74 +233,7 @@ public class BoundFilter implements Filter
     return Filters.toValueMatcher(
         factory,
         boundDimFilter.getDimension(),
-        toPredicate(
-            boundDimFilter.typeOfBound(factory),
-            boundDimFilter.getExtractionFn()
-        )
+        boundDimFilter.toPredicate(factory)
     );
-  }
-
-  private Predicate toPredicate(ValueType type, Function extractionFn)
-  {
-    if (extractionFn == null) {
-      extractionFn = type == ValueType.STRING ? GuavaUtils.NULLABLE_TO_STRING_FUNC : Functions.identity();
-    }
-    String lower = Strings.emptyToNull(boundDimFilter.getLower());
-    String upper = Strings.emptyToNull(boundDimFilter.getUpper());
-
-    Comparable lowerLimit = lower != null ? (Comparable) type.cast(boundDimFilter.getLower()) : null;
-    Comparable upperLimit = upper != null ? (Comparable) type.cast(boundDimFilter.getUpper()) : null;
-
-    Comparator comparator = type.isNumeric() ? type.comparator() : boundDimFilter.getComparator();
-    return asPredicate(lowerLimit, upperLimit, extractionFn, comparator);
-  }
-
-  private Predicate asPredicate(
-      final Comparable lower,
-      final Comparable upper,
-      final Function extractionFn,
-      final Comparator comparator
-  )
-  {
-    final boolean hasLowerBound = lower != null;
-    final boolean lowerStrict = boundDimFilter.isLowerStrict();
-
-    final boolean hasUpperBound = upper != null;
-    final boolean upperStrict = boundDimFilter.isUpperStrict();
-
-    // lower bound allows null && upper bound allows null
-    final boolean allowNull = lower == null && !lowerStrict || upper == null && !upperStrict;
-    final boolean allowOnlyNull = allowNull && lower == null && upper == null;
-
-    return new Predicate()
-    {
-      @Override
-      @SuppressWarnings("unchecked")
-      public boolean apply(final Object input)
-      {
-        Object value = extractionFn.apply(input);
-        if (value == null) {
-          return allowNull;
-        } else if (allowOnlyNull) {
-          return false;
-        }
-        int lowerComparing = 1;
-        int upperComparing = 1;
-        if (hasLowerBound) {
-          lowerComparing = comparator.compare(value, lower);
-        }
-        if (hasUpperBound) {
-          upperComparing = comparator.compare(upper, value);
-        }
-        if (lowerStrict && upperStrict) {
-          return lowerComparing > 0 && upperComparing > 0;
-        } else if (lowerStrict) {
-          return lowerComparing > 0 && upperComparing >= 0;
-        } else if (upperStrict) {
-          return lowerComparing >= 0 && upperComparing > 0;
-        }
-        return lowerComparing >= 0 && upperComparing >= 0;
-      }
-    };
   }
 }
