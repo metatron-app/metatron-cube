@@ -24,6 +24,7 @@ import com.google.common.io.ByteStreams;
 import com.google.inject.Inject;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.tasklogs.TaskLogs;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -56,17 +57,24 @@ public class HdfsTaskLogs implements TaskLogs
   }
 
   @Override
-  public void pushTaskLog(String taskId, File logFile) throws IOException
+  public void pushTaskLog(String taskId, File logFile)
   {
     final Path path = getTaskLogFileFromId(taskId);
     log.info("Writing task log to: %s", path);
-    final FileSystem fs = path.getFileSystem(hadoopConfig);
-    try (
-        final InputStream in = new FileInputStream(logFile);
-        final OutputStream out = fs.create(path, true)
-    ) {
+    final OutputStream out;
+    try {
+      out = path.getFileSystem(hadoopConfig).create(path, true);
+    }
+    catch (IOException e) {
+      writeToTmp(log, taskId, logFile, path);
+      return;
+    }
+    try (final InputStream in = new FileInputStream(logFile)) {
       ByteStreams.copy(in, out);
       log.info("Wrote task log to: %s", path);
+    } catch (Throwable t) {
+      log.warn(t, "Failed to write task log to: %s", path);
+      IOUtils.closeQuietly(out);
     }
   }
 

@@ -19,13 +19,28 @@
 
 package io.druid.tasklogs;
 
+import com.google.common.io.Files;
+import io.druid.java.util.common.logger.Logger;
+
 import java.io.File;
-import java.io.IOException;
 
 /**
  * Something that knows how to persist local task logs to some form of long-term storage.
  */
 public interface TaskLogPusher
 {
-  public void pushTaskLog(String taskid, File logFile) throws IOException;
+  void pushTaskLog(String taskid, File logFile);
+
+  default void writeToTmp(Logger LOG, String taskid, File logFile, Object supposed)
+  {
+    LOG.warn("Unable to create task log dir[%s]", supposed);
+    try {
+      File tempFile = File.createTempFile(taskid, ".log");
+      Files.copy(logFile, tempFile);
+      LOG.info("Wrote task log to temporary file: %s", tempFile);
+    }
+    catch (Throwable t) {
+      LOG.info("Unable to write task log to temporary file.. discarding");
+    }
+  }
 }

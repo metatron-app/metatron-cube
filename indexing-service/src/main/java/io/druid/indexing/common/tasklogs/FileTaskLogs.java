@@ -48,14 +48,20 @@ public class FileTaskLogs implements TaskLogs
   }
 
   @Override
-  public void pushTaskLog(final String taskid, File file) throws IOException
+  public void pushTaskLog(final String taskid, final File file)
   {
-    if (config.getDirectory().exists() || config.getDirectory().mkdirs()) {
-      final File outputFile = fileForTask(taskid);
-      Files.copy(file, outputFile);
-      log.info("Wrote task log to: %s", outputFile);
+    final File directory = config.getDirectory();
+    if (directory.exists() || directory.mkdirs()) {
+      File outputFile = fileForTask(taskid);
+      try {
+        Files.copy(file, outputFile);
+        log.info("Wrote task log to: %s", outputFile);
+      }
+      catch (Throwable t) {
+        log.warn(t, "Failed to write task log to: %s", outputFile);
+      }
     } else {
-      throw new IOException(String.format("Unable to create task log dir[%s]", config.getDirectory()));
+      writeToTmp(log, taskid, file, directory.getAbsolutePath());
     }
   }
 

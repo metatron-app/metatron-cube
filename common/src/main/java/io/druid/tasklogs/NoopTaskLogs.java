@@ -37,7 +37,7 @@ public class NoopTaskLogs implements TaskLogs
   }
 
   @Override
-  public void pushTaskLog(String taskid, File logFile) throws IOException
+  public void pushTaskLog(String taskid, File logFile)
   {
     log.info("Not pushing logs for task: %s", taskid);
   }

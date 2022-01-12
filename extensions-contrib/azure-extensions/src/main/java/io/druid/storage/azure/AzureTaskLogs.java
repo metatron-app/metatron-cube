@@ -20,11 +20,10 @@
 package io.druid.storage.azure;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
-import io.druid.java.util.common.logger.Logger;
 import com.microsoft.azure.storage.StorageException;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.tasklogs.TaskLogs;
 
 import java.io.File;
@@ -47,7 +46,7 @@ public class AzureTaskLogs implements TaskLogs {
   }
 
   @Override
-  public void pushTaskLog(final String taskid, final File logFile) throws IOException {
+  public void pushTaskLog(final String taskid, final File logFile) {
     final String taskKey = getTaskLogKey(taskid);
     log.info("Pushing task log %s to: %s", logFile, taskKey);
 
@@ -62,8 +61,8 @@ public class AzureTaskLogs implements TaskLogs {
           },
           config.getMaxTries()
       );
-    } catch (Exception e) {
-      throw Throwables.propagate(e);
+    } catch (Throwable t) {
+      log.warn(t, "Failed to write task log to: %s", config.getContainer());
     }
   }
 

@@ -20,7 +20,6 @@
 package io.druid.storage.s3;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import io.druid.java.util.common.logger.Logger;
@@ -107,7 +106,8 @@ public class S3TaskLogs implements TaskLogs
     }
   }
 
-  public void pushTaskLog(final String taskid, final File logFile) throws IOException
+  @Override
+  public void pushTaskLog(final String taskid, final File logFile)
   {
     final String taskKey = getTaskLogKey(taskid);
     log.info("Pushing task log %s to: %s", logFile, taskKey);
@@ -127,9 +127,8 @@ public class S3TaskLogs implements TaskLogs
           }
       );
     }
-    catch (Exception e) {
-      Throwables.propagateIfInstanceOf(e, IOException.class);
-      throw Throwables.propagate(e);
+    catch (Throwable t) {
+      log.warn(t, "Failed to write task log to: %s", config.getS3Bucket());
     }
   }
 
