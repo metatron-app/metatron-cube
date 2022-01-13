@@ -173,7 +173,13 @@ public class Initialization
       log.debug("Loading extension [%s] for service type [%s]", extension.getName(), clazz.getName());
       try {
         final ClassLoader loader = getClassLoaderForExtension(config, extension);
-        for (T module : ServiceLoader.load(clazz, loader)) {
+        final Iterator<T> modules = ServiceLoader.load(clazz, loader).iterator();
+        if (clazz == DruidModule.class && !modules.hasNext()) {
+          log.warn("Cannot find any druid module in extension [%s].. skipping", extension.getName());
+          continue;
+        }
+        while (modules.hasNext()) {
+          T module = modules.next();
           if (module.getClass().getClassLoader() != loader) {
             continue;
           }
@@ -255,7 +261,10 @@ public class Initialization
     }
     final List<File> moduleDirectories = Lists.newArrayList();
     for (String extensionName : extensionsToLoad) {
-      moduleDirectories.add(toModuleDirectory(rootExtensionsDir, extensionName));
+      File moduleDirectory = toModuleDirectory(rootExtensionsDir, extensionName);
+      if (moduleDirectory != null) {
+        moduleDirectories.add(moduleDirectory);
+      }
     }
     return moduleDirectories.toArray(new File[0]);
   }
@@ -283,13 +292,13 @@ public class Initialization
   private static File toModuleDirectory(File rootExtensionsDir, String extensionName)
   {
     final File extensionDir = new File(rootExtensionsDir, extensionName);
+    if (!extensionDir.exists()) {
+      log.warn("Failed to find extension [%s]", extensionName);
+      return null;
+    }
     if (!extensionDir.isDirectory()) {
-      throw new ISE(
-          String.format(
-              "Extension [%s] specified in \"druid.extensions.loadList\" didn't exist!?",
-              extensionDir.getAbsolutePath()
-          )
-      );
+      log.warn("Extension [%s] should be a directory, not a file", extensionName);
+      return null;
     }
     return extensionDir;
   }
