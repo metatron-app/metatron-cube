@@ -606,8 +606,8 @@ public class Filters
       if (column.getType().isPrimitiveNumeric()) {
         ImmutableBitmap bitmap = null;
         if (filter instanceof BoundDimFilter) {
-          Range range = Iterables.getOnlyElement(((BoundDimFilter) filter).toRanges(selector));
-          bitmap = scanForRange(column.getGenericColumn(), range, context);
+          Predicate predicate = ((BoundDimFilter) filter).toPredicate(selector);
+          bitmap = scanForPredicate(column.getGenericColumn(), predicate, context);
         } else if (filter instanceof SelectorDimFilter) {
           String value = ((SelectorDimFilter) filter).getValue();
           bitmap = scanForEqui(column.getGenericColumn(), value, context);
@@ -619,6 +619,29 @@ public class Filters
           return BitmapHolder.exact(bitmap);
         }
       }
+    }
+    return null;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static ImmutableBitmap scanForPredicate(GenericColumn column, Predicate predicate, FilterContext context)
+  {
+    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
+    final BitmapFactory factory = context.indexSelector().getBitmapFactory();
+    try {
+      if (column instanceof GenericColumn.FloatType) {
+        return ((GenericColumn.FloatType) column).collect(factory, iterator, f -> predicate.apply(f));
+      } else if (column instanceof GenericColumn.DoubleType) {
+        return ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> predicate.apply(d));
+      } else if (column instanceof GenericColumn.LongType) {
+        return ((GenericColumn.LongType) column).collect(factory, iterator, l -> predicate.apply(l));
+      }
+    }
+    catch (Exception e) {
+      // ignore
+    }
+    finally {
+      IOUtils.closeQuietly(column);
     }
     return null;
   }

@@ -34,7 +34,9 @@ public class SimpleTest extends CalciteQueryTestHelper
   public static void setUp() throws Exception
   {
     walker.addIndex("cdis", "cdis_schema.json", "cdis.tbl", true);
+    walker.addIndex("part_i", "part_schema.json", "part.tbl", false);
     walker.populate("cdis");
+    walker.populate("part_i");
   }
 
   @After
@@ -336,6 +338,43 @@ public class SimpleTest extends CalciteQueryTestHelper
         + ")"
         + "SELECT * FROM X WHERE json_value(ctx, '$.field1') like 'value%'",
         new Object[]{0, "k1", "{\"field1\":\"value1\", \"field2\": 2}"}
+    );
+  }
+
+  @Test
+  public void test3981() throws Exception
+  {
+    testQuery(
+        "SELECT P_CONTAINER, P_SIZE FROM part_i WHERE P_SIZE > 7.0 AND P_SIZE < 8.5",
+        new Object[]{"LG DRUM", 8L},
+        new Object[]{"MED PACK", 8L},
+        new Object[]{"MED JAR", 8L},
+        new Object[]{"SM DRUM", 8L},
+        new Object[]{"JUMBO BOX", 8L},
+        new Object[]{"LG PKG", 8L},
+        new Object[]{"LG CAN", 8L},
+        new Object[]{"SM PACK", 8L},
+        new Object[]{"MED PKG", 8L},
+        new Object[]{"LG CASE", 8L},
+        new Object[]{"JUMBO PKG", 8L},
+        new Object[]{"WRAP JAR", 8L},
+        new Object[]{"SM BAG", 8L},
+        new Object[]{"MED BOX", 8L},
+        new Object[]{"MED DRUM", 8L},
+        new Object[]{"SM CAN", 8L},
+        new Object[]{"MED CAN", 8L},
+        new Object[]{"JUMBO BAG", 8L},
+        new Object[]{"SM PKG", 8L},
+        new Object[]{"LG CASE", 8L},
+        new Object[]{"MED PKG", 8L},
+        new Object[]{"JUMBO PKG", 8L},
+        new Object[]{"LG CAN", 8L},
+        new Object[]{"MED PACK", 8L},
+        new Object[]{"WRAP BAG", 8L},
+        new Object[]{"LG CASE", 8L},
+        new Object[]{"LG PKG", 8L},
+        new Object[]{"JUMBO DRUM", 8L},
+        new Object[]{"LG PKG", 8L}
     );
   }
 }

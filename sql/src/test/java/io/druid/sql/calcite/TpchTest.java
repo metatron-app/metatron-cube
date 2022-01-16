@@ -534,10 +534,10 @@ public class TpchTest extends TpchTestHelper
         ,
         "DruidQueryRel(table=[druid.lineitem], scanFilter=[AND(>=($11, '1993-01-01'), <($11, '1994-01-01'), >=($2, 0.05:DECIMAL(4, 2)), <=($2, 0.07:DECIMAL(4, 2)), <($8, 25))], scanProject=[*($3, $2)], REVENUE=[SUM($0)])\n"
         ,
-        new Object[]{635343.2898368868}
+        new Object[]{419743.2357189747}
     );
     hook.verifyHooked(
-        "aWNxGUjkZNlb/DPaOALY1A==",
+        "N7buYl+k+PqT6VGz3Uj3/g==",
         "TimeseriesQuery{dataSource='lineitem', filter=(BoundDimFilter{L_QUANTITY < 25(numeric)} && BoundDimFilter{0.05 <= L_DISCOUNT <= 0.07(numeric)} && BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01(lexicographic)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * L_DISCOUNT)', inputType='double'}], outputColumns=[a0]}"
     );
   }

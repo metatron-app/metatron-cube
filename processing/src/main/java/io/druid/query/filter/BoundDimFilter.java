@@ -41,6 +41,7 @@ import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -148,7 +149,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     }
     return !StringUtils.isNullOrEmpty(lower)
            || !StringUtils.isNullOrEmpty(upper)
-           || typeOfBound(resolver) == ValueType.STRING;
+           || typeOfBound(resolver).isString();
   }
 
   @Override
@@ -158,7 +159,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
   }
 
   // used in geo-server adapter
-  private List<Range> toRanges(ValueType type, boolean withNot)
+  private List<Range> toRanges(ValueDesc type, boolean withNot)
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");
     if (StringUtils.isNullOrEmpty(lower) && StringUtils.isNullOrEmpty(upper)) {
@@ -343,38 +344,39 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     return builder.toString();
   }
 
-  private ValueType typeOfBound(TypeResolver resolver)
+  private ValueDesc typeOfBound(TypeResolver resolver)
   {
     if (extractionFn == null) {
       ValueDesc resolved = resolver.resolve(dimension, ValueDesc.STRING).unwrapDimension();
       if (comparatorType == null || comparatorType.equals(StringComparators.NUMERIC_NAME)) {
-        return resolved.type();
+        return resolved;
       }
       ValueDesc desc = comparatorType == null ? resolved : ValueDesc.of(comparatorType);
       if (desc != null && desc.isPrimitive()) {
-        return desc.type();
+        return desc;
       }
     }
-    return ValueType.STRING;
+    return ValueDesc.STRING;
   }
 
   @SuppressWarnings("unchecked")
   public Predicate toPredicate(TypeResolver resolver)
   {
-    final ValueType type = typeOfBound(resolver);
+    final ValueDesc type = typeOfBound(resolver);
     final String lowerValue = Strings.emptyToNull(getLower());
     final String upperValue = Strings.emptyToNull(getUpper());
 
-    final Object lower = lowerValue != null ? (Comparable) type.cast(lowerValue) : null;
-    final Object upper = upperValue != null ? (Comparable) type.cast(upperValue) : null;
+    final boolean numeric = type.isNumeric() || StringComparators.NUMERIC_NAME.equals(comparatorType);
+    final Object lower = lowerValue == null ? null : numeric ? new BigDecimal(lowerValue) : type.cast(lowerValue);
+    final Object upper = upperValue == null ? null : numeric ? new BigDecimal(upperValue) : type.cast(upperValue);
 
-    final Comparator comparator = type.isNumeric() ? type.comparator() : getComparator();
+    final Comparator comparator = numeric ? numericComparator(type) : getComparator();
     final Predicate predicate = toPredicate(lower, lowerStrict, upper, upperStrict, comparator);
-    if (type.isNumeric()) {
+    if (numeric) {
       return v -> v != null && predicate.apply(v);
     }
     final Function func = extractionFn != null ? extractionFn :
-                          type == ValueType.STRING ? GuavaUtils.NULLABLE_TO_STRING_FUNC : Functions.identity();
+                          type.isString() ? GuavaUtils.NULLABLE_TO_STRING_FUNC : Functions.identity();
 
     // lower bound allows null && upper bound allows null
     final boolean allowNull = lower == null && !lowerStrict || upper == null && !upperStrict;
@@ -389,6 +391,19 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
       }
       return predicate.apply(value);
     };
+  }
+
+  private static Comparator numericComparator(final ValueDesc type)
+  {
+    if (type.isDecimal()) {
+      return (constant, v) -> ((BigDecimal) constant).compareTo((BigDecimal) v);
+    } else if (type.isString()) {
+      return (constant, v) -> ((BigDecimal) constant).compareTo(new BigDecimal(String.valueOf(v)));
+    } else if (type.isLong()) {
+      return (constant, v) -> ((BigDecimal) constant).compareTo(BigDecimal.valueOf(((Number) v).longValue()));
+    } else {
+      return (constant, v) -> ((BigDecimal) constant).compareTo(BigDecimal.valueOf(((Number) v).doubleValue()));
+    }
   }
 
   @SuppressWarnings("unchecked")
