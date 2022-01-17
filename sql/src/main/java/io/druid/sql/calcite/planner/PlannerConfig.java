@@ -35,6 +35,7 @@ public class PlannerConfig
   public static final String CTX_KEY_USE_JOIN_REORDERING = "useJoinReordering";
   public static final String CTX_KEY_USE_JOIN_REORDERING_BUSH = "useJoinReorderingBush";
   public static final String CTX_KEY_DUMP_PLAN = "dumpPlan";
+  public static final String CTX_KEY_BINARY_OPERANDS_CAST_ADJUST = "binaryOperandsCastAdjust";
 
   @JsonProperty
   private int maxTopNLimit = 100000;
@@ -62,6 +63,9 @@ public class PlannerConfig
 
   @JsonProperty
   private boolean dumpPlan = false;
+
+  @JsonProperty
+  private boolean binaryOperandsCastAdjust = false;
 
   public int getMaxTopNLimit()
   {
@@ -103,6 +107,11 @@ public class PlannerConfig
     return dumpPlan;
   }
 
+  public boolean isBinaryOperandsCastAdjust()
+  {
+    return binaryOperandsCastAdjust;
+  }
+
   public DateTimeZone getSqlTimeZone()
   {
     return sqlTimeZone;
@@ -110,7 +119,7 @@ public class PlannerConfig
 
   public PlannerConfig withOverrides(final Map<String, Object> context)
   {
-    if (context == null) {
+    if (context == null || context.isEmpty()) {
       return this;
     }
 
@@ -134,6 +143,11 @@ public class PlannerConfig
         isJoinEnabled()
     );
     newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
+    newConfig.binaryOperandsCastAdjust = getContextBoolean(
+        context,
+        CTX_KEY_BINARY_OPERANDS_CAST_ADJUST,
+        isBinaryOperandsCastAdjust()
+    );
     newConfig.requireTimeCondition = isRequireTimeCondition();
     newConfig.sqlTimeZone = getSqlTimeZone();
     return newConfig;
@@ -175,13 +189,13 @@ public class PlannerConfig
            joinEnabled == that.joinEnabled &&
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
+           binaryOperandsCastAdjust == that.binaryOperandsCastAdjust &&
            Objects.equals(sqlTimeZone, that.sqlTimeZone);
   }
 
   @Override
   public int hashCode()
   {
-
     return Objects.hash(
         maxTopNLimit,
         maxQueryCount,
@@ -191,6 +205,7 @@ public class PlannerConfig
         joinEnabled,
         requireTimeCondition,
         dumpPlan,
+        binaryOperandsCastAdjust,
         sqlTimeZone
     );
   }
@@ -207,6 +222,7 @@ public class PlannerConfig
            ", joinEnabled=" + joinEnabled +
            ", requireTimeCondition=" + requireTimeCondition +
            ", dumpPlan=" + dumpPlan +
+           ", binaryOperandsCastAdjust=" + binaryOperandsCastAdjust +
            ", sqlTimeZone=" + sqlTimeZone +
            '}';
   }

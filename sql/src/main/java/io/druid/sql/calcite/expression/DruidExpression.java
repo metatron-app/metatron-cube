@@ -74,6 +74,11 @@ public class DruidExpression
     return new DruidExpression(null, expression);
   }
 
+  public static DruidExpression fromNumericLiteral(final Number n, final SqlTypeName typeName)
+  {
+    return new DruidExpression(null, numberLiteral(n, typeName));
+  }
+
   public static DruidExpression fromFunctionCall(final String functionName, final List<DruidExpression> args)
   {
     return fromExpression(functionCall(functionName, args));

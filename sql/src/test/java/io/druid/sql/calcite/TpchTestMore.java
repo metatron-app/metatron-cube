@@ -19,8 +19,10 @@
 
 package io.druid.sql.calcite;
 
+import com.google.common.collect.ImmutableMap;
 import io.druid.data.Pair;
 import io.druid.query.JoinQueryConfig;
+import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Before;
 import org.junit.Test;
@@ -275,6 +277,29 @@ public class TpchTestMore extends CalciteQueryTestHelper
         + "  WHERE L_RECEIPTDATE > L_COMMITDATE AND L_ORDERKEY IS NOT NULL AND L_ORDERKEY=9665"
         + "  GROUP BY L_ORDERKEY",
         new Object[]{"9665", 2L}
+    );
+  }
+
+  @Test
+  public void test3983() throws Exception
+  {
+    // tpch6, revised
+    String SQL =
+        "SELECT SUM(L_EXTENDEDPRICE * L_DISCOUNT) as REVENUE FROM lineitem"
+        + " WHERE L_SHIPDATE >= '1993-01-01' AND L_SHIPDATE < '1994-01-01'"
+        + " AND L_DISCOUNT = 0.07"
+        + " AND L_QUANTITY < 25";
+    testQuery(SQL);
+
+    PlannerConfig config = PLANNER_CONFIG_DEFAULT.withOverrides(
+        ImmutableMap.of(PlannerConfig.CTX_KEY_BINARY_OPERANDS_CAST_ADJUST, true)
+    );
+    testQuery(config, SQL, new Object[] {215600.05411791173D});
+
+    hook.verifyHooked(
+        "20X9YlyuoH4/4/PtqXD34A==",
+        "TimeseriesQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(CAST(L_DISCOUNT, 'DOUBLE') == 0.07)'} && BoundDimFilter{L_QUANTITY < 25(numeric)} && BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01(lexicographic)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * L_DISCOUNT)', inputType='double'}], outputColumns=[a0]}",
+        "TimeseriesQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(L_DISCOUNT == 0.07F)'} && BoundDimFilter{L_QUANTITY < 25(numeric)} && BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01(lexicographic)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * L_DISCOUNT)', inputType='double'}], outputColumns=[a0]}"
     );
   }
 }

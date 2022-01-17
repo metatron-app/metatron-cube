@@ -40,6 +40,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.StructKind;
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaPlus;
@@ -141,6 +142,20 @@ public class Calcites
     builder.append("'");
     return isPlainAscii ? builder.toString() : "U&" + builder;
 
+  }
+
+  public static boolean isFloatCastedToDouble(RexNode rexNode)
+  {
+    return rexNode.isA(SqlKind.CAST) &&
+           Calcites.getTypeName(rexNode.getType()) == SqlTypeName.DOUBLE &&
+           Calcites.getTypeName(((RexCall) rexNode).getOperands().get(0).getType()) == SqlTypeName.FLOAT;
+  }
+
+  public static boolean isLiteralDecimalCastedToDouble(RexNode rexNode)
+  {
+    return rexNode.isA(SqlKind.LITERAL) &&
+           getTypeName(rexNode.getType()) == SqlTypeName.DOUBLE &&
+           ((RexLiteral) rexNode).getTypeName() == SqlTypeName.DECIMAL;
   }
 
   public static SqlTypeName getTypeName(RelDataType dataType)

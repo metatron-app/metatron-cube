@@ -241,6 +241,12 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, null, null, Arrays.asList(expectedResults));
   }
 
+  protected void testQuery(PlannerConfig plannerConfig, String sql, String expectedQuery, Object[]... expectedResults)
+      throws Exception
+  {
+    testQuery(plannerConfig, QUERY_CONTEXT_DEFAULT, sql, expectedQuery, null, Arrays.asList(expectedResults));
+  }
+
   protected void testQuery(PlannerConfig plannerConfig, String sql, Query expectedQuery, Object[]... expectedResults)
       throws Exception
   {
