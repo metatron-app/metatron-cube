@@ -167,7 +167,6 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public List<Range> toRanges(TypeResolver resolver)
   {
     Preconditions.checkArgument(extractionFn == null, "extractionFn");

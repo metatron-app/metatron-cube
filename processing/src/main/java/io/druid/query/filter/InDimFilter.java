@@ -209,23 +209,19 @@ public class InDimFilter extends SingleInput implements RangeFilter, LogProvider
 
     InDimFilter that = (InDimFilter) o;
 
-    if (values != null ? !values.equals(that.values) : that.values != null) {
-      return false;
-    }
     if (!dimension.equals(that.dimension)) {
       return false;
     }
-    return extractionFn != null ? extractionFn.equals(that.extractionFn) : that.extractionFn == null;
-
+    if (!Objects.equals(extractionFn, that.extractionFn)) {
+      return false;
+    }
+    return Objects.equals(values, that.values);
   }
 
   @Override
   public int hashCode()
   {
-    int result = values != null ? values.hashCode() : 0;
-    result = 31 * result + dimension.hashCode();
-    result = 31 * result + (extractionFn != null ? extractionFn.hashCode() : 0);
-    return result;
+    return Objects.hash(dimension, extractionFn, values);
   }
 
   @Override

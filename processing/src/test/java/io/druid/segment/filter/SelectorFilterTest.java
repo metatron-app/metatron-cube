@@ -22,8 +22,8 @@ package io.druid.segment.filter;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import io.druid.java.util.common.Pair;
 import io.druid.data.input.InputRow;
+import io.druid.java.util.common.Pair;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ExtractionDimFilter;
@@ -112,7 +112,11 @@ public class SelectorFilterTest extends BaseFilterTest
   {
     assertFilterMatches(new SelectorDimFilter("sum", "1", null), ImmutableList.of("1"));
     assertFilterMatches(new SelectorDimFilter("sum", "2.0", null), ImmutableList.of("2"));
-    assertFilterMatches(new SelectorDimFilter("sum", "3.7", null), ImmutableList.<String>of("3"));
+    assertFilterMatches(new SelectorDimFilter("sum", "3.7", null), ImmutableList.of());
+
+    assertFilterMatches(new SelectorDimFilter("sum_d", "1", null), ImmutableList.of("1"));
+    assertFilterMatches(new SelectorDimFilter("sum_d", "2.0", null), ImmutableList.of("2"));
+    assertFilterMatches(new SelectorDimFilter("sum_d", "3.7", null), ImmutableList.of());
   }
 
   @Test
@@ -206,12 +210,12 @@ public class SelectorFilterTest extends BaseFilterTest
     SelectorDimFilter optFilter4Optimized = new SelectorDimFilter("dim0", "5", null);
     SelectorDimFilter optFilter6Optimized = new SelectorDimFilter("dim0", "5", null);
 
-    Assert.assertTrue(optFilter1.equals(optFilter1.optimize(null, null)));
-    Assert.assertTrue(optFilter2Optimized.equals(optFilter2.optimize(null, null)));
-    Assert.assertTrue(optFilter3.equals(optFilter3.optimize(null, null)));
-    Assert.assertTrue(optFilter4Optimized.equals(optFilter4.optimize(null, null)));
-    Assert.assertTrue(optFilter5.equals(optFilter5.optimize(null, null)));
-    Assert.assertTrue(optFilter6Optimized.equals(optFilter6.optimize(null, null)));
+    Assert.assertEquals(optFilter1, optFilter1.optimize(null, null));
+    Assert.assertEquals(optFilter2Optimized, optFilter2.optimize(null, null));
+    Assert.assertEquals(optFilter3, optFilter3.optimize(null, null));
+    Assert.assertEquals(optFilter4Optimized, optFilter4.optimize(null, null));
+    Assert.assertEquals(optFilter5, optFilter5.optimize(null, null));
+    Assert.assertEquals(optFilter6Optimized, optFilter6.optimize(null, null));
 
     assertFilterMatches(optFilter1, ImmutableList.of("0", "1", "2", "5"));
     assertFilterMatches(optFilter2, ImmutableList.of("2", "5"));

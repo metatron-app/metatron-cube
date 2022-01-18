@@ -162,20 +162,13 @@ public class InFilterTest extends BaseFilterTest
   @Test
   public void testMetric()
   {
-    assertFilterMatches(
-        toInFilter("sum", "1", "2"),
-        ImmutableList.<String>of("a", "b")
-    );
+    assertFilterMatches(toInFilter("sum", "1", "2"), ImmutableList.<String>of("a", "b"));
+    assertFilterMatches(toInFilter("sum", "3.0", "4.0"), ImmutableList.<String>of("c", "d"));
+    assertFilterMatches(toInFilter("sum", "5.0001"), ImmutableList.of());
 
-    assertFilterMatches(
-        toInFilter("sum", "3.0", "4.0"),
-        ImmutableList.<String>of("c", "d")
-    );
-
-    assertFilterMatches(
-        toInFilter("sum", "5.5"),
-        ImmutableList.<String>of("e")
-    );
+    assertFilterMatches(toInFilter("sum_d", "1", "2"), ImmutableList.<String>of("a", "b"));
+    assertFilterMatches(toInFilter("sum_d", "3.0", "4.0"), ImmutableList.<String>of("c", "d"));
+    assertFilterMatches(toInFilter("sum_d", "5.0000000001"), ImmutableList.of());
   }
 
   @Test

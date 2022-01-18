@@ -33,6 +33,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -220,9 +221,12 @@ public abstract class BaseFilterTest
     );
 
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
-      .withMetrics(new CountAggregatorFactory("count"))
-      .withMetrics(new LongSumAggregatorFactory("sum", "met0"))
-      .build();
+        .withMetrics(
+            new CountAggregatorFactory("count"),
+            new LongSumAggregatorFactory("sum", "met0"),
+            new DoubleSumAggregatorFactory("sum_d", "met0")
+        )
+        .build();
 
     for (Map.Entry<String, BitmapSerdeFactory> bitmapSerdeFactoryEntry : bitmapSerdeFactories.entrySet()) {
       for (Map.Entry<String, IndexMerger> indexMergerEntry : indexMergers.entrySet()) {

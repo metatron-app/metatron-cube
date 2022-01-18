@@ -22,9 +22,11 @@ package io.druid.data;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.parsers.ParseException;
 import org.joda.time.DateTime;
 
+import java.math.BigDecimal;
 import java.util.Date;
 
 /**
@@ -285,6 +287,31 @@ public class Rows
       }
     }
     return Float.valueOf(target);
+  }
+
+  public static BigDecimal tryParseDecimal(final String value)
+  {
+    try {
+      return StringUtils.isNullOrEmpty(value) ? null : new BigDecimal(value);
+    }
+    catch (Exception e) {
+      return null;
+    }
+  }
+
+  public static boolean isExactFloat(BigDecimal decimal)
+  {
+    return decimal != null && decimal.compareTo(BigDecimal.valueOf(decimal.floatValue())) == 0;
+  }
+
+  public static boolean isExactDouble(BigDecimal decimal)
+  {
+    return decimal != null && decimal.compareTo(BigDecimal.valueOf(decimal.doubleValue())) == 0;
+  }
+
+  public static boolean isExactLong(BigDecimal decimal)
+  {
+    return decimal != null && decimal.compareTo(BigDecimal.valueOf(decimal.longValue())) == 0;
   }
 
   public static double tryParseDouble(final String value)

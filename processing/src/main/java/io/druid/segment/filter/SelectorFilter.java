@@ -20,6 +20,7 @@
 package io.druid.segment.filter;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Range;
 import io.druid.common.utils.StringUtils;
@@ -38,7 +39,9 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.lucene.Lucenes;
 
+import java.math.BigDecimal;
 import java.util.BitSet;
+import java.util.Objects;
 
 /**
  */
@@ -88,6 +91,20 @@ public class SelectorFilter implements Filter
       return Filters.toValueMatcher(selector, value -> value == index, allowsNull);
     }
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
+    if (valueType.isNumeric()) {
+      if (allowsNull) {
+        return () -> selector.get() == null;
+      }
+      final BigDecimal decimal = Rows.tryParseDecimal(value);
+      if (decimal == null) {
+        return ValueMatcher.FALSE;
+      }
+      final Predicate<Number> predicate = numericPredicate(valueType, decimal);
+      if (predicate != null) {
+        return () -> predicate.apply((Number) selector.get());
+      }
+      return ValueMatcher.FALSE;
+    }
     if (selector.type().isBitSet()) {
       if (StringUtils.isNullOrEmpty(value)) {
         return () -> selector.get() == null;
@@ -119,17 +136,25 @@ public class SelectorFilter implements Filter
         }
       };
     }
-    final Object casted = valueType.isPrimitiveNumeric() ? Evals.castToValue(ExprEval.of(value), valueType) : value;
-    return Filters.toValueMatcher(
-        selector, new Predicate()
-        {
-          @Override
-          public boolean apply(Object input)
-          {
-            return input == null ? allowsNull : input.equals(casted);
-          }
-        }
-    );
+    final Object casted = allowsNull ? null : Evals.castToValue(ExprEval.of(value), valueType);
+    if (casted == null) {
+      return Filters.toValueMatcher(selector, Predicates.isNull());
+    }
+    return Filters.toValueMatcher(selector, v -> casted.equals(v));
+  }
+
+  private static Predicate<Number> numericPredicate(final ValueDesc type, final BigDecimal decimal)
+  {
+    if (type.isDecimal()) {
+      return v -> Objects.equals(decimal, v);
+    } else if (type.isLong() && Rows.isExactLong(decimal)) {
+      return v -> v == null ? decimal == null : decimal.longValue() == v.longValue();
+    } else if (type.isFloat() && Rows.isExactFloat(decimal)) {
+      return v -> v == null ? decimal == null : decimal.floatValue() == v.floatValue();
+    } else if (Rows.isExactDouble(decimal)) {
+      return v -> v == null ? decimal == null : decimal.doubleValue() == v.doubleValue();
+    }
+    return null;
   }
 
   @Override

@@ -20,26 +20,13 @@
 package io.druid.query.filter;
 
 /**
+ *
  */
 public interface ValueMatcher
 {
   boolean matches();
 
-  ValueMatcher TRUE = new ValueMatcher()
-  {
-    @Override
-    public final boolean matches()
-    {
-      return true;
-    }
-  };
+  ValueMatcher TRUE = () -> true;
 
-  ValueMatcher FALSE = new ValueMatcher()
-  {
-    @Override
-    public final boolean matches()
-    {
-      return false;
-    }
-  };
+  ValueMatcher FALSE = () -> false;
 }

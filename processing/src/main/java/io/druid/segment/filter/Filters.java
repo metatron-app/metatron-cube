@@ -24,6 +24,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -97,6 +98,7 @@ import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -708,14 +710,26 @@ public class Filters
       if (StringUtils.isNullOrEmpty(value)) {
         return column.getNulls();
       } else if (column instanceof GenericColumn.FloatType) {
-        final float fv = Rows.parseFloat(value);
-        return ((GenericColumn.FloatType) column).collect(factory, iterator, f -> f == fv);
+        final BigDecimal decimal = new BigDecimal(value);
+        final float fv = decimal.floatValue();
+        if (decimal.compareTo(BigDecimal.valueOf(fv)) == 0) {
+          return ((GenericColumn.FloatType) column).collect(factory, iterator, f -> f == fv);
+        }
+        return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.DoubleType) {
-        final double dv = Rows.parseDouble(value);
-        return ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> d == dv);
+        final BigDecimal decimal = new BigDecimal(value);
+        final double dv = decimal.doubleValue();
+        if (decimal.compareTo(BigDecimal.valueOf(dv)) == 0) {
+          return ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> d == dv);
+        }
+        return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.LongType) {
-        final long lv = Rows.parseLong(value);
-        return ((GenericColumn.LongType) column).collect(factory, iterator, l -> l == lv);
+        final BigDecimal decimal = new BigDecimal(value);
+        final long lv = decimal.longValue();
+        if (decimal.compareTo(BigDecimal.valueOf(lv)) == 0) {
+          return ((GenericColumn.LongType) column).collect(factory, iterator, l -> l == lv);
+        }
+        return context.factory.makeEmptyImmutableBitmap();
       }
     }
     catch (Exception e) {
@@ -731,32 +745,56 @@ public class Filters
   {
     final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
+
+    final boolean containsNull = values.contains("");
+    final List<BigDecimal> decimals = ImmutableList.copyOf(
+        Iterables.filter(Iterables.transform(values, Rows::tryParseDecimal), Predicates.notNull())
+    );
+    if (decimals.isEmpty()) {
+      return containsNull ? column.getNulls() : factory.makeEmptyImmutableBitmap();
+    }
     try {
-      Iterable<String> filtered = values;
-      ImmutableBitmap nulls = factory.makeEmptyImmutableBitmap();
-      if (values.contains("")) {
-        filtered = Iterables.filter(values, v -> !v.isEmpty());
-        nulls = column.getNulls();
-      }
+      ImmutableBitmap nulls = containsNull ? column.getNulls() : factory.makeEmptyImmutableBitmap();
       ImmutableBitmap collected = null;
       if (column instanceof GenericColumn.FloatType) {
-        final FloatSet fset = new FloatOpenHashSet();
-        for (String value : filtered) {
-          fset.add(Rows.parseFloat(value).floatValue());
+        final FloatSet set = new FloatOpenHashSet();
+        for (BigDecimal decimal : decimals) {
+          final float fv = decimal.floatValue();
+          if (decimal.compareTo(BigDecimal.valueOf(fv)) == 0) {
+            set.add(fv);
+          }
         }
-        collected = ((GenericColumn.FloatType) column).collect(factory, iterator, f -> fset.contains(f));
+        if (!set.isEmpty()) {
+          collected = ((GenericColumn.FloatType) column).collect(factory, iterator, f -> set.contains(f));
+        } else {
+          collected = factory.makeEmptyImmutableBitmap();
+        }
       } else if (column instanceof GenericColumn.DoubleType) {
-        final DoubleSet dset = new DoubleOpenHashSet();
-        for (String value : filtered) {
-          dset.add(Rows.parseDouble(value).doubleValue());
+        final DoubleSet set = new DoubleOpenHashSet();
+        for (BigDecimal decimal : decimals) {
+          final double dv = decimal.doubleValue();
+          if (decimal.compareTo(BigDecimal.valueOf(dv)) == 0) {
+            set.add(dv);
+          }
         }
-        collected = ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> dset.contains(d));
+        if (!set.isEmpty()) {
+          collected = ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> set.contains(d));
+        } else {
+          collected = factory.makeEmptyImmutableBitmap();
+        }
       } else if (column instanceof GenericColumn.LongType) {
-        final LongSet lset = new LongOpenHashSet();
-        for (String value : filtered) {
-          lset.add(Rows.parseLong(value).longValue());
+        final LongSet set = new LongOpenHashSet();
+        for (BigDecimal decimal : decimals) {
+          final long lv = decimal.longValue();
+          if (decimal.compareTo(BigDecimal.valueOf(lv)) == 0) {
+            set.add(lv);
+          }
         }
-        collected = ((GenericColumn.LongType) column).collect(factory, iterator, l -> lset.contains(l));
+        if (!set.isEmpty()) {
+          collected = ((GenericColumn.LongType) column).collect(factory, iterator, l -> set.contains(l));
+        } else {
+          collected = factory.makeEmptyImmutableBitmap();
+        }
       }
       if (collected != null && !nulls.isEmpty()) {
         collected = factory.union(Arrays.asList(collected, nulls));
