@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import io.druid.common.guava.Comparators;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.Rows;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -419,8 +420,8 @@ public class StringComparators
         return Long.compare(long1, long2);
       }
 
-      final BigDecimal bd1 = long1 == null ? convertStringToBigDecimal(o1) : new BigDecimal(long1);
-      final BigDecimal bd2 = long2 == null ? convertStringToBigDecimal(o2) : new BigDecimal(long2);
+      final BigDecimal bd1 = long1 == null ? Rows.tryParseDecimal(o1) : BigDecimal.valueOf(long1);
+      final BigDecimal bd2 = long2 == null ? Rows.tryParseDecimal(o2) : BigDecimal.valueOf(long2);
 
       if (bd1 != null && bd2 != null) {
         return bd1.compareTo(bd2);
@@ -443,19 +444,6 @@ public class StringComparators
     {
       return StringComparators.NUMERIC_NAME;
     }
-  }
-
-  private static BigDecimal convertStringToBigDecimal(String input)
-  {
-    // treat unparseable Strings as nulls
-    BigDecimal bd = null;
-    try {
-      bd = new BigDecimal(input);
-    }
-    catch (NumberFormatException ex) {
-      // ignore
-    }
-    return bd;
   }
 
   public static class DayOfWeekComparator extends AbstractStringComparator implements StringComparator

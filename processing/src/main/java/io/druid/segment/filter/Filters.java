@@ -710,21 +710,21 @@ public class Filters
       if (StringUtils.isNullOrEmpty(value)) {
         return column.getNulls();
       } else if (column instanceof GenericColumn.FloatType) {
-        final BigDecimal decimal = new BigDecimal(value);
+        final BigDecimal decimal = Rows.parseDecimal(value);
         final float fv = decimal.floatValue();
         if (decimal.compareTo(BigDecimal.valueOf(fv)) == 0) {
           return ((GenericColumn.FloatType) column).collect(factory, iterator, f -> f == fv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.DoubleType) {
-        final BigDecimal decimal = new BigDecimal(value);
+        final BigDecimal decimal = Rows.parseDecimal(value);
         final double dv = decimal.doubleValue();
         if (decimal.compareTo(BigDecimal.valueOf(dv)) == 0) {
           return ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> d == dv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.LongType) {
-        final BigDecimal decimal = new BigDecimal(value);
+        final BigDecimal decimal = Rows.parseDecimal(value);
         final long lv = decimal.longValue();
         if (decimal.compareTo(BigDecimal.valueOf(lv)) == 0) {
           return ((GenericColumn.LongType) column).collect(factory, iterator, l -> l == lv);

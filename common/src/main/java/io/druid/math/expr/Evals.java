@@ -444,11 +444,15 @@ public class Evals
       return ExprEval.nullOf(castTo);
     }
     if (castTo.isDecimal()) {
-      final Long longVal = Rows.parseLong(eval.value(), null);
-      if (longVal != null) {
-        return ExprEval.of(new BigDecimal(longVal));
+      final Object value = eval.value();
+      if (value instanceof String) {
+        return ExprEval.of(Rows.tryParseDecimal((String) value));
       }
-      return ExprEval.of(BigDecimal.valueOf(Rows.parseDouble(eval.value(), null)));
+      final Long longVal = Rows.parseLong(value, null);
+      if (longVal != null) {
+        return ExprEval.of(BigDecimal.valueOf(longVal));
+      }
+      return ExprEval.of(BigDecimal.valueOf(Rows.parseDouble(value, null)));
     }
     throw new IAE("not supported type %s", castTo);
   }

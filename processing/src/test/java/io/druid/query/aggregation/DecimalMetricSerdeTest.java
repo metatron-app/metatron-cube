@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import io.druid.data.Rows;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
@@ -62,7 +63,7 @@ public class DecimalMetricSerdeTest
               @Override
               public BigDecimal apply(String input)
               {
-                return input == null ? null : new BigDecimal(input);
+                return Rows.parseDecimal(input);
               }
             }
         ), serde.getObjectStrategy()

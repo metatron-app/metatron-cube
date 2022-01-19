@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Rows;
 import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.segment.data.ObjectStrategy;
@@ -110,7 +111,7 @@ public class DecimalMetricSerde implements ComplexMetricSerde
             decimal = BigDecimal.valueOf(((Number) raw).longValue());
           }
         } else if (raw instanceof String) {
-          decimal = new BigDecimal((String) raw);
+          decimal = Rows.parseDecimal((String) raw);
         } else {
           throw new IAE("unsupported type %s", raw.getClass());
         }

@@ -32,6 +32,7 @@ import com.google.common.collect.Range;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -367,8 +368,8 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     final String upperValue = Strings.emptyToNull(getUpper());
 
     final boolean numeric = type.isNumeric() || StringComparators.NUMERIC_NAME.equals(comparatorType);
-    final Object lower = lowerValue == null ? null : numeric ? new BigDecimal(lowerValue) : type.cast(lowerValue);
-    final Object upper = upperValue == null ? null : numeric ? new BigDecimal(upperValue) : type.cast(upperValue);
+    final Object lower = numeric ? Rows.parseDecimal(lowerValue) : type.cast(lowerValue);
+    final Object upper = numeric ? Rows.parseDecimal(upperValue) : type.cast(upperValue);
 
     final Comparator comparator = numeric ? numericComparator(type) : getComparator();
     final Predicate predicate = toPredicate(lower, lowerStrict, upper, upperStrict, comparator);
@@ -398,7 +399,7 @@ public class BoundDimFilter extends SingleInput implements RangeFilter
     if (type.isDecimal()) {
       return (constant, v) -> ((BigDecimal) constant).compareTo((BigDecimal) v);
     } else if (type.isString()) {
-      return (constant, v) -> ((BigDecimal) constant).compareTo(new BigDecimal(String.valueOf(v)));
+      return (constant, v) -> ((BigDecimal) constant).compareTo(Rows.parseDecimal(String.valueOf(v)));
     } else if (type.isLong()) {
       return (constant, v) -> ((BigDecimal) constant).compareTo(BigDecimal.valueOf(((Number) v).longValue()));
     } else {

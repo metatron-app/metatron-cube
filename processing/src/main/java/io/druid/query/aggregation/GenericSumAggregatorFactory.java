@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
@@ -198,7 +199,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   public final Object deserialize(Object object)
   {
     if (object instanceof String && outputType.isDecimal()) {
-      return new BigDecimal((String) object);
+      return Rows.parseDecimal((String) object);
     }
     return super.deserialize(object);
   }

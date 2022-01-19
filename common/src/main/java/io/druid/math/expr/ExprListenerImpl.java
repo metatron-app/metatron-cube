@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Suppliers;
+import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
@@ -29,7 +30,6 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.apache.commons.lang.StringEscapeUtils;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -102,10 +102,7 @@ public class ExprListenerImpl extends ExprBaseListener
   @Override
   public void exitBooleanExpr(ExprParser.BooleanExprContext ctx)
   {
-    nodes.put(
-        ctx,
-        BooleanConst.of(Boolean.valueOf(ctx.getText()))
-    );
+    nodes.put(ctx, BooleanConst.of(Boolean.valueOf(ctx.getText())));
   }
 
   @Override
@@ -116,28 +113,19 @@ public class ExprListenerImpl extends ExprBaseListener
     if (last == 'l' || last == 'L') {
       text = text.substring(0, text.length() - 1);
     }
-    nodes.put(
-        ctx,
-        new LongConst(Long.parseLong(text))
-    );
+    nodes.put(ctx, new LongConst(Long.parseLong(text)));
   }
 
   @Override
   public void exitFloatExpr(ExprParser.FloatExprContext ctx)
   {
-    nodes.put(
-        ctx,
-        new FloatConst(Float.parseFloat(ctx.getText()))
-    );
+    nodes.put(ctx, new FloatConst(Float.parseFloat(ctx.getText())));
   }
 
   @Override
   public void exitDoubleExpr(ExprParser.DoubleExprContext ctx)
   {
-    nodes.put(
-        ctx,
-        new DoubleConst(Double.parseDouble(ctx.getText()))
-    );
+    nodes.put(ctx, new DoubleConst(Double.parseDouble(ctx.getText())));
   }
 
   @Override
@@ -145,10 +133,7 @@ public class ExprListenerImpl extends ExprBaseListener
   {
     final String text = ctx.getText();
     final String value = text.substring(0, text.length() - 1);
-    nodes.put(
-        ctx,
-        new DecimalConst(new BigDecimal(value))
-    );
+    nodes.put(ctx, new DecimalConst(Rows.parseDecimal(value)));
   }
 
   @Override

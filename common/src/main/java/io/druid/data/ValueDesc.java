@@ -149,7 +149,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static ValueDesc ofDecimal(BigDecimal decimal)
   {
-    return ofDecimal(decimal.precision(), decimal.scale(), null);
+    return decimal == null ? DECIMAL : ofDecimal(decimal.precision(), decimal.scale(), null);
   }
 
   public static ValueDesc ofDecimal(int precision, int scale, RoundingMode roundingMode)

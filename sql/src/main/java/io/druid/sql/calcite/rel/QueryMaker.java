@@ -357,15 +357,15 @@ public class QueryMaker
     } else if (value instanceof BigDecimal) {
       return (BigDecimal) value;
     } else if (value instanceof String) {
-      return new BigDecimal((String) value);
+      return io.druid.data.Rows.tryParseDecimal((String) value);
     } else if (value instanceof Short || value instanceof Integer) {
-      return new BigDecimal(((Number) value).intValue());
+      return BigDecimal.valueOf(((Number) value).intValue());
     } else if (value instanceof Long) {
-      return new BigDecimal((Long) value);
+      return BigDecimal.valueOf((Long) value);
     } else if (value instanceof Float) {
-      return new BigDecimal((Float) value);
+      return BigDecimal.valueOf((Float) value);
     } else if (value instanceof Double) {
-      return new BigDecimal((Double) value);
+      return BigDecimal.valueOf((Double) value);
     } else {
       throw new ISE("Cannot coerce[%s] to decimal", value.getClass().getName());
     }

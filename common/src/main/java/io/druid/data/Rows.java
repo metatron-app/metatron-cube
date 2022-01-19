@@ -19,6 +19,7 @@
 
 package io.druid.data;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -289,10 +290,21 @@ public class Rows
     return Float.valueOf(target);
   }
 
+  public static BigDecimal parseDecimal(final String value)
+  {
+    if (!StringUtils.isNullOrEmpty(value)) {
+      return Preconditions.checkNotNull(Rows.tryParseDecimal(value), "Invalid decimal expression %s", value);
+    }
+    return null;
+  }
+
   public static BigDecimal tryParseDecimal(final String value)
   {
+    if (StringUtils.isNullOrEmpty(value)) {
+      return null;
+    }
     try {
-      return StringUtils.isNullOrEmpty(value) ? null : new BigDecimal(value);
+      return new BigDecimal(value.indexOf(',') < 0 ? value : removeComma(value));
     }
     catch (Exception e) {
       return null;
@@ -347,6 +359,18 @@ public class Rows
   private static String removeFirstPlus(final String value)
   {
     return value.charAt(0) == '+' ? value.substring(1) : value;
+  }
+
+  private static String removeComma(final String value)
+  {
+    StringBuilder builder = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      final char aChar = value.charAt(i);
+      if (aChar != ',') {
+        builder.append(aChar);
+      }
+    }
+    return builder.toString();
   }
 
   private static String removeCommaAndFirstPlus(final String value)

@@ -504,7 +504,7 @@ public class ExpressionsTest extends CalciteTestBase
             SqlStdOperatorTable.DATETIME_PLUS,
             inputRef("t"),
             rexBuilder.makeIntervalLiteral(
-                new BigDecimal(period.toStandardDuration().getMillis()), // DAY-TIME literals value is millis
+                BigDecimal.valueOf(period.toStandardDuration().getMillis()), // DAY-TIME literals value is millis
                 new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.MINUTE, SqlParserPos.ZERO)
             )
         ),
@@ -548,7 +548,7 @@ public class ExpressionsTest extends CalciteTestBase
             ImmutableList.of(
                 inputRef("t"),
                 rexBuilder.makeIntervalLiteral(
-                    new BigDecimal(period.toStandardDuration().getMillis()), // DAY-TIME literals value is millis
+                    BigDecimal.valueOf(period.toStandardDuration().getMillis()), // DAY-TIME literals value is millis
                     new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.MINUTE, SqlParserPos.ZERO)
                 )
             )
