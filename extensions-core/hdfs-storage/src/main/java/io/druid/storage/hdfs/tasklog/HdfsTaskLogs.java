@@ -74,6 +74,7 @@ public class HdfsTaskLogs implements TaskLogs
       log.info("Wrote task log to: %s", path);
     } catch (Throwable t) {
       log.warn(t, "Failed to write task log to: %s", path);
+    } finally {
       IOUtils.closeQuietly(out);
     }
   }
