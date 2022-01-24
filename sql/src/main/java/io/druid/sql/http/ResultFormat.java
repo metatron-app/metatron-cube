@@ -19,19 +19,20 @@
 
 package io.druid.sql.http;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.druid.query.QueryDataSource;
+import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.StringUtils;
 import io.druid.query.RowSignature;
-import io.druid.query.UnionDataSource;
 
 import javax.ws.rs.core.MediaType;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = ResultFormat.DELEGATE.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(value = ResultFormat.ARRAY.class, name = "array"),
     @JsonSubTypes.Type(value = ResultFormat.ARRAYLINES.class, name = "arraylines"),
@@ -40,6 +41,45 @@ import java.io.OutputStream;
 })
 public interface ResultFormat
 {
+  class DELEGATE implements ResultFormat
+  {
+    private final ResultFormat type;
+
+    @JsonCreator
+    public DELEGATE(String type)
+    {
+      this.type = StringUtils.isNullOrEmpty(type) ? ARRAY.INSTANCE : fromString(type);
+    }
+
+    private static ResultFormat fromString(String type)
+    {
+      switch (type) {
+        case "array":
+          return ARRAY.INSTANCE;
+        case "arraylines":
+          return ARRAYLINES.INSTANCE;
+        case "object":
+          return OBJECT.INSTANCE;
+        case "objectlines":
+          return OBJECTLINES.INSTANCE;
+      }
+      throw new IAE("Not supported type [%s]", type);
+    }
+
+    @Override
+    public Writer createFormatter(OutputStream outputStream, ObjectMapper jsonMapper, RowSignature signature)
+        throws IOException
+    {
+      return type.createFormatter(outputStream, jsonMapper, signature);
+    }
+
+    @Override
+    public String contentType()
+    {
+      return type.contentType();
+    }
+  }
+
   class ARRAY implements ResultFormat
   {
     public static final ARRAY INSTANCE = new ARRAY();
