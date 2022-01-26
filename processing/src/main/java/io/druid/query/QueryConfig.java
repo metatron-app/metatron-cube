@@ -138,6 +138,11 @@ public class QueryConfig
     return query.getContextBoolean(Query.GBY_GROUPED_UNFOLD_DIMENSIONS, getGroupBy().isGroupedUnfoldDimensions());
   }
 
+  public boolean isMultivalueDimensionFiltering(Query<?> query)
+  {
+    return query.getContextBoolean(Query.GBY_MULTIVALUE_DIMENSION_FILTERING, getGroupBy().isMultiValueDimensionFiltering());
+  }
+
   private int maxedBySystem(Query<?> query, String key, int systemMax)
   {
     if (!query.hasContext(key)) {

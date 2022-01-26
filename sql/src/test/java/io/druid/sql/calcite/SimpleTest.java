@@ -185,16 +185,17 @@ public class SimpleTest extends CalciteQueryTestHelper
         "SELECT bks_event_d0, bks_event_d1, bks_event_d2 FROM cdis WHERE svc_mgmt_num = '10000497' limit 10",
         new Object[]{
             "[T114, APP, T114, APP]",
-            "[T114_금융, APP_IT, T114_음식, APP_생활]",
-            "[T114_금융_신용카드사, APP_IT_티월드다이렉트(tworlddirect.com), T114_음식_치킨, APP_생활_도미노피자(Dominopizza)]"}
+            "[금융, IT, 음식, 생활]",
+            "[신용카드사, 티월드다이렉트(tworlddirect.com), 치킨, 도미노피자(Dominopizza)]"
+        }
     );
     testQuery(
         "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
         + "WHERE svc_mgmt_num = '10000497' GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
-        new Object[]{"10", "APP", "APP_IT", "APP_IT_티월드다이렉트(tworlddirect.com)", 1L},
-        new Object[]{"10", "APP", "APP_생활", "APP_생활_도미노피자(Dominopizza)", 1L},
-        new Object[]{"10", "T114", "T114_금융", "T114_금융_신용카드사", 1L},
-        new Object[]{"10", "T114", "T114_음식", "T114_음식_치킨", 1L}
+        new Object[]{"10", "APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L},
+        new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L},
+        new Object[]{"10", "T114", "금융", "신용카드사", 1L},
+        new Object[]{"10", "T114", "음식", "치킨", 1L}
     );
   }
 
@@ -206,7 +207,7 @@ public class SimpleTest extends CalciteQueryTestHelper
         + " UNION ALL "
         + "SELECT bks_event_d1 FROM cdis WHERE svc_mgmt_num IN ('10000497', '10000499')",
         new Object[]{"[T114, APP, T114, APP]"},
-        new Object[]{"[T114_금융, APP_IT, T114_음식, APP_생활]"}
+        new Object[]{"[금융, IT, 음식, 생활]"}
     );
     testQuery(
         "SELECT purpose, count(*) as cnt "
@@ -216,10 +217,10 @@ public class SimpleTest extends CalciteQueryTestHelper
         + ") GROUP BY purpose",
         new Object[]{"T114", 2L},
         new Object[]{"APP", 2L},
-        new Object[]{"T114_금융", 1L},
-        new Object[]{"APP_IT", 1L},
-        new Object[]{"T114_음식", 1L},
-        new Object[]{"APP_생활", 1L}
+        new Object[]{"금융", 1L},
+        new Object[]{"IT", 1L},
+        new Object[]{"음식", 1L},
+        new Object[]{"생활", 1L}
     );
   }
 
@@ -235,11 +236,11 @@ public class SimpleTest extends CalciteQueryTestHelper
         + ") "
         + "GROUP BY purpose, occupation",
         new Object[]{"APP", "10", 2L},
-        new Object[]{"APP_IT", "10", 1L},
-        new Object[]{"APP_생활", "10", 1L},
+        new Object[]{"IT", "10", 1L},
         new Object[]{"T114", "10", 2L},
-        new Object[]{"T114_금융", "10", 1L},
-        new Object[]{"T114_음식", "10", 1L}
+        new Object[]{"금융", "10", 1L},
+        new Object[]{"생활", "10", 1L},
+        new Object[]{"음식", "10", 1L}
     );
     testQuery(
         PLANNER_CONFIG_DEFAULT,
@@ -375,6 +376,34 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"LG PKG", 8L},
         new Object[]{"JUMBO DRUM", 8L},
         new Object[]{"LG PKG", 8L}
+    );
+  }
+
+  @Test
+  public void test3993() throws Exception
+  {
+    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
+    walker.getQueryConfig().getGroupBy().setMultiValueDimensionFiltering(true);
+    testQuery(
+        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
+        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 = 'APP' GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
+        new Object[]{"10", "APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L},
+        new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L}
+    );
+    testQuery(
+        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
+        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 <= 'APP' GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
+        new Object[]{"10", "APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L},
+        new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L}
+    );
+    walker.getQueryConfig().getGroupBy().setMultiValueDimensionFiltering(false);
+    testQuery(
+        "SELECT age_group, bks_event_d0, bks_event_d1, bks_event_d2, count(*) as cnt FROM cdis "
+        + "WHERE svc_mgmt_num = '10000497' AND bks_event_d0 = 'APP' GROUP BY age_group, bks_event_d0, bks_event_d1, bks_event_d2",
+        new Object[]{"10", "APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L},
+        new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L},
+        new Object[]{"10", "T114", "금융", "신용카드사", 1L},
+        new Object[]{"10", "T114", "음식", "치킨", 1L}
     );
   }
 }

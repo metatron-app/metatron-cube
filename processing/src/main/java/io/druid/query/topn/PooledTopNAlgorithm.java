@@ -420,7 +420,7 @@ public class PooledTopNAlgorithm
       final AtomicInteger currentPosition
   )
   {
-    if (SKIP_POSITION_VALUE == positions[dimIndex]) {
+    if (dimIndex < 0 || SKIP_POSITION_VALUE == positions[dimIndex]) {
       return;
     }
     if (INIT_POSITION_VALUE == positions[dimIndex]) {

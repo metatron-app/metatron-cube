@@ -379,6 +379,11 @@ public interface DimFilter extends Expression, Cacheable
   {
   }
 
+  // marker
+  interface IndexedIDSupport extends DimFilter
+  {
+  }
+
   interface LogProvider extends DimFilter
   {
     DimFilter forLog();

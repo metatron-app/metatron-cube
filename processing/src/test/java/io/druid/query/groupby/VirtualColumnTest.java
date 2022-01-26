@@ -618,7 +618,7 @@ public class VirtualColumnTest
             "keys",
             Arrays.asList("values"),
             null,
-            new InDimFilter("indexed", Arrays.asList("key2", "key3"), null),
+            new InDimFilter("keys", Arrays.asList("key2", "key3"), null),
             "indexed"
         )
     );
@@ -641,7 +641,7 @@ public class VirtualColumnTest
             "keys",
             null,
             Arrays.asList("array"),
-            new InDimFilter("indexed", Arrays.asList("key2", "key3"), null),
+            new InDimFilter("keys", Arrays.asList("key2", "key3"), null),
             "indexed"
         )
     );
@@ -669,7 +669,7 @@ public class VirtualColumnTest
             "keys",
             Arrays.asList("values"),
             null,
-            new InDimFilter("indexed", Arrays.asList("not", "existing"), null),
+            new InDimFilter("keys", Arrays.asList("not", "existing"), null),
             "indexed"
         )
     );
@@ -692,7 +692,7 @@ public class VirtualColumnTest
             "keys",
             null,
             Arrays.asList("array"),
-            new InDimFilter("indexed", Arrays.asList("not", "existing"), null),
+            new InDimFilter("keys", Arrays.asList("not", "existing"), null),
             "indexed"
         )
     );

@@ -567,6 +567,15 @@ public class GuavaUtils
     return true;
   }
 
+  public static Set<String> retain(Set<String> set, List<String> retain)
+  {
+    if (containsAny(set, retain)) {
+      set = Sets.newHashSet(set);
+      set.retainAll(retain);
+    }
+    return set;
+  }
+
   public static List<String> retain(List<String> list, List<String> retain)
   {
     if (isNullOrEmpty(retain)) {

@@ -257,14 +257,7 @@ public class InFilter implements Filter
     } else {
       container = values;
     }
-    Predicate predicate = new Predicate()
-    {
-      @Override
-      public boolean apply(Object input)
-      {
-        return input == null ? containsNull : container.contains(input);
-      }
-    };
+    Predicate predicate = input -> input == null ? containsNull : container.contains(input);
     if (extractionFn != null) {
       predicate = Predicates.compose(predicate, extractionFn);
     }

@@ -27,6 +27,11 @@ public interface IndexedID
 {
   int get();
 
+  default Object getAsName()
+  {
+    return lookupName(get());
+  }
+
   int lookupId(String name);
 
   Object lookupName(int id);

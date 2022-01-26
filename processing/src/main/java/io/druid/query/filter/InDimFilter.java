@@ -40,6 +40,10 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.query.Query;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter.Compressible;
+import io.druid.query.filter.DimFilter.IndexedIDSupport;
+import io.druid.query.filter.DimFilter.LogProvider;
+import io.druid.query.filter.DimFilter.Mergeable;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.lookup.LookupExtractionFn;
@@ -55,12 +59,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import static io.druid.query.filter.DimFilter.Compressible;
-import static io.druid.query.filter.DimFilter.LogProvider;
-import static io.druid.query.filter.DimFilter.Mergeable;
-
 @JsonTypeName("in")
-public class InDimFilter extends SingleInput implements RangeFilter, LogProvider, Compressible, Mergeable
+public class InDimFilter extends SingleInput
+    implements RangeFilter, LogProvider, Compressible, Mergeable, IndexedIDSupport
 {
   private final String dimension;
   private final ExtractionFn extractionFn;
@@ -278,8 +279,10 @@ public class InDimFilter extends SingleInput implements RangeFilter, LogProvider
       Set<String> set1 = Sets.newHashSet(values);
       Set<String> set2 = Sets.newHashSet(in.values);
       switch (op) {
-        case AND: return new InDimFilter(dimension, Lists.newArrayList(Sets.intersection(set1, set2)), extractionFn);
-        case OR: return new InDimFilter(dimension, Lists.newArrayList(Sets.union(set1, set2)), extractionFn);
+        case AND:
+          return new InDimFilter(dimension, Lists.newArrayList(Sets.intersection(set1, set2)), extractionFn);
+        case OR:
+          return new InDimFilter(dimension, Lists.newArrayList(Sets.union(set1, set2)), extractionFn);
       }
     } else if (other instanceof SelectorDimFilter) {
       SelectorDimFilter select = (SelectorDimFilter) other;
@@ -292,7 +295,7 @@ public class InDimFilter extends SingleInput implements RangeFilter, LogProvider
             return this;
           }
           List<String> copy = Lists.newArrayList(values);
-          copy.add(-index -1, select.getValue());
+          copy.add(-index - 1, select.getValue());
           return new InDimFilter(dimension, extractionFn, copy);
       }
     }

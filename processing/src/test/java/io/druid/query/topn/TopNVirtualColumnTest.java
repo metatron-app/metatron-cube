@@ -197,7 +197,7 @@ public class TopNVirtualColumnTest
     builder.virtualColumn(
         new KeyIndexedVirtualColumn(
             "keys", Arrays.asList("values"), null,
-            new InDimFilter("indexed", Arrays.asList("key1", "key3"), null), "indexed"
+            new InDimFilter("keys", Arrays.asList("key1", "key3"), null), "indexed"
         )
     );
     expectedResults = Arrays.asList(
@@ -302,7 +302,7 @@ public class TopNVirtualColumnTest
     builder.virtualColumn(
         new KeyIndexedVirtualColumn(
             "keys", null, Arrays.asList("array"),
-            new InDimFilter("indexed", Arrays.asList("key1", "key3"), null), "indexed"
+            new InDimFilter("keys", Arrays.asList("key1", "key3"), null), "indexed"
         )
     );
     expectedResults = Arrays.asList(

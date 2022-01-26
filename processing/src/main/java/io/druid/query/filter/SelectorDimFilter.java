@@ -41,6 +41,7 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.ISE;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.BooleanColumnSupport;
+import io.druid.query.filter.DimFilter.IndexedIDSupport;
 import io.druid.query.filter.DimFilter.Mergeable;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
@@ -55,8 +56,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
+ *
  */
-public class SelectorDimFilter extends SingleInput implements RangeFilter, BooleanColumnSupport, Mergeable
+public class SelectorDimFilter extends SingleInput
+    implements RangeFilter, BooleanColumnSupport, Mergeable, IndexedIDSupport
 {
   public static DimFilter or(final String dimension, String... values)
   {
@@ -204,16 +207,13 @@ public class SelectorDimFilter extends SingleInput implements RangeFilter, Boole
     if (!value.equals(that.value)) {
       return false;
     }
-    return extractionFn != null ? extractionFn.equals(that.extractionFn) : that.extractionFn == null;
+    return Objects.equals(extractionFn, that.extractionFn);
   }
 
   @Override
   public int hashCode()
   {
-    int result = dimension.hashCode();
-    result = 31 * result + value.hashCode();
-    result = 31 * result + (extractionFn != null ? extractionFn.hashCode() : 0);
-    return result;
+    return Objects.hash(dimension, extractionFn, value);
   }
 
   @Override

@@ -24,8 +24,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -34,17 +37,21 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.IndexProvidingSelector.IndexHolder;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 
-import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 /**
+ *
  */
 public class KeyIndexedVirtualColumn implements VirtualColumn
 {
@@ -57,7 +64,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   private final List<String> valueMetrics;
 
   private final Set<String> valueColumns;
-  private final KeyIndexedHolder indexer;
+  private final IndexHolder indexer;
 
   @JsonCreator
   public KeyIndexedVirtualColumn(
@@ -79,7 +86,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     );
     this.outputName = Preconditions.checkNotNull(outputName, "output name should not be null");
     this.valueColumns = Sets.newHashSet(Iterables.concat(this.valueDimensions, this.valueMetrics));
-    this.indexer = new KeyIndexedHolder();
+    this.indexer = new IndexHolder();
   }
 
   @Override
@@ -178,13 +185,13 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     return new IndexProvidingSelector.Delegated(selector)
     {
       @Override
-      public final IndexedInts getRow()
+      public IndexedInts getRow()
       {
         return indexer.indexed(super.getRow());
       }
 
       @Override
-      public final ColumnSelectorFactory wrapFactory(final ColumnSelectorFactory factory)
+      public ColumnSelectorFactory wrapFactory(final ColumnSelectorFactory factory)
       {
         return new VirtualColumns.VirtualColumnAsColumnSelectorFactory(
             KeyIndexedVirtualColumn.this, factory, outputName, valueColumns
@@ -207,90 +214,72 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
   private DimensionSelector toFilteredSelector(final ColumnSelectorFactory factory, final ExtractionFn extractionFn)
   {
-    final DimensionSpec dimensionSpec = DimensionSpecs.of(keyDimension, extractionFn);
-    final DimensionSelector selector = factory.makeDimensionSelector(dimensionSpec);
+    DimensionSpec dimensionSpec = DimensionSpecs.of(keyDimension, outputName, extractionFn);
+    DimensionSelector selector = factory.makeDimensionSelector(dimensionSpec);
     if (keyFilter == null) {
       return selector;
     }
-    final IteratingIndexedInts iterator = new IteratingIndexedInts(selector);
-    final ValueMatcher keyMatcher = Filters.toFilter(keyFilter, factory).makeMatcher(
-        new ColumnSelectorFactories.NotSupports()
+    DimensionSelector[] selectors = new DimensionSelector[]{selector};
+    rewrite(factory, Arrays.asList(dimensionSpec), selectors, keyFilter);
+    return selectors[0];
+  }
+
+  public static void rewrite(
+      ColumnSelectorFactory factory,
+      List<DimensionSpec> dimensions,
+      DimensionSelector[] selectors,
+      DimFilter filter
+  )
+  {
+    final List<String> inputNames = DimensionSpecs.toInputNames(dimensions);
+    final List<String> mvDimensions = Lists.newArrayList();
+    for (int i = 0; i < selectors.length; i++) {
+      if (!(selectors[i] instanceof DimensionSelector.SingleValued) && dimensions.get(i).getExtractionFn() == null) {
+        mvDimensions.add(inputNames.get(i));
+      }
+    }
+    if (mvDimensions.isEmpty()) {
+      return;
+    }
+    final DimFilter rewritten = DimFilters.rewrite(
+        filter, f -> GuavaUtils.containsAny(Filters.getDependents(f), mvDimensions) ? f : null
+    );
+    final Set<String> dependents = GuavaUtils.retain(Filters.getDependents(rewritten), mvDimensions);
+    if (dependents.isEmpty()) {
+      return;
+    }
+    final Map<String, ObjectColumnSelector> hacked = Maps.newHashMap();
+    for (String dependent : dependents) {
+      final int index = inputNames.indexOf(dependent);
+      if (index < 0 || selectors[index] instanceof DimensionSelector.SingleValued) {
+        continue;
+      }
+      hacked.put(dependent, new MVIteratingSelector(index, selectors[index]));
+    }
+    final ValueMatcher keyMatcher = Filters.toFilter(rewritten, factory).makeMatcher(
+        new ColumnSelectorFactories.Delegated(factory)
         {
           @Override
           public ObjectColumnSelector makeObjectColumnSelector(String columnName)
           {
-            Preconditions.checkArgument(
-                columnName.equals(outputName), "cannot reference column '%s' in current context", columnName
-            );
-            return new ObjectColumnSelector<IndexedID>()
-            {
-              @Override
-              public ValueDesc type()
-              {
-                return ValueDesc.ofIndexedId(ValueType.STRING);
-              }
-
-              @Override
-              public IndexedID get()
-              {
-                return iterator;
-              }
-            };
+            return hacked.computeIfAbsent(columnName, c -> super.makeObjectColumnSelector(c));
           }
 
           @Override
           public ValueDesc resolve(String columnName)
           {
-            Preconditions.checkArgument(
-                columnName.equals(outputName), "cannot reference column '%s' in current context", columnName
-            );
-            return ValueDesc.ofIndexedId(ValueType.STRING);
+            return hacked.containsKey(columnName) ? INDEXED_TYPE : super.resolve(columnName);
           }
         }
     );
-
-    return new DelegatedDimensionSelector(selector)
-    {
-      @Override
-      public IndexedInts getRow()
+    for (ObjectColumnSelector selector : hacked.values()) {
+      MVIteratingSelector mv = (MVIteratingSelector) selector;
+      selectors[mv.source] = new DelegatedDimensionSelector(selectors[mv.source])
       {
-        final IndexedInts indexed = iterator.next();
-        final int limit = indexed.size();
-        final int[] mapping = indexer.mapping(limit);
-
-        int virtual = 0;
-        for (; iterator.index < limit; iterator.index++) {
-          if (keyMatcher.matches()) {
-            mapping[virtual++] = iterator.index;
-          }
-        }
-        if (virtual == 0) {
-          return IndexedInts.EMPTY;
-        }
-        final int size = virtual;
-
-        return new IndexedInts()
-        {
-          @Override
-          public int size()
-          {
-            return size;
-          }
-
-          @Override
-          public int get(int index)
-          {
-            return index < size && mapping[index] >= 0 ? indexed.get(mapping[index]) : -1;
-          }
-
-          @Override
-          public void close() throws IOException
-          {
-            indexed.close();
-          }
-        };
-      }
-    };
+        @Override
+        public IndexedInts getRow() {return mv.rewrite(keyMatcher);}
+      };
+    }
   }
 
   @Override
@@ -430,23 +419,34 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     }
   }
 
-  private static class KeyIndexedHolder extends IndexProvidingSelector.IndexHolder
-  {
-    private volatile int[] mapping;
+  private static final ValueDesc INDEXED_TYPE = ValueDesc.ofIndexedId(ValueType.STRING);
 
-    @Override
-    final int index()
+  private static class MVIteratingSelector extends ObjectColumnSelector.Typed<IndexedID>
+  {
+    private final int source;
+    private final IteratingIndexedInts iterator;
+
+    private MVIteratingSelector(int source, DimensionSelector selector)
     {
-      return mapping == null ? index : mapping[index];
+      super(INDEXED_TYPE);
+      this.source = source;
+      this.iterator = new IteratingIndexedInts(selector);
     }
 
-    final int[] mapping(int size)
+    @Override
+    public IndexedID get()
     {
-      if (mapping == null || mapping.length < size) {
-        mapping = new int[size];
+      return iterator;
+    }
+
+    private IndexedInts rewrite(ValueMatcher matcher)
+    {
+      final IndexedInts indexed = iterator.next();
+      final int[] rewritten = new int[indexed.size()];
+      for (; iterator.index < rewritten.length; iterator.index++) {
+        rewritten[iterator.index] = matcher.matches() ? indexed.get(iterator.index) : -1;
       }
-      mapping[0] = -1;
-      return mapping;
+      return IndexedInts.from(rewritten);
     }
   }
 }

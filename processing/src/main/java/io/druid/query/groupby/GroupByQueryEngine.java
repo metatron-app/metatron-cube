@@ -61,6 +61,7 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.IndexProvidingSelector;
+import io.druid.segment.KeyIndexedVirtualColumn;
 import io.druid.segment.Rowboat;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumns;
@@ -238,6 +239,10 @@ public class GroupByQueryEngine
           mvDimensions.add(i);
         }
       }
+      if (query.getFilter() != null && !mvDimensions.isEmpty() && config.isMultivalueDimensionFiltering(query)) {
+        KeyIndexedVirtualColumn.rewrite(cursor, dimensionSpecs, dimensions, query.getFilter());
+      }
+
       final KeyPool pool = new KeyPool(dimensions.length);
       if (mvDimensions.isEmpty()) {
         this.rowUpdater = new RowUpdater(pool)
@@ -264,7 +269,11 @@ public class GroupByQueryEngine
           {
             final int[] key = pool.get();
             for (int x : svxs) {
-              key[BUFFER_POS + x] = dimensions[x].getRow().get(0);
+              final int v = dimensions[x].getRow().get(0);
+              if (v < 0) {
+                return null;
+              }
+              key[BUFFER_POS + x] = v;
             }
             rows[0] = dimensions[mvxs[0]].getRow();
             final int length = rows[0].size();
@@ -275,14 +284,16 @@ public class GroupByQueryEngine
               rows[i] = dimensions[mvxs[i]].getRow();
               Preconditions.checkArgument(length == rows[i].size(), "Inconsistent length of group dimension");
             }
-            for (int mx = 0; mx < mvxs.length; mx++) {
-              key[BUFFER_POS + mvxs[mx]] = rows[mx].get(0);
-            }
-            List<int[]> retVal = update(key);
-            for (int ix = 1; ix < length; ix++) {
+            List<int[]> retVal = null;
+            loop:
+            for (int ix = 0; ix < length; ix++) {
               final int[] copy = svxs.length == 0 ? pool.get() : pool.copyOf(key);
               for (int mx = 0; mx < mvxs.length; mx++) {
-                copy[BUFFER_POS + mvxs[mx]] = rows[mx].get(ix);
+                final int v = rows[mx].get(ix);
+                if (v < 0) {
+                  continue loop;
+                }
+                copy[BUFFER_POS + mvxs[mx]] = v;
               }
               if (retVal == null) {
                 retVal = update(copy);
@@ -477,7 +488,11 @@ public class GroupByQueryEngine
             // warn: changed semantic.. (we added null and proceeded before)
             return null;
           } else if (size == 1) {
-            key[BUFFER_POS + index] = row.get(0);
+            final int v = row.get(0);
+            if (v < 0) {
+              return null;
+            }
+            key[BUFFER_POS + index] = v;
             return updateRecursive(key, index + 1, dims);
           }
           final int nextIx = index + 1;
@@ -495,11 +510,14 @@ public class GroupByQueryEngine
             }
             return retVal;
           } else {
-            key[BUFFER_POS + index] = row.get(0);
-            List<int[]> retVal = updateRecursive(key, nextIx, dims);
-            for (int i = 1; i < size; i++) {
-              final int[] newKey = pool.copyOf(key);
-              newKey[BUFFER_POS + index] = row.get(i);
+            List<int[]> retVal = null;
+            for (int i = 0; i < size; i++) {
+              final int v = row.get(i);
+              if (v < 0) {
+                continue;
+              }
+              final int[] newKey = i == 0 ? key : pool.copyOf(key);
+              newKey[BUFFER_POS + index] = v;
               retVal = merge(retVal, updateRecursive(newKey, nextIx, dims));
             }
             return retVal;

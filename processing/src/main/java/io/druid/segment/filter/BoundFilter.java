@@ -230,10 +230,6 @@ public class BoundFilter implements Filter
   @Override
   public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
-    return Filters.toValueMatcher(
-        factory,
-        boundDimFilter.getDimension(),
-        boundDimFilter.toPredicate(factory)
-    );
+    return boundDimFilter.makeMather(factory);
   }
 }

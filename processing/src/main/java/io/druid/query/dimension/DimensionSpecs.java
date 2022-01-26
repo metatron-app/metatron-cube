@@ -190,6 +190,14 @@ public class DimensionSpecs
     return DefaultDimensionSpec.of(dimensionName);
   }
 
+  public static DimensionSpec of(String dimensionName, String outputName, ExtractionFn extractionFn)
+  {
+    if (extractionFn != null) {
+      return new ExtractionDimensionSpec(dimensionName, outputName, extractionFn);
+    }
+    return new DefaultDimensionSpec(dimensionName, outputName);
+  }
+
   public static boolean containsExtractFn(List<DimensionSpec> dimensionSpecs)
   {
     for (DimensionSpec dimensionSpec : dimensionSpecs) {

@@ -234,7 +234,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static boolean isIndexedId(ValueDesc valueType)
   {
-    return isIndexedId(valueType.typeName);
+    return valueType != null && isIndexedId(valueType.typeName);
   }
 
   public static boolean isIndexedId(String typeName)

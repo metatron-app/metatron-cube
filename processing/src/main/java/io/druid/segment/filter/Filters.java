@@ -37,6 +37,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.cache.Cache;
+import io.druid.collections.IntList;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
@@ -72,6 +73,7 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
+import io.druid.segment.DelegatedDimensionSelector;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -84,6 +86,7 @@ import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Dictionary;
+import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.lucene.Lucenes;
@@ -185,6 +188,10 @@ public class Filters
     }
     if (columnType.isDimension()) {
       return Filters.toValueMatcher(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)), predicate);
+    }
+    if (ValueDesc.isIndexedId(columnType)) {
+      ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
+      return () -> predicate.apply(((IndexedID) selector.get()).getAsName());
     }
     return Filters.toValueMatcher(ColumnSelectors.toDimensionalSelector(factory, column), predicate);
   }
@@ -301,6 +308,42 @@ public class Filters
           }
         }
         return false;
+      }
+    };
+  }
+
+  public static DimensionSelector combine(final DimensionSelector selector, final Predicate predicate)
+  {
+    return combineIx(selector, v -> predicate.apply(selector.lookupName(v)));
+  }
+
+  public static DimensionSelector combineIx(final DimensionSelector selector, final IntPredicate predicate)
+  {
+    return new DelegatedDimensionSelector(selector)
+    {
+      private final IntList scratch = new IntList();
+
+      @Override
+      public IndexedInts getRow()
+      {
+        final IndexedInts row = delegate.getRow();
+        final int size = row.size();
+        if (size == 0) {
+          return row;
+        }
+        if (size == 1) {
+          final boolean match = predicate.apply(row.get(0));
+          return match ? row : IndexedInts.from(-1);
+        }
+        scratch.clear();
+        boolean allMatched = true;
+        for (int i = 0; i < size; i++) {
+          final int v = row.get(i);
+          final boolean match = predicate.apply(v);
+          scratch.add(match ? v : -1);
+          allMatched &= match;
+        }
+        return allMatched ? row : IndexedInts.from(scratch.array());
       }
     };
   }
@@ -453,15 +496,22 @@ public class Filters
     );
   }
 
+  public static Set<String> getDependents(Iterable<DimFilter> filters)
+  {
+    Set<String> handler = Sets.newHashSet();
+    for (DimFilter filter : filters) {
+      filter.addDependent(handler);
+    }
+    return handler;
+  }
+
   public static Set<String> getDependents(DimFilter filter)
   {
     if (filter == null) {
       return ImmutableSet.of();
     }
     Set<String> handler = Sets.newHashSet();
-    if (filter != null) {
-      filter.addDependent(handler);
-    }
+    filter.addDependent(handler);
     return handler;
   }
 
@@ -900,15 +950,15 @@ public class Filters
         if (dimension == null) {
           return null;
         }
-        final DSuppliers.HandOver<Object> handOver = new DSuppliers.HandOver<>();
-        final Expr.NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
-
         final BitmapIndexSelector selector = context.indexSelector();
         final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
         if (capabilities == null) {
           return null;
         }
         final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+        final DSuppliers.HandOver<Object> handOver = new DSuppliers.HandOver<>();
+        final Expr.NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
+
         final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
         if (bitmapIndex != null) {
           final int cardinality = bitmapIndex.getCardinality();
@@ -1169,7 +1219,6 @@ public class Filters
         {
           while (peek >= 0) {
             if (peek == value) {
-              peek = iterator.hasNext() ? iterator.next() : -1;
               return true;
             } else if (peek > value) {
               return false;
@@ -1190,7 +1239,6 @@ public class Filters
         {
           while (peek >= 0) {
             if (peek == value) {
-              peek = iterator.hasNext() ? iterator.next() : -1;
               return true;
             } else if (peek < value) {
               return false;

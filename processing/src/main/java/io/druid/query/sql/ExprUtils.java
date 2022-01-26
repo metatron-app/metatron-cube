@@ -20,9 +20,9 @@
 package io.druid.query.sql;
 
 import com.google.common.base.Strings;
-import io.druid.java.util.common.IAE;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.PeriodGranularity;
+import io.druid.java.util.common.IAE;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import org.joda.time.Chronology;
@@ -31,32 +31,10 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 import org.joda.time.chrono.ISOChronology;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 public class ExprUtils
 {
-  private static final Expr.NumericBinding NIL_BINDINGS = new Expr.NumericBinding()
-  {
-    @Override
-    public Collection<String> names()
-    {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public Object get(String name)
-    {
-      throw new IllegalArgumentException(name + " is not a constant");
-    }
-  };
-
-  public static Expr.NumericBinding nilBindings()
-  {
-    return NIL_BINDINGS;
-  }
-
   public static DateTimeZone toTimeZone(final Expr timeZoneArg)
   {
     if (!Evals.isConstant(timeZoneArg)) {

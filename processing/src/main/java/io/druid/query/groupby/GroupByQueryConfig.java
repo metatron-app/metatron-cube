@@ -79,6 +79,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private boolean groupedUnfoldDimensions = false;
 
+  @JsonProperty
+  private boolean multiValueDimensionFiltering = false;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -242,5 +245,15 @@ public class GroupByQueryConfig
   public boolean isGroupedUnfoldDimensions()
   {
     return groupedUnfoldDimensions;
+  }
+
+  public void setMultiValueDimensionFiltering(boolean multiValueDimensionFiltering)
+  {
+    this.multiValueDimensionFiltering = multiValueDimensionFiltering;
+  }
+
+  public boolean isMultiValueDimensionFiltering()
+  {
+    return multiValueDimensionFiltering;
   }
 }
