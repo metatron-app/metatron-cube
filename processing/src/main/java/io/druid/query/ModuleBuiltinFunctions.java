@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
@@ -46,6 +47,7 @@ import io.druid.query.lookup.LookupReferencesManager;
 import org.apache.commons.collections.keyvalue.MultiKey;
 import org.apache.lucene.util.SloppyMath;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -96,7 +98,6 @@ public class ModuleBuiltinFunctions implements Function.Library
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     protected Function toFunction(final Map<String, Object> parameter)
     {
       final Map lookup = (Map) parameter.get("lookup");
@@ -289,6 +290,49 @@ public class ModuleBuiltinFunctions implements Function.Library
           catch (Exception e) {
             throw Throwables.propagate(e);
           }
+        }
+      };
+    }
+  }
+
+  @Function.Named("dedup")
+  public static final class Dedup extends NamedFactory implements Function.FixedTyped
+  {
+    @Override
+    public ValueDesc returns()
+    {
+      return ValueDesc.MV_STRING;
+    }
+
+    @Override
+    public Child create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args, ValueDesc.STRING);
+      return new Child()
+      {
+        private final Map<Object, Object> map = new LinkedHashMap<>();
+
+        @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.MV_STRING;
+        }
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          ExprEval eval = args.get(0).eval(bindings);
+          if (eval.value() instanceof List) {
+            map.clear();
+            List list = (List) eval.value();
+            for (Object v : list) {
+              map.putIfAbsent(v, v);
+            }
+            if (map.size() < list.size()) {
+              return ExprEval.of(Lists.newArrayList(map.keySet()), ValueDesc.MV_STRING);
+            }
+          }
+          return ExprEval.of(eval.value(), ValueDesc.MV_STRING);
         }
       };
     }

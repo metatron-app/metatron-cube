@@ -116,7 +116,7 @@ public class GroupByQueryRunnerFactory
         }
         type = ValueDesc.of(descriptiveType[2]);
       }
-      if (type.isDimension()) {
+      if (type.isDimension() || type.isMultiValued()) {
         types.add(type.subElement(ValueDesc.STRING).type());
       } else if (type.isArray()) {
         types.add(type.subElement(ValueDesc.UNKNOWN).type());

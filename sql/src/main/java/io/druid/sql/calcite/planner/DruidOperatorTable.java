@@ -71,6 +71,7 @@ import io.druid.sql.calcite.expression.builtin.CastOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.CeilOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.ConcatOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.DateTruncOperatorConversion;
+import io.druid.sql.calcite.expression.builtin.DedupOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.ExtractOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.FloorOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.ItemOperatorConversion;
@@ -246,6 +247,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new BitSetUnwrapConversion())
           .add(new BitSetCardinalityConversion())
           .add(new NominalTypeConversion())
+          .add(new DedupOperatorConversion())
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.

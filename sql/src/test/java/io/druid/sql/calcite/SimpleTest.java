@@ -19,6 +19,8 @@
 
 package io.druid.sql.calcite;
 
+import io.druid.math.expr.Parser;
+import io.druid.query.ModuleBuiltinFunctions;
 import io.druid.segment.TestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.After;
@@ -404,6 +406,26 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"10", "APP", "생활", "도미노피자(Dominopizza)", 1L},
         new Object[]{"10", "T114", "금융", "신용카드사", 1L},
         new Object[]{"10", "T114", "음식", "치킨", 1L}
+    );
+  }
+
+  static {
+    Parser.register(ModuleBuiltinFunctions.class);
+    ModuleBuiltinFunctions.jsonMapper = TestHelper.JSON_MAPPER;
+  }
+
+  @Test
+  public void test3994() throws Exception
+  {
+    testQuery(
+        "SELECT bks_event_d0, count(*) as cnt FROM cdis GROUP BY bks_event_d0",
+        new Object[]{"APP", 4L},
+        new Object[]{"T114", 4L}
+    );
+    testQuery(
+        "SELECT dedup(bks_event_d0), count(*) as cnt FROM cdis GROUP BY dedup(bks_event_d0)",
+        new Object[]{"APP", 2L},
+        new Object[]{"T114", 2L}
     );
   }
 }
