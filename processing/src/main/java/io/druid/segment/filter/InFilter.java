@@ -19,20 +19,16 @@
 
 package io.druid.segment.filter;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.ExprEval;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
@@ -40,7 +36,6 @@ import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
@@ -57,7 +52,6 @@ import it.unimi.dsi.fastutil.longs.LongSet;
 
 import java.math.BigDecimal;
 import java.util.BitSet;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -120,7 +114,7 @@ public class InFilter implements Filter
     final ValueDesc type = factory.resolve(dimension);
     if (type == null) {
       // should handle extract fn
-      return BooleanValueMatcher.of(toPredicate(allowsNull, null).apply(null));
+      return BooleanValueMatcher.of(toPredicate(allowsNull).apply(null));
     }
     if (type.isDimension() && extractionFn == null) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
@@ -145,58 +139,53 @@ public class InFilter implements Filter
       return allowsNull ? () -> selector.get() == null : ValueMatcher.FALSE;
     }
     if (selector.type().isBitSet()) {
-      if (extractionFn == null) {
-        List<Integer> ids = ImmutableList.copyOf(
-            Iterables.filter(Iterables.transform(values, v -> Rows.parseInt(v, null)), Predicates.notNull())
-        );
-        if (ids.isEmpty()) {
-          return () -> selector.get() == null;
-        }
-        final int[] ix = Ints.toArray(ids);
-        return () -> {
-          final BitSet bitSet = (BitSet) selector.get();
-          if (bitSet == null) {
-            return false;
-          }
-          for (int x : ix) {
-            if (bitSet.get(x)) {
-              return true;
-            }
-          }
+      if (extractionFn != null) {
+        return ValueMatcher.FALSE;
+      }
+      List<Integer> ids = ImmutableList.copyOf(
+          Iterables.filter(Iterables.transform(values, v -> Rows.parseInt(v, null)), Predicates.notNull())
+      );
+      if (ids.isEmpty()) {
+        return () -> selector.get() == null;
+      }
+      final int[] ix = Ints.toArray(ids);
+      return () -> {
+        final BitSet bitSet = (BitSet) selector.get();
+        if (bitSet == null) {
           return false;
-        };
-      }
-      return ValueMatcher.FALSE;
-    }
-    ObjectColumnSelector wrapped = selector;
-    if (ValueDesc.isIndexedId(type)) {
-      if (extractionFn == null) {
-        return new ValueMatcher()
-        {
-          private boolean ready;
-          private final IntSet find = new IntOpenHashSet();
-
-          @Override
-          public boolean matches()
-          {
-            final IndexedID indexed = (IndexedID) selector.get();
-            if (!ready) {
-              for (String value : values) {
-                final int id = indexed.lookupId(value);
-                if (id >= 0) {
-                  find.add(id);
-                }
-              }
-              ready = true;
-            }
-            return find.contains(indexed.get());
+        }
+        for (int x : ix) {
+          if (bitSet.get(x)) {
+            return true;
           }
-        };
-      } else {
-        wrapped = ColumnSelectors.asValued(selector);
-      }
+        }
+        return false;
+      };
     }
-    return Filters.toValueMatcher(wrapped, toPredicate(allowsNull, wrapped.type()));
+    if (ValueDesc.isIndexedId(type) && extractionFn == null) {
+      return new ValueMatcher()
+      {
+        private boolean ready;
+        private final IntSet find = new IntOpenHashSet();
+
+        @Override
+        public boolean matches()
+        {
+          final IndexedID indexed = (IndexedID) selector.get();
+          if (!ready) {
+            for (String value : values) {
+              final int id = indexed.lookupId(value);
+              if (id >= 0) {
+                find.add(id);
+              }
+            }
+            ready = true;
+          }
+          return find.contains(indexed.get());
+        }
+      };
+    }
+    return Filters.toValueMatcher(selector, toPredicate(allowsNull));
   }
 
   private static Predicate<Number> toNumericPredicate(
@@ -245,19 +234,9 @@ public class InFilter implements Filter
   }
 
   @SuppressWarnings("unchecked")
-  private Predicate toPredicate(final boolean containsNull, final ValueDesc valueType)
+  private Predicate toPredicate(final boolean containsNull)
   {
-    final Collection container;
-    if (extractionFn == null && valueType != null && valueType.isPrimitiveNumeric()) {
-      Preconditions.checkArgument(!containsNull, "cannot use null value for numeric type");
-      container = Sets.newHashSet();
-      for (String value : values) {
-        container.add(Evals.castToValue(ExprEval.of(value), valueType));
-      }
-    } else {
-      container = values;
-    }
-    Predicate predicate = input -> input == null ? containsNull : container.contains(input);
+    Predicate predicate = input -> input == null ? containsNull : values.contains(input);
     if (extractionFn != null) {
       predicate = Predicates.compose(predicate, extractionFn);
     }

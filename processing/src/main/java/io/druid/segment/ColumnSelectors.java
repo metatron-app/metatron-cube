@@ -31,7 +31,6 @@ import io.druid.data.Rows;
 import io.druid.data.UTF8Bytes;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector.SingleValued;
@@ -303,31 +302,6 @@ public class ColumnSelectors
     return asSelector(ValueDesc.STRING, () -> selector.get().asString());
   }
 
-  @SuppressWarnings("unchecked")
-  public static ObjectColumnSelector toDimensionalSelector(ColumnSelectorFactory factory, String column)
-  {
-    ValueDesc type = factory.resolve(column);
-    if (type == null) {
-      return nullObjectSelector(ValueDesc.STRING);
-    }
-    if (type.isDimension()) {
-      return asMultiValued(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)));
-    }
-
-    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
-    if (type.isPrimitive()) {
-      return selector;
-    }
-    if (ValueDesc.isIndexedId(type)) {
-      return asValued(selector);
-    }
-    if (type.isArray()) {
-      return asArray(selector, type.subElement(ValueDesc.UNKNOWN));
-    }
-    // toString, whatsoever
-    return asSelector(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
-  }
-
   public static <I, O> ObjectColumnSelector<O> map(
       final ObjectColumnSelector<I> selector,
       final ValueDesc outType,
@@ -346,13 +320,12 @@ public class ColumnSelectors
 
   public static ObjectColumnSelector asValued(final ObjectColumnSelector<IndexedID> selector)
   {
-    return new ObjectColumnSelector.Typed(selector.type())
+    return new ObjectColumnSelector.Typed(ValueDesc.STRING)
     {
       @Override
       public Object get()
       {
-        IndexedID indexed = selector.get();
-        return indexed.lookupName(indexed.get());
+        return selector.get().getAsName();
       }
     };
   }

@@ -67,7 +67,6 @@ import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
-import it.unimi.dsi.fastutil.ints.IntIterator;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.joda.time.DateTime;
 
@@ -239,8 +238,12 @@ public class GroupByQueryEngine
           mvDimensions.add(i);
         }
       }
-      if (query.getFilter() != null && !mvDimensions.isEmpty() && config.isMultivalueDimensionFiltering(query)) {
-        KeyIndexedVirtualColumn.rewrite(cursor, dimensionSpecs, dimensions, query.getFilter());
+      if (query.getFilter() != null && !mvDimensions.isEmpty() && config.isMultiValueDimensionFiltering(query)) {
+        List<String> mvNames = Lists.newArrayList();
+        for (int x : mvDimensions.array()) {
+          mvNames.add(dimensionSpecs.get(x).getDimension());
+        }
+        KeyIndexedVirtualColumn.rewrite(cursor, dimensionSpecs, dimensions, mvNames, query.getFilter());
       }
 
       final KeyPool pool = new KeyPool(dimensions.length);
@@ -257,7 +260,7 @@ public class GroupByQueryEngine
             return update(key);
           }
         };
-      } else if (config.isGroupedUnfoldDimensions(query)) {
+      } else if (mvDimensions.size() == 1 || config.isGroupedUnfoldDimensions(query)) {
         final int[] svxs = svDimensions.array();
         final int[] mvxs = mvDimensions.array();
         this.rowUpdater = new RowUpdater(pool)
@@ -496,32 +499,17 @@ public class GroupByQueryEngine
             return updateRecursive(key, index + 1, dims);
           }
           final int nextIx = index + 1;
-          if (row instanceof IndexedInts.PreferIterator) {
-            final IntIterator iterator = row.iterator();
-            key[BUFFER_POS + index] = iterator.nextInt();
-            List<int[]> retVal = updateRecursive(key, nextIx, dims);
-            while (iterator.hasNext()) {
-              final int[] newKey = pool.copyOf(key);
-              newKey[BUFFER_POS + index] = iterator.nextInt();
-              List<int[]> unaggregatedBuffers = updateRecursive(newKey, nextIx, dims);
-              if (unaggregatedBuffers != null) {
-                retVal = merge(retVal, unaggregatedBuffers);
-              }
+          List<int[]> retVal = null;
+          for (int i = 0; i < size; i++) {
+            final int v = row.get(i);
+            if (v < 0) {
+              continue;
             }
-            return retVal;
-          } else {
-            List<int[]> retVal = null;
-            for (int i = 0; i < size; i++) {
-              final int v = row.get(i);
-              if (v < 0) {
-                continue;
-              }
-              final int[] newKey = i == 0 ? key : pool.copyOf(key);
-              newKey[BUFFER_POS + index] = v;
-              retVal = merge(retVal, updateRecursive(newKey, nextIx, dims));
-            }
-            return retVal;
+            final int[] newKey = i == 0 ? key : pool.copyOf(key);
+            newKey[BUFFER_POS + index] = v;
+            retVal = merge(retVal, updateRecursive(newKey, nextIx, dims));
           }
+          return retVal;
         } else {
           return update(key);
         }

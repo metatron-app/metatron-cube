@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.KeyBuilder;
@@ -144,16 +143,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       Preconditions.checkArgument(type.hasSubElement(), "cannot resolve element type");
       final ValueDesc elementType = type.subElement();
 
-      return new ObjectColumnSelector<Object>()
+      return new ObjectColumnSelector.Typed<Object>(elementType)
       {
         private transient int version;
         private transient List values;
-
-        @Override
-        public ValueDesc type()
-        {
-          return elementType;
-        }
 
         @Override
         public Object get()
@@ -214,13 +207,13 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
   private DimensionSelector toFilteredSelector(final ColumnSelectorFactory factory, final ExtractionFn extractionFn)
   {
-    DimensionSpec dimensionSpec = DimensionSpecs.of(keyDimension, outputName, extractionFn);
+    DimensionSpec dimensionSpec = DimensionSpecs.of(keyDimension, extractionFn);
     DimensionSelector selector = factory.makeDimensionSelector(dimensionSpec);
-    if (keyFilter == null) {
+    if (keyFilter == null || extractionFn != null || selector instanceof DimensionSelector.SingleValued) {
       return selector;
     }
     DimensionSelector[] selectors = new DimensionSelector[]{selector};
-    rewrite(factory, Arrays.asList(dimensionSpec), selectors, keyFilter);
+    rewrite(factory, Arrays.asList(dimensionSpec), selectors, Arrays.asList(keyDimension), keyFilter);
     return selectors[0];
   }
 
@@ -228,19 +221,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       ColumnSelectorFactory factory,
       List<DimensionSpec> dimensions,
       DimensionSelector[] selectors,
+      List<String> mvDimensions,
       DimFilter filter
   )
   {
-    final List<String> inputNames = DimensionSpecs.toInputNames(dimensions);
-    final List<String> mvDimensions = Lists.newArrayList();
-    for (int i = 0; i < selectors.length; i++) {
-      if (!(selectors[i] instanceof DimensionSelector.SingleValued) && dimensions.get(i).getExtractionFn() == null) {
-        mvDimensions.add(inputNames.get(i));
-      }
-    }
-    if (mvDimensions.isEmpty()) {
-      return;
-    }
     final DimFilter rewritten = DimFilters.rewrite(
         filter, f -> GuavaUtils.containsAny(Filters.getDependents(f), mvDimensions) ? f : null
     );
@@ -248,7 +232,8 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (dependents.isEmpty()) {
       return;
     }
-    final Map<String, ObjectColumnSelector> hacked = Maps.newHashMap();
+    final List<String> inputNames = DimensionSpecs.toInputNames(dimensions);
+    final Map<String, MVIteratingSelector> hacked = Maps.newHashMap();
     for (String dependent : dependents) {
       final int index = inputNames.indexOf(dependent);
       if (index < 0 || selectors[index] instanceof DimensionSelector.SingleValued) {
@@ -262,7 +247,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           @Override
           public ObjectColumnSelector makeObjectColumnSelector(String columnName)
           {
-            return hacked.computeIfAbsent(columnName, c -> super.makeObjectColumnSelector(c));
+            return hacked.containsKey(columnName) ? hacked.get(columnName) : super.makeObjectColumnSelector(columnName);
           }
 
           @Override
@@ -377,13 +362,13 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
            '}';
   }
 
-  private static class IteratingIndexedInts implements IndexedID
+  private static class MVIterator implements IndexedID
   {
     private int index;
     private IndexedInts indexedInts;
     private final DimensionSelector selector;
 
-    private IteratingIndexedInts(DimensionSelector selector)
+    private MVIterator(DimensionSelector selector)
     {
       this.selector = selector;
     }
@@ -424,13 +409,13 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   private static class MVIteratingSelector extends ObjectColumnSelector.Typed<IndexedID>
   {
     private final int source;
-    private final IteratingIndexedInts iterator;
+    private final MVIterator iterator;
 
     private MVIteratingSelector(int source, DimensionSelector selector)
     {
       super(INDEXED_TYPE);
       this.source = source;
-      this.iterator = new IteratingIndexedInts(selector);
+      this.iterator = new MVIterator(selector);
     }
 
     @Override

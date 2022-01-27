@@ -86,7 +86,6 @@ import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Dictionary;
-import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.lucene.Lucenes;
@@ -189,27 +188,30 @@ public class Filters
     if (columnType.isDimension()) {
       return Filters.toValueMatcher(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)), predicate);
     }
-    if (ValueDesc.isIndexedId(columnType)) {
-      ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
-      return () -> predicate.apply(((IndexedID) selector.get()).getAsName());
+    return Filters.toValueMatcher(toPredicatable(factory, column, columnType), predicate);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static ObjectColumnSelector toPredicatable(ColumnSelectorFactory factory, String column, ValueDesc type)
+  {
+    ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
+    if (type.isPrimitive()) {
+      return selector;
     }
-    return Filters.toValueMatcher(ColumnSelectors.toDimensionalSelector(factory, column), predicate);
+    if (ValueDesc.isIndexedId(type)) {
+      return ColumnSelectors.asValued(selector);
+    }
+    if (type.isArray()) {
+      return ColumnSelectors.asArray(selector, type.subElement(ValueDesc.UNKNOWN));
+    }
+    // toString, whatsoever
+    return ColumnSelectors.asSelector(ValueDesc.STRING, () -> Objects.toString(selector.get(), null));
   }
 
   @SuppressWarnings("unchecked")
   public static ValueMatcher toValueMatcher(final ObjectColumnSelector selector, final Predicate predicate)
   {
     final ValueDesc type = selector.type();
-    if (type.isPrimitive()) {
-      return new ValueMatcher()
-      {
-        @Override
-        public boolean matches()
-        {
-          return predicate.apply(selector.get());
-        }
-      };
-    }
     if (type.isArray() || type.isMultiValued()) {
       return new ValueMatcher()
       {
@@ -242,21 +244,10 @@ public class Filters
         }
       };
     }
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return predicate.apply(selector.get());
-      }
-    };
+    return () -> predicate.apply(selector.get());
   }
 
-  @SuppressWarnings("unchecked")
-  public static ValueMatcher toValueMatcher(
-      final DimensionSelector selector,
-      final Predicate predicate
-  )
+  private static ValueMatcher toValueMatcher(final DimensionSelector selector, final Predicate predicate)
   {
     final boolean allowNull = predicate.apply(null);
     // Check every value in the dimension, as a String.

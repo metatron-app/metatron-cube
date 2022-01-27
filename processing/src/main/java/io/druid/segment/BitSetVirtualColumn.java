@@ -30,7 +30,6 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.IndexedInts;
-import it.unimi.dsi.fastutil.ints.IntIterator;
 
 import java.util.BitSet;
 
@@ -135,47 +134,7 @@ public class BitSetVirtualColumn implements VirtualColumn
         if (cardinality == 1) {
           return IndexedInts.from(bitSet.nextSetBit(0));
         }
-        return new IndexedInts.PreferIterator()
-        {
-          @Override
-          public it.unimi.dsi.fastutil.ints.IntIterator iterator()
-          {
-            return new IntIterator()
-            {
-              private int index = bitSet.nextSetBit(0);
-
-              @Override
-              public int nextInt()
-              {
-                final int x = index;
-                index = bitSet.nextSetBit(x + 1);
-                return x;
-              }
-
-              @Override
-              public boolean hasNext()
-              {
-                return index >= 0;
-              }
-            };
-          }
-
-          @Override
-          public int size()
-          {
-            return cardinality;
-          }
-
-          @Override
-          public int get(int index)
-          {
-            int x = bitSet.nextSetBit(0);
-            for (int i = 0; i < index; i++) {
-              x = bitSet.nextSetBit(x + 1);
-            }
-            return x;
-          }
-        };
+        return IndexedInts.from(bitSet.stream().toArray());
       }
 
       @Override

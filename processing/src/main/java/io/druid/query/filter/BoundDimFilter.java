@@ -41,9 +41,7 @@ import io.druid.query.filter.DimFilter.IndexedIDSupport;
 import io.druid.query.filter.DimFilter.RangeFilter;
 import io.druid.query.filter.DimFilter.SingleInput;
 import io.druid.query.ordering.StringComparators;
-import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.BoundFilter;
-import io.druid.segment.filter.Filters;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -443,11 +441,6 @@ public class BoundDimFilter extends SingleInput implements RangeFilter, IndexedI
       }
     }
     return v -> false;
-  }
-
-  public ValueMatcher makeMather(ColumnSelectorFactory factory)
-  {
-    return Filters.toValueMatcher(factory, dimension, toPredicate(factory));
   }
 
   @Override

@@ -569,7 +569,7 @@ public class GuavaUtils
 
   public static Set<String> retain(Set<String> set, List<String> retain)
   {
-    if (containsAny(set, retain)) {
+    if (!set.isEmpty() && containsAny(set, retain)) {
       set = Sets.newHashSet(set);
       set.retainAll(retain);
     }

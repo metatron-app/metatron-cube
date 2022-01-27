@@ -129,7 +129,4 @@ public interface IndexedInts extends IntIterable, Closeable
   }
 
   default void close() throws IOException {}
-
-  // marker.. use iterator instead of size + get
-  interface PreferIterator extends IndexedInts { }
 }
