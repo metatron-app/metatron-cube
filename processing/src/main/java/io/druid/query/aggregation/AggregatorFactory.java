@@ -36,6 +36,7 @@ import io.druid.data.ValueDesc;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.MVIteratingSelector;
 import io.druid.segment.Metadata;
 import org.joda.time.DateTime;
 
@@ -63,6 +64,11 @@ public abstract class AggregatorFactory implements Cacheable
   public abstract Aggregator factorize(ColumnSelectorFactory metricFactory);
 
   public abstract BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory);
+
+  public BufferAggregator factorizeForGroupBy(ColumnSelectorFactory metricFactory, Map<String, MVIteratingSelector> mvs)
+  {
+    return factorizeBuffered(metricFactory);
+  }
 
   public abstract Comparator getComparator();
 

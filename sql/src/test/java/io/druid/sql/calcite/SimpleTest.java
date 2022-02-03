@@ -453,7 +453,8 @@ public class SimpleTest extends CalciteQueryTestHelper
   public void test3995() throws Exception
   {
     walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
-    final Object[][] expected = {
+    String query = "SELECT age_group, bks_event_d2, count(*) as cnt FROM %s GROUP BY age_group, bks_event_d2";
+    Object[][] expected = {
         new Object[]{"", "도미노피자(Dominopizza)", 1L},
         new Object[]{"", "신용카드사", 1L},
         new Object[]{"", "치킨", 1L},
@@ -463,11 +464,38 @@ public class SimpleTest extends CalciteQueryTestHelper
         new Object[]{"10", "치킨", 1L},
         new Object[]{"10", "티월드다이렉트(tworlddirect.com)", 1L}
     };
-    testQuery(
-        "SELECT age_group, bks_event_d2, count(*) as cnt FROM cdis GROUP BY age_group, bks_event_d2", expected
-    );
-    testQuery(
-        "SELECT age_group, bks_event_d2, count(*) as cnt FROM cdis_i GROUP BY age_group, bks_event_d2", expected
-    );
+    testQuery(String.format(query, "cdis"), expected);
+    testQuery(String.format(query, "cdis_i"), expected);
+  }
+
+  @Test
+  public void test3998() throws Exception
+  {
+    walker.getQueryConfig().getGroupBy().setGroupedUnfoldDimensions(true);
+    walker.getQueryConfig().getGroupBy().setMultiValueDimensionFiltering(true);
+    String query = "SELECT bks_event_d0, bks_event_d1, bks_event_d2,"
+                   + "count(*) FILTER (WHERE bks_event_d0 = 'APP'),"
+                   + "count(*) FILTER (WHERE bks_event_d0 = 'T114'),"
+                   + "count(*) FILTER (WHERE bks_event_d1 = 'IT'),"
+                   + "count(*) FILTER (WHERE bks_event_d2 = '치킨')"
+                   + " FROM %s "
+                   + " GROUP BY bks_event_d0, bks_event_d1, bks_event_d2";
+    Object[][] expected1 = {
+        new Object[]{"APP", "IT", "티월드다이렉트(tworlddirect.com)", 2L, 0L, 2L, 0L},
+        new Object[]{"APP", "생활", "도미노피자(Dominopizza)", 2L, 0L, 0L, 0L},
+        new Object[]{"T114", "금융", "신용카드사", 0L, 2L, 0L, 0L},
+        new Object[]{"T114", "음식", "치킨", 0L, 2L, 0L, 2L}
+    };
+    testQuery(String.format(query, "cdis"), expected1);
+    testQuery(String.format(query, "cdis_i"), expected1);
+
+    Object[][] expected2 = {
+        new Object[]{"APP", "IT", "티월드다이렉트(tworlddirect.com)", 1L, 0L, 1L, 0L},
+        new Object[]{"APP", "생활", "도미노피자(Dominopizza)", 1L, 0L, 0L, 0L},
+        new Object[]{"T114", "금융", "신용카드사", 0L, 1L, 0L, 0L},
+        new Object[]{"T114", "음식", "치킨", 0L, 1L, 0L, 1L}
+    };
+    testQuery(String.format(query, "cdis WHERE svc_mgmt_num = '10000497'"), expected2);
+    testQuery(String.format(query, "cdis_i WHERE svc_mgmt_num = '10000497'"), expected2);
   }
 }

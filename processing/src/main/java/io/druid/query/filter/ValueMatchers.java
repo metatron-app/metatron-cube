@@ -20,6 +20,7 @@
 package io.druid.query.filter;
 
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -30,7 +31,9 @@ public class ValueMatchers
 {
   public static ValueMatcher and(ValueMatcher... matchers)
   {
-    final List<ValueMatcher> list = Lists.newArrayList(Iterables.filter(Arrays.asList(matchers), Predicates.notNull()));
+    final List<ValueMatcher> list = ImmutableList.copyOf(
+        Iterables.filter(Arrays.asList(matchers), m -> m != null && m != ValueMatcher.TRUE)
+    );
     if (list.isEmpty()) {
       return ValueMatcher.TRUE;
     }

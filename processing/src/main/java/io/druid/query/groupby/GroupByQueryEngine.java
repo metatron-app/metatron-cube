@@ -61,7 +61,7 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DimensionSelector.WithRawAccess;
 import io.druid.segment.IndexProvidingSelector;
-import io.druid.segment.KeyIndexedVirtualColumn;
+import io.druid.segment.MVIteratingSelector;
 import io.druid.segment.Rowboat;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumns;
@@ -221,6 +221,7 @@ public class GroupByQueryEngine
       IntList mvDimensions = new IntList(dimensions.length);
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
+      Map<String, MVIteratingSelector> mvMap = Maps.newHashMap();
       for (int i = 0; i < dimensions.length; i++) {
         DimensionSpec dimensionSpec = dimensionSpecs.get(i);
         dimensions[i] = cursor.makeDimensionSelector(dimensionSpec);
@@ -235,15 +236,15 @@ public class GroupByQueryEngine
         if (dimensions[i] instanceof DimensionSelector.SingleValued) {
           svDimensions.add(i);
         } else {
+          MVIteratingSelector selector = MVIteratingSelector.wrap(dimensions[i]);
+          mvMap.put(dimensionSpec.getDimension(), selector);
+          dimensions[i] = selector;
           mvDimensions.add(i);
         }
       }
+
       if (query.getFilter() != null && !mvDimensions.isEmpty() && config.isMultiValueDimensionFiltering(query)) {
-        List<String> mvNames = Lists.newArrayList();
-        for (int x : mvDimensions.array()) {
-          mvNames.add(dimensionSpecs.get(x).getDimension());
-        }
-        KeyIndexedVirtualColumn.rewrite(cursor, dimensionSpecs, dimensions, mvNames, query.getFilter());
+        MVIteratingSelector.rewrite(cursor, mvMap, query.getFilter());
       }
 
       final KeyPool pool = new KeyPool(dimensions.length);
@@ -322,7 +323,7 @@ public class GroupByQueryEngine
       aggregators = new BufferAggregator[aggregatorSpecs.size()];
       increments = new int[aggregatorSpecs.size() + 1];
       for (int i = 0; i < aggregatorSpecs.size(); ++i) {
-        aggregators[i] = aggregatorSpecs.get(i).factorizeBuffered(factory);
+        aggregators[i] = aggregatorSpecs.get(i).factorizeForGroupBy(factory, mvMap);
         increments[i + 1] = increments[i] + aggregatorSpecs.get(i).getMaxIntermediateSize();
       }
       increment = increments[increments.length - 1];

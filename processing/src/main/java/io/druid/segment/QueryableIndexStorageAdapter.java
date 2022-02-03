@@ -1065,17 +1065,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         return ValueMatcher.FALSE;
                       }
                       final IntPredicate predicate = Filters.toMatcher(bitmap, descending);
-                      final ValueMatcher valueMatcher =
-                          holder.exact() ? ValueMatcher.TRUE : super.makePredicateMatcher(filter);
-
-                      return new ValueMatcher()
-                      {
-                        @Override
-                        public boolean matches()
-                        {
-                          return predicate.apply(cursorOffset.getOffset()) && valueMatcher.matches();
-                        }
-                      };
+                      if (holder.exact()) {
+                        return () -> predicate.apply(cursorOffset.getOffset());
+                      }
+                      final ValueMatcher valueMatcher = super.makePredicateMatcher(filter);
+                      return () -> predicate.apply(cursorOffset.getOffset()) && valueMatcher.matches();
                     }
 
                     @Override
