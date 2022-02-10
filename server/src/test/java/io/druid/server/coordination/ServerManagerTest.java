@@ -140,6 +140,12 @@ public class ServerManagerTest
           {
 
           }
+
+          @Override
+          public File getSegmentLocation(DataSegment segment)
+          {
+            throw new UnsupportedOperationException();
+          }
         },
         new QueryRunnerFactoryConglomerate()
         {

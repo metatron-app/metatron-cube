@@ -20,7 +20,7 @@
 package io.druid.client.selector;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -79,18 +79,17 @@ public class ServerSelector
       final Map<QueryableDruidServer, MutableInt> counts
   )
   {
-    List<QueryableDruidServer> targets = servers;
+    Iterator<QueryableDruidServer> iterator = servers.iterator();
     if (predicate != null) {
-      targets = Lists.newArrayList(Iterables.filter(targets, predicate));
+      iterator = Iterators.filter(iterator, predicate);
     }
-    if (targets.isEmpty()) {
+    if (!iterator.hasNext()) {
       return null;
     }
-    if (targets.size() == 1) {
-      return targets.get(0);
-    }
-    final Iterator<QueryableDruidServer> iterator = targets.iterator();
     QueryableDruidServer selected = iterator.next();
+    if (!iterator.hasNext()) {
+      return selected;
+    }
     while (iterator.hasNext()) {
       selected = pick(selected, iterator.next(), counts);
     }

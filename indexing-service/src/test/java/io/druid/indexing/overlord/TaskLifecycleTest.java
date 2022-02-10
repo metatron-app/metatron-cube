@@ -484,7 +484,7 @@ public class TaskLifecycleTest
     return new TestIndexerMetadataStorageCoordinator()
     {
       @Override
-      public Set<DataSegment> announceHistoricalSegments(Set<DataSegment> segments)
+      public Set<DataSegment> announceHistoricalSegments(Iterable<DataSegment> segments)
       {
         Set<DataSegment> retVal = super.announceHistoricalSegments(segments);
         if (publishCountDown != null) {

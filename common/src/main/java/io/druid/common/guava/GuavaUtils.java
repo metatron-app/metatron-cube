@@ -687,6 +687,11 @@ public class GuavaUtils
     return target == null || source.equals(target) ? Functions.identity() : mapper(indexOf(source, target));
   }
 
+  public static <T> Predicate<T> and(Predicate<T> first, Predicate<T> second)
+  {
+    return first == null ? second : second == null ? null : Predicates.and(first, second);
+  }
+
   private static Function<Object[], Object[]> mapper(final int[] indices)
   {
     return new Function<Object[], Object[]>()

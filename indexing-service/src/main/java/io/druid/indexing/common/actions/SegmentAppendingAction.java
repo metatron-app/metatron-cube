@@ -79,11 +79,10 @@ public class SegmentAppendingAction implements TaskAction<List<SegmentDescriptor
     return segmentGranularity;
   }
 
+  @Override
   public TypeReference<List<SegmentDescriptor>> getReturnTypeReference()
   {
-    return new TypeReference<List<SegmentDescriptor>>()
-    {
-    };
+    return new TypeReference<List<SegmentDescriptor>>() {};
   }
 
   @Override

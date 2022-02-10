@@ -51,6 +51,7 @@ import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseQuery;
+import io.druid.query.BrokerFilteringQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DataSources;
@@ -343,6 +344,9 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
         && DimFilters.hasAnyLucene(BaseQuery.getDimFilter(query))) {
       predicate = q -> ServiceTypes.HISTORICAL.equals(q.getServer().getType());
     }
+    if (query instanceof BrokerFilteringQuery) {
+      predicate = GuavaUtils.and(predicate, ((BrokerFilteringQuery) query).filter());
+    }
 
     final Map<QueryableDruidServer, MutableInt> counts = new HashMap<>();
     final Map<DruidServer, List<SegmentDescriptor>> serverSegments = Maps.newTreeMap();
@@ -350,16 +354,11 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     // Compile list of all segments not pulled from cache
     for (Pair<ServerSelector, SegmentDescriptor> segment : segments) {
       final QueryableDruidServer selected = segment.lhs.pick(predicate, counts);
-
-      if (selected == null) {
-        LOG.makeAlert(
-            "No servers found for SegmentDescriptor[%s] for DataSource[%s]?! How can this be?!",
-            segment.rhs,
-            query.getDataSource()
-        ).emit();
-      } else {
+      if (selected != null) {
         serverSegments.computeIfAbsent(selected.getServer(), k -> Lists.newArrayList()).add(segment.rhs);
         counts.computeIfAbsent(selected, s -> new MutableInt()).increment();
+      } else if (predicate == null) {
+        LOG.makeAlert("No servers found for [%s]", segment.rhs).emit();
       }
     }
 

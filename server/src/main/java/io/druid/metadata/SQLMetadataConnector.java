@@ -50,6 +50,7 @@ public abstract class SQLMetadataConnector implements MetadataStorageConnector
   private static final Logger log = new Logger(SQLMetadataConnector.class);
   private static final String PAYLOAD_TYPE = "BLOB";
 
+  public static final int DEFAULT_QUIET_TRIES = 3;
   public static final int DEFAULT_MAX_TRIES = 10;
 
   private final Supplier<MetadataStorageConnectorConfig> config;
@@ -139,6 +140,11 @@ public abstract class SQLMetadataConnector implements MetadataStorageConnector
   public <T> T retryWithHandle(final HandleCallback<T> callback)
   {
     return retryWithHandle(callback, shouldRetry);
+  }
+
+  public <T> T retryTransaction(final TransactionCallback<T> callback)
+  {
+    return retryTransaction(callback, DEFAULT_QUIET_TRIES, DEFAULT_MAX_TRIES);
   }
 
   public <T> T retryTransaction(final TransactionCallback<T> callback, final int quietTries, final int maxTries)

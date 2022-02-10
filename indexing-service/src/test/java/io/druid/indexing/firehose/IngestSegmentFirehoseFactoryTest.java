@@ -26,14 +26,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Module;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DefaultTimestampSpec;
@@ -56,6 +55,8 @@ import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.overlord.HeapMemoryTaskStorage;
 import io.druid.indexing.overlord.TaskLockbox;
 import io.druid.indexing.overlord.supervisor.SupervisorManager;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -182,7 +183,7 @@ public class IngestSegmentFirehoseFactoryTest
       }
 
       @Override
-      public Set<DataSegment> announceHistoricalSegments(Set<DataSegment> segments)
+      public Set<DataSegment> announceHistoricalSegments(Iterable<DataSegment> segments)
       {
         Set<DataSegment> added = Sets.newHashSet();
         for (final DataSegment segment : segments) {
@@ -195,9 +196,9 @@ public class IngestSegmentFirehoseFactoryTest
       }
 
       @Override
-      public void deleteSegments(Set<String> segments)
+      public void deleteSegments(Iterable<String> segments)
       {
-        nuked.addAll(segments);
+        Iterables.addAll(nuked, segments);
       }
     };
     final LocalTaskActionClientFactory tac = new LocalTaskActionClientFactory(
@@ -235,7 +236,7 @@ public class IngestSegmentFirehoseFactoryTest
         new DataSegmentKiller()
         {
           @Override
-          public void kill(DataSegment segments) throws SegmentLoadingException
+          public void kill(DataSegment segment) throws SegmentLoadingException
           {
 
           }

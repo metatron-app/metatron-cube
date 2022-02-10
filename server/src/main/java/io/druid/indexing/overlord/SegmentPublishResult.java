@@ -29,7 +29,7 @@ import java.util.Set;
 
 /**
  * Result of an operation that attempts to publish segments. Indicates the set of segments actually published
- * and whether or not the transaction was a success.
+ * and whether the transaction was a success.
  *
  * If "success" is false then the segments set will be empty.
  *

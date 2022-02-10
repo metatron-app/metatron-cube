@@ -21,11 +21,14 @@ package io.druid.indexing.test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.indexing.overlord.SegmentPublishResult;
+import io.druid.java.util.common.ISE;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
@@ -84,7 +87,7 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
   }
 
   @Override
-  public Set<DataSegment> announceHistoricalSegments(Set<DataSegment> segments)
+  public Set<DataSegment> announceHistoricalSegments(Iterable<DataSegment> segments)
   {
     Set<DataSegment> added = Sets.newHashSet();
     for (final DataSegment segment : segments) {
@@ -96,8 +99,17 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
   }
 
   @Override
+  public void announceHistoricalSegmentsWithCheck(Iterable<DataSegment> segments) throws IOException
+  {
+    if (GuavaUtils.containsAny(published, segments)) {
+      throw new ISE("conflict");
+    }
+    announceHistoricalSegments(segments);
+  }
+
+  @Override
   public SegmentPublishResult announceHistoricalSegments(
-      Set<DataSegment> segments,
+      Iterable<DataSegment> segments,
       DataSourceMetadata oldCommitMetadata,
       DataSourceMetadata newCommitMetadata
   ) throws IOException
@@ -132,13 +144,13 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
   }
 
   @Override
-  public void deleteSegments(Set<String> segments)
+  public void deleteSegments(Iterable<String> segments)
   {
-    nuked.addAll(segments);
+    Iterables.addAll(nuked, segments);
   }
 
   @Override
-  public void updateSegments(Set<DataSegment> segments) throws IOException
+  public void updateSegments(Iterable<DataSegment> segments) throws IOException
   {
     throw new UnsupportedOperationException();
   }

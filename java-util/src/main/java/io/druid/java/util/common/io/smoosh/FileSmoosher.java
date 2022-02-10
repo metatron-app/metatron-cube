@@ -225,12 +225,12 @@ public class FileSmoosher implements Closeable
     return new OffsetWriter(fileNum, new FileOutputStream(outFile), maxChunkSize);
   }
 
-  static File metaFile(File baseDir)
+  public static File metaFile(File baseDir)
   {
     return new File(baseDir, String.format("meta.%s", FILE_EXTENSION));
   }
 
-  static File makeChunkFile(File baseDir, int i)
+  public static File makeChunkFile(File baseDir, int i)
   {
     return new File(baseDir, String.format("%05d.%s", i, FILE_EXTENSION));
   }

@@ -23,11 +23,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.metadata.TableDesc;
 
-import java.util.Set;
-
 /**
  * Commit metadata for a dataSource. Used by
- * {@link IndexerMetadataStorageCoordinator#announceHistoricalSegments(Set, DataSourceMetadata, DataSourceMetadata)}
+ * {@link IndexerMetadataStorageCoordinator#announceHistoricalSegments(Iterable, DataSourceMetadata, DataSourceMetadata)}
  * to provide metadata transactions for segment inserts.
  *
  * Two metadata instances can be added together, and any conflicts are resolved in favor of the right-hand side.

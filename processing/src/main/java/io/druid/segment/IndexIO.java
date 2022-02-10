@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
@@ -32,6 +33,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
@@ -40,6 +42,7 @@ import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
+import io.druid.common.Tagged;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.SerializerUtils;
@@ -48,6 +51,7 @@ import io.druid.data.ValueType;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
+import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.io.smoosh.FileSmoosher;
 import io.druid.java.util.common.io.smoosh.Smoosh;
 import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
@@ -92,18 +96,25 @@ import io.druid.segment.serde.LongGenericColumnPartSerde;
 import io.druid.segment.serde.LongGenericColumnSupplier;
 import io.druid.segment.serde.SpatialIndexColumnPartSupplier;
 import io.druid.timeline.DataSegment;
+import org.apache.commons.io.FileUtils;
 import org.joda.time.Interval;
 
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.util.AbstractList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -226,6 +237,12 @@ public class IndexIO
     }
   }
 
+  public IndexLoader getIndexLoader(File inDir) throws IOException
+  {
+    final int version = SegmentUtils.getVersionFromDir(inDir);
+    return Preconditions.checkNotNull(indexLoaders.get(version), "Unknown index version[%s]", version);
+  }
+
   public QueryableIndex loadIndex(File inDir) throws IOException
   {
     return loadIndex(inDir, false);
@@ -233,12 +250,7 @@ public class IndexIO
 
   public QueryableIndex loadIndex(File inDir, boolean readOnly) throws IOException
   {
-    final int version = SegmentUtils.getVersionFromDir(inDir);
-
-    final IndexLoader loader = Preconditions.checkNotNull(
-        indexLoaders.get(version), "Unknown index version[%s]", version
-    );
-    return loader.load(inDir, mapper, readOnly);
+    return getIndexLoader(inDir).load(inDir, mapper, readOnly);
   }
 
   public DataSegment decorateMeta(DataSegment segment, File directory) throws IOException
@@ -897,9 +909,14 @@ public class IndexIO
     }
   }
 
-  static interface IndexLoader
+  public static interface IndexLoader
   {
     QueryableIndex load(File inDir, ObjectMapper mapper, boolean readOnly) throws IOException;
+
+    default File deleteColumns(File inDir, File outDir, String... columns) throws IOException
+    {
+      throw new UOE("not supports 'deleteColumns'");
+    }
   }
 
   static class LegacyIndexLoader implements IndexLoader
@@ -1164,6 +1181,90 @@ public class IndexIO
     {
       return mapper.readValue(SerializerUtils.readString(cuboidMeta), ColumnDescriptor.class);
     }
+
+    @Override
+    public File deleteColumns(File inDir, File outDir, String... columns) throws IOException
+    {
+      log.debug("Delete columns %s from v9 index[%s]", Arrays.toString(columns), inDir);
+      long startTime = System.currentTimeMillis();
+
+      if (outDir == null) {
+        outDir = GuavaUtils.createTemporaryDirectory("deleting-columns-", null);
+      } else {
+        FileUtils.deleteDirectory(outDir);
+        if (!outDir.mkdirs()) {
+          throw new ISE("Couldn't make outdir[%s].", outDir);
+        }
+      }
+
+      try (Closer closer = Closer.create()) {
+        Set<String> exclude = Sets.newHashSet(columns);
+        Arrays.asList("index.drd", "metadata.drd", "__time").forEach(exclude::remove);
+        SmooshedFileMapper smooshedFiles = closer.register(Smoosh.map(inDir));
+        if (!GuavaUtils.containsAny(smooshedFiles.getInternalFilenames(), exclude)) {
+          return null;  // no need to delete
+        }
+        List<Tagged.Entity<io.druid.java.util.common.io.smoosh.Metadata>> metas =
+            GuavaUtils.transform(
+                Iterables.filter(smooshedFiles.getInternalFiles().entrySet(), e -> !exclude.contains(e.getKey())),
+                entry -> new Tagged.Entity<>(entry.getKey(), entry.getValue())
+            );
+        Collections.sort(metas, (a, b) -> {
+          int compare = Ints.compare(a.rhs.getFileNum(), b.rhs.getFileNum());
+          if (compare == 0) {
+            compare = Ints.compare(a.rhs.getStartOffset(), b.rhs.getStartOffset());
+          }
+          return compare;
+        });
+
+        int fileNum = -1;
+        int offset = 0;
+        FileChannel input = null;
+        FileChannel output = null;
+        List<Tagged.Entity<io.druid.java.util.common.io.smoosh.Metadata>> shifted = Lists.newArrayList();
+        for (Tagged.Entity<io.druid.java.util.common.io.smoosh.Metadata> entity : metas) {
+          String column = entity.getTag();
+          io.druid.java.util.common.io.smoosh.Metadata meta = entity.getValue();
+          if (meta.getFileNum() != fileNum) {
+            fileNum = meta.getFileNum();
+            input = closer.register(new FileInputStream(FileSmoosher.makeChunkFile(inDir, fileNum)).getChannel());
+            output = closer.register(new FileOutputStream(FileSmoosher.makeChunkFile(outDir, fileNum)).getChannel());
+            offset = 0;
+          }
+          long l = input.transferTo(meta.getStartOffset(), meta.getLength(), output);
+          Preconditions.checkArgument(meta.getLength() == l);
+          shifted.add(new Tagged.Entity<>(column, meta.shift(offset)));
+          offset += meta.getLength();
+        }
+        Collections.sort(shifted);
+
+        File metaFile = FileSmoosher.metaFile(outDir);
+        Writer writer = closer.register(
+            new BufferedWriter(new OutputStreamWriter(new FileOutputStream(metaFile), Charsets.UTF_8))
+        );
+        writer.write(String.format("v1,%d,%d", Integer.MAX_VALUE, smooshedFiles.getNumFiles()));
+        writer.write('\n');
+
+        StringBuilder builder = new StringBuilder();
+        for (Tagged.Entity<io.druid.java.util.common.io.smoosh.Metadata> entity : shifted) {
+          String colunm = entity.getTag();
+          io.druid.java.util.common.io.smoosh.Metadata meta = entity.getValue();
+          builder.append(colunm).append(',')
+                 .append(meta.getFileNum()).append(',')
+                 .append(meta.getStartOffset()).append(',')
+                 .append(meta.getEndOffset()).append('\n');
+          writer.write(builder.toString());
+          builder.setLength(0);
+        }
+
+        File versionFile = new File(inDir, "version.bin");
+        if (versionFile.exists()) {
+          FileUtils.copyFile(versionFile, new File(outDir, "version.bin"));
+        }
+        // todo: rewrite cubes
+        return outDir;
+      }
+    }
   }
 
   public static File makeDimFile(File dir, String dimension)
@@ -1212,5 +1313,15 @@ public class IndexIO
         };
       }
     };
+  }
+
+  public static void main(String[] args) throws Exception
+  {
+    IndexLoader loader = new V9IndexLoader();
+    loader.deleteColumns(
+        new File("/Users/navis/druid/indexCache/lineitem/1995-01-01T00:00:00.000Z_1996-01-01T00:00:00.000Z/2020-10-13T09:16:56.230Z/0"),
+        new File("/Users/navis/druid/xyz"),
+        "L_COMMENT", "L_TAX"
+    );
   }
 }

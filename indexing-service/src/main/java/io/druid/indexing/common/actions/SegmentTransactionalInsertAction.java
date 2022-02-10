@@ -94,7 +94,7 @@ public class SegmentTransactionalInsertAction implements TaskAction<SegmentPubli
 
   /**
    * Behaves similarly to
-   * {@link io.druid.indexing.overlord.IndexerMetadataStorageCoordinator#announceHistoricalSegments(Set, DataSourceMetadata, DataSourceMetadata)}.
+   * {@link io.druid.indexing.overlord.IndexerMetadataStorageCoordinator#announceHistoricalSegments(Iterable, DataSourceMetadata, DataSourceMetadata)}.
    */
   @Override
   public SegmentPublishResult perform(Task task, TaskActionToolbox toolbox) throws IOException

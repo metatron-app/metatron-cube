@@ -64,7 +64,7 @@ public class SmooshedFileMapper implements Closeable
       if (splits.length != 3) {
         throw new ISE("Wrong number of splits[%d] in line[%s]", splits.length, line);
       }
-      final Integer numFiles = Integer.valueOf(splits[2]);
+      int numFiles = Integer.valueOf(splits[2]);
       List<File> outFiles = Lists.newArrayListWithExpectedSize(numFiles);
 
       for (int i = 0; i < numFiles; ++i) {
@@ -106,6 +106,16 @@ public class SmooshedFileMapper implements Closeable
   public File getBaseDir()
   {
     return baseDir;
+  }
+
+  public int getNumFiles()
+  {
+    return outFiles.size();
+  }
+
+  public Map<String, Metadata> getInternalFiles()
+  {
+    return internalFiles;
   }
 
   public Set<String> getInternalFilenames()

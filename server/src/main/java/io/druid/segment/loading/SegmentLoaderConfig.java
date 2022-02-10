@@ -21,9 +21,9 @@ package io.druid.segment.loading;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
-import org.hibernate.validator.constraints.NotEmpty;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -31,8 +31,7 @@ import java.util.List;
 public class SegmentLoaderConfig
 {
   @JsonProperty
-  @NotEmpty
-  private List<StorageLocationConfig> locations = null;
+  private List<StorageLocationConfig> locations = Arrays.asList();
 
   @JsonProperty("deleteOnRemove")
   private boolean deleteOnRemove = true;

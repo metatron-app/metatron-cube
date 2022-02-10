@@ -250,7 +250,7 @@ public class IndexTask extends AbstractFixedIntervalTask
           ingestionSpec,
           toolbox,
           bucket,
-          myLock.getVersion(),
+          version,
           numShards,
           stats
       );

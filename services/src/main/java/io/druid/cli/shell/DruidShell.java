@@ -560,11 +560,11 @@ public class DruidShell extends CommonShell.WithUtils
             continue;
           }
           if (sqlPart.endsWith(";")) {
-            String SQL = builder.toString();
+            String SQL = builder.toString().trim();
             if (SQL.length() == 1) {
               break;
             }
-            String sqlString = SQL.substring(0, SQL.length() - 1).trim();
+            String sqlString = SQL.substring(0, SQL.length() - 1);
             runSQLAndDump(brokerURLs, writer, sqlString, properties);
             builder.setLength(0);
           }

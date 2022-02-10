@@ -22,16 +22,29 @@ package io.druid.common;
 import io.druid.data.Pair;
 
 /**
+ *
  */
 public interface Tagged
 {
   String getTag();
 
-  class Entity<T> extends Pair<String, T>
+  class Entity<T> extends Pair<String, T> implements Tagged, Comparable<Entity<T>>
   {
     public Entity(String tag, T rhs)
     {
       super(tag, rhs);
+    }
+
+    @Override
+    public String getTag()
+    {
+      return lhs;
+    }
+
+    @Override
+    public int compareTo(Entity<T> o)
+    {
+      return lhs.compareTo(o.lhs);
     }
   }
 }

@@ -480,4 +480,20 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   {
     return ROW_COUNTER;
   }
+
+  public static abstract class MetricSupport<R, Q extends Query<R>> extends QueryToolChest<R, Q>
+  {
+    private final GenericQueryMetricsFactory metricsFactory;
+
+    protected MetricSupport(GenericQueryMetricsFactory metricsFactory)
+    {
+      this.metricsFactory = metricsFactory;
+    }
+
+    @Override
+    public QueryMetrics<? super Q> makeMetrics(Q query)
+    {
+      return metricsFactory.makeMetrics(query);
+    }
+  }
 }

@@ -20,7 +20,6 @@
 package io.druid.common.utils;
 
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import io.druid.data.UTF8Bytes;
@@ -206,13 +205,14 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
 
   public static String toKMGT(long value)
   {
-    Preconditions.checkArgument(value >= 0);
+    boolean minus = value < 0;
+    value = Math.abs(value);
     int i = 0;
     while (value > 0x64000 && i < CODE.length) {
       value >>= 10;
       i++;
     }
-    return String.format("%,d%s", value, CODE[i]);
+    return String.format("%,d%s", minus ? -value : value, CODE[i]);
   }
 
   public static byte[] concat(byte[]... array)

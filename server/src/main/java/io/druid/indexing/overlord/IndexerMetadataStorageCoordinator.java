@@ -65,7 +65,9 @@ public interface IndexerMetadataStorageCoordinator
    *
    * @return set of segments actually added
    */
-  Set<DataSegment> announceHistoricalSegments(Set<DataSegment> segments) throws IOException;
+  Set<DataSegment> announceHistoricalSegments(Iterable<DataSegment> segments) throws IOException;
+
+  void announceHistoricalSegmentsWithCheck(final Iterable<DataSegment> segments) throws IOException;
 
   /**
    * Allocate a new pending segment in the pending segments table. This segment identifier will never be given out
@@ -137,16 +139,16 @@ public interface IndexerMetadataStorageCoordinator
    * @throws IllegalArgumentException if startMetadata and endMetadata are not either both null or both non-null
    */
   SegmentPublishResult announceHistoricalSegments(
-      Set<DataSegment> segments,
+      Iterable<DataSegment> segments,
       DataSourceMetadata startMetadata,
       DataSourceMetadata endMetadata
   ) throws IOException;
 
   DataSourceMetadata getDataSourceMetadata(String dataSource);
 
-  void updateSegments(Set<DataSegment> segments) throws IOException;
+  void updateSegments(Iterable<DataSegment> segments) throws IOException;
 
-  void deleteSegments(Set<String> ids) throws IOException;
+  void deleteSegments(Iterable<String> ids) throws IOException;
 
   /**
    * Get all segments which include ONLY data within the given interval and are not flagged as used.

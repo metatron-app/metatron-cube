@@ -326,6 +326,7 @@ public class QueryUtils
     );
   }
 
+  @SuppressWarnings("unchecked")
   public static Query forLog(final Query query)
   {
     return Queries.iterate(

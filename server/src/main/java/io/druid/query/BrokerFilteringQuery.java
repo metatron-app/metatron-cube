@@ -5,7 +5,7 @@
  * regarding copyright ownership.  SK Telecom licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * with the License. You may obtain a copy of the License at
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -17,29 +17,12 @@
  * under the License.
  */
 
-package io.druid.segment.loading;
+package io.druid.query;
 
-import io.druid.java.util.common.logger.Logger;
-import io.druid.timeline.DataSegment;
+import com.google.common.base.Predicate;
+import io.druid.client.selector.QueryableDruidServer;
 
-import java.io.IOException;
-
-/**
- */
-public interface DataSegmentKiller
+public interface BrokerFilteringQuery<T> extends Query<T>
 {
-  void kill(DataSegment segment) throws SegmentLoadingException;
-  void killAll() throws IOException;
-
-  default void killQuietly(Iterable<DataSegment> segments, Logger LOG)
-  {
-    for (DataSegment segment : segments) {
-      try {
-        kill(segment);
-      }
-      catch (Throwable t) {
-        LOG.info("Failed to delete %s", segment);
-      }
-    }
-  }
+  Predicate<QueryableDruidServer> filter();
 }

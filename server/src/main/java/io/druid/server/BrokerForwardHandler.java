@@ -149,7 +149,7 @@ public class BrokerForwardHandler extends ForwardHandler
       if (temporary) {
         LOG.info("Segments are registered to %stable %s", temporary ? "temporary " : "", dataSource);
       } else {
-        indexerMetadataStorageCoordinator.announceHistoricalSegments(segments);
+        indexerMetadataStorageCoordinator.announceHistoricalSegmentsWithCheck(segments);
         try {
           long assertTimeout = PropUtils.parseLong(context, WAIT_TIMEOUT, 0L);
           boolean assertLoaded = PropUtils.parseBoolean(context, ASSERT_LOADED);

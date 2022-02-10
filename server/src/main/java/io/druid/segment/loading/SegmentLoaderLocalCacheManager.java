@@ -31,6 +31,7 @@ import io.druid.segment.Segment;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
@@ -51,16 +52,16 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   @Inject
   public SegmentLoaderLocalCacheManager(
       QueryableIndexFactory factory,
-      SegmentLoaderConfig config,
+      @Nullable SegmentLoaderConfig config,
       @Json ObjectMapper mapper
   )
   {
     this.factory = factory;
-    this.config = config;
+    this.config = config == null ? new SegmentLoaderConfig() : config;
     this.jsonMapper = mapper;
 
     this.locations = Lists.newArrayList();
-    for (StorageLocationConfig locationConfig : config.getLocations()) {
+    for (StorageLocationConfig locationConfig : this.config.getLocations()) {
       locations.add(new StorageLocation(locationConfig.getPath(), locationConfig.getMaxSize()));
     }
   }
@@ -163,6 +164,20 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
     loc.addSegment(segment);
 
     return storageDir;
+  }
+
+  @Override
+  public File getSegmentLocation(DataSegment segment)
+  {
+    final String relativePath = DataSegmentPusherUtil.getStorageDir(segment);
+    final StorageLocation location = findExistingLocation(relativePath);
+    if (location != null) {
+      final File file = new File(location.getPath(), relativePath);
+      if (file.exists()) {
+        return file;
+      }
+    }
+    return null;
   }
 
   @Override

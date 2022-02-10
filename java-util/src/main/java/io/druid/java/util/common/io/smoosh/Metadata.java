@@ -60,7 +60,8 @@ public class Metadata
 
   public Metadata shift(int offset)
   {
-    return new Metadata(fileNum, startOffset + offset, endOffset);
+    final int delta = offset - startOffset;
+    return delta == 0 ? this : new Metadata(fileNum, offset, endOffset + delta);
   }
 
   @Override

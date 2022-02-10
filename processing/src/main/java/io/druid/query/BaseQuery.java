@@ -268,24 +268,24 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static List<DimensionSpec> getDimensions(Query query)
   {
-    return query instanceof DimensionSupport ? ((DimensionSupport) query).getDimensions() : Arrays.asList();
+    return query instanceof DimensionSupport ? ((DimensionSupport<?>) query).getDimensions() : Arrays.asList();
   }
 
   public static List<String> getMetrics(Query query)
   {
-    return query instanceof MetricSupport ? ((MetricSupport) query).getMetrics() : Arrays.asList();
+    return query instanceof MetricSupport ? ((MetricSupport<?>) query).getMetrics() : Arrays.asList();
   }
 
   public static List<AggregatorFactory> getAggregators(Query query)
   {
-    return query instanceof AggregationsSupport ? ((AggregationsSupport) query).getAggregatorSpecs() : Arrays.asList();
+    return query instanceof AggregationsSupport
+           ? ((AggregationsSupport<?>) query).getAggregatorSpecs() : Arrays.asList();
   }
 
   public static List<PostAggregator> getPostAggregators(Query query)
   {
     return query instanceof AggregationsSupport
-           ? ((AggregationsSupport) query).getPostAggregatorSpecs()
-           : Arrays.asList();
+           ? ((AggregationsSupport<?>) query).getPostAggregatorSpecs() : Arrays.asList();
   }
 
   public static LimitSpec getLimitSpec(Query query)
@@ -295,7 +295,7 @@ public abstract class BaseQuery<T> implements Query<T>
 
   public static List<String> getLastProjection(Query query)
   {
-    return query instanceof LastProjectionSupport ? ((LastProjectionSupport) query).getOutputColumns() : null;
+    return query instanceof LastProjectionSupport ? ((LastProjectionSupport<?>) query).getOutputColumns() : null;
   }
 
   public static LateralViewSpec getLateralViewSpec(Query query)
@@ -608,7 +608,6 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Comparator<T> getMergeOrdering(List<String> columns)
   {
     final Comparator<T> retVal = GuavaUtils.<T>noNullableNatural();
@@ -618,7 +617,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public String getId()
   {
-    return (String) getContextValue(QUERYID);
+    return getContextValue(QUERYID);
   }
 
   @Override
