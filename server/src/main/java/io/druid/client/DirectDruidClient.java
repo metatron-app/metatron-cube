@@ -39,7 +39,7 @@ import io.druid.java.util.http.client.response.StatusResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -193,7 +193,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   private byte[] serializeQuery(Query<T> query, long remain)
   {
     if (remain <= 0) {
-      throw new QueryInterruptedException(new TimeoutException());
+      throw new QueryException(new TimeoutException("timeout"));
     }
     try {
       return objectMapper.writeValueAsBytes(query.withOverriddenContext(Query.TIMEOUT, remain));

@@ -33,7 +33,7 @@ import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.query.BaseQuery;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.loading.DataSegmentKiller;
@@ -95,7 +95,7 @@ public class DeleteColumnsToolChest extends QueryToolChest.MetricSupport<DDLResu
           catch (Exception e) {
             LOG.warn(e, "Failed to announce segments.. try deleting pushed segments");
             killer.killQuietly(segments, LOG);
-            throw new QueryInterruptedException(e);
+            throw new QueryException(e);
           }
           coordinator.scheduleNow(Sets.newHashSet(segments), delete.getAssertTimeout(), delete.isAssertLoaded());
         }

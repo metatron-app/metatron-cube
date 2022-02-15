@@ -33,7 +33,7 @@ import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.query.DruidMetrics;
 import io.druid.query.GenericQueryMetricsFactory;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryMetrics;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -248,7 +248,7 @@ public class  QueryLifecycle
     } else if (interrupted) {
       log.info("[%s] interrupted[%s]", query.getId(), e.toString());
     } else {
-      QueryInterruptedException.warn(log, e, "Exception occurred on request: %s", forLog);
+      QueryException.warn(log, e, "Exception occurred on request: %s", forLog);
       emitter.emit(
           AlertBuilder.create(e, "Exception occurred on request [%s]", forLog)
                       .addData("exception", e.toString())

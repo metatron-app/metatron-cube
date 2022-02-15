@@ -29,7 +29,8 @@ import io.druid.java.util.common.Pair;
 import io.druid.math.expr.Parser;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
+import io.druid.query.QueryException.Code;
 import io.druid.query.sql.SQLFunctions;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
@@ -362,7 +363,7 @@ public class SqlResourceTest extends CalciteTestBase
   @Test
   public void testCannotValidate() throws Exception
   {
-    final QueryInterruptedException exception = doPost(
+    final QueryException exception = doPost(
         new SqlQuery(
             "SELECT dim3 FROM druid.foo",
             ResultFormat.OBJECT.INSTANCE,
@@ -372,7 +373,7 @@ public class SqlResourceTest extends CalciteTestBase
     ).lhs;
 
     Assert.assertNotNull(exception);
-    Assert.assertEquals(QueryInterruptedException.UNKNOWN_EXCEPTION, exception.getErrorCode());
+    Assert.assertEquals(Code.UNKNOWN, exception.getErrorCode());
     Assert.assertEquals(ValidationException.class.getName(), exception.getErrorClass());
     Assert.assertTrue(exception.getMessage().contains("Column 'dim3' not found in any table"));
   }
@@ -387,22 +388,22 @@ public class SqlResourceTest extends CalciteTestBase
   }
 
   // Returns either an error or a result, assuming the result is a JSON object.
-  private <T> Pair<QueryInterruptedException, T> doPost(
+  private <T> Pair<QueryException, T> doPost(
       final SqlQuery query,
       final TypeReference<T> typeReference
   ) throws Exception
   {
-    final Pair<QueryInterruptedException, String> pair = doPostRaw(query);
+    final Pair<QueryException, String> pair = doPostRaw(query);
     if (pair.rhs == null) {
       //noinspection unchecked
-      return (Pair<QueryInterruptedException, T>) pair;
+      return (Pair<QueryException, T>) pair;
     } else {
       return Pair.of(pair.lhs, JSON_MAPPER.readValue(pair.rhs, typeReference));
     }
   }
 
   // Returns either an error or a result.
-  private Pair<QueryInterruptedException, String> doPostRaw(final SqlQuery query) throws Exception
+  private Pair<QueryException, String> doPostRaw(final SqlQuery query) throws Exception
   {
     final Response response = resource.doPost(query, req);
     if (response.getStatus() == 200) {
@@ -415,13 +416,13 @@ public class SqlResourceTest extends CalciteTestBase
       );
     } else {
       return Pair.of(
-          JSON_MAPPER.readValue((byte[]) response.getEntity(), QueryInterruptedException.class),
+          JSON_MAPPER.readValue((byte[]) response.getEntity(), QueryException.class),
           null
       );
     }
   }
 
-  private Pair<QueryInterruptedException, List<Map<String, Object>>> doPost(final SqlQuery query) throws Exception
+  private Pair<QueryException, List<Map<String, Object>>> doPost(final SqlQuery query) throws Exception
   {
     return doPost(query, new TypeReference<List<Map<String, Object>>>() {});
   }

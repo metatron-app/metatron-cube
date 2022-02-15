@@ -289,7 +289,7 @@ public class QueryRunners
     try {
       return watch.wainOn(future);
     }
-    catch (QueryInterruptedException e) {
+    catch (QueryException e) {
       IOUtils.closeQuietly(closeOnFailure);
       throw e;
     }
@@ -302,7 +302,7 @@ public class QueryRunners
       String reason = e instanceof InterruptedException ? "interrupted" : "timeout";
       LOG.info("Cancelling query [%s] by reason [%s]", query.getId(), reason);
       IOUtils.closeQuietly(closeOnFailure);
-      throw QueryInterruptedException.wrapIfNeeded(e);
+      throw QueryException.wrapIfNeeded(e);
     }
     catch (ExecutionException e) {
       IOUtils.closeQuietly(closeOnFailure);
@@ -316,7 +316,7 @@ public class QueryRunners
       return watch.wainOn(future);
     }
     catch (Exception e) {
-      throw QueryInterruptedException.wrapIfNeeded(e);
+      throw QueryException.wrapIfNeeded(e);
     }
   }
 

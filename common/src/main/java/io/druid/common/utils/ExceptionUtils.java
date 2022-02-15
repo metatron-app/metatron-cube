@@ -22,7 +22,6 @@ package io.druid.common.utils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -30,30 +29,43 @@ public class ExceptionUtils
 {
   public static List<String> stackTrace(Throwable e)
   {
-    return stackTrace(e, Sets.<Throwable>newHashSet(), Lists.<String>newArrayList(), "");
-  }
-
-  public static List<String> stackTrace(Throwable e, Set<Throwable> visited, List<String> errorStack, String prefix)
-  {
+    List<String> errorStack = Lists.newArrayList();
     StackTraceElement[] trace = e.getStackTrace();
-    if (trace.length == 0) {
-      return errorStack;
+    for (StackTraceElement element : trace) {
+      errorStack.add(element.toString());
     }
-    errorStack.add(prefix + trace[0]);
-    if (trace.length == 1) {
-      return errorStack;
-    }
-    for (StackTraceElement element : Arrays.copyOfRange(trace, 1, Math.min(12, trace.length))) {
-      String stack = element.toString();
-      if (errorStack.contains(stack)) {
-        break;
-      }
-      errorStack.add(stack);
-    }
-    errorStack.add("... more");
-    if (e.getCause() != null && visited.add(e.getCause())) {
-      stackTrace(e.getCause(), visited, errorStack, "Caused by: ");
+    Throwable cause = e.getCause();
+    if (cause != null) {
+      printEnclosedStackTrace(cause, trace, Sets.newHashSet(cause), errorStack);
     }
     return errorStack;
+  }
+
+  private static void printEnclosedStackTrace(
+      Throwable t,
+      StackTraceElement[] enclosing,
+      Set<Throwable> visited,
+      List<String> errorStack
+  )
+  {
+    StackTraceElement[] trace = t.getStackTrace();
+    int m = trace.length - 1;
+    int n = enclosing.length - 1;
+    while (m >= 0 && n >= 0 && trace[m].equals(enclosing[n])) {
+      m--;n--;
+    }
+    int framesInCommon = trace.length - 1 - m;
+
+    errorStack.add("Caused by: " + t);
+    for (int i = 0; i <= m; i++) {
+      errorStack.add(trace[i].toString());
+    }
+    if (framesInCommon != 0) {
+      errorStack.add("... " + framesInCommon + " more");
+    }
+    Throwable cause = t.getCause();
+    if (cause != null && visited.add(cause)) {
+      printEnclosedStackTrace(cause, trace, visited, errorStack);
+    }
   }
 }

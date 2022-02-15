@@ -38,7 +38,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryWatcher;
 import io.druid.utils.StopWatch;
 import org.apache.commons.io.IOUtils;
@@ -282,7 +282,7 @@ public class QueryManager implements QueryWatcher, Runnable
       if (canceled || end > 0 || remaining <= 0) {
         Execs.cancelQuietly(future);
         IOUtils.closeQuietly(resource);
-        throw QueryInterruptedException.wrapIfNeeded(canceled ? new CancellationException() : new TimeoutException());
+        throw QueryException.wrapIfNeeded(canceled ? new CancellationException() : new TimeoutException());
       }
       pendings.put(future, Timer.of(future));
       if (resource != null) {
@@ -365,7 +365,7 @@ public class QueryManager implements QueryWatcher, Runnable
         return;
       }
       final long mean = total / counter;
-      final double threshold = Math.max(LOG_THRESHOLD_MSEC / 2, mean * 1.5);
+      final double threshold = Math.max(LOG_THRESHOLD_MSEC / 2f, mean * 1.5f);
 
       List<Timer> log = ImmutableList.copyOf(
           Iterables.limit(Iterables.filter(pendings, input -> input.elapsed > threshold), 8)

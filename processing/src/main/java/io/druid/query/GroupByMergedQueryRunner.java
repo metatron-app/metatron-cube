@@ -109,7 +109,7 @@ public class GroupByMergedQueryRunner implements QueryRunner<Row>
                           log.debug("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;
                         }
-                        catch (QueryInterruptedException e) {
+                        catch (QueryException e) {
                           throw Throwables.propagate(e);
                         }
                         catch (Exception e) {

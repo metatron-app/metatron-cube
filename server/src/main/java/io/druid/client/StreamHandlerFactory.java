@@ -27,7 +27,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.http.client.response.ClientResponse;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryMetrics;
 import io.druid.utils.StopWatch;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -127,13 +127,13 @@ public class StreamHandlerFactory
               @Override
               public int read() throws IOException
               {
-                throw QueryInterruptedException.read(binary, mapper);
+                throw QueryException.read(binary, mapper);
               }
 
               @Override
               public int available() throws IOException
               {
-                throw QueryInterruptedException.read(binary, mapper);
+                throw QueryException.read(binary, mapper);
               }
             }
         );
@@ -203,7 +203,7 @@ public class StreamHandlerFactory
       }
       catch (Exception e) {
         if (!done.get()) {
-          throw QueryInterruptedException.wrapIfNeeded(e);
+          throw QueryException.wrapIfNeeded(e);
         }
       }
     }
@@ -221,7 +221,7 @@ public class StreamHandlerFactory
         }
       } catch (Exception e) {
         if (!done.get()) {
-          throw QueryInterruptedException.wrapIfNeeded(e);
+          throw QueryException.wrapIfNeeded(e);
         }
       }
       return EMPTY;

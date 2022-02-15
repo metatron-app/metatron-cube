@@ -122,7 +122,7 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
                                       return Sequences.toList(result);
                                     }
-                                    catch (QueryInterruptedException e) {
+                                    catch (QueryException e) {
                                       throw Throwables.propagate(e);
                                     }
                                     catch (Exception e) {
@@ -146,19 +146,19 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
               log.info("Query canceled, id [%s]", query.getId());
               Execs.cancelQuietly(futures);
               if (query.getContextBoolean("IN_TEST", false)) {
-                throw QueryInterruptedException.wrapIfNeeded(e);
+                throw QueryException.wrapIfNeeded(e);
               }
               return Collections.emptyIterator();
             }
             catch (InterruptedException e) {
               log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
               futures.cancel(true);
-              throw QueryInterruptedException.wrapIfNeeded(e);
+              throw QueryException.wrapIfNeeded(e);
             }
             catch (TimeoutException e) {
               log.info("Query timeout, cancelling pending results for query id [%s]", query.getId());
               futures.cancel(true);
-              throw QueryInterruptedException.wrapIfNeeded(e);
+              throw QueryException.wrapIfNeeded(e);
             }
             catch (ExecutionException e) {
               throw Throwables.propagate(e.getCause());

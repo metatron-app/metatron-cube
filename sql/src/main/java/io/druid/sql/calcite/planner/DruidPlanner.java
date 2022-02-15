@@ -43,7 +43,7 @@ import io.druid.data.output.ForwardConstants;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.load.LoadQuery;
@@ -222,7 +222,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         explanation = plannerContext.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(query);
       }
       catch (JsonProcessingException e) {
-        throw QueryInterruptedException.wrapIfNeeded(e);
+        throw QueryException.wrapIfNeeded(e);
       }
     } else {
       explanation = RelOptUtil.dumpPlan("", rel, explain.getFormat(), explain.getDetailLevel());

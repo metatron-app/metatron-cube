@@ -49,7 +49,7 @@ import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.RowToArray;
@@ -7137,7 +7137,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
-  @Test(expected = QueryInterruptedException.class)
+  @Test(expected = QueryException.class)
   public void test3876()
   {
     GroupByQuery query = GroupByQuery

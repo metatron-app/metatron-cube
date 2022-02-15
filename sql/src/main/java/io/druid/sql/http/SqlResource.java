@@ -37,7 +37,7 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryResource;
 import io.druid.server.security.Access;
@@ -319,9 +319,7 @@ public class SqlResource
 
       return Response.serverError()
                      .type(MediaType.APPLICATION_JSON_TYPE)
-                     .entity(jsonMapper.writeValueAsBytes(
-                         QueryInterruptedException.wrapIfNeeded(exceptionToReport, node))
-                     )
+                     .entity(jsonMapper.writeValueAsBytes(QueryException.wrapIfNeeded(exceptionToReport, node)))
                      .build();
     }
   }

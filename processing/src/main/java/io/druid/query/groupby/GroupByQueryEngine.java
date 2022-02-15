@@ -48,7 +48,7 @@ import io.druid.java.util.common.parsers.CloseableIterator;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -81,6 +81,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiFunction;
 
 /**
@@ -311,9 +312,7 @@ public class GroupByQueryEngine
       } else {
         final int maxMultiValueDimensions = config.getMaxMultiValueDimensions(query);
         if (maxMultiValueDimensions >= 0 && mvDimensions.size() > maxMultiValueDimensions) {
-          throw new QueryInterruptedException(
-              QueryInterruptedException.RESOURCE_LIMIT_EXCEEDED, "too many multi-valued dimensions"
-          );
+          throw new QueryException(new RejectedExecutionException("too many multi-valued dimensions"));
         }
         this.rowUpdater = new RowUpdater(pool);
       }

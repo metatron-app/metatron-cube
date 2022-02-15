@@ -151,13 +151,13 @@ public class ChainedExecutionQueryRunnerTest
     ListenableFuture future = capturedFuture.getValue();
     future.cancel(true);
 
-    QueryInterruptedException cause = null;
+    QueryException cause = null;
     try {
       resultFuture.get();
     }
     catch (ExecutionException e) {
-      Assert.assertTrue(e.getCause() instanceof QueryInterruptedException);
-      cause = (QueryInterruptedException) e.getCause();
+      Assert.assertTrue(e.getCause() instanceof QueryException);
+      cause = (QueryException) e.getCause();
     }
     queriesInterrupted.await();
     Assert.assertNotNull(cause);
@@ -278,14 +278,14 @@ public class ChainedExecutionQueryRunnerTest
     ListenableFuture future = capturedFuture.getValue();
 
     // wait for query to time out
-    QueryInterruptedException cause = null;
+    QueryException cause = null;
     try {
       resultFuture.get();
     }
     catch (ExecutionException e) {
-      Assert.assertTrue(e.getCause() instanceof QueryInterruptedException);
-      Assert.assertEquals("Query timeout", ((QueryInterruptedException) e.getCause()).getErrorCode());
-      cause = (QueryInterruptedException) e.getCause();
+      Assert.assertTrue(e.getCause() instanceof QueryException);
+      Assert.assertEquals(QueryException.Code.TIMED_OUT, ((QueryException) e.getCause()).getErrorCode());
+      cause = (QueryException) e.getCause();
     }
     queriesInterrupted.await();
     Assert.assertNotNull(cause);
@@ -346,7 +346,7 @@ public class ChainedExecutionQueryRunnerTest
           interrupted = true;
           interruptedRunners.offer(this);
           stop.countDown();
-          throw new QueryInterruptedException(e);
+          throw new QueryException(e);
         }
       }
 

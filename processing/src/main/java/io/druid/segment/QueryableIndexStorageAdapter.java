@@ -39,7 +39,8 @@ import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
+import io.druid.query.QueryException.Code;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
@@ -367,7 +368,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       int advanced = 0;
                       while (cursorOffset.increment() && !filterMatcher.matches()) {
                         if (++advanced % 10000 == 0 && Thread.interrupted()) {
-                          throw new QueryInterruptedException(new InterruptedException());
+                          throw new QueryException(new InterruptedException("interrupted"));
                         }
                       }
                     }

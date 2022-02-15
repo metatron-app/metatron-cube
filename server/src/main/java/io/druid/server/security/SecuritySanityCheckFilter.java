@@ -21,7 +21,8 @@ package io.druid.server.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
+import io.druid.query.QueryException.Code;
 import io.druid.server.DruidNode;
 
 import javax.servlet.Filter;
@@ -46,8 +47,8 @@ public class SecuritySanityCheckFilter implements Filter
   )
   {
     try {
-      QueryInterruptedException unauthorizedError = new QueryInterruptedException(
-          QueryInterruptedException.UNAUTHORIZED,
+      QueryException unauthorizedError = new QueryException(
+          Code.UNAUTHORIZED,
           null,
           null,
           null,

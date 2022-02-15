@@ -30,7 +30,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.netty.channel.ChannelException;
 
 import java.io.InputStream;
@@ -106,11 +106,11 @@ public class JsonParserIterator<T> implements Iterator<T>
         final JsonToken nextToken = jp.nextToken();
         if (nextToken == JsonToken.START_OBJECT) {
           Map<String, Object> map = jp.readValueAs(new TypeReference<Map<String, Object>>(){});
-          QueryInterruptedException qie = mapper.convertValue(map, QueryInterruptedException.class);
-          if (!map.isEmpty() && qie.getMessage() == null) {
-            LOG.warn("Null error message in QIE exception from value %s", map);
+          QueryException qe = mapper.convertValue(map, QueryException.class);
+          if (!map.isEmpty() && qe.getMessage() == null) {
+            LOG.warn("Null error message in QueryException from value %s", map);
           }
-          throw qie;
+          throw qe;
         } else if (nextToken == JsonToken.VALUE_STRING) {
           throw new IAE("Next token wasn't a START_ARRAY, was string [%s]", StringUtils.limit(jp.getText(), 256));
         } else if (nextToken != JsonToken.START_ARRAY) {
@@ -134,12 +134,12 @@ public class JsonParserIterator<T> implements Iterator<T>
     for (Throwable ex = t; ex != null; ex = ex.getCause()) {
       if (ex instanceof TimeoutException ||
           ex instanceof InterruptedException ||
-          ex instanceof QueryInterruptedException ||
+          ex instanceof QueryException ||
           ex instanceof org.jboss.netty.handler.timeout.TimeoutException ||
           ex instanceof CancellationException ||
           ex instanceof ChannelException) {
         // todo should retry to other replica if exists?
-        throw QueryInterruptedException.wrapIfNeeded(ex, host, type);
+        throw QueryException.wrapIfNeeded(ex, host, type);
       }
     }
     throw new RE(t, "Failure getting results from[%s(%s)] because of [%s]", host, type, t.getMessage());

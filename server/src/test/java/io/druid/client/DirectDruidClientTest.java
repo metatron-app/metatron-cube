@@ -37,7 +37,7 @@ import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.Druids;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
@@ -180,7 +180,7 @@ public class DirectDruidClientTest
       Sequences.toList(s2, Lists.<Result>newArrayList());
     }
     catch (Exception e) {
-      Assert.assertTrue(e instanceof QueryInterruptedException);
+      Assert.assertTrue(e instanceof QueryException);
       Assert.assertTrue(e.getCause() instanceof ReadTimeoutException);
     }
 
@@ -293,7 +293,7 @@ public class DirectDruidClientTest
       Sequences.toList(results, Lists.<Result>newArrayList());
     }
     catch (Exception e) {
-      Assert.assertTrue(e instanceof QueryInterruptedException);
+      Assert.assertTrue(e instanceof QueryException);
       Assert.assertTrue(e.getCause() instanceof TimeoutException);
     }
     Assert.assertEquals(HttpMethod.DELETE, capturedRequest.getValue().getMethod());
@@ -357,18 +357,18 @@ public class DirectDruidClientTest
 
     TimeBoundaryQuery query = Druids.newTimeBoundaryQueryBuilder().dataSource("test").build();
     HashMap<String, List> context = Maps.newHashMap();
-    future.set(new ByteArrayInputStream("{\"error\":\"testing1\",\"errorMessage\":\"testing2\"}".getBytes()));
+    future.set(new ByteArrayInputStream("{\"errorCode\":\"TIMED_OUT\",\"errorMessage\":\"testing2\"}".getBytes()));
     Sequence results = client1.run(query, context);
 
-    QueryInterruptedException actualException = null;
+    QueryException actualException = null;
     try {
       Sequences.toList(results, Lists.newArrayList());
     }
-    catch (QueryInterruptedException e) {
+    catch (QueryException e) {
       actualException = e;
     }
     Assert.assertNotNull(actualException);
-    Assert.assertEquals("testing1", actualException.getErrorCode());
+    Assert.assertEquals(QueryException.Code.TIMED_OUT, actualException.getErrorCode());
     Assert.assertEquals("testing2", actualException.getMessage());
     Assert.assertEquals(hostName, actualException.getHost());
     EasyMock.verify(httpClient);

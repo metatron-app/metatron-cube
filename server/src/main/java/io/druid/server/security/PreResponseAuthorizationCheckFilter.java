@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.server.DruidNode;
 
 import javax.servlet.Filter;
@@ -127,8 +127,8 @@ public class PreResponseAuthorizationCheckFilter implements Filter
     for (String authScheme : supportedAuthSchemes) {
       response.addHeader("WWW-Authenticate", authScheme);
     }
-    QueryInterruptedException unauthorizedError = new QueryInterruptedException(
-        QueryInterruptedException.UNAUTHORIZED,
+    QueryException unauthorizedError = new QueryException(
+        QueryException.Code.UNAUTHORIZED,
         null,
         null,
         null,

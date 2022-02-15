@@ -47,7 +47,7 @@ import io.druid.jackson.JodaStuff;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.BaseQuery;
 import io.druid.query.Query;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -90,6 +90,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
 
 /**
+ *
  */
 @Path("/druid/v2/")
 public class QueryResource
@@ -232,17 +233,25 @@ public class QueryResource
     final String remote = req.getRemoteAddr();
     final RequestContext context = new RequestContext(req, pretty != null, Boolean.valueOf(smile));
 
-    final Thread currThread = Thread.currentThread();
-    final String currThreadName = resetThreadName(currThread);
-
-    final Query query = readQuery(in, context);
-    final QueryLifecycle lifecycle = queryLifecycleFactory.factorize(query);
-
+    final Query query;
+    try {
+      query = readQuery(in, context);
+    }
+    catch (Exception e) {
+      log.warn(e, "Failed to read query instance");
+      return context.gotError(e);
+    }
     if (log.isDebugEnabled()) {
       log.info("Got query [%s]", query);
     } else {
       log.info("Got query [%s:%s]", query.getType(), query.getId());
     }
+
+    final QueryLifecycle lifecycle = queryLifecycleFactory.factorize(query);
+
+    final Thread currThread = Thread.currentThread();
+    final String currThreadName = resetThreadName(currThread);
+
     try {
       currThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), query.getId()));
 
@@ -310,7 +319,7 @@ public class QueryResource
           // json serializer will always close the yielder
           CountingOutputStream os = new CountingOutputStream(outputStream);
           if (future.isCancelled()) {
-            throw QueryInterruptedException.wrapIfNeeded(new InterruptedException(), node);
+            throw QueryException.wrapIfNeeded(new InterruptedException(), node);
           }
           writer.set(Thread.currentThread());
           try {
@@ -463,7 +472,7 @@ public class QueryResource
           {
             try {
               decorator.start(jgen, provider);
-              for (;!yielder.isDone(); yielder = yielder.next(null)) {
+              for (; !yielder.isDone(); yielder = yielder.next(null)) {
                 decorator.serialize(jgen, provider, yielder.get());
               }
               decorator.end(jgen, provider);
@@ -492,7 +501,7 @@ public class QueryResource
     {
       return Response.serverError()
                      .type(contentType)
-                     .entity(getOutputWriter().writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(e, node)))
+                     .entity(getOutputWriter().writeValueAsBytes(QueryException.wrapIfNeeded(e, node)))
                      .build();
     }
   }

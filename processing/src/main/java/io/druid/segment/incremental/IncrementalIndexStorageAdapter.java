@@ -32,7 +32,7 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
-import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryException;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
@@ -284,7 +284,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     return;
                   }
                   if (++advanced % 10000 == 0 && Thread.interrupted()) {
-                    throw new QueryInterruptedException(new InterruptedException());
+                    throw new QueryException(new InterruptedException("interrupted"));
                   }
                 }
 

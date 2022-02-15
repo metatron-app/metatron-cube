@@ -115,7 +115,7 @@ public class AsyncQueryRunnerTest
     try {
       Sequences.toList(lazy, Lists.newArrayList());
     } catch(RuntimeException ex) {
-      Assert.assertTrue(ex instanceof QueryInterruptedException);
+      Assert.assertTrue(ex instanceof QueryException);
       Assert.assertTrue(ex.getCause() instanceof TimeoutException);
       return;
     }

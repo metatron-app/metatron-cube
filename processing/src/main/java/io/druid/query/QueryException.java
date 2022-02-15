@@ -20,7 +20,6 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -28,8 +27,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.druid.common.utils.ExceptionUtils;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.server.DruidNode;
@@ -43,38 +40,33 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Exception representing a failed query. The name "QueryInterruptedException" is a misnomer; this is actually
- * used on the client side for *all* kinds of failed queries.
- *
  * Fields:
  * - "errorCode" is a well-defined errorCode code taken from a specific list (see the static constants). "Unknown exception"
  * represents all wrapped exceptions other than interrupt/timeout/cancellation.
  * - "errorMessage" is the toString of the wrapped exception
  * - "errorClass" is the class of the wrapped exception
  * - "host" is the host that the errorCode occurred on
- *
+ * <p>
  * The QueryResource is expected to emit the JSON form of this object when errors happen, and the DirectDruidClient
  * deserializes and wraps them.
  */
-public class QueryInterruptedException extends RuntimeException
+public class QueryException extends RuntimeException
 {
-  public static final String QUERY_INTERRUPTED = "Query interrupted";
-  public static final String QUERY_TIMEOUT = "Query timeout";
-  public static final String QUERY_CANCELLED = "Query cancelled";
-  public static final String RESOURCE_LIMIT_EXCEEDED = "Resource limit exceeded";
-  public static final String UNAUTHORIZED = "Unauthorized request.";
-  public static final String UNSUPPORTED_OPERATION = "Unsupported operation";
-  public static final String UNKNOWN_EXCEPTION = "Unknown exception";
+  public static enum Code
+  {
+    INTERRUPTED, TIMED_OUT, CANCELLED, RESOURCE_LIMIT_EXCEEDED, UNAUTHORIZED, UNSUPPORTED, UNKNOWN
+  }
 
-  private final String errorCode;
+  private final Code errorCode;
   private final String errorClass;
   private final List<String> errorStack;
+
   private String host;
   private String serviceName;
 
   @JsonCreator
-  public QueryInterruptedException(
-      @JsonProperty("error") String errorCode,
+  public QueryException(
+      @JsonProperty("errorCode") Code errorCode,
       @JsonProperty("errorMessage") String errorMessage,
       @JsonProperty("errorClass") String errorClass,
       @JsonProperty("errorStack") List<String> errorStack,
@@ -90,33 +82,28 @@ public class QueryInterruptedException extends RuntimeException
     this.serviceName = serviceName;
   }
 
-  public QueryInterruptedException(String errorCode, String errorMessage)
-  {
-    this(errorCode, errorMessage, null, null, null, null);
-  }
-
   /**
-   * Creates a new QueryInterruptedException wrapping an underlying exception. The errorMessage and errorClass
-   * of this exception will be based on the highest non-QueryInterruptedException in the causality chain.
+   * Creates a new QueryException wrapping an underlying exception. The errorMessage and errorClass
+   * of this exception will be based on the highest non-QueryException in the causality chain.
    *
    * @param cause wrapped exception
    */
-  public QueryInterruptedException(Throwable cause)
+  public QueryException(Throwable cause)
   {
     this(cause, getHostFromThrowable(cause), getServiceNameFromThrowable(cause));
   }
 
-  public QueryInterruptedException(Throwable cause, String host, String serviceName)
+  public QueryException(Throwable cause, String host, String serviceName)
   {
     super(cause == null ? null : cause.getMessage(), cause);
     this.errorCode = getErrorCodeFromThrowable(cause);
     this.errorClass = getErrorClassFromThrowable(cause);
-    this.errorStack = cause == null ? null : stackTrace(cause);
+    this.errorStack = cause == null ? null : ExceptionUtils.stackTrace(cause);
     this.host = host;
     this.serviceName = serviceName;
   }
 
-  public static <T> T wrap(Callable<T> callable) throws QueryInterruptedException
+  public static <T> T wrap(Callable<T> callable) throws QueryException
   {
     try {
       return callable.call();
@@ -129,15 +116,15 @@ public class QueryInterruptedException extends RuntimeException
     }
   }
 
-  @JsonProperty("error")
-  public String getErrorCode()
+  @JsonProperty
+  public Code getErrorCode()
   {
     return errorCode;
   }
 
-  @JsonProperty("errorMessage")
-  @Override
-  public String getMessage()
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public String getErrorMessage()
   {
     return super.getMessage();
   }
@@ -150,7 +137,7 @@ public class QueryInterruptedException extends RuntimeException
   }
 
   @JsonProperty
-  @JsonInclude(Include.NON_NULL)
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getErrorStack()
   {
     return errorStack;
@@ -170,57 +157,27 @@ public class QueryInterruptedException extends RuntimeException
     return serviceName;
   }
 
-  public void setHost(String host)
+  private static Code getErrorCodeFromThrowable(Throwable e)
   {
-    this.host = host;
-  }
-
-  public void setServiceName(String serviceName)
-  {
-    this.serviceName = serviceName;
-  }
-
-  @JsonIgnore
-  public String logMessage()
-  {
-    StringBuilder builder = new StringBuilder();
-    if (host != null && serviceName != null) {
-      builder.append('[').append(host).append(':').append(serviceName).append("] ");
-    }
-    String message = getLocalizedMessage();
-    if (errorClass != null) {
-      builder.append(errorClass).append(": ").append(message);
-    } else if (message != null) {
-      builder.append(message);
-    }
-    builder.append('\n');
-    for (String stack : Optional.fromNullable(errorStack).or(ImmutableList.of())) {
-      builder.append("\tat ").append(stack).append('\n');
-    }
-    return builder.toString();
-  }
-
-  private static String getErrorCodeFromThrowable(Throwable e)
-  {
-    if (e instanceof QueryInterruptedException) {
-      return ((QueryInterruptedException) e).getErrorCode();
+    if (e instanceof QueryException) {
+      return ((QueryException) e).getErrorCode();
     } else if (e instanceof InterruptedException) {
-      return QUERY_INTERRUPTED;
+      return Code.INTERRUPTED;
     } else if (e instanceof CancellationException) {
-      return QUERY_CANCELLED;
+      return Code.CANCELLED;
     } else if (e instanceof TimeoutException || e instanceof org.jboss.netty.handler.timeout.TimeoutException) {
-      return QUERY_TIMEOUT;
+      return Code.TIMED_OUT;
     } else if (e instanceof RejectedExecutionException) {
-      return RESOURCE_LIMIT_EXCEEDED;
+      return Code.RESOURCE_LIMIT_EXCEEDED;
     } else {
-      return UNKNOWN_EXCEPTION;
+      return Code.UNKNOWN;
     }
   }
 
   private static String getErrorClassFromThrowable(Throwable e)
   {
-    if (e instanceof QueryInterruptedException) {
-      return ((QueryInterruptedException) e).getErrorClass();
+    if (e instanceof QueryException) {
+      return ((QueryException) e).getErrorClass();
     } else if (e != null) {
       return e.getClass().getName();
     } else {
@@ -230,51 +187,46 @@ public class QueryInterruptedException extends RuntimeException
 
   private static String getHostFromThrowable(Throwable e)
   {
-    return e instanceof QueryInterruptedException ? ((QueryInterruptedException) e).getHost() : null;
+    return e instanceof QueryException ? ((QueryException) e).getHost() : null;
   }
 
   private static String getServiceNameFromThrowable(Throwable e)
   {
-    return e instanceof QueryInterruptedException ? ((QueryInterruptedException) e).getServiceName() : null;
+    return e instanceof QueryException ? ((QueryException) e).getServiceName() : null;
   }
 
-  public static QueryInterruptedException wrapIfNeeded(Throwable e)
+  public static QueryException wrapIfNeeded(Throwable e)
   {
     return wrapIfNeeded(e, null, null);
   }
 
-  public static QueryInterruptedException wrapIfNeeded(Throwable e, DruidNode node)
+  public static QueryException wrapIfNeeded(Throwable e, DruidNode node)
   {
     return wrapIfNeeded(e, node.getHostAndPort(), node.getServiceName());
   }
 
-  public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort, String serviceName)
+  public static QueryException wrapIfNeeded(Throwable e, String hostPort, String serviceName)
   {
     for (Throwable t = e; t != null; t = t.getCause()) {
-      if (t instanceof QueryInterruptedException) {
-        QueryInterruptedException qie = (QueryInterruptedException) t;
-        if (qie.getHost() == null && hostPort != null) {
-          qie.setHost(hostPort);
+      if (t instanceof QueryException) {
+        QueryException qie = (QueryException) t;
+        if (qie.host == null && hostPort != null) {
+          qie.host = hostPort;
         }
-        if (qie.getServiceName() == null && serviceName != null) {
-          qie.setServiceName(serviceName);
+        if (qie.serviceName == null && serviceName != null) {
+          qie.serviceName = serviceName;
         }
         return qie;
       }
     }
-    return new QueryInterruptedException(e, hostPort, serviceName);
-  }
-
-  public static List<String> stackTrace(Throwable e)
-  {
-    return ExceptionUtils.stackTrace(e, Sets.<Throwable>newHashSet(), Lists.<String>newArrayList(), "");
+    return new QueryException(e, hostPort, serviceName);
   }
 
   public static IOException read(byte[] contents, ObjectMapper mapper) throws IOException
   {
-    QueryInterruptedException qie;
+    QueryException qie;
     try {
-      qie = mapper.readValue(contents, QueryInterruptedException.class);
+      qie = mapper.readValue(contents, QueryException.class);
     }
     catch (Exception e) {
       throw new IOException(new String(contents, Charsets.ISO_8859_1));
@@ -282,14 +234,39 @@ public class QueryInterruptedException extends RuntimeException
     throw qie;
   }
 
-  @JsonIgnore
   public static void warn(Logger log, Throwable t, String message, Object... params)
   {
-    if (t instanceof QueryInterruptedException) {
+    if (t instanceof QueryException) {
       log.warn(message, params);
-      log.warn(((QueryInterruptedException) t).logMessage());
+      log.warn(((QueryException) t).detail());
     } else {
       log.warn(t, message, params);
     }
+  }
+
+  private String detail()
+  {
+    StringBuilder builder = new StringBuilder();
+    if (host != null && serviceName != null) {
+      builder.append('[').append(host).append(':').append(serviceName).append(']');
+    }
+    if (errorCode != null && errorCode != Code.UNKNOWN) {
+      builder.append('[').append(errorCode).append(']');
+    }
+    if (builder.length() > 0) {
+      builder.append(' ');
+    }
+    String message = getLocalizedMessage();
+    if (errorClass != null && message != null) {
+      builder.append(errorClass).append(": ").append(message);
+    } else if (errorClass != null) {
+      builder.append(errorClass);
+    } else if (message != null) {
+      builder.append(message);
+    }
+    for (String stack : Optional.fromNullable(errorStack).or(ImmutableList.of())) {
+      builder.append("\n\tat ").append(stack);
+    }
+    return builder.toString();
   }
 }
