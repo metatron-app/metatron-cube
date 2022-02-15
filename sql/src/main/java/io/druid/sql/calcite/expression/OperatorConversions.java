@@ -156,9 +156,7 @@ public class OperatorConversions
     {
       Preconditions.checkState(returnTypeInference == null, "Cannot set return type multiple times");
 
-      this.returnTypeInference = ReturnTypes.explicit(
-          factory -> Calcites.createSqlType(factory, typeName)
-      );
+      this.returnTypeInference = ReturnTypes.explicit(factory -> Calcites.asRelDataType(factory, typeName));
       return this;
     }
 
@@ -173,9 +171,7 @@ public class OperatorConversions
     {
       Preconditions.checkState(returnTypeInference == null, "Cannot set return type multiple times");
 
-      this.returnTypeInference = ReturnTypes.explicit(
-          factory -> Calcites.createSqlTypeWithNullability(factory, typeName, true)
-      );
+      this.returnTypeInference = ReturnTypes.explicit(factory -> Calcites.asRelDataType(factory, typeName, true));
       return this;
     }
 
@@ -373,7 +369,7 @@ public class OperatorConversions
         } else {
           // We couldn't derive a non-NULL type; infer the default for the operand type family.
           if (nullableOperands.contains(i)) {
-            inferredType = Calcites.createSqlTypeWithNullability(
+            inferredType = Calcites.asRelDataType(
                 callBinding.getTypeFactory(),
                 defaultTypeForFamily(operandTypes.get(i)),
                 true

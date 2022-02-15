@@ -25,7 +25,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.Pair;
 import io.druid.query.ordering.StringComparator;
@@ -47,7 +46,7 @@ import java.util.List;
 /**
  * Type signature for a row in a Druid dataSource ("DruidTable") or query result. Rows have an ordering and every
  * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
- * well defined types) but we do impose types for the SQL layer.
+ * well-defined types) but we do impose types for the SQL layer.
  */
 public class RowSignature extends io.druid.query.RowSignature
 {
@@ -159,15 +158,8 @@ public class RowSignature extends io.druid.query.RowSignature
     final RelDataTypeFactory.Builder builder = typeFactory.builder();
     for (int i = 0; i < columnNames.size(); i++) {
       String columnName = columnNames.get(i);
-      RelDataType type;
-      if (Row.TIME_COLUMN_NAME.equals(columnName)) {
-        type = Calcites.createSqlType(typeFactory, SqlTypeName.TIMESTAMP);
-      } else {
-        type = Calcites.asRelDataType(typeFactory, columnTypes.get(i));
-      }
-      builder.add(columnName, type);
+      builder.add(columnName, Calcites.asRelDataType(columnName, columnTypes.get(i)));
     }
-
     return builder.build();
   }
 

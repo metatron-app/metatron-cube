@@ -19,8 +19,8 @@
 
 package io.druid.sql.calcite.aggregation.builtin;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
@@ -81,44 +81,43 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
   {
     // Don't use Aggregations.getArgumentsForSimpleAggregator, since it won't let us use direct column access
     // for string columns.
-    final int field = Iterables.getOnlyElement(aggregateCall.getArgList());
-    final RexNode rexNode = Expressions.fromFieldAccess(rowSignature, project, field);
-
-    final DruidExpression arg = Expressions.toDruidExpression(plannerContext, rowSignature, rexNode);
-    if (arg == null) {
+    final List<RexNode> rexNodes = Expressions.fromFieldAccesses(rowSignature, project, aggregateCall.getArgList());
+    final List<DruidExpression> args = Expressions.toDruidExpressions(plannerContext, rowSignature, rexNodes);
+    if (GuavaUtils.isNullOrEmpty(args)) {
       return null;
     }
 
     final List<VirtualColumn> virtualColumns = new ArrayList<>();
-    final AggregatorFactory aggregatorFactory;
     final String aggregatorName = finalizeAggregations ? Calcites.makePrefixedName(name, "a") : name;
 
-    if (arg.isDirectColumnAccess() && HyperLogLogCollector.HLL_TYPE.equals(rowSignature.resolve(arg.getDirectColumn()))) {
-      aggregatorFactory = HyperUniquesAggregatorFactory.of(aggregatorName, arg.getDirectColumn());
+    final DruidExpression first = args.get(0);
+    final AggregatorFactory factory;
+    if (args.size() == 1 && first.isDirectColumnAccess() &&
+        HyperLogLogCollector.HLL_TYPE.equals(rowSignature.resolve(first.getDirectColumn()))) {
+      factory = HyperUniquesAggregatorFactory.of(aggregatorName, first.getDirectColumn());
     } else {
 
-      final DimensionSpec dimensionSpec;
+      final List<DimensionSpec> dimensions = Lists.newArrayListWithCapacity(args.size());
 
-      if (arg.isSimpleExtraction()) {
-        dimensionSpec = arg.getSimpleExtraction().toDimensionSpec(null);
-      } else {
-        final ExprVirtualColumn virtualColumn = arg.toVirtualColumn(
-            Calcites.makePrefixedName(name, "v")
-        );
-        dimensionSpec = new DefaultDimensionSpec(virtualColumn.getOutputName(), null);
-        virtualColumns.add(virtualColumn);
+      for (DruidExpression arg : args) {
+        if (arg.isSimpleExtraction()) {
+          dimensions.add(arg.getSimpleExtraction().toDimensionSpec(null));
+        } else {
+          String suffix = dimensions.isEmpty() ? "v" : "v" + dimensions.size();
+          ExprVirtualColumn vc = arg.toVirtualColumn(Calcites.makePrefixedName(name, suffix));
+          virtualColumns.add(vc);
+          dimensions.add(DefaultDimensionSpec.of(vc.getOutputName()));
+        }
       }
 
-      aggregatorFactory = CardinalityAggregatorFactory.dimensions(
-          aggregatorName, ImmutableList.of(dimensionSpec), GroupingSetSpec.EMPTY
-      );
+      factory = CardinalityAggregatorFactory.dimensions(aggregatorName, dimensions, GroupingSetSpec.EMPTY);
     }
 
     return Aggregation.create(
         rowSignature,
         virtualColumns,
-        Collections.singletonList(aggregatorFactory),
-        finalizeAggregations ? new HyperUniqueFinalizingPostAggregator(name, aggregatorFactory.getName(), true) : null
+        Collections.singletonList(factory),
+        finalizeAggregations ? new HyperUniqueFinalizingPostAggregator(name, factory.getName(), true) : null
     );
   }
 

@@ -45,7 +45,7 @@ public class NominalBitSetToStringConversion implements SqlOperatorConversion
         .operandTypeChecker(OperandTypes.family(SqlTypeFamily.ARRAY))
         .returnTypeInference(opBinding -> {
           if (opBinding.getOperandType(0).getComponentType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
-            return Calcites.createSqlType(opBinding.getTypeFactory(), SqlTypeName.VARCHAR);
+            return Calcites.asRelDataType(opBinding.getTypeFactory(), SqlTypeName.VARCHAR);
           }
           return null;
         })

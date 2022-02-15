@@ -29,6 +29,7 @@ import com.google.common.primitives.Longs;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.IAE;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.ordering.StringComparators;
@@ -240,29 +241,38 @@ public class Calcites
     }
   }
 
-  public static RelDataType createSqlTypeWithNullability(RelDataTypeFactory typeFactory, Class javaType)
+  public static RelDataType asRelDataType(RelDataTypeFactory typeFactory, Class javaType)
   {
     return typeFactory.createTypeWithNullability(typeFactory.createJavaType(javaType), true);
   }
 
-  public static RelDataType createSqlType(RelDataTypeFactory typeFactory, Class javaType)
+  public static RelDataType asRelDataType(final String columnName, final ValueDesc columnType)
   {
-    return typeFactory.createJavaType(javaType);
+    if (Row.TIME_COLUMN_NAME.equals(columnName)) {
+      return Calcites.asRelDataType(SqlTypeName.TIMESTAMP);
+    } else {
+      return Calcites.asRelDataType(columnType);
+    }
+  }
+
+  public static RelDataType asRelDataType(final SqlTypeName typeName)
+  {
+    return asRelDataType(TYPE_FACTORY, typeName, false);
   }
 
   /**
    * Like RelDataTypeFactory.createSqlType, but creates types that align best with how Druid represents them.
    */
-  public static RelDataType createSqlType(final RelDataTypeFactory typeFactory, final SqlTypeName typeName)
+  public static RelDataType asRelDataType(final RelDataTypeFactory typeFactory, final SqlTypeName typeName)
   {
-    return createSqlTypeWithNullability(typeFactory, typeName, false);
+    return asRelDataType(typeFactory, typeName, false);
   }
 
   /**
    * Like RelDataTypeFactory.createSqlTypeWithNullability, but creates types that align best with how Druid
    * represents them.
    */
-  public static RelDataType createSqlTypeWithNullability(
+  public static RelDataType asRelDataType(
       final RelDataTypeFactory typeFactory,
       final SqlTypeName typeName,
       final boolean nullable
@@ -486,17 +496,17 @@ public class Calcites
     }
     switch (columnType.type()) {
       case STRING:
-        return createSqlTypeWithNullability(factory, SqlTypeName.VARCHAR, true);
+        return asRelDataType(factory, SqlTypeName.VARCHAR, true);
       case BOOLEAN:
-        return createSqlTypeWithNullability(factory, SqlTypeName.BOOLEAN, true);
+        return asRelDataType(factory, SqlTypeName.BOOLEAN, true);
       case LONG:
-        return createSqlTypeWithNullability(factory, SqlTypeName.BIGINT, true);
+        return asRelDataType(factory, SqlTypeName.BIGINT, true);
       case FLOAT:
-        return createSqlTypeWithNullability(factory, SqlTypeName.FLOAT, true);
+        return asRelDataType(factory, SqlTypeName.FLOAT, true);
       case DOUBLE:
-        return createSqlTypeWithNullability(factory, SqlTypeName.DOUBLE, true);
+        return asRelDataType(factory, SqlTypeName.DOUBLE, true);
       case DATETIME:
-        return createSqlTypeWithNullability(factory, DateTime.class);
+        return asRelDataType(factory, DateTime.class);
       case COMPLEX:
         if (columnType.isStruct()) {
           final String[] description = columnType.getDescription();
@@ -517,7 +527,7 @@ public class Calcites
         } else if (columnType.isMap()) {
           final String[] description = columnType.getDescription();
           final RelDataType keyType = description != null ? asRelDataType(factory, ValueDesc.of(description[1]))
-                                                          : createSqlType(factory, SqlTypeName.VARCHAR);
+                                                          : asRelDataType(factory, SqlTypeName.VARCHAR);
           final RelDataType valueType = description != null ? asRelDataType(factory, ValueDesc.of(description[2]))
                                                             : factory.createSqlType(SqlTypeName.ANY);
           return factory.createTypeWithNullability(factory.createMapType(keyType, valueType), true);
@@ -527,10 +537,10 @@ public class Calcites
           return factory.createTypeWithNullability(factory.createArrayType(subType, -1), true);
         } else if (columnType.isBitSet()) {
           return factory.createTypeWithNullability(
-              factory.createArrayType(createSqlType(factory, SqlTypeName.BOOLEAN), -1), true
+              factory.createArrayType(asRelDataType(factory, SqlTypeName.BOOLEAN), -1), true
           );
         } else if (ValueDesc.isGeometry(columnType)) {
-          return createSqlTypeWithNullability(factory, columnType.asClass());
+          return asRelDataType(factory, columnType.asClass());
         }
         return DruidType.other(columnType);
       default:

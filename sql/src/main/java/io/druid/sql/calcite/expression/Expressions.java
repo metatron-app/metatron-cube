@@ -20,6 +20,7 @@
 package io.druid.sql.calcite.expression;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import io.druid.common.DateTimes;
 import io.druid.data.input.Row;
@@ -59,8 +60,10 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * A collection of functions for translating from Calcite expressions into Druid objects.
@@ -72,6 +75,20 @@ public class Expressions
     // No instantiation.
   }
 
+  public static List<RexNode> fromFieldAccesses(
+      final RowSignature rowSignature,
+      final Project project,
+      final List<Integer> fieldNumbers
+  )
+  {
+    if (fieldNumbers.isEmpty()) {
+      return ImmutableList.of();
+    } else if (fieldNumbers.size() == 1) {
+      return Arrays.asList(fromFieldAccess(rowSignature, project, fieldNumbers.get(0)));
+    }
+    return fieldNumbers.stream().map(x -> fromFieldAccess(rowSignature, project, x)).collect(Collectors.toList());
+  }
+
   /**
    * Translate a field access, possibly through a projection, to an underlying Druid dataSource.
    *
@@ -81,18 +98,14 @@ public class Expressions
    *
    * @return row expression
    */
-  public static RexNode fromFieldAccess(
-      final RowSignature rowSignature,
-      final Project project,
-      final int fieldNumber
-  )
+  public static RexNode fromFieldAccess(RowSignature rowSignature, Project project, int fieldNumber)
   {
-    if (project == null) {
-      // I don't think the factory impl matters here.
-      return RexInputRef.of(fieldNumber, rowSignature.toRelDataType(Utils.TYPE_FACTORY));
-    } else {
+    if (project != null) {
       return project.getChildExps().get(fieldNumber);
     }
+    return new RexInputRef(
+        fieldNumber, Calcites.asRelDataType(rowSignature.columnName(fieldNumber), rowSignature.columnType(fieldNumber))
+    );
   }
 
   /**
@@ -157,7 +170,6 @@ public class Expressions
 
       final SqlOperatorConversion conversion = plannerContext.getOperatorTable()
                                                              .lookupOperatorConversion(operator);
-
       if (conversion == null) {
         return null;
       } else {
@@ -235,16 +247,10 @@ public class Expressions
     } else if (kind == SqlKind.CAST && expression.getType().getSqlTypeName() == SqlTypeName.BOOLEAN) {
       // Calcite sometimes leaves errant, useless cast-to-booleans inside filters. Strip them and continue.
       return toFilter(plannerContext, rowSignature, Iterables.getOnlyElement(((RexCall) expression).getOperands()));
-    } else if (kind == SqlKind.AND
-               || kind == SqlKind.OR
-               || kind == SqlKind.NOT) {
+    } else if (kind == SqlKind.AND || kind == SqlKind.OR || kind == SqlKind.NOT) {
       final List<DimFilter> filters = new ArrayList<>();
       for (final RexNode rexNode : ((RexCall) expression).getOperands()) {
-        final DimFilter nextFilter = toFilter(
-            plannerContext,
-            rowSignature,
-            rexNode
-        );
+        final DimFilter nextFilter = toFilter(plannerContext, rowSignature, rexNode);
         if (nextFilter == null) {
           return null;
         }

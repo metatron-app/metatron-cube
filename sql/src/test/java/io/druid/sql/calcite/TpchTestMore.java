@@ -302,4 +302,20 @@ public class TpchTestMore extends CalciteQueryTestHelper
         "TimeseriesQuery{dataSource='lineitem', filter=(MathExprFilter{expression='(L_DISCOUNT == 0.07F)'} && BoundDimFilter{L_QUANTITY < 25(numeric)} && BoundDimFilter{1993-01-01 <= L_SHIPDATE < 1994-01-01(lexicographic)}), aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldExpression='(L_EXTENDEDPRICE * L_DISCOUNT)', inputType='double'}], outputColumns=[a0]}"
     );
   }
+
+  @Test
+  public void test4007() throws Exception
+  {
+    testQuery("SELECT COUNT(DISTINCT L_LINENUMBER,L_RETURNFLAG,L_SHIPMODE) FROM lineitem", new Object[]{150L});
+    hook.verifyHooked(
+        "OykLTlS8Eoq+R4ic49ebfw==",
+        "TimeseriesQuery{dataSource='lineitem', aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='L_LINENUMBER', outputName='L_LINENUMBER'}, DefaultDimensionSpec{dimension='L_RETURNFLAG', outputName='L_RETURNFLAG'}, DefaultDimensionSpec{dimension='L_SHIPMODE', outputName='L_SHIPMODE'}], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0]}"
+    );
+
+    testQuery("SELECT COUNT(DISTINCT L_LINENUMBER,L_RETURNFLAG,L_SHIPMODE) FROM lineitem WHERE L_SHIPMODE < 'T' ", new Object[]{128L});
+    hook.verifyHooked(
+        "j0dykacA2Q+s3/e8YokZ/g==",
+        "TimeseriesQuery{dataSource='lineitem', filter=BoundDimFilter{L_SHIPMODE < T(lexicographic)}, aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='L_LINENUMBER', outputName='L_LINENUMBER'}, DefaultDimensionSpec{dimension='L_RETURNFLAG', outputName='L_RETURNFLAG'}, DefaultDimensionSpec{dimension='L_SHIPMODE', outputName='L_SHIPMODE'}], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0]}"
+    );
+  }
 }

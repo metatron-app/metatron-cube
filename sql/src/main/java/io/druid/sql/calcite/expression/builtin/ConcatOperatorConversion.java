@@ -39,7 +39,7 @@ public class ConcatOperatorConversion implements SqlOperatorConversion
       "CONCAT",
       SqlKind.OTHER_FUNCTION,
       ReturnTypes.explicit(
-          factory -> Calcites.createSqlType(factory, SqlTypeName.VARCHAR)
+          factory -> Calcites.asRelDataType(factory, SqlTypeName.VARCHAR)
       ),
       null,
       OperandTypes.SAME_VARIADIC,
