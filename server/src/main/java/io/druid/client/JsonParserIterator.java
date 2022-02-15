@@ -22,18 +22,21 @@ package io.druid.client;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.common.utils.StringUtils;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.RE;
 import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryInterruptedException;
 import io.netty.channel.ChannelException;
 
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeoutException;
@@ -42,6 +45,8 @@ import java.util.concurrent.TimeoutException;
  */
 public class JsonParserIterator<T> implements Iterator<T>
 {
+  private static final Logger LOG = new Logger(JsonParserIterator.class);
+
   private final String host;
   private final String type;
   private final Callable<InputStream> callable;
@@ -100,7 +105,12 @@ public class JsonParserIterator<T> implements Iterator<T>
         jp = mapper.getFactory().createParser(callable.call());
         final JsonToken nextToken = jp.nextToken();
         if (nextToken == JsonToken.START_OBJECT) {
-          throw jp.getCodec().readValue(jp, QueryInterruptedException.class);
+          Map<String, Object> map = jp.readValueAs(new TypeReference<Map<String, Object>>(){});
+          QueryInterruptedException qie = mapper.convertValue(map, QueryInterruptedException.class);
+          if (!map.isEmpty() && qie.getMessage() == null) {
+            LOG.warn("Null error message in QIE exception from value %s", map);
+          }
+          throw qie;
         } else if (nextToken == JsonToken.VALUE_STRING) {
           throw new IAE("Next token wasn't a START_ARRAY, was string [%s]", StringUtils.limit(jp.getText(), 256));
         } else if (nextToken != JsonToken.START_ARRAY) {

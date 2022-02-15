@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
@@ -38,7 +37,6 @@ import io.druid.java.util.http.client.Request;
 import io.druid.java.util.http.client.response.HttpResponseHandler;
 import io.druid.java.util.http.client.response.StatusResponseHolder;
 import io.druid.query.Druids;
-import io.druid.query.Query;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
@@ -47,7 +45,6 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
-import io.druid.utils.StopWatch;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -59,12 +56,10 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
-import java.io.Closeable;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeoutException;
 
 public class DirectDruidClientTest

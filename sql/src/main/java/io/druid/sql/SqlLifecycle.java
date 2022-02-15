@@ -30,6 +30,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.QueryEvent;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.java.util.emitter.service.ServiceMetricEvent;
+import io.druid.query.QueryInterruptedException;
 import io.druid.server.QueryLifecycle;
 import io.druid.server.QueryManager;
 import io.druid.server.QueryStats;
@@ -211,7 +212,15 @@ public class SqlLifecycle
       state = State.DONE;
 
       final boolean success = e == null || queryManager.isCancelled(queryId);
-      final boolean interrupted = !success && (queryManager.isTimedOut(queryId) || QueryLifecycle.isInterrupted(e));
+      final boolean interrupted = !success && (QueryLifecycle.isInterrupted(e) || queryManager.isTimedOut(queryId));
+
+      if (success) {
+        log.debug("[%s] success", queryId);
+      } else if (interrupted) {
+        log.info("[%s] interrupted[%s]", queryId, e.toString());
+      } else {
+        QueryInterruptedException.warn(log, e, "Exception occurred on request: %s", sql);
+      }
 
       final long queryTimeNs = System.nanoTime() - startNs;
       try {

@@ -73,7 +73,6 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
@@ -307,7 +306,6 @@ public class SqlResource
       throw e; // let ForbiddenExceptionMapper handle this
     }
     catch (Throwable e) {
-      log.warn(e, "Failed to handle query: %s %s", query, sqlQuery.getContext());
       lifecycle.emitLogsAndMetrics(e, remoteAddr, -1, -1);
       currThread.setName(currThreadName);
 

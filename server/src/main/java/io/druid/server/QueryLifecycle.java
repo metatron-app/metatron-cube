@@ -241,14 +241,14 @@ public class  QueryLifecycle
     state = State.DONE;
 
     final boolean success = e == null || queryManager.isCancelled(query.getId());
-    final boolean interrupted = !success && (queryManager.isTimedOut(query.getId()) || isInterrupted(e));
+    final boolean interrupted = !success && (isInterrupted(e) || queryManager.isTimedOut(query.getId()));
 
     if (success) {
       log.debug("[%s] success", query.getId());
     } else if (interrupted) {
       log.info("[%s] interrupted[%s]", query.getId(), e.toString());
     } else {
-      log.warn(e, "Exception occurred on request [%s]", forLog);
+      QueryInterruptedException.warn(log, e, "Exception occurred on request: %s", forLog);
       emitter.emit(
           AlertBuilder.create(e, "Exception occurred on request [%s]", forLog)
                       .addData("exception", e.toString())
@@ -320,8 +320,7 @@ public class  QueryLifecycle
   public static boolean isInterrupted(@Nullable Throwable e)
   {
     for (; e != null; e = e.getCause()) {
-      if (e instanceof QueryInterruptedException ||
-          e instanceof InterruptedIOException ||
+      if (e instanceof InterruptedIOException ||
           e instanceof InterruptedException ||
           e instanceof TimeoutException ||
           e instanceof org.jboss.netty.handler.timeout.TimeoutException ||
