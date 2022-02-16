@@ -64,16 +64,6 @@ public class DimensionPredicateFilter implements Filter
 
   private static Predicate<String> combine(Predicate<String> predicate, ExtractionFn extractionFn)
   {
-    if (extractionFn == null) {
-      return predicate;
-    }
-    return new Predicate<String>()
-    {
-      @Override
-      public boolean apply(String input)
-      {
-        return predicate.apply(extractionFn.apply(input));
-      }
-    };
+    return extractionFn == null ? predicate : s -> predicate.apply(extractionFn.apply(s));
   }
 }

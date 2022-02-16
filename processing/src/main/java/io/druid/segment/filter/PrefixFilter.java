@@ -37,7 +37,6 @@ public class PrefixFilter extends DimensionPredicateFilter
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public BitmapHolder getBitmapIndex(FilterContext context)
   {
     final BitmapIndexSelector selector = context.indexSelector();

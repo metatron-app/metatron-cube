@@ -151,6 +151,11 @@ public class QueryMaker
     return sequence;
   }
 
+  private <T> Sequence<T> runQuery(final Query query)
+  {
+    return lifecycleFactory.factorize(query).runSimple(plannerContext.getAuthenticationResult());
+  }
+
   @SuppressWarnings("unchecked")
   private Sequence<Object[]> coerce(DruidQuery druidQuery, Query schema, Sequence sequence)
   {
@@ -174,12 +179,6 @@ public class QueryMaker
       return coerce(druidQuery, ((UnionAllQuery) schema).getFirst(), sequence);
     }
     return null;
-  }
-
-  @SuppressWarnings("unchecked")
-  private <T> Sequence<T> runQuery(final Query query)
-  {
-    return lifecycleFactory.factorize(query).runSimple(plannerContext.getAuthenticationResult());
   }
 
   @SuppressWarnings("unchecked")

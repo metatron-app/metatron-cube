@@ -180,7 +180,7 @@ public class LikeDimFilter extends SingleInput
         strings = strings.subList(1, strings.size());
       }
       List<String> elements = Lists.newArrayList(Iterables.transform(strings, x -> pattern.substring(x[0], x[1])));
-      String suffix = s >= 0 && s < pattern.length() - 1 ? pattern.substring(s + 1, pattern.length()) : null;
+      String suffix = s >= 0 && s < pattern.length() - 1 ? pattern.substring(s + 1) : null;
       return new LikeMatcher(pattern, prefix, suffix, elements, builder.toString());
     }
 
@@ -359,16 +359,16 @@ public class LikeDimFilter extends SingleInput
 
     LikeDimFilter that = (LikeDimFilter) o;
 
-    if (dimension != null ? !dimension.equals(that.dimension) : that.dimension != null) {
+    if (!Objects.equals(dimension, that.dimension)) {
       return false;
     }
-    if (pattern != null ? !pattern.equals(that.pattern) : that.pattern != null) {
+    if (!Objects.equals(pattern, that.pattern)) {
       return false;
     }
-    if (escapeChar != null ? !escapeChar.equals(that.escapeChar) : that.escapeChar != null) {
+    if (!Objects.equals(escapeChar, that.escapeChar)) {
       return false;
     }
-    return extractionFn != null ? extractionFn.equals(that.extractionFn) : that.extractionFn == null;
+    return Objects.equals(extractionFn, that.extractionFn);
 
   }
 

@@ -56,7 +56,8 @@ public class DruidRules
       DruidRule.of(Window.class, WINDOW, PartialDruidQuery::withWindow),
       DruidRule.of(Sort.class, SORT, PartialDruidQuery::withSort),
       DruidUnionRule.INSTANCE,
-      DruidSortUnionRule.INSTANCE
+      DruidSortUnionRule.INSTANCE,
+      DruidJoinRule.instance()
   );
 
   static RelOptRuleOperand anyDruid()

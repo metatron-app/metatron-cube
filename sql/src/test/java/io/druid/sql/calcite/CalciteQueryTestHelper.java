@@ -111,12 +111,6 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected static final PlannerConfig PLANNER_CONFIG_DEFAULT = new PlannerConfig();
 
-  protected static final PlannerConfig PLANNER_CONFIG_NO_JOIN = new PlannerConfig()
-  {
-    @Override
-    public boolean isJoinEnabled() { return false;}
-  };
-
   protected static final PlannerConfig PLANNER_CONFIG_NO_TOPN = new PlannerConfig()
   {
     @Override
@@ -125,9 +119,6 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected static final PlannerConfig PLANNER_CONFIG_NO_HLL = new PlannerConfig()
   {
-    @Override
-    public boolean isJoinEnabled() { return false;}
-
     @Override
     public boolean isUseApproximateCountDistinct() { return false;}
   };
@@ -140,9 +131,6 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected static final PlannerConfig PLANNER_CONFIG_NO_SUBQUERIES = new PlannerConfig()
   {
-    @Override
-    public boolean isJoinEnabled() { return false;}
-
     @Override
     public int getMaxQueryCount() { return 1;}
   };
@@ -178,7 +166,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
 
   protected void assertForbidden(String sql, AuthenticationResult authenticationResult)
   {
-    assertForbidden(PLANNER_CONFIG_NO_JOIN, sql, authenticationResult);
+    assertForbidden(PLANNER_CONFIG_DEFAULT, sql, authenticationResult);
   }
 
   protected void assertForbidden(PlannerConfig plannerConfig, String sql, AuthenticationResult authenticationResult)
@@ -215,7 +203,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
   protected void testQuery(String sql, Query expectedQuery, List<Object[]> expectedResults) throws Exception
   {
     testQuery(
-        PLANNER_CONFIG_NO_JOIN,
+        PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_DEFAULT,
         sql,
         null,

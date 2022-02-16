@@ -27,7 +27,6 @@ import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.rule.AggregateMergeRule;
 import io.druid.sql.calcite.rule.DruidFilterableTableScanRule;
 import io.druid.sql.calcite.rule.DruidJoinProjectRule;
-import io.druid.sql.calcite.rule.DruidJoinRule;
 import io.druid.sql.calcite.rule.DruidProjectableTableScanRule;
 import io.druid.sql.calcite.rule.DruidRelToDruidRule;
 import io.druid.sql.calcite.rule.DruidRules;
@@ -227,22 +226,19 @@ public class Rules
 
     programs.add(createHepProgram(PreFilteringRule.instance()));
 
-    if (config.isJoinEnabled()) {
-      programs.add(createHepProgram(
-          FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
-      ));
-      programs.add(createHepProgram(
-          new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER))
-      );
-    }
+    programs.add(createHepProgram(
+        FilterJoinRule.FILTER_ON_JOIN, FilterJoinRule.JOIN, JoinPushTransitivePredicatesRule.INSTANCE
+    ));
+    programs.add(createHepProgram(
+        new ProjectJoinTransposeRule(expr -> Utils.isInputRef(expr), RelFactories.LOGICAL_BUILDER))
+    );
+
     programs.add(createHepProgram(ProjectMergeRule.INSTANCE, FilterMergeRule.INSTANCE));
 
     programs.add(Programs.ofRules(druidConventionRuleSet(plannerContext, queryMaker)));
 
-    if (config.isJoinEnabled()) {
-      // way better to be hep program in compile speed rather than be a rule in volcano
-      programs.add(createHepProgram(DruidJoinProjectRule.INSTANCE));
-    }
+    // way better to be hep program in compile speed rather than be a rule in volcano
+    programs.add(createHepProgram(DruidJoinProjectRule.INSTANCE));
 
     Program program = Programs.sequence(programs.toArray(new Program[0]));
     return config.isDumpPlan() ? Dump.wrap(program) : program;
@@ -335,12 +331,8 @@ public class Rules
     rules.add(new DruidProjectableTableScanRule(queryMaker));
     rules.add(new DruidTableScanRule(queryMaker));
     rules.add(new DruidValuesRule(queryMaker));
-    rules.addAll(DruidRules.RULES);
 
-    PlannerConfig plannerConfig = plannerContext.getPlannerConfig();
-    if (plannerConfig.isJoinEnabled()) {
-      rules.add(DruidJoinRule.instance());
-    }
+    rules.addAll(DruidRules.RULES);
     rules.add(DruidRelToDruidRule.instance());
 
     return ImmutableList.copyOf(rules);

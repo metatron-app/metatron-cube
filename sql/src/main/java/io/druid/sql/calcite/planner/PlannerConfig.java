@@ -30,7 +30,6 @@ public class PlannerConfig
 {
   public static final String CTX_KEY_USE_APPROXIMATE_COUNT_DISTINCT = "useApproximateCountDistinct";
   public static final String CTX_KEY_USE_APPROXIMATE_TOPN = "useApproximateTopN";
-  public static final String CTX_KEY_USE_JOIN = "useJoin";
   public static final String CTX_KEY_USE_JOIN_COMMUTE = "useJoinCommute";
   public static final String CTX_KEY_USE_JOIN_REORDERING = "useJoinReordering";
   public static final String CTX_KEY_USE_JOIN_REORDERING_BUSH = "useJoinReorderingBush";
@@ -57,9 +56,6 @@ public class PlannerConfig
 
   @JsonProperty
   private DateTimeZone sqlTimeZone = DateTimeZone.UTC;
-
-  @JsonProperty
-  private boolean joinEnabled = true;
 
   @JsonProperty
   private boolean dumpPlan = false;
@@ -90,11 +86,6 @@ public class PlannerConfig
   public boolean isUseApproximateTopN()
   {
     return useApproximateTopN;
-  }
-
-  public boolean isJoinEnabled()
-  {
-    return joinEnabled;
   }
 
   public boolean isRequireTimeCondition()
@@ -136,11 +127,6 @@ public class PlannerConfig
         context,
         CTX_KEY_USE_APPROXIMATE_TOPN,
         isUseApproximateTopN()
-    );
-    newConfig.joinEnabled = getContextBoolean(
-        context,
-        CTX_KEY_USE_JOIN,
-        isJoinEnabled()
     );
     newConfig.dumpPlan = getContextBoolean(context, CTX_KEY_DUMP_PLAN, isDumpPlan());
     newConfig.binaryOperandsCastAdjust = getContextBoolean(
@@ -186,7 +172,6 @@ public class PlannerConfig
            selectThreshold == that.selectThreshold &&
            useApproximateCountDistinct == that.useApproximateCountDistinct &&
            useApproximateTopN == that.useApproximateTopN &&
-           joinEnabled == that.joinEnabled &&
            requireTimeCondition == that.requireTimeCondition &&
            dumpPlan == that.dumpPlan &&
            binaryOperandsCastAdjust == that.binaryOperandsCastAdjust &&
@@ -202,7 +187,6 @@ public class PlannerConfig
         selectThreshold,
         useApproximateCountDistinct,
         useApproximateTopN,
-        joinEnabled,
         requireTimeCondition,
         dumpPlan,
         binaryOperandsCastAdjust,
@@ -219,7 +203,6 @@ public class PlannerConfig
            ", selectThreshold=" + selectThreshold +
            ", useApproximateCountDistinct=" + useApproximateCountDistinct +
            ", useApproximateTopN=" + useApproximateTopN +
-           ", joinEnabled=" + joinEnabled +
            ", requireTimeCondition=" + requireTimeCondition +
            ", dumpPlan=" + dumpPlan +
            ", binaryOperandsCastAdjust=" + binaryOperandsCastAdjust +

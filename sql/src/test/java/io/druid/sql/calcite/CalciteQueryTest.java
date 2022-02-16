@@ -67,6 +67,7 @@ import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.rel.TypedDummyQuery;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
+import org.apache.calcite.plan.RelOptPlanner;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
@@ -1441,8 +1442,18 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT DISTINCT dim2 FROM druid.foo ORDER BY dim2 LIMIT 2 OFFSET 5" // DISTINCT with OFFSET
     );
 
-    for (final String query : queries) {
-      assertQueryIsUnplannable(PLANNER_CONFIG_NO_JOIN, query);
+    testQuery(queries.get(0), new Object[] {36L});
+    hook.verifyHooked(
+        "KJta7RCi5Zir3Ny01nqkvA==",
+        "TimeseriesQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}], $hash=true}, StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}]}], timeColumnName=__time}', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0]}",
+        "StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}], $hash=true}",
+        "StreamQuery{dataSource='foo', columns=[v0], virtualColumns=[ExprVirtualColumn{expression='0', outputName='v0'}]}"
+    );
+    try {
+      testQuery(queries.get(1));
+      Assert.fail();
+    }
+    catch (RelOptPlanner.CannotPlanException e) {
     }
   }
 
@@ -1456,26 +1467,29 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "SELECT dim1, COUNT(distinct dim1), COUNT(distinct dim2) FROM druid.foo GROUP BY dim1", // two COUNT DISTINCTs
         "SELECT COUNT(distinct unique_dim1) FROM druid.foo" // COUNT DISTINCT on sketch cannot be exact
     );
-
-    for (final String query : queries) {
-      assertQueryIsUnplannable(PLANNER_CONFIG_NO_HLL, query);
-    }
-  }
-
-  private void assertQueryIsUnplannable(final PlannerConfig plannerConfig, final String sql)
-  {
-    Exception e = null;
-    try {
-      testQuery(plannerConfig, sql, null, ImmutableList.of());
-    }
-    catch (Exception e1) {
-      e = e1;
-    }
-
-    if (e == null) {
-      // now makes queries lazily
-      Assert.fail(sql);
-    }
+    testQuery(queries.get(0), new Object[] {6L, 3L});
+    hook.verifyHooked(
+        "mayT7gQzfjxKVUPK53S6oQ==",
+        "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}, CardinalityAggregatorFactory{name='a1', fields=[DefaultDimensionSpec{dimension='dim2', outputName='dim2'}], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[a0, a1]}"
+    );
+    testQuery(
+        queries.get(1),
+        new Object[]{"", 1L, 1L},
+        new Object[]{"1", 1L, 1L},
+        new Object[]{"10.1", 1L, 1L},
+        new Object[]{"2", 1L, 1L},
+        new Object[]{"abc", 1L, 1L},
+        new Object[]{"def", 1L, 1L}
+    );
+    hook.verifyHooked(
+        "i7XDgZhwwCmjqiAs1+RfIg==",
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='a0', fields=[DefaultDimensionSpec{dimension='dim1', outputName='dim1'}], groupingSets=Noop, byRow=true, round=true, b=11}, CardinalityAggregatorFactory{name='a1', fields=[DefaultDimensionSpec{dimension='dim2', outputName='dim2'}], groupingSets=Noop, byRow=true, round=true, b=11}], outputColumns=[d0, a0, a1]}"
+    );
+    testQuery(queries.get(2), new Object[] {6L});
+    hook.verifyHooked(
+        "BXJ8y7AKRy2BZktOORIUAA==",
+        "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[HyperUniquesAggregatorFactory{name='a0', fieldName='unique_dim1', round=true, b=11}], outputColumns=[a0]}"
+    );
   }
 
   @Test
@@ -5298,18 +5312,34 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                             + "WHERE dim1 = 'xxx' OR dim2 IN (SELECT dim1 FROM druid.foo WHERE dim1 LIKE '%bc')\n"
                             + "group by dim1, dim2 ORDER BY dim2";
 
-    assertQueryIsUnplannable(PLANNER_CONFIG_NO_JOIN, theQuery);
+    testQuery(theQuery, new Object[]{"def", "abc", 1L});
+    hook.verifyHooked(
+        "ULVNYgZ55Ky6bJ4VqQU/mg==",
+        "TimeseriesQuery{dataSource='foo', filter=dim1 LIKE '%bc', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[CommonJoin{queries=[StreamQuery{dataSource='foo', columns=[dim1, dim2], orderingSpecs=[OrderByColumnSpec{dimension='dim2', direction=ascending}]}, TimeseriesQuery{dataSource='foo', filter=dim1 LIKE '%bc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0], $hash=true}], timeColumnName=__time}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=dim1 LIKE '%bc', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='_d0'}, DefaultDimensionSpec{dimension='dim2', outputName='_d1'}], filter=((dim1=='xxx' || !(a0=='0')) && (dim1=='xxx' || !(d1==NULL)) && (dim1=='xxx' || !(dim2==NULL))), aggregatorSpecs=[CountAggregatorFactory{name='_a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='_d1', direction=ascending}], limit=-1}, outputColumns=[_d0, _d1, _a0]}",
+        "StreamQuery{dataSource='foo', columns=[dim1, dim2], orderingSpecs=[OrderByColumnSpec{dimension='dim2', direction=ascending}]}",
+        "TimeseriesQuery{dataSource='foo', filter=dim1 LIKE '%bc', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], outputColumns=[a0], $hash=true}",
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='d1:v', outputName='d1'}], filter=dim1 LIKE '%bc', virtualColumns=[ExprVirtualColumn{expression='true', outputName='d1:v'}], outputColumns=[d0, d1], $hash=true}"
+    );
   }
 
   @Test
   public void testUsingSubqueryAsFilterForbiddenByConfig() throws Exception
   {
-    assertQueryIsUnplannable(
+    testQuery(
         PLANNER_CONFIG_NO_SUBQUERIES,
         "SELECT dim1, dim2, COUNT(*) FROM druid.foo "
         + "WHERE dim2 IN (SELECT dim1 FROM druid.foo WHERE dim1 <> '')"
         + "AND dim1 <> 'xxx'"
-        + "group by dim1, dim2 ORDER BY dim2"
+        + "group by dim1, dim2 ORDER BY dim2",
+        new Object[] {"def", "abc", 1L}
+    );
+    hook.verifyHooked(
+        "i153usYValChX0dCq1HB7Q==",
+        "TimeseriesQuery{dataSource='foo', filter=!(dim1==NULL), aggregatorSpecs=[CardinalityAggregatorFactory{name='$cardinality', fields=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], groupingSets=Noop, byRow=true, round=true, b=11}], postProcessing=cardinality_estimator}",
+        "GroupByQuery{dataSource='CommonJoin{queries=[StreamQuery{dataSource='foo', filter=(!(dim1=='xxx') && !(dim2==NULL)), columns=[dim1, dim2], $hash=true}, GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0]}], timeColumnName=__time}', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}, DefaultDimensionSpec{dimension='dim2', outputName='d1'}], aggregatorSpecs=[CountAggregatorFactory{name='a0'}], limitSpec=LimitSpec{columns=[OrderByColumnSpec{dimension='d1', direction=ascending}], limit=-1}, outputColumns=[d0, d1, a0]}",
+        "StreamQuery{dataSource='foo', filter=(!(dim1=='xxx') && !(dim2==NULL)), columns=[dim1, dim2], $hash=true}",
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], filter=!(dim1==NULL), outputColumns=[d0]}"
     );
   }
 
