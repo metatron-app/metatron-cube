@@ -492,6 +492,11 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
     return (int) (Intervals.utc(T("1970"), T(dayString)).toDurationMillis() / (86400L * 1000L));
   }
 
+  protected static DateTime DT(final String timeString)
+  {
+    return DateTimes.of(timeString);
+  }
+
   protected static QuerySegmentSpec QSS(final Interval... intervals)
   {
     return new MultipleIntervalSegmentSpec(Arrays.asList(intervals));
@@ -718,7 +723,7 @@ public abstract class CalciteQueryTestHelper extends CalciteTestBase
         builder.append('\n');
       }
       builder.append(");\n");
-      System.out.println(builder.toString());
+      System.out.println(builder);
     }
 
     public void clear()

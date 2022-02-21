@@ -344,7 +344,7 @@ public interface WindowFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      exactTwo(args);
+      atLeastTwo(args);
       return new NthWindowFunction(args, context);
     }
 
@@ -372,7 +372,7 @@ public interface WindowFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      exactTwo(args);
+      atLeastTwo(args);
       return new LagWindowFunction(args, context);
     }
 
@@ -400,7 +400,7 @@ public interface WindowFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      exactTwo(args);
+      atLeastTwo(args);
       return new LeadWindowFunction(args, context);
     }
 
@@ -428,7 +428,7 @@ public interface WindowFunctions extends Function.Library
     @Override
     protected WindowFunction newInstance(List<Expr> args, WindowContext context)
     {
-      exactOne(args);
+      atLeastOne(args);
       return new DeltaWindowFunction(args, context);
     }
 

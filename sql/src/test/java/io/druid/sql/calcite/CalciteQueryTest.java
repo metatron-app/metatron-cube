@@ -6368,4 +6368,60 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "StreamQuery{dataSource='mmapped-split', columns=[placement], limitSpec=LimitSpec{columns=[], limit=10}}"
     );
   }
+
+  @Test
+  public void test4013() throws Exception
+  {
+    testQuery(
+        "SELECT datetime(__time), Profit, delta(Profit) over () FROM sales WHERE __time < '2011-01-10'",
+        new Object[]{DT("2011-01-04"), 6.0D, 0.0D},
+        new Object[]{DT("2011-01-05"), 4.0D, -2.0D},
+        new Object[]{DT("2011-01-05"), -5.0D, -9.0D},
+        new Object[]{DT("2011-01-05"), -65.0D, -60.0D},
+        new Object[]{DT("2011-01-06"), 5.0D, 70.0D},
+        new Object[]{DT("2011-01-07"), 746.0D, 741.0D},
+        new Object[]{DT("2011-01-07"), 5.0D, -741.0D},
+        new Object[]{DT("2011-01-07"), 0.0D, -5.0D},
+        new Object[]{DT("2011-01-07"), 274.0D, 274.0D},
+        new Object[]{DT("2011-01-07"), 1.0D, -273.0D},
+        new Object[]{DT("2011-01-07"), 3.0D, 2.0D},
+        new Object[]{DT("2011-01-07"), 9.0D, 6.0D},
+        new Object[]{DT("2011-01-07"), 114.0D, 105.0D},
+        new Object[]{DT("2011-01-07"), 204.0D, 90.0D},
+        new Object[]{DT("2011-01-08"), -54.0D, -258.0D},
+        new Object[]{DT("2011-01-08"), -18.0D, 36.0D}
+    );
+    hook.verifyHooked(
+        "C7IlX3FpuNwG7K448h3oAg==",
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $DELTA(Profit,-2147483647,2147483647)]}]}}', columns=[v0, Profit, w0$o0], virtualColumns=[ExprVirtualColumn{expression='DATETIME(__time)', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $DELTA(Profit,-2147483647,2147483647)]}]}}"
+    );
+
+    // cannot use expression for over clause.. I don't know why
+    testQuery(
+        "SELECT T, Profit, Profit - PV as DELTA FROM (" +
+        "  SELECT datetime(__time) as T, Profit, $prev(Profit) over () as PV FROM sales WHERE __time < '2011-01-10' )",
+        new Object[]{DT("2011-01-04"), 6.0D, null},
+        new Object[]{DT("2011-01-05"), 4.0D, -2.0D},
+        new Object[]{DT("2011-01-05"), -5.0D, -9.0D},
+        new Object[]{DT("2011-01-05"), -65.0D, -60.0D},
+        new Object[]{DT("2011-01-06"), 5.0D, 70.0D},
+        new Object[]{DT("2011-01-07"), 746.0D, 741.0D},
+        new Object[]{DT("2011-01-07"), 5.0D, -741.0D},
+        new Object[]{DT("2011-01-07"), 0.0D, -5.0D},
+        new Object[]{DT("2011-01-07"), 274.0D, 274.0D},
+        new Object[]{DT("2011-01-07"), 1.0D, -273.0D},
+        new Object[]{DT("2011-01-07"), 3.0D, 2.0D},
+        new Object[]{DT("2011-01-07"), 9.0D, 6.0D},
+        new Object[]{DT("2011-01-07"), 114.0D, 105.0D},
+        new Object[]{DT("2011-01-07"), 204.0D, 90.0D},
+        new Object[]{DT("2011-01-08"), -54.0D, -258.0D},
+        new Object[]{DT("2011-01-08"), -18.0D, 36.0D}
+    );
+    hook.verifyHooked(
+        "MFbMpK9WnWSXwnoJY9Mrkg==",
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}', columns=[v0, Profit, v1], virtualColumns=[ExprVirtualColumn{expression='DATETIME(__time)', outputName='v0'}, ExprVirtualColumn{expression='(Profit - \"w0$o0\")', outputName='v1'}]}",
+        "StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}"
+    );
+  }
 }
