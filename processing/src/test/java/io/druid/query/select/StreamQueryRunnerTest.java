@@ -37,7 +37,6 @@ import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.TestIndex;
-import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -180,7 +179,7 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     testEq(builder.columns(Arrays.asList("__time", "market", "quality", "index")));
     testEq(builder.interval(new Interval("2011-03-12/2011-04-07")));
     testEq(builder.limit(3));
-    StreamQuery query = builder.streaming().withResultOrdering(OrderByColumnSpec.ascending(Column.TIME_COLUMN_NAME));
+    StreamQuery query = builder.streaming().withResultOrdering(OrderByColumnSpec.ascending("__time", "market", "quality"));
     List<Object[]> expected = createExpected(
         new Object[]{"2011-03-12T00:00:00.000Z", "spot", "automotive", 155.72804260253906D},
         new Object[]{"2011-03-12T00:00:00.000Z", "spot", "business", 113.49346160888672D},
@@ -199,7 +198,7 @@ public class StreamQueryRunnerTest extends QueryRunnerTestHelper
     testEq(builder.columns(Arrays.asList("__time", "market", "quality", "index")));
     testEq(builder.interval(new Interval("2011-03-12/2011-04-07")));
     testEq(builder.limit(3));
-    StreamQuery query = builder.streaming().withResultOrdering(OrderByColumnSpec.descending(Column.TIME_COLUMN_NAME));
+    StreamQuery query = builder.streaming().withResultOrdering(OrderByColumnSpec.descending("__time", "market", "quality"));
     List<Object[]> expected = createExpected(
         new Object[]{"2011-04-06T00:00:00.000Z", "upfront", "premium", 897.3934326171875D},
         new Object[]{"2011-04-06T00:00:00.000Z", "upfront", "mezzanine", 1355.8433837890625D},

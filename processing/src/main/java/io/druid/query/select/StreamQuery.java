@@ -52,13 +52,11 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
-import io.druid.query.ordering.Direction;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -338,12 +336,6 @@ public class StreamQuery extends BaseQuery<Object[]>
   @Override
   public StreamQuery toLocalQuery()
   {
-    boolean descending = isDescending();
-    List<OrderByColumnSpec> orderingSpecs = getOrderingSpecs();
-    if (OrderByColumnSpec.isSimpleTimeOrdering(orderingSpecs)) {
-      descending = orderingSpecs.get(0).getDirection() == Direction.DESCENDING;
-      orderingSpecs = Arrays.asList();
-    }
     LimitSpec limitSpec = getLimitSpec();
     if (!limitSpec.isSimpleLimiter()) {
       limitSpec = limitSpec.withNoLocalProcessing();
@@ -351,11 +343,11 @@ public class StreamQuery extends BaseQuery<Object[]>
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        descending,
+        isDescending(),
         getFilter(),
         getColumns(),
         getVirtualColumns(),
-        orderingSpecs,
+        getOrderingSpecs(),
         getConcatString(),
         limitSpec,
         null,
