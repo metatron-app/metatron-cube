@@ -200,6 +200,29 @@ public interface WindowFunctions extends Function.Library
     }
   }
 
+  @Function.Named("$prevNotNull")
+  final class PrevNotNull extends Factory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new WindowFunction(args, context)
+      {
+        private ExprEval prevNotNull = ExprEval.nullOf(fieldType);
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          final ExprEval prev = context.evaluate(context.index() - 1, fieldExpr);
+          if (prev.isNull()) {
+            return prevNotNull;
+          }
+          return prevNotNull = prev;
+        }
+      };
+    }
+  }
+
   @Function.Named("$nvlPrev")
   final class NvlPrev extends Factory
   {
@@ -208,7 +231,7 @@ public interface WindowFunctions extends Function.Library
     {
       return new WindowFunction(args, context)
       {
-        private ExprEval prev = ExprEval.UNKNOWN;
+        private ExprEval prev = ExprEval.nullOf(fieldType);
 
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -233,6 +256,38 @@ public interface WindowFunctions extends Function.Library
     }
   }
 
+  @Function.Named("$nextNotNull")
+  final class NextNotNull extends Factory
+  {
+    @Override
+    protected WindowFunction newInstance(List<Expr> args, WindowContext context)
+    {
+      return new WindowFunction(args, context)
+      {
+        private int index;
+        private ExprEval next = ExprEval.nullOf(fieldType);
+
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          int ix = context.index();
+          if (index > 0 && ix < index) {
+            return next;
+          }
+          for (ix++; ix < context.size(); ix++) {
+            ExprEval current = context.evaluate(ix, fieldExpr);
+            if (!current.isNull()) {
+              index = ix;
+              return next = current;
+            }
+          }
+          index = context.size();
+          return next = ExprEval.nullOf(fieldType);
+        }
+      };
+    }
+  }
+
   @Function.Named("$nvlNext")
   final class NvlNext extends Factory
   {
@@ -242,14 +297,14 @@ public interface WindowFunctions extends Function.Library
       return new WindowFunction(args, context)
       {
         private int index;
-        private ExprEval prev = ExprEval.UNKNOWN;
+        private ExprEval next = ExprEval.UNKNOWN;
 
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
           int ix = context.index();
           if (index > 0 && ix < index) {
-            return prev;
+            return next;
           }
           ExprEval current = context.evaluate(ix++, fieldExpr);
           if (!current.isNull()) {
@@ -259,11 +314,11 @@ public interface WindowFunctions extends Function.Library
             current = context.evaluate(ix, fieldExpr);
             if (!current.isNull()) {
               index = ix;
-              return prev = current;
+              return next = current;
             }
           }
           index = context.size();
-          return prev = ExprEval.nullOf(current.type());
+          return next = ExprEval.nullOf(current.type());
         }
       };
     }

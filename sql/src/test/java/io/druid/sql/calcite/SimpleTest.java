@@ -498,4 +498,31 @@ public class SimpleTest extends CalciteQueryTestHelper
     testQuery(String.format(query, "cdis WHERE svc_mgmt_num = '10000497'"), expected2);
     testQuery(String.format(query, "cdis_i WHERE svc_mgmt_num = '10000497'"), expected2);
   }
+
+  @Test
+  public void test4015() throws Exception
+  {
+    testQuery(
+        "WITH X AS ("
+        + " SELECT * FROM "
+        + " (VALUES"
+        + "   (0, 'A', 1, null, null),"
+        + "   (0, 'B', null, 2, null),"
+        + "   (0, 'C', null, null, 3),"
+        + "   (1, 'A', 4, null, null),"
+        + "   (1, 'B', null, 5, null),"
+        + "   (1, 'C', null, null, 6)"
+        + " ) AS T (__time, asset, p1, p2, p3)"
+        + ")"
+        + " SELECT prevNotNull(p1) over (), nextNotNull(p1) over (),"
+        + "        prevNotNull(p2) over (), nextNotNull(p2) over (),"
+        + "        prevNotNull(p3) over (), nextNotNull(p3) over () FROM X",
+        new Object[]{null, 4L, null, 2L, null, 3L},
+        new Object[]{1L, 4L, null, 5L, null, 3L},
+        new Object[]{1L, 4L, 2L, 5L, null, 6L},
+        new Object[]{1L, null, 2L, 5L, 3L, 6L},
+        new Object[]{4L, null, 2L, null, 3L, 6L},
+        new Object[]{4L, null, 5L, null, 3L, null}
+    );
+  }
 }
