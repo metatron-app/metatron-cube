@@ -257,7 +257,12 @@ public class GroupByQueryEngine
           {
             final int[] key = pool.get();
             for (int i = 0; i < dimensions.length; i++) {
-              key[BUFFER_POS + i] = dimensions[i].getRow().get(0);
+              final int v = dimensions[i].getRow().get(0);
+              if (v < 0) {
+                pool.done(key);
+                return null;
+              }
+              key[BUFFER_POS + i] = v;
             }
             return update(key);
           }
@@ -332,6 +337,11 @@ public class GroupByQueryEngine
 
     public Sequence<Object[]> asArray()
     {
+      final boolean[] rawAccess = new boolean[dimensions.length];
+      for (int x = 0; x < rawAccess.length; x++) {
+        rawAccess[x] = useRawUTF8 && dimensions[x] instanceof WithRawAccess;
+      }
+
       return Sequences.once(GuavaUtils.map(this, new Function<KeyValue, Object[]>()
       {
         private final int numColumns = dimensions.length + aggregators.length + 1;
@@ -347,7 +357,7 @@ public class GroupByQueryEngine
 
           row[i++] = new MutableLong(timestamp.longValue());
           for (int x = 0; x < dimensions.length; x++) {
-            if (useRawUTF8 && dimensions[x] instanceof WithRawAccess) {
+            if (rawAccess[x]) {
               row[i++] = UTF8Bytes.of(((WithRawAccess) dimensions[x]).lookupRaw(array[x + BUFFER_POS]));
             } else {
               row[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(array[x + BUFFER_POS]));

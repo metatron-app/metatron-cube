@@ -1048,8 +1048,6 @@ public abstract class IncrementalIndex implements Closeable
 
     public T getValue(int id);
 
-    public boolean contains(T value);
-
     public int size();
 
     public T getMinValue();
@@ -1108,12 +1106,6 @@ public abstract class IncrementalIndex implements Closeable
     public Comparable getValue(int id)
     {
       return (Comparable) StringUtils.emptyToNull(delegate.getValue(id));
-    }
-
-    @Override
-    public boolean contains(Comparable value)
-    {
-      return delegate.contains(StringUtils.nullToEmpty(value));
     }
 
     @Override
@@ -1364,15 +1356,7 @@ public abstract class IncrementalIndex implements Closeable
     public T getValue(int id)
     {
       synchronized (valueToId) {
-        return idToValue.get(id);
-      }
-    }
-
-    @Override
-    public boolean contains(T value)
-    {
-      synchronized (valueToId) {
-        return valueToId.containsKey(value);
+        return id < 0 || id >= idToValue.size() ? null : idToValue.get(id);
       }
     }
 
@@ -1411,7 +1395,7 @@ public abstract class IncrementalIndex implements Closeable
     }
 
     @Override
-    public final int compare(int lhsIdx, int rhsIdx)
+    public int compare(int lhsIdx, int rhsIdx)
     {
       final T lhsVal = getValue(lhsIdx);
       final T rhsVal = getValue(rhsIdx);

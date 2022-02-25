@@ -396,7 +396,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     final int[] values = new int[indices.length];
                     for (int i = 0; i < indices.length; i++) {
                       final int id = indices[i];
-                      if (id < maxId) {
+                      if (id >= 0 && id < maxId) {
                         values[length++] = id;
                       }
                     }
