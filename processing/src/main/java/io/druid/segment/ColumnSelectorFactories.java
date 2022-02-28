@@ -668,7 +668,7 @@ public class ColumnSelectorFactories
         }
 
         @Override
-        public int lookupId(Comparable name)
+        public int lookupId(Object name)
         {
           if (extractionFn != null) {
             throw new UnsupportedOperationException("cannot perform lookup when applying an extraction function");

@@ -40,7 +40,6 @@ import io.druid.granularity.Granularity;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QueryException;
-import io.druid.query.QueryException.Code;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
@@ -480,7 +479,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int lookupId(Comparable name)
+                            public int lookupId(Object name)
                             {
                               throw new UnsupportedOperationException(
                                   "cannot perform lookup when applying an extraction function"
@@ -527,7 +526,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int lookupId(Comparable name)
+                            public int lookupId(Object name)
                             {
                               return dictionary.indexOf((String) name);
                             }
@@ -572,7 +571,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int lookupId(Comparable name)
+                            public int lookupId(Object name)
                             {
                               throw new UnsupportedOperationException(
                                   "cannot perform lookup when applying an extraction function"
@@ -637,7 +636,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int lookupId(Comparable name)
+                            public int lookupId(Object name)
                             {
                               return dictionary.indexOf((String) name);
                             }

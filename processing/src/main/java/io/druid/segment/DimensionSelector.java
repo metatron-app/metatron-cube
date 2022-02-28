@@ -90,7 +90,7 @@ public interface DimensionSelector
    * @param name field name to look up the id for
    * @return the id for the given field name
    */
-  int lookupId(Comparable name);
+  int lookupId(Object name);
 
   default boolean withSortedDictionary()
   {

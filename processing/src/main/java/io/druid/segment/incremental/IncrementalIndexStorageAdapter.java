@@ -68,6 +68,7 @@ import org.joda.time.Interval;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -418,9 +419,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   public Object lookupName(int id)
                   {
                     // TODO: needs update to DimensionSelector interface to allow multi-types, just use Strings for now
-                    final Comparable value = dimValLookup.getValue(id);
-                    final String strValue = value == null ? null : value.toString();
-                    return extractionFn == null ? strValue : extractionFn.apply(strValue);
+                    final Object value = Objects.toString(dimValLookup.getValue(id), null);
+                    return extractionFn == null ? value : extractionFn.apply(value);
                   }
 
                   @Override
@@ -430,7 +430,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   }
 
                   @Override
-                  public int lookupId(Comparable name)
+                  public int lookupId(Object name)
                   {
                     if (extractionFn != null) {
                       throw new UnsupportedOperationException(

@@ -25,9 +25,9 @@ import io.druid.java.util.common.parsers.ParseException;
  */
 public class ParserInitializationFail extends ParseException
 {
-  public ParserInitializationFail(String message, Exception cause)
+  public ParserInitializationFail(String message, Object... arguments)
   {
-    super(message, cause);
+    super(message, arguments);
   }
 
   public ParserInitializationFail(Exception cause)

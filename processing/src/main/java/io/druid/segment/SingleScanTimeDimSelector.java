@@ -116,7 +116,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
   }
 
   @Override
-  public int lookupId(Comparable name)
+  public int lookupId(Object name)
   {
     throw new UnsupportedOperationException("time column does not support lookups");
   }

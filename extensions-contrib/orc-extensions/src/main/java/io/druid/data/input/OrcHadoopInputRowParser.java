@@ -268,7 +268,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     catch (Exception e) {
       throw new ParserInitializationFail(e);
     }
-    throw new ParserInitializationFail("non-struct type " + typeString, null);
+    throw new ParserInitializationFail("non-struct type %s", typeString);
   }
 
   private List getListObject(ListObjectInspector listObjectInspector, Object listObject)

@@ -161,7 +161,7 @@ public abstract class BaseFilteredDimensionSpec implements DimensionSpec
       }
 
       @Override
-      public int lookupId(Comparable name)
+      public int lookupId(Object name)
       {
         return forwardMapping.get(selector.lookupId(name));
       }

@@ -141,7 +141,7 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
     return "".equals(comparable) ? null : comparable;
   }
 
-  public static Comparable nullToEmpty(Comparable raw)
+  public static Object nullToEmpty(Object raw)
   {
     return raw == null ? "" : raw;
   }

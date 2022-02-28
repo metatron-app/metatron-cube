@@ -23,9 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -48,8 +46,8 @@ import io.druid.granularity.Granularity;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Intervals;
+import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.java.util.common.parsers.ParseException;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
 import io.druid.query.aggregation.Aggregator;
@@ -61,7 +59,6 @@ import io.druid.segment.column.ColumnCapabilities;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
 import java.lang.reflect.Array;
@@ -81,103 +78,6 @@ import java.util.function.BiFunction;
 public abstract class IncrementalIndex implements Closeable
 {
   protected static final Logger LOG = new Logger(IncrementalIndex.class);
-
-  private static final Function<Object, String> STRING_TRANSFORMER = new Function<Object, String>()
-  {
-    @Override
-    public String apply(final Object o)
-    {
-      return o == null ? null : String.valueOf(o);
-    }
-  };
-
-  private static final Function<Object, Long> LONG_TRANSFORMER = new Function<Object, Long>()
-  {
-    @Override
-    public Long apply(final Object o)
-    {
-      if (o == null) {
-        return null;
-      }
-      if (o instanceof String) {
-        String s = (String) o;
-        try {
-          return s.isEmpty() ? null : Long.valueOf(s);
-        }
-        catch (NumberFormatException nfe) {
-          throw new ParseException(nfe, "Unable to parse value[%s] as long in column: ", o);
-        }
-      }
-      if (o instanceof Number) {
-        return ((Number) o).longValue();
-      }
-      return null;
-    }
-  };
-
-  private static final Function<Object, Float> FLOAT_TRANSFORMER = new Function<Object, Float>()
-  {
-    @Override
-    public Float apply(final Object o)
-    {
-      if (o == null) {
-        return null;
-      }
-      if (o instanceof String) {
-        String s = (String) o;
-        try {
-          return s.isEmpty() ? null : Float.valueOf(s);
-        }
-        catch (NumberFormatException nfe) {
-          throw new ParseException(nfe, "Unable to parse value[%s] as float in column: ", o);
-        }
-      }
-      if (o instanceof Number) {
-        return ((Number) o).floatValue();
-      }
-      return null;
-    }
-  };
-
-  private static final Function<Object, Double> DOUBLE_TRANSFORMER = new Function<Object, Double>()
-  {
-    @Override
-    public Double apply(final Object o)
-    {
-      if (o == null) {
-        return null;
-      }
-      if (o instanceof String) {
-        String s = (String) o;
-        try {
-          return s.isEmpty() ? null : Double.valueOf(s);
-        }
-        catch (NumberFormatException nfe) {
-          throw new ParseException(nfe, "Unable to parse value[%s] as float in column: ", o);
-        }
-      }
-      if (o instanceof Number) {
-        return ((Number) o).doubleValue();
-      }
-      return null;
-    }
-  };
-
-  private static final Map<ValueType, Function> VALUE_TRANSFORMS = ImmutableMap.<ValueType, Function>builder()
-      .put(ValueType.LONG, LONG_TRANSFORMER)
-      .put(ValueType.FLOAT, FLOAT_TRANSFORMER)
-      .put(ValueType.DOUBLE, DOUBLE_TRANSFORMER)
-      .put(ValueType.STRING, STRING_TRANSFORMER)
-      .build();
-
-  public static ColumnSelectorFactory makeColumnSelectorFactory(
-      final AggregatorFactory agg,
-      final Supplier<Row> in,
-      final boolean deserializeComplexMetrics
-  )
-  {
-    return new ColumnSelectorFactories.FromInputRow(in, agg, deserializeComplexMetrics);
-  }
 
   protected final Granularity gran;
   protected final AggregatorFactory[] metrics;
@@ -335,7 +235,7 @@ public abstract class IncrementalIndex implements Closeable
         );
         break;
       default:
-        throw new IAE("Invalid column type: " + type);
+        throw new UOE("Unsupported dimensions type: %s", type);
     }
     return newDimDim;
   }
@@ -365,29 +265,16 @@ public abstract class IncrementalIndex implements Closeable
     return row;
   }
 
-  private List<Comparable> getRowDimensionAsComparables(InputRow row, String dimension, ValueType type)
+  private static List getDimensionValuesAsList(InputRow row, String dimension)
   {
     final Object dimVal = row.getRaw(dimension);
-    final Function transformer = VALUE_TRANSFORMS.get(type);
-    final List<Comparable> dimensionValues;
-    try {
-      if (dimVal == null) {
-        dimensionValues = Collections.emptyList();
-      } else if (dimVal instanceof List) {
-        dimensionValues = Lists.transform((List) dimVal, transformer);
-      } else {
-        dimensionValues = Collections.singletonList((Comparable) transformer.apply(dimVal));
-      }
+    if (dimVal == null) {
+      return Collections.emptyList();
+    } else if (dimVal instanceof List) {
+      return (List) dimVal;
+    } else {
+      return Collections.singletonList(dimVal);
     }
-    catch (ParseException pe) {
-      throw new ParseException(pe.getMessage() + dimension);
-    }
-    return dimensionValues;
-  }
-
-  public Map<String, DimensionDesc> getDimensionDescs()
-  {
-    return dimensionDescs;
   }
 
   /**
@@ -430,7 +317,7 @@ public abstract class IncrementalIndex implements Closeable
       throw new IAE(
           "Cannot add row[%s] because it is below the minTimestamp[%s]",
           row,
-          new DateTime(minTimestampLimit)
+          DateTimes.of(minTimestampLimit)
       );
     }
 
@@ -442,24 +329,15 @@ public abstract class IncrementalIndex implements Closeable
     synchronized (dimensionDescs) {
       dims = new int[dimensionDescs.size()][];
       for (String dimension : rowDimensions) {
-        List<Comparable> dimensionValues;
-
         ColumnCapabilities capabilities;
-        final ValueType valType;
         DimensionDesc desc = dimensionDescs.get(dimension);
         if (desc != null) {
           capabilities = desc.getCapabilities();
         } else {
-          capabilities = columnCapabilities.get(dimension);
-          if (capabilities == null) {
-            capabilities = new ColumnCapabilities();
-            // For schemaless type discovery, assume everything is a String for now, can change later.
-            capabilities.setType(ValueType.STRING);
-            columnCapabilities.put(dimension, capabilities);
-          }
+          // For schemaless type discovery, assume everything is a String for now, can change later.
+          capabilities = columnCapabilities.computeIfAbsent(dimension, k -> ColumnCapabilities.of(ValueType.STRING));
         }
-        valType = capabilities.getType();
-        dimensionValues = getRowDimensionAsComparables(row, dimension, valType);
+        final List dimensionValues = getDimensionValuesAsList(row, dimension);
 
         // Set column capabilities as data is coming in
         if (!capabilities.hasMultipleValues() && dimensionValues.size() > 1) {
@@ -474,7 +352,7 @@ public abstract class IncrementalIndex implements Closeable
             overflowTypes = Lists.newArrayList();
           }
           overflow.add(desc.addVals(dimensionValues));
-          overflowTypes.add(valType);
+          overflowTypes.add(capabilities.getType());
         } else if (desc.getIndex() > dims.length || dims[desc.getIndex()] != null) {
           /*
            * index > dims.length requires that we saw this dimension and added it to the dimensionOrder map,
@@ -545,7 +423,6 @@ public abstract class IncrementalIndex implements Closeable
     }
   }
 
-  @SuppressWarnings("unchecked")
   private TimeAndDims toTimeAndDims(Row row)
   {
     final int[][] dims = new int[dimensionDescs.size()][];
@@ -796,7 +673,7 @@ public abstract class IncrementalIndex implements Closeable
           } else if (dim.length == 1) {
             theVals.put(dimensionName, dimensions[i].getValues().getValue(dim[0]));
           } else {
-            final Comparable[] dimVals = new Comparable[dim.length];
+            final Object[] dimVals = new Object[dim.length];
             for (int j = 0; j < dimVals.length; j++) {
               dimVals[j] = dimensions[i].getValues().getValue(dim[j]);
             }
@@ -945,7 +822,6 @@ public abstract class IncrementalIndex implements Closeable
       return pivotIx;
     }
 
-    @SuppressWarnings("unchecked")
     private int[] add(Row row)
     {
       if (pivotIx >= 0) {
@@ -954,7 +830,7 @@ public abstract class IncrementalIndex implements Closeable
       final Object raw = row.getRaw(fieldName);
       if (raw instanceof List) {
         capabilities.setHasMultipleValues(true);
-        return addVals((List<Comparable>) raw);
+        return addVals((List) raw);
       }
       return new int[]{addVal(raw)};
     }
@@ -962,11 +838,11 @@ public abstract class IncrementalIndex implements Closeable
     @SuppressWarnings("unchecked")
     private int addVal(Object value)
     {
-      return values.add((Comparable) type.cast(value));
+      return values.add(type.cast(value));
     }
 
     @SuppressWarnings("unchecked")
-    private int[] addVals(final List<Comparable> dimValues)
+    private int[] addVals(final List dimValues)
     {
       if (dimValues.size() == 0) {
         // NULL VALUE
@@ -983,7 +859,7 @@ public abstract class IncrementalIndex implements Closeable
         }
         return indices;
       }
-      final Comparable[] dimArray = dimValues.toArray(new Comparable[0]);
+      final Object[] dimArray = dimValues.toArray(new Object[0]);
       Arrays.sort(dimArray, GuavaUtils.NULL_FIRST_NATURAL);
       for (int i = 0; i < indices.length; i++) {
         indices[i] = addVal(dimArray[i]);
@@ -1042,7 +918,7 @@ public abstract class IncrementalIndex implements Closeable
     SizeEstimator<Long> LONG = l -> l == null ? 0 : Long.BYTES;
   }
 
-  static interface DimDim<T extends Comparable<? super T>>
+  static interface DimDim<T>
   {
     public int getId(T value);
 
@@ -1097,15 +973,15 @@ public abstract class IncrementalIndex implements Closeable
     }
 
     @Override
-    public int getId(Comparable value)
+    public int getId(Object value)
     {
       return delegate.getId(StringUtils.nullToEmpty(value));
     }
 
     @Override
-    public Comparable getValue(int id)
+    public Object getValue(int id)
     {
-      return (Comparable) StringUtils.emptyToNull(delegate.getValue(id));
+      return StringUtils.emptyToNull(delegate.getValue(id));
     }
 
     @Override
@@ -1115,13 +991,13 @@ public abstract class IncrementalIndex implements Closeable
     }
 
     @Override
-    public Comparable getMinValue()
+    public Object getMinValue()
     {
       return StringUtils.nullToEmpty(delegate.getMinValue());
     }
 
     @Override
-    public Comparable getMaxValue()
+    public Object getMaxValue()
     {
       return StringUtils.nullToEmpty(delegate.getMaxValue());
     }
@@ -1133,7 +1009,7 @@ public abstract class IncrementalIndex implements Closeable
     }
 
     @Override
-    public int add(Comparable value)
+    public int add(Object value)
     {
       return delegate.add(StringUtils.nullToEmpty(value));
     }
@@ -1217,21 +1093,7 @@ public abstract class IncrementalIndex implements Closeable
     @Override
     public String toString()
     {
-      return "Rollup{" +
-             "timestamp=" + new DateTime(timestamp) +
-             ", dims=" + Lists.transform(
-          Arrays.asList(dims), new Function<int[], Object>()
-          {
-            @Override
-            public Object apply(@Nullable int[] input)
-            {
-              if (input == null || input.length == 0) {
-                return Arrays.asList("null");
-              }
-              return Arrays.asList(input);
-            }
-          }
-      ) + '}';
+      return "Rollup{timestamp=" + DateTimes.of(timestamp) + ", dims=" + GuavaUtils.arrayToString(dims) + '}';
     }
   }
 
@@ -1248,9 +1110,7 @@ public abstract class IncrementalIndex implements Closeable
     @Override
     public String toString()
     {
-      return "NoRollup{" +
-             "timestamp=" + new DateTime(timestamp) +
-             ", indexer=" + indexer + "}";
+      return "NoRollup{timestamp=" + DateTimes.of(timestamp) + ", indexer=" + indexer + "}";
     }
   }
 

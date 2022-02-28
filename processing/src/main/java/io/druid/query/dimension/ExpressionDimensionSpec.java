@@ -127,7 +127,7 @@ public class ExpressionDimensionSpec implements DimensionSpec
       }
 
       @Override
-      public int lookupId(Comparable name)
+      public int lookupId(Object name)
       {
         throw new UnsupportedOperationException("lookupId");
       }

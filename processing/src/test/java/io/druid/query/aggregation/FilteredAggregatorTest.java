@@ -130,7 +130,7 @@ public class FilteredAggregatorTest
                 }
 
                 @Override
-                public int lookupId(Comparable name)
+                public int lookupId(Object name)
                 {
                   switch ((String) name) {
                     case "a":

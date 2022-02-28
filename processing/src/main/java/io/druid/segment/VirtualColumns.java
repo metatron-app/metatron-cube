@@ -246,7 +246,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     }
 
     @Override
-    public int lookupId(Comparable name)
+    public int lookupId(Object name)
     {
       return valToId.getOrDefault(name, -1);
     }
@@ -296,7 +296,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public int lookupId(Comparable name)
+      public int lookupId(Object name)
       {
         return valToId.get(name);
       }

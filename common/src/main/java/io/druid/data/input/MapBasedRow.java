@@ -22,6 +22,7 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
 
@@ -71,7 +72,7 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
 
   public MapBasedRow(long timestamp, Map<String, Object> event)
   {
-    this(new DateTime(timestamp), event);
+    this(DateTimes.of(timestamp), event);
   }
 
   @Override

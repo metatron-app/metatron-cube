@@ -58,7 +58,7 @@ public class DelegatedDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public int lookupId(Comparable name)
+  public int lookupId(Object name)
   {
     return delegate.lookupId(name);
   }

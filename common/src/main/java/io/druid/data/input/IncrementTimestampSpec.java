@@ -22,6 +22,7 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
 
 import java.util.List;
@@ -73,6 +74,6 @@ public class IncrementTimestampSpec implements TimestampSpec
   @Override
   public DateTime extractTimestamp(Map<String, Object> input)
   {
-    return new DateTime(counter.getAndAdd(increment));
+    return DateTimes.of(counter.getAndAdd(increment));
   }
 }

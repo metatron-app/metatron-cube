@@ -400,15 +400,12 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         throws IOException, InterruptedException
     {
       final List<String> dimensions = index.getDimensionNames();
-      Iterator<Row> rows = index.iterator();
+      final Iterator<Row> rows = index.iterator();
       while (rows.hasNext()) {
         context.progress();
         Row row = rows.next();
         InputRow inputRow = getInputRowFromRow(row, dimensions);
-        context.write(
-            key,
-            new BytesWritable(writeSerde.serialize(inputRow))
-        );
+        context.write(key, new BytesWritable(writeSerde.serialize(inputRow)));
       }
       index.close();
     }

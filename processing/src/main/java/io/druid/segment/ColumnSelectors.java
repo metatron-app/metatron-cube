@@ -474,7 +474,7 @@ public class ColumnSelectors
     }
 
     @Override
-    public int lookupId(Comparable name)
+    public int lookupId(Object name)
     {
       return (nullOrEmpty && StringUtils.isNullOrEmpty(name)) || Objects.equals(value, name) ? 0 : -1;
     }

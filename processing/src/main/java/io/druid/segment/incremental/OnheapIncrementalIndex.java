@@ -42,7 +42,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   private final NavigableMap<TimeAndDims, Object[]> facts;
   private final Function<TimeAndDims, Object[]> populator;
 
-  private final int[] arrayAggregatorIndices;
+  private final int[] estimableIndices;
   private final AtomicInteger counter = new AtomicInteger();
 
   public OnheapIncrementalIndex(
@@ -72,13 +72,13 @@ public class OnheapIncrementalIndex extends IncrementalIndex
         return new Object[aggregators.length];
       }
     };
-    final List<Integer> arrayAggregatorIndices = Lists.newArrayList();
+    final List<Integer> estimableIndices = Lists.newArrayList();
     for (int i = 0; i < aggregators.length; i++) {
       if (aggregators[i] instanceof Aggregator.Estimable) {
-        arrayAggregatorIndices.add(i);
+        estimableIndices.add(i);
       }
     }
-    this.arrayAggregatorIndices = Ints.toArray(arrayAggregatorIndices);
+    this.estimableIndices = Ints.toArray(estimableIndices);
   }
 
   @Override
@@ -149,7 +149,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public Iterable<Map.Entry<TimeAndDims, Object[]>> getRangeOf(long from, long to, Boolean timeDescending)
   {
     return getFacts(facts, from, to, timeDescending);
@@ -179,9 +178,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex
   public long estimatedOccupation()
   {
     long estimation = super.estimatedOccupation();
-    if (arrayAggregatorIndices.length > 0) {
+    if (estimableIndices.length > 0) {
       for (final Object[] array : facts.values()) {
-        for (int index : arrayAggregatorIndices) {
+        for (int index : estimableIndices) {
           estimation += ((Aggregator.Estimable) aggregators[index]).estimateOccupation(array[index]);
         }
       }

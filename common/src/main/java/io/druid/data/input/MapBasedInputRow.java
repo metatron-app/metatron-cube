@@ -20,6 +20,7 @@
 package io.druid.data.input;
 
 import com.google.common.collect.Maps;
+import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
 
 import java.util.List;
@@ -70,7 +71,7 @@ public class MapBasedInputRow extends MapBasedRow implements InputRow
   public String toString()
   {
     return "MapBasedInputRow{" +
-           "timestamp=" + new DateTime(getTimestampFromEpoch()) +
+           "timestamp=" + DateTimes.of(getTimestampFromEpoch()) +
            ", event=" + getEvent() +
            ", dimensions=" + dimensions +
            '}';

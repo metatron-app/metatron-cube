@@ -150,7 +150,7 @@ public class BitSetVirtualColumn implements VirtualColumn
       }
 
       @Override
-      public int lookupId(Comparable name)
+      public int lookupId(Object name)
       {
         return Integer.parseInt((String) name);
       }

@@ -61,7 +61,7 @@ public class NullDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public int lookupId(Comparable name)
+  public int lookupId(Object name)
   {
     return StringUtils.isNullOrEmpty(name) ? 0 : -1;
   }
