@@ -24,10 +24,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
-import io.druid.java.util.emitter.core.Emitter;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.ManageLifecycle;
 import io.druid.initialization.DruidModule;
+import io.druid.java.util.emitter.core.Emitter;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,9 +37,11 @@ import java.util.List;
 public class StatsDEmitterModule implements DruidModule
 {
   private static final String EMITTER_TYPE = "statsd";
+
   @Override
-  public List<? extends Module> getJacksonModules() {
-    return Collections.EMPTY_LIST;
+  public List<? extends Module> getJacksonModules()
+  {
+    return Collections.emptyList();
   }
 
   @Override
@@ -51,7 +53,8 @@ public class StatsDEmitterModule implements DruidModule
   @Provides
   @ManageLifecycle
   @Named(EMITTER_TYPE)
-  public Emitter getEmitter(StatsDEmitterConfig config, ObjectMapper mapper){
-    return new StatsDEmitter(config, mapper);
+  public Emitter getEmitter(StatsDEmitterConfig config, ObjectMapper mapper)
+  {
+    return StatsDEmitter.of(config, mapper);
   }
 }

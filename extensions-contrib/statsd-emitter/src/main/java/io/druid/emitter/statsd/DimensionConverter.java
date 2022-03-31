@@ -22,11 +22,11 @@ package io.druid.emitter.statsd;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.logger.Logger;
 
-import java.io.File;
+import javax.annotation.Nullable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,16 +36,21 @@ import java.util.Map;
  */
 public class DimensionConverter
 {
-
   private final static Logger log = new Logger(DimensionConverter.class);
-  private Map<String, StatsDMetric> metricMap;
+  private final Map<String, StatsDMetric> metricMap;
 
   public DimensionConverter(ObjectMapper mapper, String dimensionMapPath)
   {
     metricMap = readMap(mapper, dimensionMapPath);
   }
 
-  public StatsDMetric.Type addFilteredUserDims(String service, String metric, Map<String, Object> userDims, ImmutableList.Builder<String> builder)
+  @Nullable
+  public StatsDMetric addFilteredUserDims(
+      String service,
+      String metric,
+      Map<String, Object> userDims,
+      ImmutableMap.Builder<String, String> builder
+  )
   {
      /*
         Find the metric in the map. If we cant find it try to look it up prefixed by the service name.
@@ -59,11 +64,12 @@ public class DimensionConverter
     }
     if (statsDMetric != null) {
       for (String dim : statsDMetric.dimensions) {
-        if (userDims.containsKey(dim)) {
-          builder.add(userDims.get(dim).toString());
+        Object v = userDims.get(dim);
+        if (v != null) {
+          builder.put(dim, v.toString());
         }
       }
-      return statsDMetric.type;
+      return statsDMetric;
     } else {
       return null;
     }
@@ -78,11 +84,9 @@ public class DimensionConverter
         is = this.getClass().getClassLoader().getResourceAsStream("defaultMetricDimensions.json");
       } else {
         log.info("Using metric dimensions at types at [%s]", dimensionMapPath);
-        is = new FileInputStream(new File(dimensionMapPath));
+        is = new FileInputStream(dimensionMapPath);
       }
-      return mapper.reader(new TypeReference<Map<String, StatsDMetric>>()
-      {
-      }).readValue(is);
+      return mapper.reader(new TypeReference<Map<String, StatsDMetric>>() {}).readValue(is);
     }
     catch (IOException e) {
       throw new ISE(e, "Failed to parse metric dimensions and types");

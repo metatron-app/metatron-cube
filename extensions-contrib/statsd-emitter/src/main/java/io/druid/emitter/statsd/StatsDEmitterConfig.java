@@ -23,23 +23,37 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
 /**
  */
 public class StatsDEmitterConfig
 {
 
   @JsonProperty
-  final private String hostname;
+  private final String hostname;
   @JsonProperty
-  final private Integer port;
+  private final Integer port;
   @JsonProperty
-  final private String prefix;
+  private final String prefix;
   @JsonProperty
-  final private String separator;
+  private final String separator;
   @JsonProperty
-  final private Boolean includeHost;
+  private final Boolean includeHost;
   @JsonProperty
-  final private String dimensionMapPath;
+  private final String dimensionMapPath;
+  @JsonProperty
+  private final String blankHolder;
+  @JsonProperty
+  private final Boolean dogstatsd;
+  @JsonProperty
+  private final List<String> dogstatsdConstantTags;
+  @JsonProperty
+  private final Boolean dogstatsdServiceAsTag;
+  @JsonProperty
+  private final Boolean dogstatsdEvents;
 
   @JsonCreator
   public StatsDEmitterConfig(
@@ -48,7 +62,13 @@ public class StatsDEmitterConfig
       @JsonProperty("prefix") String prefix,
       @JsonProperty("separator") String separator,
       @JsonProperty("includeHost") Boolean includeHost,
-      @JsonProperty("dimensionMapPath") String dimensionMapPath)
+      @JsonProperty("dimensionMapPath") String dimensionMapPath,
+      @JsonProperty("blankHolder") String blankHolder,
+      @JsonProperty("dogstatsd") Boolean dogstatsd,
+      @JsonProperty("dogstatsdConstantTags") List<String> dogstatsdConstantTags,
+      @JsonProperty("dogstatsdServiceAsTag") Boolean dogstatsdServiceAsTag,
+      @JsonProperty("dogstatsdEvents") Boolean dogstatsdEvents
+  )
   {
     this.hostname = Preconditions.checkNotNull(hostname, "StatsD hostname cannot be null.");
     this.port = Preconditions.checkNotNull(port, "StatsD port cannot be null.");
@@ -56,6 +76,11 @@ public class StatsDEmitterConfig
     this.separator = separator != null ? separator : ".";
     this.includeHost = includeHost != null ? includeHost : false;
     this.dimensionMapPath = dimensionMapPath;
+    this.blankHolder = blankHolder != null ? blankHolder : "-";
+    this.dogstatsd = dogstatsd != null ? dogstatsd : false;
+    this.dogstatsdConstantTags = dogstatsdConstantTags != null ? dogstatsdConstantTags : Collections.emptyList();
+    this.dogstatsdServiceAsTag = dogstatsdServiceAsTag != null ? dogstatsdServiceAsTag : false;
+    this.dogstatsdEvents = dogstatsdEvents != null ? dogstatsdEvents : false;
   }
 
   @Override
@@ -70,35 +95,40 @@ public class StatsDEmitterConfig
 
     StatsDEmitterConfig that = (StatsDEmitterConfig) o;
 
-    if (hostname != null ? !hostname.equals(that.hostname) : that.hostname != null) {
+    if (!Objects.equals(hostname, that.hostname)) {
       return false;
     }
-    if (port != null ? !port.equals(that.port) : that.port != null) {
+    if (!Objects.equals(port, that.port)) {
       return false;
     }
-    if (prefix != null ? !prefix.equals(that.prefix) : that.prefix != null) {
+    if (!Objects.equals(prefix, that.prefix)) {
       return false;
     }
-    if (separator != null ? !separator.equals(that.separator) : that.separator != null) {
+    if (!Objects.equals(separator, that.separator)) {
       return false;
     }
-    if (includeHost != null ? !includeHost.equals(that.includeHost) : that.includeHost != null) {
+    if (!Objects.equals(includeHost, that.includeHost)) {
       return false;
     }
-    return dimensionMapPath != null ? dimensionMapPath.equals(that.dimensionMapPath) : that.dimensionMapPath == null;
-
+    if (!Objects.equals(dimensionMapPath, that.dimensionMapPath)) {
+      return false;
+    }
+    if (!Objects.equals(dogstatsd, that.dogstatsd)) {
+      return false;
+    }
+    if (!Objects.equals(dogstatsdServiceAsTag, that.dogstatsdServiceAsTag)) {
+      return false;
+    }
+    return Objects.equals(dogstatsdConstantTags, that.dogstatsdConstantTags);
   }
 
   @Override
   public int hashCode()
   {
-    int result = hostname != null ? hostname.hashCode() : 0;
-    result = 31 * result + (port != null ? port.hashCode() : 0);
-    result = 31 * result + (prefix != null ? prefix.hashCode() : 0);
-    result = 31 * result + (separator != null ? separator.hashCode() : 0);
-    result = 31 * result + (includeHost != null ? includeHost.hashCode() : 0);
-    result = 31 * result + (dimensionMapPath != null ? dimensionMapPath.hashCode() : 0);
-    return result;
+    return Objects.hash(
+        hostname, port, prefix, separator, includeHost, dimensionMapPath,
+        blankHolder, dogstatsd, dogstatsdConstantTags, dogstatsdServiceAsTag
+    );
   }
 
   @JsonProperty
@@ -135,5 +165,35 @@ public class StatsDEmitterConfig
   public String getDimensionMapPath()
   {
     return dimensionMapPath;
+  }
+
+  @JsonProperty
+  public String getBlankHolder()
+  {
+    return blankHolder;
+  }
+
+  @JsonProperty
+  public Boolean isDogstatsd()
+  {
+    return dogstatsd;
+  }
+
+  @JsonProperty
+  public List<String> getDogstatsdConstantTags()
+  {
+    return dogstatsdConstantTags;
+  }
+
+  @JsonProperty
+  public Boolean isDogstatsdServiceAsTag()
+  {
+    return dogstatsdServiceAsTag;
+  }
+
+  @JsonProperty
+  public Boolean isDogstatsdEvents()
+  {
+    return dogstatsdEvents;
   }
 }
