@@ -19,11 +19,20 @@
 
 package io.druid.common.utils;
 
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Rows;
 import io.druid.java.util.common.ISE;
+import io.druid.java.util.common.logger.Logger;
+import org.apache.commons.io.IOUtils;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -31,6 +40,8 @@ import java.util.Properties;
  */
 public class PropUtils
 {
+  private static final Logger LOG = new Logger(PropUtils.class);
+
   public static String getProperty(Properties props, String property)
   {
     String retVal = props.getProperty(property);
@@ -128,5 +139,43 @@ public class PropUtils
     } else {
       throw new ISE("Unknown type [%s]. Cannot parse!", val.getClass());
     }
+  }
+
+  public static Iterable<Properties> loadProperties(ClassLoader loader, String resource)
+  {
+    final Enumeration<URL> resources;
+    try {
+      resources = loader.getResources(resource);
+    }
+    catch (IOException e) {
+      return Arrays.asList();
+    }
+    final List<Properties> loaded = Lists.newArrayList();
+    while (resources.hasMoreElements()) {
+      final URL element = resources.nextElement();
+      try {
+        loaded.add(load(element.openStream()));
+      }
+      catch (IOException e) {
+        // ignore
+      }
+    }
+    return loaded;
+  }
+
+  private static Properties load(InputStream resource)
+  {
+    Properties properties = new Properties();
+    try {
+      properties.load(resource);
+    }
+    catch (IOException e) {
+      LOG.warn(e, "Failed to load function resource.. ignoring");
+      return null;
+    }
+    finally {
+      IOUtils.closeQuietly(resource);
+    }
+    return properties;
   }
 }

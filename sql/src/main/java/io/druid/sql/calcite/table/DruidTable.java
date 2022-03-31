@@ -23,37 +23,52 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.java.util.common.logger.Logger;
-import io.druid.query.DataSource;
 import io.druid.query.QueryRunners;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.spec.QuerySegmentSpecs;
 import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.timeseries.TimeseriesQuery.Builder;
 import io.druid.timeline.DataSegment;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
+import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -65,15 +80,23 @@ public class DruidTable implements TranslatableTable
 
   private final TableDataSource dataSource;
   private final QuerySegmentWalker segmentWalker;
+  protected final String tenantColumn;
 
   private RowSignature signature;
   private Statistic statistic;
   private Map<String, Map<String, String>> descriptors;
+  private Set<String> tenants;
 
-  public DruidTable(TableDataSource dataSource, QuerySegmentWalker segmentWalker)
+  public DruidTable(TableDataSource dataSource, QuerySegmentWalker segmentWalker, String tenantColumn)
   {
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource");
     this.segmentWalker = Preconditions.checkNotNull(segmentWalker, "segmentWalker");
+    this.tenantColumn = tenantColumn;
+  }
+
+  public boolean isMultiTenent()
+  {
+    return tenantColumn != null;
   }
 
   public void update(DataSegment segment, boolean added)
@@ -91,9 +114,17 @@ public class DruidTable implements TranslatableTable
       final long rowCount = update.get().rowCount;
       statistic = Statistics.of(statistic.getRowCount() + (added ? rowCount : -rowCount), ImmutableList.of());
     }
+    if (tenantColumn != null) {
+      final List<String> newcomers = getTenants(QuerySegmentSpecs.create(segment.toDescriptor()), tenantColumn);
+      if (tenants == null) {
+        tenants = Sets.newHashSet(newcomers);
+      } else {
+        tenants.addAll(newcomers);
+      }
+    }
   }
 
-  public DataSource getDataSource()
+  public TableDataSource getDataSource()
   {
     return dataSource;
   }
@@ -101,7 +132,7 @@ public class DruidTable implements TranslatableTable
   public RowSignature getRowSignature()
   {
     if (signature == null) {
-      updateFor(signature);
+      updateAll();
     }
     return signature;
   }
@@ -109,7 +140,7 @@ public class DruidTable implements TranslatableTable
   public Map<String, Map<String, String>> getDescriptors()
   {
     if (descriptors == null) {
-      updateFor(descriptors);
+      updateAll();
     }
     return descriptors;
   }
@@ -118,21 +149,32 @@ public class DruidTable implements TranslatableTable
   public Statistic getStatistic()
   {
     if (statistic == null) {
-      updateFor(statistic);
+      updateAll();
     }
     return statistic;
   }
 
-  private synchronized void updateFor(Object needed)
+  private synchronized void updateAll()
   {
-    if (needed == null) {
-      long start = System.currentTimeMillis();
-      Holder update = build(dataSource.getName(), QuerySegmentSpec.ETERNITY, segmentWalker);
-      this.signature = update.signature;
-      this.descriptors = update.descriptors;
-      this.statistic = Statistics.of(update.rowCount, ImmutableList.of());
-      LOG.info("Refreshed schema of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);
+    long start = System.currentTimeMillis();
+    Holder update = build(dataSource.getName(), QuerySegmentSpec.ETERNITY, segmentWalker);
+    this.signature = update.signature;
+    this.descriptors = update.descriptors;
+    this.statistic = Statistics.of(update.rowCount, ImmutableList.of());
+    LOG.info("Refreshed schema of [%s].. %,d msec", dataSource.getName(), System.currentTimeMillis() - start);
+  }
+
+  public Set<String> getTenants()
+  {
+    if (tenantColumn == null) {
+      return ImmutableSet.of();
     }
+    synchronized (tenantColumn) {
+      if (tenants == null) {
+        tenants = Sets.newHashSet(getTenants(QuerySegmentSpec.ETERNITY, tenantColumn));
+      }
+    }
+    return tenants;
   }
 
   private static class Holder
@@ -168,6 +210,19 @@ public class DruidTable implements TranslatableTable
       rowNum += schema.getNumRows();
     }
     return new Holder(builder.sort().build(), descriptors, rowNum);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<String> getTenants(QuerySegmentSpec spec, String tenantColumn)
+  {
+    ValueDesc resolved = getRowSignature().resolve(tenantColumn, ValueDesc.UNKNOWN);
+    AggregatorFactory aggr = new SetAggregatorFactory("_tenants", tenantColumn, resolved.unwrapDimension(), 65536, false);
+    TimeseriesQuery ts = new Builder().dataSource(dataSource).intervals(spec).aggregators(aggr).build();
+    Row v = Sequences.only(QueryRunners.run(ts.withId(UUID.randomUUID().toString()), segmentWalker), null);
+    if (v != null && v.get("_tenants") != null) {
+      return (List<String>) v.get("_tenants");
+    }
+    return ImmutableList.of();
   }
 
   @Override
@@ -222,5 +277,68 @@ public class DruidTable implements TranslatableTable
   public int hashCode()
   {
     return Objects.hashCode(dataSource);
+  }
+
+  public static final class Tenant extends DruidTable
+  {
+    private final DruidTable source;
+    private final String tenant;
+
+    public Tenant(DruidTable source, String tenant, QuerySegmentWalker segmentWalker)
+    {
+      super(source.getDataSource(), segmentWalker, null);
+      this.source = Preconditions.checkNotNull(source, "'source' should not be null");
+      this.tenant = Preconditions.checkNotNull(tenant, "'tenant' should not be null");
+      Preconditions.checkArgument(
+          source.isMultiTenent(), "[%s] should be a multi-tenant table", source.dataSource.getName()
+      );
+    }
+
+    @Override
+    public RelNode toRel(final RelOptTable.ToRelContext context, final RelOptTable table)
+    {
+      RelNode scan = source.toRel(context, table);
+      int index = scan.getRowType().getFieldNames().indexOf(source.tenantColumn);
+      if (index < 0) {
+        return new LogicalValues(scan.getCluster(), scan.getTraitSet(), scan.getRowType(), ImmutableList.of());
+      }
+      RelDataType type = scan.getRowType().getFieldList().get(index).getType();
+      RexBuilder builder = context.getCluster().getRexBuilder();
+      RexInputRef column = builder.makeInputRef(type, index);
+      RexLiteral literal = builder.makeLiteral(tenant);
+
+      RexNode condition = builder.makeCall(SqlStdOperatorTable.EQUALS, Arrays.asList(column, literal));
+      return LogicalFilter.create(scan, condition);
+    }
+
+    @Override
+    public RowSignature getRowSignature()
+    {
+      return source.getRowSignature();
+    }
+
+    @Override
+    public Map<String, Map<String, String>> getDescriptors()
+    {
+      return source.getDescriptors();
+    }
+
+    @Override
+    public Statistic getStatistic()
+    {
+      return source.getStatistic();
+    }
+
+    @Override
+    public void update(DataSegment segment, boolean added)
+    {
+      // should not be happened
+    }
+
+    @Override
+    public Schema.TableType getJdbcTableType()
+    {
+      return Schema.TableType.VIEW;
+    }
   }
 }

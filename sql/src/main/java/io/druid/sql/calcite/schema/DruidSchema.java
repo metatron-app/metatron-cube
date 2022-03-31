@@ -21,15 +21,20 @@ package io.druid.sql.calcite.schema;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import io.druid.client.ServerView;
 import io.druid.client.TimelineServerView;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.guice.ManageLifecycle;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.TableDataSource;
 import io.druid.server.coordination.DruidServerMetadata;
@@ -48,18 +53,22 @@ import java.util.function.BiFunction;
 @ManageLifecycle
 public class DruidSchema extends AbstractSchema implements BiFunction<String, DruidTable, DruidTable>
 {
+  private static final Logger LOG = new Logger(DruidSchema.class);
+
   public static final String NAME = "druid";
 
   private final QuerySegmentWalker segmentWalker;
   private final TimelineServerView serverView;
   private final ViewManager viewManager;
   private final Map<String, DruidTable> cached;
+  private final Map<String, String> multitenants;
 
   @Inject
   public DruidSchema(
       final @JacksonInject QuerySegmentWalker segmentWalker,
       final TimelineServerView serverView,
-      final ViewManager viewManager
+      final ViewManager viewManager,
+      final @MultiTenants Map<String, String> multitenants
   )
   {
     this.segmentWalker = Preconditions.checkNotNull(segmentWalker, "segmentWalker");
@@ -97,6 +106,12 @@ public class DruidSchema extends AbstractSchema implements BiFunction<String, Dr
           }
         }
     );
+    this.multitenants = multitenants == null ? ImmutableMap.of() : multitenants;
+    if (!GuavaUtils.isNullOrEmpty(multitenants)) {
+      for (Map.Entry<String, String> m : multitenants.entrySet()) {
+        LOG.info("Table [%s] is registerd with tenant column '%s'", m.getKey(), m.getValue());
+      }
+    }
   }
 
   @Override
@@ -107,13 +122,35 @@ public class DruidSchema extends AbstractSchema implements BiFunction<String, Dr
       @Override
       public Set<String> keySet()
       {
-        return ImmutableSet.copyOf(serverView.getDataSources());
+        if (multitenants.isEmpty()) {
+          return ImmutableSet.copyOf(serverView.getDataSources());
+        }
+        Set<String> datasources = Sets.newHashSet(serverView.getDataSources());
+        for (String multitenant : multitenants.keySet()) {
+          DruidTable source = cached.compute(multitenant, DruidSchema.this);
+          if (source != null && source.isMultiTenent()) {
+            String prefix = source.getDataSource().getName() + "_";
+            Iterables.addAll(datasources, Iterables.transform(source.getTenants(), t -> prefix + t));
+          }
+        }
+        return datasources;
       }
 
       @Override
       public Table get(Object key)
       {
-        return cached.compute((String) key, DruidSchema.this);
+        String tableName = (String) key;
+        if (serverView.getTimeline(tableName) == null) {
+          int index = tableName.indexOf('_');
+          for (; index > 0 && index < tableName.length() - 1; index = tableName.indexOf('_', index + 1)) {
+            String sourceName = tableName.substring(0, index);
+            DruidTable source = cached.compute(sourceName, DruidSchema.this);
+            if (source != null && source.isMultiTenent()) {
+              return new DruidTable.Tenant(source, tableName.substring(index + 1), segmentWalker);
+            }
+          }
+        }
+        return cached.compute(tableName, DruidSchema.this);
       }
 
       @Override
@@ -137,9 +174,11 @@ public class DruidSchema extends AbstractSchema implements BiFunction<String, Dr
   @Override
   public DruidTable apply(String tableName, DruidTable table)
   {
-    if (serverView.getTimeline(tableName) != null) {
-      return table != null ? table : new DruidTable(TableDataSource.of(tableName), segmentWalker);
+    if (serverView.getTimeline(tableName) == null) {
+      table = null;
+    } else if (table == null) {
+      table = new DruidTable(TableDataSource.of(tableName), segmentWalker, multitenants.get(tableName));
     }
-    return null;
+    return table;
   }
 }

@@ -26,7 +26,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Key;
+import com.google.inject.multibindings.MapBinder;
 import com.google.inject.multibindings.Multibinder;
+import io.druid.common.utils.PropUtils;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
@@ -50,6 +52,7 @@ import io.druid.sql.calcite.planner.LuceneNearestFilterConversion;
 import io.druid.sql.calcite.planner.LuceneQueryFilterConversion;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
+import io.druid.sql.calcite.schema.MultiTenants;
 import io.druid.sql.calcite.view.NoopViewManager;
 import io.druid.sql.calcite.view.ViewManager;
 import io.druid.sql.http.ResultFormat;
@@ -92,6 +95,16 @@ public class SqlModule implements DruidModule
   {
     if (isEnabled()) {
       Calcites.setSystemProperties();
+
+      MapBinder<String, String> mt = MapBinder.newMapBinder(binder, String.class, String.class, MultiTenants.class);
+      for (Properties properties : PropUtils.loadProperties(SqlModule.class.getClassLoader(), "multitenants.properties")) {
+        for (String key : properties.stringPropertyNames()) {
+          String columnName = properties.getProperty(key);
+          if (columnName != null) {
+            mt.addBinding(key).toInstance(columnName);
+          }
+        }
+      }
 
       JsonConfigProvider.bind(binder, "druid.sql.planner", PlannerConfig.class);
       JsonConfigProvider.bind(binder, "druid.sql.avatica", AvaticaServerConfig.class);

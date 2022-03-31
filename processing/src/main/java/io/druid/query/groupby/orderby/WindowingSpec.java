@@ -365,7 +365,7 @@ public class WindowingSpec implements RowSignature.Evolving
     List<String> columns = Lists.newArrayList(schema);
     for (String expression : expressions) {
       String outputName = Frame.of(Evals.splitAssign(Parser.parse(expression))).getOutputName();
-      if (schema.indexOf(outputName) < 0) {
+      if (!schema.contains(outputName)) {
         columns.add(outputName);
       }
     }
@@ -442,7 +442,7 @@ public class WindowingSpec implements RowSignature.Evolving
   {
     return "WindowingSpec{" +
            "skipSorting=" + skipSorting +
-           ", partitionColumns=" + partitionColumns +
+           (GuavaUtils.isNullOrEmpty(partitionColumns) ? "" : ", partitionColumns=" + partitionColumns) +
            (GuavaUtils.isNullOrEmpty(sortingColumns) ? "" : ", sortingColumns=" + sortingColumns) +
            (inputLimit <= 0 ? "" : ", inputLimit=" + inputLimit) +
            (GuavaUtils.isNullOrEmpty(expressions) ? "" : ", expressions=" + expressions) +

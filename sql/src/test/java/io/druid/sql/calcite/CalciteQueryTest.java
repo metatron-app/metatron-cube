@@ -4895,8 +4895,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "5zDk6sHY2e2FWb9aBwPT/w==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}"
     );
 
     testQuery(
@@ -4914,8 +4914,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "8DxoLwZQ8GbJo68TKmrndA==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-999,1000), \"w0$o1\" = $SUM0(v0,-999,1000)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-999,1000), \"w0$o1\" = $SUM0(v0,-999,1000)]}], alias={v0=$1}}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-999,1000), \"w0$o1\" = $SUM0(v0,-999,1000)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-999,1000), \"w0$o1\" = $SUM0(v0,-999,1000)]}], alias={v0=$1}}}"
     );
 
     testQuery(
@@ -4933,8 +4933,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "8DxoLwZQ8GbJo68TKmrndA==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}"
     );
 
     testQuery(
@@ -4952,8 +4952,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "v6St6UxuI5CGWZXthVHWKQ==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-2147483647,0), \"w0$o1\" = $SUM0(v0,-2147483647,0)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-2147483647,0), \"w0$o1\" = $SUM0(v0,-2147483647,0)]}], alias={v0=$1}}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-2147483647,0), \"w0$o1\" = $SUM0(v0,-2147483647,0)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-2147483647,0), \"w0$o1\" = $SUM0(v0,-2147483647,0)]}], alias={v0=$1}}}"
     );
 
     testQuery(
@@ -4971,8 +4971,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "sSB/9kkHUQB3IcFT2Y+a9Q==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2147483647), \"w0$o1\" = $SUM0(v0,0,2147483647)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2147483647), \"w0$o1\" = $SUM0(v0,0,2147483647)]}], alias={v0=$1}}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,0,2147483647), \"w0$o1\" = $SUM0(v0,0,2147483647)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,0,2147483647), \"w0$o1\" = $SUM0(v0,0,2147483647)]}], alias={v0=$1}}}"
     );
   }
 
@@ -4995,8 +4995,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "5zDk6sHY2e2FWb9aBwPT/w==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,-1999,0), \"w0$o1\" = $SUM0(v0,-1999,0)]}], alias={v0=$1}}}"
     );
 
     testQuery(
@@ -5015,8 +5015,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "m2wpvHoGQUCK2DH0TOCg9g==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='case((\"w0$o0\" > 0),\"w0$o1\",'')', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', columns=[ShipDate, v0], virtualColumns=[ExprVirtualColumn{expression='CAST(Quantity, 'DOUBLE')', outputName='v0'}], orderingSpecs=[OrderByColumnSpec{dimension='ShipDate', direction=ascending}], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $COUNT(v0,0,2000), \"w0$o1\" = $SUM0(v0,0,2000)]}], alias={v0=$1}}}"
     );
   }
 
@@ -6393,8 +6393,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "C7IlX3FpuNwG7K448h3oAg==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $DELTA(Profit,-2147483647,2147483647)]}]}}', columns=[v0, Profit, w0$o0], virtualColumns=[ExprVirtualColumn{expression='DATETIME(__time)', outputName='v0'}]}",
-        "StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $DELTA(Profit,-2147483647,2147483647)]}]}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $DELTA(Profit,-2147483647,2147483647)]}]}}', columns=[v0, Profit, w0$o0], virtualColumns=[ExprVirtualColumn{expression='DATETIME(__time)', outputName='v0'}]}",
+        "StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $DELTA(Profit,-2147483647,2147483647)]}]}}"
     );
 
     // cannot use expression for over clause.. I don't know why
@@ -6420,8 +6420,8 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
     );
     hook.verifyHooked(
         "MFbMpK9WnWSXwnoJY9Mrkg==",
-        "StreamQuery{dataSource='StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}', columns=[v0, Profit, v1], virtualColumns=[ExprVirtualColumn{expression='DATETIME(__time)', outputName='v0'}, ExprVirtualColumn{expression='(Profit - \"w0$o0\")', outputName='v1'}]}",
-        "StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, partitionColumns=[], expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}"
+        "StreamQuery{dataSource='StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}', columns=[v0, Profit, v1], virtualColumns=[ExprVirtualColumn{expression='DATETIME(__time)', outputName='v0'}, ExprVirtualColumn{expression='(Profit - \"w0$o0\")', outputName='v1'}]}",
+        "StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}"
     );
   }
 }

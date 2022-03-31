@@ -221,20 +221,20 @@ public class LikeDimFilter extends SingleInput
     public Predicate<String> asPredicate()
     {
       if (pattern.equals(prefix)) {
-        return s -> s.equals(prefix);
+        return s -> s != null && s.equals(prefix);
       }
       List<Predicate<String>> predicates = Lists.newArrayList();
       if (prefix != null) {
         if (pattern.length() == prefix.length() + 1 && isLikePattern(pattern.charAt(pattern.length() - 1))) {
-          return s -> s.startsWith(prefix);
+          return s -> s != null && s.startsWith(prefix);
         }
-        predicates.add(s -> s.startsWith(prefix));
+        predicates.add(s -> s != null && s.startsWith(prefix));
       }
       if (suffix != null) {
         if (pattern.length() == suffix.length() + 1 && isLikePattern(pattern.charAt(0))) {
-          return s -> s.endsWith(suffix);
+          return s -> s != null && s.endsWith(suffix);
         }
-        predicates.add(s -> s.endsWith(suffix));
+        predicates.add(s -> s != null && s.endsWith(suffix));
       }
       if (prefix != null && suffix != null) {
         if (pattern.length() == prefix.length() + suffix.length() + 1 && isLikePattern(pattern.charAt(prefix.length()))) {
@@ -242,11 +242,11 @@ public class LikeDimFilter extends SingleInput
         }
       }
       for (String element : elements) {
-        predicates.add(s -> s.contains(element));
+        predicates.add(s -> s != null && s.contains(element));
       }
       if (regex != null) {
         Matcher matcher = Pattern.compile(regex, Pattern.DOTALL).matcher("");
-        predicates.add(s -> matcher.reset(s).matches());
+        predicates.add(s -> s != null && matcher.reset(s).matches());
       }
       return Predicates.and(predicates);
     }

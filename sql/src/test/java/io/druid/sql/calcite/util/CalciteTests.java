@@ -438,7 +438,8 @@ public class CalciteTests
     final DruidSchema schema = new DruidSchema(
         walker,
         new TestServerInventoryView(walker.getSegments()),
-        viewManager
+        viewManager,
+        ImmutableMap.of()
     );
 
     return schema;

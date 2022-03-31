@@ -17,35 +17,18 @@
  * under the License.
  */
 
-package io.druid.query.spec;
+package io.druid.sql.calcite.schema;
 
-import io.druid.query.SegmentDescriptor;
-import org.joda.time.Interval;
+import com.google.inject.BindingAnnotation;
 
-import java.util.Arrays;
-import java.util.List;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/**
- */
-public class QuerySegmentSpecs
+@BindingAnnotation
+@Target(ElementType.PARAMETER)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface MultiTenants
 {
-  public static QuerySegmentSpec create(String isoInterval)
-  {
-    return new LegacySegmentSpec(isoInterval);
-  }
-
-  public static QuerySegmentSpec create(Interval interval)
-  {
-    return create(Arrays.asList(interval));
-  }
-
-  public static QuerySegmentSpec create(List<Interval> intervals)
-  {
-    return new MultipleIntervalSegmentSpec(intervals);
-  }
-
-  public static QuerySegmentSpec create(SegmentDescriptor descriptor)
-  {
-    return new SpecificSegmentSpec(descriptor);
-  }
 }

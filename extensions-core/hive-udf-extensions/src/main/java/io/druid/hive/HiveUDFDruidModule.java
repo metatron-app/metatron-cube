@@ -22,24 +22,19 @@ package io.druid.hive;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.Multibinder;
-import io.druid.java.util.common.logger.Logger;
 import hivemall.anomaly.HivemallFunctions;
+import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.initialization.DruidModule;
-import io.druid.query.aggregation.AggregatorFactory;
-import org.apache.commons.io.IOUtils;
+import io.druid.java.util.common.logger.Logger;
+import io.druid.query.aggregation.AggregatorFactory.SQLBundle;
 import org.apache.hadoop.hive.ql.exec.FunctionInfo;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -79,11 +74,8 @@ public class HiveUDFDruidModule implements DruidModule
 
   public void bindFunctions(Binder binder, ClassLoader loader)
   {
-    final Multibinder<AggregatorFactory.SQLBundle> set = Multibinder.newSetBinder(
-        binder, AggregatorFactory.SQLBundle.class
-    );
-    Set<String> userDefind = Sets.newHashSet();
-    for (Properties properties : loadProperties(loader)) {
+    final Set<String> userDefind = Sets.newHashSet();
+    for (Properties properties : PropUtils.loadProperties(loader, "hive.function.properties")) {
       for (String name : properties.stringPropertyNames()) {
         String className = properties.getProperty(name);
         try {
@@ -100,13 +92,14 @@ public class HiveUDFDruidModule implements DruidModule
         }
       }
     }
+    final Multibinder<SQLBundle> set = Multibinder.newSetBinder(binder, SQLBundle.class);
     for (String name : HiveFunctions.getFunctionNames()) {
       try {
         FunctionInfo info = HiveFunctions.getFunctionInfo(name);
         if (info != null && info.isGenericUDAF()) {
           String registered = userDefind.contains(name) || name.startsWith("hive") ? name : "hive_" + name;
           HiveUDAFAggregatorFactory udaf = new HiveUDAFAggregatorFactory("<name>", Arrays.<String>asList(), name);
-          set.addBinding().toInstance(new AggregatorFactory.SQLBundle(registered, udaf));
+          set.addBinding().toInstance(new SQLBundle(registered, udaf));
           LOG.info("> hive UDAF '%s' is registered as %s", name, registered);
         }
       }
@@ -114,43 +107,5 @@ public class HiveUDFDruidModule implements DruidModule
         // ignore
       }
     }
-  }
-
-  private Iterable<Properties> loadProperties(ClassLoader loader)
-  {
-    final Enumeration<URL> resources;
-    try {
-      resources = loader.getResources("hive.function.properties");
-    }
-    catch (IOException e) {
-      return Arrays.asList();
-    }
-    final List<Properties> loaded = Lists.newArrayList();
-    while (resources.hasMoreElements()) {
-      final URL element = resources.nextElement();
-      try {
-        loaded.add(load(element.openStream()));
-      }
-      catch (IOException e) {
-        // ignore
-      }
-    }
-    return loaded;
-  }
-
-  private Properties load(InputStream resource)
-  {
-    Properties properties = new Properties();
-    try {
-      properties.load(resource);
-    }
-    catch (IOException e) {
-      LOG.warn(e, "Failed to load function resource.. ignoring");
-      return null;
-    }
-    finally {
-      IOUtils.closeQuietly(resource);
-    }
-    return properties;
   }
 }

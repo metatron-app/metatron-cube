@@ -75,7 +75,6 @@ public class DruidSchemaTest extends CalciteTestBase
   @Rule
   public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  private TestQuerySegmentWalker walker = null;
   private DruidSchema schema = null;
 
   @Before
@@ -110,7 +109,7 @@ public class DruidSchemaTest extends CalciteTestBase
                                               .rows(ROWS2)
                                               .buildMMappedIndex();
 
-    walker = TestHelper.newWalker().add(
+    TestQuerySegmentWalker walker = TestHelper.newWalker().add(
         DataSegment.builder()
                    .dataSource(CalciteTests.DATASOURCE1)
                    .interval(Intervals.of("2000/P1Y"))
@@ -140,7 +139,8 @@ public class DruidSchemaTest extends CalciteTestBase
     schema = new DruidSchema(
         walker,
         new TestServerInventoryView(walker.getSegments()),
-        new NoopViewManager()
+        new NoopViewManager(),
+        ImmutableMap.of()
     );
   }
 

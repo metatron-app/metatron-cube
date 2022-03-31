@@ -191,7 +191,8 @@ public class SystemSchemaTest extends CalciteTestBase
     druidSchema = new DruidSchema(
         walker,
         new TestServerInventoryView(walker.getSegments()),
-        new NoopViewManager()
+        new NoopViewManager(),
+        ImmutableMap.of()
     );
 
     schema = new SystemSchema(
