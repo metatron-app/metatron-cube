@@ -20,10 +20,10 @@
 package io.druid.query.aggregation.distinctcount;
 
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.collections.bitmap.WrappedRoaringBitmap;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.bitmap.WrappedRoaringBitmap;
 import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;

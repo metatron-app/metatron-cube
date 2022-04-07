@@ -19,26 +19,27 @@
 
 package io.druid.query.aggregation.distinctcount;
 
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.data.IndexedInts;
 
 public class DistinctCountAggregator implements Aggregator<MutableBitmap>
 {
+  private static final BitmapFactory DEFAULT_BITMAP_FACTORY = new RoaringBitmapFactory();
+
   private final DimensionSelector selector;
-  private final BitMapFactory bitMapFactory;
   private final ValueMatcher predicate;
 
   public DistinctCountAggregator(
       DimensionSelector selector,
-      BitMapFactory bitMapFactory,
       ValueMatcher predicate
   )
   {
     this.selector = selector;
-    this.bitMapFactory = bitMapFactory;
     this.predicate = predicate;
   }
 
@@ -47,7 +48,7 @@ public class DistinctCountAggregator implements Aggregator<MutableBitmap>
   {
     if (predicate.matches()) {
       if (current == null) {
-        current = bitMapFactory.makeEmptyMutableBitmap();
+        current = DEFAULT_BITMAP_FACTORY.makeEmptyMutableBitmap();
       }
       final IndexedInts row = selector.getRow();
       final int length = row.size();

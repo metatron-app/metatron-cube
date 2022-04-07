@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.io.Files;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
@@ -26,59 +27,96 @@ import io.druid.segment.bitmap.BitSetBitmapFactory;
 import io.druid.segment.bitmap.IntIterable;
 import io.druid.segment.bitmap.IntIterators;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
+import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import org.junit.Assert;
 import org.junit.Test;
 import org.roaringbitmap.IntIterator;
+import org.roaringbitmap.buffer.MutableRoaringBitmap;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.function.Function;
 
 public class BitmapTest
 {
   @Test
-  public void testOr()
+  public void testOr() throws IOException
   {
-    int range = 20_0000;
+    int range = 200_0000;
     Random r = new Random();
-    BitmapFactory f = new BitSetBitmapFactory();
-    ImmutableBitmap[] bitmaps = new ImmutableBitmap[1_0000];
-    for (int i = 0; i < bitmaps.length; i++) {
-      int c = r.nextInt(400) + 100;
-      MutableBitmap mutable = f.makeEmptyMutableBitmap();
-      for (int j = 0; j < c; j++) {
-        mutable.add(r.nextInt(range));
-      }
-      bitmaps[i] = f.makeImmutableBitmap(mutable);
-    }
-    long t = System.currentTimeMillis();
-    ImmutableBitmap u = f.union(Arrays.asList(bitmaps));
-    System.out.println("bitset(mod) took.. " + (System.currentTimeMillis() - t) + " msec");
-    int size = u.size();
 
-    f = new com.metamx.collections.bitmap.BitSetBitmapFactory();
-    t = System.currentTimeMillis();
-    f.union(Arrays.asList(bitmaps));  // invalid result..
-    System.out.println("bitset(org) took.. " + (System.currentTimeMillis() - t) + " msec");
-
-    f = new RoaringBitmapFactory();
+    int c1 = 0, c2 = 0, c3 = 0;
+    MutableRoaringBitmap[] bitmaps = new MutableRoaringBitmap[10_0000];
     for (int i = 0; i < bitmaps.length; i++) {
-      MutableBitmap mutable = f.makeEmptyMutableBitmap();
-      IntIterator iterators = bitmaps[i].iterator();
-      while (iterators.hasNext()) {
-        mutable.add(iterators.next());
+      int c = r.nextInt(12) + 3;
+      boolean x = r.nextInt(10) >= 9;
+      if (c >= 12) {
+        c1++;
+      } else if (x) {
+        c2++;
+      } else {
+        c3++;
       }
-      bitmaps[i] = f.makeImmutableBitmap(mutable);
+      bitmaps[i] = new MutableRoaringBitmap();
+      if (x) {
+        int s = r.nextInt(range - c);
+        bitmaps[i].add(s, s + c);
+      } else {
+        for (int j = 0; j < c; j++) {
+          bitmaps[i].add(r.nextInt(range));
+        }
+      }
     }
-    t = System.currentTimeMillis();
-    u = f.union(Arrays.asList(bitmaps));
-    System.out.println("roaring(mod) took.. " + (System.currentTimeMillis() - t) + " msec");
-    Assert.assertEquals(size, u.size());
+    System.out.printf("roaring %,d, range %,d, set %,d\n", c1, c2, c3);
+    BitmapFactory f;
+    ImmutableBitmap[] testor;
 
     f = new com.metamx.collections.bitmap.RoaringBitmapFactory();
-    t = System.currentTimeMillis();
-    u = f.union(Arrays.asList(bitmaps));
-    System.out.println("roaring(org) took.. " + (System.currentTimeMillis() - t) + " msec");
-    Assert.assertEquals(size, u.size());
+    testor = toMapped(bitmaps, m -> new com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap(m), f);
+
+    long t2 = System.currentTimeMillis();
+    ImmutableBitmap u2 = f.union(Arrays.asList(testor));
+    System.out.println("roaring(org) took.. " + (System.currentTimeMillis() - t2) + " msec");
+
+    f = new RoaringBitmapFactory();
+    testor = toMapped(bitmaps, m -> new WrappedImmutableRoaringBitmap(m), f);
+
+    long t1 = System.currentTimeMillis();
+    ImmutableBitmap u1 = f.union(Arrays.asList(testor));
+    System.out.println("roaring(mod) took.. " + (System.currentTimeMillis() - t1) + " msec");
+
+    Assert.assertEquals(u1.size(), u2.size());
+  }
+
+  private ImmutableBitmap[] toMapped(
+      MutableRoaringBitmap[] bitmaps,
+      Function<MutableRoaringBitmap, ImmutableBitmap> func,
+      BitmapFactory f
+  ) throws IOException
+  {
+    File file = File.createTempFile("__test", ".segment");
+    FileOutputStream out = new FileOutputStream(file);
+    ImmutableBitmap[] immutable = Arrays.stream(bitmaps).map(func).toArray(x -> new ImmutableBitmap[x]);
+    int[] offsets = new int[immutable.length + 1];
+    for (int i = 0; i < bitmaps.length; i++) {
+      byte[] bytes = immutable[i].toBytes();
+      out.write(bytes);
+      offsets[i + 1] = offsets[i] + bytes.length;
+    }
+    System.out.printf("length = %,d bytes%n", offsets[bitmaps.length]);
+    out.close();
+
+    ByteBuffer mapped = Files.map(file).asReadOnlyBuffer();
+    ImmutableBitmap[] testor = new ImmutableBitmap[bitmaps.length];
+    for (int i = 0; i < bitmaps.length; i++) {
+      ByteBuffer slice = ((ByteBuffer) mapped.limit(offsets[i + 1]).position(offsets[i])).slice();
+      testor[i] = f.mapImmutableBitmap(slice);
+    }
+    return testor;
   }
 
   @Test
@@ -106,9 +144,9 @@ public class BitmapTest
 
     f = new com.metamx.collections.bitmap.BitSetBitmapFactory();
     t = System.currentTimeMillis();
-    u = f.intersection(Arrays.asList(bitmaps));  // invalid result..
+    u = f.intersection(Arrays.asList(bitmaps));
     System.out.println("bitset(org) took.. " + (System.currentTimeMillis() - t) + " msec");
-//    Assert.assertEquals(size, u.size());
+//    Assert.assertEquals(size, u.size());    // invalid result..
 
     f = new RoaringBitmapFactory();
     for (int i = 0; i < bitmaps.length; i++) {
@@ -125,6 +163,14 @@ public class BitmapTest
     Assert.assertEquals(size, u.size());
 
     f = new com.metamx.collections.bitmap.RoaringBitmapFactory();
+    for (int i = 0; i < bitmaps.length; i++) {
+      MutableBitmap mutable = f.makeEmptyMutableBitmap();
+      IntIterator iterators = bitmaps[i].iterator();
+      while (iterators.hasNext()) {
+        mutable.add(iterators.next());
+      }
+      bitmaps[i] = f.makeImmutableBitmap(mutable);
+    }
     t = System.currentTimeMillis();
     u = f.intersection(Arrays.asList(bitmaps));
     System.out.println("roaring(org) took.. " + (System.currentTimeMillis() - t) + " msec");

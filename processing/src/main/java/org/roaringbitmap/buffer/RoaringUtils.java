@@ -19,20 +19,22 @@ package org.roaringbitmap.buffer;
 import io.druid.segment.bitmap.WrappedBitSetBitmap;
 import org.roaringbitmap.IntIterator;
 
-import java.nio.ShortBuffer;
+import java.nio.CharBuffer;
 import java.util.BitSet;
 
 // mostly for avoiding package local constrict of some methods
 public class RoaringUtils
 {
-  public static short highbits(int x)
+  // from org.roaringbitmap.buffer.BufferUtil
+  public static char highbits(int x)
   {
-    return (short) (x >>> 16);
+    return (char) (x >>> 16);
   }
 
-  public static short lowbits(int x)
+  // from org.roaringbitmap.buffer.BufferUtil
+  public static char lowbits(int x)
   {
-    return (short) (x & 0xFFFF);
+    return (char) x;
   }
 
   public static int getNumContainers(ImmutableRoaringBitmap bitmap)
@@ -45,12 +47,12 @@ public class RoaringUtils
     return bitmap.highLowContainer.getContainerPointer();
   }
 
-  public static void addContainer(MutableRoaringArray array, short key, BitSet values)
+  public static void addContainer(MutableRoaringArray array, char key, BitSet values)
   {
     addContainer(array, key, values, values.cardinality());
   }
 
-  public static void addContainer(MutableRoaringArray array, short key, BitSet values, int cardinality)
+  public static void addContainer(MutableRoaringArray array, char key, BitSet values, int cardinality)
   {
     array.append(key, container(values, cardinality));
   }
@@ -58,7 +60,7 @@ public class RoaringUtils
   private static MappeableContainer container(final BitSet bitSet, final int cardinality)
   {
     if (cardinality < MappeableArrayContainer.DEFAULT_MAX_SIZE) {
-      final ShortBuffer buffer = ShortBuffer.allocate(cardinality);
+      final CharBuffer buffer = CharBuffer.allocate(cardinality);
       final IntIterator iterator = WrappedBitSetBitmap.iterator(bitSet);
       while (iterator.hasNext()) {
         buffer.put(lowbits(iterator.next()));
@@ -70,5 +72,16 @@ public class RoaringUtils
       container.cardinality = cardinality;
       return container;
     }
+  }
+
+  public static void lazyor(MutableRoaringBitmap answer, ImmutableRoaringBitmap bitmap)
+  {
+    answer.naivelazyor(bitmap);
+  }
+
+  public static MutableRoaringBitmap repair(MutableRoaringBitmap answer)
+  {
+    answer.repairAfterLazy();
+    return answer;
   }
 }

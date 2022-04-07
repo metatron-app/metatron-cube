@@ -40,19 +40,16 @@ import java.util.List;
 public class DistinctCountAggregatorFactory extends AggregatorFactory
 {
   private static final byte CACHE_TYPE_ID = 20;
-  private static final BitMapFactory DEFAULT_BITMAP_FACTORY = new RoaringBitMapFactory();
 
   private final String name;
   private final String fieldName;
   private final String predicate;
-  private final BitMapFactory bitMapFactory;
 
   @JsonCreator
   public DistinctCountAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("predicate") String predicate,
-      @JsonProperty("bitmapFactory") BitMapFactory bitMapFactory
+      @JsonProperty("predicate") String predicate
   )
   {
     Preconditions.checkNotNull(name);
@@ -60,12 +57,6 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     this.name = name;
     this.fieldName = fieldName;
     this.predicate = predicate;
-    this.bitMapFactory = bitMapFactory == null ? DEFAULT_BITMAP_FACTORY : bitMapFactory;
-  }
-
-  public DistinctCountAggregatorFactory(String name, String fieldName, BitMapFactory bitMapFactory)
-  {
-    this(name, fieldName, null, bitMapFactory);
   }
 
   @Override
@@ -77,7 +68,6 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     } else {
       return new DistinctCountAggregator(
           selector,
-          bitMapFactory,
           ColumnSelectors.toMatcher(predicate, columnFactory)
       );
     }
@@ -158,12 +148,6 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     return fieldName;
   }
 
-  @JsonProperty("bitmapFactory")
-  public BitMapFactory getBitMapFactory()
-  {
-    return bitMapFactory;
-  }
-
   @Override
   @JsonProperty
   public String getName()
@@ -187,8 +171,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(CACHE_TYPE_ID)
-                  .append(fieldName)
-                  .append(bitMapFactory);
+                  .append(fieldName);
   }
 
   @Override

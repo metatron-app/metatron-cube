@@ -21,7 +21,6 @@ package io.druid.segment.data;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.data.HistogramBitmaps.FloatBitmaps;
@@ -78,7 +77,7 @@ public class FloatHistogramTest
   @Test
   public void testSame()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 5);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 5);
     for (int i = 0; i < 100; i++) {
       histogram.offer(100);
     }
@@ -88,7 +87,7 @@ public class FloatHistogramTest
   @Test
   public void testSame2()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 5);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 5);
     for (int i = 0; i < 5; i++) {
       histogram.offer(100);
     }
@@ -104,7 +103,7 @@ public class FloatHistogramTest
   @Test
   public void testMinMax()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 10);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 10);
     for (int i = 0; i < 4; i++) {
       histogram.offer(100);
     }
@@ -123,7 +122,7 @@ public class FloatHistogramTest
   @Test
   public void testMaxIncrease0()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 10);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 10);
     for (int i = 0; i < 10; i++) {
       histogram.offer(i);
       histogram.offer(i);
@@ -185,7 +184,7 @@ public class FloatHistogramTest
   @Test
   public void testMaxIncrease1()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 10);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 10);
     for (int i = 0; i < 10; i++) {
       histogram.offer(i);
       histogram.offer(i);
@@ -199,7 +198,7 @@ public class FloatHistogramTest
   @Test
   public void testMaxIncrease2()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 10);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 10);
     for (int i = 0; i < 10; i++) {
       histogram.offer(i);
       histogram.offer(i);
@@ -215,7 +214,7 @@ public class FloatHistogramTest
   @Test
   public void testMinDecrease1()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 10);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 10);
     for (int i = 10; i > 0; i--) {
       histogram.offer(i);
       histogram.offer(i);
@@ -229,7 +228,7 @@ public class FloatHistogramTest
   @Test
   public void testMinDecrease2()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 10);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 10);
     for (int i = 10; i > 0; i--) {
       histogram.offer(i);
       histogram.offer(i);
@@ -274,7 +273,7 @@ public class FloatHistogramTest
 
   private void runTest(int sample, int group, float[] breaks, int[] sizes)
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), sample);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), sample);
     for (float value : values) {
       histogram.offer(value);
     }
@@ -290,7 +289,7 @@ public class FloatHistogramTest
   @Test
   public void testCompact1()
   {
-    FloatHistogram histogram = new FloatHistogram(new ConciseBitmapFactory(), 100, 20, 10000);
+    FloatHistogram histogram = new FloatHistogram(new RoaringBitmapFactory(), 100, 20, 10000);
     for (int i = 10000; i <= 100000; i++) {
       histogram.offer(i);
     }
