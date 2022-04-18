@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -210,7 +209,13 @@ public class CSVInputRowParser implements InputRowParser.Streaming<Object>
         }
         Map<String, Object> merged = Rows.mergePartitions(event);
         try {
-          DateTime dateTime = Preconditions.checkNotNull(timestampSpec.extractTimestamp(merged));
+          DateTime dateTime = timestampSpec.extractTimestamp(merged);
+          if (dateTime == null) {
+            if (!ignoreInvalidRows) {
+              throw ParsingFail.propagate(merged, new IAE("timestamp is null"));
+            }
+            return null;
+          }
           return new MapBasedInputRow(dateTime, dimensions, merged);
         }
         catch (Exception e) {

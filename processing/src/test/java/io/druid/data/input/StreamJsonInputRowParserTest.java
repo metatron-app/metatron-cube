@@ -48,26 +48,31 @@ public class StreamJsonInputRowParserTest
     Map<String, Object> row2 = ImmutableMap.of(
         "deviceType", "mobile", "emailId", "abc@naver.com", "timeStamp", "2020-04-28 00:02:12", "totalTime", 20
     );
+    Map<String, Object> row3 = ImmutableMap.of(
+        "deviceType", "mobile", "emailId", "abc@hanmail.net", "totalTime", 10
+    );
     ObjectWriter writer = new DefaultObjectMapper().writerWithDefaultPrettyPrinter();
-    String multiLined = writer.writeValueAsString(row1) + "\n" + writer.writeValueAsString(row2);
+    String multiLined = writer.writeValueAsString(row1) + "\n" + writer.writeValueAsString(row2) + "\n" + writer.writeValueAsString(row3);
     ByteArrayInputStream input1 = new ByteArrayInputStream(multiLined.getBytes());
     StringReader input2 = new StringReader(multiLined);
 
     TimestampSpec timeStamp = new DefaultTimestampSpec("timeStamp", "yyyy-MM-dd HH:mm:ss", null);
     DimensionsSpec dimensionsSpec = DimensionsSpec.ofStringDimensions(dimensions);
-    StreamJsonInputRowParser parser = new StreamJsonInputRowParser(timeStamp, dimensionsSpec, false);
+    StreamJsonInputRowParser parser = new StreamJsonInputRowParser(timeStamp, dimensionsSpec, true);
 
     Assert.assertTrue(parser.accept(input1));
     List<InputRow> parsed = Lists.newArrayList(parser.parseStream(input1));
-    Assert.assertEquals(2, parsed.size());
+    Assert.assertEquals(3, parsed.size());
     Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:01:12"), dimensions, row1), parsed.get(0));
     Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:02:12"), dimensions, row2), parsed.get(1));
+    Assert.assertNull(parsed.get(2));
 
     Assert.assertTrue(parser.accept(input2));
     parsed = Lists.newArrayList(parser.parseStream(input2));
-    Assert.assertEquals(2, parsed.size());
+    Assert.assertEquals(3, parsed.size());
     Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:01:12"), dimensions, row1), parsed.get(0));
     Assert.assertEquals(new MapBasedInputRow(new DateTime("2020-04-28T00:02:12"), dimensions, row2), parsed.get(1));
+    Assert.assertNull(parsed.get(2));
   }
 
   @Test

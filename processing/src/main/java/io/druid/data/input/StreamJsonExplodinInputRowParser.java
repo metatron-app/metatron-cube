@@ -24,13 +24,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.java.util.common.IAE;
 import io.druid.utils.Runnables;
 import org.joda.time.DateTime;
 
@@ -110,16 +112,29 @@ public class StreamJsonExplodinInputRowParser extends StreamJsonInputRowParser
           final List<Runnable> exploding = iterate(node, Lists.newArrayList());
           final Map<String, Object> merged = Rows.mergePartitions(node);
           if (exploding.isEmpty()) {
-            DateTime dateTime = Preconditions.checkNotNull(timestampSpec.extractTimestamp(merged));
+            final DateTime dateTime = timestampSpec.extractTimestamp(merged);
+            if (dateTime == null) {
+              if (!ignoreInvalidRows) {
+                throw ParsingFail.propagate(merged, new IAE("timestamp is null"));
+              }
+              return Iterators.emptyIterator();
+            }
             return Arrays.<InputRow>asList(new MapBasedInputRow(dateTime, dimensions, merged)).iterator();
           }
-          return Iterators.transform(exploding.iterator(), (Runnable explode) -> {
+          Iterator<InputRow> exploded = Iterators.transform(exploding.iterator(), (Runnable explode) -> {
             explode.run();
-            DateTime dateTime = Preconditions.checkNotNull(timestampSpec.extractTimestamp(merged));
-            return new MapBasedInputRow(dateTime, dimensions, merged);
+            final DateTime dateTime = timestampSpec.extractTimestamp(merged);
+            if (dateTime == null) {
+              if (!ignoreInvalidRows) {
+                throw ParsingFail.propagate(merged, new IAE("timestamp is null"));
+              }
+              return null;
+            }
+            return new MapBasedInputRow(dateTime, dimensions, Maps.newHashMap(merged));
           });
+          return Iterators.filter(exploded, Predicates.notNull());
         }
-        catch (IOException e) {
+        catch (Exception e) {
           if (!ignoreInvalidRows) {
             throw ParsingFail.propagate(node, e);
           }

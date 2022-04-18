@@ -26,11 +26,11 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Preconditions;
 import io.druid.data.ParsingFail;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import org.joda.time.DateTime;
 
@@ -134,7 +134,13 @@ public class StreamJsonInputRowParser implements InputRowParser.Streaming<Object
           event = parser.readValueAs(REF);
           token = parser.nextToken();
           Map<String, Object> merged = Rows.mergePartitions(event);
-          DateTime dateTime = Preconditions.checkNotNull(timestampSpec.extractTimestamp(merged));
+          DateTime dateTime = timestampSpec.extractTimestamp(merged);
+          if (dateTime == null) {
+            if (!ignoreInvalidRows) {
+              throw ParsingFail.propagate(merged, new IAE("timestamp is null"));
+            }
+            return null;
+          }
           return new MapBasedInputRow(dateTime, dimensions, merged);
         }
         catch (IOException e) {
