@@ -19,6 +19,7 @@
 package io.druid.data.input.parquet;
 
 import io.druid.indexer.HadoopDruidIndexerConfig;
+import io.druid.segment.indexing.DataSchema;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -37,6 +38,7 @@ import java.util.Arrays;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 public class HiveParquetInputFormatTest
 {
@@ -55,23 +57,41 @@ public class HiveParquetInputFormatTest
     Path path = new Path(testFile.getAbsoluteFile().toURI());
     FileSplit split = new FileSplit(path, 0, testFile.length(), null);
 
-    InputFormat inputFormat = ReflectionUtils.newInstance(HiveParquetInputFormat.class, job.getConfiguration());
+    @SuppressWarnings("unchecked")
+    InputFormat<?, Map<String, Object>> inputFormat = ReflectionUtils.newInstance(
+        HiveParquetInputFormat.class, job.getConfiguration()
+    );
 
     TaskAttemptContext context = new TaskAttemptContextImpl(job.getConfiguration(), new TaskAttemptID());
-    RecordReader reader = inputFormat.createRecordReader(split, context);
-
+    RecordReader<?, Map<String, Object>> reader = inputFormat.createRecordReader(split, context);
     reader.initialize(split, context);
-
     reader.nextKeyValue();
 
-    Map<String, Object> data = (Map<String, Object>) reader.getCurrentValue();
+    Map<String, Object> data = reader.getCurrentValue();
+    assertEquals(7, data.size());
 
     // field not read, should return null
-    assertEquals(data.get("added"), null);
+    assertNull(data.get("added"));
 
-    assertEquals(data.get("page"), "Gypsy Danger");
+    assertEquals(200L, data.get("deleted"));
+    assertEquals(-143L, data.get("delta"));
+    assertEquals(Arrays.asList("en", "zh"), data.get("language"));
+    assertEquals("Gypsy Danger", data.get("page"));
+    assertEquals("2013-08-31T01:02:33Z", data.get("timestamp"));
+    assertEquals("true", data.get("unpatrolled"));
+    assertEquals("nuclear", data.get("user"));
 
-    assertEquals(data.get("language"), Arrays.asList("en", "zh"));
+    reader.close();
+
+    // explicit required columns
+    job.getConfiguration().set(DataSchema.REQUIRED_COLUMNS, "not-exists,deleted,language,page");
+
+    reader = inputFormat.createRecordReader(split, context);
+    reader.initialize(split, context);
+    reader.nextKeyValue();
+
+    data = reader.getCurrentValue();
+    assertEquals(3, data.size());
 
     reader.close();
   }

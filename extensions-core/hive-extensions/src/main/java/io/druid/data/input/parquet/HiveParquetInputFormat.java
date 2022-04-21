@@ -54,15 +54,18 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 
-// uses parquet in hive, not like parquet-extension
+// uses parquet in hive, not like one in parquet-extension (DruidParquetInputFormat)
 public class HiveParquetInputFormat extends ParquetInputFormat
 {
   public static final String COLUMNS_AS_LOWERCASE = "parquet.columns.as.lowercase";
 
   private static final Logger LOG = new Logger(HiveParquetInputFormat.class);
 
+  @SuppressWarnings("unchecked")
   public HiveParquetInputFormat()
   {
     super(ArrayToMap.class);
@@ -111,12 +114,19 @@ public class HiveParquetInputFormat extends ParquetInputFormat
       final List<Type> fields = MessageTypeParser.parseMessageType(schema).getFields();
       LOG.info("Reading parquet fields : %s", fields);
 
+      final List<String> fieldNames = Lists.newArrayList();
+      final List<Function<Writable, Object>> extractors = Lists.newArrayList();
+      for (Type field : fields) {
+        fieldNames.add(asLowercase(field.getName(), lowercase));
+        extractors.add(extract(field));
+      }
+
       return new RecordMaterializer<Map<String, Object>>()
       {
         @Override
         public Map<String, Object> getCurrentRecord()
         {
-          return parseStruct(materializer.getCurrentRecord().get(), fields, lowercase);
+          return parseStruct(materializer.getCurrentRecord().get(), fieldNames, extractors);
         }
 
         @Override
@@ -133,70 +143,89 @@ public class HiveParquetInputFormat extends ParquetInputFormat
     return lowercase ? value.toLowerCase() : value;
   }
 
-  private static Map<String, Object> parseStruct(Writable[] values, List<Type> fields, boolean lowercase)
+  private static Map<String, Object> parseStruct(
+      final Writable[] values,
+      final List<String> fieldNames,
+      final List<Function<Writable, Object>> extractors
+  )
   {
     final Map<String, Object> event = Maps.newLinkedHashMap();
     for (int i = 0; i < values.length; i++) {
-      Type field = fields.get(i);
-      event.put(asLowercase(field.getName(), lowercase), extract(field, values[i]));
+      event.put(fieldNames.get(i), extractors.get(i).apply(values[i]));
     }
     return event;
   }
 
-  private static Object extract(Type field, Writable source)
+  private static Function<Writable, Object> extract(Type field)
   {
-    if (source == null) {
-      return null;
-    }
     final OriginalType originalType = field.getOriginalType();
     if (originalType != null) {
       switch (originalType) {
         case UTF8:
-          return source.toString();
+          return w -> Objects.toString(w, null);
         case DATE:
-          return ((DateWritable) source).get().getTime();
+          return w -> w == null ? null : ((DateWritable) w).get().getTime();
         case DECIMAL:
-          final HiveDecimalWritable decimal = (HiveDecimalWritable) source;
-          return new BigDecimal(new BigInteger(decimal.getInternalStorage()), decimal.getScale());
+          return w -> {
+            if (w == null) {
+              return null;
+            }
+            final HiveDecimalWritable decimal = (HiveDecimalWritable) w;
+            return new BigDecimal(new BigInteger(decimal.getInternalStorage()), decimal.getScale());
+          };
         case LIST:
-          final ArrayWritable eArray = (ArrayWritable) source;
           final GroupType eType = field.asGroupType().getFields().get(0).asGroupType();
-          final List<Object> list = Lists.newArrayList();
-          for (Writable element : eArray.get()) {
-            list.add(extract(eType.getType(0), element));
-          }
-          return list;
+          final Function<Writable, Object> e = extract(eType.getType(0));
+          return w -> {
+            if (w == null) {
+              return null;
+            }
+            final Writable[] eArray = ((ArrayWritable) w).get();
+            final List<Object> list = Lists.newArrayListWithExpectedSize(eArray.length);
+            for (Writable element : eArray) {
+              list.add(e.apply(element));
+            }
+            return list;
+          };
         case MAP:
-          final ArrayWritable kvArray = (ArrayWritable) source;
           final GroupType kvType = field.asGroupType().getFields().get(0).asGroupType();
-          final Map<Object, Object> map = Maps.newLinkedHashMap();
-          for (Writable element : kvArray.get()) {
-            Writable[] kv = ((ArrayWritable) element).get();
-            map.put(extract(kvType.getType(0), kv[0]), extract(kvType.getType(1), kv[1]));
-          }
-          return map;
+          final Function<Writable, Object> ke = extract(kvType.getType(0));
+          final Function<Writable, Object> ve = extract(kvType.getType(1));
+          return w -> {
+            if (w == null) {
+              return null;
+            }
+            final Writable[] kvArray = ((ArrayWritable) w).get();
+            final Map<Object, Object> map = Maps.newLinkedHashMap();
+            for (Writable element : kvArray) {
+              final Writable[] kv = ((ArrayWritable) element).get();
+              map.put(ke.apply(kv[0]), ve.apply(kv[1]));
+            }
+            return map;
+          };
       }
     }
     if (field.isPrimitive()) {
       final PrimitiveType primitive = field.asPrimitiveType();
       switch (primitive.getPrimitiveTypeName()) {
         case INT64:
-          return ((LongWritable) source).get();
+          return w -> w == null ? null : ((LongWritable) w).get();
         case INT32:
-          return ((IntWritable) source).get();
+          return w -> w == null ? null : ((IntWritable) w).get();
         case BOOLEAN:
-          return ((BooleanWritable) source).get();
+          return w -> w == null ? null : ((BooleanWritable) w).get();
         case BINARY:
         case FIXED_LEN_BYTE_ARRAY:
-          return ((BytesWritable) source).getBytes();
+          return w -> w == null ? null : ((BytesWritable) w).getBytes();
         case FLOAT:
-          return ((FloatWritable) source).get();
+          return w -> w == null ? null : ((FloatWritable) w).get();
         case DOUBLE:
-          return ((DoubleWritable) source).get();
+          return w -> w == null ? null : ((DoubleWritable) w).get();
         case INT96:
-          return ((TimestampWritable) source).getTimestamp().getTime();
+          return w -> w == null ? null : ((TimestampWritable) w).getTimestamp().getTime();
       }
     }
-    return null;
+    LOG.warn("Not supported type [%s], ignoring..", field.toString());
+    return w -> null;
   }
 }
