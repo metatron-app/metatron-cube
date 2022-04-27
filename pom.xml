@@ -107,7 +107,8 @@
         <calcite.version>1.21.0</calcite.version>
         <!-- HttpClient has not yet been ported to Netty 4.x -->
         <netty3.version>3.10.6.Final</netty3.version>
-        <netty.version>4.1.11.Final</netty.version>
+        <netty.version>4.1.29.Final</netty.version>
+        <async.httpclient.version>2.5.3</async.httpclient.version>
 
         <fmpp.version>0.9.16</fmpp.version>
         <freemarker.version>2.3.28</freemarker.version>
@@ -720,7 +721,7 @@
             <dependency>
                 <groupId>org.asynchttpclient</groupId>
                 <artifactId>async-http-client</artifactId>
-                <version>2.0.37</version>
+                <version>${async.httpclient.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.gridkit.lab</groupId>
