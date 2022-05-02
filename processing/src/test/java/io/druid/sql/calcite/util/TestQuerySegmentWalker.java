@@ -81,6 +81,7 @@ import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
@@ -119,6 +120,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   private static final Logger LOG = new Logger(TestQuerySegmentWalker.class);
 
   private final ObjectMapper mapper;
+  private final IndexIO indexIO;
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ExecutorService executor;
   private final QueryConfig queryConfig;
@@ -219,13 +221,15 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                 index.add(inputRow);
               }
               for (Map.Entry<Long, IncrementalIndex> entry : indices.entrySet()) {
-                Interval interval = new Interval(entry.getKey(), granularity.bucketEnd(entry.getKey()));
+                Long instant = entry.getKey();
+                IncrementalIndex index = entry.getValue();
+                Interval interval = new Interval(instant, granularity.bucketEnd(entry.getKey()));
                 DataSegment segmentSpec = new DataSegment(
                     ds, interval, "0", null, schema.getDimensionNames(), schema.getMetricNames(), null, null, 0
                 );
                 Segment segment = mmapped ? new QueryableIndexSegment(
-                    TestHelper.persistRealtimeAndLoadMMapped(entry.getValue(), schema.getIndexingSpec()), segmentSpec) :
-                                  new IncrementalIndexSegment(entry.getValue(), segmentSpec);
+                    TestHelper.persistRealtimeAndLoadMMapped(index, schema.getIndexingSpec(), indexIO), segmentSpec) :
+                                  new IncrementalIndexSegment(index, segmentSpec);
                 segments.add(Pair.of(segmentSpec, segment));
               }
             }
@@ -376,6 +380,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
   )
   {
     this.mapper = mapper;
+    this.indexIO = new IndexIO(mapper);
     this.conglomerate = conglomerate;
     this.executor = executor;
     this.queryConfig = conglomerate.getConfig();
@@ -442,7 +447,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
     duplicate.node2.putAll(timeLines.node2);
     duplicate.populators.putAll(timeLines.populators);
     return new TestQuerySegmentWalker(
-        mapper,
+        mapper.copy(),
         TestHelper.newConglometator(),
         executor,
         duplicate,

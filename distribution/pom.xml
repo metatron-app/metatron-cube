@@ -117,7 +117,13 @@
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-kafka-indexing-service</argument>
                                 <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-geometry-extensions</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-lucene-common</argument>
+                                <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-lucene-extensions</argument>
+                                <argument>-c</argument>
+                                <argument>app.metatron.extensions:druid-lucene8-extensions</argument>
                                 <argument>-c</argument>
                                 <argument>app.metatron.extensions:druid-median</argument>
                                 <argument>-c</argument>

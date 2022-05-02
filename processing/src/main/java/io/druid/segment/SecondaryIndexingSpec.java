@@ -23,18 +23,23 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.ValueDesc;
 import io.druid.segment.bitmap.BitSetInvertedIndexingSpec;
-import io.druid.segment.lucene.LuceneIndexingSpec;
+
+import java.util.Map;
 
 /**
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "histogram", value = HistogramIndexingSpec.class),
-    @JsonSubTypes.Type(name = "lucene", value = LuceneIndexingSpec.class),
     @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmapSpec.class),
     @JsonSubTypes.Type(name = "bitsetInverted", value = BitSetInvertedIndexingSpec.class),
 })
 public interface SecondaryIndexingSpec
 {
   MetricColumnSerializer serializer(String columnName, ValueDesc type);
+
+  interface WithDescriptor extends SecondaryIndexingSpec
+  {
+    Map<String, String> descriptor(String column);
+  }
 }

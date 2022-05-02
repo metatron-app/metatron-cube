@@ -22,7 +22,6 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
@@ -41,7 +40,6 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedVSizedIntSupplier;
 import io.druid.segment.data.CumulativeBitmapWriter;
-import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
@@ -50,10 +48,6 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizedIndexedInt;
 import io.druid.segment.data.VSizedInt;
 import io.druid.segment.data.WritableSupplier;
-import org.apache.lucene.store.DataInput;
-import org.apache.lucene.store.LuceneIndexInput;
-import org.apache.lucene.util.fst.FST;
-import org.apache.lucene.util.fst.PositiveIntOutputs;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -462,68 +456,27 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           rFlags = buffer.getInt();
         }
 
-        ColumnPartProvider<Dictionary<String>> rDictionary;
-        ColumnPartProvider<FST<Long>> rFST = null;
-        if (Feature.NO_DICTIONARY.isSet(rFlags)) {
-          rDictionary = null;
-        } else {
-          rDictionary = StringMetricSerde.deserializeDictionary(buffer, ObjectStrategy.STRING_STRATEGY);
+        builder.setType(ValueDesc.STRING);
+
+        if (!Feature.NO_DICTIONARY.isSet(rFlags)) {
+          builder.setDictionary(StringMetricSerde.deserializeDictionary(buffer, ObjectStrategy.STRING_STRATEGY));
           if (Feature.FST.isSet(rFlags)) {
-            final ByteBuffer block = ByteBufferSerializer.prepareForRead(buffer);
-            rFST = new ColumnPartProvider<FST<Long>>()
-            {
-              @Override
-              public int numRows()
-              {
-                return rDictionary.numRows();
-              }
-
-              @Override
-              public long getSerializedSize()
-              {
-                return block.remaining();
-              }
-
-              @Override
-              public FST<Long> get()
-              {
-                DataInput input = LuceneIndexInput.newInstance("FST", block.slice(), block.remaining());  // slice !
-                try {
-                  // keep in heap.. need to upgrade lucene 8.x to avoid this
-                  return new FST<>(input, PositiveIntOutputs.getSingleton());
-                }
-                catch (Exception e) {
-                  throw Throwables.propagate(e);
-                }
-              }
-            };
+            ColumnPartSerde serde = null;
+            if (serde != null) {
+              serde.getDeserializer().read(buffer, builder, serdeFactory);
+            }
           }
         }
 
         final boolean hasMultipleValues = Feature.hasAny(rFlags, Feature.MULTI_VALUE, Feature.MULTI_VALUE_V3);
         final boolean compressed = rVersion == VERSION.LEGACY_COMPRESSED && !Feature.UNCOMPRESSED.isSet(rFlags);
 
-        final ColumnPartProvider<IndexedInts> rSingleValuedColumn;
-        final ColumnPartProvider<IndexedMultivalue<IndexedInts>> rMultiValuedColumn;
-
         if (hasMultipleValues) {
-          rMultiValuedColumn = readMultiValuedColumn(buffer, rFlags, compressed);
-          rSingleValuedColumn = null;
+          builder.setHasMultipleValues(hasMultipleValues)
+                 .setMultiValuedColumn(readMultiValuedColumn(buffer, rFlags, compressed));
         } else {
-          rSingleValuedColumn = readSingleValuedColumn(buffer, compressed);
-          rMultiValuedColumn = null;
+          builder.setSingleValuedColumn(readSingleValuedColumn(buffer, compressed));
         }
-
-        builder.setType(ValueDesc.STRING)
-               .setHasMultipleValues(hasMultipleValues)
-               .setDictionaryEncodedColumn(
-                   new DictionaryEncodedColumnSupplier(
-                       rDictionary,
-                       rFST,
-                       rSingleValuedColumn,
-                       rMultiValuedColumn
-                   )
-               );
 
         ObjectStrategy<ImmutableBitmap> strategy = bitmapSerdeFactory.getObjectStrategy();
         GenericIndexed<ImmutableBitmap> rBitmaps = GenericIndexed.read(buffer, strategy);
@@ -542,7 +495,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             new BitmapIndexColumnPartSupplier(
                 bitmapSerdeFactory.getBitmapFactory(),
                 rBitmaps,
-                rDictionary,
+                builder.getDictionary(),
                 cumulativeThresholds,
                 cumulativeBitmaps
             )

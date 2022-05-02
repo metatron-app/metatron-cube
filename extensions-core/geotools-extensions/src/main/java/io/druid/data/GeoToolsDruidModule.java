@@ -38,8 +38,6 @@ public class GeoToolsDruidModule implements DruidModule
     return Arrays.<Module>asList(
         new SimpleModule("GeoToolsDruidModule")
             .registerSubtypes(GeoToolsFunctions.class)
-            .registerSubtypes(ConstantQuery.class)
-            .registerSubtypes(EnvelopeAggregatorFactory.class)
             .registerSubtypes(ShapeFileResolver.class)
     );
   }

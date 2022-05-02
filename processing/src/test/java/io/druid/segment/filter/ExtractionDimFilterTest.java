@@ -40,10 +40,6 @@ import io.druid.segment.bitmap.RoaringBitmapFactory;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.HistogramBitmap;
-import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.Dictionary;
@@ -53,7 +49,6 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.data.VSizedInt;
 import io.druid.segment.serde.BitmapIndexColumnPartSupplier;
-import io.druid.segment.serde.DictionaryEncodedColumnSupplier;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -93,8 +88,8 @@ public class ExtractionDimFilterTest
     );
     Column column = new ColumnBuilder().setType(ValueDesc.STRING)
                                        .setBitmapIndex(bitmaps)
-                                       .setDictionaryEncodedColumn(
-                                           new DictionaryEncodedColumnSupplier(dictionary, null, values, null))
+                                       .setDictionary(dictionary)
+                                       .setSingleValuedColumn(values)
                                        .build("foo");
 
     BitmapIndexSelector selector = new BitmapIndexSelector()
@@ -131,30 +126,6 @@ public class ExtractionDimFilterTest
 
       @Override
       public ImmutableRTree getSpatialIndex(String dimension)
-      {
-        return null;
-      }
-
-      @Override
-      public LuceneIndex getLuceneIndex(String dimension)
-      {
-        return null;
-      }
-
-      @Override
-      public HistogramBitmap getMetricBitmap(String dimension)
-      {
-        return null;
-      }
-
-      @Override
-      public BitSlicedBitmap getBitSlicedBitmap(String dimension)
-      {
-        return null;
-      }
-
-      @Override
-      public ColumnCapabilities getCapabilities(String dimension)
       {
         return null;
       }

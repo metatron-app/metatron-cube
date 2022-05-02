@@ -25,12 +25,10 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.filter.LucenePointFilter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.bitmap.RoaringBitmapFactory;
 import org.junit.Assert;
@@ -58,19 +56,6 @@ public class FiltersTest
 
     DimFilter cnf = DimFilters.convertToCNF(DimFilters.or(DimFilters.and(dim1, dim2), dim3));
     assertEquals(DimFilters.and(DimFilters.or(dim3, dim1), DimFilters.or(dim3, dim2)), cnf);
-  }
-
-  @Test
-  public void testCNFComplex()
-  {
-    DimFilter dim1 = BoundDimFilter.gt("market", "a");
-    DimFilter dim2 = BoundDimFilter.lt("market", "b");
-    DimFilter dim3 = LucenePointFilter.bbox("l.c", new double[] {1, 2}, new double[] {3, 4});
-    DimFilter dim4 = LucenePointFilter.bbox("l.c", new double[] {1.1, 1.2}, new double[] {3.1, 4.1});
-    DimFilter complex = DimFilters.and(dim1, DimFilters.and(dim2, DimFilters.or(dim3, dim4)));
-
-    DimFilter expected = DimFilters.and(dim1, dim2, DimFilters.or(dim3, dim4));
-    Assert.assertEquals(expected, DimFilters.convertToCNF(complex));
   }
 
   @Test

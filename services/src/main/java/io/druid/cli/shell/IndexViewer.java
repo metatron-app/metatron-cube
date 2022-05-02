@@ -55,6 +55,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.FSTHolder;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -64,7 +65,6 @@ import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.segment.loading.StorageLocationConfig;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
-import org.apache.lucene.util.fst.FST;
 import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
@@ -496,9 +496,9 @@ public class IndexViewer extends CommonShell.WithUtils
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         Dictionary<String> dictionary = dictionaryEncoded.dictionary();
-        FST<Long> fst = dictionaryEncoded.getFST();
+        FSTHolder fst = dictionaryEncoded.getFST();
         long dictionarySize = cuboidSpec == null ? dictionary.getSerializedSize() : 0;
-        long fstSize = fst == null ? 0 : fst.ramBytesUsed();  // todo
+        long fstSize = fst == null ? 0 : fst.occupation();  // todo
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = Objects.toString(dictionary.containsNull(), "unknown");
         if (cuboidSpec == null) {

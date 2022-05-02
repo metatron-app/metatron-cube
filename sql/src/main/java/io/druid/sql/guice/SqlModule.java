@@ -48,8 +48,6 @@ import io.druid.sql.calcite.expression.builtin.EvalOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LookupOperatorConversion;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
-import io.druid.sql.calcite.planner.LuceneNearestFilterConversion;
-import io.druid.sql.calcite.planner.LuceneQueryFilterConversion;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.MultiTenants;
@@ -136,9 +134,6 @@ public class SqlModule implements DruidModule
       SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_int", SqlTypeName.INTEGER));
       SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_long", SqlTypeName.BIGINT));
       SqlBindings.addOperatorConversion(binder, EvalOperatorConversion.of("eval_string", SqlTypeName.VARCHAR));
-
-      SqlBindings.addDimFilterConversion(binder, LuceneQueryFilterConversion.class);
-      SqlBindings.addDimFilterConversion(binder, LuceneNearestFilterConversion.class);
 
       binder.bind(DruidOperatorTable.class).in(LazySingleton.class);
 

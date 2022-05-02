@@ -22,14 +22,22 @@ package io.druid.query;
 import com.google.common.collect.ImmutableMap;
 import io.druid.query.filter.LucenePointFilter;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.segment.LuceneTestRunner;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
-public class PointFilterRewriteTest extends GeoToolsTestHelper
+public class PointFilterRewriteTest extends LuceneTestRunner
 {
+  @Override
+  protected TestQuerySegmentWalker segmentWalker()
+  {
+    return GeoToolsTestHelper.segmentWalker;
+  }
+
   @Test
   public void testPointFilter()
   {

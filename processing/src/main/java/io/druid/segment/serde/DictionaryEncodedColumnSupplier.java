@@ -21,24 +21,37 @@ package io.druid.segment.serde;
 
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.FSTHolder;
 import io.druid.segment.column.SimpleDictionaryEncodedColumn;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
-import org.apache.lucene.util.fst.FST;
 
 /**
 */
 public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.DictionarySupport
 {
+  public static class Builder
+  {
+    public ColumnPartProvider<Dictionary<String>> dictionary;
+    public ColumnPartProvider<FSTHolder> fst;
+    public ColumnPartProvider<IndexedInts> singleValuedColumn;
+    public ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
+
+    public DictionaryEncodedColumnSupplier build()
+    {
+      return dictionary == null ? null : new DictionaryEncodedColumnSupplier(dictionary, fst, singleValuedColumn, multiValuedColumn);
+    }
+  }
+
   private final ColumnPartProvider<Dictionary<String>> dictionary;
-  private final ColumnPartProvider<FST<Long>> fst;
+  private final ColumnPartProvider<FSTHolder> fst;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
 
   public DictionaryEncodedColumnSupplier(
       ColumnPartProvider<Dictionary<String>> dictionary,
-      ColumnPartProvider<FST<Long>> fst,
+      ColumnPartProvider<FSTHolder> fst,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
       ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn
   )
@@ -62,7 +75,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   }
 
   @Override
-  public FST<Long> getFST()
+  public FSTHolder getFST()
   {
     return fst.get();
   }

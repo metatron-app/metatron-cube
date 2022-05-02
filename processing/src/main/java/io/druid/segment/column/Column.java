@@ -61,7 +61,7 @@ public interface Column
   SpatialIndex getSpatialIndex();
   HistogramBitmap getMetricBitmap();
   BitSlicedBitmap getBitSlicedBitmap();
-  LuceneIndex getLuceneIndex();
+  <T extends SecondaryIndex> T getSecondaryIndex();
 
   long getSerializedSize(EncodeType encodeType);
 

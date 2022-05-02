@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -138,6 +139,14 @@ public class RowSignature implements io.druid.data.RowSignature
           }
         }
       }
+    }
+    return null;
+  }
+
+  public Pair<String, ValueDesc> ordinal(int ix)
+  {
+    if (ix < columnNames.size()) {
+      return Pair.of(columnNames.get(ix), columnTypes.get(ix));
     }
     return null;
   }

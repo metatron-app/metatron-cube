@@ -147,7 +147,6 @@ public class TestIndex
     mergedRealtimeIndex();
     addSalesIndex();
     addCategoryAliasIndex();
-    addEstateIndex();
     addTpch();
     addSsb();
   }
@@ -198,12 +197,6 @@ public class TestIndex
   private static void addCategoryAliasIndex()
   {
     segmentWalker.addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
-  }
-
-  private static void addEstateIndex()
-  {
-    segmentWalker.addIndex("estate", "estate_schema.json", "estate.csv", true);
-    segmentWalker.addIndex("estate_incremental", "estate_schema.json", "estate.csv", false);
   }
 
   private static void addTpch()

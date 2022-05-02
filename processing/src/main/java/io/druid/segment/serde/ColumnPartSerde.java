@@ -26,7 +26,6 @@ import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitSlicedBitmaps;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.HistogramBitmaps;
-import io.druid.segment.lucene.LuceneIndexingSpec;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -43,7 +42,6 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "long", value = LongGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "string", value = StringColumnPartSerde.class),
     @JsonSubTypes.Type(name = "stringDictionary", value = DictionaryEncodedColumnPartSerde.class),
-    @JsonSubTypes.Type(name = "lucene", value = LuceneIndexingSpec.SerDe.class),
     @JsonSubTypes.Type(name = "histogram", value = HistogramBitmaps.SerDe.class),
     @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmaps.SerDe.class),
     @JsonSubTypes.Type(name = "boolean", value = BooleanColumnPartSerde.class),

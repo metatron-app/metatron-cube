@@ -33,6 +33,7 @@ import java.util.List;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = LegacySegmentSpec.class)
 @JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "legacy", value = LegacySegmentSpec.class),
     @JsonSubTypes.Type(name = "intervals", value = MultipleIntervalSegmentSpec.class),
     @JsonSubTypes.Type(name = "segments", value = MultipleSpecificSegmentSpec.class),
     @JsonSubTypes.Type(name = "segment", value = SpecificSegmentSpec.class),

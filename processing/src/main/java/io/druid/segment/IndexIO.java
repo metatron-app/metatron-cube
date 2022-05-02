@@ -59,11 +59,9 @@ import io.druid.java.util.common.io.smoosh.SmooshedWriter;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.EmittingLogger;
 import io.druid.query.filter.DimFilters;
-import io.druid.segment.ColumnPartProvider.DictionarySupport;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.data.ArrayIndexed;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -87,7 +85,6 @@ import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnPartSupplier;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
-import io.druid.segment.serde.DictionaryEncodedColumnSupplier;
 import io.druid.segment.serde.DoubleGenericColumnPartSerde;
 import io.druid.segment.serde.DoubleGenericColumnSupplier;
 import io.druid.segment.serde.FloatGenericColumnPartSerde;
@@ -138,12 +135,14 @@ public class IndexIO
   private static final EmittingLogger log = new EmittingLogger(IndexIO.class);
 
   private final ObjectMapper mapper;
+  private final IndexMergerV9 merger;
   private final DefaultIndexIOHandler defaultIndexIOHandler;
 
   @Inject
   public IndexIO(ObjectMapper mapper)
   {
     this.mapper = Preconditions.checkNotNull(mapper, "null ObjectMapper");
+    this.merger = new IndexMergerV9(mapper, this);
     defaultIndexIOHandler = new DefaultIndexIOHandler(mapper);
     indexLoaders = ImmutableMap.<Integer, IndexLoader>builder()
                                .put(0, new LegacyIndexLoader(defaultIndexIOHandler))
@@ -164,6 +163,11 @@ public class IndexIO
   public ObjectMapper getObjectMapper()
   {
     return mapper;
+  }
+
+  public IndexMergerV9 getIndexMerger()
+  {
+    return merger;
   }
 
   public void validateTwoSegments(File dir1, File dir2) throws IOException
@@ -941,14 +945,10 @@ public class IndexIO
         ColumnBuilder builder = new ColumnBuilder()
             .setType(ValueDesc.STRING)
             .setHasMultipleValues(true)
-            .setDictionaryEncodedColumn(
-                new DictionaryEncodedColumnSupplier(
-                    dictionary,
-                    null,
-                    null,
-                    ColumnPartProviders.<IndexedMultivalue<IndexedInts>>with(
-                        column, column.getSerializedSize(), column.size()
-                    )
+            .setDictionary(dictionary)
+            .setMultiValuedColumn(
+                ColumnPartProviders.<IndexedMultivalue<IndexedInts>>with(
+                    column, column.getSerializedSize(), column.size()
                 )
             )
             .setBitmapIndex(
@@ -1294,21 +1294,7 @@ public class IndexIO
           @Override
           public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
           {
-            DictionarySupport provider = Preconditions.checkNotNull(builder.getDictionaryEncodedColumn());
-            builder.setDictionaryEncodedColumn(new DictionarySupport.Delegated(provider)
-            {
-              @Override
-              public Dictionary<String> getDictionary()
-              {
-                return source.getDictionary();
-              }
-
-              @Override
-              public DictionaryEncodedColumn get()
-              {
-                return super.get().withDictionary(source.getDictionary());
-              }
-            });
+            builder.setDictionary(GenericIndexed.asColumnPartProvider(source.getDictionary()));
           }
         };
       }

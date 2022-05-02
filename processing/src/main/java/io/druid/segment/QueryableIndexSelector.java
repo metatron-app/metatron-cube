@@ -35,7 +35,6 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.BitSlicedBitmap;
 
@@ -50,7 +49,7 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   private final TypeResolver resolver;
   private final BitmapFactory bitmapFactory;
   private final int numRows;
-  private final Map<String, LuceneIndex> luceneIndices = Maps.newHashMap();
+  private final Map<String, SecondaryIndex> luceneIndices = Maps.newHashMap();
   private final Map<String, HistogramBitmap> metricBitmaps = Maps.newHashMap();
   private final Map<String, BitSlicedBitmap> bitSlicedBitmapMaps = Maps.newHashMap();
 
@@ -144,15 +143,16 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   }
 
   @Override
-  public LuceneIndex getLuceneIndex(String dimension)
+  @SuppressWarnings("unchecked")
+  public <T extends SecondaryIndex> T getExternalIndex(String dimension)
   {
-    LuceneIndex lucene = luceneIndices.get(dimension);
+    T lucene = (T) luceneIndices.get(dimension);
     if (lucene == null) {
       final Column column = index.getColumn(dimension);
       if (column == null || !column.getCapabilities().hasLuceneIndex()) {
         return null;
       }
-      luceneIndices.put(dimension, lucene = column.getLuceneIndex());
+      luceneIndices.put(dimension, lucene = column.getSecondaryIndex());
     }
     return lucene;
   }

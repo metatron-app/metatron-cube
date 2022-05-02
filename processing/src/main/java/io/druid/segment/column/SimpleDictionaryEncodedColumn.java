@@ -23,7 +23,6 @@ import com.google.common.base.Strings;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
-import org.apache.lucene.util.fst.FST;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
@@ -35,13 +34,13 @@ public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
   private final IndexedInts column;
   private final IndexedMultivalue<IndexedInts> multiValueColumn;
   private final Dictionary<String> dictionary;
-  private final FST<Long> fst;
+  private final FSTHolder fst;
 
   public SimpleDictionaryEncodedColumn(
       IndexedInts singleValueColumn,
       IndexedMultivalue<IndexedInts> multiValueColumn,
       Dictionary<String> dictionary,
-      FST<Long> fst
+      FSTHolder fst
   )
   {
     this.column = singleValueColumn;
@@ -106,7 +105,7 @@ public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
   }
 
   @Override
-  public FST<Long> getFST()
+  public FSTHolder getFST()
   {
     return fst;
   }

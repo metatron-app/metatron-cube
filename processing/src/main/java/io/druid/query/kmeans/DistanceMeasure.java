@@ -20,7 +20,6 @@
 package io.druid.query.kmeans;
 
 import com.google.common.base.Preconditions;
-import org.apache.lucene.util.SloppyMath;
 
 public enum DistanceMeasure
 {

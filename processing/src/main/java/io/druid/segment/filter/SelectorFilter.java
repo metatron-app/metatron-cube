@@ -22,7 +22,6 @@ package io.druid.segment.filter;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
-import com.google.common.collect.Range;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
@@ -36,8 +35,8 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.IndexedID;
-import io.druid.segment.lucene.Lucenes;
 
 import java.math.BigDecimal;
 import java.util.BitSet;
@@ -57,21 +56,15 @@ public class SelectorFilter implements Filter
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public BitmapHolder getBitmapIndex(FilterContext context)
   {
     final BitmapIndexSelector selector = context.indexSelector();
     final ColumnCapabilities capabilities = selector.getCapabilities(dimension);
     if (capabilities == null || capabilities.hasBitmapIndexes()) {
       return BitmapHolder.exact(selector.getBitmapIndex(dimension, value));
-    } else if (capabilities.hasLuceneIndex()) {
-      return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value), context);
-    } else if (capabilities.hasMetricBitmap()) {
-      return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value), context);
-    } else if (capabilities.hasBitSlicedBitmap()) {
-      return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value), context);
     }
-    return null;
+    final SecondaryIndex index = selector.getExternalIndex(dimension);
+    return index == null ? null : index.eq(dimension, value, context);
   }
 
   @Override

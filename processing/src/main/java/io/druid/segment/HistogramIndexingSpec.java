@@ -20,11 +20,13 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.data.ValueDesc;
 
 /**
  */
 @Deprecated
+@JsonTypeName("histogram")
 public class HistogramIndexingSpec implements SecondaryIndexingSpec
 {
   @JsonCreator

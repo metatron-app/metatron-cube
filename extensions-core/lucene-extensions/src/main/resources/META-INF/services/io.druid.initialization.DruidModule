@@ -15,4 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-io.druid.segment.lucene.LuceneExtensionModule
+io.druid.segment.lucene.Lucene7ExtensionModule

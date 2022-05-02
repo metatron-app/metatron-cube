@@ -296,14 +296,11 @@ public class TestHelper
   }
 
   public static final TestQuerySegmentWalker salesWalker = newWalker();
-  public static final TestQuerySegmentWalker estateWalker = newWalker();
   public static final TestQuerySegmentWalker profileWalker = newWalker();
 
   static {
     salesWalker.addIndex("sales", "sales_schema.json", "sales.tsv", true);
     salesWalker.addIndex("category_alias", "category_alias_schema.json", "category_alias.tsv", true);
-    estateWalker.addIndex("estate", "estate_schema.json", "estate.csv", true);
-    estateWalker.addIndex("estate_incremental", "estate_schema.json", "estate.csv", false);
     profileWalker.addIndex("profile", "profile_schema.json", "profile.csv", true);
   }
 
@@ -409,7 +406,8 @@ public class TestHelper
     return Sequences.toList(query.run(segmentWalker, Maps.newHashMap()));
   }
 
-  public static <T> Iterable<T> revert(Iterable<T> input) {
+  public static <T> Iterable<T> revert(Iterable<T> input)
+  {
     return Lists.reverse(Lists.newArrayList(input));
   }
 
@@ -610,17 +608,22 @@ public class TestHelper
 
   public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index)
   {
-    return persistRealtimeAndLoadMMapped(index, IndexSpec.DEFAULT);
+    return persistRealtimeAndLoadMMapped(index, IndexSpec.DEFAULT, INDEX_IO);
   }
 
   public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index, IndexSpec indexSpec)
+  {
+    return persistRealtimeAndLoadMMapped(index, indexSpec, INDEX_IO);
+  }
+
+  public static QueryableIndex persistRealtimeAndLoadMMapped(IncrementalIndex index, IndexSpec indexSpec, IndexIO indexIO)
   {
     try {
       File someTmpFile = GuavaUtils.createTemporaryDirectory("billy", "yay");
       someTmpFile.deleteOnExit();
 
-      INDEX_MERGER_V9.persist(index, someTmpFile, indexSpec);
-      return INDEX_IO.loadIndex(someTmpFile);
+      indexIO.getIndexMerger().persist(index, someTmpFile, indexSpec);
+      return indexIO.loadIndex(someTmpFile);
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
@@ -648,7 +651,6 @@ public class TestHelper
   {
     return Arrays.asList(objects);
   }
-
 
   public static List<Map<String, Object>> createExpectedMaps(String[] columnNames, Object[]... values)
   {

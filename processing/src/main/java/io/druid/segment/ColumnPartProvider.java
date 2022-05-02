@@ -21,8 +21,8 @@ package io.druid.segment;
 
 import com.google.common.base.Supplier;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.FSTHolder;
 import io.druid.segment.data.Dictionary;
-import org.apache.lucene.util.fst.FST;
 
 /**
  */
@@ -36,9 +36,9 @@ public interface ColumnPartProvider<T> extends Supplier<T>
   {
     Dictionary<String> getDictionary();
 
-    boolean hasFST();
+    default boolean hasFST() {return false;}
 
-    FST<Long> getFST();
+    default FSTHolder getFST() {return null;}
 
     class Delegated implements DictionarySupport
     {
@@ -62,18 +62,6 @@ public interface ColumnPartProvider<T> extends Supplier<T>
       public Dictionary<String> getDictionary()
       {
         return delegated.getDictionary();
-      }
-
-      @Override
-      public boolean hasFST()
-      {
-        return false;
-      }
-
-      @Override
-      public FST<Long> getFST()
-      {
-        return null;
       }
 
       @Override

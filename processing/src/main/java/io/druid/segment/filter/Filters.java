@@ -83,12 +83,10 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
-import io.druid.segment.lucene.Lucenes;
 import it.unimi.dsi.fastutil.doubles.DoubleOpenHashSet;
 import it.unimi.dsi.fastutil.doubles.DoubleSet;
 import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
@@ -995,7 +993,7 @@ public class Filters
   {
     SecondaryIndex bitmap = bitmaps.getBitSlicedBitmap(column);
     if (!type.isInstance(bitmap)) {
-      bitmap = bitmaps.getLuceneIndex(column);
+      bitmap = bitmaps.getExternalIndex(column);
     }
     if (!type.isInstance(bitmap)) {
       bitmap = bitmaps.getMetricBitmap(column);
@@ -1014,65 +1012,10 @@ public class Filters
   )
   {
     final ValueType type = ValueDesc.assertPrimitive(metric.type()).type();
-
-    final BitmapFactory factory = context.factory;
     if (Expressions.isCompare(expression.op())) {
       final Comparable constant = getOnlyConstant(expression.getChildren(), type);
-      if (constant == null) {
-        return null;
-      }
-      switch (expression.op()) {
-        case "<":
-          return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.atLeast(constant) : Range.lessThan(constant), context) :
-                 metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.atLeast(column, constant) : Lucenes.lessThan(column, constant), context
-                 ) :
-                 null;
-        case ">":
-          return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.atMost(constant) : Range.greaterThan(constant), context) :
-                 metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.atMost(column, constant) : Lucenes.greaterThan(column, constant), context
-                 ) :
-                 null;
-        case "<=":
-          return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.greaterThan(constant) : Range.atMost(constant), context) :
-                 metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.greaterThan(column, constant) : Lucenes.atMost(column, constant), context
-                 ) :
-                 null;
-        case ">=":
-          return metric instanceof SecondaryIndex.WithRange ? metric.filterFor(
-              withNot ? Range.lessThan(constant) : Range.atLeast(constant), context) :
-                 metric instanceof LuceneIndex ? metric.filterFor(
-                     withNot ? Lucenes.lessThan(column, constant) : Lucenes.atLeast(column, constant), context
-                 ) :
-                 null;
-        case "==":
-          if (withNot) {
-            return BitmapHolder.union(
-                factory,
-                Arrays.asList(
-                    metric instanceof SecondaryIndex.WithRange ?
-                    metric.filterFor(Range.lessThan(constant), context) :
-                    metric instanceof LuceneIndex ?
-                    metric.filterFor(Lucenes.lessThan(column, constant), context) :
-                    null,
-                    metric instanceof SecondaryIndex.WithRange ?
-                    metric.filterFor(Range.greaterThan(constant), context) :
-                    metric instanceof LuceneIndex ?
-                    metric.filterFor(Lucenes.greaterThan(column, constant), context) :
-                    null
-                )
-            );
-          }
-          return metric instanceof SecondaryIndex.WithRange ?
-                 metric.filterFor(Range.closed(constant, constant), context) :
-                 metric instanceof LuceneIndex ?
-                 metric.filterFor(Lucenes.point(column, constant), context) :
-                 null;
+      if (constant != null) {
+        return metric.compare(expression.op(), withNot, column, constant, context);
       }
     }
 
@@ -1092,27 +1035,7 @@ public class Filters
           value1 = value2;
           value2 = x;
         }
-        if (withNot) {
-          return BitmapHolder.union(
-              factory,
-              Arrays.asList(
-                  metric instanceof SecondaryIndex.WithRange ?
-                  metric.filterFor(Range.lessThan(value1), context) :
-                  metric instanceof LuceneIndex ?
-                  metric.filterFor(Lucenes.lessThan(column, value1), context) :
-                  null,
-                  metric instanceof SecondaryIndex.WithRange ?
-                  metric.filterFor(Range.greaterThan(value2), context) :
-                  metric instanceof LuceneIndex ? metric.filterFor(Lucenes.greaterThan(column, value2), context) :
-                  null
-              )
-          );
-        }
-        return metric instanceof SecondaryIndex.WithRange ?
-               metric.filterFor(Range.closed(value1, value2), context) :
-               metric instanceof LuceneIndex ?
-               metric.filterFor(Lucenes.closed(column, value1, value2), context) :
-               null;
+        return metric.between(withNot, column, value1, value2, context);
       case "in":
         if (withNot) {
           return null;  // hard to be expressed with bitmap
@@ -1122,16 +1045,7 @@ public class Filters
         if (values == null) {
           return null;
         }
-        for (Comparable value : values) {
-          holders.add(
-              metric instanceof SecondaryIndex.WithRange ?
-              metric.filterFor(Range.closed(value, value), context) :
-              metric instanceof LuceneIndex ?
-              metric.filterFor(Lucenes.point(column, value), context) :
-              null
-          );
-        }
-        return BitmapHolder.union(factory, holders);
+        return metric.in(column, values, context);
       case "isnull":
         if (metric instanceof SecondaryIndex.SupportNull) {
           ImmutableBitmap bitmap = ((SecondaryIndex.SupportNull) metric).getNulls(context.baseBitmap);

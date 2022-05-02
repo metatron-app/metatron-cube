@@ -1,0 +1,33 @@
+{
+  "parser" : {
+    "format" : "tsv",
+    "delimiter": "|"
+  },
+  "columns": [
+    "id", "name", "geom"
+  ],
+  "timestampSpec": {
+    "column": "xxx", "format": "yyyy-MM-dd", "missingValue": "2019-02-18"
+  },
+  "dimensionsSpec": {
+    "dimensions": ["id", "name"]
+  },
+  "metricsSpec": [
+    {"type": "relay", "name": "geom", "typeName": "string"}
+  ],
+  "queryGran": "DAY",
+  "segmentGran": "YEAR",
+  "fixedSchema": true,
+  "rollup": false,
+  "indexSpec": {
+    "bitmap": { "type": "roaring" },
+    "secondaryIndexing": {
+      "geom": {
+        "type": "lucene7",
+        "strategies": [
+          {"type": "shape", "fieldName": "geom", "shapeFormat": "WKT", "shapeType": "line", "maxLevels": 8 }
+        ]
+      }
+    }
+  }
+}

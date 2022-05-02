@@ -23,6 +23,10 @@ import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.data.BitSlicedBitmap;
+import io.druid.segment.data.Dictionary;
+import io.druid.segment.data.IndexedInts;
+import io.druid.segment.data.IndexedMultivalue;
+import io.druid.segment.serde.DictionaryEncodedColumnSupplier;
 
 import java.util.Map;
 
@@ -34,7 +38,6 @@ public class ColumnBuilder
   private int numRows = -1;
   private boolean hasMultipleValues = false;
 
-  private ColumnPartProvider.DictionarySupport dictionaryEncodedColumn = null;
   private ColumnPartProvider<RunLengthColumn> runLengthColumn = null;
   private ColumnPartProvider<GenericColumn> genericColumn = null;
   private ColumnPartProvider<ComplexColumn> complexColumn = null;
@@ -42,7 +45,9 @@ public class ColumnBuilder
   private ColumnPartProvider<SpatialIndex> spatialIndex = null;
   private ColumnPartProvider<HistogramBitmap> metricBitmap = null;
   private ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap = null;
-  private ColumnPartProvider<LuceneIndex> luceneIndex = null;
+  private ColumnPartProvider<? extends SecondaryIndex> secondaryIndex = null;
+
+  private final DictionaryEncodedColumnSupplier.Builder builder = new DictionaryEncodedColumnSupplier.Builder();
 
   private Map<String, Object> stats;
   private Map<String, String> descs;
@@ -71,17 +76,36 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setDictionaryEncodedColumn(ColumnPartProvider.DictionarySupport dictionaryEncodedColumn)
+  public ColumnBuilder setDictionary(ColumnPartProvider<Dictionary<String>> dictionary)
   {
-    setNumRows(dictionaryEncodedColumn.numRows());
-    this.dictionaryEncodedColumn = dictionaryEncodedColumn;
+    setNumRows(dictionary.numRows());
+    builder.dictionary = dictionary;
     return this;
   }
 
   // hack for cube
-  public ColumnPartProvider.DictionarySupport getDictionaryEncodedColumn()
+  public ColumnPartProvider<Dictionary<String>> getDictionary()
   {
-    return dictionaryEncodedColumn;
+    return builder.dictionary;
+  }
+
+  public ColumnBuilder setFST(ColumnPartProvider<FSTHolder> fst)
+  {
+    builder.fst = fst;
+    return this;
+  }
+
+  public ColumnBuilder setMultiValuedColumn(ColumnPartProvider<IndexedMultivalue<IndexedInts>> mvColumn)
+  {
+    builder.multiValuedColumn = mvColumn;
+    return this;
+  }
+
+
+  public ColumnBuilder setSingleValuedColumn(ColumnPartProvider<IndexedInts> svColumn)
+  {
+    builder.singleValuedColumn = svColumn;
+    return this;
   }
 
   public ColumnBuilder setRunLengthColumn(ColumnPartProvider<RunLengthColumn> runLengthColumn)
@@ -126,9 +150,9 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setLuceneIndex(ColumnPartProvider<LuceneIndex> luceneIndex)
+  public ColumnBuilder setSecondaryIndex(ColumnPartProvider<? extends SecondaryIndex> secondaryIndex)
   {
-    this.luceneIndex = luceneIndex;
+    this.secondaryIndex = secondaryIndex;
     return this;
   }
 
@@ -159,22 +183,23 @@ public class ColumnBuilder
     Preconditions.checkNotNull(name, "name must be set");
     Preconditions.checkNotNull(type, "type must be set");
 
+    ColumnPartProvider.DictionarySupport dimension = builder.build();
     return new SimpleColumn(
         name,
         new ColumnCapabilities()
             .setType(type.type())
             .setTypeName(type.typeName())
-            .setDictionaryEncoded(dictionaryEncodedColumn != null)
-            .setHasDictionaryFST(dictionaryEncodedColumn != null && dictionaryEncodedColumn.hasFST())
+            .setDictionaryEncoded(dimension != null)
+            .setHasDictionaryFST(dimension != null && dimension.hasFST())
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)
             .setHasBitSlicedBitmap(bitSlicedBitmap != null)
-            .setHasLuceneIndex(luceneIndex != null)
+            .setHasLuceneIndex(secondaryIndex != null)
             .setHasSpatialIndexes(spatialIndex != null)
             .setRunLengthEncoded(runLengthColumn != null)
             .setHasMultipleValues(hasMultipleValues)
         ,
-        dictionaryEncodedColumn,
+        dimension,
         runLengthColumn,
         genericColumn,
         complexColumn,
@@ -182,7 +207,7 @@ public class ColumnBuilder
         spatialIndex,
         metricBitmap,
         bitSlicedBitmap,
-        luceneIndex,
+        secondaryIndex,
         stats,
         descs
     );

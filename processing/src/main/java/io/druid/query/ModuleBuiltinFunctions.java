@@ -41,11 +41,11 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import io.druid.query.kmeans.SloppyMath;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupExtractorFactory;
 import io.druid.query.lookup.LookupReferencesManager;
 import org.apache.commons.collections.keyvalue.MultiKey;
-import org.apache.lucene.util.SloppyMath;
 
 import java.util.LinkedHashMap;
 import java.util.List;

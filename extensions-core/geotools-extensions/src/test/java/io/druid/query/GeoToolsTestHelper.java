@@ -19,57 +19,18 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.databind.InjectableValues;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
-import io.druid.common.utils.Sequences;
-import io.druid.data.ConstantQuery;
 import io.druid.data.GeoToolsFunctions;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.math.expr.Parser;
-import io.druid.query.filter.LuceneLatLonPolygonFilter;
-import io.druid.query.filter.LuceneSpatialFilter;
-import io.druid.segment.TestHelper;
-import io.druid.segment.lucene.ShapeIndexingStrategy;
+import io.druid.segment.LuceneTestHelper;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 
-import java.util.List;
-import java.util.concurrent.Executors;
-
-public class GeoToolsTestHelper extends TestHelper
+public class GeoToolsTestHelper
 {
-  static final TestQuerySegmentWalker segmentWalker;
+  static TestQuerySegmentWalker segmentWalker;
 
   static {
-    Parser.register(GeomFunctions.class);
     Parser.register(GeoToolsFunctions.class);
-
-    ObjectMapper mapper = new DefaultObjectMapper();
-    mapper.registerSubtypes(ShapeIndexingStrategy.class);
-    mapper.registerSubtypes(LuceneLatLonPolygonFilter.class);
-    mapper.registerSubtypes(LuceneSpatialFilter.class);
-    mapper.registerSubtypes(ConstantQuery.class);
-    mapper.registerSubtypes(GeoBoundaryFilterQuery.class);
-
-    TestQuerySegmentWalker walker = estateWalker.duplicate()
-                                                .withObjectMapper(mapper)
-                                                .withExecutor(Executors.newWorkStealingPool(2));
-
-    walker.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", true);
-
-    // for toMap post processor
-    mapper.setInjectableValues(
-        new InjectableValues.Std()
-            .addValue(QueryToolChestWarehouse.class, segmentWalker = walker));
-  }
-
-  public <T> List<T> runQuery(Query<T> query)
-  {
-    return Sequences.toList(query.run(segmentWalker(), Maps.newHashMap()));
-  }
-
-  protected TestQuerySegmentWalker segmentWalker()
-  {
-    return segmentWalker;
+    segmentWalker = LuceneTestHelper.segmentWalker.duplicate();
+    segmentWalker.addIndex("seoul_roads", "seoul_roads_schema.json", "seoul_roads.tsv", true);
   }
 }

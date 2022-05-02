@@ -19,18 +19,19 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.druid.data.ConstantQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.LuceneTestRunner;
+import io.druid.sql.calcite.util.TestQuerySegmentWalker;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
+public class GeoBoundaryFilterQueryTest extends LuceneTestRunner
 {
   final StreamQuery source = new Druids.SelectQueryBuilder()
       .dataSource("estate")
@@ -46,6 +47,12 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
       )
       .columns("geom_buf", "name", "length")
       .streaming();
+
+  @Override
+  protected TestQuerySegmentWalker segmentWalker()
+  {
+    return GeoToolsTestHelper.segmentWalker;
+  }
 
   @Test
   public void test() throws Exception
@@ -84,7 +91,6 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
     GeoBoundaryFilterQuery filtered = new GeoBoundaryFilterQuery(
         source, "gis.coord", null, null, boundary, "geom_buf", null, null, null, null, false, null
     );
-    ObjectMapper mapper = segmentWalker.getMapper();
     String serialized = mapper.writeValueAsString(filtered);
     GeoBoundaryFilterQuery deserialized = mapper.readValue(serialized, GeoBoundaryFilterQuery.class);
     Assert.assertEquals(filtered, deserialized);
@@ -218,7 +224,6 @@ public class GeoBoundaryFilterQueryTest extends GeoToolsTestHelper
             }
         )
     );
-    ObjectMapper mapper = segmentWalker.getMapper();
     String serialized = mapper.writeValueAsString(constant);
     Query.ArrayOutputSupport deserialized = mapper.readValue(serialized, Query.ArrayOutputSupport.class);
     Assert.assertEquals(constant, deserialized);

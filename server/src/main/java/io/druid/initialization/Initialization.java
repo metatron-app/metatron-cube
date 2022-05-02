@@ -20,12 +20,12 @@
 package io.druid.initialization;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.ObjectArrays;
 import com.google.common.collect.Sets;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
@@ -113,6 +113,7 @@ public class Initialization
    *
    * @return Returns the set of modules loaded.
    */
+  @SuppressWarnings("unchecked")
   public static <T> Set<T> getLoadedModules(Class<T> clazz)
   {
     Set<T> retVal = extensionsMap.get(clazz);
@@ -184,7 +185,7 @@ public class Initialization
             continue;
           }
           if (module instanceof DruidModule.WithServices) {
-            for (Class service : ((DruidModule.WithServices) module).getServices()) {
+            for (Class<?> service : ((DruidModule.WithServices) module).getServices()) {
               log.info(".. Loading aux service [%s] for extension [%s]", service.getName(), module.getClass());
               Iterator auxLoader = ServiceLoader.load(service, loader).iterator();
               // for aux service, we can ignore loading failure (avatica.UnregisteredDriver, for example)
@@ -250,14 +251,7 @@ public class Initialization
     }
     final Set<String> extensionsToLoad = Sets.newLinkedHashSet();
     for (final String extensionName : toLoad) {
-      String parentModuleName = PARENT_MODULES.get(extensionName);
-      while (parentModuleName != null && !extensionsToLoad.contains(parentModuleName)) {
-        extensionsToLoad.add(parentModuleName);
-        parentModuleName = PARENT_MODULES.get(extensionName);
-      }
-      if (!extensionsToLoad.contains(extensionName)) {
-        extensionsToLoad.add(extensionName);
-      }
+      findRecursive(extensionsToLoad, extensionName);
     }
     final List<File> moduleDirectories = Lists.newArrayList();
     for (String extensionName : extensionsToLoad) {
@@ -269,9 +263,23 @@ public class Initialization
     return moduleDirectories.toArray(new File[0]);
   }
 
+  private static void findRecursive(final Set<String> extensionsToLoad, final String extension)
+  {
+    final String parent = PARENT_MODULES.get(extension);
+    if (parent != null && !extensionsToLoad.contains(parent)) {
+      findRecursive(extensionsToLoad, parent);
+    }
+    if (!extensionsToLoad.contains(extension)) {
+      extensionsToLoad.add(extension);
+    }
+  }
+
   // -_-
   private static final ImmutableMap<String, String> PARENT_MODULES = ImmutableMap.<String, String>builder()
-      .put("druid-geotools-extensions", "druid-lucene-extensions")
+      .put("druid-lucene-common", "druid-geometry-extensions")
+      .put("druid-geotools-extensions", "druid-lucene-common")
+      .put("druid-lucene-extensions", "druid-lucene-common")
+      .put("druid-lucene8-extensions", "druid-lucene-common")
       .put("druid-orc-extensions", "druid-hive-extensions")
       .put("druid-hive-udf-extensions", "druid-hive-extensions")
       .put("druid-hdfs-storage", "druid-indexing-hadoop")
@@ -284,9 +292,14 @@ public class Initialization
   private static final String INTERNAL_HADOOP_CLIENT = "$HADOOP_CILENT$";
 
   // -_-;;;
+  private static final ImmutableSet<String> ABSTRACT_LIBRARY = ImmutableSet.of(
+      "druid-lucene-common"
+  );
+
+  // -_-;;;
   private static final ImmutableSet<String> HADOOP_DEPENDENT = ImmutableSet.of(
       "druid-indexing-hadoop",
-      "druid-lucene-extensions"   // for shape formatter
+      "druid-geometry-extensions"   // for shape formatter
   );
 
   private static File toModuleDirectory(File rootExtensionsDir, String extensionName)
@@ -365,17 +378,21 @@ public class Initialization
     String extensionName = extension.getName();
     ClassLoader loader = getClassLoaderForExtension(extensionName);
     if (loader == null) {
-      ClassLoader parent;
+      URL[] urls = toURLs(extension, true);
+      ClassLoader parent = null;
       if (HADOOP_DEPENDENT.contains(extensionName)) {
         parent = getHadoopLoader(config);
-      } else {
+      } else if (PARENT_MODULES.containsKey(extensionName)) {
         String parentModule = PARENT_MODULES.get(extensionName);
-        parent = parentModule == null
-                 ? Initialization.class.getClassLoader()
-                 : getClassLoaderForExtension(parentModule);
-        Preconditions.checkNotNull(parent, "Cannot find parent module [%s]", parentModule);
+        parent = getClassLoaderForExtension(parentModule);
+        if (parent instanceof URLClassLoader && ABSTRACT_LIBRARY.contains(parentModule)) {
+          // merge.. (for lucene-common)
+          urls = ObjectArrays.concat(((URLClassLoader) parent).getURLs(), urls, URL.class);
+          parent = parent.getParent();
+        }
       }
-      loader = new NamedURLCloassLoader(extension.getName(), toURLs(extension, true), parent);
+      parent = parent == null ? Initialization.class.getClassLoader() : parent;
+      loader = new NamedURLCloassLoader(extension.getName(), urls, parent);
       loadersMap.put(extensionName, loader);
     }
     return loader;
@@ -569,6 +586,7 @@ public class Initialization
       return Collections.unmodifiableList(modules);
     }
 
+    @SuppressWarnings("unchecked")
     public void addModule(Object input)
     {
       if (input instanceof DruidModule) {
@@ -582,7 +600,6 @@ public class Initialization
           modules.add(registerJacksonModules(baseInjector.getInstance((Class<? extends DruidModule>) input)));
         } else if (Module.class.isAssignableFrom((Class) input)) {
           modules.add(baseInjector.getInstance((Class<? extends Module>) input));
-          return;
         } else {
           throw new ISE("Class[%s] does not implement %s", input.getClass(), Module.class);
         }

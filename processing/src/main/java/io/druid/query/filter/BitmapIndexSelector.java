@@ -28,7 +28,7 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.HistogramBitmap;
-import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.data.BitSlicedBitmap;
 
 import java.io.Closeable;
@@ -38,16 +38,18 @@ import java.io.Closeable;
 public interface BitmapIndexSelector extends TypeResolver, Closeable
 {
   int getNumRows();
-  BitmapFactory getBitmapFactory();
-  BitmapIndex getBitmapIndex(String dimension);
-  ImmutableBitmap getBitmapIndex(String dimension, String value);
-  ImmutableBitmap getBitmapIndex(String dimension, Boolean value);
-  ImmutableRTree getSpatialIndex(String dimension);
-  LuceneIndex getLuceneIndex(String dimension);
-  HistogramBitmap getMetricBitmap(String dimension);
-  BitSlicedBitmap getBitSlicedBitmap(String dimension);
-  ColumnCapabilities getCapabilities(String dimension);
-  Column getColumn(String dimension);
+  default BitmapFactory getBitmapFactory() {return null;}
+  default BitmapIndex getBitmapIndex(String dimension) {return null;}
+  default ImmutableBitmap getBitmapIndex(String dimension, String value) {return null;}
+  default ImmutableBitmap getBitmapIndex(String dimension, Boolean value) {return null;}
+  default ImmutableRTree getSpatialIndex(String dimension) {return null;}
+  default HistogramBitmap getMetricBitmap(String dimension) {return null;}
+  default BitSlicedBitmap getBitSlicedBitmap(String dimension) {return null;}
+
+  default <T extends SecondaryIndex> T getExternalIndex(String dimension) {return null;}
+
+  default ColumnCapabilities getCapabilities(String dimension) {return null;}
+  default Column getColumn(String dimension) {return null;}
 
   default ImmutableBitmap createBoolean(boolean value)
   {
@@ -72,66 +74,6 @@ public interface BitmapIndexSelector extends TypeResolver, Closeable
     public int getNumRows()
     {
       return 0;
-    }
-
-    @Override
-    public BitmapFactory getBitmapFactory()
-    {
-      return null;
-    }
-
-    @Override
-    public BitmapIndex getBitmapIndex(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public ImmutableBitmap getBitmapIndex(String dimension, String value)
-    {
-      return null;
-    }
-
-    @Override
-    public ImmutableBitmap getBitmapIndex(String dimension, Boolean value)
-    {
-      return null;
-    }
-
-    @Override
-    public ImmutableRTree getSpatialIndex(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public LuceneIndex getLuceneIndex(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public HistogramBitmap getMetricBitmap(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public BitSlicedBitmap getBitSlicedBitmap(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public ColumnCapabilities getCapabilities(String dimension)
-    {
-      return null;
-    }
-
-    @Override
-    public Column getColumn(String dimension)
-    {
-      return null;
     }
   }
 }

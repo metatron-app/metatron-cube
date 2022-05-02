@@ -37,9 +37,6 @@ import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.FilterContext;
-import io.druid.segment.lucene.AutomatonMatcher;
-import org.apache.lucene.util.automaton.Automaton;
-import org.apache.lucene.util.automaton.RegExp;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -56,7 +53,6 @@ public class RegexDimFilter extends SingleInput
   private final boolean match;
 
   private final Supplier<Pattern> patternSupplier;
-  private final Supplier<Automaton> automatonSupplier;
 
   @JsonCreator
   public RegexDimFilter(
@@ -71,12 +67,6 @@ public class RegexDimFilter extends SingleInput
     this.match = match;
     this.extractionFn = extractionFn;
     this.patternSupplier = Suppliers.memoize(() -> Pattern.compile(pattern));
-    final Supplier<Automaton> supplier = Suppliers.memoize(() -> new RegExp(pattern).toAutomaton());
-    this.automatonSupplier = () -> {
-      Automaton automaton = new Automaton(0, 0);
-      automaton.copy(supplier.get());
-      return automaton;
-    };
   }
 
   public RegexDimFilter(String dimension, String pattern, ExtractionFn extractionFn)
@@ -125,29 +115,7 @@ public class RegexDimFilter extends SingleInput
     final Matcher matcher = patternSupplier.get().matcher("");
     final Predicate<String> predicate = match ? v -> v != null && matcher.reset(v).matches()
                                               : v -> v != null && matcher.reset(v).find();
-    if (!match || extractionFn != null) {
-      return new DimensionPredicateFilter(dimension, predicate, extractionFn);
-    }
-    return new DimensionPredicateFilter(dimension, predicate, extractionFn)
-    {
-      @Override
-      public BitmapHolder getBitmapIndex(FilterContext context)
-      {
-        final BitmapIndexSelector selector = context.indexSelector();
-        final Column column = selector.getColumn(dimension);
-        if (column != null && column.getCapabilities().hasDictionaryFST()) {
-          final DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
-          try {
-            final IntList matched = AutomatonMatcher.match(automatonSupplier.get(), dictionary.getFST()).sort();
-            return BitmapHolder.exact(column.getBitmapIndex().union(matched));
-          }
-          catch (IOException e) {
-            // fallback to scanning matcher
-          }
-        }
-        return super.getBitmapIndex(context);
-      }
-    };
+    return new DimensionPredicateFilter(dimension, predicate, extractionFn);
   }
 
   @Override

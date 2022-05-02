@@ -20,13 +20,9 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
-import io.druid.segment.lucene.LatLonPointIndexingStrategy;
-import io.druid.segment.lucene.LuceneIndexingSpec;
-import io.druid.segment.lucene.TextIndexingStrategy;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -55,7 +51,7 @@ public class IndexSpecTest
     final IndexSpec spec = objectMapper.readValue(json, IndexSpec.class);
 
     Assert.assertEquals(IndexSpec.UNCOMPRESSED, spec.getDimensionCompression());
-    Assert.assertEquals(null, spec.getDimensionCompressionStrategy());
+    Assert.assertNull(spec.getDimensionCompressionStrategy());
     Assert.assertEquals(spec, objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class));
   }
 
@@ -65,26 +61,5 @@ public class IndexSpecTest
     final IndexSpec spec = IndexSpec.DEFAULT;
     Assert.assertEquals(CompressedObjectStrategy.CompressionStrategy.LZ4, spec.getDimensionCompressionStrategy());
     Assert.assertEquals(CompressedObjectStrategy.CompressionStrategy.LZ4, spec.getMetricCompressionStrategy());
-  }
-
-  @Test
-  public void testSecondaryIndexing() throws Exception
-  {
-    final ObjectMapper objectMapper = new DefaultObjectMapper();
-    final IndexSpec spec = new IndexSpec(
-        null, null, null, null, null,
-        ImmutableMap.<String, SecondaryIndexingSpec>of(
-            "gis", LuceneIndexingSpec.of(
-                "standard",
-                new LatLonPointIndexingStrategy("coord", "lat", "lon", null),
-                new TextIndexingStrategy("text")
-            )
-        ),
-        null,
-        false,
-        null
-    );
-    IndexSpec actual = objectMapper.readValue(objectMapper.writeValueAsBytes(spec), IndexSpec.class);
-    Assert.assertEquals(spec, actual);
   }
 }

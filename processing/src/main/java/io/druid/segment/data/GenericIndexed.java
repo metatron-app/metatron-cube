@@ -578,24 +578,29 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   public ColumnPartProvider<Dictionary<T>> asColumnPartProvider()
   {
+    return asColumnPartProvider(this);
+  }
+
+  public static <T> ColumnPartProvider<Dictionary<T>> asColumnPartProvider(Dictionary<T> dictionary)
+  {
     return new ColumnPartProvider<Dictionary<T>>()
     {
       @Override
       public int numRows()
       {
-        return size();
+        return dictionary.size();
       }
 
       @Override
       public long getSerializedSize()
       {
-        return GenericIndexed.this.getSerializedSize();
+        return dictionary.getSerializedSize();
       }
 
       @Override
       public Dictionary<T> get()
       {
-        return asSingleThreaded();
+        return dictionary instanceof GenericIndexed ? ((GenericIndexed<T>) dictionary).asSingleThreaded() : dictionary;
       }
     };
   }

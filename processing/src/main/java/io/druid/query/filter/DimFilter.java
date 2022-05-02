@@ -24,9 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.Cacheable;
@@ -44,7 +41,6 @@ import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.lucene.LuceneIndexingStrategy;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
@@ -73,10 +69,6 @@ import java.util.regex.Pattern;
     @JsonSubTypes.Type(name = "math", value = MathExprFilter.class),
     @JsonSubTypes.Type(name = "true", value = DimFilters.All.class),
     @JsonSubTypes.Type(name = "false", value = DimFilters.None.class),
-    @JsonSubTypes.Type(name = "lucene.query", value = LuceneQueryFilter.class),
-    @JsonSubTypes.Type(name = "lucene.point", value = LucenePointFilter.class),
-    @JsonSubTypes.Type(name = "lucene.nearest", value = LuceneNearestFilter.class),
-    @JsonSubTypes.Type(name = "lucene.geojson", value = LuceneGeoJsonPolygonFilter.class),
     @JsonSubTypes.Type(name = "ins", value = InDimsFilter.class),
     @JsonSubTypes.Type(name = "like", value = LikeDimFilter.class),
     @JsonSubTypes.Type(name = "bloom", value = BloomDimFilter.class),
@@ -258,10 +250,12 @@ public interface DimFilter extends Expression, Cacheable
       if (optimized == null) {
         for (int index = field.length(); optimized == null && index > 0; index = field.lastIndexOf('.', index - 1)) {
           columnName = field.substring(0, index);
-          Map.Entry<String, String> first = getAnyFirst(adapter.getColumnDescriptor(columnName));
-          if (first != null) {
-            fieldName = columnName.equals(first.getKey()) ? null : first.getKey();
-            optimized = toOptimizedFilter(columnName, fieldName, descriptor = first.getValue());
+          for (Map.Entry<String, String> entry : GuavaUtils.optional(adapter.getColumnDescriptor(columnName))) {
+            fieldName = columnName.equals(entry.getKey()) ? null : entry.getKey();
+            optimized = toOptimizedFilter(columnName, fieldName, descriptor = entry.getValue());
+            if (optimized != null) {
+              break;
+            }
           }
         }
       }
@@ -281,21 +275,6 @@ public interface DimFilter extends Expression, Cacheable
       }
       RowResolver resolver = RowResolver.of(adapter, virtualColumns);
       return toExprFilter(resolver, columnName == null ? field : columnName, null, null);
-    }
-
-    private Map.Entry<String, String> getAnyFirst(Map<String, String> descriptors)
-    {
-      if (!GuavaUtils.isNullOrEmpty(descriptors)) {
-        return Iterables.getFirst(Maps.filterValues(descriptors, predicate()).entrySet(), null);
-      }
-      return null;
-    }
-
-    protected Predicate<String> predicate()
-    {
-      return desc -> desc.startsWith(LuceneIndexingStrategy.TEXT_DESC) ||
-                     desc.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) ||
-                     desc.startsWith(LuceneIndexingStrategy.SHAPE_DESC);
     }
 
     // just best-effort conversion.. instead of 'no lucene index' exception

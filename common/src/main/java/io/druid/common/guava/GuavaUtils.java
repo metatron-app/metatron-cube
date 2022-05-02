@@ -26,6 +26,8 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -514,6 +516,11 @@ public class GuavaUtils
     return collection == null || collection.isEmpty();
   }
 
+  public static <K, V> Iterable<Map.Entry<K, V>> optional(Map<K, V> map)
+  {
+    return map == null ? ImmutableSet.of() : map.entrySet();
+  }
+
   public static String arrayOfArrayToString(Object[][] array)
   {
     StringBuilder b = new StringBuilder();
@@ -940,6 +947,17 @@ public class GuavaUtils
     map.put(k4, v4);
     map.put(k5, v5);
     return map;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <K, V> Map<K, V> immutableMap(K k1, V v1, Object... kvs)
+  {
+    ImmutableMap.Builder<K, V> builder = ImmutableMap.builder();
+    builder.put(k1, v1);
+    for (int i = 0; i < kvs.length; i += 2) {
+      builder.put((K) kvs[i], (V) kvs[i + 1]);
+    }
+    return builder.build();
   }
 
   // null for EOF version for simplification.. cannot use on null containing iterator

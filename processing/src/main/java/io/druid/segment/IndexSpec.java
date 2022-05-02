@@ -23,19 +23,20 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.java.util.common.logger.Logger;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
-import io.druid.segment.lucene.FSTBuilder;
-import io.druid.segment.lucene.LuceneIndexingSpec;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -52,6 +53,8 @@ import java.util.Set;
  */
 public class IndexSpec
 {
+  private static final Logger LOG = new Logger(IndexSpec.class);
+
   public static final IndexSpec DEFAULT = new IndexSpec();
 
   public static final String UNCOMPRESSED = "uncompressed";
@@ -211,10 +214,19 @@ public class IndexSpec
     return secondaryIndexing == null ? null : secondaryIndexing.get(column);
   }
 
-  public FSTBuilder getFSTBuilder(String column)
+  public DictionaryPartBuilder getFSTBuilder(String column, ObjectMapper mapper)
   {
     Float fstReduction = expectedFSTReductions == null ? null : expectedFSTReductions.get(column);
-    return fstReduction != null && fstReduction > 0 ? new FSTBuilder(fstReduction) : null;
+    if (fstReduction != null && fstReduction > 0) {
+      Map<String, Object> value = ImmutableMap.of("type", "lucene.fst", "reduction", fstReduction.floatValue());
+      try {
+        return mapper.convertValue(value, DictionaryPartBuilder.class);
+      }
+      catch (Exception e) {
+        LOG.info("Failed to convert %s to fst builder (missing lucene extension?)", value);
+      }
+    }
+    return null;
   }
 
   public CompressionStrategy getCompressionStrategy(String column, CompressionStrategy defaultStrategy)
@@ -249,10 +261,10 @@ public class IndexSpec
     }
     Map<String, Map<String, String>> columnDescs = Maps.newHashMap();
     for (Map.Entry<String, SecondaryIndexingSpec> entry : secondaryIndexing.entrySet()) {
-      if (entry.getValue() instanceof LuceneIndexingSpec) {
+      if (entry.getValue() instanceof SecondaryIndexingSpec.WithDescriptor) {
         String columnName = entry.getKey();
-        LuceneIndexingSpec luceneSpec = (LuceneIndexingSpec) entry.getValue();
-        Map<String, String> columnDesc = LuceneIndexingSpec.getFieldDescriptors(luceneSpec.getStrategies(columnName));
+        SecondaryIndexingSpec.WithDescriptor provider = (SecondaryIndexingSpec.WithDescriptor) entry.getValue();
+        Map<String, String> columnDesc = provider.descriptor(columnName);
         if (!GuavaUtils.isNullOrEmpty(columnDesc)) {
           columnDescs.put(columnName, columnDesc);
         }

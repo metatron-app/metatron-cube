@@ -20,8 +20,8 @@
 package io.druid.query.spec;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.java.util.common.IAE;
 import org.joda.time.Interval;
 
@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ *
  */
 public class LegacySegmentSpec extends MultipleIntervalSegmentSpec
 {
@@ -48,25 +49,11 @@ public class LegacySegmentSpec extends MultipleIntervalSegmentSpec
       throw new IAE("Unknown type[%s] for intervals[%s]", intervals.getClass(), intervals);
     }
 
-    return Lists.newArrayList(
-        Lists.transform(
-            intervalStringList,
-            new Function<Object, Interval>()
-            {
-              @Override
-              public Interval apply(Object input)
-              {
-                return new Interval(input);
-              }
-            }
-        )
-    );
+    return GuavaUtils.transform(intervalStringList, o -> new Interval(o));
   }
 
   @JsonCreator
-  public LegacySegmentSpec(
-      Object intervals
-  )
+  public LegacySegmentSpec(Object intervals)
   {
     super(convertValue(intervals));
   }

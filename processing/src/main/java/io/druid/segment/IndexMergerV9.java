@@ -77,8 +77,6 @@ import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VSizeIntWriter;
 import io.druid.segment.data.VSizeIntsWriter;
-import io.druid.segment.lucene.FSTBuilder;
-import io.druid.segment.lucene.SimpleRelaySerializer;
 import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -87,7 +85,6 @@ import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import io.druid.segment.serde.StringMetricSerde;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
-import org.apache.lucene.util.fst.FST;
 import org.joda.time.Interval;
 import org.roaringbitmap.IntIterator;
 
@@ -1030,7 +1027,7 @@ public class IndexMergerV9 extends IndexMerger
         numMergeIndex++;
       }
 
-      final FSTBuilder builder = indexSpec.getFSTBuilder(dimension);
+      final DictionaryPartBuilder builder = indexSpec.getFSTBuilder(dimension, mapper);
       final GenericIndexedWriter<String> writer = dictionaryWriters.get(dimIndex);
 
       int cardinality = 0;
@@ -1061,9 +1058,9 @@ public class IndexMergerV9 extends IndexMerger
         }
         cardinality = dimValueLookup.size();
       }
-      FST fst = builder == null ? null : builder.done(cardinality);
+      ColumnPartSerde.Serializer fst = builder == null ? null : builder.done(cardinality);
       if (fst != null) {
-        dictionaryFSTs.put(dimension, SimpleRelaySerializer.forFST(fst));
+        dictionaryFSTs.put(dimension, fst);
       }
 
       // Mark if this dim has the null/empty str value in its dictionary, used for determining nullRowsList later.
