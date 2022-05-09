@@ -69,6 +69,11 @@ public class ExtensionsConfig
     return loadList;
   }
 
+  public void setSearchCurrentClassloader(boolean searchCurrentClassloader)
+  {
+    this.searchCurrentClassloader = searchCurrentClassloader;
+  }
+
   @Override
   public String toString()
   {

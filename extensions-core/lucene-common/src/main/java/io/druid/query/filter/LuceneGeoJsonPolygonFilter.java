@@ -32,6 +32,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
+import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.search.Query;
@@ -40,9 +41,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
+ *
  */
 @JsonTypeName("lucene.geojson")
-public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
+public class LuceneGeoJsonPolygonFilter extends Lucenes.LuceneSelector implements DimFilter.LogProvider
 {
   private final String geoJson;
 
@@ -61,6 +63,12 @@ public class LuceneGeoJsonPolygonFilter extends DimFilter.LuceneFilter implement
   public String getGeoJson()
   {
     return geoJson;
+  }
+
+  @Override
+  protected Object[] params()
+  {
+    return new Object[]{field, geoJson, scoreField};
   }
 
   @Override

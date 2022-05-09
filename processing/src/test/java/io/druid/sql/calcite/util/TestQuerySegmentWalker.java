@@ -248,7 +248,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
       return mapper.readValue(asCharSource(resource).openStream(), reference);
     }
     catch (Exception e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException("failed to load " + resource, e);
     }
   }
 

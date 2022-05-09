@@ -215,6 +215,12 @@ public class QueryableIndexSelector implements BitmapIndexSelector
     bitSlicedBitmapMaps.clear();
   }
 
+  @Override
+  public QueryableIndex internal()
+  {
+    return index;
+  }
+
   private ImmutableBitmap makeBooleanBitmap(boolean bool)
   {
     if (bool) {

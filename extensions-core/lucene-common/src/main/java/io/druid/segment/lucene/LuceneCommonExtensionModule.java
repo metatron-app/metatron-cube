@@ -31,11 +31,11 @@ import io.druid.query.filter.LuceneNearestFilter;
 import io.druid.query.filter.LucenePointFilter;
 import io.druid.query.filter.LuceneQueryFilter;
 import io.druid.query.filter.LuceneShapeFilter;
-import io.druid.query.filter.LuceneShapeFilterConversion;
 import io.druid.query.filter.LuceneSpatialFilter;
 import io.druid.query.filter.RegexFSTFilter;
 import io.druid.sql.calcite.planner.LuceneNearestFilterConversion;
 import io.druid.sql.calcite.planner.LuceneQueryFilterConversion;
+import io.druid.sql.calcite.planner.LuceneShapeFilterConversion;
 import io.druid.sql.guice.SqlBindings;
 
 import java.util.List;
@@ -48,16 +48,16 @@ public class LuceneCommonExtensionModule implements DruidModule
         .registerSubtypes(ShapeIndexingStrategy.class)
         .registerSubtypes(SpatialIndexingStrategy.class)
         .registerSubtypes(LatLonShapeIndexingStrategy.class)
-        .registerSubtypes(LuceneSpatialFilter.class)
-        .registerSubtypes(LuceneLatLonPolygonFilter.class)
-        .registerSubtypes(LuceneShapeFilter.class)
-        .registerSubtypes(ChoroplethMapQuery.class)
-        .registerSubtypes(GeoBoundaryFilterQuery.class)
-        .registerSubtypes(RegexFSTFilter.class)
         .registerSubtypes(LuceneQueryFilter.class)
         .registerSubtypes(LucenePointFilter.class)
         .registerSubtypes(LuceneNearestFilter.class)
+        .registerSubtypes(LuceneSpatialFilter.class)
+        .registerSubtypes(LuceneLatLonPolygonFilter.class)
+        .registerSubtypes(LuceneShapeFilter.class)
+        .registerSubtypes(RegexFSTFilter.class)
         .registerSubtypes(LuceneGeoJsonPolygonFilter.class)
+        .registerSubtypes(ChoroplethMapQuery.class)
+        .registerSubtypes(GeoBoundaryFilterQuery.class)
         .registerSubtypes(FSTBuilder.class);
 
     if (lucene7) {

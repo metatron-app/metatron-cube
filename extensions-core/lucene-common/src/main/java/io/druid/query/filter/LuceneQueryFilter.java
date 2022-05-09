@@ -27,8 +27,6 @@ import com.google.common.base.Throwables;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
@@ -38,14 +36,14 @@ import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 /**
+ *
  */
 @JsonTypeName("lucene.query")
-public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilter.VCInflator
+public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilter.VCInflator
 {
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
@@ -101,9 +99,9 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
   }
 
   @Override
-  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  protected Object[] params()
   {
-    return this;    // has nothing to do
+    return new Object[]{field, analyzer, expression, scoreField};
   }
 
   @Override
@@ -115,11 +113,11 @@ public class LuceneQueryFilter extends DimFilter.LuceneFilter implements DimFilt
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
         Column column = Preconditions.checkNotNull(
-            Lucenes.findLuceneColumn(field, context.indexSelector()), "no lucene index on [%s]", field
+            Lucenes.findLuceneColumn(field, context.internal()), "no lucene index on [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
             Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.TEXT_DESC),
-            "cannot find lucene field name in [%s]", column.getName()
+            "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
         LuceneIndex lucene = column.getSecondaryIndex();
         try {

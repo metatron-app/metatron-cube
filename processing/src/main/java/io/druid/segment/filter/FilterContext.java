@@ -30,6 +30,7 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
+import io.druid.segment.QueryableIndex;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -68,6 +69,11 @@ public class FilterContext implements Closeable
       LOG.debug("%s : %,d / %,d (%,d msec)", filter, holder.bitmap().size(), numRows(), elapsed);
     }
     return holder;
+  }
+
+  public QueryableIndex internal()
+  {
+    return selector.internal();
   }
 
   public BitmapIndexSelector indexSelector()

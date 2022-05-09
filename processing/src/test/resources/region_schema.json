@@ -23,11 +23,6 @@
   "indexSpec": {
     "allowNullForNumbers": true,
     "bitmap": { "type": "roaring" },
-    "secondaryIndexing": {
-      "R_COMMENT": {
-        "type": "lucene", "strategies": [ {"type": "text", "fieldName": "comment"} ]
-      }
-    },
     "columnCompression": {
       "R_COMMENT": "lz4"
     }

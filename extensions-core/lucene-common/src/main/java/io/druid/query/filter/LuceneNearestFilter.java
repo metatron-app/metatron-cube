@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
@@ -44,7 +43,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.nearest")
-public class LuceneNearestFilter extends DimFilter.LuceneFilter
+public class LuceneNearestFilter extends Lucenes.LuceneSelector
 {
   private final double latitude;
   private final double longitude;
@@ -85,6 +84,12 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
   }
 
   @Override
+  protected Object[] params()
+  {
+    return new Object[]{field, latitude, longitude, count, scoreField};
+  }
+
+  @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
     return builder.append(DimFilterCacheKey.LUCENE_NEAREST_CACHE_ID)
@@ -113,18 +118,16 @@ public class LuceneNearestFilter extends DimFilter.LuceneFilter
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
-        BitmapIndexSelector selector = context.indexSelector();
         Column column = Preconditions.checkNotNull(
-            Lucenes.findLuceneColumn(field, selector), "no lucene index for [%s]", field
+            Lucenes.findLuceneColumn(field, context.internal()), "no lucene index for [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
-            Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.LATLON_POINT_DESC),
-            "cannot find lucene field name in [%s]", column.getName()
+            Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.TEXT_DESC),
+            "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
-        BitmapFactory factory = selector.getBitmapFactory();
         LuceneIndex index = column.getSecondaryIndex();
-        IndexSearcher searcher = index.searcher();
         try {
+          IndexSearcher searcher = index.searcher();
           TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField, latitude, longitude, count);
           return BitmapHolder.exact(Lucenes.toBitmap(searched, context, scoreField));
         }

@@ -24,6 +24,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -50,6 +51,8 @@ public interface BitmapIndexSelector extends TypeResolver, Closeable
 
   default ColumnCapabilities getCapabilities(String dimension) {return null;}
   default Column getColumn(String dimension) {return null;}
+
+  default QueryableIndex internal() {throw new UnsupportedOperationException();}
 
   default ImmutableBitmap createBoolean(boolean value)
   {

@@ -20,13 +20,13 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
@@ -56,6 +56,8 @@ import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  */
@@ -76,49 +78,22 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       @JsonProperty("strategies") List<LuceneIndexingStrategy> strategies
   )
   {
-    this.textAnalyzer = textAnalyzer == null ? "standard" : textAnalyzer;
+    this.textAnalyzer = textAnalyzer;
     this.strategies = strategies == null ? ImmutableList.<LuceneIndexingStrategy>of() : strategies;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getTextAnalyzer()
   {
     return textAnalyzer;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
   public List<LuceneIndexingStrategy> getStrategies()
   {
     return strategies;
-  }
-
-  public List<LuceneIndexingStrategy> getStrategies(final String fieldName)
-  {
-    return ImmutableList.copyOf(Iterables.transform(
-        strategies, new Function<LuceneIndexingStrategy, LuceneIndexingStrategy>()
-        {
-          @Override
-          public LuceneIndexingStrategy apply(LuceneIndexingStrategy input)
-          {
-            return input.getFieldName() == null ? input.withFieldName(fieldName) : input;
-          }
-        })
-    );
-  }
-
-  private static Map<String, String> getFieldDescriptors(List<LuceneIndexingStrategy> strategies)
-  {
-    if (GuavaUtils.isNullOrEmpty(strategies)) {
-      return null;
-    }
-    Map<String, String> descriptors = Maps.newLinkedHashMap();
-    for (LuceneIndexingStrategy strategy : strategies) {
-      String desc = strategy.getFieldDescriptor();
-      if (desc != null) {
-        descriptors.put(strategy.getFieldName(), desc);
-      }
-    }
-    return descriptors;
   }
 
   @Override
@@ -133,22 +108,19 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
 
     LuceneIndexingSpec that = (LuceneIndexingSpec) o;
 
-    if (!strategies.equals(that.strategies)) {
+    if (Objects.equals(textAnalyzer, that.textAnalyzer)) {
       return false;
     }
-    if (!textAnalyzer.equals(that.textAnalyzer)) {
+    if (Objects.equals(strategies, that.strategies)) {
       return false;
     }
-
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    int result = textAnalyzer.hashCode();
-    result = 31 * result + strategies.hashCode();
-    return result;
+    return Objects.hash(textAnalyzer, strategies);
   }
 
   @Override
@@ -157,8 +129,9 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
     if (GuavaUtils.isNullOrEmpty(strategies)) {
       return MetricColumnSerializer.DUMMY;
     }
-    final Map<String, String> descriptors = getFieldDescriptors(strategies);
-    final List<Function<Object, Field[]>> generators = GuavaUtils.transform(strategies, Lucenes.makeGenerator(type));
+    final List<Function<Object, Field[]>> generators = GuavaUtils.transform(
+        strategies, strategy -> strategy.createIndexableField(type)
+    );
     final IndexWriter writer = Lucenes.buildRamWriter(textAnalyzer);
 
     return new MetricColumnSerializer()
@@ -189,7 +162,7 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
       {
         if (writer.getDocStats().numDocs > 0) {
           builder.addSerde(getSerde(writer))
-                 .addDescriptor(descriptors);
+                 .addDescriptor(descriptor(columnName));
         }
         return builder;
       }
@@ -204,7 +177,14 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
   @Override
   public Map<String, String> descriptor(String column)
   {
-    return getFieldDescriptors(getStrategies(column));
+    Map<String, String> descriptors = Maps.newLinkedHashMap();
+    for (LuceneIndexingStrategy strategy : strategies) {
+      String desc = strategy.getFieldDescriptor();
+      if (desc != null) {
+        descriptors.put(Optional.ofNullable(strategy.getFieldName()).orElse(column), desc);
+      }
+    }
+    return descriptors;
   }
 
   @JsonTypeName("lucene")
@@ -259,8 +239,20 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
           final ValueDesc type = builder.getType();
 
           builder.setSecondaryIndex(
-              new ColumnPartProvider<LuceneIndex>()
+              new ColumnPartProvider.ExternalPart<LuceneIndex>()
               {
+                @Override
+                public String source()
+                {
+                  return SerDe.this.getClass().getAnnotation(JsonTypeName.class).value();
+                }
+
+                @Override
+                public Class classOfObject()
+                {
+                  return LuceneIndex.class;
+                }
+
                 @Override
                 public int numRows()
                 {

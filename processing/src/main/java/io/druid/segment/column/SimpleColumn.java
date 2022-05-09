@@ -41,7 +41,7 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<SpatialIndex> spatialIndex;
   private final ColumnPartProvider<HistogramBitmap> metricBitmap;
   private final ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap;
-  private final ColumnPartProvider<? extends SecondaryIndex> secondaryIndex;
+  private final ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex;
   private final ColumnMeta columnMeta;
 
   SimpleColumn(
@@ -55,7 +55,7 @@ class SimpleColumn implements Column
       ColumnPartProvider<SpatialIndex> spatialIndex,
       ColumnPartProvider<HistogramBitmap> metricBitmap,
       ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap,
-      ColumnPartProvider<? extends SecondaryIndex> secondaryIndex,
+      ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex,
       Map<String, Object> stats,
       Map<String, String> descs
   )
@@ -200,6 +200,18 @@ class SimpleColumn implements Column
   public <T extends SecondaryIndex> T getSecondaryIndex()
   {
     return secondaryIndex == null ? null : (T) secondaryIndex.get();
+  }
+
+  @Override
+  public String sourceOfSecondaryIndex()
+  {
+    return secondaryIndex == null ? null : secondaryIndex.source();
+  }
+
+  @Override
+  public Class classOfSecondaryIndex()
+  {
+    return secondaryIndex == null ? null : secondaryIndex.classOfObject();
   }
 
   @Override

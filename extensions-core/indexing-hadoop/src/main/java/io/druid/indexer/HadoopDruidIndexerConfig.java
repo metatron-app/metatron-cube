@@ -105,7 +105,7 @@ public class HadoopDruidIndexerConfig
   private static final String DEFAULT_WORKING_PATH = "/tmp/druid-indexing";
 
   static {
-    injector = Initialization.makeInjectorWithModules(
+    injector = Initialization.makeInjectorWithModulesInHadoop(
         GuiceInjectors.makeStartupInjector(),
         ImmutableList.<Module>of(
             new Module()

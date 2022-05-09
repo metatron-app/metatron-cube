@@ -34,6 +34,7 @@ import io.druid.query.ShapeFormat;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
+import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.lucene.PointQueryType;
 import io.druid.segment.lucene.SpatialOperations;
 import org.apache.lucene.spatial.SpatialStrategy;
@@ -55,7 +56,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.spatial")
-public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
+public class LuceneSpatialFilter extends Lucenes.LuceneSelector implements DimFilter.LogProvider
 {
   public static LuceneSpatialFilter convert(LucenePointFilter filter, String field)
   {
@@ -122,6 +123,12 @@ public class LuceneSpatialFilter extends DimFilter.LuceneFilter implements DimFi
   public String getShapeString()
   {
     return shapeString;
+  }
+
+  @Override
+  protected Object[] params()
+  {
+    return new Object[]{field, operation, shapeFormat, shapeString, scoreField};
   }
 
   @Override

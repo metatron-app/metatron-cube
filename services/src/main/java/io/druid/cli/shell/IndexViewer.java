@@ -21,7 +21,6 @@ package io.druid.cli.shell;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -31,17 +30,16 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.io.Closeables;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Pair;
 import io.druid.java.util.common.StringUtils;
 import io.druid.java.util.common.guava.CloseQuietly;
+import io.druid.java.util.common.io.smoosh.SmooshedFileMapper;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.CuboidSpec;
@@ -76,11 +74,8 @@ import org.jline.terminal.TerminalBuilder;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -196,13 +191,7 @@ public class IndexViewer extends CommonShell.WithUtils
       Collections.sort(
           index,
           Ordering.from(JodaUtils.intervalsByStartThenEnd())
-                  .onResultOf(
-                      new Function<IndexMeta, Interval>()
-                      {
-                        @Override
-                        public Interval apply(IndexMeta input) { return input.getInterval(); }
-                      }
-                  )
+                  .onResultOf(IndexMeta::interval)
       );
     }
 
@@ -234,10 +223,7 @@ public class IndexViewer extends CommonShell.WithUtils
   {
     final PrintWriter writer = terminal.writer();
 
-    final Function<String, Candidate> toCandidate = new Function<String, Candidate>()
-    {
-      public Candidate apply(String input) { return new Candidate(input); }
-    };
+    final Function<String, Candidate> toCandidate = input -> new Candidate(input);
 
     Completer dsCompleter = new Completer()
     {
@@ -375,14 +361,7 @@ public class IndexViewer extends CommonShell.WithUtils
     List<Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>>> sorted = Lists.newArrayList(cuboids.entrySet());
     Collections.sort(
         sorted, Ordering.from(OFFSET_COMP)
-                        .onResultOf(new Function<Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>>, int[]>()
-                        {
-                          @Override
-                          public int[] apply(Map.Entry<BigInteger, Pair<CuboidSpec, QueryableIndex>> input)
-                          {
-                            return offsets.get(Cuboids.dimension(input.getKey(), Column.TIME_COLUMN_NAME));
-                          }
-                        })
+                        .onResultOf(input -> offsets.get(Cuboids.dimension(input.getKey(), Column.TIME_COLUMN_NAME)))
     );
 
     long totalSize = GuavaUtils.lastOf(values).rhs[2] - GuavaUtils.firstOf(values).rhs[1];
@@ -548,7 +527,8 @@ public class IndexViewer extends CommonShell.WithUtils
         );
       }
       if (capabilities.hasLuceneIndex()) {
-        builder.append("lucene index (%,d bytes)", column.getSerializedSize(Column.EncodeType.LUCENE_INDEX));
+        String source = column.sourceOfSecondaryIndex();
+        builder.append("%s index (%,d bytes)", source, column.getSerializedSize(Column.EncodeType.LUCENE_INDEX));
         Map<String, String> columnDescs = column.getColumnDescs();
         if (!GuavaUtils.isNullOrEmpty(columnDescs)) {
           builder.append("descs %s", columnDescs);
@@ -578,7 +558,7 @@ public class IndexViewer extends CommonShell.WithUtils
     {
       int length = builder.length() + string.length();
       if (length > 120) {
-        writer.println(builder.toString());
+        writer.println(builder);
         builder.setLength(0);
         builder.append("  ");
       } else if (builder.length() > 2) {
@@ -590,7 +570,7 @@ public class IndexViewer extends CommonShell.WithUtils
     private void flush()
     {
       if (builder.length() > 2) {
-        writer.println(builder.toString());
+        writer.println(builder);
       }
       builder.setLength(0);
       builder.append("  ");
@@ -602,60 +582,19 @@ public class IndexViewer extends CommonShell.WithUtils
     return StringUtils.safeFormat(format, arguments);
   }
 
-  private Map<String, int[]> load(File baseDir) throws IOException
-  {
-    File metaFile = new File(baseDir, toMetaFile());
-
-    BufferedReader in = null;
-    try {
-      in = new BufferedReader(new InputStreamReader(new FileInputStream(metaFile), Charsets.UTF_8));
-
-      String line = in.readLine();
-      if (line == null) {
-        throw new ISE("First line should be version,maxChunkSize,numChunks, got null.");
-      }
-
-      String[] splits = line.split(",");
-      if (!"v1".equals(splits[0])) {
-        throw new ISE("Unknown version[%s], v1 is all I know.", splits[0]);
-      }
-      if (splits.length != 3) {
-        throw new ISE("Wrong number of splits[%d] in line[%s]", splits.length, line);
-      }
-
-      Map<String, int[]> internalFiles = Maps.newTreeMap();
-      while ((line = in.readLine()) != null) {
-        splits = line.split(",");
-
-        if (splits.length != 4) {
-          throw new ISE("Wrong number of splits[%d] in line[%s]", splits.length, line);
-        }
-        internalFiles.put(
-            splits[0],
-            new int[]{Integer.parseInt(splits[1]), Integer.parseInt(splits[2]), Integer.parseInt(splits[3])}
-        );
-      }
-      return internalFiles;
-    }
-    finally {
-      Closeables.close(in, false);
-    }
-  }
-
   private String toMetaFile() {return String.format("meta.%s", "smoosh");}
 
   private String toChunkFile(int i) {return String.format("%05d.%s", i, "smoosh");}
 
   private class IndexMeta
   {
-    private final File location;
     private final long size;
     private final DataSegment segment;
     private final Supplier<QueryableIndex> index;
+    private final Supplier<Map<String, int[]>> offsets;
 
     private IndexMeta(final File location, final DataSegment segment) throws IOException
     {
-      this.location = location;
       this.size = FileUtils.sizeOfDirectory(location);
       this.segment = segment;
       this.index = new Supplier<QueryableIndex>()
@@ -672,30 +611,28 @@ public class IndexViewer extends CommonShell.WithUtils
           }
         }
       };
+      offsets = Suppliers.memoize(() -> loadMeta(location));
     }
 
-    private final Supplier<Map<String, int[]>> offsets = Suppliers.memoize(
-        new Supplier<Map<String, int[]>>()
-        {
-          @Override
-          public Map<String, int[]> get()
-          {
-            try {
-              return load(location);
-            }
-            catch (Exception e) {
-              throw Throwables.propagate(e);
-            }
-          }
-        }
-    );
+    private Map<String, int[]> loadMeta(File baseDir)
+    {
+      try {
+        return Maps.transformValues(
+            SmooshedFileMapper.load(baseDir).getInternalFiles(),
+            m -> new int[]{m.getFileNum(), m.getStartOffset(), m.getEndOffset()}
+        );
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
 
     public QueryableIndex index()
     {
       return index.get();
     }
 
-    public Interval getInterval()
+    public Interval interval()
     {
       return segment != null ? segment.getInterval() : index().getInterval();
     }

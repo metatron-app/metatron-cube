@@ -29,8 +29,8 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.GeomUtils;
 import io.druid.query.RowResolver;
-import io.druid.segment.ColumnSelectorFactory;
 import io.druid.query.ShapeFormat;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -46,7 +46,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.latlon.polygon")
-public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider
+public class LuceneLatLonPolygonFilter extends Lucenes.LuceneSelector implements DimFilter.LogProvider
 {
   private final ShapeFormat shapeFormat;
   private final String shapeString;
@@ -74,6 +74,12 @@ public class LuceneLatLonPolygonFilter extends DimFilter.LuceneFilter implements
   public ShapeFormat getShapeFormat()
   {
     return shapeFormat;
+  }
+
+  @Override
+  protected Object[] params()
+  {
+    return new Object[]{field, shapeFormat, shapeString, scoreField};
   }
 
   @Override

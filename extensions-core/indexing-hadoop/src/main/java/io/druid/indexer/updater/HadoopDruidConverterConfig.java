@@ -54,7 +54,7 @@ public class HadoopDruidConverterConfig
   public static final IndexIO INDEX_IO;
   public static final IndexMerger INDEX_MERGER;
 
-  private static final Injector injector = Initialization.makeInjectorWithModules(
+  private static final Injector injector = Initialization.makeInjectorWithModulesInHadoop(
       GuiceInjectors.makeStartupInjector(),
       ImmutableList.<Module>of(
           new Module()

@@ -45,7 +45,7 @@ public class ColumnBuilder
   private ColumnPartProvider<SpatialIndex> spatialIndex = null;
   private ColumnPartProvider<HistogramBitmap> metricBitmap = null;
   private ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap = null;
-  private ColumnPartProvider<? extends SecondaryIndex> secondaryIndex = null;
+  private ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex = null;
 
   private final DictionaryEncodedColumnSupplier.Builder builder = new DictionaryEncodedColumnSupplier.Builder();
 
@@ -150,7 +150,7 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setSecondaryIndex(ColumnPartProvider<? extends SecondaryIndex> secondaryIndex)
+  public ColumnBuilder setSecondaryIndex(ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex)
   {
     this.secondaryIndex = secondaryIndex;
     return this;

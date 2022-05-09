@@ -197,7 +197,7 @@ public class StreamQueryRunnerFactory
       if (index != null) {
         final QueryableIndexSelector selector = new QueryableIndexSelector(index, resolver.get());
         final FilterContext context = Filters.createFilterContext(selector, cache, segment.getIdentifier());
-        final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(filter, context);
+        final Pair<ImmutableBitmap, DimFilter> extracted = DimFilters.extractBitmaps(optimized, context);
         if (extracted.rhs == null) {
           counter.add(extracted.lhs == null ? segment.getNumRows() : extracted.lhs.size());
           continue;

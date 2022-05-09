@@ -27,6 +27,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
+import io.druid.java.util.common.IAE;
+import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StructMetricSerde;
 import org.apache.lucene.document.Field;
@@ -73,22 +75,14 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
       return Lucenes.makeTextFieldGenerator(fieldName);
     }
     if (type.isStruct()) {
-      StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
-      final int index = serde.indexOf(fieldName);
+      final ComplexMetricSerde serde = Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
+      final int index = ((StructMetricSerde) serde).indexOf(fieldName);
       Preconditions.checkArgument(index >= 0, "invalid field name %s", fieldName);
       return Functions.compose(
-          Lucenes.makeTextFieldGenerator(fieldName),
-          new Function<Object, Object>()
-          {
-            @Override
-            public Object apply(Object input)
-            {
-              return ((Object[]) input)[index];
-            }
-          }
+          Lucenes.makeTextFieldGenerator(fieldName), input -> ((Object[]) input)[index]
       );
     }
-    throw new IllegalArgumentException("cannot index " + type + " as text");
+    throw new IAE("cannot index %s as text", type);
   }
 
   @Override

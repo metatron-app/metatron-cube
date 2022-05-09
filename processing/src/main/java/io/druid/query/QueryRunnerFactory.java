@@ -24,11 +24,9 @@ import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
-import io.druid.common.guava.Sequence;
 import io.druid.segment.Segment;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -63,15 +61,8 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 
   default QueryRunner<T> createRunner(final Segment segment, final Future<Object> optimizer)
   {
-    return new QueryRunner<T>()
-    {
-      final QueryRunner<T> baseRunner = _createRunner(segment, optimizer);
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-      {
-        return baseRunner.run(BaseQuery.optimize(query, segment), responseContext);
-      }
-    };
+    final QueryRunner<T> runner = _createRunner(segment, optimizer);    // eager instantiate
+    return (query, responseContext) -> runner.run(BaseQuery.optimize(query, segment), responseContext);
   }
 
   /**

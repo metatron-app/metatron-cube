@@ -50,7 +50,7 @@ public class SmooshedFileMapper implements Closeable
 
     BufferedReader in = null;
     try {
-      in = new BufferedReader(new InputStreamReader(new FileInputStream(metaFile), Charsets.UTF_8));
+      in = Files.newReader(metaFile, Charsets.UTF_8);
 
       String line = in.readLine();
       if (line == null) {

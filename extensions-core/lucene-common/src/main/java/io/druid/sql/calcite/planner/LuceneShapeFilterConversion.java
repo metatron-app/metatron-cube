@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package io.druid.query.filter;
+package io.druid.sql.calcite.planner;
 
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.ShapeFormat;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.LuceneShapeFilter;
 import io.druid.segment.lucene.SpatialOperations;
 import io.druid.sql.calcite.expression.DimFilterConversion;
-import io.druid.sql.calcite.planner.DruidOperatorTable;
-import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;

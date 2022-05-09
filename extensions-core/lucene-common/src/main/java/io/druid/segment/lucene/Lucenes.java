@@ -19,6 +19,7 @@
 
 package io.druid.segment.lucene;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
@@ -30,11 +31,13 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
-import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.GeomUtils;
-import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.ShapeFormat;
+import io.druid.query.filter.DimFilter;
+import io.druid.segment.QueryableIndex;
+import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.ints.Int2FloatRBTreeMap;
@@ -112,12 +115,14 @@ import org.locationtech.spatial4j.shape.Shape;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.text.ParseException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -149,27 +154,8 @@ public class Lucenes
 
   public static Function<Object, Field[]> makeTextFieldGenerator(final String fieldName)
   {
-    return new Function<Object, Field[]>()
-    {
-      @Override
-      public Field[] apply(Object input)
-      {
-        // to string whatever..
-        return new Field[]{new TextField(fieldName, Objects.toString(input, ""), Field.Store.NO)};
-      }
-    };
-  }
-
-  public static Function<LuceneIndexingStrategy, Function<Object, Field[]>> makeGenerator(final ValueDesc type)
-  {
-    return new Function<LuceneIndexingStrategy, Function<Object, Field[]>>()
-    {
-      @Override
-      public Function<Object, Field[]> apply(LuceneIndexingStrategy input)
-      {
-        return input.createIndexableField(type);
-      }
-    };
+    // to string whatever..
+    return input -> new Field[]{new TextField(fieldName, Objects.toString(input, ""), Field.Store.NO)};
   }
 
   public static int sizeOf(IndexWriter writer) throws IOException
@@ -408,8 +394,12 @@ public class Lucenes
     return factory.makeImmutableBitmap(bitmap);
   }
 
-  public static Column findLuceneColumn(String field, BitmapIndexSelector selector)
+  // lucene index only exists in QueryableIndex, for now
+  public static Column findLuceneColumn(String field, QueryableIndex selector)
   {
+    if (selector == null) {
+      return null;
+    }
     Column column = selector.getColumn(field);
     if (column != null && column.getCapabilities().hasLuceneIndex()) {
       return column;
@@ -436,6 +426,50 @@ public class Lucenes
       }
     }
     return null;
+  }
+
+  public static abstract class LuceneSelector extends DimFilter.LuceneFilter
+  {
+    protected LuceneSelector(String field, String scoreField) {super(field, scoreField);}
+
+    @Override
+    public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+    {
+      Column column = segment == null ? null : Lucenes.findLuceneColumn(field, segment.asQueryableIndex(false));
+      if (column != null) {
+        Class indexClass = column.classOfSecondaryIndex();
+        if (Lucenes.class.getClassLoader() != indexClass.getClassLoader()) {
+          return swap(this, indexClass.getClassLoader(), params());
+        }
+      }
+      return super.optimize(segment, virtualColumns);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> T swap(T object, ClassLoader loader, Object... params)
+    {
+      Class<?> clazz = object.getClass();
+      try {
+        return (T) loader.loadClass(clazz.getName())
+                         .getConstructor(constructor(clazz).getParameterTypes())
+                         .newInstance(params);
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+
+    private Constructor constructor(Class<?> clazz)
+    {
+      for (Constructor<?> constructor : clazz.getConstructors()) {
+        if (constructor.getAnnotation(JsonCreator.class) != null) {
+          return constructor;
+        }
+      }
+      throw new UnsupportedOperationException();
+    }
+
+    protected abstract Object[] params();
   }
 
   // gt
@@ -474,6 +508,9 @@ public class Lucenes
 
   public static Analyzer createAnalyzer(String analyzer)
   {
+    if (analyzer == null) {
+      return new StandardAnalyzer();
+    }
     switch (analyzer.toLowerCase()) {
       case "simple": return new SimpleAnalyzer();
       case "standard": return new StandardAnalyzer();

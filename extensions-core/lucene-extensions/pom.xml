@@ -39,7 +39,7 @@
     <dependencies>
         <dependency>
             <groupId>app.metatron.extensions</groupId>
-            <artifactId>druid-geometry</artifactId>
+            <artifactId>druid-geometry-extensions</artifactId>
             <version>${project.parent.version}</version>
             <scope>provided</scope>
         </dependency>

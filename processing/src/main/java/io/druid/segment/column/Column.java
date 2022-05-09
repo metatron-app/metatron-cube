@@ -62,6 +62,8 @@ public interface Column
   HistogramBitmap getMetricBitmap();
   BitSlicedBitmap getBitSlicedBitmap();
   <T extends SecondaryIndex> T getSecondaryIndex();
+  String sourceOfSecondaryIndex();
+  Class classOfSecondaryIndex();
 
   long getSerializedSize(EncodeType encodeType);
 

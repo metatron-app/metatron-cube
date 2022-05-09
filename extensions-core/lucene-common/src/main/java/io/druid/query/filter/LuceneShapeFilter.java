@@ -29,6 +29,7 @@ import io.druid.data.TypeResolver;
 import io.druid.query.RowResolver;
 import io.druid.query.ShapeFormat;
 import io.druid.segment.lucene.LuceneIndexingStrategy;
+import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.lucene.SpatialOperations;
 
 import javax.annotation.Nullable;
@@ -39,7 +40,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.shape")
-public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilter.LogProvider, DimFilter.VCInflator
+public class LuceneShapeFilter extends Lucenes.LuceneSelector implements DimFilter.LogProvider, DimFilter.VCInflator
 {
   private final SpatialOperations operation;
   private final ShapeFormat shapeFormat;
@@ -76,6 +77,12 @@ public class LuceneShapeFilter extends DimFilter.LuceneFilter implements DimFilt
   public String getShapeString()
   {
     return shapeString;
+  }
+
+  @Override
+  protected Object[] params()
+  {
+    return new Object[]{field, operation, shapeFormat, shapeString, scoreField};
   }
 
   @Override

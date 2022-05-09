@@ -24,11 +24,6 @@
   "indexSpec": {
     "allowNullForNumbers": true,
     "bitmap": { "type": "roaring" },
-    "secondaryIndexing": {
-      "C_COMMENT": {
-        "type": "lucene", "strategies": [ {"type": "text", "fieldName": "comment"} ]
-      }
-    },
     "columnCompression": {
       "C_COMMENT": "lz4"
     }

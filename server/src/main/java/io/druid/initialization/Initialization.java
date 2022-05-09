@@ -171,6 +171,9 @@ public class Initialization
     }
 
     for (File extension : getExtensionFilesToLoad(config)) {
+      if (loadedExtensionNames.contains(extension.getName())) {
+        continue;
+      }
       log.debug("Loading extension [%s] for service type [%s]", extension.getName(), clazz.getName());
       try {
         final ClassLoader loader = getClassLoaderForExtension(config, extension);
@@ -341,9 +344,7 @@ public class Initialization
       final File versionDir = new File(hadoopDependencyDir, artifact.getVersion());
       // find the hadoop dependency with the version specified in coordinate
       if (!hadoopDependencyDir.isDirectory() || !versionDir.isDirectory()) {
-        throw new ISE(
-            String.format("Hadoop dependency [%s] didn't exist!?", versionDir.getAbsolutePath())
-        );
+        throw new ISE("Hadoop dependency [%s] didn't exist!?", versionDir.getAbsolutePath());
       }
       hadoopDependenciesToLoad[i++] = versionDir;
     }
@@ -488,9 +489,20 @@ public class Initialization
     }
   }
 
-  public static Injector makeInjectorWithModules(
+  public static Injector makeInjectorWithModulesInHadoop(Injector baseInjector, Iterable<? extends Module> modules)
+  {
+    return _makeInjectorWithModules(baseInjector, modules, true);
+  }
+
+  public static Injector makeInjectorWithModules(Injector baseInjector, Iterable<? extends Module> modules)
+  {
+    return _makeInjectorWithModules(baseInjector, modules, false);
+  }
+
+  private static Injector _makeInjectorWithModules(
       final Injector baseInjector,
-      final Iterable<? extends Module> modules
+      final Iterable<? extends Module> modules,
+      final boolean loadExtensionsFromClassLoader
   )
   {
     final ModuleList defaultModules = new ModuleList(baseInjector);
@@ -556,7 +568,10 @@ public class Initialization
     Module intermediateModules = Modules.override(defaultModules.getModules()).with(actualModules.getModules());
 
     ModuleList extensionModules = new ModuleList(baseInjector);
-    final ExtensionsConfig config = baseInjector.getInstance(ExtensionsConfig.class);
+    ExtensionsConfig config = baseInjector.getInstance(ExtensionsConfig.class);
+    if (loadExtensionsFromClassLoader) {
+      config.setSearchCurrentClassloader(true);
+    }
     for (DruidModule module : Initialization.getFromExtensions(config, DruidModule.class)) {
       extensionModules.addModule(module);
     }
