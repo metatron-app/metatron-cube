@@ -178,7 +178,7 @@ public class Initialization
       try {
         final ClassLoader loader = getClassLoaderForExtension(config, extension);
         final Iterator<T> modules = ServiceLoader.load(clazz, loader).iterator();
-        if (clazz == DruidModule.class && !modules.hasNext()) {
+        if (clazz == DruidModule.class && !modules.hasNext() && !ABSTRACT_MODULES.contains(extension.getName())) {
           log.warn("Cannot find any druid module in extension [%s].. skipping", extension.getName());
           continue;
         }
@@ -295,7 +295,7 @@ public class Initialization
   private static final String INTERNAL_HADOOP_CLIENT = "$HADOOP_CILENT$";
 
   // -_-;;;
-  private static final ImmutableSet<String> ABSTRACT_LIBRARY = ImmutableSet.of(
+  private static final ImmutableSet<String> ABSTRACT_MODULES = ImmutableSet.of(
       "druid-lucene-common"
   );
 
@@ -305,7 +305,7 @@ public class Initialization
       "druid-geometry-extensions"   // for shape formatter
   );
 
-  private static File toModuleDirectory(File rootExtensionsDir, String extensionName)
+  public static File toModuleDirectory(File rootExtensionsDir, String extensionName)
   {
     final File extensionDir = new File(rootExtensionsDir, extensionName);
     if (!extensionDir.exists()) {
@@ -386,7 +386,7 @@ public class Initialization
       } else if (PARENT_MODULES.containsKey(extensionName)) {
         String parentModule = PARENT_MODULES.get(extensionName);
         parent = getClassLoaderForExtension(parentModule);
-        if (parent instanceof URLClassLoader && ABSTRACT_LIBRARY.contains(parentModule)) {
+        if (parent instanceof URLClassLoader && ABSTRACT_MODULES.contains(parentModule)) {
           // merge.. (for lucene-common)
           urls = ObjectArrays.concat(((URLClassLoader) parent).getURLs(), urls, URL.class);
           parent = parent.getParent();
@@ -569,8 +569,8 @@ public class Initialization
 
     ModuleList extensionModules = new ModuleList(baseInjector);
     ExtensionsConfig config = baseInjector.getInstance(ExtensionsConfig.class);
-    if (loadExtensionsFromClassLoader) {
-      config.setSearchCurrentClassloader(true);
+    if (loadExtensionsFromClassLoader && !config.searchCurrentClassloader()) {
+      config = config.withSearchCurrentClassloader(true);
     }
     for (DruidModule module : Initialization.getFromExtensions(config, DruidModule.class)) {
       extensionModules.addModule(module);

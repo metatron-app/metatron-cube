@@ -69,9 +69,24 @@ public class ExtensionsConfig
     return loadList;
   }
 
-  public void setSearchCurrentClassloader(boolean searchCurrentClassloader)
+  public ExtensionsConfig withSearchCurrentClassloader(boolean searchCurrentClassloader)
   {
-    this.searchCurrentClassloader = searchCurrentClassloader;
+    ExtensionsConfig copy = new ExtensionsConfig();
+    copy.searchCurrentClassloader = searchCurrentClassloader;
+    copy.directory = directory;
+    copy.hadoopContainerDruidClasspath = hadoopContainerDruidClasspath;
+    copy.loadList = loadList;
+    return copy;
+  }
+
+  public ExtensionsConfig withLoadList(List<String> loadList)
+  {
+    ExtensionsConfig copy = new ExtensionsConfig();
+    copy.searchCurrentClassloader = searchCurrentClassloader;
+    copy.directory = directory;
+    copy.hadoopContainerDruidClasspath = hadoopContainerDruidClasspath;
+    copy.loadList = loadList;
+    return copy;
   }
 
   @Override
@@ -82,7 +97,7 @@ public class ExtensionsConfig
            ", directory='" + directory + '\'' +
            ", hadoopDependenciesDir='" + hadoopDependenciesDir + '\'' +
            (hadoopContainerDruidClasspath == null ? "" : ", hadoopContainerDruidClasspath='" + hadoopContainerDruidClasspath + '\'') +
-           ", loadList=" + loadList +
+           (loadList == null ? "" : ", loadList=" + loadList) +
            '}';
   }
 }

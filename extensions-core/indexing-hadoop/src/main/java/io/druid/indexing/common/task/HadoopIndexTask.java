@@ -145,6 +145,7 @@ public class HadoopIndexTask extends HadoopTask
       @JsonProperty("spec") HadoopIngestionSpec spec,
       @JsonProperty("hadoopCoordinates") String hadoopCoordinates,
       @JsonProperty("hadoopDependencyCoordinates") List<String> hadoopDependencyCoordinates,
+      @JsonProperty("extensions") List<String> extensions,
       @JsonProperty("classpathPrefix") String classpathPrefix,
       @JacksonInject ObjectMapper jsonMapper,
       @JsonProperty("context") Map<String, Object> context
@@ -156,6 +157,7 @@ public class HadoopIndexTask extends HadoopTask
         hadoopDependencyCoordinates == null
         ? (hadoopCoordinates == null ? null : ImmutableList.of(hadoopCoordinates))
         : hadoopDependencyCoordinates,
+        extensions,
         context
     );
 
@@ -226,6 +228,13 @@ public class HadoopIndexTask extends HadoopTask
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getExtensions()
+  {
+    return super.getExtensions();
+  }
+
+  @JsonProperty
   @Override
   @JsonInclude(JsonInclude.Include.NON_NULL)
   public String getClasspathPrefix()
@@ -233,7 +242,6 @@ public class HadoopIndexTask extends HadoopTask
     return classpathPrefix;
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public TaskStatus run(TaskToolbox toolbox) throws Exception
   {

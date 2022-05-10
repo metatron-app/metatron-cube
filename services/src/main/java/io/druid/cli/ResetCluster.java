@@ -185,7 +185,7 @@ public class ResetCluster extends GuiceRunnable
           new String[]{
               taskConfig.getHadoopWorkingPath()
           },
-          HadoopTask.buildClassLoader(taskConfig.getDefaultHadoopCoordinates())
+          HadoopTask.buildClassLoader(taskConfig.getDefaultHadoopCoordinates(), null)
       );
     }
     catch (Exception ex) {

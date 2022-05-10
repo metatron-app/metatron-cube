@@ -47,6 +47,7 @@ public class HadoopTaskTest
         "taskId",
         "dataSource",
         ImmutableList.<String>of(),
+        ImmutableList.<String>of(),
         ImmutableMap.<String, Object>of()
     )
     {

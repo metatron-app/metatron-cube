@@ -62,6 +62,7 @@ public class HadoopConverterTask extends ConvertSegmentTask
       @JsonProperty("force") boolean force,
       @JsonProperty("validate") Boolean validate,
       @JsonProperty("hadoopDependencyCoordinates") List<String> hadoopDependencyCoordinates,
+      @JsonProperty("extensions") List<String> extensions,
       @JsonProperty("distributedSuccessCache") URI distributedSuccessCache,
       @JsonProperty("jobPriority") String jobPriority,
       @JsonProperty("segmentOutputPath") String segmentOutputPath,
@@ -81,10 +82,11 @@ public class HadoopConverterTask extends ConvertSegmentTask
         null, // Always call subtask codepath
         indexSpec,
         force,
-        validate == null ? true : validate,
+        validate == null || validate,
         context
     );
     this.hadoopDependencyCoordinates = hadoopDependencyCoordinates;
+    this.extensions = extensions;
     this.distributedSuccessCache = Preconditions.checkNotNull(distributedSuccessCache, "distributedSuccessCache");
     this.segmentOutputPath = Preconditions.checkNotNull(segmentOutputPath, "segmentOutputPath");
     this.jobPriority = jobPriority;
@@ -92,6 +94,7 @@ public class HadoopConverterTask extends ConvertSegmentTask
   }
 
   private final List<String> hadoopDependencyCoordinates;
+  private final List<String> extensions;
   private final URI distributedSuccessCache;
   private final String jobPriority;
   private final String segmentOutputPath;
@@ -101,6 +104,12 @@ public class HadoopConverterTask extends ConvertSegmentTask
   public List<String> getHadoopDependencyCoordinates()
   {
     return hadoopDependencyCoordinates;
+  }
+
+  @JsonProperty
+  public List<String> getExtensions()
+  {
+    return extensions;
   }
 
   @JsonProperty
@@ -184,6 +193,7 @@ public class HadoopConverterTask extends ConvertSegmentTask
           ),
           parent.getDataSource(),
           parent.getHadoopDependencyCoordinates(),
+          parent.getExtensions(),
           context
       );
       this.segments = segments;

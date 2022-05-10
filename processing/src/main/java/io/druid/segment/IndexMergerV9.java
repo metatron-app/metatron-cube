@@ -173,13 +173,13 @@ public class IndexMergerV9 extends IndexMerger
       final boolean[] dimensionSkipFlag = new boolean[mergedDimensions.size()];
       final boolean[] dimHasNullFlags = new boolean[mergedDimensions.size()];
       final boolean[] convertMissingDimsFlags = new boolean[mergedDimensions.size()];
+
        writeDimValueAndSetupDimConversion(
           adapters, progress, mergedDimensions, dictionaryWriters, dictionaryFSTs, dimCardinalities,
           dimensionSkipFlag, dimConversions, convertMissingDimsFlags, dimHasNullFlags, indexSpec
       );
       final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
       final BitmapFactory bitmapFactory = bitmapSerdeFactory.getBitmapFactory();
-      log.info("Completed dim conversions in %,d millis.", System.currentTimeMillis() - startTime);
 
       /************* Walk through data sets, merge them, and write merged columns *************/
       final LongColumnSerializer timeWriter = setupTimeWriter(ioPeon, "little_end_time", indexSpec);
@@ -252,6 +252,7 @@ public class IndexMergerV9 extends IndexMerger
           final BigInteger cubeId = Cuboids.toCubeId(cubeDimIndices, granularity);
 
           log.info("Start making cube %d : %s", cubeId, cuboidSpec);
+          long cubeStart = System.currentTimeMillis();
           GroupByQuery.Builder builder = GroupByQuery.builder();
           builder.dataSource("$$cube$$")
                  .intervals(dataInterval)
@@ -371,6 +372,7 @@ public class IndexMergerV9 extends IndexMerger
               v9Smoosher, progress, indexer,
               cubeDims, null, null, null, null, cubeDimWriters, cubeBitmapWriters, null, false
           );
+          log.info("Completed writing cube %d in %,d msec", cubeId, System.currentTimeMillis() - cubeStart);
         }
 
         heapPool.clear();
@@ -613,10 +615,10 @@ public class IndexMergerV9 extends IndexMerger
       final ArrayList<Map<String, IntBuffer>> dimConversions
   ) throws IOException
   {
-    final String section = "build inverted index";
+    final String section = "build bitmap index";
     progress.startSection(section);
 
-    long startTime = System.currentTimeMillis();
+    final long startTime = System.currentTimeMillis();
     final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
     for (int dimIndex = 0; dimIndex < mergedDimensions.size(); ++dimIndex) {
       String dimension = mergedDimensions.get(dimIndex);
@@ -678,13 +680,13 @@ public class IndexMergerV9 extends IndexMerger
       dimVals.close();
 
       log.info(
-          "Completed dim[%s] inverted with cardinality[%,d] in %,d millis.",
+          "Completed dim[%s] bitmap index with cardinality[%,d] in %,d millis.",
           dimension,
           dimVals.size(),
           System.currentTimeMillis() - dimStartTime
       );
     }
-    log.info("Completed inverted index in %,d millis.", System.currentTimeMillis() - startTime);
+    log.info("Completed bitmap index in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
 
@@ -756,7 +758,7 @@ public class IndexMergerV9 extends IndexMerger
       final boolean[] dimHasNullFlags
   ) throws IOException
   {
-    final String section = "walk through and merge rows";
+    final String section = "walking through rows";
     progress.startSection(section);
     long startTime = System.currentTimeMillis();
 
@@ -792,7 +794,7 @@ public class IndexMergerV9 extends IndexMerger
         time = System.currentTimeMillis();
       }
     }
-    log.info("Completed walk through of %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - startTime);
+    log.info("Completed walking through of %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
 
@@ -805,7 +807,7 @@ public class IndexMergerV9 extends IndexMerger
       final MutableBitmap[][] bitmaps
   ) throws IOException
   {
-    final String section = "writting rows of cube";
+    final String section = "walking through rows";
     progress.startSection(section);
     long startTime = System.currentTimeMillis();
 
@@ -828,11 +830,11 @@ public class IndexMergerV9 extends IndexMerger
       }
 
       if ((++rowNum % 500_000) == 0) {
-        log.info("..written 500,000 rows.. total %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - time);
+        log.info("..walked 500,000 rows.. total %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - time);
         time = System.currentTimeMillis();
       }
     }
-    log.info("Completed writting %,d rows of cube in %,d millis.", rowNum, System.currentTimeMillis() - startTime);
+    log.info("Completed walking through %,d rows in %,d millis.", rowNum, System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
 
@@ -982,8 +984,10 @@ public class IndexMergerV9 extends IndexMerger
       final IndexSpec indexSpec
   ) throws IOException
   {
-    final String section = "setup dimension conversions";
+    final String section = "build dictionary";
     progress.startSection(section);
+
+    final long startTime = System.currentTimeMillis();
 
     for (int i = 0; i < indexes.size(); ++i) {
       dimConversions.add(Maps.<String, IntBuffer>newHashMap());
@@ -1067,7 +1071,7 @@ public class IndexMergerV9 extends IndexMerger
       dimHasNullFlags[dimIndex] = dimHasNull;
 
       log.info(
-          "Completed dim[%s] conversions with cardinality[%,d] in %,d millis.",
+          "Completed dim[%s] dictionary with cardinality[%,d] in %,d millis.",
           dimension,
           cardinality,
           System.currentTimeMillis() - dimStartTime
@@ -1080,6 +1084,7 @@ public class IndexMergerV9 extends IndexMerger
         dimensionSkipFlag[dimIndex] = true;
       }
     }
+    log.info("Completed dictionaries in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
 
