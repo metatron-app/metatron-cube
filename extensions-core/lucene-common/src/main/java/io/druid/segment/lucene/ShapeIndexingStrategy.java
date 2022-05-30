@@ -55,6 +55,8 @@ import java.util.Objects;
 @JsonTypeName("shape")
 public class ShapeIndexingStrategy implements LuceneIndexingStrategy
 {
+  public static final String TYPE_NAME = "shape";
+
   enum ShapeType
   {
     POINT {
@@ -175,7 +177,7 @@ public class ShapeIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public String getFieldDescriptor()
   {
-    return String.format("%s(format=%s)", SHAPE_DESC, shapeFormat);
+    return String.format("%s(format=%s)", TYPE_NAME, shapeFormat);
   }
 
   @Override

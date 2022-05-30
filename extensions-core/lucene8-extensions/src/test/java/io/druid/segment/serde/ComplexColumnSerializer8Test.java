@@ -17,21 +17,8 @@
  * under the License.
  */
 
-package io.druid.segment.lucene;
+package io.druid.segment.serde;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.base.Function;
-import io.druid.data.ValueDesc;
-import org.apache.lucene.document.Field;
-
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public interface LuceneIndexingStrategy
+public class ComplexColumnSerializer8Test extends ComplexColumnSerializerTest
 {
-  String getFieldName();
-
-  String getFieldDescriptor();
-
-  LuceneIndexingStrategy withFieldName(String fieldName);
-
-  Function<Object, Field[]> createIndexableField(ValueDesc type);
 }

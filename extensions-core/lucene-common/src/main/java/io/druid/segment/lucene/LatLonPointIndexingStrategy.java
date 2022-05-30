@@ -42,6 +42,8 @@ import java.util.Objects;
 @JsonTypeName("latlon")
 public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
 {
+  public static final String TYPE_NAME = "point";
+
   private final String fieldName;
   private final String latitude;
   private final String longitude;
@@ -90,7 +92,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public String getFieldDescriptor()
   {
-    return String.format("%s(latitude=%s,longitude=%s)", LATLON_POINT_DESC, latitude, longitude);
+    return String.format("%s(latitude=%s,longitude=%s)", TYPE_NAME, latitude, longitude);
   }
 
   @Override

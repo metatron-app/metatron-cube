@@ -24,30 +24,31 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
-import io.druid.java.util.common.IAE;
-import io.druid.segment.serde.ComplexMetricSerde;
-import io.druid.segment.serde.ComplexMetrics;
-import io.druid.segment.serde.StructMetricSerde;
+import io.druid.jackson.DefaultObjectMapper;
 import org.apache.lucene.document.Field;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
  */
-@JsonTypeName("text")
-public class TextIndexingStrategy implements LuceneIndexingStrategy
+@JsonTypeName("json")
+public class JsonIndexingStrategy implements LuceneIndexingStrategy
 {
-  public static final String TYPE_NAME = "text";
+  public static final String TYPE_NAME = "json";
 
   private final String fieldName;
+  private final List<String> patterns;
 
   @JsonCreator
-  public TextIndexingStrategy(@JsonProperty("fieldName") String fieldName)
+  public JsonIndexingStrategy(
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("patterns") List<String> patterns
+  )
   {
     this.fieldName = fieldName;
+    this.patterns = patterns;
   }
 
   @Override
@@ -56,6 +57,13 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getPatterns()
+  {
+    return patterns;
   }
 
   @Override
@@ -67,24 +75,13 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   @Override
   public LuceneIndexingStrategy withFieldName(String fieldName)
   {
-    return new TextIndexingStrategy(fieldName);
+    return new JsonIndexingStrategy(fieldName, patterns);
   }
 
   @Override
   public Function<Object, Field[]> createIndexableField(ValueDesc type)
   {
-    if (type.isPrimitive()) {
-      return Lucenes.makeTextFieldGenerator(fieldName);
-    }
-    if (type.isStruct()) {
-      final ComplexMetricSerde serde = Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
-      final int index = ((StructMetricSerde) serde).indexOf(fieldName);
-      Preconditions.checkArgument(index >= 0, "invalid field name %s", fieldName);
-      return Functions.compose(
-          Lucenes.makeTextFieldGenerator(fieldName), input -> ((Object[]) input)[index]
-      );
-    }
-    throw new IAE("cannot index %s as text", type);
+    return Lucenes.makeJsonFieldGenerator(new DefaultObjectMapper(), fieldName, patterns);
   }
 
   @Override
@@ -97,19 +94,21 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
       return false;
     }
 
-    TextIndexingStrategy that = (TextIndexingStrategy) o;
+    JsonIndexingStrategy that = (JsonIndexingStrategy) o;
 
     if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
-
+    if (!Objects.equals(patterns, that.patterns)) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(fieldName);
+    return Objects.hash(fieldName, patterns);
   }
 
   @Override

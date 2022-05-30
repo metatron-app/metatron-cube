@@ -45,9 +45,12 @@ public class LuceneCommonExtensionModule implements DruidModule
   public SimpleModule getModule(boolean lucene7)
   {
     SimpleModule module = new SimpleModule("lucene-extension")
+        .registerSubtypes(TextIndexingStrategy.class)
+        .registerSubtypes(LatLonPointIndexingStrategy.class)
         .registerSubtypes(ShapeIndexingStrategy.class)
         .registerSubtypes(SpatialIndexingStrategy.class)
         .registerSubtypes(LatLonShapeIndexingStrategy.class)
+        .registerSubtypes(JsonIndexingStrategy.class)
         .registerSubtypes(LuceneQueryFilter.class)
         .registerSubtypes(LucenePointFilter.class)
         .registerSubtypes(LuceneNearestFilter.class)

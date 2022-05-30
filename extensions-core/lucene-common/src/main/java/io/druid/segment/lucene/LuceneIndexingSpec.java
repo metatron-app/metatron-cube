@@ -108,10 +108,10 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
 
     LuceneIndexingSpec that = (LuceneIndexingSpec) o;
 
-    if (Objects.equals(textAnalyzer, that.textAnalyzer)) {
+    if (!Objects.equals(textAnalyzer, that.textAnalyzer)) {
       return false;
     }
-    if (Objects.equals(strategies, that.strategies)) {
+    if (!Objects.equals(strategies, that.strategies)) {
       return false;
     }
     return true;

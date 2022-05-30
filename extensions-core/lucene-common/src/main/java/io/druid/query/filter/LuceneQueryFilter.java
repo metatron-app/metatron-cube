@@ -20,10 +20,12 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
@@ -31,9 +33,11 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
-import io.druid.segment.lucene.LuceneIndexingStrategy;
+import io.druid.segment.lucene.JsonIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
-import org.apache.lucene.queryparser.classic.QueryParser;
+import io.druid.segment.lucene.TextIndexingStrategy;
+import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser;
+import org.apache.lucene.queryparser.flexible.standard.config.PointsConfig;
 import org.apache.lucene.search.Query;
 
 import java.util.Map;
@@ -47,23 +51,26 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
 {
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
-    return new LuceneQueryFilter(field, null, expression, scoreField);
+    return new LuceneQueryFilter(field, null, expression, null, scoreField);
   }
 
   private final String analyzer;
   private final String expression;
+  private final Map<String, String> types;
 
   @JsonCreator
   public LuceneQueryFilter(
       @JsonProperty("field") String field,
       @JsonProperty("analyzer") String analyzer,
       @JsonProperty("expression") String expression,
+      @JsonProperty("types") Map<String, String> types,
       @JsonProperty("scoreField") String scoreField
   )
   {
     super(field, scoreField);
     this.analyzer = Objects.toString(analyzer, "standard");
     this.expression = Preconditions.checkNotNull(expression, "expression can not be null");
+    this.types = types == null ? ImmutableMap.of() : types;
   }
 
   @JsonProperty
@@ -78,6 +85,13 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
     return expression;
   }
 
+  @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public Map<String, String> getTypes()
+  {
+    return types;
+  }
+
   @Override
   public KeyBuilder getCacheKey(KeyBuilder builder)
   {
@@ -85,6 +99,7 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
                   .append(field).sp()
                   .append(analyzer).sp()
                   .append(expression).sp()
+                  .append(types).sp()
                   .append(scoreField);
   }
 
@@ -95,13 +110,13 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
     if (replaced == null || replaced.equals(field)) {
       return this;
     }
-    return new LuceneQueryFilter(replaced, analyzer, expression, scoreField);
+    return new LuceneQueryFilter(replaced, analyzer, expression, types, scoreField);
   }
 
   @Override
   protected Object[] params()
   {
-    return new Object[]{field, analyzer, expression, scoreField};
+    return new Object[]{field, analyzer, expression, types, scoreField};
   }
 
   @Override
@@ -116,13 +131,18 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
             Lucenes.findLuceneColumn(field, context.internal()), "no lucene index on [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
-            Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.TEXT_DESC),
+            Lucenes.findLuceneField(field, column, TextIndexingStrategy.TYPE_NAME, JsonIndexingStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
+        StandardQueryParser parser = new StandardQueryParser(Lucenes.createAnalyzer(analyzer));
+        Map<String, PointsConfig> configMap = Lucenes.asPointConfig(types);
+        if (!configMap.isEmpty()) {
+          parser.setPointsConfigMap(configMap);
+        }
+
         LuceneIndex lucene = column.getSecondaryIndex();
         try {
-          QueryParser parser = new QueryParser(luceneField, Lucenes.createAnalyzer(analyzer));
-          Query query = parser.parse(expression);
+          Query query = parser.parse(expression, luceneField);
           return lucene.filterFor(query, context, scoreField);
         }
         catch (Exception e) {
@@ -151,6 +171,7 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
            "field='" + field + '\'' +
            ", analyzer='" + analyzer + '\'' +
            ", expression='" + expression + '\'' +
+           (types.isEmpty() ? "" : ", types=" + types) +
            (scoreField == null ? "" : ", scoreField='" + scoreField + '\'') +
            '}';
   }
@@ -158,7 +179,7 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, analyzer, expression, scoreField);
+    return Objects.hash(field, analyzer, expression, types, scoreField);
   }
 
   @Override
@@ -180,6 +201,9 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
       return false;
     }
     if (!expression.equals(that.expression)) {
+      return false;
+    }
+    if (!Objects.equals(types, that.types)) {
       return false;
     }
     if (!Objects.equals(scoreField, that.scoreField)) {

@@ -31,7 +31,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
-import io.druid.segment.lucene.LuceneIndexingStrategy;
+import io.druid.segment.lucene.LatLonPointIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.LatLonPointPrototypeQueries;
@@ -122,7 +122,7 @@ public class LuceneNearestFilter extends Lucenes.LuceneSelector
             Lucenes.findLuceneColumn(field, context.internal()), "no lucene index for [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
-            Lucenes.findLuceneField(field, column, LuceneIndexingStrategy.TEXT_DESC),
+            Lucenes.findLuceneField(field, column, LatLonPointIndexingStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
         LuceneIndex index = column.getSecondaryIndex();

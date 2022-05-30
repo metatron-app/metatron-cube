@@ -19,6 +19,7 @@
 
 package io.druid.segment.serde;
 
+import com.google.common.collect.ImmutableMap;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueDesc;
@@ -30,6 +31,7 @@ import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.filter.FilterContext;
+import io.druid.segment.lucene.JsonIndexingStrategy;
 import io.druid.segment.lucene.LatLonPointIndexingStrategy;
 import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.lucene.Lucenes;
@@ -37,6 +39,8 @@ import io.druid.segment.lucene.TextIndexingStrategy;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser;
+import org.apache.lucene.queryparser.flexible.standard.config.PointsConfig;
 import org.apache.lucene.search.Query;
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,6 +49,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.text.DecimalFormat;
 
 public class ComplexColumnSerializerTest
 {
@@ -58,6 +63,15 @@ public class ComplexColumnSerializerTest
   }
 
   private final IOPeon ioPeon = new TmpFileIOPeon();
+  private final RoaringBitmapSerdeFactory factory = new RoaringBitmapSerdeFactory();
+  private final FilterContext context = new FilterContext(new BitmapIndexSelector.Abstract()
+  {
+    @Override
+    public BitmapFactory getBitmapFactory()
+    {
+      return factory.getBitmapFactory();
+    }
+  });
 
   @Test
   public void testLucene() throws Exception
@@ -86,29 +100,14 @@ public class ComplexColumnSerializerTest
 
     Assert.assertEquals(length, payload.remaining());
 
-    final RoaringBitmapSerdeFactory factory = new RoaringBitmapSerdeFactory();
     Column column = descriptor.read("test", payload, factory);
-    FilterContext context = new FilterContext(new BitmapIndexSelector.Abstract()
-    {
-      public BitmapFactory getBitmapFactory()
-      {
-        return factory.getBitmapFactory();
-      }
-    });
     LuceneIndex luceneIndex = column.getSecondaryIndex();
 
     Assert.assertNotNull(luceneIndex);
 
     QueryParser parser = new QueryParser("test-lucene", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"navis\"");
-    ImmutableBitmap bitmap = luceneIndex.filterFor(query, context).bitmap();
-
-    Assert.assertEquals(2, bitmap.size());
-    Assert.assertEquals(true, bitmap.get(0));
-    Assert.assertEquals(false, bitmap.get(1));
-    Assert.assertEquals(true, bitmap.get(2));
-    Assert.assertEquals(false, bitmap.get(3));
-    Assert.assertEquals(false, bitmap.get(4));
+    assertResult(luceneIndex, query, 0, 2);
   }
 
   private ByteBuffer serialize(ColumnDescriptor descriptor) throws IOException
@@ -174,56 +173,31 @@ public class ComplexColumnSerializerTest
 
     Assert.assertEquals(length, payload.remaining());
 
-    final RoaringBitmapSerdeFactory factory = new RoaringBitmapSerdeFactory();
     Column column = descriptor.read("test", payload, factory);
     LuceneIndex luceneIndex = column.getSecondaryIndex();
 
     Assert.assertNotNull(luceneIndex);
 
-    FilterContext context = new FilterContext(new BitmapIndexSelector.Abstract()
-    {
-      public BitmapFactory getBitmapFactory()
-      {
-        return factory.getBitmapFactory();
-      }
-    });
     QueryParser parser = new QueryParser("address", Lucenes.createAnalyzer("standard"));
     Query query = parser.parse("\"school\"");
-    ImmutableBitmap bitmap = luceneIndex.filterFor(query, context).bitmap();
-    Assert.assertEquals(1, bitmap.size());
-    Assert.assertEquals(true, bitmap.get(1));
+    assertResult(luceneIndex, query, 1);
 
     // from home
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 10);
-    bitmap = luceneIndex.filterFor(query, context).bitmap();
-    Assert.assertEquals(1, bitmap.size());
-    Assert.assertEquals(true, bitmap.get(0));
+    assertResult(luceneIndex, query, 0);
 
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 100);
-    bitmap = luceneIndex.filterFor(query, context).bitmap();
-    Assert.assertEquals(2, bitmap.size());
-    Assert.assertEquals(true, bitmap.get(0));
-    Assert.assertEquals(true, bitmap.get(2));
+    assertResult(luceneIndex, query, 0, 2);
 
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 600);
-    bitmap = luceneIndex.filterFor(query, context).bitmap();
-    Assert.assertEquals(4, bitmap.size());
-    Assert.assertEquals(true, bitmap.get(0));
-    Assert.assertEquals(true, bitmap.get(1));
-    Assert.assertEquals(true, bitmap.get(2));
-    Assert.assertEquals(true, bitmap.get(3));
+    assertResult(luceneIndex, query, 0, 1, 2, 3);
 
     query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 800);
-    bitmap = luceneIndex.filterFor(query, context).bitmap();
-    Assert.assertEquals(5, bitmap.size());
+    assertResult(luceneIndex, query, 0, 1, 2, 3, 4);
 
     // 래미안 ~ 우성
     query = LatLonPoint.newBoxQuery("coord", 37.490215, 37.493298, 127.019866, 127.028222);
-    bitmap = luceneIndex.filterFor(query, context).bitmap();
-    Assert.assertEquals(3, bitmap.size());
-    Assert.assertEquals(true, bitmap.get(0));
-    Assert.assertEquals(true, bitmap.get(1));
-    Assert.assertEquals(true, bitmap.get(2));
+    assertResult(luceneIndex, query, 0, 1, 2);
 
     // 래미안 ~ 성당놀이터 ~ 한일
     // 37.493296, 127.019841, 37.492742, 127.021931, 37.494323, 127.021177
@@ -232,8 +206,63 @@ public class ComplexColumnSerializerTest
         new double[] {127.019841, 127.021931, 127.021177, 127.019841}
     );
     query = LatLonPoint.newPolygonQuery("coord", polygon);
-    bitmap = luceneIndex.filterFor(query, context).bitmap();
-    Assert.assertEquals(1, bitmap.size());
-    Assert.assertEquals(true, bitmap.get(2));
+    assertResult(luceneIndex, query, 2);
+  }
+
+  @Test
+  public void testJson() throws Exception
+  {
+    ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
+        "test-lucene",
+        StringMetricSerde.INSTANCE,
+        LuceneIndexingSpec.of(null, new JsonIndexingStrategy("payload", null)),
+        null
+    );
+    serializer.open(ioPeon);
+
+    serializer.serialize(0, "{\"name\": \"navis0\", \"score\": 90, \"homework\": false}");
+    serializer.serialize(1, "{\"name\": \"navis1\", \"score\": 40, \"homework\": true}");
+    serializer.serialize(2, "{\"name\": \"navis2\", \"score\": 70, \"homework\": true}");
+    serializer.serialize(3, "{\"name\": \"navis3\", \"score\": 60, \"homework\": false}");
+    serializer.serialize(4, "{\"name\": \"navis4\", \"score\": 20, \"homework\": true}");
+
+    serializer.close();
+
+    ColumnDescriptor descriptor = serializer.buildDescriptor(ValueDesc.STRING, new ColumnDescriptor.Builder()).build();
+
+    long length = descriptor.numBytes();
+
+    ByteBuffer payload = serialize(descriptor);
+
+    Assert.assertEquals(length, payload.remaining());
+
+    Column column = descriptor.read("test", payload, factory);
+    LuceneIndex luceneIndex = column.getSecondaryIndex();
+
+    Assert.assertNotNull(luceneIndex);
+
+//    Query query = IntPoint.newRangeQuery("score", 70, 100);
+//    QueryParser parser = new QueryParser("payload", Lucenes.createAnalyzer("standard"));
+//    Query query = parser.parse("score:[70 TO 100]");
+    StandardQueryParser parser = new StandardQueryParser();
+    parser.setPointsConfigMap(ImmutableMap.of("score", new PointsConfig(new DecimalFormat(), Integer.class)));
+
+    Query query = parser.parse("score:[70 TO 100]", "");
+    assertResult(luceneIndex, query, 0, 2);
+
+    query = parser.parse("name:navis3", "");
+    assertResult(luceneIndex, query, 3);
+
+    query = parser.parse("homework:true", "");
+    assertResult(luceneIndex, query, 1, 2, 4);
+  }
+
+  private void assertResult(LuceneIndex index, Query query, int... trues)
+  {
+    ImmutableBitmap bitmap = index.filterFor(query, context).bitmap();
+    Assert.assertEquals(trues.length, bitmap.size());
+    for (int x : trues) {
+      Assert.assertTrue(bitmap.get(x));
+    }
   }
 }

@@ -20,8 +20,14 @@
 package io.druid.segment.lucene;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
@@ -29,6 +35,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.java.util.common.logger.Logger;
@@ -81,7 +88,13 @@ import org.apache.lucene.analysis.standard.UAX29URLEmailAnalyzer;
 import org.apache.lucene.analysis.sv.SwedishAnalyzer;
 import org.apache.lucene.analysis.th.ThaiAnalyzer;
 import org.apache.lucene.analysis.tr.TurkishAnalyzer;
+import org.apache.lucene.document.BigIntegerPoint;
+import org.apache.lucene.document.DoublePoint;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FloatPoint;
+import org.apache.lucene.document.IntPoint;
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.index.DirectoryReader;
@@ -91,6 +104,7 @@ import org.apache.lucene.index.NoDeletionPolicy;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.NoMergeScheduler;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.queryparser.flexible.standard.config.PointsConfig;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
@@ -116,16 +130,21 @@ import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  */
@@ -156,6 +175,109 @@ public class Lucenes
   {
     // to string whatever..
     return input -> new Field[]{new TextField(fieldName, Objects.toString(input, ""), Field.Store.NO)};
+  }
+
+  public static Function<Object, Field[]> makeJsonFieldGenerator(
+      ObjectMapper mapper, String fieldName, List<String> indexing
+  )
+  {
+    // to string whatever..
+    return input -> generate(mapper, Objects.toString(input, ""), indexing);
+  }
+
+  private static Field[] generate(final ObjectMapper mapper, final String input, List<String> indexing)
+  {
+    if (StringUtils.isNullOrEmpty(input)) {
+      return new Field[]{};
+    }
+    List<Field> list = Lists.newArrayList();
+    try {
+      addTo(mapper.readTree(input), "", list, includer(indexing));
+    }
+    catch (Throwable t) {
+      throw Throwables.propagate(t);
+    }
+    return list.toArray(new Field[0]);
+  }
+
+  private static void addTo(JsonNode node, String prefix, List<Field> list, Predicate<String> includer)
+  {
+    Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+    while (fields.hasNext()) {
+      Map.Entry<String, JsonNode> entry = fields.next();
+      String name = entry.getKey();
+      JsonNode value = entry.getValue();
+      if (value.isNull() || (value.isValueNode() && !includer.apply(prefix + name))) {
+        continue;
+      }
+      if (value.isTextual()) {
+        list.add(new StringField(prefix + name, value.textValue(), Field.Store.NO));
+      } else if (value.isBoolean()) {
+        list.add(new StringField(prefix + name, value.booleanValue() ? "true" : "false", Field.Store.NO));
+      } else if (value.isShort() || value.isInt()) {
+        list.add(new IntPoint(prefix + name, value.intValue()));
+      } else if (value.isLong()) {
+        list.add(new LongPoint(prefix + name, value.longValue()));
+      } else if (value.isBigInteger()) {
+        list.add(new BigIntegerPoint(prefix + name, value.bigIntegerValue()));
+      } else if (value.isFloat()) {
+        list.add(new FloatPoint(prefix + name, value.floatValue()));
+      } else if (value.isDouble()) {
+        list.add(new DoublePoint(prefix + name, value.doubleValue()));
+      } else if (value.isObject()) {
+        addTo(value, prefix.isEmpty() ? name + "." : prefix + "." + name + ".", list, includer);
+      } else if (value.isArray()) {
+        // todo: no idea
+      }
+    }
+  }
+
+  private static Predicate<String> includer(Collection<String> includes)
+  {
+    if (GuavaUtils.isNullOrEmpty(includes)) {
+      return Predicates.alwaysTrue();
+    }
+    final List<Matcher> machers = GuavaUtils.transform(includes, p -> Pattern.compile(p).matcher(""));
+    return key -> {
+      for (Matcher matcher : machers) {
+        if (matcher.reset(key).matches()) {
+          return true;
+        }
+      }
+      return false;
+    };
+  }
+
+  public static Class<?> typeOf(String type)
+  {
+    if (type == null) {
+      return Object.class;
+    }
+    switch (type.toUpperCase()) {
+      case "STRING": return String.class;
+      case "INT": return Integer.class;
+      case "LONG": return Long.class;
+      case "FLOAT": return Float.class;
+      case "DOUBLE": return Double.class;
+      case "BIGINT": return BigInteger.class;
+    }
+    return Object.class;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Map<String, PointsConfig> asPointConfig(Map<String, String> types)
+  {
+    if (GuavaUtils.isNullOrEmpty(types)) {
+      return ImmutableMap.of();
+    }
+    Map<String, PointsConfig> pointConfigs = Maps.newHashMap();
+    for (Map.Entry<String, String> entry : types.entrySet()) {
+      Class<?> clazz = Lucenes.typeOf(entry.getValue());
+      if (Number.class.isAssignableFrom(clazz)) {
+        pointConfigs.put(entry.getKey(), new PointsConfig(new DecimalFormat(), (Class<? extends Number>) clazz));
+      }
+    }
+    return pointConfigs;
   }
 
   public static int sizeOf(IndexWriter writer) throws IOException
@@ -413,7 +535,7 @@ public class Lucenes
     return null;
   }
 
-  public static String findLuceneField(String field, Column column, String expected)
+  public static String findLuceneField(String field, Column column, String... expected)
   {
     final String columnName = column.getName();
     final Map<String, String> columnDesc = column.getColumnDescs();
@@ -421,8 +543,10 @@ public class Lucenes
       return field.substring(columnName.length() + 1);
     }
     for (Map.Entry<String, String> desc : columnDesc.entrySet()) {
-      if (desc.getValue().startsWith(expected)) {
-        return desc.getKey();
+      for (String prefix : expected) {
+        if (desc.getValue().startsWith(prefix)) {
+          return desc.getKey();
+        }
       }
     }
     return null;

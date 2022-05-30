@@ -873,7 +873,7 @@ public class IndexMergerV9 extends IndexMerger
       throws IOException
   {
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
-    final SecondaryIndexingSpec provider = indexSpec.getSecondaryIndexingSpec(metric);
+    final SecondaryIndexingSpec secondary = indexSpec.getSecondaryIndexingSpec(metric);
     final boolean allowNullForNumbers = indexSpec.isAllowNullForNumbers();
     final CompressionStrategy compression = indexSpec.getCompressionStrategy(metric, null);
     final CompressionStrategy metCompression = Optional.ofNullable(compression).orElse(indexSpec.getMetricCompressionStrategy());
@@ -884,22 +884,16 @@ public class IndexMergerV9 extends IndexMerger
         writer = BooleanColumnSerializer.create(serdeFactory);
         break;
       case LONG:
-        writer = LongColumnSerializer.create(
-            metric, metCompression, serdeFactory, provider, allowNullForNumbers
-        );
+        writer = LongColumnSerializer.create(metric, metCompression, serdeFactory, secondary, allowNullForNumbers);
         break;
       case FLOAT:
-        writer = FloatColumnSerializer.create(
-            metric, metCompression, serdeFactory, provider, allowNullForNumbers
-        );
+        writer = FloatColumnSerializer.create(metric, metCompression, serdeFactory, secondary, allowNullForNumbers);
         break;
       case DOUBLE:
-        writer = DoubleColumnSerializer.create(
-            metric, metCompression, serdeFactory, provider, allowNullForNumbers
-        );
+        writer = DoubleColumnSerializer.create(metric, metCompression, serdeFactory, secondary, allowNullForNumbers);
         break;
       case STRING:
-        writer = ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, provider, compression);
+        writer = ComplexColumnSerializer.create(metric, StringMetricSerde.INSTANCE, secondary, compression);
         break;
       case COMPLEX:
         final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
@@ -907,7 +901,7 @@ public class IndexMergerV9 extends IndexMerger
           throw new ISE("Unknown type[%s]", type);
         }
         // todo : compression (ComplexMetricSerde is not implementing this except StringMetricSerde)
-        writer = ComplexColumnSerializer.create(metric, serde, provider, compression);
+        writer = ComplexColumnSerializer.create(metric, serde, secondary, compression);
         break;
       default:
         throw new ISE("Unknown type[%s]", type);

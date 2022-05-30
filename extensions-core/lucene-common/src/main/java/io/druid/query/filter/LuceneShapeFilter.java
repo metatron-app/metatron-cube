@@ -28,8 +28,9 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.RowResolver;
 import io.druid.query.ShapeFormat;
-import io.druid.segment.lucene.LuceneIndexingStrategy;
+import io.druid.segment.lucene.LatLonPointIndexingStrategy;
 import io.druid.segment.lucene.Lucenes;
+import io.druid.segment.lucene.ShapeIndexingStrategy;
 import io.druid.segment.lucene.SpatialOperations;
 
 import javax.annotation.Nullable;
@@ -91,9 +92,9 @@ public class LuceneShapeFilter extends Lucenes.LuceneSelector implements DimFilt
   )
   {
     String field = fieldName == null ? columnName : String.format("%s.%s", columnName, fieldName);
-    if (descriptor.startsWith(LuceneIndexingStrategy.LATLON_POINT_DESC) && operation == SpatialOperations.COVEREDBY) {
+    if (descriptor.startsWith(LatLonPointIndexingStrategy.TYPE_NAME) && operation == SpatialOperations.COVEREDBY) {
       return new LuceneLatLonPolygonFilter(field, shapeFormat, shapeString, scoreField);
-    } else if (descriptor.startsWith(LuceneIndexingStrategy.SHAPE_DESC)) {
+    } else if (descriptor.startsWith(ShapeIndexingStrategy.TYPE_NAME)) {
       return new LuceneSpatialFilter(field, operation, shapeFormat, shapeString, scoreField);
     }
     return null;
