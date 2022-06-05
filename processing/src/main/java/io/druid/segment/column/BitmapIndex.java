@@ -19,9 +19,9 @@
 
 package io.druid.segment.column;
 
-import com.google.common.collect.Iterables;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.collections.IntList;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.data.GenericIndexed;
 
@@ -57,9 +57,9 @@ public interface BitmapIndex
 
   GenericIndexed<ImmutableBitmap> getBitmaps();
 
-  default ImmutableBitmap union(Iterable<Integer> indices)
+  default ImmutableBitmap union(IntList indices)
   {
-    return DimFilters.union(getBitmapFactory(), Iterables.transform(indices, x -> getBitmap(x)));
+    return DimFilters.union(getBitmapFactory(), indices.transform(x -> getBitmap(x)));
   }
 
   interface CumulativeSupport extends BitmapIndex

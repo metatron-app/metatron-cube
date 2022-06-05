@@ -53,7 +53,6 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.FSTHolder;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -475,9 +474,7 @@ public class IndexViewer extends CommonShell.WithUtils
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         Dictionary<String> dictionary = dictionaryEncoded.dictionary();
-        FSTHolder fst = dictionaryEncoded.getFST();
         long dictionarySize = cuboidSpec == null ? dictionary.getSerializedSize() : 0;
-        long fstSize = fst == null ? 0 : fst.occupation();  // todo
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         String hasNull = Objects.toString(dictionary.containsNull(), "unknown");
         if (cuboidSpec == null) {
@@ -485,13 +482,10 @@ public class IndexViewer extends CommonShell.WithUtils
           builder.append(
               "dictionary (cardinality = %d, hasNull = %s, %,d bytes)", dictionary.size(), hasNull, dictionarySize
           );
-          if (fst != null) {
-            builder.append("FST (%,d bytes)", fstSize);
-          }
         } else {
           builder.append("cardinality = %d", dictionary.size());
         }
-        builder.append("rows (%,d bytes)", encodedSize - dictionarySize - fstSize);
+        builder.append("rows (%,d bytes)", encodedSize - dictionarySize);
         CloseQuietly.close(dictionaryEncoded);
       }
       if (capabilities.hasBitmapIndexes()) {
@@ -507,6 +501,9 @@ public class IndexViewer extends CommonShell.WithUtils
           }
         }
         builder.append(string);
+      }
+      if (capabilities.hasDictionaryFST()) {
+        builder.append("%s (%,d bytes)", column.sourceOfFST(), column.getSerializedSize(Column.EncodeType.FST));
       }
       if (capabilities.hasSpatialIndexes()) {
         builder.append("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL));

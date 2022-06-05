@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import com.google.common.base.Supplier;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.FSTHolder;
 import io.druid.segment.data.Dictionary;
 
 /**
@@ -42,10 +41,6 @@ public interface ColumnPartProvider<T> extends Supplier<T>
   interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>
   {
     Dictionary<String> getDictionary();
-
-    default boolean hasFST() {return false;}
-
-    default FSTHolder getFST() {return null;}
 
     class Delegated implements DictionarySupport
     {

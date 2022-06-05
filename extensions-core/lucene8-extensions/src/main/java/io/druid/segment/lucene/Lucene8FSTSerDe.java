@@ -19,30 +19,34 @@
 
 package io.druid.segment.lucene;
 
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.common.collect.ImmutableList;
-import com.google.inject.Binder;
-import io.druid.initialization.DruidModule;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import org.apache.lucene.store.DataInput;
+import org.apache.lucene.util.fst.FST;
+import org.apache.lucene.util.fst.OffHeapFSTStore;
+import org.apache.lucene.util.fst.PositiveIntOutputs;
 
-import java.util.List;
+import java.io.IOException;
 
-public class Lucene8ExtensionModule implements DruidModule
+@JsonTypeName("lucene8.fst")
+public class Lucene8FSTSerDe extends LuceneFSTSerDe
 {
-  @Override
-  public List<? extends com.fasterxml.jackson.databind.Module> getJacksonModules()
+  @JsonCreator
+  public Lucene8FSTSerDe(@JsonProperty("reduction") Float reduction)
   {
-    return ImmutableList.of(
-        new LuceneCommonExtensionModule().getModule(false),
-        new SimpleModule("lucene8-extension")
-            .registerSubtypes(Lucene8IndexingSpec.class)
-            .registerSubtypes(Lucene8IndexingSpec.SerDe.class)
-            .registerSubtypes(Lucene8FSTSerDe.class)
-    );
+    super(reduction);
   }
 
   @Override
-  public void configure(Binder binder)
+  protected byte[] save(FST<Long> make) throws IOException
   {
-    new LuceneCommonExtensionModule().configure(binder);
+    return Lucenes.serialize(out -> make.save(out, out));
+  }
+
+  @Override
+  protected FST<Long> load(DataInput input) throws IOException
+  {
+    return new FST<>(input, input, PositiveIntOutputs.getSingleton(), new OffHeapFSTStore());
   }
 }

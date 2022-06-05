@@ -27,18 +27,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import io.druid.collections.IntList;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter.SingleInput;
-import io.druid.segment.column.Column;
-import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.DimensionPredicateFilter;
-import io.druid.segment.filter.FilterContext;
 
-import java.io.IOException;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

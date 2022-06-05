@@ -39,6 +39,5 @@ public interface DictionaryEncodedColumn extends Closeable
   int getCardinality();
 
   Dictionary<String> dictionary();
-  FSTHolder getFST();
   DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary);
 }

@@ -32,6 +32,7 @@ import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.LatLonPointIndexingStrategy;
+import io.druid.segment.lucene.LuceneSelector;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.LatLonPointPrototypeQueries;
@@ -43,7 +44,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.nearest")
-public class LuceneNearestFilter extends Lucenes.LuceneSelector
+public class LuceneNearestFilter extends LuceneSelector
 {
   private final double latitude;
   private final double longitude;
@@ -119,7 +120,7 @@ public class LuceneNearestFilter extends Lucenes.LuceneSelector
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
         Column column = Preconditions.checkNotNull(
-            Lucenes.findLuceneColumn(field, context.internal()), "no lucene index for [%s]", field
+            Lucenes.findColumnWithLuceneIndex(field, context.internal()), "no lucene index for [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
             Lucenes.findLuceneField(field, column, LatLonPointIndexingStrategy.TYPE_NAME),

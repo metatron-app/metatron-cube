@@ -34,6 +34,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
+import io.druid.segment.lucene.LuceneSelector;
 import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.document.LatLonPoint;
 import org.apache.lucene.geo.Polygon;
@@ -46,7 +47,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.latlon.polygon")
-public class LuceneLatLonPolygonFilter extends Lucenes.LuceneSelector implements DimFilter.LogProvider
+public class LuceneLatLonPolygonFilter extends LuceneSelector implements DimFilter.LogProvider
 {
   private final ShapeFormat shapeFormat;
   private final String shapeString;

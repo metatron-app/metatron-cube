@@ -19,7 +19,6 @@
 
 package io.druid.segment.lucene;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
@@ -38,13 +37,11 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
+import io.druid.data.input.BytesOutputStream;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.GeomUtils;
 import io.druid.query.ShapeFormat;
-import io.druid.query.filter.DimFilter;
 import io.druid.segment.QueryableIndex;
-import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.filter.FilterContext;
 import it.unimi.dsi.fastutil.ints.Int2FloatRBTreeMap;
@@ -111,14 +108,17 @@ import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.BaseDirectory;
+import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.LuceneIndexInput;
+import org.apache.lucene.store.OutputStreamDataOutput;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.store.SingleInstanceLockFactory;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.IOUtils.IOConsumer;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.LineString;
@@ -129,7 +129,6 @@ import org.locationtech.spatial4j.shape.Shape;
 import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
@@ -262,6 +261,17 @@ public class Lucenes
       case "BIGINT": return BigInteger.class;
     }
     return Object.class;
+  }
+
+  public static byte[] serialize(IOConsumer<DataOutput> writer) throws IOException
+  {
+    BytesOutputStream out = new BytesOutputStream();
+    OutputStreamDataOutput dout = new OutputStreamDataOutput(out);
+    out.writeInt(0);
+    writer.accept(dout);
+    byte[] contents = out.toByteArray();
+    System.arraycopy(Ints.toByteArray(contents.length - Integer.BYTES), 0, contents, 0, Integer.BYTES);
+    return contents;
   }
 
   @SuppressWarnings("unchecked")
@@ -480,7 +490,7 @@ public class Lucenes
   public static DirectoryReader deserialize(ByteBuffer bufferToUse) throws IOException
   {
     byte[] temp = new byte[IO_BUFFER];
-    RAMDirectory directory = new RAMDirectory();
+    Directory directory = new RAMDirectory();
     int fileNum = bufferToUse.getInt();
     for (int i = 0; i < fileNum; i++) {
       final String fileName = StringUtils.fromUtf8(bufferToUse, bufferToUse.getInt());
@@ -517,18 +527,28 @@ public class Lucenes
   }
 
   // lucene index only exists in QueryableIndex, for now
-  public static Column findLuceneColumn(String field, QueryableIndex selector)
+  public static Column findColumnWithLuceneIndex(String field, QueryableIndex selector)
+  {
+    return findColumnWith(field, selector, c -> c.getCapabilities().hasLuceneIndex());
+  }
+
+  public static Column findColumnWithFST(String field, QueryableIndex selector)
+  {
+    return findColumnWith(field, selector, c -> c.getCapabilities().hasDictionaryFST());
+  }
+
+  private static Column findColumnWith(String field, QueryableIndex selector, Predicate<Column> predicate)
   {
     if (selector == null) {
       return null;
     }
     Column column = selector.getColumn(field);
-    if (column != null && column.getCapabilities().hasLuceneIndex()) {
+    if (column != null && predicate.apply(column)) {
       return column;
     }
     for (int index = field.lastIndexOf('.'); index > 0; index = field.lastIndexOf('.', index - 1)) {
       column = selector.getColumn(field.substring(0, index));
-      if (column != null && column.getCapabilities().hasLuceneIndex()) {
+      if (column != null && predicate.apply(column)) {
         return column;
       }
     }
@@ -550,50 +570,6 @@ public class Lucenes
       }
     }
     return null;
-  }
-
-  public static abstract class LuceneSelector extends DimFilter.LuceneFilter
-  {
-    protected LuceneSelector(String field, String scoreField) {super(field, scoreField);}
-
-    @Override
-    public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
-    {
-      Column column = segment == null ? null : Lucenes.findLuceneColumn(field, segment.asQueryableIndex(false));
-      if (column != null) {
-        Class indexClass = column.classOfSecondaryIndex();
-        if (Lucenes.class.getClassLoader() != indexClass.getClassLoader()) {
-          return swap(this, indexClass.getClassLoader(), params());
-        }
-      }
-      return super.optimize(segment, virtualColumns);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> T swap(T object, ClassLoader loader, Object... params)
-    {
-      Class<?> clazz = object.getClass();
-      try {
-        return (T) loader.loadClass(clazz.getName())
-                         .getConstructor(constructor(clazz).getParameterTypes())
-                         .newInstance(params);
-      }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
-      }
-    }
-
-    private Constructor constructor(Class<?> clazz)
-    {
-      for (Constructor<?> constructor : clazz.getConstructors()) {
-        if (constructor.getAnnotation(JsonCreator.class) != null) {
-          return constructor;
-        }
-      }
-      throw new UnsupportedOperationException();
-    }
-
-    protected abstract Object[] params();
   }
 
   // gt

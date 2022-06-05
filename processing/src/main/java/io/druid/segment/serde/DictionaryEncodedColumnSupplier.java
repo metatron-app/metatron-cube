@@ -21,7 +21,6 @@ package io.druid.segment.serde;
 
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.FSTHolder;
 import io.druid.segment.column.SimpleDictionaryEncodedColumn;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
@@ -34,30 +33,26 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   public static class Builder
   {
     public ColumnPartProvider<Dictionary<String>> dictionary;
-    public ColumnPartProvider<FSTHolder> fst;
     public ColumnPartProvider<IndexedInts> singleValuedColumn;
     public ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
 
     public DictionaryEncodedColumnSupplier build()
     {
-      return dictionary == null ? null : new DictionaryEncodedColumnSupplier(dictionary, fst, singleValuedColumn, multiValuedColumn);
+      return dictionary == null ? null : new DictionaryEncodedColumnSupplier(dictionary, singleValuedColumn, multiValuedColumn);
     }
   }
 
   private final ColumnPartProvider<Dictionary<String>> dictionary;
-  private final ColumnPartProvider<FSTHolder> fst;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
 
   public DictionaryEncodedColumnSupplier(
       ColumnPartProvider<Dictionary<String>> dictionary,
-      ColumnPartProvider<FSTHolder> fst,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
       ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn
   )
   {
     this.dictionary = dictionary;
-    this.fst = fst;
     this.singleValuedColumn = singleValuedColumn;
     this.multiValuedColumn = multiValuedColumn;
   }
@@ -69,25 +64,12 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   }
 
   @Override
-  public boolean hasFST()
-  {
-    return fst != null;
-  }
-
-  @Override
-  public FSTHolder getFST()
-  {
-    return fst.get();
-  }
-
-  @Override
   public DictionaryEncodedColumn get()
   {
     return new SimpleDictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
-        dictionary == null ? null : dictionary.get(),
-        fst == null ? null : fst.get()
+        dictionary == null ? null : dictionary.get()
     );
   }
 
@@ -102,7 +84,6 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   {
     return 5 +
            (dictionary == null ? 0 : dictionary.getSerializedSize()) +
-           (fst == null ? 0 : fst.getSerializedSize()) +
            (singleValuedColumn != null ? singleValuedColumn.getSerializedSize() : multiValuedColumn.getSerializedSize());
   }
 }

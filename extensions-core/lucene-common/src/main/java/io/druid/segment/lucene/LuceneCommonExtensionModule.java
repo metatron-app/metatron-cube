@@ -60,8 +60,7 @@ public class LuceneCommonExtensionModule implements DruidModule
         .registerSubtypes(RegexFSTFilter.class)
         .registerSubtypes(LuceneGeoJsonPolygonFilter.class)
         .registerSubtypes(ChoroplethMapQuery.class)
-        .registerSubtypes(GeoBoundaryFilterQuery.class)
-        .registerSubtypes(FSTBuilder.class);
+        .registerSubtypes(GeoBoundaryFilterQuery.class);
 
     if (lucene7) {
       module.registerSubtypes(LuceneIndexingSpec.class)

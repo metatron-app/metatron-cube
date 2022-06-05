@@ -30,7 +30,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
-import io.druid.segment.lucene.Lucenes;
+import io.druid.segment.lucene.LuceneSelector;
 import io.druid.segment.lucene.PointQueryType;
 import org.apache.lucene.search.Query;
 
@@ -41,7 +41,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.point")
-public class LucenePointFilter extends Lucenes.LuceneSelector
+public class LucenePointFilter extends LuceneSelector
 {
   public static LucenePointFilter bbox(String field, double[] latitudes, double[] longitudes)
   {

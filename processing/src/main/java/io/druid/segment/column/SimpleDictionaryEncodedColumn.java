@@ -34,19 +34,16 @@ public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
   private final IndexedInts column;
   private final IndexedMultivalue<IndexedInts> multiValueColumn;
   private final Dictionary<String> dictionary;
-  private final FSTHolder fst;
 
   public SimpleDictionaryEncodedColumn(
       IndexedInts singleValueColumn,
       IndexedMultivalue<IndexedInts> multiValueColumn,
-      Dictionary<String> dictionary,
-      FSTHolder fst
+      Dictionary<String> dictionary
   )
   {
     this.column = singleValueColumn;
     this.multiValueColumn = multiValueColumn;
     this.dictionary = dictionary;
-    this.fst = fst;
   }
 
   @Override
@@ -105,15 +102,9 @@ public class SimpleDictionaryEncodedColumn implements DictionaryEncodedColumn
   }
 
   @Override
-  public FSTHolder getFST()
-  {
-    return fst;
-  }
-
-  @Override
   public DictionaryEncodedColumn withDictionary(Dictionary<String> dictionary)
   {
-    return new SimpleDictionaryEncodedColumn(column, multiValueColumn, dictionary, fst);
+    return new SimpleDictionaryEncodedColumn(column, multiValueColumn, dictionary);
   }
 
   @Override

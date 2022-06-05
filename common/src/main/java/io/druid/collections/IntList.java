@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.function.IntConsumer;
+import java.util.function.IntFunction;
 import java.util.stream.IntStream;
 
 /**
@@ -147,6 +148,27 @@ public class IntList implements Iterable<Integer>, IntConsumer
   {
     Arrays.sort(baseArray, 0, size);
     return this;
+  }
+
+  public <T> Iterable<T> transform(final IntFunction<T> function)
+  {
+    return () -> new Iterator<T>()
+    {
+      private int x;
+      private final int limit = size;
+
+      @Override
+      public boolean hasNext()
+      {
+        return x < limit;
+      }
+
+      @Override
+      public T next()
+      {
+        return function.apply(baseArray[x++]);
+      }
+    };
   }
 
   @JsonValue

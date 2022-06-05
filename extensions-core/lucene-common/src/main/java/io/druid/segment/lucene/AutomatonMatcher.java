@@ -18,8 +18,10 @@
  */
 package io.druid.segment.lucene;
 
+import com.google.common.base.Throwables;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
+import io.druid.java.util.common.UOE;
 import io.druid.java.util.common.logger.Logger;
 import org.apache.lucene.util.IntsRefBuilder;
 import org.apache.lucene.util.automaton.Automaton;
@@ -30,15 +32,19 @@ import org.apache.lucene.util.fst.FST;
 import org.apache.lucene.util.fst.Util;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
 
 
 /**
- * copied from org.apache.pinot.segment.local.utils.fst.RegexpMatcher (apache Pinot)
+ * copied from org.apache.pinot.segment.local.utils.fst.RegexpMatcher (Apache Pinot)
  *
  * RegexpMatcher is a helper to retrieve matching values for a given regexp query.
- * Regexp query is converted into an automaton and we run the matching algorithm on FST.
+ * Regexp query is converted into an automaton, and we run the matching algorithm on FST.
  *
  * Two main functions of this class are
  *   regexMatchOnFST() Function runs matching on FST (See function comments for more details)
@@ -46,7 +52,79 @@ import java.util.List;
  */
 public class AutomatonMatcher
 {
-  public static final Logger LOG = new Logger(AutomatonMatcher.class);
+  private static final Logger LOG = new Logger(AutomatonMatcher.class);
+
+  // damn lucene..
+  private static final ToIntFunction<FST.Arc> LABEL = GET_LABEL();
+  private static final Function<FST.Arc<Long>, Long> OUTPUT = GET_OUTPUT();
+
+  @SuppressWarnings("JavaReflectionMemberAccess")
+  private static ToIntFunction<FST.Arc> GET_LABEL()
+  {
+    try {
+      Method accessor = FST.Arc.class.getMethod("label");
+      return fst -> {
+        try {
+          return (int) accessor.invoke(fst);
+        }
+        catch (Throwable e) {
+          throw Throwables.propagate(e);
+        }
+      };
+    }
+    catch (Throwable e) {
+    }
+    try {
+      Field field = FST.Arc.class.getField("label");
+      return fst -> {
+        try {
+          return field.getInt(fst);
+        }
+        catch (Throwable e) {
+          throw Throwables.propagate(e);
+        }
+      };
+    }
+    catch (Throwable e) {
+    }
+    return fst -> {
+      throw new UOE("label?");
+    };
+  }
+
+  @SuppressWarnings("JavaReflectionMemberAccess")
+  private static Function<FST.Arc<Long>, Long> GET_OUTPUT()
+  {
+    try {
+      Method accessor = FST.Arc.class.getMethod("output");
+      return fst -> {
+        try {
+          return (Long) accessor.invoke(fst);
+        }
+        catch (Throwable e) {
+          throw Throwables.propagate(e);
+        }
+      };
+    }
+    catch (Throwable e) {
+    }
+    try {
+      Field field = FST.Arc.class.getField("output");
+      return fst -> {
+        try {
+          return (Long) field.get(fst);
+        }
+        catch (Throwable e) {
+          throw Throwables.propagate(e);
+        }
+      };
+    }
+    catch (Throwable e) {
+    }
+    return fst -> {
+      throw new UOE("output?");
+    };
+  }
 
   private final FST<Long> _fst;
   private final Automaton _automaton;
@@ -137,19 +215,19 @@ public class AutomatonMatcher
             newInput.copyInts(currentInput.get());
             newInput.append(t.min);
             queue.add(new Path<Long>(t.dest, new FST.Arc<Long>().copyFrom(nextArc),
-                                     _fst.outputs.add(path.output, nextArc.output), newInput
+                                     _fst.outputs.add(path.output, OUTPUT.apply(nextArc)), newInput
             ));
           }
         } else {
           FST.Arc<Long> nextArc = Util.readCeilArc(min, _fst, path.fstNode, scratchArc, fstReader);
-          while (nextArc != null && nextArc.label <= max) {
+          while (nextArc != null && LABEL.applyAsInt(nextArc) <= max) {
             final IntsRefBuilder newInput = new IntsRefBuilder();
             newInput.copyInts(currentInput.get());
-            newInput.append(nextArc.label);
-            queue.add(
-                new Path<>(t.dest, new FST.Arc<Long>().copyFrom(nextArc), _fst.outputs.add(path.output, nextArc.output),
-                           newInput
-                ));
+            newInput.append(LABEL.applyAsInt(nextArc));
+            queue.add(new Path<>(
+                t.dest, new FST.Arc<Long>().copyFrom(nextArc),
+                _fst.outputs.add(path.output, OUTPUT.apply(nextArc)), newInput
+            ));
             nextArc = nextArc.isLast() ? null : _fst.readNextRealArc(nextArc, fstReader);
           }
         }

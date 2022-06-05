@@ -166,7 +166,7 @@ public class IndexMergerV9 extends IndexMerger
 
       /************* Setup Dim Conversions **************/
       startTime = System.currentTimeMillis();
-      final Map<String, ColumnPartSerde.Serializer> dictionaryFSTs = Maps.newHashMap();
+      final Map<String, ColumnPartSerde> dictionaryFSTs = Maps.newHashMap();
       final Map<String, Integer> dimCardinalities = Maps.newHashMap();
       final ArrayList<GenericIndexedWriter<String>> dictionaryWriters = setupDictionaryWriters(ioPeon, mergedDimensions);
       final ArrayList<Map<String, IntBuffer>> dimConversions = Lists.newArrayListWithCapacity(adapters.size());
@@ -471,7 +471,7 @@ public class IndexMergerV9 extends IndexMerger
       final boolean[] dimensionSkipFlag,
       final List<ColumnCapabilities> dimCapabilities,
       final List<GenericIndexedWriter<String>> dictionaryWriters,
-      final Map<String, ColumnPartSerde.Serializer> dictionaryFSTs,
+      final Map<String, ColumnPartSerde> dictionaryFSTs,
       final List<ColumnPartWriter> dimWriters,
       final List<ColumnPartWriter<ImmutableBitmap>> bitmapIndexWriters,
       final List<ColumnPartWriter<ImmutableRTree>> spatialIndexWriters,
@@ -491,7 +491,7 @@ public class IndexMergerV9 extends IndexMerger
       final String dim = mergedDimensions.get(i);
       final ColumnPartWriter dimWriter = dimWriters.get(i);
       final GenericIndexedWriter<String> dictionaryWriter = dictionaryWriters == null ? null : dictionaryWriters.get(i);
-      final ColumnPartSerde.Serializer fst = dictionaryFSTs == null ? null : dictionaryFSTs.get(dim);
+      final ColumnPartSerde fst = dictionaryFSTs == null ? null : dictionaryFSTs.get(dim);
       final ColumnPartWriter<ImmutableBitmap> bitmapIndexWriter =
           bitmapIndexWriters == null ? null : bitmapIndexWriters.get(i);
       final ColumnPartWriter<ImmutableRTree> spatialIndexWriter =
@@ -511,12 +511,14 @@ public class IndexMergerV9 extends IndexMerger
       final DictionaryEncodedColumnPartSerde.SerializerBuilder partBuilder = DictionaryEncodedColumnPartSerde
           .serializerBuilder()
           .withDictionary(dictionaryWriter)
-          .withFST(fst)
           .withValue(dimWriter, hasMultiValue, compression != null)
           .withBitmapIndex(bitmapIndexWriter)
           .withSpatialIndex(spatialIndexWriter);
 
       builder.addSerde(partBuilder.build(bitmapSerdeFactory));
+      if (fst != null) {
+        builder.addSerde(fst);
+      }
 
       makeColumn(v9Smoosher, dim, builder.build(includeStats));
       log.info("Completed dimension column[%s] in %,d millis.", dim, System.currentTimeMillis() - dimStartTime);
@@ -969,7 +971,7 @@ public class IndexMergerV9 extends IndexMerger
       final ProgressIndicator progress,
       final List<String> mergedDimensions,
       final List<GenericIndexedWriter<String>> dictionaryWriters,
-      final Map<String, ColumnPartSerde.Serializer> dictionaryFSTs,
+      final Map<String, ColumnPartSerde> dictionaryFSTs,
       final Map<String, Integer> dimensionCardinalities,
       final boolean[] dimensionSkipFlag,
       final List<Map<String, IntBuffer>> dimConversions,
@@ -1056,7 +1058,7 @@ public class IndexMergerV9 extends IndexMerger
         }
         cardinality = dimValueLookup.size();
       }
-      ColumnPartSerde.Serializer fst = builder == null ? null : builder.done(cardinality);
+      ColumnPartSerde fst = builder == null ? null : builder.done(cardinality);
       if (fst != null) {
         dictionaryFSTs.put(dimension, fst);
       }

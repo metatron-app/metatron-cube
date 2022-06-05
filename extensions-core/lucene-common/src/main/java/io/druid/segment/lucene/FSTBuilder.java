@@ -19,10 +19,6 @@
 
 package io.druid.segment.lucene;
 
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.druid.java.util.common.logger.Logger;
-import io.druid.segment.DictionaryPartBuilder;
-import io.druid.segment.serde.ColumnPartSerde;
 import org.apache.lucene.util.IntsRefBuilder;
 import org.apache.lucene.util.fst.Builder;
 import org.apache.lucene.util.fst.FST;
@@ -31,11 +27,8 @@ import org.apache.lucene.util.fst.Util;
 
 import java.io.IOException;
 
-@JsonTypeName("lucene.fst")
-public class FSTBuilder implements DictionaryPartBuilder
+public class FSTBuilder
 {
-  public static final Logger LOG = new Logger(FSTBuilder.class);
-
   private static final int CHECK_INTERVAL = 10000;
 
   private final float reduction;
@@ -46,15 +39,14 @@ public class FSTBuilder implements DictionaryPartBuilder
 
   public FSTBuilder()
   {
-    this(-1);
+    this(null);
   }
 
-  public FSTBuilder(float reduction)
+  public FSTBuilder(Float reduction)
   {
-    this.reduction = reduction;
+    this.reduction = reduction == null ? -1 : reduction;
   }
 
-  @Override
   public void addEntry(String key, long ix) throws IOException
   {
     if (disabled) {
@@ -67,12 +59,10 @@ public class FSTBuilder implements DictionaryPartBuilder
     _builder.add(Util.toUTF16(key, _scratch), ix);
   }
 
-  @Override
-  public ColumnPartSerde.Serializer done(int cardinality) throws IOException
+  protected FST<Long> make(int cardinality) throws IOException
   {
     final float threshold = cardinality * reduction;
-    final FST fst = disabled || (reduction > 0 && _builder.getNodeCount() > threshold) ? null : _builder.finish();
-    return fst == null ? null : SimpleRelaySerializer.forFST(fst);
+    return disabled || (reduction > 0 && _builder.getNodeCount() > threshold) ? null : _builder.finish();
   }
 
   public FST<Long> done() throws IOException

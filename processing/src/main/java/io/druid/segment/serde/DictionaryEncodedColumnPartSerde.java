@@ -88,7 +88,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     MULTI_VALUE(0),
     MULTI_VALUE_V3(1),
     NO_DICTIONARY(2),
-    FST(3),
+    RESERVED(3),
     CUMULATIVE_BITMAPS(4),
     UNCOMPRESSED(5),     // override LEGACY_COMPRESSED
     SPATIAL_INDEX(6)     // technically, it's not backward compatible with index v8 but who cares?
@@ -176,7 +176,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     private int flags = Feature.NO_DICTIONARY.set(NO_FLAGS, true);
 
     private ColumnPartSerde.Serializer dictionary;
-    private ColumnPartSerde.Serializer fst;
     private ColumnPartSerde.Serializer values;
     private ColumnPartSerde.Serializer bitmaps;
     private ColumnPartSerde.Serializer rindices;
@@ -185,13 +184,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     {
       this.dictionary = dictionary;
       this.flags = Feature.NO_DICTIONARY.set(flags, dictionary == null);
-      return this;
-    }
-
-    public SerializerBuilder withFST(ColumnPartSerde.Serializer fst)
-    {
-      this.fst = fst;
-      this.flags = Feature.FST.set(flags, fst != null);
       return this;
     }
 
@@ -233,9 +225,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
               if (dictionary != null) {
                 size += dictionary.getSerializedSize();
               }
-              if (fst != null) {
-                size += fst.getSerializedSize();
-              }
               if (values != null) {
                 size += values.getSerializedSize();
               }
@@ -256,9 +245,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
               if (dictionary != null) {
                 dictionary.writeToChannel(channel);
-              }
-              if (fst != null) {
-                fst.writeToChannel(channel);
               }
               if (values != null) {
                 values.writeToChannel(channel);
@@ -460,12 +446,6 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
         if (!Feature.NO_DICTIONARY.isSet(rFlags)) {
           builder.setDictionary(StringMetricSerde.deserializeDictionary(buffer, ObjectStrategy.STRING_STRATEGY));
-          if (Feature.FST.isSet(rFlags)) {
-            ColumnPartSerde serde = null;
-            if (serde != null) {
-              serde.getDeserializer().read(buffer, builder, serdeFactory);
-            }
-          }
         }
 
         final boolean hasMultipleValues = Feature.hasAny(rFlags, Feature.MULTI_VALUE, Feature.MULTI_VALUE_V3);

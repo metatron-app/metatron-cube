@@ -36,6 +36,7 @@ public class Lucene7ExtensionModule implements DruidModule
         new SimpleModule("lucene7-extension")
             .registerSubtypes(Lucene7IndexingSpec.class)
             .registerSubtypes(Lucene7IndexingSpec.SerDe.class)
+            .registerSubtypes(Lucene7FSTSerDe.class)
     );
   }
 

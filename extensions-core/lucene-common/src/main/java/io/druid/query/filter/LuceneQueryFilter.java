@@ -34,6 +34,7 @@ import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.JsonIndexingStrategy;
+import io.druid.segment.lucene.LuceneSelector;
 import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.lucene.TextIndexingStrategy;
 import org.apache.lucene.queryparser.flexible.standard.StandardQueryParser;
@@ -47,7 +48,7 @@ import java.util.Objects;
  *
  */
 @JsonTypeName("lucene.query")
-public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilter.VCInflator
+public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInflator
 {
   public static LuceneQueryFilter of(String field, String expression, String scoreField)
   {
@@ -128,7 +129,7 @@ public class LuceneQueryFilter extends Lucenes.LuceneSelector implements DimFilt
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
         Column column = Preconditions.checkNotNull(
-            Lucenes.findLuceneColumn(field, context.internal()), "no lucene index on [%s]", field
+            Lucenes.findColumnWithLuceneIndex(field, context.internal()), "no lucene index on [%s]", field
         );
         String luceneField = Preconditions.checkNotNull(
             Lucenes.findLuceneField(field, column, TextIndexingStrategy.TYPE_NAME, JsonIndexingStrategy.TYPE_NAME),

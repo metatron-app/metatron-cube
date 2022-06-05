@@ -17,13 +17,7 @@
  * under the License.
  */
 
-package io.druid.segment.lucene;
-
-import com.google.common.primitives.Ints;
-import io.druid.data.input.BytesOutputStream;
-import io.druid.segment.serde.ColumnPartSerde;
-import org.apache.lucene.store.OutputStreamDataOutput;
-import org.apache.lucene.util.fst.FST;
+package io.druid.segment.serde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,19 +25,9 @@ import java.nio.channels.WritableByteChannel;
 
 public class SimpleRelaySerializer implements ColumnPartSerde.Serializer
 {
-  public static ColumnPartSerde.Serializer forFST(FST fst) throws IOException
-  {
-    BytesOutputStream out = new BytesOutputStream();
-    out.writeInt(0);
-    fst.save(new OutputStreamDataOutput(out));
-    byte[] contents = out.toByteArray();
-    System.arraycopy(Ints.toByteArray(contents.length - Integer.BYTES), 0, contents, 0, Integer.BYTES);
-    return new SimpleRelaySerializer(contents);
-  }
-
   private final byte[] contents;
 
-  private SimpleRelaySerializer(byte[] contents) {this.contents = contents;}
+  public SimpleRelaySerializer(byte[] contents) {this.contents = contents;}
 
   @Override
   public long getSerializedSize() throws IOException

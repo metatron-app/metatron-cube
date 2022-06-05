@@ -21,7 +21,5 @@ package io.druid.segment.column;
 
 public interface FSTHolder
 {
-  long occupation();
-
   <T> T unwrap(Class<T> clazz);
 }

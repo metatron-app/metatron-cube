@@ -38,6 +38,7 @@ public class ColumnBuilder
   private int numRows = -1;
   private boolean hasMultipleValues = false;
 
+  private ColumnPartProvider.ExternalPart<FSTHolder> fstIndex = null;
   private ColumnPartProvider<RunLengthColumn> runLengthColumn = null;
   private ColumnPartProvider<GenericColumn> genericColumn = null;
   private ColumnPartProvider<ComplexColumn> complexColumn = null;
@@ -89,9 +90,9 @@ public class ColumnBuilder
     return builder.dictionary;
   }
 
-  public ColumnBuilder setFST(ColumnPartProvider<FSTHolder> fst)
+  public ColumnBuilder setFST(ColumnPartProvider.ExternalPart<FSTHolder> fstIndex)
   {
-    builder.fst = fst;
+    this.fstIndex = fstIndex;
     return this;
   }
 
@@ -190,7 +191,7 @@ public class ColumnBuilder
             .setType(type.type())
             .setTypeName(type.typeName())
             .setDictionaryEncoded(dimension != null)
-            .setHasDictionaryFST(dimension != null && dimension.hasFST())
+            .setHasDictionaryFST(fstIndex != null)
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)
             .setHasBitSlicedBitmap(bitSlicedBitmap != null)
@@ -200,6 +201,7 @@ public class ColumnBuilder
             .setHasMultipleValues(hasMultipleValues)
         ,
         dimension,
+        fstIndex,
         runLengthColumn,
         genericColumn,
         complexColumn,

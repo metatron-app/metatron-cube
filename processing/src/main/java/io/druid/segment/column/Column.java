@@ -43,7 +43,8 @@ public interface Column
     SPATIAL,
     METRIC_BITMAP,
     BITSLICED_BITMAP,
-    LUCENE_INDEX
+    LUCENE_INDEX,
+    FST
   }
 
   String getName();
@@ -61,9 +62,14 @@ public interface Column
   SpatialIndex getSpatialIndex();
   HistogramBitmap getMetricBitmap();
   BitSlicedBitmap getBitSlicedBitmap();
+
   <T extends SecondaryIndex> T getSecondaryIndex();
   String sourceOfSecondaryIndex();
   Class classOfSecondaryIndex();
+
+  FSTHolder getFST();
+  String sourceOfFST();
+  Class classOfFST();
 
   long getSerializedSize(EncodeType encodeType);
 

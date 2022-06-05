@@ -29,12 +29,12 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.GeomUtils;
 import io.druid.query.RowResolver;
-import io.druid.segment.ColumnSelectorFactory;
 import io.druid.query.ShapeFormat;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
-import io.druid.segment.lucene.Lucenes;
+import io.druid.segment.lucene.LuceneSelector;
 import io.druid.segment.lucene.PointQueryType;
 import io.druid.segment.lucene.SpatialOperations;
 import org.apache.lucene.spatial.SpatialStrategy;
@@ -56,7 +56,7 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName("lucene.spatial")
-public class LuceneSpatialFilter extends Lucenes.LuceneSelector implements DimFilter.LogProvider
+public class LuceneSpatialFilter extends LuceneSelector implements DimFilter.LogProvider
 {
   public static LuceneSpatialFilter convert(LucenePointFilter filter, String field)
   {

@@ -34,6 +34,7 @@ class SimpleColumn implements Column
   private final String name;
   private final ColumnCapabilities capabilities;
   private final ColumnPartProvider.DictionarySupport dictionaryEncodedColumn;
+  private final ColumnPartProvider.ExternalPart<FSTHolder> fstIndex;
   private final ColumnPartProvider<RunLengthColumn> runLengthColumn;
   private final ColumnPartProvider<GenericColumn> genericColumn;
   private final ColumnPartProvider<ComplexColumn> complexColumn;
@@ -48,6 +49,7 @@ class SimpleColumn implements Column
       String name,
       ColumnCapabilities capabilities,
       ColumnPartProvider.DictionarySupport dictionaryEncodedColumn,
+      ColumnPartProvider.ExternalPart<FSTHolder> fstIndex,
       ColumnPartProvider<RunLengthColumn> runLengthColumn,
       ColumnPartProvider<GenericColumn> genericColumn,
       ColumnPartProvider<ComplexColumn> complexColumn,
@@ -63,6 +65,7 @@ class SimpleColumn implements Column
     this.name = name;
     this.capabilities = Preconditions.checkNotNull(capabilities);
     this.dictionaryEncodedColumn = dictionaryEncodedColumn;
+    this.fstIndex = fstIndex;
     this.runLengthColumn = runLengthColumn;
     this.genericColumn = genericColumn;
     this.complexColumn = complexColumn;
@@ -137,6 +140,8 @@ class SimpleColumn implements Column
         return bitSlicedBitmap == null ? -1 : bitSlicedBitmap.getSerializedSize();
       case LUCENE_INDEX:
         return secondaryIndex == null ? -1 : secondaryIndex.getSerializedSize();
+      case FST:
+        return fstIndex == null ? -1 : fstIndex.getSerializedSize();
     }
     return -1;
   }
@@ -212,6 +217,24 @@ class SimpleColumn implements Column
   public Class classOfSecondaryIndex()
   {
     return secondaryIndex == null ? null : secondaryIndex.classOfObject();
+  }
+
+  @Override
+  public FSTHolder getFST()
+  {
+    return fstIndex.get();
+  }
+
+  @Override
+  public String sourceOfFST()
+  {
+    return fstIndex == null ? null : fstIndex.source();
+  }
+
+  @Override
+  public Class classOfFST()
+  {
+    return fstIndex == null ? null : fstIndex.classOfObject();
   }
 
   @Override

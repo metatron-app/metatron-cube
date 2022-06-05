@@ -17,17 +17,35 @@
  * under the License.
  */
 
-package io.druid.segment;
+package io.druid.segment.lucene;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import io.druid.segment.serde.ColumnPartSerde;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import org.apache.lucene.store.DataInput;
+import org.apache.lucene.util.fst.FST;
+import org.apache.lucene.util.fst.PositiveIntOutputs;
 
 import java.io.IOException;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public interface DictionaryPartBuilder
+@JsonTypeName("lucene7.fst")
+public class Lucene7FSTSerDe extends LuceneFSTSerDe
 {
-  void addEntry(String value, long id) throws IOException;
+  @JsonCreator
+  public Lucene7FSTSerDe(@JsonProperty("reduction") Float reduction)
+  {
+    super(reduction);
+  }
 
-  ColumnPartSerde done(int cardinality) throws IOException;
+  @Override
+  protected byte[] save(FST<Long> make) throws IOException
+  {
+    return Lucenes.serialize(out -> make.save(out));
+  }
+
+  @Override
+  protected FST<Long> load(DataInput input) throws IOException
+  {
+    return new FST<Long>(input, PositiveIntOutputs.getSingleton());
+  }
 }

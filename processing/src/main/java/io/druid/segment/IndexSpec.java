@@ -37,6 +37,7 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -218,13 +219,27 @@ public class IndexSpec
   {
     Float fstReduction = expectedFSTReductions == null ? null : expectedFSTReductions.get(column);
     if (fstReduction != null && fstReduction > 0) {
-      Map<String, Object> value = ImmutableMap.of("type", "lucene.fst", "reduction", fstReduction.floatValue());
-      try {
-        return mapper.convertValue(value, DictionaryPartBuilder.class);
+      for (String type : new String[]{"lucene8.fst", "lucene7.fst"}) {
+        DictionaryPartBuilder builder = _makeBuilder(mapper, fstReduction.floatValue(), type);
+        if (builder != null) {
+          return builder;
+        }
       }
-      catch (Exception e) {
-        LOG.info("Failed to convert %s to fst builder (missing lucene extension?)", value);
+    }
+    return null;
+  }
+
+  private static DictionaryPartBuilder _makeBuilder(ObjectMapper mapper, float reduction, String type)
+  {
+    Map<String, Object> value = ImmutableMap.of("type", type, "reduction", reduction);
+    try {
+      ColumnPartSerde serDe = mapper.convertValue(value, ColumnPartSerde.class);
+      if (serDe instanceof DictionaryPartBuilder) {
+        return (DictionaryPartBuilder) serDe;
       }
+    }
+    catch (Exception e) {
+      LOG.info("Failed to convert %s to fst builder (missing lucene extension?)", value);
     }
     return null;
   }

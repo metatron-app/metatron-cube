@@ -27,16 +27,19 @@ import com.google.common.base.Suppliers;
 import io.druid.collections.IntList;
 import io.druid.data.TypeResolver;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.lucene.AutomatonMatcher;
+import io.druid.segment.lucene.LuceneSelector;
+import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.util.automaton.Automaton;
 import org.apache.lucene.util.automaton.RegExp;
 import org.apache.lucene.util.fst.FST;
 
-import java.io.IOException;
+import java.util.List;
 
 /**
  */
@@ -61,37 +64,47 @@ public class RegexFSTFilter extends RegexDimFilter
   }
 
   @Override
+  public DimFilter optimize(Segment segment, List<VirtualColumn> virtualColumns)
+  {
+    Column column = segment == null ? null : Lucenes.findColumnWithFST(getDimension(), segment.asQueryableIndex(false));
+    if (column != null) {
+      Class fstClass = column.classOfFST();
+      if (Automaton.class.getClassLoader() != fstClass.getClassLoader()) {
+        return LuceneSelector.swap(this, fstClass.getClassLoader(), getDimension(), getPattern());
+      }
+    }
+    return super.optimize(segment, virtualColumns);
+  }
+
+  @Override
   public Filter toFilter(TypeResolver resolver)
   {
     return new Filter()
     {
-      private final Filter filter = RegexFSTFilter.super.toFilter(resolver);
+      private final Supplier<Filter> filter = Suppliers.memoize(() -> RegexFSTFilter.super.toFilter(resolver));
 
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
       {
-        final String dimension = getDimension();
-        final BitmapIndexSelector selector = context.indexSelector();
-        final Column column = selector.getColumn(dimension);
+        final Column column = context.indexSelector().getColumn(getDimension());
         if (column != null && column.getCapabilities().hasDictionaryFST()) {
-          final DictionaryEncodedColumn dictionary = column.getDictionaryEncoding();
           try {
             @SuppressWarnings("unchecked")
-            final FST<Long> fst = dictionary.getFST().unwrap(FST.class);
-            final IntList matched = AutomatonMatcher.match(automatonSupplier.get(), fst).sort();
+            final FST<Long> fst = column.getFST().unwrap(FST.class);
+            final IntList matched = AutomatonMatcher.match(automatonSupplier.get(), fst).sort();  // dictionary ids
             return BitmapHolder.exact(column.getBitmapIndex().union(matched));
           }
-          catch (IOException e) {
+          catch (Exception e) {
             // fallback to scanning matcher
           }
         }
-        return filter.getBitmapIndex(context);
+        return filter.get().getBitmapIndex(context);
       }
 
       @Override
       public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
       {
-        return filter.makeMatcher(columnSelectorFactory);
+        return filter.get().makeMatcher(columnSelectorFactory);
       }
     };
   }
