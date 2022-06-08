@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import io.druid.common.DateTimes;
 import io.druid.common.IntTagged;
 import io.druid.common.guava.GuavaUtils;
@@ -47,6 +48,7 @@ import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.ISE;
 import io.druid.java.util.common.Intervals;
 import io.druid.java.util.common.UOE;
+import io.druid.java.util.common.guava.Comparators;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.query.RowSignature;
 import io.druid.query.Schema;
@@ -404,16 +406,22 @@ public abstract class IncrementalIndex implements Closeable
   {
     if (rollup) {
       return new Rollup(timestamp, dims);
+    } else if (maxRowCount < Integer.MAX_VALUE) {
+      return new NoRollup32(timestamp, dims, Ints.checkedCast(indexer.getAndIncrement()));
+    } else {
+      return new NoRollup64(timestamp, dims, indexer.getAndIncrement());
     }
-    return new NoRollup(timestamp, dims, indexer.getAndIncrement());
   }
 
   public TimeAndDims createRangeTimeAndDims(long timestamp)
   {
     if (rollup) {
       return new Rollup(timestamp, new int[][]{});
+    } else if (maxRowCount < Integer.MAX_VALUE) {
+      return new NoRollup32(timestamp, new int[][]{}, 0);
+    } else {
+      return new NoRollup64(timestamp, new int[][]{}, 0);
     }
-    return new NoRollup(timestamp, new int[][]{}, 0);
   }
 
   private void updateMaxIngestedTime(long time)
@@ -963,7 +971,7 @@ public abstract class IncrementalIndex implements Closeable
    * `/ 4` comes from that each entry is stored by using 2 bits
    */
   @SuppressWarnings("unchecked")
-  static final class NullValueConverterDimDim implements DimDim
+  private static class NullValueConverterDimDim implements DimDim
   {
     private final DimDim delegate;
 
@@ -1061,7 +1069,7 @@ public abstract class IncrementalIndex implements Closeable
     }
   }
 
-  public static abstract class TimeAndDims
+  static abstract class TimeAndDims
   {
     final long timestamp;
     final int[][] dims;
@@ -1083,9 +1091,9 @@ public abstract class IncrementalIndex implements Closeable
     }
   }
 
-  public static final class Rollup extends TimeAndDims
+  private static class Rollup extends TimeAndDims
   {
-    Rollup(long timestamp, int[][] dims)
+    private Rollup(long timestamp, int[][] dims)
     {
       super(timestamp, dims);
     }
@@ -1097,11 +1105,28 @@ public abstract class IncrementalIndex implements Closeable
     }
   }
 
-  public static final class NoRollup extends TimeAndDims
+  private static class NoRollup32 extends TimeAndDims
+  {
+    private final int indexer;
+
+    private NoRollup32(long timestamp, int[][] dims, int indexer)
+    {
+      super(timestamp, dims);
+      this.indexer = indexer;
+    }
+
+    @Override
+    public String toString()
+    {
+      return "NoRollup{timestamp=" + DateTimes.of(timestamp) + ", indexer=" + indexer + "}";
+    }
+  }
+
+  private static class NoRollup64 extends TimeAndDims
   {
     private final long indexer;
 
-    NoRollup(long timestamp, int[][] dims, long indexer)
+    private NoRollup64(long timestamp, int[][] dims, long indexer)
     {
       super(timestamp, dims);
       this.indexer = indexer;
@@ -1116,47 +1141,44 @@ public abstract class IncrementalIndex implements Closeable
 
   protected final Comparator<TimeAndDims> dimsComparator()
   {
+    final Comparator<TimeAndDims> comparator;
     if (rollup) {
-      return new TimeAndDimsComp(dimValues);
+      comparator = Comparators.alwaysEqual();
+    } else if (maxRowCount < Integer.MAX_VALUE) {
+      comparator = (o1, o2) -> Integer.compare(((NoRollup32) o1).indexer, ((NoRollup32) o2).indexer);
+    } else {
+      comparator = (o1, o2) -> Long.compare(((NoRollup64) o1).indexer, ((NoRollup64) o2).indexer);
     }
-    return new TimeAndDimsComp(dimValues)
-    {
-      @Override
-      public int compare(TimeAndDims o1, TimeAndDims o2)
-      {
-        int compare = super.compare(o1, o2);
-        if (compare == 0) {
-          compare = Long.compare(((NoRollup) o1).indexer, ((NoRollup) o2).indexer);
-        }
-        return compare;
-      }
-    };
+    return new TimeAndDimsComp(dimValues, comparator);
   }
 
   @VisibleForTesting
-  static class TimeAndDimsComp implements Comparator<TimeAndDims>
+  private static class TimeAndDimsComp implements Comparator<TimeAndDims>
   {
     private final List<DimDim> dimValues;
+    private final Comparator<TimeAndDims> comparator;
 
-    public TimeAndDimsComp(List<DimDim> dimValues)
+    private TimeAndDimsComp(List<DimDim> dimValues, Comparator<TimeAndDims> comparator)
     {
       this.dimValues = dimValues;
+      this.comparator = comparator;
     }
 
     @Override
-    public int compare(TimeAndDims lhs, TimeAndDims rhs)
+    public int compare(final TimeAndDims lhs, final TimeAndDims rhs)
     {
       int retVal = Long.compare(lhs.timestamp, rhs.timestamp);
-      int numComparisons = Math.min(lhs.dims.length, rhs.dims.length);
+      if (retVal != 0) {
+        return retVal;
+      }
 
-      int index = 0;
-      while (retVal == 0 && index < numComparisons) {
+      final int dimsLen = Math.min(lhs.dims.length, rhs.dims.length);
+      for (int index = 0; retVal == 0 && index < dimsLen; index++) {
         final int[] lhsIdxs = lhs.dims[index];
         final int[] rhsIdxs = rhs.dims[index];
 
         if (lhsIdxs == null) {
           if (rhsIdxs == null) {
-            ++index;
             continue;
           }
           return -1;
@@ -1166,27 +1188,28 @@ public abstract class IncrementalIndex implements Closeable
           return 1;
         }
 
-        retVal = Integer.compare(lhsIdxs.length, rhsIdxs.length);
-
-        int valsIndex = 0;
-        while (retVal == 0 && valsIndex < lhsIdxs.length) {
+        final int valsLen = Math.min(lhsIdxs.length, rhsIdxs.length);
+        for (int valsIndex = 0; retVal == 0 && valsIndex < valsLen; valsIndex++) {
           if (lhsIdxs[valsIndex] != rhsIdxs[valsIndex]) {
             retVal = dimValues.get(index).compare(lhsIdxs[valsIndex], rhsIdxs[valsIndex]);
           }
-          ++valsIndex;
         }
-        ++index;
+        if (retVal == 0) {
+          retVal = Integer.compare(lhsIdxs.length, rhsIdxs.length);
+        }
       }
 
       if (retVal == 0) {
-        return Integer.compare(lhs.dims.length, rhs.dims.length);
+        retVal = Integer.compare(lhs.dims.length, rhs.dims.length);
       }
-
+      if (retVal == 0) {
+        retVal = comparator.compare(lhs, rhs);
+      }
       return retVal;
     }
   }
 
-  static final class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>, BiFunction<T, Integer, Integer>
+  private static class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>, BiFunction<T, Integer, Integer>
   {
     private final Class<T> clazz;
     private final Map<T, Integer> valueToId = Maps.newHashMap();
@@ -1293,7 +1316,7 @@ public abstract class IncrementalIndex implements Closeable
     }
   }
 
-  static class OnHeapDimLookup<T extends Comparable<? super T>> implements SortedDimLookup<T>
+  private static class OnHeapDimLookup<T extends Comparable<? super T>> implements SortedDimLookup<T>
   {
     private final T[] sortedVals;
     private final int[] idToIndex;

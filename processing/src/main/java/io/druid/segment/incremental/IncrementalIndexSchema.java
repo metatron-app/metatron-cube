@@ -185,15 +185,6 @@ public class IncrementalIndexSchema
     return AggregatorFactory.toNames(Arrays.asList(metrics));
   }
 
-  public List<String> getMetricNameTypes()
-  {
-    List<String> metricTypes = Lists.newArrayListWithCapacity(metrics.length);
-    for (AggregatorFactory aggregatorFactory : metrics) {
-      metricTypes.add(aggregatorFactory.getName() + ":" + aggregatorFactory.getOutputType());
-    }
-    return metricTypes;
-  }
-
   public IncrementalIndexSchema withRollup(boolean rollup)
   {
     return new IncrementalIndexSchema(

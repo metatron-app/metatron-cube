@@ -209,14 +209,7 @@ public class TestQuerySegmentWalker implements ForwardingSegmentWalker, QueryToo
                 DateTime dateTime = granularity.bucketStart(inputRow.getTimestamp());
                 IncrementalIndex index = indices.computeIfAbsent(
                     dateTime.getMillis(),
-                    new java.util.function.Function<Long, IncrementalIndex>()
-                    {
-                      @Override
-                      public IncrementalIndex apply(Long aLong)
-                      {
-                        return new OnheapIncrementalIndex(schema, true, 100000);
-                      }
-                    }
+                    timestamp -> new OnheapIncrementalIndex(schema, true, 100000)
                 );
                 index.add(inputRow);
               }
