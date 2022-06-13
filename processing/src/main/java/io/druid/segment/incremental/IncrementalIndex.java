@@ -182,7 +182,7 @@ public abstract class IncrementalIndex implements Closeable
         DimensionAggregatorFactory dimension = (DimensionAggregatorFactory) metrics[i];
         ColumnCapabilities capabilities = new ColumnCapabilities();
         capabilities.setType(dimension.getValueType()).setHasMultipleValues(true);
-        addNewDimension(
+        DimensionDesc desc = addNewDimension(
             dimension.getName(),
             dimension.getColumnName(),
             capabilities,
@@ -190,7 +190,7 @@ public abstract class IncrementalIndex implements Closeable
             i
         );
         columnCapabilities.put(dimension.getName(), capabilities);
-        aggregators[i] = dimension.factorize(dimensionDescs.get(dimension.getName()).getValues(), factory);
+        aggregators[i] = dimension.factorize(desc.getValues(), factory);
       } else {
         MetricDesc metricDesc = new MetricDesc(metricDescs.size(), metrics[i]);
         metricDescs.put(metricDesc.getName(), metricDesc);
@@ -521,10 +521,10 @@ public abstract class IncrementalIndex implements Closeable
     return minTimestampLimit == JodaUtils.MIN_INSTANT;
   }
 
-  public DimDim getDimensionValues(String dimension)
+  public int getCardinality(String dimension)
   {
     DimensionDesc dimSpec = getDimension(dimension);
-    return dimSpec == null ? null : dimSpec.getValues();
+    return dimSpec == null ? 0 : dimSpec.getValues().size();
   }
 
   public List<String> getDimensionOrder()
@@ -1367,5 +1367,24 @@ public abstract class IncrementalIndex implements Closeable
     {
       return idToIndex[id];
     }
+  }
+
+  public static int[] sort(int[] indices)
+  {
+    Arrays.sort(indices);
+    return indices;
+  }
+
+  public static <T extends Comparable<? super T>> int[] sort(DimDim<T> dimDim, int[] ids)
+  {
+    final IntTagged.Sortable[] sortables = new IntTagged.Sortable[ids.length];
+    for (int i = 0; i < ids.length; i++) {
+      sortables[i] = new IntTagged.Sortable<T>(ids[i], dimDim.getValue(i));
+    }
+    Arrays.sort(sortables);
+    for (int i = 0; i < ids.length; i++) {
+      ids[i] = sortables[i].tag;
+    }
+    return ids;
   }
 }

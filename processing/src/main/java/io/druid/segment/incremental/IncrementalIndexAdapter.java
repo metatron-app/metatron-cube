@@ -28,6 +28,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.collections.IntList;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexableAdapter;
@@ -57,7 +58,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   private final Map<String, DimensionIndexer> indexerMap;
 
   @SuppressWarnings("unchecked")
-  private class DimensionIndexer
+  private static class DimensionIndexer
   {
     private boolean hasNull;
     private final int nullIndex;
@@ -189,6 +190,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
       }
 
       @Override
+      @SuppressWarnings("unchecked")
       public int indexOf(String value)
       {
         final int id = dimDim.getId(value);
@@ -235,7 +237,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
             index.getAll().iterator(),
             new Function<Map.Entry<IncrementalIndex.TimeAndDims, Object[]>, Rowboat>()
             {
-              int count = 0;
+              private int rownum;
 
               @Override
               public Rowboat apply(Map.Entry<IncrementalIndex.TimeAndDims, Object[]> input)
@@ -252,19 +254,23 @@ public class IncrementalIndexAdapter implements IndexableAdapter
                   }
                   final int pivotIx = dimension.getPivotIndex();
                   if (pivotIx >= 0) {
-                    final IntList dimValue = (IntList) values[pivotIx];
-                    final int[] dim = new int[dimValue.size()];
-                    for (int i = 0; i < dim.length; i++) {
-                      dim[i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(dimValue.get(i));
+                    final int[] indices = ((IntList) values[pivotIx]).array();
+                    for (int i = 0; i < indices.length; i++) {
+                      indices[i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(indices[i]);
                     }
-                    dims[dimLookup[dimIndex]] = dim;
+                    final MultiValueHandling handling = dimension.getMultiValueHandling();
+                    if (indices.length > 1 && handling != MultiValueHandling.ARRAY) {
+                      dims[dimLookup[dimIndex]] = handling.rewrite(IncrementalIndex.sort(indices));
+                    } else {
+                      dims[dimLookup[dimIndex]] = indices;
+                    }
                   } else if (dimValues[dimIndex] != null) {
                     final int[] dimValue = dimValues[dimIndex];
-                    final int[] dim = new int[dimValue.length];
-                    for (int i = 0; i < dim.length; i++) {
-                      dim[i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(dimValue[i]);
+                    final int[] indices = new int[dimValue.length];
+                    for (int i = 0; i < indices.length; i++) {
+                      indices[i] = sortedDimLookups[dimIndex].getSortedIdFromUnsortedId(dimValue[i]);
                     }
-                    dims[dimLookup[dimIndex]] = dim;
+                    dims[dimLookup[dimIndex]] = indices;
                   }
                 }
 
@@ -275,12 +281,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
                   }
                 }
 
-                return new Rowboat(
-                    timeAndDims.getTimestamp(),
-                    dims,
-                    metrics,
-                    count++
-                );
+                return new Rowboat(timeAndDims.getTimestamp(), dims, metrics, rownum++);
               }
             }
         );

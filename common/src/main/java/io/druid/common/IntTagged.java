@@ -19,6 +19,9 @@
 
 package io.druid.common;
 
+import java.util.Arrays;
+import java.util.List;
+
 public class IntTagged<T>
 {
   public static <T> IntTagged<T> of(int tag, T value)
@@ -57,6 +60,18 @@ public class IntTagged<T>
     public int compareTo(Sortable<T> o)
     {
       return value.compareTo(o.value);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends Comparable<? super T>> IntTagged.Sortable[] sort(List<T> values)
+    {
+      final int length = values.size();
+      final IntTagged.Sortable[] sortedMap = new IntTagged.Sortable[length];
+      for (int id = 0; id < length; id++) {
+        sortedMap[id] = new IntTagged.Sortable<T>(id, values.get(id));
+      }
+      Arrays.parallelSort(sortedMap);
+      return sortedMap;
     }
   }
 }

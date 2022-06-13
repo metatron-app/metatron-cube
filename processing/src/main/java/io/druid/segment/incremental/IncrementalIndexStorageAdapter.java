@@ -31,6 +31,8 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryException;
 import io.druid.query.RowResolver;
@@ -65,6 +67,7 @@ import io.druid.segment.incremental.IncrementalIndex.TimeAndDims;
 import io.druid.timeline.DataSegment;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -116,14 +119,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   @Override
   public int getDimensionCardinality(String dimension)
   {
-    if (dimension.equals(Column.TIME_COLUMN_NAME)) {
-      return Integer.MAX_VALUE;
-    }
-    IncrementalIndex.DimDim dimDim = index.getDimensionValues(dimension);
-    if (dimDim == null) {
-      return 0;
-    }
-    return dimDim.size();
+    return Column.TIME_COLUMN_NAME.equals(dimension) ? Integer.MAX_VALUE : index.getCardinality(dimension);
   }
 
   @Override
@@ -377,12 +373,26 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     final int[] indices;
                     if (pivotIx >= 0) {
                       Object[] values = currEntry.getValue();
-                      indices = pivotIx < values.length ? ((IntList) values[pivotIx]).array() : null;
+                      indices = getPivotValue(values, pivotIx);
                     } else {
                       int[][] dims = currEntry.getKey().getDims();
                       indices = dimIndex < dims.length ? dims[dimIndex] : null;
                     }
                     return toIndexedInts(indices);
+                  }
+
+                  @Nullable
+                  private int[] getPivotValue(Object[] values, int pivotIx)
+                  {
+                    if (values.length < pivotIx) {
+                      final int[] indices = ((IntList) values[pivotIx]).array();
+                      final MultiValueHandling handling = dimensionDesc.getMultiValueHandling();
+                      if (indices.length > 1 && handling != MultiValueHandling.ARRAY) {
+                        return handling.rewrite(IncrementalIndex.sort(dimValLookup, indices));
+                      }
+                      return indices;
+                    }
+                    return null;
                   }
 
                   private IndexedInts toIndexedInts(int[] indices)

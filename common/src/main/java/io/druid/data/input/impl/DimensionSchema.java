@@ -83,14 +83,8 @@ public abstract class DimensionSchema
   public static enum MultiValueHandling
   {
     ARRAY,
-    SORTED_ARRAY {
-      @Override
-      public boolean sortFirst() { return true;}
-    },
+    SORTED_ARRAY,
     SET {
-      @Override
-      public boolean sortFirst() { return true;}
-
       @Override
       public int[] rewrite(int[] indices)
       {
@@ -116,11 +110,6 @@ public abstract class DimensionSchema
     public static MultiValueHandling fromString(String name)
     {
       return valueOf(name.toUpperCase());
-    }
-
-    public boolean sortFirst()
-    {
-      return false;
     }
 
     // indices.length > 1
