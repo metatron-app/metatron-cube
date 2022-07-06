@@ -49,7 +49,9 @@ import org.apache.calcite.avatica.remote.TypedValue;
 import org.joda.time.Interval;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -102,12 +104,61 @@ public class DruidMeta extends MetaImpl
   @Override
   public void openConnection(final ConnectionHandle ch, final Map<String, String> info)
   {
-    // Build connection context.
-    final ImmutableMap.Builder<String, Object> context = ImmutableMap.builder();
-    for (Map.Entry<String, String> entry : info.entrySet()) {
-      context.put(entry);
+    if (connectionCount.incrementAndGet() > config.getMaxConnections()) {
+      // O(connections) but we don't expect this to happen often (it's a last-ditch effort to clear out
+      // abandoned connections) or to have too many connections.
+      final Iterator<Map.Entry<String, DruidConnection>> entryIterator = connections.entrySet().iterator();
+      while (entryIterator.hasNext()) {
+        final Map.Entry<String, DruidConnection> entry = entryIterator.next();
+        if (entry.getValue().closeIfEmpty()) {
+          entryIterator.remove();
+
+          // Removed a connection, decrement the counter.
+          connectionCount.decrementAndGet();
+          break;
+        }
+      }
+
+      if (connectionCount.get() > config.getMaxConnections()) {
+        // We aren't going to make a connection after all.
+        connectionCount.decrementAndGet();
+        throw new ISE("Too many connections, limit is[%,d]", config.getMaxConnections());
+      }
     }
-    openDruidConnection(ch.id, context.build());
+    if (connections.containsKey(ch.id)) {
+      connectionCount.decrementAndGet();
+      throw new ISE("Connection[%s] already open.", ch.id);
+    }
+
+    final DruidConnection connection = openConnection(ch.id, info);
+    final DruidConnection prev = connections.putIfAbsent(ch.id, connection);
+    if (prev != null) {
+      // Didn't actually insert the connection.
+      connectionCount.decrementAndGet();
+      throw new ISE("Connection[%s] already open.", ch.id);
+    }
+
+    log.debug("Connection[%s] opened.", ch.id);
+
+    registerTimeout(connection);
+  }
+
+  private DruidConnection openConnection(String id, Map<String, String> info)
+  {
+    Map<String, Object> context = ImmutableMap.copyOf(info);
+    return new DruidConnection(id, config.getMaxStatementsPerConnection(), context, authenticate(context));
+  }
+
+  @Nullable
+  private AuthenticationResult authenticate(Map<String, Object> context)
+  {
+    for (Authenticator authenticator : authenticators) {
+      AuthenticationResult authenticationResult = authenticator.authenticateJDBCContext(context);
+      if (authenticationResult != null) {
+        return authenticationResult;
+      }
+    }
+    throw new ForbiddenException("Authentication failed.");
   }
 
   @Override
@@ -138,15 +189,12 @@ public class DruidMeta extends MetaImpl
   public StatementHandle prepare(final ConnectionHandle ch, final String sql, final long maxRowCount)
   {
     final DruidConnection druidConnection = getDruidConnection(ch.id);
-    final AuthenticationResult authenticationResult = authenticateConnection(druidConnection);
-    if (authenticationResult == null) {
-      throw new ForbiddenException("Authentication failed.");
-    }
     final DruidStatement druidStatement = druidConnection.createStatement(
-        sql, Maps.newHashMap(), authenticationResult, lifecycleFactory, maxRowCount
+        sql, Maps.newHashMap(), lifecycleFactory, maxRowCount
     );
-    druidStatement.prepare();
-    return druidStatement.getStatementHandle();
+    StatementHandle handle = druidStatement.getStatementHandle();
+    handle.signature = druidStatement.prepare().getSignature();
+    return handle;
   }
 
   @Deprecated
@@ -171,16 +219,12 @@ public class DruidMeta extends MetaImpl
       final PrepareCallback callback
   ) throws NoSuchStatementException
   {
-    DruidConnection druidConnection = getDruidConnection(statement.connectionId);
-    AuthenticationResult authenticationResult = authenticateConnection(druidConnection);
-    if (authenticationResult == null) {
-      throw new ForbiddenException("Authentication failed.");
-    }
-    DruidStatement druidStatement = druidConnection.createStatement(
-        statement, sql, Maps.newHashMap(), authenticationResult, lifecycleFactory, maxRowCount
+    final DruidConnection druidConnection = getDruidConnection(statement.connectionId);
+    final DruidStatement druidStatement = druidConnection.createStatement(
+        statement, sql, Maps.newHashMap(), lifecycleFactory, maxRowCount
     );
     final Signature signature = druidStatement.prepare().getSignature();
-    final Frame firstFrame = druidStatement.execute()
+    final Frame firstFrame = druidStatement.execute(Collections.emptyList())
                                            .nextFrame(
                                                DruidStatement.START_OFFSET,
                                                getEffectiveMaxRowsPerFrame(maxRowsInFirstFrame)
@@ -248,11 +292,9 @@ public class DruidMeta extends MetaImpl
       final int maxRowsInFirstFrame
   ) throws NoSuchStatementException
   {
-    Preconditions.checkArgument(parameterValues.isEmpty(), "Expected parameterValues to be empty");
-
     final DruidStatement druidStatement = getDruidStatement(statement);
     final Signature signature = druidStatement.getSignature();
-    final Frame firstFrame = druidStatement.execute()
+    final Frame firstFrame = druidStatement.execute(TypedValue.values(parameterValues))
                                            .nextFrame(
                                                DruidStatement.START_OFFSET,
                                                getEffectiveMaxRowsPerFrame(maxRowsInFirstFrame)
@@ -506,59 +548,6 @@ public class DruidMeta extends MetaImpl
     }
   }
 
-  private AuthenticationResult authenticateConnection(final DruidConnection connection)
-  {
-    Map<String, Object> context = connection.context();
-    for (Authenticator authenticator : authenticators) {
-      AuthenticationResult authenticationResult = authenticator.authenticateJDBCContext(context);
-      if (authenticationResult != null) {
-        return authenticationResult;
-      }
-    }
-    return null;
-  }
-
-  private DruidConnection openDruidConnection(final String connectionId, final Map<String, Object> context)
-  {
-    if (connectionCount.incrementAndGet() > config.getMaxConnections()) {
-      // O(connections) but we don't expect this to happen often (it's a last-ditch effort to clear out
-      // abandoned connections) or to have too many connections.
-      final Iterator<Map.Entry<String, DruidConnection>> entryIterator = connections.entrySet().iterator();
-      while (entryIterator.hasNext()) {
-        final Map.Entry<String, DruidConnection> entry = entryIterator.next();
-        if (entry.getValue().closeIfEmpty()) {
-          entryIterator.remove();
-
-          // Removed a connection, decrement the counter.
-          connectionCount.decrementAndGet();
-          break;
-        }
-      }
-
-      if (connectionCount.get() > config.getMaxConnections()) {
-        // We aren't going to make a connection after all.
-        connectionCount.decrementAndGet();
-        throw new ISE("Too many connections, limit is[%,d]", config.getMaxConnections());
-      }
-    }
-
-    final DruidConnection putResult = connections.putIfAbsent(
-        connectionId,
-        new DruidConnection(connectionId, config.getMaxStatementsPerConnection(), context)
-    );
-
-    if (putResult != null) {
-      // Didn't actually insert the connection.
-      connectionCount.decrementAndGet();
-      throw new ISE("Connection[%s] already open.", connectionId);
-    }
-
-    log.debug("Connection[%s] opened.", connectionId);
-
-    // Call getDruidConnection to start the timeout timer.
-    return getDruidConnection(connectionId);
-  }
-
   /**
    * Get a connection, or throw an exception if it doesn't exist. Also refreshes the timeout timer.
    *
@@ -572,16 +561,19 @@ public class DruidMeta extends MetaImpl
   private DruidConnection getDruidConnection(final String connectionId)
   {
     final DruidConnection connection = connections.get(connectionId);
-
     if (connection == null) {
       throw new NoSuchConnectionException(connectionId);
     }
+    return registerTimeout(connection);
+  }
 
+  private DruidConnection registerTimeout(DruidConnection connection)
+  {
     return connection.sync(
         exec.schedule(
             () -> {
-              log.debug("Connection[%s] timed out.", connectionId);
-              closeConnection(new ConnectionHandle(connectionId));
+              log.debug("Connection[%s] timed out.", connection.id());
+              closeConnection(new ConnectionHandle(connection.id()));
             },
             new Interval(DateTimes.nowUtc(), config.getConnectionIdleTimeout()).toDurationMillis(),
             TimeUnit.MILLISECONDS

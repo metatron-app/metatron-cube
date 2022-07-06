@@ -30,6 +30,7 @@ import io.druid.server.security.AuthenticationResult;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.linq4j.QueryProvider;
+import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.schema.SchemaPlus;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -45,6 +46,9 @@ import java.util.UUID;
  */
 public class PlannerContext
 {
+  // todo: need executor context (localNow, etc.)
+  public static ThreadLocal<RexShuttle> PARAMETER_BINDING = new ThreadLocal<>();
+
   // query context keys
   public static final String CTX_SQL_CURRENT_TIMESTAMP = "sqlCurrentTimestamp";
   public static final String CTX_SQL_TIME_ZONE = "sqlTimeZone";

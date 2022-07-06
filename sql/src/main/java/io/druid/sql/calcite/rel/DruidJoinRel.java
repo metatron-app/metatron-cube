@@ -343,8 +343,8 @@ public class DruidJoinRel extends DruidRel implements DruidRel.LeafRel
     } else {
       // prefer larger difference
       estimate = Math.min(Math.max(lc, rc), Math.min(lc, rc) * 4) * Math.pow(0.6, leftExpressions.size());
-      if (lm.left.getFilter() != null && rm.right instanceof DruidQueryRel ||
-          rm.left.getFilter() != null && lm.right instanceof DruidQueryRel) {
+      if (lm.left.hasFilter() && rm.right instanceof DruidQueryRel ||
+          rm.left.hasFilter() && lm.right instanceof DruidQueryRel) {
         estimate *= BLOOM_FILTER_REDUCTION;
       }
     }

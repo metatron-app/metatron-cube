@@ -29,6 +29,7 @@ import io.druid.segment.ExprVirtualColumn;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -99,12 +100,13 @@ public class DruidExpression
     if (n == null) {
       return nullLiteral();
     }
+    String v = n instanceof BigDecimal ? ((BigDecimal) n).toPlainString() : n.toString();
     if (SqlTypeName.FLOAT == typeName) {
-      return n.toString() + 'F';
+      return v + 'F';
     } else if (SqlTypeName.DECIMAL == typeName) {
-      return n.toString() + 'B';
+      return v + 'B';
     }
-    return n.toString();
+    return v;
   }
 
   public static String stringLiteral(final String s)

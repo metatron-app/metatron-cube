@@ -22,6 +22,7 @@ package io.druid.sql.avatica;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import io.druid.common.Yielders;
 import io.druid.common.guava.Sequence;
 import io.druid.common.guava.Yielder;
@@ -34,6 +35,7 @@ import io.druid.server.security.ForbiddenException;
 import io.druid.sql.SqlLifecycle;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.PlannerResult;
+import org.apache.calcite.avatica.AvaticaParameter;
 import org.apache.calcite.avatica.ColumnMetaData;
 import org.apache.calcite.avatica.ColumnMetaData.AvaticaType;
 import org.apache.calcite.avatica.Meta;
@@ -64,7 +66,6 @@ public class DruidStatement implements Closeable
     DONE
   }
 
-  private final String connectionId;
   private final StatementHandle handle;
   private final SqlLifecycle lifecycle;
   private final Runnable onClose;
@@ -96,19 +97,18 @@ public class DruidStatement implements Closeable
   private Throwable throwable;
 
   public DruidStatement(
-      final String connectionId,
+      final DruidConnection connection,
       final StatementHandle handle,
       final SqlLifecycle lifecycle,
       final Runnable onClose,
       final long maxRowCount
   )
   {
-    this.connectionId = Preconditions.checkNotNull(connectionId, "connectionId");
     this.handle = handle;
     this.lifecycle = Preconditions.checkNotNull(lifecycle, "sqlLifecycle");
     this.onClose = Preconditions.checkNotNull(onClose, "onClose");
     this.yielderOpenCloseExecutor = Execs.singleThreaded(
-        StringUtils.format("JDBCYielderOpenCloseExecutor-connection-%s-statement-%d", connectionId, handle.id)
+        StringUtils.format("JDBCYielderOpenCloseExecutor-connection-%s-statement-%d", connection.id(), handle.id)
     );
     this.maxRowCount = maxRowCount;
   }
@@ -116,7 +116,7 @@ public class DruidStatement implements Closeable
   @VisibleForTesting
   DruidStatement(final String connectionId, final StatementHandle handle, final SqlLifecycle lifecycle)
   {
-    this(connectionId, handle, lifecycle, () -> { }, -1);
+    this(new DruidConnection(connectionId, 2, ImmutableMap.of(), null), handle, lifecycle, () -> { }, -1);
   }
 
   private static List<ColumnMetaData> createColumnMetaData(final RelDataType rowType)
@@ -173,6 +173,21 @@ public class DruidStatement implements Closeable
     }
   }
 
+  private AvaticaParameter toAvaticaParameter(String name, RelDataType type)
+  {
+    // signed is always false because no way to extract from RelDataType, and the only usage of this AvaticaParameter
+    // constructor I can find, in CalcitePrepareImpl, does it this way with hard coded false
+    return new AvaticaParameter(
+        false,
+        type.getPrecision(),
+        type.getScale(),
+        type.getSqlTypeName().getJdbcOrdinal(),
+        type.getSqlTypeName().getName(),
+        Calcites.sqlTypeNameJdbcToJavaClass(type.getSqlTypeName()).getName(),
+        name
+    );
+  }
+
   private static ColumnMetaData.Rep rep(final SqlTypeName sqlType)
   {
     if (SqlTypeName.CHAR_TYPES.contains(sqlType)) {
@@ -206,10 +221,15 @@ public class DruidStatement implements Closeable
         if (!access.isAllowed()) {
           throw new ForbiddenException(access.toString());
         }
+        int i = 0;
+        List<AvaticaParameter> parameters = new ArrayList<>();
+        for (RelDataType type : result.parametersType()) {
+          parameters.add(toAvaticaParameter("?" + i++, type));
+        }
         signature = Meta.Signature.create(
             createColumnMetaData(result.rowType()),
             lifecycle.getSQL(),
-            new ArrayList<>(),
+            parameters,
             Meta.CursorFactory.ARRAY,
             Meta.StatementType.SELECT // We only support SELECT
         );
@@ -230,21 +250,20 @@ public class DruidStatement implements Closeable
     }
   }
 
-  public DruidStatement execute()
+  public DruidStatement execute(List<Object> parameters)
   {
     synchronized (lock) {
       ensure(State.PREPARED);
 
       try {
-        final Sequence<Object[]> baseSequence = yielderOpenCloseExecutor.submit(() -> lifecycle.execute()).get();
+        Sequence<Object[]> sequence = yielderOpenCloseExecutor.submit(() -> lifecycle.execute(parameters)).get();
 
         // We can't apply limits greater than Integer.MAX_VALUE, ignore them.
-        final Sequence<Object[]> retSequence =
-            maxRowCount >= 0 && maxRowCount <= Integer.MAX_VALUE
-            ? Sequences.limit(baseSequence, (int) maxRowCount)
-            : baseSequence;
+        if (maxRowCount >= 0 && maxRowCount <= Integer.MAX_VALUE) {
+          sequence = Sequences.limit(sequence, (int) maxRowCount);
+        }
 
-        yielder = Yielders.each(retSequence);
+        yielder = Yielders.each(sequence);
         state = State.RUNNING;
       }
       catch (Throwable t) {
@@ -260,11 +279,6 @@ public class DruidStatement implements Closeable
 
       return this;
     }
-  }
-
-  public String getConnectionId()
-  {
-    return connectionId;
   }
 
   public StatementHandle getStatementHandle()

@@ -103,7 +103,6 @@ import org.apache.calcite.sql.SqlWith;
 import org.apache.calcite.sql.SqlWithItem;
 import org.apache.calcite.sql.fun.SqlCase;
 import org.apache.calcite.sql.fun.SqlLibraryOperators;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import org.apache.calcite.sql.parser.Span;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
@@ -123,6 +122,7 @@ import org.apache.calcite.util.trace.CalciteTrace;
 
 import org.slf4j.Logger;
 
+import io.druid.sql.calcite.planner.SqlStdOperatorTable;
 import io.druid.sql.calcite.Utils;
 
 import java.io.Reader;

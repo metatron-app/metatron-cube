@@ -51,6 +51,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -67,7 +68,7 @@ public class DruidStatementTest extends CalciteTestBase
   private TestQuerySegmentWalker walker;
   private SqlLifecycleFactory sqlLifecycleFactory;
 
-  private DruidConnection connection = new DruidConnection("test", -1, Maps.newHashMap());
+  private final DruidConnection connection = new DruidConnection("test", -1, Maps.newHashMap(), null);
 
   @Before
   public void setUp() throws Exception
@@ -150,7 +151,7 @@ public class DruidStatementTest extends CalciteTestBase
         "", connection.createStatementHandle(), sqlLifecycleFactory.factorize(sql)).prepare();
 
     // First frame, ask for all rows.
-    Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 6);
+    Meta.Frame frame = statement.execute(Collections.emptyList()).nextFrame(DruidStatement.START_OFFSET, 6);
     Assert.assertEquals(
         Meta.Frame.create(
             0,
@@ -176,7 +177,7 @@ public class DruidStatementTest extends CalciteTestBase
     final DruidStatement statement = new DruidStatement("", connection.createStatementHandle(), sqlLifecycleFactory.factorize(sql)).prepare();
     
     // First frame, ask for 2 rows.
-    Meta.Frame frame = statement.execute().nextFrame(DruidStatement.START_OFFSET, 2);
+    Meta.Frame frame = statement.execute(Collections.emptyList()).nextFrame(DruidStatement.START_OFFSET, 2);
     Assert.assertEquals(
         Meta.Frame.create(
             0,

@@ -30,7 +30,6 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
@@ -135,9 +134,9 @@ public class DruidQueryRel extends DruidRel
   }
 
   @Override
-  public Filter getFilter()
+  public boolean hasFilter()
   {
-    return partialQuery.getScanFilter();
+    return partialQuery.getScanFilter() != null;
   }
 
   @Override

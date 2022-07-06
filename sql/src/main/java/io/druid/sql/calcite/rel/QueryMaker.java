@@ -112,16 +112,13 @@ public class QueryMaker
   }
 
   // BrokerQueryResource, SpecificSegmentsQuerySegmentWalker, etc.
-  public Query prepareQuery(Query<?> query)
+  public Query prepareQuery(Query<?> baseQuery)
   {
-    Query prepared = QueryUtils.readPostProcessors(query, getJsonMapper());
+    Query prepared = QueryUtils.readPostProcessors(baseQuery, getJsonMapper());
     prepared = QueryUtils.rewriteRecursively(prepared, segmentWalker, queryConfig);
     prepared = QueryUtils.resolveRecursively(prepared, segmentWalker);
     if (plannerContext.getPlannerConfig().isRequireTimeCondition()) {
-      Queries.iterate(prepared, new QueryVisitor()
-      {
-        @Override
-        public Query out(Query query)
+      Queries.iterate(prepared, query ->
         {
           if (!(query.getDataSource() instanceof QueryDataSource) && query.getQuerySegmentSpec() == null) {
             throw new CannotBuildQueryException(
@@ -130,7 +127,7 @@ public class QueryMaker
           }
           return query;
         }
-      });
+      );
     }
     return prepared;
   }

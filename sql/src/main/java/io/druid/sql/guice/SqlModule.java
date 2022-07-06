@@ -60,9 +60,9 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Properties;
 
@@ -194,13 +194,16 @@ public class SqlModule implements DruidModule
     connectionProperties.setProperty("aaa", "bbb");   // avoid bug in protocol buf handler(empty property -> NPE)
 
 //    String sql = "select L_EXTENDEDPRICE/ 0 from lineitem limit 1";
-//    String sql = "select * from lineitem limit 1000";
-    String sql = "select * from \"array_metric\" limit 1000";
+    String sql = "select L_ORDERKEY, cast(L_DISCOUNT as VARCHAR) from lineitem WHERE L_DISCOUNT > ? limit 1000";
+//    String sql = "select * from \"array_metric\" limit 1000";
     try (Connection connection = DriverManager.getConnection(url, connectionProperties)) {
       try (
-          final Statement statement = connection.createStatement();
-          final ResultSet resultSet = statement.executeQuery(sql)
+          final PreparedStatement pstmt = connection.prepareStatement(sql);
+//          final Statement statement = connection.createStatement();
+//          final ResultSet resultSet = statement.executeQuery(sql)
       ) {
+        pstmt.setFloat(1, 0.05f);
+        final ResultSet resultSet = pstmt.executeQuery();
         ResultSetMetaData metaData = resultSet.getMetaData();
         int count = metaData.getColumnCount();
         StringBuilder b = new StringBuilder();

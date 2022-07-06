@@ -35,7 +35,6 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.util.Pair;
@@ -105,9 +104,9 @@ public class DruidOuterQueryRel extends DruidRel
   }
 
   @Override
-  public Filter getFilter()
+  public boolean hasFilter()
   {
-    return partialQuery.getScanFilter();
+    return partialQuery.getScanFilter() != null;
   }
 
   @Nullable

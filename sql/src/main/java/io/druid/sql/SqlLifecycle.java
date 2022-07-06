@@ -51,6 +51,7 @@ import org.apache.calcite.tools.ValidationException;
 import javax.annotation.Nullable;
 import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -181,11 +182,11 @@ public class SqlLifecycle
     return authorizationResult;
   }
 
-  public Sequence<Object[]> execute()
+  public Sequence<Object[]> execute(final List<Object> parameters)
   {
     synchronized (lock) {
       transition(State.AUTHORIZED, State.EXECUTING);
-      return plannerResult.run();
+      return plannerResult.run(parameters);
     }
   }
 

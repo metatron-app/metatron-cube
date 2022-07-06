@@ -35,8 +35,8 @@ import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rex.RexShuttle;
 
 import javax.annotation.Nullable;
 import java.util.Set;
@@ -86,14 +86,14 @@ public abstract class DruidRel extends AbstractRelNode
     throw new UnsupportedOperationException("withPartialQuery");
   }
 
-  public Filter getFilter()
+  public boolean hasFilter()
   {
-    return null;
+    return false;
   }
 
   public RelNode getLeafRel()
   {
-    if (LeafRel.class.isInstance(this)) {
+    if (this instanceof LeafRel) {
       return this;
     }
     PartialDruidQuery partialQuery = getPartialDruidQuery();

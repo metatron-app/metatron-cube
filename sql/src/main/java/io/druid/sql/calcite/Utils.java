@@ -29,6 +29,7 @@ import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
 import io.druid.query.filter.LikeDimFilter.LikeMatcher;
 import io.druid.sql.calcite.planner.Calcites;
+import io.druid.sql.calcite.planner.DruidTypeSystem;
 import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
@@ -73,7 +74,7 @@ import java.util.Set;
 
 public class Utils
 {
-  public static final JavaTypeFactoryImpl TYPE_FACTORY = new JavaTypeFactoryImpl();
+  public static final JavaTypeFactoryImpl TYPE_FACTORY = new JavaTypeFactoryImpl(DruidTypeSystem.INSTANCE);
   public static final RowSignature EMPTY_ROW_SIGNATURE = RowSignature.builder().build();
 
   public static final Set<SqlKind> COMPARISON = EnumSet.of(
@@ -483,5 +484,11 @@ public class Utils
       }
     }
     return v -> values.contains(v);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T extends RelNode> T apply(T relNode, RexShuttle shuttle)
+  {
+    return relNode == null || shuttle == null ? relNode : (T) relNode.accept(shuttle);
   }
 }

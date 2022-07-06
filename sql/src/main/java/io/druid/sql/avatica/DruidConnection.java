@@ -53,28 +53,34 @@ public class DruidConnection
   private final String connectionId;
   private final int maxStatements;
   private final ImmutableMap<String, Object> context;
+  private final AuthenticationResult authenticationResult;
+
   private final AtomicInteger statementCounter = new AtomicInteger();
   private final AtomicReference<Future<?>> timeoutFuture = new AtomicReference<>();
 
   @GuardedBy("statements")
-  private final Map<Integer, AtomicReference<DruidStatement>> statements;
+  private final Map<Integer, AtomicReference<DruidStatement>> statements = new HashMap<>();
 
   @GuardedBy("statements")
   private boolean open = true;
 
-  public DruidConnection(final String connectionId, final int maxStatements, final Map<String, Object> context)
+  public DruidConnection(
+      String connectionId,
+      int maxStatements,
+      Map<String, Object> context,
+      AuthenticationResult authenticationResult
+  )
   {
     this.connectionId = Preconditions.checkNotNull(connectionId);
     this.maxStatements = maxStatements;
     this.context = ImmutableMap.copyOf(context);
-    this.statements = new HashMap<>();
+    this.authenticationResult = authenticationResult;
   }
 
   public DruidStatement createStatement(
       StatementHandle statementHandle,
       String sql,
       Map<String, Object> context,
-      AuthenticationResult authenticationResult,
       SqlLifecycleFactory lifecycleFactory,
       long maxRowCount
   )
@@ -90,7 +96,6 @@ public class DruidConnection
       final DruidStatement statement = _createStatement(
           sql,
           context,
-          authenticationResult,
           lifecycleFactory,
           statementHandle,
           maxRowCount
@@ -106,7 +111,6 @@ public class DruidConnection
   public DruidStatement createStatement(
       String sql,
       Map<String, Object> context,
-      AuthenticationResult authenticationResult,
       SqlLifecycleFactory lifecycleFactory,
       long maxRowCount
   )
@@ -116,7 +120,6 @@ public class DruidConnection
       final DruidStatement statement = _createStatement(
           sql,
           context,
-          authenticationResult,
           lifecycleFactory,
           statementHandle,
           maxRowCount
@@ -131,7 +134,6 @@ public class DruidConnection
   private DruidStatement _createStatement(
       String sql,
       Map<String, Object> context,
-      AuthenticationResult authenticationResult,
       SqlLifecycleFactory lifecycleFactory,
       StatementHandle statementHandle,
       long maxRowCount
@@ -156,7 +158,7 @@ public class DruidConnection
     );
 
     return new DruidStatement(
-        connectionId,
+        this,
         statementHandle,
         lifecycleFactory.factorize(sql, sanitized, authenticationResult),
         () -> {
@@ -244,5 +246,10 @@ public class DruidConnection
   public Map<String, Object> context()
   {
     return context;
+  }
+
+  public String id()
+  {
+    return connectionId;
   }
 }

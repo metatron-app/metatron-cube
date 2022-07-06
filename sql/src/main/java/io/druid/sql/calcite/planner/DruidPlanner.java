@@ -24,8 +24,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -67,8 +66,13 @@ import io.druid.timeline.DataSegment;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.RelVisitor;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rex.RexBuilder;
+import org.apache.calcite.rex.RexDynamicParam;
+import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlExplain;
@@ -142,7 +146,33 @@ public class DruidPlanner implements Closeable, ForwardConstants
     final SqlNode validated = planner.validate(target);
     final RelRoot root = planner.rel(validated);
 
-    return planWithDruidConvention(source, root);
+    final List<RelDataType> parameterTypes = Lists.newArrayList();
+    final RexShuttle collector = new RexShuttle()
+    {
+      @Override
+      public RexNode visitDynamicParam(RexDynamicParam param)
+      {
+        final int index = param.getIndex();
+        for (int i = parameterTypes.size(); i <= index; i++) {
+          parameterTypes.add(null);
+        }
+        parameterTypes.set(index, param.getType());
+        return param;
+      }
+    };
+    final RelVisitor visitor = new RelVisitor()
+    {
+      @Override
+      public void visit(RelNode node, int ordinal, RelNode parent)
+      {
+        super.visit(node, ordinal, parent);
+        node.accept(collector);
+      }
+    };
+
+    root.rel.accept(collector);
+    root.rel.childrenAccept(visitor);
+    return planWithDruidConvention(source, root, parameterTypes);
   }
 
   public PlannerContext getPlannerContext()
@@ -156,7 +186,12 @@ public class DruidPlanner implements Closeable, ForwardConstants
     planner.close();
   }
 
-  private PlannerResult planWithDruidConvention(final SqlNode source, final RelRoot root) throws RelConversionException
+  private PlannerResult planWithDruidConvention(
+      final SqlNode source,
+      final RelRoot root,
+      final List<RelDataType> parameterTypes
+  )
+      throws RelConversionException
   {
     final DruidRel druidRel = (DruidRel) planner.transform(
         Rules.DRUID_CONVENTION_RULES,
@@ -166,8 +201,6 @@ public class DruidPlanner implements Closeable, ForwardConstants
         root.rel
     );
 
-    final Set<String> datasourceNames = ImmutableSet.copyOf(druidRel.getDataSource().getNames());
-
     if (source.getKind() == SqlKind.EXPLAIN) {
       return handleExplain(druidRel, (SqlExplain) source);
     } else if (source.getKind() == SqlKind.CREATE_TABLE) {
@@ -176,40 +209,59 @@ public class DruidPlanner implements Closeable, ForwardConstants
       return handleInsertDirectory(Utils.getFieldNames(root), druidRel, (SqlInsertDirectory) source);
     }
 
-    final DruidQuery druidQuery = druidRel.toDruidQuery(false);
-    final Query query = queryMaker.prepareQuery(druidQuery.getQuery());
-    final Supplier<Sequence<Object[]>> resultsSupplier = new Supplier<Sequence<Object[]>>()
+    final Function<List<Object>, Sequence<Object[]>> function = parameters ->
+    {
+      DruidQuery druidQuery = toDruidQuery(druidRel, parameterTypes, parameters);
+      Query query = queryMaker.prepareQuery(druidQuery.getQuery());
+
+      Execs.SettableFuture future = new Execs.SettableFuture<Object>();
+      plannerContext.getQueryManager().register(query, future);
+      Sequence<Object[]> sequence = queryMaker.runQuery(druidQuery, query);
+      if (!root.isRefTrivial()) {
+        // Add a mapping on top to accommodate root.fields.
+        final int[] indices = Utils.getFieldIndices(root);
+        sequence = Sequences.map(
+            sequence,
+            input -> {
+              final Object[] retVal = new Object[root.fields.size()];
+              for (int i = 0; i < indices.length; i++) {
+                retVal[i] = input[indices[i]];
+              }
+              return retVal;
+            }
+        );
+      }
+      return Sequences.withBaggage(sequence, future);
+    };
+    final Set<String> datasourceNames = ImmutableSet.copyOf(druidRel.getDataSource().getNames());
+    return new PlannerResult(function, root.validatedRowType, parameterTypes, datasourceNames);
+  }
+
+  private DruidQuery toDruidQuery(DruidRel druidRel, List<RelDataType> parameterTypes, List<Object> parameters)
+  {
+    if (parameterTypes.isEmpty() || parameters.isEmpty()) {
+      return druidRel.toDruidQuery(false);
+    }
+    RexBuilder builder = druidRel.getCluster().getRexBuilder();
+    List<RexNode> literals = Lists.newArrayList();
+    for(int i = 0; i < parameterTypes.size(); i++) {
+      literals.add(builder.makeLiteral(i < parameters.size() ? parameters.get(i) : null, parameterTypes.get(i), true));
+    }
+    PlannerContext.PARAMETER_BINDING.set(new RexShuttle()
     {
       @Override
-      public Sequence<Object[]> get()
+      public RexNode visitDynamicParam(RexDynamicParam dynamicParam)
       {
-        Execs.SettableFuture future = new Execs.SettableFuture<Object>();
-        plannerContext.getQueryManager().register(query, future);
-        Sequence<Object[]> sequence = queryMaker.runQuery(druidQuery, query);
-        if (!root.isRefTrivial()) {
-          // Add a mapping on top to accommodate root.fields.
-          sequence = Sequences.map(
-              sequence,
-              new Function<Object[], Object[]>()
-              {
-                private final int[] indices = Utils.getFieldIndices(root);
-
-                @Override
-                public Object[] apply(final Object[] input)
-                {
-                  final Object[] retVal = new Object[root.fields.size()];
-                  for (int i = 0; i < indices.length; i++) {
-                    retVal[i] = input[indices[i]];
-                  }
-                  return retVal;
-                }
-              }
-          );
-        }
-        return Sequences.withBaggage(sequence, future);
+        Preconditions.checkArgument(dynamicParam.getIndex() < parameters.size());
+        return literals.get(dynamicParam.getIndex());
       }
-    };
-    return new PlannerResult(query, resultsSupplier, root.validatedRowType, datasourceNames);
+    });
+    try {
+      return druidRel.toDruidQuery(false);
+    }
+    finally {
+      PlannerContext.PARAMETER_BINDING.remove();
+    }
   }
 
   private PlannerResult handleExplain(final RelNode rel, final SqlExplain explain)
@@ -232,9 +284,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         ImmutableList.of(typeFactory.createSqlType(SqlTypeName.VARCHAR)),
         ImmutableList.of("PLAN")
     );
-    final Supplier<Sequence<Object[]>> resultsSupplier = Suppliers.ofInstance(
-        Sequences.simple(ImmutableList.of(new Object[]{explanation})));
-    return new PlannerResult(resultsSupplier, resultType);
+    return new PlannerResult(params -> Sequences.simple(ImmutableList.of(new Object[]{explanation})), resultType);
   }
 
   @SuppressWarnings("unchecked")
@@ -325,7 +375,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
           segment.getVersion()
       });
     }
-    return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>simple(segments)), dataType);
+    return new PlannerResult(params -> Sequences.<Object[]>simple(segments), dataType);
   }
 
   private PlannerResult handleDescPath(SqlDescPath source)
@@ -345,12 +395,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         dataSchema.asTypeString(parser), loadSpec.getExtension(), loadSpec.getInputFormat(),
         loadSpec.getBasePath(), loadSpec.getPaths()
     };
-    return new PlannerResult(
-        null,
-        Suppliers.ofInstance(Sequences.<Object[]>of(result)),
-        resultType,
-        ImmutableSet.of()
-    );
+    return new PlannerResult(params -> Sequences.<Object[]>of(result), resultType);
   }
 
   private PlannerResult handleLoadTable(SqlLoadTable source, BrokerServerView serverView)
@@ -373,9 +418,9 @@ public class DruidPlanner implements Closeable, ForwardConstants
     );
 
     return new PlannerResult(
-        query,
-        Suppliers.ofInstance(sequence),
+        params -> sequence,
         resultType,
+        null,
         ImmutableSet.of(resolved.getSchema().getDataSource())
     );
   }
@@ -457,7 +502,7 @@ public class DruidPlanner implements Closeable, ForwardConstants
         ((Map<String, Object>) result.get("data")).entrySet()
     );
     Object[] row = new Object[]{true, result.get("rowCount"), data.getKey(), data.getValue()};
-    return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(row)), dataType);
+    return new PlannerResult(params -> Sequences.<Object[]>of(row), dataType);
   }
 
   private PlannerResult handleDropTable(final SqlDropTable source, final BrokerServerView brokerServerView)
@@ -477,6 +522,6 @@ public class DruidPlanner implements Closeable, ForwardConstants
       relTypes.add(typeFactory.createJavaType(value == null ? String.class : value.getClass()));
     }
     RelDataType dataType = typeFactory.createStructType(relTypes, names);
-    return new PlannerResult(Suppliers.ofInstance(Sequences.<Object[]>of(values.toArray())), dataType);
+    return new PlannerResult(params -> Sequences.<Object[]>of(values.toArray()), dataType);
   }
 }

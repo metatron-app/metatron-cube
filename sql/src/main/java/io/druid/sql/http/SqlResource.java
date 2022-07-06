@@ -73,6 +73,7 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -213,7 +214,7 @@ public class SqlResource
       }
       final RowSignature signature = RowSignature.from(result.rowType());
 
-      Sequence<Object[]> sequence = lifecycle.execute();
+      Sequence<Object[]> sequence = lifecycle.execute(Collections.emptyList());
       if (needTypeConversion) {
         sequence = Sequences.map(sequence, new Function<Object[], Object[]>()
         {

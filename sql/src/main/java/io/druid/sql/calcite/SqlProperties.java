@@ -53,7 +53,6 @@ public class SqlProperties extends SqlCall
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public void unparse(SqlWriter writer, int leftPrec, int rightPrec)
   {
     final SqlWriter.Frame frame = writer.startList("(", ")");

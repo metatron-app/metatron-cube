@@ -496,6 +496,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         PLANNER_CONFIG_DEFAULT,
         QUERY_CONTEXT_DEFAULT,
         "SELECT * FROM druid.forbiddenDatasource",
+        NO_PARAM,
         CalciteTests.SUPER_USER_AUTH_RESULT,
         null,
         newScan().dataSource(FORBIDDEN_DATASOURCE)
@@ -4665,6 +4666,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         + ") AS x\n"
         + "GROUP BY gran\n"
         + "ORDER BY gran",
+        NO_PARAM,
         "DruidQueryRel(table=[druid.foo], "
         + "scanFilter=[AND(>=($0, 2000-01-01 00:00:00), <($0, 2000-01-02 00:00:00))], "
         + "scanProject=[FLOOR($0, FLAG(HOUR)), $1], "
@@ -6422,6 +6424,22 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         "MFbMpK9WnWSXwnoJY9Mrkg==",
         "StreamQuery{dataSource='StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}', columns=[v0, Profit, v1], virtualColumns=[ExprVirtualColumn{expression='DATETIME(__time)', outputName='v0'}, ExprVirtualColumn{expression='(Profit - \"w0$o0\")', outputName='v1'}]}",
         "StreamQuery{dataSource='sales', querySegmentSpec=MultipleIntervalSegmentSpec{intervals=[-146136543-09-08T08:23:32.096Z/2011-01-10T00:00:00.000Z]}, columns=[Profit, __time], limitSpec=LimitSpec{columns=[], limit=-1, windowingSpecs=[WindowingSpec{skipSorting=true, expressions=[\"w0$o0\" = $PREV(Profit,-2147483647,2147483647)]}]}}"
+    );
+  }
+
+  @Test
+  public void testX() throws Exception
+  {
+    testQuery(
+        "SELECT textcat(dim1, dim1) as dimX FROM foo WHERE dim1 = ? ",
+        Arrays.<Object>asList("abc"),
+        newScan()
+            .dataSource(CalciteTests.DATASOURCE1)
+            .virtualColumns(EXPR_VC("v0", "concat(dim1,dim1)"))
+            .filters(EXPR_FILTER("(dim1 == 'abc')"))
+            .columns("v0")
+            .streaming(),
+        new Object[]{"abcabc"}
     );
   }
 }

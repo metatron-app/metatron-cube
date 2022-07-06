@@ -19,60 +19,59 @@
 
 package io.druid.sql.calcite.planner;
 
-import com.google.common.base.Supplier;
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import io.druid.common.guava.Sequence;
-import io.druid.query.Query;
 import org.apache.calcite.rel.type.RelDataType;
 
-import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PlannerResult
 {
-  private final Query<?> query;
-  private final Supplier<Sequence<Object[]>> resultsSupplier;
+  private final Function<List<Object>, Sequence<Object[]>> function;
   private final RelDataType rowType;
+  private final List<RelDataType> parametersType;
   private final Set<String> datasourceNames;
   private final AtomicBoolean didRun = new AtomicBoolean();
 
-  public PlannerResult(final Supplier<Sequence<Object[]>> resultsSupplier, final RelDataType rowType)
+  public PlannerResult(Function<List<Object>, Sequence<Object[]>> function, RelDataType rowType)
   {
-    this(null, resultsSupplier, rowType, ImmutableSet.of());
+    this(function, rowType, null, ImmutableSet.of());
   }
 
   public PlannerResult(
-      final Query<?> query,
-      final Supplier<Sequence<Object[]>> resultsSupplier,
+      final Function<List<Object>, Sequence<Object[]>> function,
       final RelDataType rowType,
+      final List<RelDataType> parametersType,
       final Set<String> datasourceNames
   )
   {
-    this.query = query;
-    this.resultsSupplier = resultsSupplier;
+    this.function = function;
     this.rowType = rowType;
+    this.parametersType = parametersType;
     this.datasourceNames = ImmutableSet.copyOf(datasourceNames);
   }
 
-  public Sequence<Object[]> run()
+  public Sequence<Object[]> run(List<Object> parameters)
   {
     if (!didRun.compareAndSet(false, true)) {
       // Safety check.
       throw new IllegalStateException("Cannot run more than once");
     }
-    return resultsSupplier.get();
-  }
-
-  @Nullable
-  public Query<?> query()
-  {
-    return query;
+    return function.apply(parameters);
   }
 
   public RelDataType rowType()
   {
     return rowType;
+  }
+
+  public List<RelDataType> parametersType()
+  {
+    return parametersType == null ? ImmutableList.of() : parametersType;
   }
 
   public Set<String> datasourceNames()

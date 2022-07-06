@@ -46,6 +46,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
@@ -510,6 +511,25 @@ public class PartialDruidQuery
     }
   }
 
+  public PartialDruidQuery rewrite(RexShuttle shuttle)
+  {
+    if (shuttle == null) {
+      return this;
+    }
+    return new PartialDruidQuery(
+        scan,
+        Utils.apply(scanFilter, shuttle),
+        Utils.apply(scanProject, shuttle),
+        Utils.apply(aggregate, shuttle),
+        Utils.apply(aggregateFilter, shuttle),
+        Utils.apply(aggregateProject, shuttle),
+        Utils.apply(window, shuttle),
+        Utils.apply(sort, shuttle),
+        Utils.apply(sortProject, shuttle),
+        context
+    );
+  }
+
   private boolean supports(Project project)
   {
     for (RexNode rexNode : project.getProjects()) {
@@ -563,7 +583,14 @@ public class PartialDruidQuery
       final boolean finalizeAggregations
   )
   {
-    return new DruidBaseQuery(this, dataSource, sourceRowSignature, plannerContext, rexBuilder, finalizeAggregations);
+    return new DruidBaseQuery(
+        rewrite(PlannerContext.PARAMETER_BINDING.get()),
+        dataSource,
+        sourceRowSignature,
+        plannerContext,
+        rexBuilder,
+        finalizeAggregations
+    );
   }
 
   /**
