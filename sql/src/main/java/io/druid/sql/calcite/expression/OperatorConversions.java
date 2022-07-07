@@ -175,6 +175,14 @@ public class OperatorConversions
       return this;
     }
 
+    public OperatorBuilder operandTypeInference(final SqlOperandTypeInference operandTypeInference)
+    {
+      Preconditions.checkState(this.operandTypeInference == null, "Cannot set operand type multiple times");
+
+      this.operandTypeInference = operandTypeInference;
+      return this;
+    }
+
     /**
      * Provides customized return type inference logic.
      *

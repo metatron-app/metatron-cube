@@ -21,7 +21,6 @@ package io.druid.sql.calcite;
 
 import io.druid.common.guava.Files;
 import io.druid.data.Pair;
-import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -105,13 +104,42 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
         newTimeseries()
             .dataSource(CalciteTests.DATASOURCE1)
             .filters(EXPR_FILTER("(dim2 == '')"))
-            .aggregators(new CountAggregatorFactory("a0"), new GenericSumAggregatorFactory("a1", "m2", ValueDesc.DOUBLE))
-            .postAggregators(
-                EXPR_POST_AGG("p0", "(exp(a0) + 10)")
-            )
+            .aggregators(CountAggregatorFactory.of("a0"), GenericSumAggregatorFactory.ofDouble("a1", "m2"))
+            .postAggregators(EXPR_POST_AGG("p0", "(exp(a0) + 10)"))
             .outputColumns("p0", "a1")
             .build(),
         new Object[]{30.085536923187668, 11.0}
+    );
+  }
+
+  @Test
+  public void testSelectTrimFamilyWithParameters() throws Exception
+  {
+    // TRIM has some whacky parsing. Abuse this to test a bunch of parameters
+    testQuery(
+        "SELECT\n"
+        + "TRIM(BOTH ? FROM ?),\n"
+        + "TRIM(TRAILING ? FROM ?),\n"
+        + "TRIM(? FROM ?),\n"
+        + "TRIM(TRAILING FROM ?),\n"
+        + "TRIM(?),\n"
+        + "BTRIM(?),\n"
+        + "BTRIM(?, ?),\n"
+        + "LTRIM(?),\n"
+        + "LTRIM(?, ?),\n"
+        + "RTRIM(?),\n"
+        + "RTRIM(?, ?),\n"
+        + "COUNT(*)\n"
+        + "FROM foo",
+        Arrays.asList(
+            "x", "xfoox", "x", "xfoox", " ", " foo ", " foo ",
+            " foo ", " foo ", "xfoox", "x", " foo ", "xfoox", "x", " foo ", "xfoox", "x"
+        ),
+        new Object[]{"foo", "xfoo", "foo", " foo", "foo", "foo", "foo", "foo ", "foox", " foo", "xfoo", 6L}
+    );
+    hook.verifyHooked(
+        "C8uTZtlnqgHd3F90koKfBQ==",
+        "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[CountAggregatorFactory{name='a0'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='btrim('xfoox','x')', finalize=true}, MathPostAggregator{name='p1', expression='rtrim('xfoox','x')', finalize=true}, MathPostAggregator{name='p2', expression='btrim(' foo ',' ')', finalize=true}, MathPostAggregator{name='p3', expression='rtrim(' foo ',' ')', finalize=true}, MathPostAggregator{name='p4', expression='btrim(' foo ',' ')', finalize=true}, MathPostAggregator{name='p5', expression='btrim(' foo ',' ')', finalize=true}, MathPostAggregator{name='p6', expression='btrim('xfoox','x')', finalize=true}, MathPostAggregator{name='p7', expression='ltrim(' foo ',' ')', finalize=true}, MathPostAggregator{name='p8', expression='ltrim('xfoox','x')', finalize=true}, MathPostAggregator{name='p9', expression='rtrim(' foo ',' ')', finalize=true}, MathPostAggregator{name='p10', expression='rtrim('xfoox','x')', finalize=true}], outputColumns=[p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, a0]}"
     );
   }
 
@@ -194,6 +222,26 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
         + "postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(a0 / a1)', finalize=true}], "
         + "havingSpec=ExpressionHavingSpec{expression='((a2 / a1) == 1)'}, "
         + "outputColumns=[d0, p0]}"
+    );
+  }
+
+  @Test
+  public void testParametersInCases() throws Exception
+  {
+    testQuery(
+        "SELECT\n"
+        + "  CASE 'foo'\n"
+        + "  WHEN ? THEN SUM(cnt) / CAST(? as INT)\n"
+        + "  WHEN ? THEN SUM(m1) / CAST(? as INT)\n"
+        + "  WHEN ? THEN SUM(m2) / CAST(? as INT)\n"
+        + "  END\n"
+        + "FROM foo",
+        Arrays.asList("bar", 10, "foo", 10, "baz", 10),
+        new Object[]{2.1}
+    );
+    hook.verifyHooked(
+        "kAi8vxGnnyaw3ADf+tU0Fw==",
+        "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='cnt', inputType='long'}, GenericSumAggregatorFactory{name='a1', fieldName='m1', inputType='double'}, GenericSumAggregatorFactory{name='a2', fieldName='m2', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='case(('foo' == 'bar'),CAST((a0 / 10), 'DOUBLE'),('foo' == 'foo'),(a1 / 10),('foo' == 'baz'),(a2 / 10),'')', finalize=true}], outputColumns=[p0]}"
     );
   }
 }

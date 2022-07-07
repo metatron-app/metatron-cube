@@ -20,11 +20,11 @@
 package io.druid.sql.calcite.expression.builtin;
 
 import com.google.common.collect.ImmutableList;
+import io.druid.sql.calcite.planner.SqlStdOperatorTable;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;

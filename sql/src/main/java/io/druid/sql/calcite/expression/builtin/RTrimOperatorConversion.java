@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
+import io.druid.sql.calcite.planner.SqlStdOperatorTable;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -37,6 +38,7 @@ public class RTrimOperatorConversion implements SqlOperatorConversion
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
       .operatorBuilder("RTRIM")
       .operandTypes(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)
+      .operandTypeInference(SqlStdOperatorTable.explicit(SqlTypeName.VARCHAR, SqlTypeName.VARCHAR))
       .returnType(SqlTypeName.VARCHAR)
       .functionCategory(SqlFunctionCategory.STRING)
       .requiredOperands(1)

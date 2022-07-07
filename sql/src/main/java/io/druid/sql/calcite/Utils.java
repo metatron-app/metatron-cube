@@ -34,6 +34,7 @@ import io.druid.sql.calcite.planner.PlannerContext;
 import io.druid.sql.calcite.rel.DruidRel;
 import io.druid.sql.calcite.rel.QueryMaker;
 import io.druid.sql.calcite.table.RowSignature;
+import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptCost;
@@ -74,7 +75,7 @@ import java.util.Set;
 
 public class Utils
 {
-  public static final JavaTypeFactoryImpl TYPE_FACTORY = new JavaTypeFactoryImpl(DruidTypeSystem.INSTANCE);
+  public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(DruidTypeSystem.INSTANCE);
   public static final RowSignature EMPTY_ROW_SIGNATURE = RowSignature.builder().build();
 
   public static final Set<SqlKind> COMPARISON = EnumSet.of(
