@@ -41,7 +41,6 @@ import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
-import io.druid.query.QueryVisitor;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
@@ -298,8 +297,8 @@ public class QueryMaker
       case BIGINT:
         return value -> value instanceof Number ? ((Number) value).longValue() : null;
       case FLOAT:
-        return value -> value instanceof Number ? ((Number) value).floatValue() : null;
       case REAL:
+        return value -> value instanceof Number ? ((Number) value).floatValue() : null;
       case DOUBLE:
         return value -> value instanceof Number ? ((Number) value).doubleValue() : null;
       case DECIMAL:

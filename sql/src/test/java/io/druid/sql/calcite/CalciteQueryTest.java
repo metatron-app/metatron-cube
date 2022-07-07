@@ -1855,7 +1855,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
                 OR(
                     SELECTOR("dim1", "10"),
                     AND(
-                        EXPR_FILTER("(CAST(floor(CAST(dim1, 'FLOAT')), 'DOUBLE') == 10.00)"),
+                        EXPR_FILTER("(floor(CAST(dim1, 'FLOAT')) == 10.00F)"),
                         EXPR_FILTER("(CAST(dim1, 'FLOAT') > 9)"),
                         EXPR_FILTER("(CAST(dim1, 'FLOAT') <= 10.5B)")
                     )

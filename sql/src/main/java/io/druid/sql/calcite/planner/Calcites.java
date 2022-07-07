@@ -188,11 +188,11 @@ public class Calcites
     final SqlTypeName sqlTypeName = dataType.getSqlTypeName();
     if (SqlTypeName.BOOLEAN == sqlTypeName) {
       return ValueDesc.BOOLEAN;
-    } else if (SqlTypeName.FLOAT == sqlTypeName) {
+    } else if (SqlTypeName.FLOAT == sqlTypeName || SqlTypeName.REAL == sqlTypeName) {
       return ValueDesc.FLOAT;
     } else if (SqlTypeName.DECIMAL == sqlTypeName) {
       return ValueDesc.DECIMAL;
-    } else if (SqlTypeName.APPROX_TYPES.contains(sqlTypeName)) {
+    } else if (SqlTypeName.DOUBLE == sqlTypeName) {
       return ValueDesc.DOUBLE;
     } else if (SqlTypeName.TIMESTAMP == sqlTypeName
                || SqlTypeName.DATE == sqlTypeName
@@ -556,7 +556,6 @@ public class Calcites
 
   public static Class<?> sqlTypeNameJdbcToJavaClass(SqlTypeName typeName)
   {
-    // reference: https://docs.oracle.com/javase/1.5.0/docs/guide/jdbc/getstart/mapping.html
     JDBCType jdbcType = JDBCType.valueOf(typeName.getJdbcOrdinal());
     switch (jdbcType) {
       case CHAR:
@@ -567,6 +566,7 @@ public class Calcites
       case DECIMAL:
         return BigDecimal.class;
       case BIT:
+      case BOOLEAN:
         return Boolean.class;
       case TINYINT:
         return Byte.class;
@@ -576,9 +576,9 @@ public class Calcites
         return Integer.class;
       case BIGINT:
         return Long.class;
+      case FLOAT:
       case REAL:
         return Float.class;
-      case FLOAT:
       case DOUBLE:
         return Double.class;
       case BINARY:
@@ -590,6 +590,9 @@ public class Calcites
         return Time.class;
       case TIMESTAMP:
         return Timestamp.class;
+      case STRUCT:
+      case ARRAY:
+        return List.class;
       default:
         return Object.class;
     }

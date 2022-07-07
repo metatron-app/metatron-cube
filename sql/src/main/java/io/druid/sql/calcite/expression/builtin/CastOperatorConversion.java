@@ -49,8 +49,8 @@ public class CastOperatorConversion implements SqlOperatorConversion
 
     builder.put(SqlTypeName.BOOLEAN, ValueDesc.BOOLEAN);
     builder.put(SqlTypeName.FLOAT, ValueDesc.FLOAT);
+    builder.put(SqlTypeName.REAL, ValueDesc.FLOAT);
     builder.put(SqlTypeName.DOUBLE, ValueDesc.DOUBLE);
-    builder.put(SqlTypeName.REAL, ValueDesc.DOUBLE);
     builder.put(SqlTypeName.DECIMAL, ValueDesc.DECIMAL);
 
     for (SqlTypeName type : SqlTypeName.INT_TYPES) {
