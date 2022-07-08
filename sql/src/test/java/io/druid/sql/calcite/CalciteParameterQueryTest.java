@@ -244,4 +244,23 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
         "TimeseriesQuery{dataSource='foo', aggregatorSpecs=[GenericSumAggregatorFactory{name='a0', fieldName='cnt', inputType='long'}, GenericSumAggregatorFactory{name='a1', fieldName='m1', inputType='double'}, GenericSumAggregatorFactory{name='a2', fieldName='m2', inputType='double'}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='case(('foo' == 'bar'),CAST((a0 / 10), 'DOUBLE'),('foo' == 'foo'),(a1 / 10),('foo' == 'baz'),(a2 / 10),'')', finalize=true}], outputColumns=[p0]}"
     );
   }
+
+  @Test
+  public void testParametersInCoalesce() throws Exception
+  {
+    testQuery(
+        "SELECT dim2, COALESCE(dim2, ?) FROM foo",
+        Arrays.asList("x"),
+        new Object[]{"a", "a"},
+        new Object[]{"", "x"},
+        new Object[]{"", "x"},
+        new Object[]{"a", "a"},
+        new Object[]{"abc", "abc"},
+        new Object[]{"", "x"}
+    );
+    hook.verifyHooked(
+        "1FDy4/ORgMKC0kR7DWBm7Q==",
+        "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='COALESCE(dim2,'x')', outputName='v0'}]}"
+    );
+  }
 }

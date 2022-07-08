@@ -594,13 +594,7 @@ public class DruidBaseQuery implements DruidQuery
         throw new CannotBuildQueryException(aggregate, rexNode);
       }
 
-      final ValueDesc outputType = Calcites.asValueDesc(rexNode);
-      if (!outputType.isPrimitive() && !outputType.isDimension() && !outputType.isMultiValued()) {
-        // Can't group on unknown or COMPLEX types.
-        throw new CannotBuildQueryException(aggregate, rexNode);
-      }
-
-      dimensions.add(new DimensionExpression(dimOutputName, druidExpression, outputType));
+      dimensions.add(new DimensionExpression(dimOutputName, druidExpression, Calcites.asValueDesc(rexNode)));
     }
 
     return dimensions;

@@ -78,7 +78,6 @@ import io.druid.sql.calcite.expression.builtin.ItemOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LPadOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LTrimOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.LeftOperatorConversion;
-import io.druid.sql.calcite.expression.builtin.LikeOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.MillisToTimestampOperatorConversion;
 import io.druid.sql.calcite.expression.builtin.NominalTypeConversion;
 import io.druid.sql.calcite.expression.builtin.RPadOperatorConversion;
@@ -119,7 +118,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
@@ -233,7 +231,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new AliasedOperatorConversion(new TruncateOperatorConversion(), "TRUNC"))
           .add(new ArrayConstructorOperatorConversion())
           .add(new LeftOperatorConversion())
-          .add(new LikeOperatorConversion())
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.LIKE, "LIKE"))
           .add(new LPadOperatorConversion())
           .add(new RegexpLikeOperatorConversion())
           .add(new RepeatOperatorConversion())
@@ -248,6 +246,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new BitSetCardinalityConversion())
           .add(new NominalTypeConversion())
           .add(new DedupOperatorConversion())
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.COALESCE, "COALESCE"))
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.
@@ -466,7 +465,7 @@ public class DruidOperatorTable implements SqlOperatorTable
     }
 
     final SqlOperator convertletOperator = CONVERTLET_OPERATORS.get(operatorKey);
-    if (convertletOperator != null) {
+    if (operatorList.isEmpty() && convertletOperator != null) {
       operatorList.add(convertletOperator);
     }
 

@@ -516,6 +516,7 @@ public class PartialDruidQuery
     if (shuttle == null) {
       return this;
     }
+    // todo: try simplify rex
     return new PartialDruidQuery(
         scan,
         Utils.apply(scanFilter, shuttle),

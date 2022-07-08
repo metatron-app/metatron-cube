@@ -19,31 +19,46 @@
 
 package io.druid.sql.calcite.planner;
 
-import io.druid.sql.calcite.planner.func.SqlSubstringFunction;
-import io.druid.sql.calcite.planner.func.SqlTrimFunction;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.type.InferTypes;
+import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.type.SqlTypeTransforms;
 
-import java.util.List;
+import static org.apache.calcite.sql.type.SqlTypeName.INTEGER;
+import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 
 public class SqlStdOperatorTable extends org.apache.calcite.sql.fun.SqlStdOperatorTable
 {
-  public static final SqlFunction SUBSTRING = new SqlSubstringFunction();
+  private static final SqlReturnTypeInference NULLABLE_VARCHR = ReturnTypes.cascade(
+      ReturnTypes.explicit(VARCHAR), SqlTypeTransforms.TO_NULLABLE
+  );
 
-  public static final SqlFunction TRIM = new SqlTrimFunction();
+  public static final SqlFunction SUBSTRING = new InjectOperandTypeInferer(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.SUBSTRING,
+      NULLABLE_VARCHR, explicit(VARCHAR, INTEGER, INTEGER)
+  );
 
-  private static SqlOperandTypeInference explicit(List<RelDataType> dataTypes)
+  public static final SqlFunction TRIM = new InjectOperandTypeInferer(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.TRIM,
+      NULLABLE_VARCHR, explicit(VARCHAR, VARCHAR, VARCHAR)
+  );
+
+  public static final SqlFunction COALESCE = new InjectOperandTypeInferer(
+      org.apache.calcite.sql.fun.SqlStdOperatorTable.COALESCE, null, InferTypes.FIRST_KNOWN
+  );
+
+  private static SqlOperandTypeInference explicit(RelDataType... dataTypes)
   {
     return (callBinding, returnType, operandTypes) -> {
-      RelDataType unknownType = callBinding.getValidator().getUnknownType();
-      for (int i = 0; i < Math.min(dataTypes.size(), operandTypes.length); i++) {
-        if (unknownType.equals(operandTypes[i])) {
-          operandTypes[i] = dataTypes.get(i);
+      final RelDataType unknownType = callBinding.getValidator().getUnknownType();
+      for (int i = 0; i < Math.min(dataTypes.length, operandTypes.length); i++) {
+        if (dataTypes[i] != null && unknownType.equals(operandTypes[i])) {
+          operandTypes[i] = dataTypes[i];
         }
       }
     };
@@ -52,17 +67,11 @@ public class SqlStdOperatorTable extends org.apache.calcite.sql.fun.SqlStdOperat
   public static SqlOperandTypeInference explicit(SqlTypeName... typeNames)
   {
     return (callBinding, returnType, operandTypes) -> {
-      List<SqlNode> operands = callBinding.operands();
-      SqlValidator validator = callBinding.getValidator();
-      RelDataType unknownType = validator.getUnknownType();
-      RelDataTypeFactory factory = callBinding.getTypeFactory();
+      final RelDataType unknownType = callBinding.getValidator().getUnknownType();
+      final RelDataTypeFactory factory = callBinding.getTypeFactory();
       for (int i = 0; i < Math.min(typeNames.length, operandTypes.length); i++) {
-        if (unknownType.equals(operandTypes[i])) {
-          RelDataType type = validator.deriveType(callBinding.getScope(), operands.get(i));
-          if (unknownType.equals(type) && typeNames[i] != null) {
-            type = factory.createSqlType(typeNames[i]);
-          }
-          operandTypes[i] = type;
+        if (typeNames[i] != null && unknownType.equals(operandTypes[i])) {
+          operandTypes[i] = factory.createSqlType(typeNames[i]);
         }
       }
     };
