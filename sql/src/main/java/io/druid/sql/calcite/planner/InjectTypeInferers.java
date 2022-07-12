@@ -33,11 +33,11 @@ import org.apache.calcite.sql.type.SqlOperandTypeInference;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 
-public class InjectOperandTypeInferer extends SqlFunction
+class InjectTypeInferers extends SqlFunction
 {
   protected final SqlFunction delegate;
 
-  public InjectOperandTypeInferer(SqlFunction delegate, SqlReturnTypeInference retType, SqlOperandTypeInference opTypes)
+  InjectTypeInferers(SqlFunction delegate, SqlReturnTypeInference retType, SqlOperandTypeInference opTypes)
   {
     super(
         delegate.getName(),

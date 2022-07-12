@@ -6436,7 +6436,7 @@ public class CalciteQueryTest extends CalciteQueryTestHelper
         newScan()
             .dataSource(CalciteTests.DATASOURCE1)
             .virtualColumns(EXPR_VC("v0", "concat(dim1,dim1)"))
-            .filters(EXPR_FILTER("(dim1 == 'abc')"))
+            .filters(SELECTOR("dim1", "abc"))
             .columns("v0")
             .streaming(),
         new Object[]{"abcabc"}

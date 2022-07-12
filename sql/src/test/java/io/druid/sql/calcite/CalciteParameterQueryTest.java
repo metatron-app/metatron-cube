@@ -19,13 +19,16 @@ package io.druid.sql.calcite;
  * under the License.
  */
 
+import io.druid.common.DateTimes;
 import io.druid.common.guava.Files;
 import io.druid.data.Pair;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.spec.QuerySegmentSpecs;
 import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.TestQuerySegmentWalker;
+import org.joda.time.Interval;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -103,7 +106,7 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
         Arrays.asList(10, ""),
         newTimeseries()
             .dataSource(CalciteTests.DATASOURCE1)
-            .filters(EXPR_FILTER("(dim2 == '')"))
+            .filters(SELECTOR("dim2", null))
             .aggregators(CountAggregatorFactory.of("a0"), GenericSumAggregatorFactory.ofDouble("a1", "m2"))
             .postAggregators(EXPR_POST_AGG("p0", "(exp(a0) + 10)"))
             .outputColumns("p0", "a1")
@@ -214,14 +217,8 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
         new Object[]{"def", 1L}
     );
     hook.verifyHooked(
-        "0uSWXkiMoUwKrd5XyL28dQ==",
-        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=["
-        + "FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a0'}, filter=MathExprFilter{expression='(dim2 != 'a')'}}, "
-        + "CountAggregatorFactory{name='a1'}, "
-        + "FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a2'}, filter=MathExprFilter{expression='(dim2 != 'a')'}}], "
-        + "postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(a0 / a1)', finalize=true}], "
-        + "havingSpec=ExpressionHavingSpec{expression='((a2 / a1) == 1)'}, "
-        + "outputColumns=[d0, p0]}"
+        "6GI+Zm6l4zL6feFAx28Iyw==",
+        "GroupByQuery{dataSource='foo', dimensions=[DefaultDimensionSpec{dimension='dim1', outputName='d0'}], aggregatorSpecs=[FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a0'}, filter=!(dim2=='a')}, CountAggregatorFactory{name='a1'}, FilteredAggregatorFactory{delegate=CountAggregatorFactory{name='a2'}, filter=!(dim2=='a')}], postAggregatorSpecs=[MathPostAggregator{name='p0', expression='(a0 / a1)', finalize=true}], havingSpec=ExpressionHavingSpec{expression='((a2 / a1) == 1)'}, outputColumns=[d0, p0]}"
     );
   }
 
@@ -261,6 +258,43 @@ public class CalciteParameterQueryTest extends CalciteQueryTestHelper
     hook.verifyHooked(
         "1FDy4/ORgMKC0kR7DWBm7Q==",
         "StreamQuery{dataSource='foo', columns=[dim2, v0], virtualColumns=[ExprVirtualColumn{expression='COALESCE(dim2,'x')', outputName='v0'}]}"
+    );
+  }
+
+  @Test
+  public void testTimestamp() throws Exception
+  {
+    testQuery(
+        "SELECT count(*), sum(m2) FROM druid.foo WHERE __time > ?",
+        Arrays.asList(DateTimes.of("2000-01-02T00:00:00Z").getMillis()),
+        newTimeseries()
+            .dataSource(CalciteTests.DATASOURCE1)
+            .intervals(QuerySegmentSpecs.create(
+                new Interval("2000-01-02T00:00:00.001Z/146140482-04-24T15:36:27.903Z")
+            ))
+            .aggregators(
+                CountAggregatorFactory.of("a0"),
+                GenericSumAggregatorFactory.ofDouble("a1", "m2")
+            )
+            .outputColumns("a0", "a1")
+            .build(),
+        new Object[]{4L, 18.0D}
+    );
+  }
+
+  @Test
+  public void testDoubles() throws Exception
+  {
+    testQuery(
+        "SELECT COUNT(*) FROM druid.foo WHERE m1 >= ? and m1 < ?",
+        Arrays.asList(1.0, 4.0),
+        newTimeseries()
+            .dataSource(CalciteTests.DATASOURCE1)
+            .filters(BOUND("m1", "1", "4", false, true, null, "numeric"))
+            .aggregators(CountAggregatorFactory.of("a0"))
+            .outputColumns("a0")
+            .build(),
+        new Object[]{3L}
     );
   }
 }

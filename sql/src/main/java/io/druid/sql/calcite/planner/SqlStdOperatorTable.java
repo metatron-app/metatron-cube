@@ -38,17 +38,17 @@ public class SqlStdOperatorTable extends org.apache.calcite.sql.fun.SqlStdOperat
       ReturnTypes.explicit(VARCHAR), SqlTypeTransforms.TO_NULLABLE
   );
 
-  public static final SqlFunction SUBSTRING = new InjectOperandTypeInferer(
+  public static final SqlFunction SUBSTRING = new InjectTypeInferers(
       org.apache.calcite.sql.fun.SqlStdOperatorTable.SUBSTRING,
       NULLABLE_VARCHR, explicit(VARCHAR, INTEGER, INTEGER)
   );
 
-  public static final SqlFunction TRIM = new InjectOperandTypeInferer(
+  public static final SqlFunction TRIM = new InjectTypeInferers(
       org.apache.calcite.sql.fun.SqlStdOperatorTable.TRIM,
       NULLABLE_VARCHR, explicit(VARCHAR, VARCHAR, VARCHAR)
   );
 
-  public static final SqlFunction COALESCE = new InjectOperandTypeInferer(
+  public static final SqlFunction COALESCE = new InjectTypeInferers(
       org.apache.calcite.sql.fun.SqlStdOperatorTable.COALESCE, null, InferTypes.FIRST_KNOWN
   );
 

@@ -242,10 +242,16 @@ public class DruidPlanner implements Closeable, ForwardConstants
     if (parameterTypes.isEmpty() || parameters.isEmpty()) {
       return druidRel.toDruidQuery(false);
     }
+    RelDataTypeFactory factory = druidRel.getCluster().getTypeFactory();
     RexBuilder builder = druidRel.getCluster().getRexBuilder();
     List<RexNode> literals = Lists.newArrayList();
     for(int i = 0; i < parameterTypes.size(); i++) {
-      literals.add(builder.makeLiteral(i < parameters.size() ? parameters.get(i) : null, parameterTypes.get(i), true));
+      RelDataType type = parameterTypes.get(i);
+      Object value = i < parameters.size() ? parameters.get(i) : null;
+      if (value != null && type.isNullable()) {
+        type = factory.createTypeWithNullability(type, false);
+      }
+      literals.add(builder.makeLiteral(value, type, true));
     }
     PlannerContext.PARAMETER_BINDING.set(new RexShuttle()
     {
