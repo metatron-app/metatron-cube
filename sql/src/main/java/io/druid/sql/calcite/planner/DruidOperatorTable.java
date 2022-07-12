@@ -247,6 +247,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new NominalTypeConversion())
           .add(new DedupOperatorConversion())
           .add(new DirectOperatorConversion(SqlStdOperatorTable.COALESCE, "COALESCE"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.INITCAP, "INITCAP"))
           .build();
 
   // Operators that have no conversion, but are handled in the convertlet table, so they still need to exist.

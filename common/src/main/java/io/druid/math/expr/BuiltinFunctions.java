@@ -35,6 +35,7 @@ import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Function.Factory;
 import io.druid.math.expr.Function.NamedFactory;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.WordUtils;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
 import org.python.core.Py;
@@ -2509,6 +2510,25 @@ public interface BuiltinFunctions extends Function.Library
               Strings.isNullOrEmpty(input) || Strings.isNullOrEmpty(find) ? input :
               StringUtils.replace(input, find, replace)
           );
+        }
+      };
+    }
+  }
+
+  @Function.Named("initcap")
+  final class InitCapFunc extends NamedFactory.StringType
+  {
+    @Override
+    public StringChild create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args);
+      return new StringChild()
+      {
+        @Override
+        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        {
+          String input = args.get(0).eval(bindings).asString();
+          return ExprEval.of(Strings.isNullOrEmpty(input) ? input : WordUtils.capitalize(input));
         }
       };
     }

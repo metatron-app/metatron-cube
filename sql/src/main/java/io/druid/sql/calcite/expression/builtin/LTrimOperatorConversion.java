@@ -38,7 +38,7 @@ public class LTrimOperatorConversion implements SqlOperatorConversion
   private static final SqlFunction SQL_FUNCTION = OperatorConversions
       .operatorBuilder("LTRIM")
       .operandTypes(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)
-      .operandTypeInference(SqlStdOperatorTable.explicit(SqlTypeName.VARCHAR, SqlTypeName.VARCHAR))
+      .operandTypeInference(SqlStdOperatorTable.explicit(SqlStdOperatorTable.P_VARCHAR, SqlStdOperatorTable.P_VARCHAR))
       .returnType(SqlTypeName.VARCHAR)
       .functionCategory(SqlFunctionCategory.STRING)
       .requiredOperands(1)
