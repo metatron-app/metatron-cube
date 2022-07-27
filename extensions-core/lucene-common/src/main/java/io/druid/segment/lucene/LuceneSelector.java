@@ -25,6 +25,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.LuceneIndex;
 
 import java.lang.reflect.Constructor;
 import java.util.List;
@@ -38,9 +39,11 @@ public abstract class LuceneSelector extends DimFilter.LuceneFilter
   {
     Column column = segment == null ? null : Lucenes.findColumnWithLuceneIndex(field, segment.asQueryableIndex(false));
     if (column != null) {
-      Class indexClass = column.classOfSecondaryIndex();
-      if (Lucenes.class.getClassLoader() != indexClass.getClassLoader()) {
-        return swap(this, indexClass.getClassLoader(), params());
+      for (Class clazz : column.getExternalIndexKeys()) {
+        if (clazz.getClassLoader() != Lucenes.class.getClassLoader() &&
+            clazz.getName().equals(LuceneIndex.class.getName())) {
+          return swap(this, clazz.getClassLoader(), params());
+        }
       }
     }
     return super.optimize(segment, virtualColumns);

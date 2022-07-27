@@ -21,12 +21,16 @@ package io.druid.segment.column;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Iterables;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.java.util.common.ISE;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  */
@@ -35,20 +39,6 @@ public class ColumnCapabilities
   public static ColumnCapabilities of(ValueType type)
   {
     return new ColumnCapabilities().setType(type);
-  }
-
-  public static ColumnCapabilities copyOf(ColumnCapabilities capabilities)
-  {
-    ColumnCapabilities copy = new ColumnCapabilities();
-    copy.setType(capabilities.getType());
-    copy.setDictionaryEncoded(capabilities.isDictionaryEncoded());
-    copy.setRunLengthEncoded(capabilities.isRunLengthEncoded());
-    copy.setHasBitmapIndexes(capabilities.hasBitmapIndexes());
-    copy.setHasSpatialIndexes(capabilities.hasSpatialIndexes());
-    copy.setHasMultipleValues(capabilities.hasMultipleValues());
-    copy.setHasMetricBitmap(capabilities.hasMetricBitmap());
-    copy.setHasLuceneIndex(capabilities.hasLuceneIndex());
-    return copy;
   }
 
   private ValueType type;
@@ -60,7 +50,7 @@ public class ColumnCapabilities
   private boolean hasMultipleValues;
   private boolean hasMetricBitmap;
   private boolean hasBitSlicedBitmap;
-  private boolean hasLuceneIndex;
+  private List<String> externalIndices;
   private boolean hasDictionaryFST;
 
   public ColumnCapabilities() {}
@@ -75,7 +65,7 @@ public class ColumnCapabilities
       @JsonProperty("hasSpatialIndexes") boolean hasSpatialIndexes,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("hasMetricBitmap") boolean hasMetricBitmap,
-      @JsonProperty("hasLuceneIndex") boolean hasLuceneIndex,
+      @JsonProperty("externalIndices") List<String> externalIndices,
       @JsonProperty("hasDictionaryFST") boolean hasDictionaryFST
   )
   {
@@ -87,7 +77,7 @@ public class ColumnCapabilities
     this.hasSpatialIndexes = hasSpatialIndexes;
     this.hasMultipleValues = hasMultipleValues;
     this.hasMetricBitmap = hasMetricBitmap;
-    this.hasLuceneIndex = hasLuceneIndex;
+    this.externalIndices = externalIndices;
     this.hasDictionaryFST = hasDictionaryFST;
   }
 
@@ -206,15 +196,24 @@ public class ColumnCapabilities
   }
 
   @JsonProperty
-  public boolean hasLuceneIndex()
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  public List<String> getExternalIndices()
   {
-    return hasLuceneIndex;
+    return externalIndices;
   }
 
-  public ColumnCapabilities setHasLuceneIndex(boolean hasLuceneIndex)
+  public ColumnCapabilities setExternalIndices(List<String> externalIndices)
   {
-    this.hasLuceneIndex = hasLuceneIndex;
+    this.externalIndices = externalIndices;
     return this;
+  }
+
+  private static final Pattern LUCENE = Pattern.compile("lucene(\\d)?");
+
+  @JsonIgnore
+  public boolean hasLuceneIndex()
+  {
+    return !externalIndices.isEmpty() && Iterables.any(externalIndices, name -> LUCENE.matcher(name).matches());
   }
 
   @JsonProperty
@@ -256,9 +255,6 @@ public class ColumnCapabilities
     this.hasBitmapIndexes |= other.hasBitmapIndexes();
     this.hasSpatialIndexes |= other.hasSpatialIndexes();
     this.hasMultipleValues |= other.hasMultipleValues();
-    this.hasMetricBitmap &= other.hasMetricBitmap();
-    this.hasLuceneIndex &= other.hasLuceneIndex();
-    this.hasDictionaryFST &= other.hasDictionaryFST();
 
     return this;
   }
@@ -276,7 +272,7 @@ public class ColumnCapabilities
         hasMultipleValues,
         hasMetricBitmap,
         hasBitSlicedBitmap,
-        hasLuceneIndex,
+        externalIndices,
         hasDictionaryFST
     );
   }
@@ -298,9 +294,9 @@ public class ColumnCapabilities
            hasMultipleValues == that.hasMultipleValues &&
            hasMetricBitmap == that.hasMetricBitmap &&
            hasBitSlicedBitmap == that.hasBitSlicedBitmap &&
-           hasLuceneIndex == that.hasLuceneIndex &&
            hasDictionaryFST == that.hasDictionaryFST &&
            type == that.type &&
-           Objects.equals(typeName, that.typeName);
+           Objects.equals(typeName, that.typeName) &&
+           Objects.equals(externalIndices, that.externalIndices);
   }
 }

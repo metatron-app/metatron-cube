@@ -44,6 +44,7 @@ import io.druid.java.util.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.CuboidSpec;
 import io.druid.segment.Cuboids;
+import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.IndexIO;
 import io.druid.segment.Metadata;
 import io.druid.segment.QueryableIndex;
@@ -53,6 +54,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.FSTHolder;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
@@ -503,7 +505,8 @@ public class IndexViewer extends CommonShell.WithUtils
         builder.append(string);
       }
       if (capabilities.hasDictionaryFST()) {
-        builder.append("%s (%,d bytes)", column.sourceOfFST(), column.getSerializedSize(Column.EncodeType.FST));
+        ExternalIndexProvider<FSTHolder> provider = column.getFST();
+        builder.append("%s (%,d bytes)", provider.source(), provider.getSerializedSize());
       }
       if (capabilities.hasSpatialIndexes()) {
         builder.append("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL));
@@ -523,9 +526,9 @@ public class IndexViewer extends CommonShell.WithUtils
             "bit sliced bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITSLICED_BITMAP)
         );
       }
-      if (capabilities.hasLuceneIndex()) {
-        String source = column.sourceOfSecondaryIndex();
-        builder.append("%s index (%,d bytes)", source, column.getSerializedSize(Column.EncodeType.LUCENE_INDEX));
+      for (Class<?> clazz : column.getExternalIndexKeys()) {
+        ExternalIndexProvider external = column.getExternalIndex(clazz);
+        builder.append("%s index (%,d bytes)", external.source(), external.getSerializedSize());
         Map<String, String> columnDescs = column.getColumnDescs();
         if (!GuavaUtils.isNullOrEmpty(columnDescs)) {
           builder.append("descs %s", columnDescs);

@@ -887,16 +887,16 @@ public class Filters
       if (Evals.isLeafFunction((Expr) expr, columnName)) {
         FuncExpression funcExpr = (FuncExpression) expr;
         if (capabilities.hasBitmapIndexes()) {
-          SecondaryIndex index = asSecondaryIndex(selector, columnName);
+          SecondaryIndex.WithRange index = asSecondaryIndex(selector, columnName);
           BitmapHolder holder = leafToRanges(columnName, funcExpr, context, index, withNot);
           if (holder != null) {
             return holder;
           }
         }
         SecondaryIndex index = getWhatever(selector, columnName, SecondaryIndex.class);
-        if (index != null) {
+        if (index instanceof SecondaryIndex.WithRange) {
           long start = System.currentTimeMillis();
-          BitmapHolder holder = leafToRanges(columnName, funcExpr, context, index, withNot);
+          BitmapHolder holder = leafToRanges(columnName, funcExpr, context, (SecondaryIndex.WithRange) index, withNot);
           if (holder != null) {
             if (logger.isDebugEnabled()) {
               long elapsed = System.currentTimeMillis() - start;
@@ -993,7 +993,7 @@ public class Filters
   {
     SecondaryIndex bitmap = bitmaps.getBitSlicedBitmap(column);
     if (!type.isInstance(bitmap)) {
-      bitmap = bitmaps.getExternalIndex(column);
+      bitmap = bitmaps.getExternalIndex(column, type);
     }
     if (!type.isInstance(bitmap)) {
       bitmap = bitmaps.getMetricBitmap(column);
@@ -1007,7 +1007,7 @@ public class Filters
       String column,
       FuncExpression expression,
       FilterContext context,
-      SecondaryIndex metric,
+      SecondaryIndex.WithRange metric,
       boolean withNot
   )
   {
@@ -1206,7 +1206,7 @@ public class Filters
   };
 
   // mimic SecondaryIndex with bitmap index
-  public static SecondaryIndex asSecondaryIndex(final BitmapIndexSelector selector, final String dimension)
+  public static SecondaryIndex.WithRange asSecondaryIndex(final BitmapIndexSelector selector, final String dimension)
   {
     return new SecondaryIndex.WithRangeAndNull<String>()
     {
@@ -1241,7 +1241,7 @@ public class Filters
     };
   }
 
-  public static SecondaryIndex asSecondaryIndex(final GenericColumn column)
+  public static SecondaryIndex.WithRange asSecondaryIndex(final GenericColumn column)
   {
     return new SecondaryIndex.WithRangeAndNull<Comparable>()
     {

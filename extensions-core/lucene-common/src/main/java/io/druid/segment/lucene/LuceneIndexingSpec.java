@@ -31,7 +31,7 @@ import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.MetricColumnSerializer;
 import io.druid.segment.SecondaryIndexingSpec;
 import io.druid.segment.column.ColumnBuilder;
@@ -236,10 +236,8 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
           final int numRows = builder.getNumRows();
           final BitmapFactory factory = serdeFactory.getBitmapFactory();
 
-          final ValueDesc type = builder.getType();
-
-          builder.setSecondaryIndex(
-              new ColumnPartProvider.ExternalPart<LuceneIndex>()
+          builder.addSecondaryIndex(
+              new ExternalIndexProvider<LuceneIndex>()
               {
                 @Override
                 public String source()
@@ -276,12 +274,6 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                     public void close() throws IOException
                     {
                       reader.close();
-                    }
-
-                    @Override
-                    public ValueDesc type()
-                    {
-                      return type;
                     }
 
                     @Override

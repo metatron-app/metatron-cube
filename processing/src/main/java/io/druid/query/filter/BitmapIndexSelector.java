@@ -47,7 +47,7 @@ public interface BitmapIndexSelector extends TypeResolver, Closeable
   default HistogramBitmap getMetricBitmap(String dimension) {return null;}
   default BitSlicedBitmap getBitSlicedBitmap(String dimension) {return null;}
 
-  default <T extends SecondaryIndex> T getExternalIndex(String dimension) {return null;}
+  default <T extends SecondaryIndex> T getExternalIndex(String dimension, Class<T> clazz) {return null;}
 
   default ColumnCapabilities getCapabilities(String dimension) {return null;}
   default Column getColumn(String dimension) {return null;}

@@ -68,7 +68,7 @@ public class RegexFSTFilter extends RegexDimFilter
   {
     Column column = segment == null ? null : Lucenes.findColumnWithFST(getDimension(), segment.asQueryableIndex(false));
     if (column != null) {
-      Class fstClass = column.classOfFST();
+      Class fstClass = column.getFST().classOfObject();
       if (Automaton.class.getClassLoader() != fstClass.getClassLoader()) {
         return LuceneSelector.swap(this, fstClass.getClassLoader(), getDimension(), getPattern());
       }
@@ -90,7 +90,7 @@ public class RegexFSTFilter extends RegexDimFilter
         if (column != null && column.getCapabilities().hasDictionaryFST()) {
           try {
             @SuppressWarnings("unchecked")
-            final FST<Long> fst = column.getFST().unwrap(FST.class);
+            final FST<Long> fst = column.getFST().get().unwrap(FST.class);
             final IntList matched = AutomatonMatcher.match(automatonSupplier.get(), fst).sort();  // dictionary ids
             return BitmapHolder.exact(column.getBitmapIndex().union(matched));
           }

@@ -20,14 +20,18 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 import io.druid.segment.serde.DictionaryEncodedColumnSupplier;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,7 +42,7 @@ public class ColumnBuilder
   private int numRows = -1;
   private boolean hasMultipleValues = false;
 
-  private ColumnPartProvider.ExternalPart<FSTHolder> fstIndex = null;
+  private ExternalIndexProvider<FSTHolder> fstIndex = null;
   private ColumnPartProvider<RunLengthColumn> runLengthColumn = null;
   private ColumnPartProvider<GenericColumn> genericColumn = null;
   private ColumnPartProvider<ComplexColumn> complexColumn = null;
@@ -46,7 +50,7 @@ public class ColumnBuilder
   private ColumnPartProvider<SpatialIndex> spatialIndex = null;
   private ColumnPartProvider<HistogramBitmap> metricBitmap = null;
   private ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap = null;
-  private ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex = null;
+  private final Map<Class, ExternalIndexProvider> secondaryIndex = Maps.newHashMap();
 
   private final DictionaryEncodedColumnSupplier.Builder builder = new DictionaryEncodedColumnSupplier.Builder();
 
@@ -90,7 +94,7 @@ public class ColumnBuilder
     return builder.dictionary;
   }
 
-  public ColumnBuilder setFST(ColumnPartProvider.ExternalPart<FSTHolder> fstIndex)
+  public ColumnBuilder setFST(ExternalIndexProvider<FSTHolder> fstIndex)
   {
     this.fstIndex = fstIndex;
     return this;
@@ -151,9 +155,9 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setSecondaryIndex(ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex)
+  public ColumnBuilder addSecondaryIndex(ExternalIndexProvider<? extends SecondaryIndex> secondaryIndex)
   {
-    this.secondaryIndex = secondaryIndex;
+    this.secondaryIndex.put(secondaryIndex.classOfObject(), secondaryIndex);
     return this;
   }
 
@@ -184,6 +188,7 @@ public class ColumnBuilder
     Preconditions.checkNotNull(name, "name must be set");
     Preconditions.checkNotNull(type, "type must be set");
 
+    List<String> indexNames = secondaryIndex.isEmpty() ? null : GuavaUtils.transform(secondaryIndex.values(), x -> x.source());
     ColumnPartProvider.DictionarySupport dimension = builder.build();
     return new SimpleColumn(
         name,
@@ -195,10 +200,10 @@ public class ColumnBuilder
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)
             .setHasBitSlicedBitmap(bitSlicedBitmap != null)
-            .setHasLuceneIndex(secondaryIndex != null)
             .setHasSpatialIndexes(spatialIndex != null)
             .setRunLengthEncoded(runLengthColumn != null)
             .setHasMultipleValues(hasMultipleValues)
+            .setExternalIndices(indexNames)
         ,
         dimension,
         fstIndex,

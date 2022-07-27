@@ -56,7 +56,7 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
   }
 
   private final ByteOrder byteOrder;
-  private Serializer serializer;
+  private final Serializer serializer;
 
   public LongGenericColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
   {

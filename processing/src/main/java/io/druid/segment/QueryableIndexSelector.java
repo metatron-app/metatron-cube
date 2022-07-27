@@ -49,7 +49,7 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   private final TypeResolver resolver;
   private final BitmapFactory bitmapFactory;
   private final int numRows;
-  private final Map<String, SecondaryIndex> luceneIndices = Maps.newHashMap();
+  private final Map<String, Map<Class, SecondaryIndex>> externalIndices = Maps.newHashMap();
   private final Map<String, HistogramBitmap> metricBitmaps = Maps.newHashMap();
   private final Map<String, BitSlicedBitmap> bitSlicedBitmapMaps = Maps.newHashMap();
 
@@ -144,17 +144,18 @@ public class QueryableIndexSelector implements BitmapIndexSelector
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T extends SecondaryIndex> T getExternalIndex(String dimension)
+  public <T extends SecondaryIndex> T getExternalIndex(String dimension, Class<T> clazz)
   {
-    T lucene = (T) luceneIndices.get(dimension);
-    if (lucene == null) {
-      final Column column = index.getColumn(dimension);
-      if (column == null || !column.getCapabilities().hasLuceneIndex()) {
-        return null;
+    Map<Class, SecondaryIndex> mapping = externalIndices.computeIfAbsent(dimension, k -> Maps.newHashMap());
+    T secondary = (T) mapping.get(clazz);
+    if (secondary == null) {
+      Column column = index.getColumn(dimension);
+      ExternalIndexProvider<T> provider = column == null ? null : column.getExternalIndex(clazz);
+      if (provider != null) {
+        mapping.put(clazz, secondary = provider.get());
       }
-      luceneIndices.put(dimension, lucene = column.getSecondaryIndex());
     }
-    return lucene;
+    return secondary;
   }
 
   @Override
@@ -201,8 +202,10 @@ public class QueryableIndexSelector implements BitmapIndexSelector
   @Override
   public void close()
   {
-    for (SecondaryIndex bitmap : luceneIndices.values()) {
-      CloseQuietly.close(bitmap);
+    for (Map<Class, SecondaryIndex> indices : externalIndices.values()) {
+      for (SecondaryIndex index : indices.values()) {
+        CloseQuietly.close(index);
+      }
     }
     for (SecondaryIndex bitmap : metricBitmaps.values()) {
       CloseQuietly.close(bitmap);
@@ -210,7 +213,7 @@ public class QueryableIndexSelector implements BitmapIndexSelector
     for (SecondaryIndex bitmap : bitSlicedBitmapMaps.values()) {
       CloseQuietly.close(bitmap);
     }
-    luceneIndices.clear();
+    externalIndices.clear();
     metricBitmaps.clear();
     bitSlicedBitmapMaps.clear();
   }

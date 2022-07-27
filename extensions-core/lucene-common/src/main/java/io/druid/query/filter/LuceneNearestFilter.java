@@ -126,7 +126,7 @@ public class LuceneNearestFilter extends LuceneSelector
             Lucenes.findLuceneField(field, column, LatLonPointIndexingStrategy.TYPE_NAME),
             "cannot find lucene field name in [%s:%s]", column.getName(), column.getColumnDescs().keySet()
         );
-        LuceneIndex index = column.getSecondaryIndex();
+        LuceneIndex index = column.getExternalIndex(LuceneIndex.class).get();
         try {
           IndexSearcher searcher = index.searcher();
           TopDocs searched = LatLonPointPrototypeQueries.nearest(searcher, luceneField, latitude, longitude, count);

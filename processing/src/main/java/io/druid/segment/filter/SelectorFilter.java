@@ -63,7 +63,7 @@ public class SelectorFilter implements Filter
     if (capabilities == null || capabilities.hasBitmapIndexes()) {
       return BitmapHolder.exact(selector.getBitmapIndex(dimension, value));
     }
-    final SecondaryIndex index = selector.getExternalIndex(dimension);
+    final SecondaryIndex index = selector.getExternalIndex(dimension, null);
     return index == null ? null : index.eq(dimension, value, context);
   }
 

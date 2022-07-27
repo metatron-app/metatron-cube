@@ -31,13 +31,6 @@ public interface ColumnPartProvider<T> extends Supplier<T>
 
   long getSerializedSize();
 
-  interface ExternalPart<T> extends ColumnPartProvider<T>
-  {
-    String source();
-
-    Class classOfObject();
-  }
-
   interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>
   {
     Dictionary<String> getDictionary();

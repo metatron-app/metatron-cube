@@ -47,4 +47,6 @@ public interface DimFilterCacheKey
   byte INS_CACHE_ID = 0x14;
   byte BOUND_ROWID_CACHE_ID = 0x15;
   byte PREFIX_CACHE_ID = 0x16;
+
+  byte H3_DISTANCE_CACHE_ID = 0x17;
 }

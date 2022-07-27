@@ -21,11 +21,13 @@ package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -34,7 +36,7 @@ class SimpleColumn implements Column
   private final String name;
   private final ColumnCapabilities capabilities;
   private final ColumnPartProvider.DictionarySupport dictionaryEncodedColumn;
-  private final ColumnPartProvider.ExternalPart<FSTHolder> fstIndex;
+  private final ExternalIndexProvider<FSTHolder> fstIndex;
   private final ColumnPartProvider<RunLengthColumn> runLengthColumn;
   private final ColumnPartProvider<GenericColumn> genericColumn;
   private final ColumnPartProvider<ComplexColumn> complexColumn;
@@ -42,14 +44,14 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<SpatialIndex> spatialIndex;
   private final ColumnPartProvider<HistogramBitmap> metricBitmap;
   private final ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap;
-  private final ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex;
+  private final Map<Class, ExternalIndexProvider> secondaryIndices;
   private final ColumnMeta columnMeta;
 
   SimpleColumn(
       String name,
       ColumnCapabilities capabilities,
       ColumnPartProvider.DictionarySupport dictionaryEncodedColumn,
-      ColumnPartProvider.ExternalPart<FSTHolder> fstIndex,
+      ExternalIndexProvider<FSTHolder> fstIndex,
       ColumnPartProvider<RunLengthColumn> runLengthColumn,
       ColumnPartProvider<GenericColumn> genericColumn,
       ColumnPartProvider<ComplexColumn> complexColumn,
@@ -57,7 +59,7 @@ class SimpleColumn implements Column
       ColumnPartProvider<SpatialIndex> spatialIndex,
       ColumnPartProvider<HistogramBitmap> metricBitmap,
       ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap,
-      ColumnPartProvider.ExternalPart<? extends SecondaryIndex> secondaryIndex,
+      Map<Class, ExternalIndexProvider> secondaryIndices,
       Map<String, Object> stats,
       Map<String, String> descs
   )
@@ -73,7 +75,7 @@ class SimpleColumn implements Column
     this.spatialIndex = spatialIndex;
     this.metricBitmap = metricBitmap;
     this.bitSlicedBitmap = bitSlicedBitmap;
-    this.secondaryIndex = secondaryIndex;
+    this.secondaryIndices = secondaryIndices;
     this.columnMeta = new ColumnMeta(
         capabilities.getTypeDesc(), capabilities.hasMultipleValues(), descs, stats
     );
@@ -138,8 +140,6 @@ class SimpleColumn implements Column
         return metricBitmap == null ? -1 : metricBitmap.getSerializedSize();
       case BITSLICED_BITMAP:
         return bitSlicedBitmap == null ? -1 : bitSlicedBitmap.getSerializedSize();
-      case LUCENE_INDEX:
-        return secondaryIndex == null ? -1 : secondaryIndex.getSerializedSize();
       case FST:
         return fstIndex == null ? -1 : fstIndex.getSerializedSize();
     }
@@ -201,40 +201,22 @@ class SimpleColumn implements Column
   }
 
   @Override
+  public Set<Class> getExternalIndexKeys()
+  {
+    return secondaryIndices.keySet();
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
-  public <T extends SecondaryIndex> T getSecondaryIndex()
+  public <T> ExternalIndexProvider<T> getExternalIndex(Class<T> clazz)
   {
-    return secondaryIndex == null ? null : (T) secondaryIndex.get();
+    return secondaryIndices.get(clazz);
   }
 
   @Override
-  public String sourceOfSecondaryIndex()
+  public ExternalIndexProvider<FSTHolder> getFST()
   {
-    return secondaryIndex == null ? null : secondaryIndex.source();
-  }
-
-  @Override
-  public Class classOfSecondaryIndex()
-  {
-    return secondaryIndex == null ? null : secondaryIndex.classOfObject();
-  }
-
-  @Override
-  public FSTHolder getFST()
-  {
-    return fstIndex.get();
-  }
-
-  @Override
-  public String sourceOfFST()
-  {
-    return fstIndex == null ? null : fstIndex.source();
-  }
-
-  @Override
-  public Class classOfFST()
-  {
-    return fstIndex == null ? null : fstIndex.classOfObject();
+    return fstIndex;
   }
 
   @Override

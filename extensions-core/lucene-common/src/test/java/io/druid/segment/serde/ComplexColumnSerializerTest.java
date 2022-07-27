@@ -101,7 +101,7 @@ public class ComplexColumnSerializerTest
     Assert.assertEquals(length, payload.remaining());
 
     Column column = descriptor.read("test", payload, factory);
-    LuceneIndex luceneIndex = column.getSecondaryIndex();
+    LuceneIndex luceneIndex = column.getExternalIndex(LuceneIndex.class).get();
 
     Assert.assertNotNull(luceneIndex);
 
@@ -174,7 +174,7 @@ public class ComplexColumnSerializerTest
     Assert.assertEquals(length, payload.remaining());
 
     Column column = descriptor.read("test", payload, factory);
-    LuceneIndex luceneIndex = column.getSecondaryIndex();
+    LuceneIndex luceneIndex = column.getExternalIndex(LuceneIndex.class).get();
 
     Assert.assertNotNull(luceneIndex);
 
@@ -237,7 +237,7 @@ public class ComplexColumnSerializerTest
     Assert.assertEquals(length, payload.remaining());
 
     Column column = descriptor.read("test", payload, factory);
-    LuceneIndex luceneIndex = column.getSecondaryIndex();
+    LuceneIndex luceneIndex = column.getExternalIndex(LuceneIndex.class).get();
 
     Assert.assertNotNull(luceneIndex);
 

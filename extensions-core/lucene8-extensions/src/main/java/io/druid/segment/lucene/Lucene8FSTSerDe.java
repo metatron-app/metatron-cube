@@ -29,7 +29,7 @@ import org.apache.lucene.util.fst.PositiveIntOutputs;
 
 import java.io.IOException;
 
-@JsonTypeName("lucene8.fst")
+@JsonTypeName("fst.lucene8")
 public class Lucene8FSTSerDe extends LuceneFSTSerDe
 {
   @JsonCreator

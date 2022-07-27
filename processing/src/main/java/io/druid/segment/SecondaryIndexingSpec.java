@@ -33,6 +33,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "histogram", value = HistogramIndexingSpec.class),
     @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmapSpec.class),
     @JsonSubTypes.Type(name = "bitsetInverted", value = BitSetInvertedIndexingSpec.class),
+    @JsonSubTypes.Type(name = "list", value = ListIndexingSpec.class),
 })
 public interface SecondaryIndexingSpec
 {

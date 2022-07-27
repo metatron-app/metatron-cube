@@ -164,11 +164,11 @@ public class LuceneSpatialFilter extends LuceneSelector implements DimFilter.Log
         String columnName = field;
         String fieldName = field;
         BitmapIndexSelector selector = context.indexSelector();
-        LuceneIndex lucene = selector.getExternalIndex(columnName);
+        LuceneIndex lucene = selector.getExternalIndex(columnName, LuceneIndex.class);
         for (int index = field.indexOf('.'); lucene == null && index > 0; index = field.indexOf('.', index + 1)) {
           columnName = field.substring(0, index);
           fieldName = field.substring(index + 1);
-          lucene = selector.getExternalIndex(columnName);
+          lucene = selector.getExternalIndex(columnName, LuceneIndex.class);
         }
         Preconditions.checkNotNull(lucene, "no lucene index for [%s]", field);
 

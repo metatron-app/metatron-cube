@@ -22,10 +22,12 @@ package io.druid.segment.column;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
+import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Dictionary;
 
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -43,7 +45,6 @@ public interface Column
     SPATIAL,
     METRIC_BITMAP,
     BITSLICED_BITMAP,
-    LUCENE_INDEX,
     FST
   }
 
@@ -63,13 +64,10 @@ public interface Column
   HistogramBitmap getMetricBitmap();
   BitSlicedBitmap getBitSlicedBitmap();
 
-  <T extends SecondaryIndex> T getSecondaryIndex();
-  String sourceOfSecondaryIndex();
-  Class classOfSecondaryIndex();
+  Set<Class> getExternalIndexKeys();
+  <T> ExternalIndexProvider<T> getExternalIndex(Class<T> clazz);
 
-  FSTHolder getFST();
-  String sourceOfFST();
-  Class classOfFST();
+  ExternalIndexProvider<FSTHolder> getFST();
 
   long getSerializedSize(EncodeType encodeType);
 

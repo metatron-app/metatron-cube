@@ -141,7 +141,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
           parser.setPointsConfigMap(configMap);
         }
 
-        LuceneIndex lucene = column.getSecondaryIndex();
+        LuceneIndex lucene = column.getExternalIndex(LuceneIndex.class).get();
         try {
           Query query = parser.parse(expression, luceneField);
           return lucene.filterFor(query, context, scoreField);

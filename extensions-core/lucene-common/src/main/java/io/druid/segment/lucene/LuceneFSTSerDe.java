@@ -22,8 +22,8 @@ package io.druid.segment.lucene;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Throwables;
-import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.DictionaryPartBuilder;
+import io.druid.segment.ExternalIndexProvider;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.FSTHolder;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -72,7 +72,7 @@ public abstract class LuceneFSTSerDe extends FSTBuilder implements ColumnPartSer
       @Override
       public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory factory) throws IOException
       {
-        builder.setFST(new ColumnPartProvider.ExternalPart<FSTHolder>()
+        builder.setFST(new ExternalIndexProvider<FSTHolder>()
         {
           private final ByteBuffer block = ByteBufferSerializer.prepareForRead(buffer);
 

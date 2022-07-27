@@ -34,8 +34,6 @@ import java.util.List;
  */
 public interface SecondaryIndex<T> extends Closeable
 {
-  ValueDesc type();
-
   default BitmapHolder filterFor(T query, FilterContext context)
   {
     return filterFor(query, context, null);
@@ -71,6 +69,8 @@ public interface SecondaryIndex<T> extends Closeable
 
   interface WithRange<T extends Comparable> extends SecondaryIndex<Range<T>>
   {
+    ValueDesc type();
+
     @Override
     @SuppressWarnings("unchecked")
     default BitmapHolder compare(String op, boolean withNot, String column, Comparable constant, FilterContext context)
