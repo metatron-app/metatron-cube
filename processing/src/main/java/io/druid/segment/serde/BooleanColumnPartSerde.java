@@ -44,7 +44,7 @@ public class BooleanColumnPartSerde implements ColumnPartSerde
   }
 
   private final ByteOrder byteOrder;
-  private Serializer serializer;
+  private final Serializer serializer;
 
   public BooleanColumnPartSerde(ByteOrder byteOrder, Serializer serializer)
   {

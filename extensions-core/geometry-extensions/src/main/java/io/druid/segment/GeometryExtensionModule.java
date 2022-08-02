@@ -35,6 +35,7 @@ import io.druid.query.H3Functions;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GeomCollectPointAggregatorFactory;
 import io.druid.query.aggregation.GeomUnionAggregatorFactory;
+import io.druid.query.filter.H3PointDistanceFilter;
 import io.druid.sql.guice.SqlBindings;
 import org.geohex.geohex4j.GeoHexFunctions;
 import org.locationtech.jts.geom.Geometry;
@@ -47,7 +48,6 @@ public class GeometryExtensionModule implements DruidModule
   {
     SimpleModule module = new SimpleModule("lucene-extension")
         .registerSubtypes(GeoHashFunctions.class)
-        .registerSubtypes(H3Functions.class)
         .registerSubtypes(GeoHexFunctions.class)
         .registerSubtypes(GeomFunctions.class)
         .registerSubtypes(GeoJsonDecorator.class)
@@ -56,6 +56,11 @@ public class GeometryExtensionModule implements DruidModule
         .registerSubtypes(GeomCollectPointAggregatorFactory.class)
         .addSerializer(Geometry.class, new GeometrySerializer())
         .addDeserializer(Geometry.class, new GeometryDeserializer());
+
+    module.registerSubtypes(H3Functions.class)
+          .registerSubtypes(H3IndexingSpec.class)
+          .registerSubtypes(H3IndexingSpec.SerDe.class)
+          .registerSubtypes(H3PointDistanceFilter.class);
 
     // moved from geotools extension
     module.registerSubtypes(ConstantQuery.class)

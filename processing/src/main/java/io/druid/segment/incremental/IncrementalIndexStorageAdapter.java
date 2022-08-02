@@ -670,6 +670,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public Map<String, String> getDescriptor(String columnName)
+              {
+                return index.getColumnDescriptor(columnName);
+              }
+
+              @Override
               public ValueDesc resolve(String columnName)
               {
                 return resolver.resolve(columnName);

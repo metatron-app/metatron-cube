@@ -1073,6 +1073,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public Map<String, String> getDescriptor(String columnName)
+                    {
+                      Column column = index.getColumn(columnName);
+                      return column == null ? null : column.getColumnDescs();
+                    }
+
+                    @Override
                     public ValueDesc resolve(String columnName)
                     {
                       return resolver.resolve(columnName);

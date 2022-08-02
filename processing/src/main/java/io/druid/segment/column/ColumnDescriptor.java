@@ -87,7 +87,7 @@ public class ColumnDescriptor extends ColumnMeta
 
   public Column read(String columnName, ByteBuffer buffer, BitmapSerdeFactory serdeFactory) throws IOException
   {
-    final ColumnBuilder builder = new ColumnBuilder()
+    final ColumnBuilder builder = new ColumnBuilder(columnName)
         .setType(valueType)
         .setColumnStats(stats)
         .setColumnDescs(descs)
@@ -97,7 +97,7 @@ public class ColumnDescriptor extends ColumnMeta
       part.getDeserializer().read(buffer, builder, serdeFactory);
     }
 
-    return builder.build(columnName);
+    return builder.build();
   }
 
   public ColumnDescriptor withParts(List<ColumnPartSerde> parts)

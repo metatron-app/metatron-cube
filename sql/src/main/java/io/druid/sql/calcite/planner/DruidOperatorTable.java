@@ -232,6 +232,7 @@ public class DruidOperatorTable implements SqlOperatorTable
           .add(new ArrayConstructorOperatorConversion())
           .add(new LeftOperatorConversion())
           .add(new DirectOperatorConversion(SqlStdOperatorTable.LIKE, "LIKE"))
+          .add(new DirectOperatorConversion(SqlStdOperatorTable.ROW, "ARRAY"))
           .add(new LPadOperatorConversion())
           .add(new RegexpLikeOperatorConversion())
           .add(new RepeatOperatorConversion())

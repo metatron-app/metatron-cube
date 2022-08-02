@@ -58,57 +58,13 @@ import org.joda.time.Interval;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  */
 public class ColumnSelectorFactories
 {
-  public static class NotSupports extends ColumnSelectorFactory.ExprUnSupport
-  {
-    @Override
-    public Iterable<String> getColumnNames()
-    {
-      throw new UnsupportedOperationException("getColumnNames");
-    }
-
-    @Override
-    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
-    {
-      throw new UnsupportedOperationException("makeDimensionSelector");
-    }
-
-    @Override
-    public FloatColumnSelector makeFloatColumnSelector(String columnName)
-    {
-      throw new UnsupportedOperationException("makeFloatColumnSelector");
-    }
-
-    @Override
-    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-    {
-      throw new UnsupportedOperationException("makeDoubleColumnSelector");
-    }
-
-    @Override
-    public LongColumnSelector makeLongColumnSelector(String columnName)
-    {
-      throw new UnsupportedOperationException("makeLongColumnSelector");
-    }
-
-    @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-    {
-      throw new UnsupportedOperationException("makeObjectColumnSelector");
-    }
-
-    @Override
-    public ValueDesc resolve(String columnName)
-    {
-      throw new UnsupportedOperationException("getColumnType");
-    }
-  }
-
   public static class Delegated extends ColumnSelectorFactory.ExprSupport
   {
     protected final ColumnSelectorFactory delegate;
@@ -164,6 +120,12 @@ public class ColumnSelectorFactories
     public ValueMatcher makePredicateMatcher(DimFilter filter)
     {
       return delegate.makePredicateMatcher(filter);
+    }
+
+    @Override
+    public Map<String, String> getDescriptor(String columnName)
+    {
+      return delegate.getDescriptor(columnName);
     }
 
     @Override
@@ -305,7 +267,6 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public ObjectColumnSelector makeObjectColumnSelector(String columnName)
     {
       return new ObjectColumnSelector()
@@ -336,7 +297,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    protected final Object getObject()
+    protected Object getObject()
     {
       List value = (List) selector.get();
       return value == null ? null : value.get(index);
@@ -358,7 +319,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    protected final Object getObject()
+    protected Object getObject()
     {
       List value = (List) selector.get();
       return value == null ? null : value.get(index);

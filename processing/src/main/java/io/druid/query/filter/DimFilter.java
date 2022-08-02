@@ -298,13 +298,13 @@ public interface DimFilter extends Expression, Cacheable
     }
 
     // see LatLonPointIndexingStrategy : point(latitude=%s,longitude=%s)
-    static final Pattern LATLON_PATTERN = Pattern.compile("^point\\(latitude=([^,]+),longitude=([^,]+)\\)$");
+    protected static final Pattern LATLON_PATTERN = Pattern.compile("point\\(latitude=([^,]+),longitude=([^,]+)\\)");
 
     protected String toPointExpr(RowResolver resolver, String columnName, String fieldName, String descriptor)
     {
       if (descriptor != null) {
         Matcher matcher = LATLON_PATTERN.matcher(descriptor);
-        if (matcher.matches()) {
+        if (matcher.find()) {
           return String.format(
               "geom_fromLatLon(\"%s.%s\", \"%s.%s\")", columnName, matcher.group(1), columnName, matcher.group(2)
           );
@@ -320,13 +320,13 @@ public interface DimFilter extends Expression, Cacheable
     }
 
     // see ShapeIndexingStrategy : shape(format=%s)
-    static final Pattern SHAPE_PATTERN = Pattern.compile("^shape\\(format=([^,]+)\\)$");
+    static final Pattern SHAPE_PATTERN = Pattern.compile("shape\\(format=([^,]+)\\)");
 
     protected String getShapeFormat(String descriptor)
     {
       if (descriptor != null) {
         Matcher matcher = SHAPE_PATTERN.matcher(descriptor);
-        if (matcher.matches()) {
+        if (matcher.find()) {
           return matcher.group(1);
         }
       }

@@ -31,6 +31,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.segment.QueryableIndex;
+import org.roaringbitmap.IntIterator;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -89,6 +90,11 @@ public class FilterContext implements Closeable
   public ImmutableBitmap getBaseBitmap()
   {
     return baseBitmap;
+  }
+
+  public IntIterator getBaseIterator()
+  {
+    return baseBitmap == null ? null : baseBitmap.iterator();
   }
 
   public Filter getMatcher()

@@ -38,6 +38,7 @@ import java.util.Map;
  */
 public class ColumnBuilder
 {
+  private final String name;
   private ValueDesc type = null;
   private int numRows = -1;
   private boolean hasMultipleValues = false;
@@ -56,6 +57,11 @@ public class ColumnBuilder
 
   private Map<String, Object> stats;
   private Map<String, String> descs;
+
+  public ColumnBuilder(String name)
+  {
+    this.name = Preconditions.checkNotNull(name, "name must be set");
+  }
 
   public ColumnBuilder setType(ValueDesc type)
   {
@@ -173,6 +179,11 @@ public class ColumnBuilder
     return this;
   }
 
+  public String getColumnDesc(String indexName)
+  {
+    return descs == null ? null : descs.get(indexName);
+  }
+
   public ValueDesc getType()
   {
     return type;
@@ -183,9 +194,8 @@ public class ColumnBuilder
     return numRows;
   }
 
-  public Column build(String name)
+  public Column build()
   {
-    Preconditions.checkNotNull(name, "name must be set");
     Preconditions.checkNotNull(type, "type must be set");
 
     List<String> indexNames = secondaryIndex.isEmpty() ? null : GuavaUtils.transform(secondaryIndex.values(), x -> x.source());

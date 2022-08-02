@@ -92,7 +92,7 @@ public class ListIndexingSpec implements SecondaryIndexingSpec.WithDescriptor
     for (SecondaryIndexingSpec indexingSpec : indexingSpecs) {
       if (indexingSpec instanceof SecondaryIndexingSpec.WithDescriptor) {
         for (Map.Entry<String, String> entry : ((WithDescriptor) indexingSpec).descriptor(column).entrySet()) {
-          descriptor.compute(entry.getKey(), (k, v) -> v == null ? entry.getValue() : v + "," + entry.getValue());
+          descriptor.compute(entry.getKey(), (k, v) -> v == null ? entry.getValue() : v + "|" + entry.getValue());
         }
       }
     }

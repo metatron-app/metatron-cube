@@ -388,6 +388,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
+      public Map<String, String> getDescriptor(String columnName)
+      {
+        return factory.getDescriptor(columnName);
+      }
+
+      @Override
       public ValueDesc resolve(String columnName)
       {
         ColumnSelectorFactory wrapped = delegate.get(columnName);
@@ -474,6 +480,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         return virtualColumn.asMetric(columnName, factory);
       }
       return factory.makeObjectColumnSelector(columnName);
+    }
+
+    @Override
+    public Map<String, String> getDescriptor(String columnName)
+    {
+      return factory.getDescriptor(columnName);
     }
 
     @Override

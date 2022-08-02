@@ -28,6 +28,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedConciseBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.common.guava.GuavaUtils;
@@ -51,6 +52,7 @@ import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
+import org.roaringbitmap.IntIterator;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -452,6 +454,19 @@ public class DimFilters
   public static ImmutableBitmap makeFalse(BitmapFactory factory)
   {
     return factory.makeEmptyImmutableBitmap();
+  }
+
+  // assumes sorted and return -1 instead of NoSuchElementException
+  public static ImmutableBitmap make(BitmapFactory factory, IntIterator iterator)
+  {
+    if (factory instanceof RoaringBitmapFactory) {
+      return RoaringBitmapFactory.copyToBitmap(iterator);
+    }
+    MutableBitmap mutable = factory.makeEmptyMutableBitmap();
+    while (iterator.hasNext()) {
+      mutable.add(iterator.next());
+    }
+    return factory.makeImmutableBitmap(mutable);
   }
 
   public static ImmutableBitmap union(BitmapFactory factory, ImmutableBitmap... bitmaps)

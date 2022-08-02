@@ -377,13 +377,13 @@ public class BitSlicedBitmapTest
       {
       }
     };
-    ColumnBuilder builder = new ColumnBuilder();
+    ColumnBuilder builder = new ColumnBuilder("test");
     builder.setType(ValueDesc.FLOAT);
     ColumnPartSerde.Serializer serializer = serde.getSerializer();
     serializer.getSerializedSize();
     serializer.writeToChannel(channel);
     serde.getDeserializer().read(ByteBuffer.wrap(bout.toByteArray()), builder, serdeFactory);
-    Column column = builder.build("test");
+    Column column = builder.build();
 
     BitSlicedBitmap<Float> bsb = column.getBitSlicedBitmap();
     for (BitSlicedBitmap<Float> target : Arrays.asList(bitmap, bsb)) {

@@ -326,7 +326,7 @@ public final class RoaringBitmapFactory implements BitmapFactory
   }
 
   // should return -1 instead of NoSuchElementException
-  private static WrappedImmutableRoaringBitmap copyToBitmap(final IntIterator iterator)
+  public static WrappedImmutableRoaringBitmap copyToBitmap(final IntIterator iterator)
   {
     final MutableRoaringBitmap mutable = new MutableRoaringBitmap();
     final MutableRoaringArray roaringArray = mutable.getMappeableRoaringArray();

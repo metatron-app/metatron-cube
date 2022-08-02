@@ -86,11 +86,11 @@ public class ExtractionDimFilterTest
         GenericIndexed.fromIterable(Arrays.asList(bitmap), serdeFactory.getObjectStrategy()),
         dictionary
     );
-    Column column = new ColumnBuilder().setType(ValueDesc.STRING)
-                                       .setBitmapIndex(bitmaps)
-                                       .setDictionary(dictionary)
-                                       .setSingleValuedColumn(values)
-                                       .build("foo");
+    Column column = new ColumnBuilder("foo").setType(ValueDesc.STRING)
+                                            .setBitmapIndex(bitmaps)
+                                            .setDictionary(dictionary)
+                                            .setSingleValuedColumn(values)
+                                            .build();
 
     BitmapIndexSelector selector = new BitmapIndexSelector()
     {

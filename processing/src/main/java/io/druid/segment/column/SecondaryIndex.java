@@ -41,8 +41,6 @@ public interface SecondaryIndex<T> extends Closeable
 
   BitmapHolder filterFor(T query, FilterContext context, String attachment);
 
-  int numRows();
-
   default BitmapHolder eq(String column, Comparable constant, FilterContext context)
   {
     return compare("==", false, column, constant, context);

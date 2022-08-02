@@ -311,16 +311,6 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
   }
 
   @Override
-  public int numRows()
-  {
-    int size = 0;
-    for (ImmutableBitmap bin : bins) {
-      size += bin.size();
-    }
-    return size;
-  }
-
-  @Override
   public int zeroRows()
   {
     return zeros.size();

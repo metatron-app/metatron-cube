@@ -23,7 +23,9 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.uber.h3core.H3Core;
+import com.uber.h3core.LengthUnit;
 import com.uber.h3core.util.GeoCoord;
+import io.druid.data.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
@@ -31,6 +33,8 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Function.NamedFactory;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
@@ -53,6 +57,69 @@ public class H3Functions implements Function.Library
       }
     }
   });
+
+  public static long geoToH3(double latitude, double longitude, int resolution)
+  {
+    return H3.get().geoToH3(latitude, longitude, resolution);
+  }
+
+  /**
+   * Copied from Apache Pinot, H3IndexFilterOperator
+   * <p>
+   * Returns the H3 ids that is ALWAYS fully covered by the circle with the given distance as the radius and a point
+   * within the _h3Id hexagon as the center.
+   * <p>The farthest distance from the center of the center hexagon to the center of a hexagon in the nth ring is
+   * {@code sqrt(3) * n * edgeLength}. Counting the distance from the center to a point in the hexagon, which is up
+   * to the edge length, it is guaranteed that the hexagons in the nth ring are always fully covered if:
+   * {@code distance >= (sqrt(3) * n + 2) * edgeLength}.
+   */
+  private static int getAlwaysMatchK(double distance, double _edgeLength)
+  {
+    // NOTE: Pick a constant slightly larger than sqrt(3) to be conservative
+    return (int) Math.floor((distance / _edgeLength - 2) / 1.7321);
+  }
+
+  /**
+   * Copied from Apache Pinot, H3IndexFilterOperator
+   * <p>
+   * Returns the H3 ids that MIGHT BE fully/partially covered by the circle with the given distance as the radius and a
+   * point within the _h3Id hexagon as the center.
+   * <p>The shortest distance from the center of the center hexagon to the center of a hexagon in the nth ring is
+   * {@code >= 1.5 * n * edgeLength}. Counting the distance from the center to a point in the hexagon, which is up
+   * to the edge length, it is guaranteed that the hexagons in the nth ring are always not fully/partially covered if:
+   * {@code distance < (1.5 * n - 2) * edgeLength}.
+   */
+  private static int getPossibleMatchK(double distance, double _edgeLength)
+  {
+    // NOTE: Add a small delta (0.001) to be conservative
+    return (int) Math.floor((distance / _edgeLength + 2) / 1.5 + 0.001);
+  }
+
+  public static Pair<LongSet, LongSet> getMatchH3Ids(double lat, double lon, double distance, int resolution)
+  {
+    return getMatchH3Ids(geoToH3(lat, lon, resolution), distance, resolution);
+  }
+
+  public static Pair<LongSet, LongSet> getMatchH3Ids(long h3id, double distance, int resolution)
+  {
+    H3Core core = H3.get();
+    double _edgeLength = core.edgeLength(resolution, LengthUnit.m);
+
+    int alwaysMatchRing = getAlwaysMatchK(distance, _edgeLength);
+    int possibleMatchRing = getPossibleMatchK(distance, _edgeLength);
+
+    List<List<Long>> krings = core.kRingDistances(h3id, possibleMatchRing);
+
+    LongSet alwaysMatch = new LongOpenHashSet();
+    for (int i = 0; i <= alwaysMatchRing; i++) {
+      alwaysMatch.addAll(krings.get(i));
+    }
+    LongSet possibleMatch = new LongOpenHashSet();
+    for (int i = alwaysMatchRing + 1; i <= possibleMatchRing; i++) {
+      possibleMatch.addAll(krings.get(i));
+    }
+    return Pair.of(alwaysMatch, possibleMatch);
+  }
 
   @Function.Named("to_h3")
   public static class ToH3 extends NamedFactory.LongType

@@ -69,6 +69,11 @@ public interface ColumnSelectorFactory extends TypeResolver
   ExprEvalColumnSelector makeMathExpressionSelector(Expr expression);
   ValueMatcher makePredicateMatcher(DimFilter filter);
 
+  default Map<String, String> getDescriptor(String columnName)
+  {
+    return null;
+  }
+
   abstract class Predicate implements ColumnSelectorFactory
   {
     @Override

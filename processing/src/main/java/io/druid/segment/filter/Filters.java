@@ -667,15 +667,14 @@ public class Filters
   @SuppressWarnings("unchecked")
   private static ImmutableBitmap scanForPredicate(GenericColumn column, Predicate predicate, FilterContext context)
   {
-    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
     try {
       if (column instanceof GenericColumn.FloatType) {
-        return ((GenericColumn.FloatType) column).collect(factory, iterator, f -> predicate.apply(f));
+        return ((GenericColumn.FloatType) column).collect(factory, context.getBaseIterator(), f -> predicate.apply(f));
       } else if (column instanceof GenericColumn.DoubleType) {
-        return ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> predicate.apply(d));
+        return ((GenericColumn.DoubleType) column).collect(factory, context.getBaseIterator(), d -> predicate.apply(d));
       } else if (column instanceof GenericColumn.LongType) {
-        return ((GenericColumn.LongType) column).collect(factory, iterator, l -> predicate.apply(l));
+        return ((GenericColumn.LongType) column).collect(factory, context.getBaseIterator(), l -> predicate.apply(l));
       }
     }
     catch (Exception e) {
@@ -689,7 +688,6 @@ public class Filters
 
   private static ImmutableBitmap scanForRange(GenericColumn column, Range range, FilterContext context)
   {
-    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
     try {
       final BoundType lowerType = range.hasLowerBound() ? range.lowerBoundType() : null;
@@ -698,7 +696,7 @@ public class Filters
         final float lower = range.hasLowerBound() ? (Float) range.lowerEndpoint() : 0;
         final float upper = range.hasUpperBound() ? (Float) range.upperEndpoint() : 0;
         return ((GenericColumn.FloatType) column).collect(
-            factory, iterator,
+            factory, context.getBaseIterator(),
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? f -> lower < f && f < upper : f -> lower < f && f <= upper :
@@ -710,7 +708,7 @@ public class Filters
         final double lower = range.hasLowerBound() ? (Double) range.lowerEndpoint() : 0;
         final double upper = range.hasUpperBound() ? (Double) range.upperEndpoint() : 0;
         return ((GenericColumn.DoubleType) column).collect(
-            factory, iterator,
+            factory, context.getBaseIterator(),
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? d -> lower < d && d < upper : d -> lower < d && d <= upper :
@@ -722,7 +720,7 @@ public class Filters
         final long lower = range.hasLowerBound() ? (Long) range.lowerEndpoint() : 0;
         final long upper = range.hasUpperBound() ? (Long) range.upperEndpoint() : 0;
         return ((GenericColumn.LongType) column).collect(
-            factory, iterator,
+            factory, context.getBaseIterator(),
             range.hasLowerBound() && range.hasUpperBound() ?
             lowerType == BoundType.OPEN ?
             upperType == BoundType.OPEN ? l -> lower < l && l < upper : l -> lower < l && l <= upper :
@@ -743,7 +741,6 @@ public class Filters
 
   private static ImmutableBitmap scanForEqui(GenericColumn column, String value, FilterContext context)
   {
-    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
     try {
       if (StringUtils.isNullOrEmpty(value)) {
@@ -752,21 +749,21 @@ public class Filters
         final BigDecimal decimal = Rows.parseDecimal(value);
         final float fv = decimal.floatValue();
         if (decimal.compareTo(BigDecimal.valueOf(fv)) == 0) {
-          return ((GenericColumn.FloatType) column).collect(factory, iterator, f -> f == fv);
+          return ((GenericColumn.FloatType) column).collect(factory, context.getBaseIterator(), f -> f == fv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.DoubleType) {
         final BigDecimal decimal = Rows.parseDecimal(value);
         final double dv = decimal.doubleValue();
         if (decimal.compareTo(BigDecimal.valueOf(dv)) == 0) {
-          return ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> d == dv);
+          return ((GenericColumn.DoubleType) column).collect(factory, context.getBaseIterator(), d -> d == dv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       } else if (column instanceof GenericColumn.LongType) {
         final BigDecimal decimal = Rows.parseDecimal(value);
         final long lv = decimal.longValue();
         if (decimal.compareTo(BigDecimal.valueOf(lv)) == 0) {
-          return ((GenericColumn.LongType) column).collect(factory, iterator, l -> l == lv);
+          return ((GenericColumn.LongType) column).collect(factory, context.getBaseIterator(), l -> l == lv);
         }
         return context.factory.makeEmptyImmutableBitmap();
       }
@@ -782,7 +779,6 @@ public class Filters
 
   private static ImmutableBitmap scanForEqui(GenericColumn column, List<String> values, FilterContext context)
   {
-    final IntIterator iterator = context.getBaseBitmap() == null ? null : context.getBaseBitmap().iterator();
     final BitmapFactory factory = context.indexSelector().getBitmapFactory();
 
     final boolean containsNull = values.contains("");
@@ -796,6 +792,7 @@ public class Filters
       ImmutableBitmap nulls = containsNull ? column.getNulls() : factory.makeEmptyImmutableBitmap();
       ImmutableBitmap collected = null;
       if (column instanceof GenericColumn.FloatType) {
+        final GenericColumn.FloatType floatType = (GenericColumn.FloatType) column;
         final FloatSet set = new FloatOpenHashSet();
         for (BigDecimal decimal : decimals) {
           final float fv = decimal.floatValue();
@@ -804,11 +801,12 @@ public class Filters
           }
         }
         if (!set.isEmpty()) {
-          collected = ((GenericColumn.FloatType) column).collect(factory, iterator, f -> set.contains(f));
+          collected = floatType.collect(factory, context.getBaseIterator(), f -> set.contains(f));
         } else {
           collected = factory.makeEmptyImmutableBitmap();
         }
       } else if (column instanceof GenericColumn.DoubleType) {
+        final GenericColumn.DoubleType doubleType = (GenericColumn.DoubleType) column;
         final DoubleSet set = new DoubleOpenHashSet();
         for (BigDecimal decimal : decimals) {
           final double dv = decimal.doubleValue();
@@ -817,11 +815,12 @@ public class Filters
           }
         }
         if (!set.isEmpty()) {
-          collected = ((GenericColumn.DoubleType) column).collect(factory, iterator, d -> set.contains(d));
+          collected = doubleType.collect(factory, context.getBaseIterator(), d -> set.contains(d));
         } else {
           collected = factory.makeEmptyImmutableBitmap();
         }
       } else if (column instanceof GenericColumn.LongType) {
+        final GenericColumn.LongType longType = (GenericColumn.LongType) column;
         final LongSet set = new LongOpenHashSet();
         for (BigDecimal decimal : decimals) {
           final long lv = decimal.longValue();
@@ -830,7 +829,7 @@ public class Filters
           }
         }
         if (!set.isEmpty()) {
-          collected = ((GenericColumn.LongType) column).collect(factory, iterator, l -> set.contains(l));
+          collected = longType.collect(factory, context.getBaseIterator(), l -> set.contains(l));
         } else {
           collected = factory.makeEmptyImmutableBitmap();
         }
@@ -901,7 +900,7 @@ public class Filters
             if (logger.isDebugEnabled()) {
               long elapsed = System.currentTimeMillis() - start;
               logger.debug(
-                  "%s%s : %,d / %,d (%,d msec)", withNot ? "!" : "", expr, holder.size(), index.numRows(), elapsed
+                  "%s%s : %,d / %,d (%,d msec)", withNot ? "!" : "", expr, holder.size(), context.numRows(), elapsed
               );
             }
             return holder;
@@ -1229,12 +1228,6 @@ public class Filters
       }
 
       @Override
-      public int numRows()
-      {
-        return selector.getNumRows();
-      }
-
-      @Override
       public void close() throws IOException
       {
       }
@@ -1261,12 +1254,6 @@ public class Filters
       public BitmapHolder filterFor(Range<Comparable> range, FilterContext context, String attachment)
       {
         return BitmapHolder.exact(scanForRange(column, range, context));
-      }
-
-      @Override
-      public int numRows()
-      {
-        return column.getNumRows();
       }
 
       @Override

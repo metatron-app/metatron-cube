@@ -49,6 +49,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Map;
 
 public class FilteredAggregatorTest
 {

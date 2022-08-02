@@ -84,12 +84,6 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
     return type;
   }
 
-  @Override
-  public int numRows()
-  {
-    return rowCount;
-  }
-
   // todo
   public int zeroRows()
   {

@@ -942,7 +942,7 @@ public class IndexIO
       for (String dimension : index.getAvailableDimensions()) {
         VSizedIndexedInt column = index.getDimColumn(dimension);
         ColumnPartProvider<Dictionary<String>> dictionary = index.getDimValueLookup(dimension).asColumnPartProvider();
-        ColumnBuilder builder = new ColumnBuilder()
+        ColumnBuilder builder = new ColumnBuilder(dimension)
             .setType(ValueDesc.STRING)
             .setHasMultipleValues(true)
             .setDictionary(dictionary)
@@ -965,7 +965,7 @@ public class IndexIO
               )
           );
         }
-        columns.put(dimension, Suppliers.ofInstance(builder.build(dimension)));
+        columns.put(dimension, Suppliers.ofInstance(builder.build()));
       }
 
       for (String metric : index.getAvailableMetrics()) {
@@ -973,32 +973,32 @@ public class IndexIO
         if (metricHolder.getType() == ValueType.FLOAT) {
           columns.put(
               metric,
-              Suppliers.ofInstance(new ColumnBuilder()
+              Suppliers.ofInstance(new ColumnBuilder(metric)
                   .setType(ValueDesc.FLOAT)
                   .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType, NO_NULLS))
-                  .build(metric)
+                  .build()
               )
           );
         } else if (metricHolder.getType() == ValueType.DOUBLE) {
           columns.put(
               metric,
-              Suppliers.ofInstance(new ColumnBuilder()
+              Suppliers.ofInstance(new ColumnBuilder(metric)
                   .setType(ValueDesc.DOUBLE)
                   .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType, NO_NULLS))
-                  .build(metric)
+                  .build()
               )
           );
         } else if (metricHolder.getType() == ValueType.COMPLEX) {
           columns.put(
               metric,
-              Suppliers.ofInstance(new ColumnBuilder()
+              Suppliers.ofInstance(new ColumnBuilder(metric)
                   .setType(ValueDesc.of(metricHolder.getTypeName()))
                   .setComplexColumn(
                       new ComplexColumnPartSupplier(
                           metricHolder.getTypeName(), (GenericIndexed) metricHolder.complexType
                       )
                   )
-                  .build(metric)
+                  .build()
               )
           );
         }
@@ -1014,10 +1014,11 @@ public class IndexIO
 
       String[] cols = colSet.toArray(new String[0]);
       columns.put(
-          Column.TIME_COLUMN_NAME, Suppliers.ofInstance(new ColumnBuilder()
-              .setType(ValueDesc.LONG)
-              .setGenericColumn(new LongGenericColumnSupplier(index.timestamps, NO_NULLS))
-              .build(Column.TIME_COLUMN_NAME)
+          Column.TIME_COLUMN_NAME, Suppliers.ofInstance(
+              new ColumnBuilder(Column.TIME_COLUMN_NAME)
+                  .setType(ValueDesc.LONG)
+                  .setGenericColumn(new LongGenericColumnSupplier(index.timestamps, NO_NULLS))
+                  .build()
           )
       );
       return new SimpleQueryableIndex(
