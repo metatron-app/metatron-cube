@@ -59,9 +59,9 @@ public class NotFilter implements Filter, Expression.NotExpression
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
-    final ValueMatcher baseMatcher = baseFilter.makeMatcher(columnSelectorFactory);
+    final ValueMatcher baseMatcher = baseFilter.makeMatcher(context, factory);
 
     return new ValueMatcher()
     {

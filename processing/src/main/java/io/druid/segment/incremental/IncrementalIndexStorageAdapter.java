@@ -31,7 +31,6 @@ import io.druid.common.guava.Sequence;
 import io.druid.common.utils.Sequences;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.granularity.Granularity;
 import io.druid.query.QueryException;
@@ -248,7 +247,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
               private final ValueMatcher filterMatcher;
               {
-                filterMatcher = filter == null ? ValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(this);
+                filterMatcher = filter == null ? ValueMatcher.TRUE : filter.toFilter(resolver).makeMatcher(null, this);
                 reset();
               }
 

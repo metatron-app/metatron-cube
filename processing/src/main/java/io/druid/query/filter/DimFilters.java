@@ -52,6 +52,7 @@ import io.druid.segment.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
+import io.druid.segment.filter.MatcherContext;
 import org.roaringbitmap.IntIterator;
 
 import javax.annotation.Nullable;
@@ -432,7 +433,7 @@ public class DimFilters
         }
 
         @Override
-        public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+        public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
         {
           return ValueMatcher.TRUE;
         }

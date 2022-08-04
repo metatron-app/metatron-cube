@@ -108,7 +108,7 @@ public class InFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+  public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
     final boolean allowsNull = values.contains("");
     final ValueDesc type = factory.resolve(dimension);

@@ -26,7 +26,6 @@ import com.google.common.base.Preconditions;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.RowResolver;
-import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -157,7 +156,7 @@ public class LucenePointFilter extends LuceneSelector
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new Filter()
+    return new Filter.BitmapOnly()
     {
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
@@ -176,12 +175,6 @@ public class LucenePointFilter extends LuceneSelector
 
         Query query = LucenePointFilter.this.query.toQuery(fieldName, latitudes, longitudes, radiusMeters);
         return lucene.filterFor(query, context, scoreField);
-      }
-
-      @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
-      {
-        throw new UnsupportedOperationException("value matcher");
       }
 
       @Override

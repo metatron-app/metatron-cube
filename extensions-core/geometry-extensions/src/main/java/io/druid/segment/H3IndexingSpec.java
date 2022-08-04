@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
@@ -48,8 +48,6 @@ import io.druid.segment.serde.ColumnPartSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.LongGenericColumnPartSerde;
 import io.druid.segment.serde.StructMetricSerde;
-import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 
 import java.io.IOException;
@@ -273,20 +271,35 @@ public class H3IndexingSpec implements SecondaryIndexingSpec.WithDescriptor
                       BitmapFactory factory = context.bitmapFactory();
                       if (query instanceof H3PointDistanceFilter) {
                         H3PointDistanceFilter pd = (H3PointDistanceFilter) query;
-                        LongSet always = new LongOpenHashSet();
                         Pair<LongSet, LongSet> matched = H3Functions.getMatchH3Ids(
                             pd.getLatitude(), pd.getLongitude(), pd.getRadiusMeters(), resolution);
-                        for (LongIterator iterator = matched.lhs.iterator(); iterator.hasNext(); ) {
-                          always.add(iterator.nextLong());
-                        }
-                        // todo: handle possible sets
-                        if (always.isEmpty()) {
+                        if (matched.lhs.isEmpty() && matched.rhs.isEmpty()) {
                           return BitmapHolder.exact(factory.makeEmptyImmutableBitmap());
                         }
-                        ImmutableBitmap collected = generic.get().collect(
-                            factory, context.getBaseIterator(), x -> always.contains(x)
+                        if (matched.rhs.isEmpty()) {
+                          return BitmapHolder.exact(
+                              generic.get().collect(factory, context.getBaseIterator(), x -> matched.lhs.contains(x))
+                          );
+                        }
+                        final MutableBitmap match = factory.makeEmptyMutableBitmap();
+                        final MutableBitmap possible = factory.makeEmptyMutableBitmap();
+                        generic.get().scan(
+                            context.getBaseIterator(),
+                            (x, v) -> {
+                              final long key = v.applyAsLong(x);
+                              if (matched.lhs.contains(key)) {
+                                match.add(x);
+                              } else if (matched.rhs.contains(key)) {
+                                match.add(x);
+                                possible.add(x);
+                              }
+                            }
                         );
-                        return BitmapHolder.exact(collected);
+                        if (possible.isEmpty()) {
+                          return BitmapHolder.exact(factory.makeImmutableBitmap(match));
+                        }
+                        context.attach(query, possible);
+                        return BitmapHolder.notExact(factory.makeImmutableBitmap(match));
                       }
                       throw new UOE("?? [%s]", query.getClass().getSimpleName());
                     }

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
 import io.druid.query.kmeans.SloppyMath;
@@ -32,6 +33,7 @@ import io.druid.segment.H3IndexingSpec;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
+import io.druid.segment.filter.MatcherContext;
 
 import java.util.List;
 import java.util.Map;
@@ -132,7 +134,7 @@ public class H3PointDistanceFilter implements DimFilter.BestEffort, H3Query
       }
 
       @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+      public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
         final ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
         if (selector == null) {
@@ -140,13 +142,12 @@ public class H3PointDistanceFilter implements DimFilter.BestEffort, H3Query
         }
         String descriptor = Preconditions.checkNotNull(factory.getDescriptor(dimension), "Missing descriptor")
                                          .get(H3IndexingSpec.INDEX_NAME);
-        Matcher matcher = H3IndexingSpec.H3_PATTERN.matcher(descriptor);
-        Preconditions.checkArgument(matcher.matches(), "Invalid descriptor %s", descriptor);
+        Matcher description = H3IndexingSpec.H3_PATTERN.matcher(descriptor);
+        Preconditions.checkArgument(description.matches(), "Invalid descriptor %s", descriptor);
 
-        final int resolution = Integer.valueOf(matcher.group(3));
-        final int[] ixs = H3IndexingSpec.extractIx(factory.resolve(dimension), matcher.group(1), matcher.group(2));
-
-        return () -> {
+        final int resolution = Integer.valueOf(description.group(3));
+        final int[] ixs = H3IndexingSpec.extractIx(selector.type(), description.group(1), description.group(2));
+        ValueMatcher matcher = () -> {
           final Object value = selector.get();
           if (value instanceof List) {
             double lat = ((Number) ((List) value).get(ixs[0])).doubleValue();
@@ -159,6 +160,11 @@ public class H3PointDistanceFilter implements DimFilter.BestEffort, H3Query
           }
           return false;
         };
+        ImmutableBitmap ambiguous = context != null ? context.getAmbiguous(H3PointDistanceFilter.this) : null;
+        if (ambiguous != null) {
+          matcher = ValueMatchers.or(() -> !ambiguous.get(context.offset()), matcher);
+        }
+        return matcher;
       }
 
       @Override

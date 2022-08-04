@@ -228,7 +228,7 @@ public class BoundFilter implements Filter
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+  public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
     return Filters.toValueMatcher(factory, boundDimFilter.getDimension(), boundDimFilter.toPredicate(factory));
   }

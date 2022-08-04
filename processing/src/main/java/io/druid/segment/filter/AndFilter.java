@@ -52,14 +52,14 @@ public class AndFilter implements Filter, Expression.AndExpression
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
     if (filters.size() == 0) {
       return BooleanValueMatcher.FALSE;
     }
     final List<ValueMatcher> matchers = Lists.newArrayList();
     for (Filter filter : filters) {
-      matchers.add(filter.makeMatcher(columnSelectorFactory));
+      matchers.add(filter.makeMatcher(context, factory));
     }
     return makeMatcher(matchers);
   }

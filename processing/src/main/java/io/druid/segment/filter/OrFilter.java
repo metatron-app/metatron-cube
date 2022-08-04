@@ -62,14 +62,17 @@ public class OrFilter implements Filter, Expression.OrExpression
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  public ValueMatcher makeMatcher(
+      MatcherContext context,
+      ColumnSelectorFactory factory
+  )
   {
     if (filters.size() == 0) {
       return BooleanValueMatcher.FALSE;
     }
     ValueMatcher[] matchers = new ValueMatcher[filters.size()];
     for (int i = 0; i < filters.size(); i++) {
-      matchers[i] = filters.get(i).makeMatcher(columnSelectorFactory);
+      matchers[i] = filters.get(i).makeMatcher(context, factory);
     }
     return makeMatcher(matchers);
   }

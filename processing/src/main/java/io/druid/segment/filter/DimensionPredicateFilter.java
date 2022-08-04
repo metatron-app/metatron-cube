@@ -52,7 +52,7 @@ public class DimensionPredicateFilter implements Filter
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+  public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
     return Filters.toValueMatcher(factory, dimension, combine(predicate, extractionFn));
   }

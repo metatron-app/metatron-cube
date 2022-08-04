@@ -28,7 +28,6 @@ import io.druid.common.KeyBuilder;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.query.RowResolver;
-import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -91,7 +90,7 @@ public class LuceneGeoJsonPolygonFilter extends LuceneSelector implements DimFil
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new Filter()
+    return new Filter.BitmapOnly()
     {
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
@@ -115,12 +114,6 @@ public class LuceneGeoJsonPolygonFilter extends LuceneSelector implements DimFil
         catch (Exception e) {
           throw Throwables.propagate(e);
         }
-      }
-
-      @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
-      {
-        throw new UnsupportedOperationException("value matcher");
       }
 
       @Override

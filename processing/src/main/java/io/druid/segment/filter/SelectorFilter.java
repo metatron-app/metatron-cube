@@ -68,7 +68,7 @@ public class SelectorFilter implements Filter
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+  public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
   {
     final boolean allowsNull = Strings.isNullOrEmpty(value);
     final ValueDesc valueType = factory.resolve(dimension);

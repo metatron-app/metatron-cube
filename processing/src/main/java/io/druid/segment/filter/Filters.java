@@ -971,7 +971,7 @@ public class Filters
       }
 
       @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+      public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
         return new ValueMatcher()
         {
@@ -1183,7 +1183,7 @@ public class Filters
     }
 
     @Override
-    public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+    public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
     {
       return ValueMatcher.FALSE;
     }
@@ -1198,7 +1198,7 @@ public class Filters
     }
 
     @Override
-    public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+    public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
     {
       return ValueMatcher.TRUE;
     }

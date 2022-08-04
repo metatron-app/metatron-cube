@@ -28,7 +28,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.KeyBuilder;
 import io.druid.data.TypeResolver;
-import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
@@ -123,7 +122,7 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
   @Override
   public Filter toFilter(TypeResolver resolver)
   {
-    return new Filter()
+    return new Filter.BitmapOnly()
     {
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
@@ -149,12 +148,6 @@ public class LuceneQueryFilter extends LuceneSelector implements DimFilter.VCInf
         catch (Exception e) {
           throw Throwables.propagate(e);
         }
-      }
-
-      @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
-      {
-        throw new UnsupportedOperationException("value matcher");
       }
 
       @Override

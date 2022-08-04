@@ -60,6 +60,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.data.Dictionary;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
+import io.druid.segment.filter.MatcherContext;
 
 import java.util.Arrays;
 import java.util.List;
@@ -171,7 +172,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
       }
 
       @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory columnFactory)
+      public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory columnFactory)
       {
         List<DimensionSpec> dimensionSpecs = fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames);
         List<DimensionSelector> selectors = DimensionSpecs.toSelectors(dimensionSpecs, columnFactory);

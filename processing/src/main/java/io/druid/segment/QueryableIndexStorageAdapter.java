@@ -321,7 +321,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   {
                     private final Offset initOffset = baseOffset.clone();
                     private final ValueMatcher filterMatcher =
-                        Filters.matchAll(filter) ? ValueMatcher.TRUE : filter.makeMatcher(this);
+                        Filters.matchAll(filter) ? ValueMatcher.TRUE : filter.makeMatcher(context.matcher(this), this);
                     private Offset cursorOffset = baseOffset;
 
                     {

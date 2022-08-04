@@ -30,6 +30,7 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
+import io.druid.segment.Cursor;
 import io.druid.segment.QueryableIndex;
 import org.roaringbitmap.IntIterator;
 
@@ -44,7 +45,8 @@ public class FilterContext implements Closeable
   protected final BitmapIndexSelector selector;
   protected final BitmapFactory factory;
   protected ImmutableBitmap baseBitmap;
-  protected Map<String, IntFunction> attached;    // vc from filter (like lucene)
+  protected final Map<String, IntFunction> attached;    // vc from filter (like lucene)
+  protected final Map<Object, ImmutableBitmap> possibles;
 
   private Filter matcher;
   private boolean fullScan;
@@ -54,6 +56,7 @@ public class FilterContext implements Closeable
     this.selector = Preconditions.checkNotNull(selector);
     this.factory = Preconditions.checkNotNull(selector.getBitmapFactory());
     this.attached = Maps.newHashMap();
+    this.possibles = Maps.newHashMap();
   }
 
   public BitmapHolder createBitmap(DimFilter filter)
@@ -117,9 +120,19 @@ public class FilterContext implements Closeable
     attached.put(column, attachment);
   }
 
+  public void attach(Object column, ImmutableBitmap attachment)
+  {
+    possibles.put(column, attachment);
+  }
+
   public IntFunction getAttachment(String name)
   {
     return attached.get(name);
+  }
+
+  public Map<Object, ImmutableBitmap> getAmbiguous()
+  {
+    return possibles;
   }
 
   public int numRows()
@@ -148,5 +161,17 @@ public class FilterContext implements Closeable
   public void close()
   {
     selector.close();
+  }
+
+  public MatcherContext matcher(Cursor cursor)
+  {
+    return new MatcherContext(attached, possibles)
+    {
+      @Override
+      public int offset()
+      {
+        return cursor.offset();
+      }
+    };
   }
 }

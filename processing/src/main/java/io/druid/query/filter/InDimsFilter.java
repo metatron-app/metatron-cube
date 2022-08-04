@@ -37,6 +37,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.InFilter;
+import io.druid.segment.filter.MatcherContext;
 
 import java.util.List;
 import java.util.Map;
@@ -128,7 +129,7 @@ public class InDimsFilter implements DimFilter.BestEffort, DimFilter.LogProvider
       }
 
       @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+      public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
         final List<ObjectColumnSelector> selectors = GuavaUtils.transform(
             dimensions, dimension -> factory.makeObjectColumnSelector(dimension)

@@ -24,6 +24,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
 import io.druid.segment.filter.Filters;
+import io.druid.segment.filter.MatcherContext;
 import io.druid.segment.filter.NotFilter;
 
 import javax.annotation.Nullable;
@@ -37,15 +38,29 @@ public interface Filter extends Expression
   @Nullable
   BitmapHolder getBitmapIndex(FilterContext context);
 
-  // used when bitmap filter cannot be applied
-  ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory);
+  default ValueMatcher makeMatcher(ColumnSelectorFactory factory)
+  {
+    return makeMatcher(null, factory);
+  }
 
-  abstract class MathcherOnly implements Filter
+  // used when bitmap filter cannot be applied
+  ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory);
+
+  abstract class MatcherOnly implements Filter
   {
     @Override
     public final BitmapHolder getBitmapIndex(FilterContext context)
     {
       return null;
+    }
+  }
+
+  abstract class BitmapOnly implements Filter
+  {
+    @Override
+    public final ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
+    {
+      throw new UnsupportedOperationException("value matcher");
     }
   }
 

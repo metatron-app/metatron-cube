@@ -350,7 +350,7 @@ public interface DimFilter extends Expression, Cacheable
   interface MathcherOnly extends DimFilter
   {
     @Override
-    Filter.MathcherOnly toFilter(TypeResolver resolver);
+    Filter.MatcherOnly toFilter(TypeResolver resolver);
   }
 
   // marker.. logics in Filters should be moved into each filters

@@ -169,7 +169,6 @@ public class MVIteratingSelector extends DelegatedDimensionSelector implements S
           {
             return hacked.containsKey(columnName) ? ValueDesc.INDEXED_ID : super.resolve(columnName);
           }
-        }
-    );
+        });
   }
 }

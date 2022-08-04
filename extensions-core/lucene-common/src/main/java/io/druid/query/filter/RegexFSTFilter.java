@@ -32,6 +32,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
+import io.druid.segment.filter.MatcherContext;
 import io.druid.segment.lucene.AutomatonMatcher;
 import io.druid.segment.lucene.LuceneSelector;
 import io.druid.segment.lucene.Lucenes;
@@ -102,9 +103,9 @@ public class RegexFSTFilter extends RegexDimFilter
       }
 
       @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+      public ValueMatcher makeMatcher(MatcherContext context, ColumnSelectorFactory factory)
       {
-        return filter.get().makeMatcher(columnSelectorFactory);
+        return filter.get().makeMatcher(context, factory);
       }
     };
   }

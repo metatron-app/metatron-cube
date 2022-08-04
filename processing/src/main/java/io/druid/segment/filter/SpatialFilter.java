@@ -52,10 +52,13 @@ public class SpatialFilter implements Filter
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  public ValueMatcher makeMatcher(
+      MatcherContext context,
+      ColumnSelectorFactory factory
+  )
   {
     final Predicate predicate = toPredicate();
-    final ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
     return new ValueMatcher()
     {
       @Override

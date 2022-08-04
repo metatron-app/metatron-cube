@@ -30,7 +30,6 @@ import io.druid.data.TypeResolver;
 import io.druid.query.GeomUtils;
 import io.druid.query.RowResolver;
 import io.druid.query.ShapeFormat;
-import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.filter.BitmapHolder;
 import io.druid.segment.filter.FilterContext;
@@ -110,7 +109,7 @@ public class LuceneLatLonPolygonFilter extends LuceneSelector implements DimFilt
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
-    return new Filter()
+    return new Filter.BitmapOnly()
     {
       @Override
       public BitmapHolder getBitmapIndex(FilterContext context)
@@ -129,12 +128,6 @@ public class LuceneLatLonPolygonFilter extends LuceneSelector implements DimFilt
 
         Query query = LatLonPoint.newPolygonQuery(fieldName, polygons);
         return lucene.filterFor(query, context, scoreField);
-      }
-
-      @Override
-      public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
-      {
-        throw new UnsupportedOperationException("value matcher");
       }
 
       @Override
