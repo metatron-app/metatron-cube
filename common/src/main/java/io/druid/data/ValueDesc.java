@@ -124,6 +124,7 @@ public class ValueDesc implements Serializable, Cacheable
 
   public static ValueDesc GEOMETRY = new ValueDesc("geometry");
   public static ValueDesc OGC_GEOMETRY = new ValueDesc("ogc_geometry");
+  public static ValueDesc SHAPE = new ValueDesc("shape");
   public static ValueDesc INTERVAL = new ValueDesc("interval", Interval.class);
   public static ValueDesc BITSET = new ValueDesc(BITSET_TYPE, BitSet.class);
 

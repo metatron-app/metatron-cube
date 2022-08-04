@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
+import io.druid.java.util.common.ISE;
 import io.druid.math.expr.Expr.NumericBinding;
 
 import java.lang.annotation.ElementType;
@@ -213,6 +214,24 @@ public interface Function
     }
   }
 
+  public class Constant implements Function, FixedTyped
+  {
+    private final ExprEval constant;
+
+    public Constant(ExprEval constant) {this.constant = constant;}
+
+    @Override
+    public ValueDesc returns()
+    {
+      return constant.type();
+    }
+
+    @Override
+    public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+    {
+      return constant;
+    }
+  }
   abstract class NamedFactory extends NamedEntity implements Factory
   {
     public static abstract class LongType extends NamedFactory implements FixedTyped
@@ -286,6 +305,15 @@ public interface Function
       public final String name()
       {
         return name;
+      }
+
+      @Override
+      public ValueDesc returns()
+      {
+        if (NamedFactory.this instanceof FixedTyped) {
+          return ((FixedTyped) NamedFactory.this).returns();
+        }
+        throw new ISE("implement this");
       }
     }
 

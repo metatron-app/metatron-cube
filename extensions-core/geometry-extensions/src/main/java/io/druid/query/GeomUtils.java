@@ -45,6 +45,8 @@ public class GeomUtils
   public static final ValueDesc GEOM_TYPE = ValueDesc.of(ValueDesc.GEOMETRY.typeName(), Geometry.class);
   public static final ValueDesc GEOM_POINT_TYPE = ValueDesc.of(ValueDesc.GEOMETRY.typeName(), Point.class);
 
+  public static final ValueDesc SHAPE_TYPE = ValueDesc.of(ValueDesc.SHAPE.typeName(), Shape.class);
+
   public static final ValueDesc GEOM_TYPE_4326 = ValueDesc.of(String.format("%s(%d)", GEOM_TYPE, 4326), Geometry.class);
   public static final ValueDesc GEOM_TYPE_5179 = ValueDesc.of(String.format("%s(%d)", GEOM_TYPE, 5179), Geometry.class);
 
@@ -136,6 +138,11 @@ public class GeomUtils
     return new GeoJSONReader(JtsSpatialContext.GEO, null);
   }
 
+  public static Geometry toGeometry(ExprEval eval)
+  {
+    return eval.isNull() ? null : toGeometry(eval.value());
+  }
+
   public static Geometry toGeometry(Object value)
   {
     if (value == null) {
@@ -144,35 +151,46 @@ public class GeomUtils
       return (Geometry) value;
     } else if (value instanceof Shape) {
       return SHAPE_FACTORY.getGeometryFrom((Shape) value);
+    } else if (value instanceof String) {
+      return toGeometry(readWKT((String) value));
     } else {
       return null;
     }
   }
 
-  public static Geometry toGeometry(ExprEval eval)
+  public static Shape toShape(ExprEval eval)
   {
-    if (eval.isNull()) {
+    return eval.isNull() ? null : toShape(eval.value());
+  }
+
+  public static Shape toShape(Object value)
+  {
+    if (value == null) {
       return null;
-    } else if (ValueDesc.isGeometry(eval.type())) {
-      return (Geometry) eval.value();
-    } else if (eval.type().isString()) {
-      // reagard WKT
-      try {
-        return GeomUtils.toGeometry(GeomUtils.newWKTReader().read(eval.value()));
-      }
-      catch (Exception e) {
-      }
+    } else if (value instanceof Shape) {
+      return (Shape) value;
+    } else if (value instanceof Geometry) {
+      return toShape((Geometry) value);
+    } else if (value instanceof String) {
+      return readWKT((String) value);
+    } else {
+      return null;
     }
-    return null;
+  }
+
+  private static Shape readWKT(String value)
+  {
+    try {
+      return GeomUtils.newWKTReader().read(value);
+    }
+    catch (Exception e) {
+      return null;
+    }
   }
 
   public static Geometry toGeometry(Shape shape)
   {
-    if (shape != null) {
-      return SHAPE_FACTORY.getGeometryFrom(shape);
-    } else {
-      return null;
-    }
+    return shape == null ? null : SHAPE_FACTORY.getGeometryFrom(shape);
   }
 
   public static Shape toShape(Geometry geometry)
