@@ -200,6 +200,11 @@ public class ExprEval extends Pair<Object, ValueDesc>
     return rhs.isPrimitive();
   }
 
+  public boolean isString()
+  {
+    return rhs.isString() || rhs.isDimension();
+  }
+
   public boolean isLong()
   {
     return rhs.isLong();

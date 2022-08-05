@@ -405,7 +405,7 @@ public interface PredicateFunctions extends Function.Library
     }
   }
 
-  @Function.Named("match")
+  @Function.Named("regex.match")
   final class MatchFunc extends NamedFactory.BooleanType
   {
     @Override
@@ -418,8 +418,29 @@ public interface PredicateFunctions extends Function.Library
         @Override
         public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          String eval = args.get(0).eval(bindings).asString();
-          return eval != null && matcher.reset(eval).find();
+          String eval = Evals.evalString(args.get(0), bindings);
+          return eval != null && matcher.reset(eval).matches();
+        }
+      };
+    }
+  }
+
+  @Function.Named("regex.find")
+  final class FindFunc extends NamedFactory.BooleanType
+  {
+    @Override
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
+    {
+      twoOrThree(args);
+      final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
+      final int startId = args.size() > 2 ? Evals.getConstantInt(args.get(2)) : 0;
+      return new BooleanFunc()
+      {
+        @Override
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String eval = Evals.evalString(args.get(0), bindings);
+          return eval != null && matcher.reset(eval).find(startId);
         }
       };
     }

@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.Rows;
 import io.druid.data.TypeResolver;
@@ -71,6 +72,7 @@ import java.util.Properties;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  */
@@ -396,31 +398,58 @@ public interface BuiltinFunctions extends Function.Library
     {
       twoOrThree(args);
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
-      final int index = args.size() == 3 ? Evals.getConstantInt(args.get(2)) : 0;
+      final int index;
+      if (args.size() == 3) {
+        ExprEval eval = Evals.getConstantEval(args.get(2));
+        if (eval.isString()) {
+          Expr expression = Parser.parse(eval.asString());
+          return new StringFunc()
+          {
+            @Override
+            public String eval(List<Expr> args, NumericBinding bindings)
+            {
+              final String target = Evals.evalString(args.get(0), bindings);
+              if (target != null && matcher.reset(target).find()) {
+                return expression.eval(new NumericBinding()
+                {
+                  @Override
+                  public Collection<String> names()
+                  {
+                    // just best effort.. cannot access group-names from Pattern
+                    return Arrays.stream(GuavaUtils.intsTo(matcher.groupCount()))
+                                 .mapToObj(x -> "$" + x)
+                                 .collect(Collectors.toList());
+                  }
 
+                  @Override
+                  public String get(String name)
+                  {
+                    if (name.length() > 1 && name.startsWith("$")) {
+                      String k = name.substring(1);
+                      Integer x = Ints.tryParse(k);
+                      return x == null ? matcher.group(k) : matcher.group(x);
+                    }
+                    return null;
+                  }
+                }).asString();
+              }
+              return null;
+            }
+          };
+        }
+        index = eval.asInt();
+      } else {
+        index = 0;
+      }
       return new StringFunc()
       {
         @Override
         public String eval(List<Expr> args, NumericBinding bindings)
         {
           final String target = Evals.evalString(args.get(0), bindings);
-          return target == null || !isMatched(matcher, target) ? null : matcher.group(index);
+          return target == null || !matcher.reset(target).find() ? null : matcher.group(index);
         }
       };
-    }
-
-    protected boolean isMatched(Matcher matcher, String target)
-    {
-      return matcher.reset(target).find();
-    }
-  }
-
-  @Function.Named("regex.match")
-  final class RegexMatch extends Regex
-  {
-    protected boolean isMatched(Matcher matcher, String target)
-    {
-      return matcher.reset(target).matches();
     }
   }
 

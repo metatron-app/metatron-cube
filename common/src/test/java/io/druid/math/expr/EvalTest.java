@@ -1062,26 +1062,31 @@ public class EvalTest
   public void testRegex()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
-    Assert.assertTrue(Parser.parse("match ('navis', '.*s')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("match ('navis', 'n.*v..*')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("match ('navis', '.*v..')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("match ('navis', '.*vi.*')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("match ('navis', '..vi.')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("match ('navis', 'n.*s')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("match ('navis', '.a.*i.')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("regex.match('navis', '.*s')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("regex.match('navis', 'n.*v..*')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("regex.match('navis', '.*v..')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("regex.match('navis', '.*vi.*')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("regex.match('navis', '..vi.')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("regex.match('navis', 'n.*s')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("regex.match('navis', '.a.*i.')").eval(bindings).asBoolean());
 
-    Assert.assertFalse(Parser.parse("match ('nabis', 'n.*v.*')").eval(bindings).asBoolean());
-    Assert.assertFalse(Parser.parse("match ('nabis', '.*v...*')").eval(bindings).asBoolean());
-    Assert.assertFalse(Parser.parse("match ('nabis', '.*vi.*')").eval(bindings).asBoolean());
-    Assert.assertFalse(Parser.parse("match ('nabis', '..vi.')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("regex.match('nabis', 'n.*v.*')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("regex.match('nabis', '.*v...*')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("regex.match('nabis', '.*vi.*')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("regex.match('nabis', '..vi.')").eval(bindings).asBoolean());
 
-    Assert.assertEquals("navi", Parser.parse("regex ('navis', '(.*)s', 1)").eval(bindings).asString());
-    Assert.assertEquals("is", Parser.parse("regex ('navis', '(.*)v(..)', 2)").eval(bindings).asString());
-    Assert.assertEquals("navis", Parser.parse("regex ('navis', '.*vi.*', 0)").eval(bindings).asString());
+    Assert.assertEquals("navi", Parser.parse("regex('navis', '(.*)s', 1)").eval(bindings).asString());
+    Assert.assertEquals("is", Parser.parse("regex('navis', '(.*)v(..)', 2)").eval(bindings).asString());
+    Assert.assertEquals("navis", Parser.parse("regex('navis', '.*vi.*', 0)").eval(bindings).asString());
 
     Assert.assertEquals(
         "198.126.63",
-        Parser.parse("regex ('198.126.63.1', '(\\\\d{1,4}(\\\\.\\\\d{1,4}){2})\\\\.\\\\d{1,4}', 1)")
+        Parser.parse("regex('198.126.63.1', '(\\\\d{1,4}(\\\\.\\\\d{1,4}){2})\\\\.(\\\\d{1,4})', 1)")
+              .eval(bindings).asString()
+    );
+    Assert.assertEquals(
+        "$1 = 198.126.63, $3 = 1",
+        Parser.parse("regex('198.126.63.1', '(\\\\d{1,4}(\\\\.\\\\d{1,4}){2})\\\\.(\\\\d{1,4})', '\\'$1 = \\' + $1 + \\', $3 = \\' + $3')")
               .eval(bindings).asString()
     );
   }
@@ -1392,6 +1397,16 @@ public class EvalTest
     Assert.assertTrue(_eval("endsWith(a, 'is')", bindings).asBoolean());
     Assert.assertFalse(_eval("endsWith(b, 'is')", bindings).asBoolean());
     Assert.assertTrue(_eval("endsWithIgnoreCase(b, 'is')", bindings).asBoolean());
+  }
+
+  @Test
+  public void testMatchFind()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", "navis", "b", "NavIs", "c", ""));
+    Assert.assertTrue(_eval("regex.match(a, 'navis')", bindings).asBoolean());
+    Assert.assertFalse(_eval("regex.match(a, 'avis')", bindings).asBoolean());
+    Assert.assertTrue(_eval("regex.find(a, 'avis')", bindings).asBoolean());
+    Assert.assertFalse(_eval("regex.find(a, 'avis', 2)", bindings).asBoolean());
   }
 
   @Test
