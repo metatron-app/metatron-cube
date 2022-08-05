@@ -300,7 +300,7 @@ public class InitializationTest
    * druid.extension.load is specified, but contains an extension that is not prepared under root extension directory.
    * Initialization.getExtensionFilesToLoad is supposed to throw ISE.
    */
-  @Test(expected = ISE.class)
+  @Test
   public void testGetExtensionFilesToLoad_with_non_exist_item_in_load_list() throws IOException
   {
     final File extensionsDir = temporaryFolder.newFolder();
@@ -322,7 +322,10 @@ public class InitializationTest
     final File random_extension = new File(extensionsDir, "random-extensions");
     druid_kafka_eight.mkdir();
     random_extension.mkdir();
-    Initialization.getExtensionFilesToLoad(config);
+    File[] modules = Initialization.getExtensionFilesToLoad(config);
+    Assert.assertEquals(1, modules.length);
+    Assert.assertEquals("druid-kafka-eight", modules[0].getName());
+    // chaged to log missing module (#3980)
   }
 
   @Test(expected = ISE.class)

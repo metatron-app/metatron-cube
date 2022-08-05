@@ -205,7 +205,7 @@ public class QueryResourceTest
     Assert.assertNotNull(response);
   }
 
-  @Test(expected = JsonParseException.class)
+  @Test
   public void testBadQuery() throws IOException
   {
     EasyMock.replay(testServletRequest);

@@ -73,8 +73,10 @@ public class TimeAndDimsCompTest
 
     Assert.assertTrue(comparator.compare(td4, td6) > 0);
     Assert.assertTrue(comparator.compare(td5, td6) > 0);
-    Assert.assertTrue(comparator.compare(td4, td5) < 0);
-    Assert.assertTrue(comparator.compare(td5, td4) > 0);
+
+    // semantic change in #4052
+    Assert.assertTrue(comparator.compare(td4, td5) > 0);
+    Assert.assertTrue(comparator.compare(td5, td4) < 0);
   }
 
   private MapBasedInputRow toMapRow(long time, Object... dimAndVal)

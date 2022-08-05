@@ -17,6 +17,7 @@
 package org.roaringbitmap.buffer;
 
 import io.druid.segment.bitmap.WrappedBitSetBitmap;
+import org.roaringbitmap.BatchIterator;
 import org.roaringbitmap.IntIterator;
 
 import java.nio.CharBuffer;
@@ -83,5 +84,10 @@ public class RoaringUtils
   {
     answer.repairAfterLazy();
     return answer;
+  }
+
+  public static BatchIterator getBatchIterator(ImmutableRoaringBitmap bitmap)
+  {
+    return new RoaringBatchIterator(null == bitmap.highLowContainer ? null : bitmap.getContainerPointer());
   }
 }

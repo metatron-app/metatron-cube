@@ -58,6 +58,8 @@ import io.druid.indexing.overlord.supervisor.SupervisorManager;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.java.util.emitter.service.ServiceEmitter;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
+import io.druid.metadata.MetadataStorageTablesConfig;
+import io.druid.metadata.SQLMetadataConnector;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -159,7 +161,8 @@ public class IngestSegmentFirehoseFactoryTest
     INDEX_MERGER.persist(index, persistDir, indexSpec);
 
     final TaskLockbox tl = new TaskLockbox(ts);
-    final IndexerSQLMetadataStorageCoordinator mdc = new IndexerSQLMetadataStorageCoordinator(null, null, null)
+    MetadataStorageTablesConfig dbTables = MetadataStorageTablesConfig.fromBase("druid");
+    final IndexerSQLMetadataStorageCoordinator mdc = new IndexerSQLMetadataStorageCoordinator(null, dbTables, null)
     {
       final private Set<DataSegment> published = Sets.newHashSet();
       final private Set<String> nuked = Sets.newHashSet();

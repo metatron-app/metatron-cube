@@ -19,6 +19,7 @@ package io.druid.segment.bitmap;
 import org.roaringbitmap.BatchIterator;
 import org.roaringbitmap.IntIterator;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
+import org.roaringbitmap.buffer.RoaringUtils;
 
 import java.util.Arrays;
 
@@ -26,7 +27,7 @@ public class FromBatchIterator implements IntIterator
 {
   public static IntIterator of(ImmutableRoaringBitmap bitmap)
   {
-    return bitmap.isEmpty() ? IntIterators.EMPTY : new FromBatchIterator(bitmap.getBatchIterator());
+    return bitmap.isEmpty() ? IntIterators.EMPTY : new FromBatchIterator(RoaringUtils.getBatchIterator(bitmap));
   }
 
   private final BatchIterator iterator;
@@ -37,6 +38,7 @@ public class FromBatchIterator implements IntIterator
   private FromBatchIterator(BatchIterator iterator)
   {
     this(iterator, new int[256], 0, 0);
+    advanceIfNeeded();
   }
 
   private FromBatchIterator(BatchIterator iterator, int[] batch, int valid, int index)
@@ -56,18 +58,26 @@ public class FromBatchIterator implements IntIterator
   @Override
   public boolean hasNext()
   {
-    if (index < valid) {
-      return true;
-    }
-    index = valid = 0;  // reset
-    while (iterator.hasNext() && (valid = iterator.nextBatch(batch)) == 0) {
-    }
-    return valid > 0;
+    return index < valid;
   }
 
   @Override
   public int next()
   {
-    return batch[index++];
+    if (index < valid) {
+      final int ret = batch[index++];
+      advanceIfNeeded();
+      return ret;
+    }
+    return -1;
+  }
+
+  private void advanceIfNeeded()
+  {
+    if (index == valid) {
+      index = valid = 0;  // reset
+      while (iterator.hasNext() && (valid = iterator.nextBatch(batch)) == 0) {
+      }
+    }
   }
 }

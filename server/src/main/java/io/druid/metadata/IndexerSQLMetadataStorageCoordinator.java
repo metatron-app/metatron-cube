@@ -121,7 +121,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     this.connector = connector;
     this.emitter = emitter;
 
-    final String quoteString = connector.getQuoteString();
+    final String quoteString = connector == null ? "`" : connector.getQuoteString();  // null for test
     final String segmentsTable = dbTables.getSegmentsTable();
     this.selectId = String.format("SELECT id FROM %s WHERE id = :identifier", segmentsTable);
     this.insertSegment = String.format(
