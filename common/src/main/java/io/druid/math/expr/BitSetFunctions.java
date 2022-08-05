@@ -30,14 +30,14 @@ public interface BitSetFunctions extends Function.Library
 {
   public static abstract class BitSetType extends Function.NamedFactory implements Function.FixedTyped
   {
-    public abstract class BitSetChild extends Child
+    public abstract static class BitSetFunc implements Function
     {
       @Override
       public final ValueDesc returns() { return ValueDesc.BITSET;}
     }
 
     @Override
-    public abstract BitSetChild create(List<Expr> args, TypeResolver resolver);
+    public abstract BitSetFunc create(List<Expr> args, TypeResolver resolver);
 
     @Override
     public final ValueDesc returns()
@@ -47,22 +47,19 @@ public interface BitSetFunctions extends Function.Library
   }
 
   @Function.Named("bitset.cardinality")
-  final class Cardinality extends Function.NamedFactory.LongType
+  final class Cardinality extends Function.NamedFactory.IntType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public IntFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args, ValueDesc.BITSET);
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Integer eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval value = Evals.eval(args.get(0), bindings);
-          if (value.isNull()) {
-            return ExprEval.of(0);
-          }
-          return ExprEval.of(((BitSet) value.value()).cardinality());
+          return value.isNull() ? 0 : ((BitSet) value.value()).cardinality();
         }
       };
     }
@@ -81,7 +78,7 @@ public interface BitSetFunctions extends Function.Library
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args, ValueDesc.BITSET);
-      return new Child()
+      return new Function()
       {
         public ValueDesc returns()
         {
@@ -110,66 +107,66 @@ public interface BitSetFunctions extends Function.Library
   final class Get extends Function.NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args, ValueDesc.BITSET, ValueDesc.LONG);
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = args.get(0).eval(bindings);
           if (eval.isNull()) {
-            return ExprEval.NULL_BOOL;
+            return null;
           }
           final BitSet bitSet = (BitSet) eval.value();
           final Integer ix = Evals.evalInt(args.get(1), bindings);
-          return ix == null ? ExprEval.NULL_BOOL : ExprEval.of(bitSet.get(ix));
+          return ix == null ? null : bitSet.get(ix);
         }
       };
     }
   }
 
-  abstract class BitSetIndexOp extends Function.NamedFactory.LongType
+  abstract class BitSetIndexOp extends Function.NamedFactory.IntType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public IntFunc create(List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args, ValueDesc.BITSET);
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Integer eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = args.get(0).eval(bindings);
           if (eval.isNull()) {
-            return ExprEval.NULL_LONG;
+            return null;
           }
           final BitSet bitSet = (BitSet) eval.value();
           if (args.size() == 1) {
-            return ExprEval.of(eval(bitSet, defaultIx(bitSet)), ValueDesc.LONG);
+            return _eval(bitSet, _defaultIx(bitSet));
           }
           final Integer ix = Evals.evalInt(args.get(1), bindings);
-          return ExprEval.of(eval(bitSet, ix == null ? defaultIx(bitSet) : ix), ValueDesc.LONG);
+          return _eval(bitSet, ix == null ? _defaultIx(bitSet) : ix);
         }
       };
     }
 
-    protected abstract int defaultIx(BitSet bitSet);
-    protected abstract int eval(BitSet bitSet, int x);
+    protected abstract int _defaultIx(BitSet bitSet);
+    protected abstract int _eval(BitSet bitSet, int x);
   }
 
   @Function.Named("nextSetBit")
   final class NextSetBit extends BitSetIndexOp
   {
     @Override
-    protected int defaultIx(BitSet bitSet)
+    protected int _defaultIx(BitSet bitSet)
     {
       return 0;
     }
 
     @Override
-    protected int eval(BitSet bitSet, int x)
+    protected int _eval(BitSet bitSet, int x)
     {
       return bitSet.nextSetBit(x);
     }
@@ -178,12 +175,12 @@ public interface BitSetFunctions extends Function.Library
   final class NextClearBit extends BitSetIndexOp
   {
     @Override
-    protected int defaultIx(BitSet bitSet)
+    protected int _defaultIx(BitSet bitSet)
     {
       return 0;
     }
 
-    protected int eval(BitSet bitSet, int x)
+    protected int _eval(BitSet bitSet, int x)
     {
       return bitSet.nextClearBit(x);
     }
@@ -193,13 +190,13 @@ public interface BitSetFunctions extends Function.Library
   final class PreviousSetBit extends BitSetIndexOp
   {
     @Override
-    protected int defaultIx(BitSet bitSet)
+    protected int _defaultIx(BitSet bitSet)
     {
       return bitSet.length() - 1;
     }
 
     @Override
-    protected int eval(BitSet bitSet, int x)
+    protected int _eval(BitSet bitSet, int x)
     {
       return bitSet.previousSetBit(x);
     }
@@ -208,12 +205,12 @@ public interface BitSetFunctions extends Function.Library
   final class PreviousClearBit extends BitSetIndexOp
   {
     @Override
-    protected int defaultIx(BitSet bitSet)
+    protected int _defaultIx(BitSet bitSet)
     {
       return bitSet.length();
     }
 
-    protected int eval(BitSet bitSet, int x)
+    protected int _eval(BitSet bitSet, int x)
     {
       return bitSet.previousClearBit(x);
     }
@@ -222,10 +219,10 @@ public interface BitSetFunctions extends Function.Library
   abstract class BitSetBinaryOP extends BitSetType
   {
     @Override
-    public BitSetChild create(List<Expr> args, TypeResolver resolver)
+    public BitSetFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args, ValueDesc.BITSET, ValueDesc.BITSET);
-      return new BitSetChild()
+      return new BitSetFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)

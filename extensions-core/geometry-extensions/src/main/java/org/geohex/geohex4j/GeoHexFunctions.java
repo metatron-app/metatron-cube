@@ -38,42 +38,42 @@ public class GeoHexFunctions implements Function.Library
   public static class ToGeoHex extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           double latitude = Evals.evalDouble(args.get(0), bindings);
           double longitude = Evals.evalDouble(args.get(1), bindings);
           int level = Evals.evalInt(args.get(2), bindings);
-          return ExprEval.of(GeoHex.encode(latitude, longitude, level));
+          return GeoHex.encode(latitude, longitude, level);
         }
       };
     }
   }
 
   @Function.Named("geom_to_geohex")
-  public static class GeomToGeoHex extends NamedFactory.LongType
+  public static class GeomToGeoHex extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.NULL_STRING;
+            return null;
           }
           final org.locationtech.jts.geom.Point point = geometry.getCentroid();
           final int precision = Evals.evalInt(args.get(1), bindings);
-          return ExprEval.of(GeoHex.encode(point.getY(), point.getX(), precision));
+          return GeoHex.encode(point.getY(), point.getX(), precision);
         }
       };
     }
@@ -83,10 +83,10 @@ public class GeoHexFunctions implements Function.Library
   public static class GeoHexToBoundary extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public DoubleArrayFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleArrayChild()
+      return new DoubleArrayFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -107,13 +107,13 @@ public class GeoHexFunctions implements Function.Library
   public static class GeoHexToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           GeoHex.Loc[] coords = GeoHex.decode(Evals.eval(args.get(0), bindings).asString()).getHexCoords();
           StringBuilder builder = new StringBuilder("POLYGON((");
@@ -122,7 +122,7 @@ public class GeoHexFunctions implements Function.Library
           }
           builder.append(coords[0].lon).append(' ').append(coords[0].lat);
           builder.append("))");
-          return ExprEval.of(builder.toString());
+          return builder.toString();
         }
       };
     }
@@ -135,7 +135,7 @@ public class GeoHexFunctions implements Function.Library
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)

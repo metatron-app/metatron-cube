@@ -103,12 +103,12 @@ public interface BuiltinFunctions extends Function.Library
       }
       final Function function = toFunction(args, namedParamStart, namedParam);
 
-      return asChild(namedParamStart, function);
+      return wrap(namedParamStart, function);
     }
 
-    protected final Function asChild(final int namedParamStart, final Function function)
+    protected final Function wrap(final int namedParamStart, final Function function)
     {
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -152,7 +152,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected Function toFunction(List<Expr> args, int start, Map<String, ExprEval> parameter)
     {
-      return asChild(start, toFunction(parameterize(args.size() == start ? args : args.subList(0, start), parameter)));
+      return wrap(start, toFunction(parameterize(args.size() == start ? args : args.subList(0, start), parameter)));
     }
 
     protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
@@ -169,22 +169,22 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Integer eval(List<Expr> args, NumericBinding bindings)
         {
           final Object value = Evals.evalValue(args.get(0), bindings);
           if (value == null) {
-            return ExprEval.of(0);
+            return 0;
           }
           if (value instanceof Collection) {
-            return ExprEval.of(((Collection) value).size());
+            return ((Collection) value).size();
           }
           if (value.getClass().isArray()) {
-            return ExprEval.of(java.lang.reflect.Array.getLength(value));
+            return java.lang.reflect.Array.getLength(value);
           }
-          return ExprEval.of(1);
+          return 1;
         }
       };
     }
@@ -203,7 +203,7 @@ public interface BuiltinFunctions extends Function.Library
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
-        return new Child()
+        return new Function()
         {
           @Override
           public ValueDesc returns()
@@ -260,7 +260,7 @@ public interface BuiltinFunctions extends Function.Library
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
-        return new Child()
+        return new Function()
         {
           @Override
           public ValueDesc returns()
@@ -308,10 +308,10 @@ public interface BuiltinFunctions extends Function.Library
   class DoubleArray extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleArrayFunc create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
-        return new DoubleArrayChild()
+        return new DoubleArrayFunc()
         {
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -328,7 +328,7 @@ public interface BuiltinFunctions extends Function.Library
           }
         };
       }
-      return new DoubleArrayChild()
+      return new DoubleArrayFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -344,14 +344,14 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("array")
-  final class Array extends DoubleArray
+  final class Array extends NamedFactory
   {
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() == 1 && args.get(0).returns().isArrayOrStruct()) {
         ValueDesc type = args.get(0).returns();
-        return new Child()
+        return new Function()
         {
           public ValueDesc returns()
           {
@@ -367,7 +367,7 @@ public interface BuiltinFunctions extends Function.Library
       }
       ValueDesc element = ValueDesc.toCommonType(Iterables.transform(args, arg -> arg.returns()), ValueDesc.UNKNOWN);
       ValueDesc type = element.isUnknown() ? ValueDesc.ARRAY : ValueDesc.ofArray(element);
-      return new Child()
+      return new Function()
       {
         public ValueDesc returns()
         {
@@ -392,22 +392,19 @@ public interface BuiltinFunctions extends Function.Library
   class Regex extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       twoOrThree(args);
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
       final int index = args.size() == 3 ? Evals.getConstantInt(args.get(2)) : 0;
 
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           final String target = Evals.evalString(args.get(0), bindings);
-          if (target != null && isMatched(matcher, target)) {
-            return ExprEval.of(matcher.group(index));
-          }
-          return ExprEval.NULL_STRING;
+          return target == null || !isMatched(matcher, target) ? null : matcher.group(index);
         }
       };
     }
@@ -643,7 +640,7 @@ public interface BuiltinFunctions extends Function.Library
       String name = Evals.getConstantString(args.get(1));
       String expression = Evals.getConstantString(args.get(0));
       final String function = registerFunction(name, expression);
-      return new ExternalChild()
+      return new ExternalFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -816,7 +813,7 @@ public interface BuiltinFunctions extends Function.Library
 
       if (constantMethod) {
         final PyCode code = p.compile(builder.toString());
-        return new ExternalChild()
+        return new ExternalFunc()
         {
           @Override
           public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -827,7 +824,7 @@ public interface BuiltinFunctions extends Function.Library
         };
       }
       final String parameters = builder.toString();
-      return new ExternalChild()
+      return new ExternalFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -860,7 +857,7 @@ public interface BuiltinFunctions extends Function.Library
       }
       exactOne(args);
       final PyCode code = p.compile(Evals.getConstantString(args.get(0)));
-      return new ExternalChild()
+      return new ExternalFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -878,19 +875,19 @@ public interface BuiltinFunctions extends Function.Library
   final class Abs extends SingleParamMath
   {
     @Override
-    protected float eval(float x)
+    protected float _eval(float x)
     {
       return Math.abs(x);
     }
 
     @Override
-    protected double eval(double x)
+    protected double _eval(double x)
     {
       return Math.abs(x);
     }
 
     @Override
-    protected long eval(long x)
+    protected long _eval(long x)
     {
       return Math.abs(x);
     }
@@ -900,7 +897,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Acos extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.acos(param);
     }
@@ -910,7 +907,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Asin extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.asin(param);
     }
@@ -920,7 +917,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Atan extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.atan(param);
     }
@@ -930,7 +927,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Cbrt extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.cbrt(param);
     }
@@ -940,7 +937,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Ceil extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.ceil(param);
     }
@@ -950,7 +947,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Cos extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.cos(param);
     }
@@ -960,7 +957,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Cosh extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.cosh(param);
     }
@@ -970,7 +967,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Exp extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.exp(param);
     }
@@ -980,7 +977,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Expm1 extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.expm1(param);
     }
@@ -990,7 +987,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Floor extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.floor(param);
     }
@@ -1002,8 +999,14 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return new LongChild()
+      return new Function()
       {
+        @Override
+        public ValueDesc returns()
+        {
+          return ValueDesc.LONG;
+        }
+
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
         {
@@ -1017,7 +1020,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Log extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.log(param);
     }
@@ -1027,7 +1030,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Log10 extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.log10(param);
     }
@@ -1037,7 +1040,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Log1p extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.log1p(param);
     }
@@ -1047,13 +1050,13 @@ public interface BuiltinFunctions extends Function.Library
   final class NextUp extends SingleParamRealMath
   {
     @Override
-    protected float eval(float param)
+    protected float _eval(float param)
     {
       return Math.nextUp(param);
     }
 
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.nextUp(param);
     }
@@ -1063,7 +1066,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Rint extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.rint(param);
     }
@@ -1078,7 +1081,7 @@ public interface BuiltinFunctions extends Function.Library
       oneOrTwo(args);
       final ValueDesc type = args.get(0).returns();
       if (args.size() == 1) {
-        return new Child()
+        return new Function()
         {
           @Override
           public ValueDesc returns()
@@ -1115,7 +1118,7 @@ public interface BuiltinFunctions extends Function.Library
         throw new IAE("2nd argument of 'round' should be positive integer");
       }
       final double x = Math.pow(10, scale);
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -1160,21 +1163,21 @@ public interface BuiltinFunctions extends Function.Library
       exactOne(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
-        return new FloatChild()
+        return new FloatFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Float eval(List<Expr> args, NumericBinding bindings)
           {
-            return ExprEval.of(Math.signum(Evals.eval(args.get(0), bindings).asFloat()));
+            return Math.signum(Evals.eval(args.get(0), bindings).asFloat());
           }
         };
       } else {
-        return new DoubleChild()
+        return new DoubleFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Double eval(List<Expr> args, NumericBinding bindings)
           {
-            return ExprEval.of(Math.signum(Evals.eval(args.get(0), bindings).asDouble()));
+            return Math.signum(Evals.eval(args.get(0), bindings).asDouble());
           }
         };
       }
@@ -1185,7 +1188,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Sin extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.sin(param);
     }
@@ -1195,7 +1198,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Sinh extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.sinh(param);
     }
@@ -1205,7 +1208,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Sqrt extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.sqrt(param);
     }
@@ -1215,7 +1218,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Tan extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.tan(param);
     }
@@ -1225,7 +1228,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Tanh extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.tanh(param);
     }
@@ -1235,7 +1238,7 @@ public interface BuiltinFunctions extends Function.Library
   final class ToDegrees extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.toDegrees(param);
     }
@@ -1245,7 +1248,7 @@ public interface BuiltinFunctions extends Function.Library
   final class ToRadians extends SingleParamDoubleMath
   {
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.toRadians(param);
     }
@@ -1255,13 +1258,13 @@ public interface BuiltinFunctions extends Function.Library
   final class Ulp extends SingleParamRealMath
   {
     @Override
-    protected float eval(float param)
+    protected float _eval(float param)
     {
       return Math.ulp(param);
     }
 
     @Override
-    protected double eval(double param)
+    protected double _eval(double param)
     {
       return Math.ulp(param);
     }
@@ -1271,7 +1274,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Atan2 extends DoubleParamDoubleMath
   {
     @Override
-    protected double eval(double y, double x)
+    protected double _eval(double y, double x)
     {
       return Math.atan2(y, x);
     }
@@ -1281,13 +1284,13 @@ public interface BuiltinFunctions extends Function.Library
   final class CopySign extends DoubleParamRealMath
   {
     @Override
-    protected float eval(float x, float y)
+    protected float _eval(float x, float y)
     {
       return Math.copySign(x, y);
     }
 
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return Math.copySign(x, y);
     }
@@ -1297,7 +1300,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Hypot extends DoubleParamDoubleMath
   {
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return Math.hypot(x, y);
     }
@@ -1307,7 +1310,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Remainder extends DoubleParamDoubleMath
   {
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return Math.IEEEremainder(x, y);
     }
@@ -1316,21 +1319,21 @@ public interface BuiltinFunctions extends Function.Library
   abstract class SingleParamDoubleMath extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
           final Double x = Evals.evalDouble(args.get(0), bindings);
-          return x == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x));
+          return x == null ? null : _eval(x);
         }
       };
     }
 
-    protected abstract double eval(double x);
+    protected abstract double _eval(double x);
   }
 
   abstract class SingleParamRealMath extends NamedFactory
@@ -1341,31 +1344,31 @@ public interface BuiltinFunctions extends Function.Library
       exactOne(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
-        return new FloatChild()
+        return new FloatFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Float eval(List<Expr> args, NumericBinding bindings)
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
-            return x == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x));
+            return x == null ? null : _eval(x);
           }
         };
       } else {
-        return new DoubleChild()
+        return new DoubleFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Double eval(List<Expr> args, NumericBinding bindings)
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
-            return x == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x));
+            return x == null ? null : _eval(x);
           }
         };
       }
     }
 
-    protected abstract float eval(float x);
+    protected abstract float _eval(float x);
 
-    protected abstract double eval(double x);
+    protected abstract double _eval(double x);
   }
 
   abstract class SingleParamMath extends NamedFactory
@@ -1376,64 +1379,64 @@ public interface BuiltinFunctions extends Function.Library
       exactOne(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
-        return new FloatChild()
+        return new FloatFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Float eval(List<Expr> args, NumericBinding bindings)
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
-            return x == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x));
+            return x == null ? null : _eval(x);
           }
         };
       } else if (type.isLong()) {
-        return new LongChild()
+        return new LongFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Long eval(List<Expr> args, NumericBinding bindings)
           {
             final Long x = Evals.evalLong(args.get(0), bindings);
-            return x == null ? ExprEval.NULL_LONG : ExprEval.of(eval(x));
+            return x == null ? null : _eval(x);
           }
         };
       } else {
-        return new DoubleChild()
+        return new DoubleFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Double eval(List<Expr> args, NumericBinding bindings)
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
-            return x == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x));
+            return x == null ? null : _eval(x);
           }
         };
       }
     }
 
-    protected abstract float eval(float x);
+    protected abstract float _eval(float x);
 
-    protected abstract double eval(double x);
+    protected abstract double _eval(double x);
 
-    protected abstract long eval(long x);
+    protected abstract long _eval(long x);
   }
 
   abstract class DoubleParamDoubleMath extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
           final Double x = Evals.evalDouble(args.get(0), bindings);
           final Double y = Evals.evalDouble(args.get(1), bindings);
-          return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x, y));
+          return x == null || y == null ? null : _eval(x, y);
         }
       };
     }
 
-    protected abstract double eval(double x, double y);
+    protected abstract double _eval(double x, double y);
   }
 
   abstract class DoubleParamRealMath extends NamedFactory
@@ -1445,33 +1448,33 @@ public interface BuiltinFunctions extends Function.Library
       final ValueDesc type1 = args.get(0).returns();
       final ValueDesc type2 = args.get(1).returns();
       if (type1.isFloat() && type2.isFloat()) {
-        return new FloatChild()
+        return new FloatFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Float eval(List<Expr> args, NumericBinding bindings)
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
             final Float y = Evals.evalFloat(args.get(1), bindings);
-            return x == null || y == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x, y));
+            return x == null || y == null ? null : _eval(x, y);
           }
         };
       } else {
-        return new DoubleChild()
+        return new DoubleFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Double eval(List<Expr> args, NumericBinding bindings)
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
             final Double y = Evals.evalDouble(args.get(1), bindings);
-            return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x, y));
+            return x == null || y == null ? null : _eval(x, y);
           }
         };
       }
     }
 
-    protected abstract float eval(float x, float y);
+    protected abstract float _eval(float x, float y);
 
-    protected abstract double eval(double x, double y);
+    protected abstract double _eval(double x, double y);
   }
 
   abstract class DoubleParamMath extends NamedFactory implements Factory
@@ -1483,65 +1486,65 @@ public interface BuiltinFunctions extends Function.Library
       final ValueDesc type1 = args.get(0).returns();
       final ValueDesc type2 = args.get(1).returns();
       if (type1.isLong() && type2.isLong()) {
-        return new LongChild()
+        return new LongFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Long eval(List<Expr> args, NumericBinding bindings)
           {
             final Long x = Evals.evalLong(args.get(0), bindings);
             final Long y = Evals.evalLong(args.get(1), bindings);
-            return x == null || y == null ? ExprEval.NULL_LONG : ExprEval.of(eval(x, y));
+            return x == null || y == null ? null : _eval(x, y);
           }
         };
       } else if (type1.isFloat() && type2.isFloat()) {
-        return new FloatChild()
+        return new FloatFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Float eval(List<Expr> args, NumericBinding bindings)
           {
             final Float x = Evals.evalFloat(args.get(0), bindings);
             final Float y = Evals.evalFloat(args.get(1), bindings);
-            return x == null || y == null ? ExprEval.NULL_FLOAT : ExprEval.of(eval(x, y));
+            return x == null || y == null ? null : _eval(x, y);
           }
         };
       } else {
-        return new DoubleChild()
+        return new DoubleFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Double eval(List<Expr> args, NumericBinding bindings)
           {
             final Double x = Evals.evalDouble(args.get(0), bindings);
             final Double y = Evals.evalDouble(args.get(1), bindings);
-            return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(eval(x, y));
+            return x == null || y == null ? null : _eval(x, y);
           }
         };
       }
     }
 
-    protected abstract long eval(long x, long y);
+    protected abstract long _eval(long x, long y);
 
-    protected abstract float eval(float x, float y);
+    protected abstract float _eval(float x, float y);
 
-    protected abstract double eval(double x, double y);
+    protected abstract double _eval(double x, double y);
   }
 
   @Function.Named("max")
   final class Max extends DoubleParamMath
   {
     @Override
-    protected long eval(long x, long y)
+    protected long _eval(long x, long y)
     {
       return Math.max(x, y);
     }
 
     @Override
-    protected float eval(float x, float y)
+    protected float _eval(float x, float y)
     {
       return Math.max(x, y);
     }
 
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return Math.max(x, y);
     }
@@ -1551,19 +1554,19 @@ public interface BuiltinFunctions extends Function.Library
   final class Min extends DoubleParamMath
   {
     @Override
-    protected long eval(long x, long y)
+    protected long _eval(long x, long y)
     {
       return Math.min(x, y);
     }
 
     @Override
-    protected float eval(float x, float y)
+    protected float _eval(float x, float y)
     {
       return Math.min(x, y);
     }
 
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return Math.min(x, y);
     }
@@ -1573,19 +1576,19 @@ public interface BuiltinFunctions extends Function.Library
   final class Div extends DoubleParamMath
   {
     @Override
-    protected long eval(long x, long y)
+    protected long _eval(long x, long y)
     {
       return x / y;
     }
 
     @Override
-    protected float eval(float x, float y)
+    protected float _eval(float x, float y)
     {
       return x / y;
     }
 
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return x / y;
     }
@@ -1595,13 +1598,13 @@ public interface BuiltinFunctions extends Function.Library
   final class NextAfter extends DoubleParamRealMath
   {
     @Override
-    protected float eval(float x, float y)
+    protected float _eval(float x, float y)
     {
       return Math.nextAfter(x, y);
     }
 
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return Math.nextAfter(x, y);
     }
@@ -1611,7 +1614,7 @@ public interface BuiltinFunctions extends Function.Library
   final class Pow extends DoubleParamDoubleMath
   {
     @Override
-    protected double eval(double x, double y)
+    protected double _eval(double x, double y)
     {
       return Math.pow(x, y);
     }
@@ -1626,25 +1629,25 @@ public interface BuiltinFunctions extends Function.Library
       exactTwo(args);
       final ValueDesc type = args.get(0).returns();
       if (type.isFloat()) {
-        return new FloatChild()
+        return new FloatFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Float eval(List<Expr> args, NumericBinding bindings)
           {
             Float x = Evals.evalFloat(args.get(0), bindings);
             Integer y = Evals.evalInt(args.get(1), bindings);
-            return x == null || y == null ? ExprEval.NULL_FLOAT : ExprEval.of(Math.scalb(x, y));
+            return x == null || y == null ? null : Math.scalb(x, y);
           }
         };
       } else {
-        return new DoubleChild()
+        return new DoubleFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Double eval(List<Expr> args, NumericBinding bindings)
           {
             Double x = Evals.evalDouble(args.get(0), bindings);
             Integer y = Evals.evalInt(args.get(1), bindings);
-            return x == null || y == null ? ExprEval.NULL_DOUBLE : ExprEval.of(Math.scalb(x, y));
+            return x == null || y == null ? null : Math.scalb(x, y);
           }
         };
       }
@@ -1705,7 +1708,7 @@ public interface BuiltinFunctions extends Function.Library
     {
       exactTwo(args);
       final ValueDesc castTo = ValueDesc.fromTypeString(Evals.getConstantString(args.get(1)));
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -1770,7 +1773,7 @@ public interface BuiltinFunctions extends Function.Library
         prev = ValueDesc.toCommonType(prev, args.get(i));
       }
       final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -1809,7 +1812,7 @@ public interface BuiltinFunctions extends Function.Library
         prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1));
       }
       final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -1853,7 +1856,7 @@ public interface BuiltinFunctions extends Function.Library
         prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1));
       }
       final ValueDesc type = Optional.ofNullable(prev).orElse(ValueDesc.STRING);
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -1903,7 +1906,7 @@ public interface BuiltinFunctions extends Function.Library
         Context.exit();
       }
 
-      return new ExternalChild()
+      return new ExternalFunc()
       {
         private final Object[] convey = new Object[parameters.length];
 
@@ -1939,18 +1942,18 @@ public interface BuiltinFunctions extends Function.Library
   final class ConcatFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           StringBuilder b = new StringBuilder();
           for (Expr expr : args) {
             b.append(Strings.nullToEmpty(expr.eval(bindings).asString()));
           }
-          return ExprEval.of(b.toString());
+          return b.toString();
         }
       };
     }
@@ -1960,25 +1963,25 @@ public interface BuiltinFunctions extends Function.Library
   final class FormatFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastOne(args);
       final String format = Evals.getConstantString(args.get(0));
       final Object[] formatArgs = new Object[args.size() - 1];
-      return new StringChild()
+      return new StringFunc()
       {
         final StringBuilder builder = new StringBuilder();
         final Formatter formatter = new Formatter(builder);
 
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           builder.setLength(0);
           for (int i = 0; i < formatArgs.length; i++) {
             formatArgs[i] = args.get(i + 1).eval(bindings).value();
           }
           formatter.format(format, formatArgs);
-          return ExprEval.of(builder.toString());
+          return builder.toString();
         }
       };
     }
@@ -1988,29 +1991,29 @@ public interface BuiltinFunctions extends Function.Library
   final class RepeatFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new StringChild()
+      return new StringFunc()
       {
         private final StringBuilder builder = new StringBuilder();
 
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           final String string = Evals.getConstantString(args.get(0));
           if (io.druid.common.utils.StringUtils.isNullOrEmpty(string)) {
-            return ExprEval.of(string);
+            return string;
           }
           final int repeat = Evals.getConstantInt(args.get(1));
           if (repeat <= 1) {
-            return repeat < 1 ? ExprEval.NULL_STRING : ExprEval.of(string);
+            return repeat < 1 ? null : string;
           }
           builder.setLength(0);
           for (int i = 0; i < repeat; i++) {
             builder.append(string);
           }
-          return ExprEval.of(builder.toString());
+          return builder.toString();
         }
       };
     }
@@ -2020,7 +2023,7 @@ public interface BuiltinFunctions extends Function.Library
   final class LPadFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastThree(args);
       final int length = Evals.getConstantInt(args.get(1));
@@ -2029,13 +2032,13 @@ public interface BuiltinFunctions extends Function.Library
         throw new IAE("3rd argument of function 'lpad' should be constant char");
       }
       final char padding = string.charAt(0);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
-          String input = Evals.evalString(args.get(0), bindings);
-          return input == null ? ExprEval.NULL_STRING : ExprEval.of(Strings.padStart(input, length, padding));
+          final String input = Evals.evalString(args.get(0), bindings);
+          return input == null ? null : Strings.padStart(input, length, padding);
         }
       };
     }
@@ -2045,7 +2048,7 @@ public interface BuiltinFunctions extends Function.Library
   final class RPadFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastThree(args);
       final int length = Evals.getConstantInt(args.get(1));
@@ -2054,13 +2057,13 @@ public interface BuiltinFunctions extends Function.Library
         throw new IAE("3rd argument of function 'rpad' should be constant char");
       }
       final char padding = string.charAt(0);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
-          String input = Evals.evalString(args.get(0), bindings);
-          return input == null ? ExprEval.NULL_STRING : ExprEval.of(Strings.padEnd(input, length, padding));
+          final String input = Evals.evalString(args.get(0), bindings);
+          return input == null ? null : Strings.padEnd(input, length, padding);
         }
       };
     }
@@ -2070,16 +2073,16 @@ public interface BuiltinFunctions extends Function.Library
   final class UpperFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
-          String input = args.get(0).eval(bindings).asString();
-          return input == null ? ExprEval.NULL_STRING : ExprEval.of(input.toUpperCase());
+          final String input = args.get(0).eval(bindings).asString();
+          return input == null ? null : input.toUpperCase();
         }
       };
     }
@@ -2089,16 +2092,16 @@ public interface BuiltinFunctions extends Function.Library
   final class LowerFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
-          String input = args.get(0).eval(bindings).asString();
-          return input == null ? ExprEval.NULL_STRING : ExprEval.of(input.toLowerCase());
+          final String input = args.get(0).eval(bindings).asString();
+          return input == null ? null : input.toLowerCase();
         }
       };
     }
@@ -2109,24 +2112,24 @@ public interface BuiltinFunctions extends Function.Library
   final class SplitRegex extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           ExprEval inputEval = args.get(0).eval(bindings);
           if (inputEval.isNull()) {
-            return ExprEval.NULL_STRING;
+            return null;
           }
           String input = inputEval.asString();
           String splitter = args.get(1).eval(bindings).asString();
           int index = (int) args.get(2).eval(bindings).longValue();
 
           String[] split = input.split(splitter);
-          return index >= split.length ? ExprEval.NULL_STRING : ExprEval.of(split[index]);
+          return index >= split.length ? null : split[index];
         }
       };
     }
@@ -2147,7 +2150,7 @@ public interface BuiltinFunctions extends Function.Library
         splitter = Splitter.on(separator);
       }
       if (args.size() == 2) {
-        return new Child()
+        return new Function()
         {
           @Override
           public ValueDesc returns()
@@ -2167,26 +2170,26 @@ public interface BuiltinFunctions extends Function.Library
           }
         };
       }
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           ExprEval inputEval = args.get(0).eval(bindings);
           if (inputEval.isNull()) {
-            return ExprEval.NULL_STRING;
+            return null;
           }
           String input = inputEval.asString();
           int index = (int) args.get(2).eval(bindings).longValue();
           if (index < 0) {
-            return ExprEval.NULL_STRING;
+            return null;
           }
           for (String x : splitter.split(input)) {
             if (index-- == 0) {
-              return ExprEval.of(x);
+              return x;
             }
           }
-          return ExprEval.NULL_STRING;
+          return null;
         }
       };
     }
@@ -2196,38 +2199,36 @@ public interface BuiltinFunctions extends Function.Library
   final class ProperFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
-          String input = args.get(0).eval(bindings).asString();
-          return ExprEval.of(
-              Strings.isNullOrEmpty(input) ? input :
-              Character.toUpperCase(input.charAt(0)) + input.substring(1).toLowerCase()
-          );
+          final String input = args.get(0).eval(bindings).asString();
+          return Strings.isNullOrEmpty(input) ? input :
+              Character.toUpperCase(input.charAt(0)) + input.substring(1).toLowerCase();
         }
       };
     }
   }
 
   @Function.Named("length")
-  class LengthFunc extends NamedFactory.LongType
+  class LengthFunc extends NamedFactory.IntType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public IntFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Integer eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
-          return ExprEval.of(input == null ? 0 : input.length());
+          return input == null ? 0 : input.length();
         }
       };
     }
@@ -2242,51 +2243,51 @@ public interface BuiltinFunctions extends Function.Library
   final class LeftFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       if (Evals.isConstant(args.get(1))) {
         final int index = Evals.getConstantInt(args.get(1));
-        return new StringChild()
+        return new StringFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public String eval(List<Expr> args, NumericBinding bindings)
           {
             final String input = Evals.evalString(args.get(0), bindings);
             if (input == null) {
-              return ExprEval.of(input);
+              return input;
             }
             final int length = input.length();
             if (index == 0 || length == 0) {
-              return ExprEval.of("");
+              return "";
             }
             if (index < 0) {
               final int endIndex = length + index;
-              return ExprEval.of(endIndex < 0 ? "" : input.substring(0, length + index));
+              return endIndex < 0 ? "" : input.substring(0, length + index);
             }
-            return ExprEval.of(index > length ? input : input.substring(0, index));
+            return index > length ? input : input.substring(0, index);
           }
         };
       }
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           final String input = Evals.evalString(args.get(0), bindings);
           if (input == null) {
-            return ExprEval.of(input);
+            return input;
           }
           final int index = Evals.evalInt(args.get(1), bindings);
           final int length = input.length();
           if (index == 0 || length == 0) {
-            return ExprEval.of("");
+            return "";
           }
           if (index < 0) {
             final int endIndex = length + index;
-            return ExprEval.of(endIndex < 0 ? "" : input.substring(0, length + index));
+            return endIndex < 0 ? "" : input.substring(0, length + index);
           }
-          return ExprEval.of(index > length ? input : input.substring(0, index));
+          return index > length ? input : input.substring(0, index);
         }
       };
     }
@@ -2296,51 +2297,51 @@ public interface BuiltinFunctions extends Function.Library
   final class RightFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       if (Evals.isConstant(args.get(1))) {
         final int index = Evals.getConstantInt(args.get(1));
-        return new StringChild()
+        return new StringFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public String eval(List<Expr> args, NumericBinding bindings)
           {
             final String input = args.get(0).eval(bindings).asString();
             if (input == null) {
-              return ExprEval.of(input);
+              return input;
             }
             final int length = input.length();
             if (index == 0 || length == 0) {
-              return ExprEval.of("");
+              return "";
             }
             if (index < 0) {
-              return ExprEval.of(length + index < 0 ? "" : input.substring(-index));
+              return length + index < 0 ? "" : input.substring(-index);
             }
             final int startIndex = length - index;
-            return ExprEval.of(startIndex < 0 ? input : input.substring(startIndex));
+            return startIndex < 0 ? input : input.substring(startIndex);
           }
         };
       }
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           final String input = args.get(0).eval(bindings).asString();
           if (input == null) {
-            return ExprEval.of(input);
+            return input;
           }
           final int length = input.length();
           final int index = Evals.evalInt(args.get(0), bindings);
           if (index == 0 || length == 0) {
-            return ExprEval.of("");
+            return "";
           }
           if (index < 0) {
-            return ExprEval.of(length + index < 0 ? "" : input.substring(-index));
+            return length + index < 0 ? "" : input.substring(-index);
           }
           final int startIndex = length - index;
-          return ExprEval.of(startIndex < 0 ? input : input.substring(startIndex));
+          return startIndex < 0 ? input : input.substring(startIndex);
         }
       };
     }
@@ -2350,42 +2351,42 @@ public interface BuiltinFunctions extends Function.Library
   class MidFunc extends NamedFactory.StringType
   {
     @Override
-    public final StringChild create(List<Expr> args, TypeResolver resolver)
+    public final StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       if (Evals.isConstant(args.get(1)) && Evals.isConstant(args.get(2))) {
         final int start = Evals.getConstantInt(args.get(1));
         final int end = Evals.getConstantInt(args.get(2));
-        return new StringChild()
+        return new StringFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public String eval(List<Expr> args, NumericBinding bindings)
           {
             String input = Evals.evalString(args.get(0), bindings);
-            return eval(input, start, end);
+            return _eval(input, start, end);
           }
         };
       }
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           String input = Evals.evalString(args.get(0), bindings);
-          return eval(input, Evals.evalInt(args.get(1), bindings), Evals.evalInt(args.get(2), bindings));
+          return _eval(input, Evals.evalInt(args.get(1), bindings), Evals.evalInt(args.get(2), bindings));
         }
       };
     }
 
-    protected ExprEval eval(String input, int start, int end)
+    protected String _eval(String input, int start, int end)
     {
       if (input == null || start >= input.length()) {
-        return ExprEval.NULL_STRING;
+        return null;
       }
       if (end < 0) {
-        return ExprEval.of(input.substring(start));
+        return input.substring(start);
       } else {
-        return ExprEval.of(input.substring(start, Math.min(end, input.length())));
+        return input.substring(start, Math.min(end, input.length()));
       }
     }
   }
@@ -2394,86 +2395,82 @@ public interface BuiltinFunctions extends Function.Library
   final class SubstringFunc extends MidFunc
   {
     @Override
-    protected ExprEval eval(String input, int start, int length)
+    protected String _eval(String input, int start, int length)
     {
       if (input == null || start >= input.length()) {
-        return ExprEval.NULL_STRING;
+        return null;
       }
       if (length < 0) {
-        return ExprEval.of(input.substring(start));
+        return input.substring(start);
       } else {
-        return ExprEval.of(input.substring(start, Math.min(start + length, input.length())));
+        return input.substring(start, Math.min(start + length, input.length()));
       }
     }
   }
 
-  static final ExprEval NOT_EXISTS = ExprEval.of(-1);
-
   @Function.Named("indexOf")
-  final class IndexOfFunc extends NamedFactory.LongType
+  final class IndexOfFunc extends NamedFactory.IntType
   {
     @Override
-    public LongChild create(List<Expr> args, TypeResolver resolver)
+    public IntFunc create(List<Expr> args, TypeResolver resolver)
     {
       twoOrThree(args);
       final int startIx = args.size() == 3 ? Evals.getConstantInt(args.get(2)) : 0;
       if (args.get(0).returns().isArrayOrStruct()) {
-        return new LongChild()
+        return new IntFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+          public Integer eval(List<Expr> args, NumericBinding bindings)
           {
             final List input = (List) Evals.evalValue(args.get(0), bindings);
             if (input == null) {
-              return NOT_EXISTS;
+              return -1;
             }
             final Object find = Evals.evalValue(args.get(0), bindings);
             if (startIx > 0) {
               final int index = input.subList(startIx, input.size()).indexOf(find);
-              return index < 0 ? NOT_EXISTS : ExprEval.of(index + startIx);
+              return index < 0 ? -1 : index + startIx;
             }
-            final int index = input.indexOf(find);
-            return index < 0 ? NOT_EXISTS : ExprEval.of(index);
+            return input.indexOf(find);
           }
         };
       }
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Integer eval(List<Expr> args, NumericBinding bindings)
         {
           final String input = Evals.evalString(args.get(0), bindings);
           if (input == null) {
-            return NOT_EXISTS;
+            return -1;
           }
           final String find = Evals.evalString(args.get(1), bindings);
           if (find == null) {
-            return NOT_EXISTS;
+            return -1;
           }
-          final int index = startIx > 0 ? input.indexOf(find, startIx) : input.indexOf(find);
-          return index < 0 ? NOT_EXISTS : ExprEval.of(index);
+          return startIx > 0 ? input.indexOf(find, startIx) : input.indexOf(find);
         }
       };
     }
   }
 
   @Function.Named("countOf")
-  final class CountOfFunc extends NamedFactory.LongType
+  final class CountOfFunc extends NamedFactory.IntType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public IntFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Integer eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
           String find = args.get(1).eval(bindings).asString();
           Preconditions.checkArgument(!Strings.isNullOrEmpty(find), "find string cannot be null or empty");
           if (Strings.isNullOrEmpty(input)) {
-            return ExprEval.of(0);
+            return 0;
           }
           int counter = 0;
           int findLen = find.length();
@@ -2485,7 +2482,7 @@ public interface BuiltinFunctions extends Function.Library
             i = index + findLen;
             counter++;
           }
-          return ExprEval.of(counter);
+          return counter;
         }
       };
     }
@@ -2495,21 +2492,19 @@ public interface BuiltinFunctions extends Function.Library
   final class ReplaceFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
           String find = args.get(1).eval(bindings).asString();
           String replace = args.get(2).eval(bindings).asString();
-          return ExprEval.of(
-              Strings.isNullOrEmpty(input) || Strings.isNullOrEmpty(find) ? input :
-              StringUtils.replace(input, find, replace)
-          );
+          return Strings.isNullOrEmpty(input) || Strings.isNullOrEmpty(find) ? input :
+                 StringUtils.replace(input, find, replace);
         }
       };
     }
@@ -2519,16 +2514,16 @@ public interface BuiltinFunctions extends Function.Library
   final class InitCapFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
-          return ExprEval.of(Strings.isNullOrEmpty(input) ? input : WordUtils.capitalize(input));
+          return Strings.isNullOrEmpty(input) ? input : WordUtils.capitalize(input);
         }
       };
     }
@@ -2538,16 +2533,16 @@ public interface BuiltinFunctions extends Function.Library
   final class TrimFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
-          return ExprEval.of(Strings.isNullOrEmpty(input) ? input : input.trim());
+          return Strings.isNullOrEmpty(input) ? input : input.trim();
         }
       };
     }
@@ -2558,17 +2553,17 @@ public interface BuiltinFunctions extends Function.Library
   final class BtrimFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
           String strip = args.size() > 1 ? Evals.getConstantString(args.get(1)) : null;
-          return ExprEval.of(StringUtils.stripEnd(StringUtils.stripStart(input, strip), strip));
+          return StringUtils.stripEnd(StringUtils.stripStart(input, strip), strip);
         }
       };
     }
@@ -2579,17 +2574,17 @@ public interface BuiltinFunctions extends Function.Library
   final class LtrimFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
           String strip = args.size() > 1 ? Evals.getConstantString(args.get(1)) : null;
-          return ExprEval.of(StringUtils.stripStart(input, strip));
+          return StringUtils.stripStart(input, strip);
         }
       };
     }
@@ -2600,17 +2595,17 @@ public interface BuiltinFunctions extends Function.Library
   final class RtrimFunc extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public String eval(List<Expr> args, NumericBinding bindings)
         {
           String input = args.get(0).eval(bindings).asString();
           String strip = args.size() > 1 ? Evals.getConstantString(args.get(1)) : null;
-          return ExprEval.of(StringUtils.stripEnd(input, strip));
+          return StringUtils.stripEnd(input, strip);
         }
       };
     }

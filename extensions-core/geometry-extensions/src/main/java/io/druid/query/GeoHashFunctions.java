@@ -41,48 +41,51 @@ public class GeoHashFunctions implements Function.Library
   public static class ToGeoHash extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       twoOrThree(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final double latitude = Evals.evalDouble(args.get(0), bindings);
-          final double longitude = Evals.evalDouble(args.get(1), bindings);
-          if (args.size() == 3) {
-            int precision = Evals.evalInt(args.get(2), bindings);
-            return ExprEval.of(GeohashUtils.encodeLatLon(latitude, longitude, precision));
+          final Double latitude = Evals.evalDouble(args.get(0), bindings);
+          final Double longitude = Evals.evalDouble(args.get(1), bindings);
+          if (latitude == null || longitude == null) {
+            return null;
           }
-          return ExprEval.of(GeohashUtils.encodeLatLon(latitude, longitude));
+          if (args.size() == 3) {
+            final int precision = Evals.evalInt(args.get(2), bindings);
+            return GeohashUtils.encodeLatLon(latitude, longitude, precision);
+          }
+          return GeohashUtils.encodeLatLon(latitude, longitude);
         }
       };
     }
   }
 
   @Function.Named("geom_to_geohash")
-  public static class GeomToGeoHash extends NamedFactory.LongType
+  public static class GeomToGeoHash extends NamedFactory.StringType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
-      return new LongChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.NULL_LONG;
+            return null;
           }
           final org.locationtech.jts.geom.Point point = geometry.getCentroid();
           if (args.size() == 2) {
             final int precision = Evals.evalInt(args.get(1), bindings);
-            return ExprEval.of(GeohashUtils.encodeLatLon(point.getY(), point.getX(), precision));
+            return GeohashUtils.encodeLatLon(point.getY(), point.getX(), precision);
           } else {
-            return ExprEval.of(GeohashUtils.encodeLatLon(point.getY(), point.getX()));
+            return GeohashUtils.encodeLatLon(point.getY(), point.getX());
           }
         }
       };
@@ -93,7 +96,7 @@ public class GeoHashFunctions implements Function.Library
 
   static abstract class LatLonFactory extends NamedFactory implements Function.FixedTyped
   {
-    public abstract class LatLonChild extends Child
+    public abstract static class LatLonFunc implements Function
     {
       @Override
       public final ValueDesc returns()
@@ -124,14 +127,14 @@ public class GeoHashFunctions implements Function.Library
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new LatLonChild()
+      return new LatLonFunc()
       {
         @Override
         public double[] _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final String address = Evals.evalString(args.get(0), bindings);
-          if (address != null) {
-            Point point = GeohashUtils.decode(address, JtsSpatialContext.GEO);
+          final String geohash = Evals.evalString(args.get(0), bindings);
+          if (geohash != null) {
+            Point point = GeohashUtils.decode(geohash, JtsSpatialContext.GEO);
             return new double[]{point.getY(), point.getX()};
           }
           return null;
@@ -152,9 +155,9 @@ public class GeoHashFunctions implements Function.Library
         @Override
         public org.locationtech.jts.geom.Point _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          final String address = Evals.evalString(args.get(0), bindings);
-          if (address != null) {
-            Point point = GeohashUtils.decode(address, JtsSpatialContext.GEO);
+          final String geohash = Evals.evalString(args.get(0), bindings);
+          if (geohash != null) {
+            Point point = GeohashUtils.decode(geohash, JtsSpatialContext.GEO);
             return GeomUtils.GEOM_FACTORY.createPoint(new Coordinate(point.getX(), point.getY()));
           }
           return null;
@@ -167,16 +170,20 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToCenterWKT extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          Point point = GeohashUtils.decode(Evals.evalString(args.get(0), bindings), JtsSpatialContext.GEO);
-          return ExprEval.of(String.format("POINT(%s %s)", point.getX(), point.getY()));
+          final String geohash = Evals.evalString(args.get(0), bindings);
+          if (geohash != null) {
+            Point point = GeohashUtils.decode(geohash, JtsSpatialContext.GEO);
+            return String.format("POINT(%s %s)", point.getX(), point.getY());
+          }
+          return null;
         }
       };
     }
@@ -186,18 +193,19 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToBoundary extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public DoubleArrayFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleArrayChild()
+      return new DoubleArrayFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
-          Rectangle boundary = GeohashUtils.decodeBoundary(
-              Evals.evalString(args.get(0), bindings),
-              JtsSpatialContext.GEO
-          );
+          String geohash = Evals.evalString(args.get(0), bindings);
+          if (geohash == null) {
+            return null;
+          }
+          Rectangle boundary = GeohashUtils.decodeBoundary(geohash, JtsSpatialContext.GEO);
           double[] result = new double[4 << 1];
           result[0] = boundary.getMinX();
           result[1] = boundary.getMinY();
@@ -224,15 +232,16 @@ public class GeoHashFunctions implements Function.Library
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          Rectangle boundary = GeohashUtils.decodeBoundary(
-              Evals.evalString(args.get(0), bindings),
-              JtsSpatialContext.GEO
-          );
+          String geohash = Evals.evalString(args.get(0), bindings);
+          if (geohash == null) {
+            return null;
+          }
+          Rectangle boundary = GeohashUtils.decodeBoundary(geohash, JtsSpatialContext.GEO);
           Coordinate[] coordinates = new Coordinate[5];
           coordinates[0] = new Coordinate(boundary.getMinX(), boundary.getMinY());
           coordinates[1] = new Coordinate(boundary.getMinX(), boundary.getMaxY());
@@ -250,19 +259,20 @@ public class GeoHashFunctions implements Function.Library
   public static class GeoHashToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          Rectangle boundary = GeohashUtils.decodeBoundary(
-              Evals.evalString(args.get(0), bindings),
-              JtsSpatialContext.GEO
-          );
-          String polygon = String.format(
+          String geohash = Evals.evalString(args.get(0), bindings);
+          if (geohash == null) {
+            return null;
+          }
+          Rectangle boundary = GeohashUtils.decodeBoundary(geohash, JtsSpatialContext.GEO);
+          return String.format(
               "POLYGON((%s %s, %s %s, %s %s, %s %s, %s %s))",
               boundary.getMinX(), boundary.getMinY(),
               boundary.getMinX(), boundary.getMaxY(),
@@ -270,7 +280,6 @@ public class GeoHashFunctions implements Function.Library
               boundary.getMaxX(), boundary.getMinY(),
               boundary.getMinX(), boundary.getMinY()
           );
-          return ExprEval.of(polygon);
         }
       };
     }

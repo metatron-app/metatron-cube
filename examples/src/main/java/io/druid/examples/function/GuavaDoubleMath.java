@@ -23,7 +23,6 @@ import com.google.common.math.DoubleMath;
 import io.druid.data.TypeResolver;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
 
 import java.util.List;
@@ -36,36 +35,36 @@ public class GuavaDoubleMath implements Function.Library
   public static class Factorial extends Function.NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(DoubleMath.factorial(Evals.evalInt(args.get(0), bindings)));
+          return DoubleMath.factorial(Evals.evalInt(args.get(0), bindings));
         }
       };
     }
   }
 
   @Function.Named("fuzzyCompare")
-  public static class FuzzyCompare extends Function.NamedFactory.DoubleType
+  public static class FuzzyCompare extends Function.NamedFactory.IntType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public IntFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
-      return new DoubleChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Integer eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           double x = Evals.evalDouble(args.get(0), bindings);
           double y = Evals.evalDouble(args.get(1), bindings);
           double z = Evals.evalDouble(args.get(2), bindings);
-          return ExprEval.of(DoubleMath.fuzzyCompare(x, y, z));
+          return DoubleMath.fuzzyCompare(x, y, z);
         }
       };
     }

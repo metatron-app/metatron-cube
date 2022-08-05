@@ -485,8 +485,8 @@ public class Expressions
       return null;
     }
     final Function function = Evals.getFunction(expr);
-    if (function instanceof Function.NamedFactory.HoldingChild) {
-      Object object = ((Function.NamedFactory.HoldingChild) function).getHolder();
+    if (function instanceof Function.NamedFactory.HoldingFunc) {
+      Object object = ((Function.NamedFactory.HoldingFunc) function).getHolder();
       if (object instanceof PeriodGranularity) {
         return (PeriodGranularity) object;
       }

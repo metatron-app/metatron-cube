@@ -24,7 +24,6 @@ import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
-import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.java.util.common.IAE;
@@ -51,7 +50,7 @@ public interface SQLFunctions extends Function.Library
   abstract class TimestampGranExprMacro extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public LongFunc create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 2 || args.size() > 4) {
         throw new IAE("Function[%s] must have 2 to 4 arguments", name());
@@ -67,35 +66,29 @@ public interface SQLFunctions extends Function.Library
       return new Evaluator(granularity);
     }
 
-    private class Evaluator implements Function.FixedTyped, Function
+    private class Evaluator extends LongFunc
     {
       private final PeriodGranularity granularity;
 
       public Evaluator(PeriodGranularity granularity) {this.granularity = granularity;}
 
       @Override
-      public ValueDesc returns()
-      {
-        return ValueDesc.LONG;
-      }
-
-      @Override
-      public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      public Long eval(List<Expr> args, Expr.NumericBinding bindings)
       {
         return TimestampGranExprMacro.this.evaluate(Evals.eval(args.get(0), bindings), granularity);
       }
     }
 
-    protected abstract ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity);
+    protected abstract Long evaluate(ExprEval timeParam, PeriodGranularity granularity);
   }
 
   @Function.Named("timestamp_floor")
   class TimestampFloorExprMacro extends TimestampGranExprMacro
   {
     @Override
-    protected ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity)
+    protected Long evaluate(ExprEval timeParam, PeriodGranularity granularity)
     {
-      return ExprEval.of(granularity.bucketStart(DateTimes.utc(timeParam.asLong())).getMillis());
+      return granularity.bucketStart(DateTimes.utc(timeParam.asLong())).getMillis();
     }
   }
 
@@ -103,9 +96,9 @@ public interface SQLFunctions extends Function.Library
   class TimestampCeilExprMacro extends TimestampGranExprMacro
   {
     @Override
-    protected ExprEval evaluate(ExprEval timeParam, PeriodGranularity granularity)
+    protected Long evaluate(ExprEval timeParam, PeriodGranularity granularity)
     {
-      return ExprEval.of(granularity.bucketEnd(DateTimes.utc(timeParam.asLong())).getMillis());
+      return granularity.bucketEnd(DateTimes.utc(timeParam.asLong())).getMillis();
     }
   }
 
@@ -113,13 +106,13 @@ public interface SQLFunctions extends Function.Library
   class TimestampExtractFunc extends DateTimeFunctions.DateTimeExtractFunc
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public LongFunc create(final List<Expr> args, TypeResolver context)
     {
       final Evaluator evaluator = (Evaluator) super.create(args, context);
       final Expr target = args.get(1);
       final Function parameter = Evals.getFunction(target);
-      if (parameter instanceof HoldingChild) {
-        final Object holder = ((HoldingChild) parameter).getHolder();
+      if (parameter instanceof HoldingFunc) {
+        final Object holder = ((HoldingFunc) parameter).getHolder();
         if (holder instanceof PeriodGranularity && !((PeriodGranularity) holder).isCompound()) {
           PeriodGranularity granularity = (PeriodGranularity) holder;
           if (granularity.getPeriod().equals(evaluator.unit.asPeriod())) {
@@ -140,7 +133,7 @@ public interface SQLFunctions extends Function.Library
   public class TimestampFormatExprMacro extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver context)
+    public StringFunc create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 1 || args.size() > 3) {
         throw new IAE("Function[%s] must have 1 to 3 arguments", name());
@@ -167,12 +160,12 @@ public interface SQLFunctions extends Function.Library
                                           ? ISODateTimeFormat.dateTime()
                                           : DateTimeFormat.forPattern(formatString).withZone(timeZone);
 
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(formatter.print(arg.eval(bindings).asLong()));
+          return formatter.print(arg.eval(bindings).asLong());
         }
       };
     }
@@ -182,7 +175,7 @@ public interface SQLFunctions extends Function.Library
   public class TimestampParseExprMacro extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public LongFunc create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 1 || args.size() > 3) {
         throw new IAE("Function[%s] must have 1 to 3 arguments", name());
@@ -204,23 +197,23 @@ public interface SQLFunctions extends Function.Library
               JodaUtils.STANDARD_PARSER : DateTimeFormat.forPattern(formatString).withZone(timeZone)
           );
 
-      return new LongChild()
+      return new LongFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Long eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final String value = arg.eval(bindings).asString();
           if (value == null) {
-            return ExprEval.NULL_LONG;
+            return null;
           }
 
           try {
-            return ExprEval.of(formatter.parse(value).getMillis());
+            return formatter.parse(value).getMillis();
           }
           catch (IllegalArgumentException e) {
             // Catch exceptions potentially thrown by formatter.parseDateTime. Our docs say that unparseable timestamps
             // are returned as nulls.
-            return ExprEval.NULL_LONG;
+            return null;
           }
         }
       };
@@ -231,7 +224,7 @@ public interface SQLFunctions extends Function.Library
   public class TimestampShiftExprMacro extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public LongFunc create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 3 || args.size() > 4) {
         throw new IAE("Function[%s] must have 3 to 4 arguments", name());
@@ -246,12 +239,12 @@ public interface SQLFunctions extends Function.Library
       final Chronology chronology = ISOChronology.getInstance(granularity.getTimeZone());
       final int step = Evals.getConstantInt(args.get(2));
 
-      return new LongChild()
+      return new LongFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Long eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(chronology.add(period, args.get(0).eval(bindings).asLong(), step));
+          return chronology.add(period, args.get(0).eval(bindings).asLong(), step);
         }
       };
     }

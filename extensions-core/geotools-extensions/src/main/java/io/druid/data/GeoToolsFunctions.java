@@ -52,7 +52,7 @@ public class GeoToolsFunctions implements Function.Library
   public static class LonLatTo4326 extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public DoubleArrayFunc create(final List<Expr> args, TypeResolver resolver)
     {
       atLeastTwo(args);
       final String fromCRS = Evals.getConstantString(args.get(0));
@@ -68,7 +68,7 @@ public class GeoToolsFunctions implements Function.Library
       catch (Exception e) {
         throw Throwables.propagate(e);
       }
-      return new DoubleArrayChild()
+      return new DoubleArrayFunc()
       {
         private final DirectPosition2D from = new DirectPosition2D(sourceCRS);
         private final DirectPosition2D to = new DirectPosition2D(targetCRS);
@@ -140,7 +140,7 @@ public class GeoToolsFunctions implements Function.Library
       final double distance = m == null ? d : d * m;
       final int quadrantSegments = qs != null ? qs.asInt() : BufferParameters.DEFAULT_QUADRANT_SEGMENTS;
       final int endCapStyle = ecs != null ? ecs.asInt() : BufferParameters.CAP_ROUND;
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -185,7 +185,7 @@ public class GeoToolsFunctions implements Function.Library
       final int toCRS = Evals.getConstantInt(GuavaUtils.lastOf(args));
       final MathTransform transform = GeoToolsUtils.getTransform(fromCRS, toCRS);
 
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -215,7 +215,7 @@ public class GeoToolsFunctions implements Function.Library
     {
       exactTwo(args);
       final double fit = Evals.getConstantNumber(args.get(1)).doubleValue();
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -236,18 +236,18 @@ public class GeoToolsFunctions implements Function.Library
   public static class GeoLength extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       final Geodesic fixed = GeoToolsUtils.getGeodesic(GeomUtils.getSRID(args.get(0).returns()));
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.of(-1D);
+            return -1D;
           }
           final Geodesic geod = fixed != null ? fixed : GeoToolsUtils.getGeodesic(geometry.getSRID());
           if (geod == null) {
@@ -255,7 +255,7 @@ public class GeoToolsFunctions implements Function.Library
           }
           final Coordinate[] coordinates = geometry.getCoordinates();
           if (coordinates.length < 2) {
-            return ExprEval.of(0D);
+            return 0D;
           }
           final int caps = GeodesicMask.DISTANCE_IN | GeodesicMask.LATITUDE | GeodesicMask.LONGITUDE;
           double x = coordinates[0].x;
@@ -267,7 +267,7 @@ public class GeoToolsFunctions implements Function.Library
             x = coordinate.x;
             y = coordinate.y;
           }
-          return ExprEval.of(d);
+          return d;
         }
       };
     }
@@ -277,24 +277,24 @@ public class GeoToolsFunctions implements Function.Library
   public static class GeoArea extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       final Geodesic fixed = GeoToolsUtils.getGeodesic(GeomUtils.getSRID(args.get(0).returns()));
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.of(-1D);
+            return -1D;
           }
           final Geodesic geod = fixed != null ? fixed : GeoToolsUtils.getGeodesic(geometry.getSRID());
           if (geod == null) {
             throw new IAE("Cannot resolve geodesic for %s", geometry.getSRID());
           }
-          return ExprEval.of(GeoToolsUtils.calculateArea(geometry, geod));
+          return GeoToolsUtils.calculateArea(geometry, geod);
         }
       };
     }

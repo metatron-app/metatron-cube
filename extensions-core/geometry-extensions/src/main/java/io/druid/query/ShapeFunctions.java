@@ -25,6 +25,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Function;
+import io.druid.math.expr.Function.NamedFactory;
 import org.locationtech.spatial4j.context.jts.JtsSpatialContext;
 import org.locationtech.spatial4j.io.GeohashUtils;
 import org.locationtech.spatial4j.io.ShapeReader;
@@ -39,7 +40,7 @@ import java.util.List;
 
 public class ShapeFunctions implements Function.Library
 {
-  public static abstract class ShapeFuncFactory extends Function.NamedFactory implements Function.FixedTyped
+  public static abstract class ShapeFuncFactory extends NamedFactory implements Function.FixedTyped
   {
     @Override
     public ValueDesc returns()
@@ -47,8 +48,17 @@ public class ShapeFunctions implements Function.Library
       return GeomUtils.SHAPE_TYPE;
     }
 
-    public abstract class ShapeChild extends Child
+    @Override
+    public abstract ShapeFunc create(List<Expr> args, TypeResolver resolver);
+
+    public abstract static class ShapeFunc implements Function
     {
+      @Override
+      public final ValueDesc returns()
+      {
+        return GeomUtils.SHAPE_TYPE;
+      }
+
       @Override
       public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
       {
@@ -62,11 +72,11 @@ public class ShapeFunctions implements Function.Library
   public static abstract class ShapeFrom extends ShapeFuncFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public ShapeFunc create(final List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
       final int srid = args.size() > 1 ? Evals.getConstantInt(args.get(1)) : 0;
-      return new ShapeChild()
+      return new ShapeFunc()
       {
         private final ShapeReader reader = newReader();
 
@@ -101,31 +111,31 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  public static abstract class ShapeTo extends Function.NamedFactory.StringType
+  public static abstract class ShapeTo extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         private final ShapeWriter writer = newWriter();
         private final StringWriter buffer = new StringWriter();
 
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           Shape shape = GeomUtils.toShape(Evals.eval(args.get(0), bindings));
           if (shape != null) {
             buffer.getBuffer().setLength(0);
             try {
               writer.write(buffer, shape);
-              return ExprEval.of(buffer.toString());
+              return buffer.toString();
             }
             catch (IOException e) {
             }
           }
-          return ExprEval.NULL_STRING;
+          return null;
         }
       };
     }
@@ -157,11 +167,11 @@ public class ShapeFunctions implements Function.Library
   public static class ToBuffered extends ShapeFunctions.ShapeFuncFactory
   {
     @Override
-    public ShapeChild create(List<Expr> args, TypeResolver resolver)
+    public ShapeFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args, null, ValueDesc.DOUBLE);
       final double radian = Evals.getConstantNumber(args.get(1)).doubleValue();
-      return new ShapeChild()
+      return new ShapeFunc()
       {
         @Override
         protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -172,56 +182,110 @@ public class ShapeFunctions implements Function.Library
     }
   }
 
-  public abstract static class ShapeRelations extends Function.NamedFactory.BooleanType
+  @Function.Named("shape_center")
+  public static class Center extends ShapeFunctions.ShapeFuncFactory
+  {
+    @Override
+    public ShapeFunc create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args);
+      return new ShapeFunc()
+      {
+        @Override
+        protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Shape shape = GeomUtils.toShape(args.get(0));
+          return shape == null ? null : shape.getCenter();
+        }
+      };
+    }
+  }
+
+  @Function.Named("shape_bbox")
+  public static class BoundingBox extends ShapeFunctions.ShapeFuncFactory
+  {
+    @Override
+    public ShapeFunc create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args);
+      return new ShapeFunc()
+      {
+        @Override
+        protected Shape _eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Shape shape = GeomUtils.toShape(args.get(0));
+          return shape == null ? null : shape.getBoundingBox();
+        }
+      };
+    }
+  }
+
+  @Function.Named("shape_area")
+  public static class Area extends NamedFactory.DoubleType
+  {
+    @Override
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
+    {
+      exactOne(args);
+      return new DoubleFunc()
+      {
+        @Override
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Shape shape = GeomUtils.toShape(args.get(0));
+          return shape == null ? null : shape.getArea(JtsSpatialContext.GEO);
+        }
+      };
+    }
+  }
+
+  public abstract static class ShapeRelations extends NamedFactory.BooleanType
   {
     private final ShapeOperation op;
 
     protected ShapeRelations(ShapeOperation op) {this.op = op;}
 
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       if (Evals.isConstant(args.get(0))) {
         final Shape shape1 = GeomUtils.toShape(Evals.eval(args.get(0), null));
         if (shape1 == null) {
-          return new Function.Constant(ExprEval.NULL_BOOL);
+          return BooleanFunc.NULL;
         }
-        return new BooleanChild()
+        return new BooleanFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
           {
             final Shape shape2 = GeomUtils.toShape(Evals.eval(args.get(1), bindings));
-            return shape2 == null ? ExprEval.NULL_BOOL : ExprEval.of(op.evaluate(shape1, shape2));
+            return shape2 == null ? null : op.evaluate(shape1, shape2);
           }
         };
       } else if (Evals.isConstant(args.get(1))) {
         final Shape shape2 = GeomUtils.toShape(Evals.eval(args.get(1), null));
         if (shape2 == null) {
-          return new Function.Constant(ExprEval.NULL_BOOL);
+          return BooleanFunc.NULL;
         }
-        return new BooleanChild()
+        return new BooleanFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
           {
             final Shape shape1 = GeomUtils.toShape(Evals.eval(args.get(0), bindings));
-            return shape1 == null ? ExprEval.NULL_BOOL : ExprEval.of(!op.evaluate(shape2, shape1));
+            return shape1 == null ? null : !op.evaluate(shape2, shape1);
           }
         };
       }
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Shape shape1 = GeomUtils.toShape(Evals.eval(args.get(0), bindings));
           final Shape shape2 = GeomUtils.toShape(Evals.eval(args.get(1), bindings));
-          if (shape1 == null || shape2 == null) {
-            return ExprEval.NULL_BOOL;
-          }
-          return ExprEval.of(op.evaluate(shape1, shape2));
+          return shape1 == null || shape2 == null ? null : op.evaluate(shape1, shape2);
         }
       };
     }
@@ -279,10 +343,10 @@ public class ShapeFunctions implements Function.Library
   public static class GeoHashToBoundaryShape extends ShapeFuncFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public ShapeFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new ShapeChild()
+      return new ShapeFunc()
       {
         @Override
         public Shape _eval(List<Expr> args, Expr.NumericBinding bindings)

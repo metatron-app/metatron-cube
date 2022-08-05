@@ -68,7 +68,7 @@ public class GeomUtils
       return GEOM_TYPE;
     }
 
-    public abstract class GeomChild extends Child
+    public abstract static class GeomFunc implements Function
     {
       @Override
       public ValueDesc returns()
@@ -94,7 +94,7 @@ public class GeomUtils
       return GEOM_POINT_TYPE;
     }
 
-    public abstract class GeomPointChild extends Child
+    public abstract static class GeomPointChild implements Function
     {
       @Override
       public ValueDesc returns()

@@ -59,7 +59,7 @@ public interface EsriFunctions extends Function.Library
 {
   abstract class GeomFactory extends NamedFactory implements Function.FixedTyped
   {
-    public abstract class GeomChild extends Child
+    public abstract static class GeomFunc implements Function
     {
       @Override
       public final ValueDesc returns()
@@ -73,21 +73,23 @@ public interface EsriFunctions extends Function.Library
     {
       return OGC_GEOMETRY_TYPE;
     }
+
+    public abstract GeomFunc create(final List<Expr> args, TypeResolver context);
   }
 
   @Function.Named("ST_AsText")
   class ST_AsText extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver context)
+    public StringFunc create(final List<Expr> args, TypeResolver context)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(EsriUtils.toGeometry(Evals.eval(args.get(0), bindings)).asText());
+          return EsriUtils.toGeometry(Evals.eval(args.get(0), bindings)).asText();
         }
       };
     }
@@ -97,10 +99,10 @@ public interface EsriFunctions extends Function.Library
   class ST_Buffer extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       atLeastTwo(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -123,10 +125,10 @@ public interface EsriFunctions extends Function.Library
   class ST_GeomFromText extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       oneOrTwo(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -145,10 +147,10 @@ public interface EsriFunctions extends Function.Library
   class ST_GeomFromGeoJson extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       oneOrTwo(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -172,12 +174,12 @@ public interface EsriFunctions extends Function.Library
   class ST_Point extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() < 2 || args.size() > 4) {
         throw new IAE("Function[%s] must have 2 to 4 arguments", name());
       }
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -199,11 +201,11 @@ public interface EsriFunctions extends Function.Library
   class ST_Polygon extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() == 1) {
         // from wkt
-        return new GeomChild()
+        return new GeomFunc()
         {
           @Override
           public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -222,7 +224,7 @@ public interface EsriFunctions extends Function.Library
       if (args.size() < 6 || args.size() % 2 != 0) {
         throw new IAE("Function[%s] must have at least 6 & even numbered arguments", name());
       }
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -241,11 +243,11 @@ public interface EsriFunctions extends Function.Library
   class ST_LineString extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       if (args.size() == 1) {
         // from wkt
-        return new GeomChild()
+        return new GeomFunc()
         {
           @Override
           public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -264,7 +266,7 @@ public interface EsriFunctions extends Function.Library
       if (args.isEmpty() || args.size() % 2 != 0) {
         throw new IAE("Function[%s] must have at least 2 & even numbered arguments", name());
       }
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -288,19 +290,16 @@ public interface EsriFunctions extends Function.Library
   class ST_Area extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public DoubleFunc create(final List<Expr> args, TypeResolver context)
     {
       exactOne(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          if (ogcGeometry == null) {
-            return ExprEval.of(-1D);
-          }
-          return ExprEval.of(ogcGeometry.getEsriGeometry().calculateArea2D());
+          return ogcGeometry == null ? -1D : ogcGeometry.getEsriGeometry().calculateArea2D();
         }
       };
     }
@@ -310,19 +309,16 @@ public interface EsriFunctions extends Function.Library
   class ST_Length extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public DoubleFunc create(final List<Expr> args, TypeResolver context)
     {
       exactOne(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          if (ogcGeometry == null) {
-            return ExprEval.of(-1D);
-          }
-          return ExprEval.of(ogcGeometry.getEsriGeometry().calculateLength2D());
+          return ogcGeometry == null ? -1D : ogcGeometry.getEsriGeometry().calculateLength2D();
         }
       };
     }
@@ -332,10 +328,10 @@ public interface EsriFunctions extends Function.Library
   class ST_Centroid extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       exactOne(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -373,18 +369,18 @@ public interface EsriFunctions extends Function.Library
   }
 
   @Function.Named("ST_SRID")
-  class ST_SRID extends NamedFactory.LongType
+  class ST_SRID extends NamedFactory.IntType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public IntFunc create(final List<Expr> args, TypeResolver context)
     {
       exactOne(args);
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Integer eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(EsriUtils.toGeometry(Evals.eval(args.get(0), bindings)).SRID());
+          return EsriUtils.toGeometry(Evals.eval(args.get(0), bindings)).SRID();
         }
       };
     }
@@ -394,10 +390,10 @@ public interface EsriFunctions extends Function.Library
   class ST_SetSRID extends GeomFactory
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public GeomFunc create(final List<Expr> args, TypeResolver context)
     {
       exactTwo(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -420,21 +416,21 @@ public interface EsriFunctions extends Function.Library
   class ST_GeodesicLengthWGS84 extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public DoubleFunc create(final List<Expr> args, TypeResolver context)
     {
       exactOne(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeometry = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (ogcGeometry == null) {
-            return ExprEval.of(0D);
+            return 0D;
           }
           Geometry esriGeom = ogcGeometry.getEsriGeometry();
           if (esriGeom.getType() == Geometry.Type.Point || esriGeom.getType() == Geometry.Type.MultiPoint) {
-            return ExprEval.of(0D);
+            return 0D;
           }
           MultiPath lines = (MultiPath) esriGeom;
           int nPath = lines.getPathCount();
@@ -449,7 +445,7 @@ public interface EsriFunctions extends Function.Library
               fromPt = toPt;
             }
           }
-          return ExprEval.of(length);
+          return length;
         }
       };
     }
@@ -460,28 +456,26 @@ public interface EsriFunctions extends Function.Library
     protected abstract OperatorSimpleRelation getRelationOperator();
 
     @Override
-    public Function create(final List<Expr> args, TypeResolver context)
+    public BooleanFunc create(final List<Expr> args, TypeResolver context)
     {
       exactTwo(args);
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         final OperatorSimpleRelation relation = getRelationOperator();
 
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry geom1 = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           OGCGeometry geom2 = EsriUtils.toGeometry(Evals.eval(args.get(1), bindings));
           if (geom1 == null || geom2 == null) {
-            return ExprEval.of(false);
+            return Boolean.FALSE;
           }
-          return ExprEval.of(
-              relation.execute(
-                  geom1.getEsriGeometry(),
-                  geom2.getEsriGeometry(),
-                  geom1.getEsriSpatialReference(),
-                  null
-              )
+          return relation.execute(
+              geom1.getEsriGeometry(),
+              geom2.getEsriGeometry(),
+              geom1.getEsriSpatialReference(),
+              null
           );
         }
       };
@@ -572,20 +566,20 @@ public interface EsriFunctions extends Function.Library
   class ST_Distance extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver context)
+    public DoubleFunc create(List<Expr> args, TypeResolver context)
     {
       exactTwo(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           OGCGeometry ogcGeom1 = EsriUtils.toGeometry(Evals.eval(args.get(0), bindings));
           OGCGeometry ogcGeom2 = EsriUtils.toGeometry(Evals.eval(args.get(1), bindings));
           if (ogcGeom1 == null || ogcGeom2 == null) {
-            return ExprEval.of(-1D);
+            return -1D;
           }
-          return ExprEval.of(ogcGeom1.distance(ogcGeom2));
+          return ogcGeom1.distance(ogcGeom2);
         }
       };
     }
@@ -595,9 +589,9 @@ public interface EsriFunctions extends Function.Library
   class ST_ConvexHull extends GeomFactory
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver context)
+    public GeomFunc create(List<Expr> args, TypeResolver context)
     {
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)

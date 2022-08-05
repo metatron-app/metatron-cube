@@ -1289,7 +1289,7 @@ public interface WindowFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return new UnknownChild()
+      return new UnknownFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
@@ -1314,7 +1314,7 @@ public interface WindowFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args, TypeResolver resolver)
     {
-      return new UnknownChild()
+      return new UnknownFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, NumericBinding bindings)

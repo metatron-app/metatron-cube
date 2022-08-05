@@ -23,8 +23,8 @@ import com.google.common.base.Preconditions;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.java.util.common.IAE;
-import io.druid.java.util.common.ISE;
 import io.druid.math.expr.Expr.NumericBinding;
+import org.joda.time.DateTime;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -214,24 +214,6 @@ public interface Function
     }
   }
 
-  public class Constant implements Function, FixedTyped
-  {
-    private final ExprEval constant;
-
-    public Constant(ExprEval constant) {this.constant = constant;}
-
-    @Override
-    public ValueDesc returns()
-    {
-      return constant.type();
-    }
-
-    @Override
-    public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
-    {
-      return constant;
-    }
-  }
   abstract class NamedFactory extends NamedEntity implements Factory
   {
     public static abstract class LongType extends NamedFactory implements FixedTyped
@@ -241,6 +223,21 @@ public interface Function
       {
         return ValueDesc.LONG;
       }
+
+      @Override
+      public abstract LongFunc create(List<Expr> args, TypeResolver resolver);
+    }
+
+    public static abstract class IntType extends NamedFactory implements FixedTyped
+    {
+      @Override
+      public final ValueDesc returns()
+      {
+        return ValueDesc.LONG;
+      }
+
+      @Override
+      public abstract IntFunc create(List<Expr> args, TypeResolver resolver);
     }
 
     public static abstract class FloatType extends NamedFactory implements FixedTyped
@@ -250,6 +247,9 @@ public interface Function
       {
         return ValueDesc.FLOAT;
       }
+
+      @Override
+      public abstract FloatFunc create(List<Expr> args, TypeResolver resolver);
     }
 
     public static abstract class DoubleType extends NamedFactory implements FixedTyped
@@ -259,6 +259,9 @@ public interface Function
       {
         return ValueDesc.DOUBLE;
       }
+
+      @Override
+      public abstract DoubleFunc create(List<Expr> args, TypeResolver resolver);
     }
 
     public static abstract class StringType extends NamedFactory implements FixedTyped
@@ -270,7 +273,7 @@ public interface Function
       }
 
       @Override
-      public abstract StringChild create(List<Expr> args, TypeResolver resolver);
+      public abstract StringFunc create(List<Expr> args, TypeResolver resolver);
     }
 
     public static abstract class BooleanType extends NamedFactory implements FixedTyped
@@ -280,6 +283,9 @@ public interface Function
       {
         return ValueDesc.BOOLEAN;
       }
+
+      @Override
+      public abstract BooleanFunc create(List<Expr> args, TypeResolver resolver);
     }
 
     public static abstract class DateTimeType extends NamedFactory implements FixedTyped
@@ -289,6 +295,9 @@ public interface Function
       {
         return ValueDesc.DATETIME;
       }
+
+      @Override
+      public abstract DateTimeFunc create(List<Expr> args, TypeResolver resolver);
     }
 
     public static abstract class DoubleArrayType extends NamedFactory implements FixedTyped
@@ -298,26 +307,12 @@ public interface Function
       {
         return ValueDesc.DOUBLE_ARRAY;
       }
-    }
-
-    public abstract class Child implements Function
-    {
-      public final String name()
-      {
-        return name;
-      }
 
       @Override
-      public ValueDesc returns()
-      {
-        if (NamedFactory.this instanceof FixedTyped) {
-          return ((FixedTyped) NamedFactory.this).returns();
-        }
-        throw new ISE("implement this");
-      }
+      public abstract DoubleArrayFunc create(List<Expr> args, TypeResolver resolver);
     }
 
-    public abstract class ExternalChild extends Child
+    public abstract static class ExternalFunc implements Function
     {
       @Override
       public final ValueDesc returns()
@@ -326,88 +321,132 @@ public interface Function
       }
     }
 
-    public static abstract class HoldingChild<T> implements Function
-    {
-      private final T holder;
-
-      protected HoldingChild(T holder) {this.holder = holder;}
-
-      public T getHolder() { return holder; }
-    }
-
-    public <T> HoldingChild<T> wrap(T object, Function evaluator)
-    {
-      return new HoldingChild<T>(object)
-      {
-        @Override
-        public ValueDesc returns()
-        {
-          return evaluator.returns();
-        }
-
-        @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
-        {
-          return evaluator.evaluate(args, bindings);
-        }
-      };
-    }
-
-    public abstract class StringChild extends Child
+    public abstract static class StringFunc implements Function
     {
       @Override
       public final ValueDesc returns()
       {
         return ValueDesc.STRING;
       }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval(args, bindings));
+      }
+
+      public abstract String eval(List<Expr> args, Expr.NumericBinding bindings);
     }
 
-    public abstract class LongChild extends Child
+    public abstract static class LongFunc implements Function
     {
       @Override
       public final ValueDesc returns()
       {
         return ValueDesc.LONG;
       }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval(args, bindings));
+      }
+
+      public abstract Long eval(List<Expr> args, Expr.NumericBinding bindings);
     }
 
-    public abstract class FloatChild extends Child
+    public abstract static class IntFunc implements Function
+    {
+      @Override
+      public final ValueDesc returns()
+      {
+        return ValueDesc.LONG;
+      }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval(args, bindings));
+      }
+
+      public abstract Integer eval(List<Expr> args, Expr.NumericBinding bindings);
+    }
+
+    public abstract static class FloatFunc implements Function
     {
       @Override
       public final ValueDesc returns()
       {
         return ValueDesc.FLOAT;
       }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval(args, bindings));
+      }
+
+      public abstract Float eval(List<Expr> args, Expr.NumericBinding bindings);
     }
 
-    public abstract class DoubleChild extends Child
+    public abstract static class DoubleFunc implements Function
     {
       @Override
       public final ValueDesc returns()
       {
         return ValueDesc.DOUBLE;
       }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval(args, bindings));
+      }
+
+      public abstract Double eval(List<Expr> args, Expr.NumericBinding bindings);
     }
 
-    public abstract class BooleanChild extends Child
+    public abstract static class BooleanFunc implements Function
     {
+      public static BooleanFunc NULL = new BooleanFunc()
+      {
+        @Override
+        public Boolean eval(List<Expr> args, NumericBinding bindings) {return null;}
+      };
+
       @Override
       public final ValueDesc returns()
       {
         return ValueDesc.BOOLEAN;
       }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval(args, bindings));
+      }
+
+      public abstract Boolean eval(List<Expr> args, Expr.NumericBinding bindings);
     }
 
-    public abstract class DateTimeChild extends Child
+    public abstract static class DateTimeFunc implements Function
     {
       @Override
       public final ValueDesc returns()
       {
         return ValueDesc.DATETIME;
       }
+
+      @Override
+      public final ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+      {
+        return ExprEval.of(eval(args, bindings));
+      }
+
+      public abstract DateTime eval(List<Expr> args, Expr.NumericBinding bindings);
     }
 
-    public abstract class DoubleArrayChild extends Child
+    public abstract static class DoubleArrayFunc implements Function
     {
       @Override
       public final ValueDesc returns()
@@ -416,13 +455,34 @@ public interface Function
       }
     }
 
-    public abstract class UnknownChild extends Child
+    public abstract static class UnknownFunc implements Function
     {
       @Override
       public final ValueDesc returns()
       {
         return ValueDesc.UNKNOWN;
       }
+    }
+
+    public abstract static class HoldingFunc<T> extends LongFunc
+    {
+      private final T holder;
+
+      protected HoldingFunc(T holder) {this.holder = holder;}
+
+      public T getHolder() { return holder; }
+    }
+
+    public <T> HoldingFunc<T> wrap(T object, LongFunc evaluator)
+    {
+      return new HoldingFunc<T>(object)
+      {
+        @Override
+        public Long eval(List<Expr> args, NumericBinding bindings)
+        {
+          return evaluator.eval(args, bindings);
+        }
+      };
     }
   }
 }

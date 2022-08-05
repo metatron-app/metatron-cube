@@ -106,7 +106,7 @@ public interface HivemallFunctions extends Function.Library
       final ValueDesc output = ValueDesc.of(builder.append(')').toString());
       final ChangeFinder finder = createFinder(start, params);
       final double[] _scores = new double[2];
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -230,7 +230,7 @@ public interface HivemallFunctions extends Function.Library
           params, PrimitiveObjectInspectorFactory.javaDoubleObjectInspector
       );
       final double[] _scores = new double[1];
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
@@ -284,29 +284,29 @@ public interface HivemallFunctions extends Function.Library
   class RescaleFunc extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       final double min = Evals.getConstantEval(args.get(1)).asDouble();
       final double max = Evals.getConstantEval(args.get(2)).asDouble();
       if (min > max) {
         throw new IllegalArgumentException("min value `" + min + "` SHOULD be less than max value `" + max + '`');
       }
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final double value = Evals.evalDouble(args.get(0), bindings);
           if (min == max) {
-            return ExprEval.of(0.5d);
+            return 0.5d;
           }
           if (value < min) {
-            return ExprEval.of(0.0d);
+            return 0.0d;
           }
           if (value > max) {
-            return ExprEval.of(1.0d);
+            return 1.0d;
           }
-          return ExprEval.of((value - min) / (max - min));
+          return (value - min) / (max - min);
         }
       };
     }

@@ -63,7 +63,7 @@ public class GeomFunctions implements Function.Library
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
       oneOrTwo(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -161,7 +161,7 @@ public class GeomFunctions implements Function.Library
     {
       oneOrTwo(args);
       final int srid = args.size() > 1 ? Evals.getConstantInt(args.get(1)) : 0;
-      return new GeomChild()
+      return new GeomFunc()
       {
         private final ShapeReader reader = newReader();
 
@@ -209,28 +209,28 @@ public class GeomFunctions implements Function.Library
   public static abstract class GeomTo extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         private final ShapeWriter writer = newWriter();
         private final StringWriter buffer = new StringWriter();
 
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry != null) {
             buffer.getBuffer().setLength(0);
             try {
               writer.write(buffer, GeomUtils.toShape(geometry));
-              return ExprEval.of(buffer.toString());
+              return buffer.toString();
             }
             catch (IOException e) {
             }
           }
-          return ExprEval.NULL_STRING;
+          return null;
         }
       };
     }
@@ -265,7 +265,7 @@ public class GeomFunctions implements Function.Library
     {
       atLeastOne(args);
       final int srid = args.size() > 1 ? Evals.getConstantInt(args.get(1)) : GeomUtils.getSRID(args.get(0).returns());
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ValueDesc returns()
@@ -298,7 +298,7 @@ public class GeomFunctions implements Function.Library
     public Function create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         protected Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -321,7 +321,7 @@ public class GeomFunctions implements Function.Library
     {
       exactTwo(args);
       final int srid = Evals.getConstantInt(args.get(1));
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public ValueDesc returns()
@@ -396,16 +396,16 @@ public class GeomFunctions implements Function.Library
   public static class Area extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          return ExprEval.of(geometry == null ? -1D : geometry.getArea());
+          return geometry == null ? -1D : geometry.getArea();
         }
       };
     }
@@ -415,16 +415,16 @@ public class GeomFunctions implements Function.Library
   public static class Length extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
-          return ExprEval.of(geometry == null ? -1D : geometry.getLength());
+          return geometry == null ? -1D : geometry.getLength();
         }
       };
     }
@@ -433,21 +433,19 @@ public class GeomFunctions implements Function.Library
   @Function.Named("geom_hausdorff_similarity")
   public static class HausdorffSimilarity extends NamedFactory.DoubleType
   {
+    private static final HausdorffSimilarityMeasure MEASURE = new HausdorffSimilarityMeasure();
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
-          if (geom1 == null || geom2 == null) {
-            return ExprEval.NULL_DOUBLE;
-          }
-          return ExprEval.of(new HausdorffSimilarityMeasure().measure(geom1, geom2));
+          return geom1 == null || geom2 == null ? null : MEASURE.measure(geom1, geom2);
         }
       };
     }
@@ -457,10 +455,10 @@ public class GeomFunctions implements Function.Library
   public static class CentroidXY extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleArrayFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleArrayChild()
+      return new DoubleArrayFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -495,10 +493,10 @@ public class GeomFunctions implements Function.Library
   public static class CoordinatesXY extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleArrayFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new DoubleArrayChild()
+      return new DoubleArrayFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
@@ -589,7 +587,7 @@ public class GeomFunctions implements Function.Library
     public Function create(final List<Expr> args, TypeResolver resolver)
     {
       atLeastTwo(args);
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -619,20 +617,17 @@ public class GeomFunctions implements Function.Library
   static abstract class GeometryRelational extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
-          if (geom1 == null || geom2 == null) {
-            return ExprEval.of(false);
-          }
-          return ExprEval.of(execute(geom1, geom2));
+          return geom1 == null || geom2 == null ? Boolean.FALSE : execute(geom1, geom2);
         }
       };
     }
@@ -753,7 +748,7 @@ public class GeomFunctions implements Function.Library
   static abstract class IndexedPointLocator extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(final List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 2 || !Evals.isConstant(args.get(0))) {
         throw new IAE("Function[%s] must have constant polygon and point", name());
@@ -766,16 +761,13 @@ public class GeomFunctions implements Function.Library
         throw new IAE("Second argument of function[%s] must be a point", name());
       }
       final PointOnGeometryLocator locator = new IndexedPointInAreaLocator(geom1);
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
-          if (geom2 == null) {
-            return ExprEval.of(false);
-          }
-          return ExprEval.of(execute(locator.locate(geom2.getCoordinate())));
+          return geom2 == null ? Boolean.FALSE : Boolean.valueOf(execute(locator.locate(geom2.getCoordinate())));
         }
       };
     }
@@ -807,20 +799,17 @@ public class GeomFunctions implements Function.Library
   public static class GeometryDistance extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
-          if (geom1 == null || geom2 == null) {
-            return ExprEval.NULL_DOUBLE;
-          }
-          return ExprEval.of(geom1.distance(geom2));
+          return geom1 == null || geom2 == null ? null : geom1.distance(geom2);
         }
       };
     }
@@ -830,21 +819,21 @@ public class GeomFunctions implements Function.Library
   public static class GeometryDWithin extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geom1 = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           final Geometry geom2 = GeomUtils.toGeometry(Evals.eval(args.get(1), bindings));
           if (geom1 == null || geom2 == null) {
-            return ExprEval.of(false);
+            return Boolean.FALSE;
           }
           final double distance = Evals.evalDouble(args.get(2), bindings);
-          return ExprEval.of(geom1.isWithinDistance(geom2, distance));
+          return geom1.isWithinDistance(geom2, distance);
         }
       };
     }

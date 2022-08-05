@@ -39,22 +39,20 @@ public interface ExcelFunctions extends Function.Library
   class ExcelFV extends Function.NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastFour(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
-          return ExprEval.of(
-              FinanceLib.fv(
-                  args.get(0).eval(bindings).asDouble(),
-                  args.get(1).eval(bindings).asDouble(),
-                  args.get(2).eval(bindings).asDouble(),
-                  args.get(3).eval(bindings).asDouble(),
-                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
-              )
+          return FinanceLib.fv(
+              args.get(0).eval(bindings).asDouble(),
+              args.get(1).eval(bindings).asDouble(),
+              args.get(2).eval(bindings).asDouble(),
+              args.get(3).eval(bindings).asDouble(),
+              args.size() > 4 && args.get(4).eval(bindings).asBoolean()
           );
         }
       };
@@ -66,22 +64,20 @@ public interface ExcelFunctions extends Function.Library
   class ExcelPV extends Function.NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastFour(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
-          return ExprEval.of(
-              FinanceLib.pv(
-                  args.get(0).eval(bindings).asDouble(),
-                  args.get(1).eval(bindings).asDouble(),
-                  args.get(2).eval(bindings).asDouble(),
-                  args.get(3).eval(bindings).asDouble(),
-                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
-              )
+          return FinanceLib.pv(
+              args.get(0).eval(bindings).asDouble(),
+              args.get(1).eval(bindings).asDouble(),
+              args.get(2).eval(bindings).asDouble(),
+              args.get(3).eval(bindings).asDouble(),
+              args.size() > 4 && args.get(4).eval(bindings).asBoolean()
           );
         }
       };
@@ -93,22 +89,20 @@ public interface ExcelFunctions extends Function.Library
   class ExcelNPER extends Function.NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastFour(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
-          return ExprEval.of(
-              FinanceLib.nper(
-                  args.get(0).eval(bindings).asDouble(),
-                  args.get(1).eval(bindings).asDouble(),
-                  args.get(2).eval(bindings).asDouble(),
-                  args.get(3).eval(bindings).asDouble(),
-                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
-              )
+          return FinanceLib.nper(
+              args.get(0).eval(bindings).asDouble(),
+              args.get(1).eval(bindings).asDouble(),
+              args.get(2).eval(bindings).asDouble(),
+              args.get(3).eval(bindings).asDouble(),
+              args.size() > 4 && args.get(4).eval(bindings).asBoolean()
           );
         }
       };
@@ -120,22 +114,20 @@ public interface ExcelFunctions extends Function.Library
   class ExcelPMT extends Function.NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastThree(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
-          return ExprEval.of(
-              FinanceLib.pmt(
-                  args.get(0).eval(bindings).asDouble(),
-                  args.get(1).eval(bindings).asDouble(),
-                  args.get(2).eval(bindings).asDouble(),
-                  args.size() > 3 ? args.get(3).eval(bindings).asDouble() : 0D,
-                  args.size() > 4 && args.get(4).eval(bindings).asBoolean()
-              )
+          return FinanceLib.pmt(
+              args.get(0).eval(bindings).asDouble(),
+              args.get(1).eval(bindings).asDouble(),
+              args.get(2).eval(bindings).asDouble(),
+              args.size() > 3 ? args.get(3).eval(bindings).asDouble() : 0D,
+              args.size() > 4 && args.get(4).eval(bindings).asBoolean()
           );
         }
       };
@@ -147,23 +139,21 @@ public interface ExcelFunctions extends Function.Library
   class ExcelIPMT extends Function.NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastFour(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
-          return ExprEval.of(
-              Finance.ipmt(
-                  args.get(0).eval(bindings).asDouble(),
-                  args.get(1).eval(bindings).asInt(),
-                  args.get(2).eval(bindings).asInt(),
-                  args.get(3).eval(bindings).asDouble(),
-                  args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
-                  args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
-              )
+          return Finance.ipmt(
+              args.get(0).eval(bindings).asDouble(),
+              args.get(1).eval(bindings).asInt(),
+              args.get(2).eval(bindings).asInt(),
+              args.get(3).eval(bindings).asDouble(),
+              args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
+              args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
           );
         }
       };
@@ -175,23 +165,21 @@ public interface ExcelFunctions extends Function.Library
   class ExcelPPMT extends Function.NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastFour(args);
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, NumericBinding bindings)
+        public Double eval(List<Expr> args, NumericBinding bindings)
         {
-          return ExprEval.of(
-              Finance.ppmt(
-                  args.get(0).eval(bindings).asDouble(),
-                  args.get(1).eval(bindings).asInt(),
-                  args.get(2).eval(bindings).asInt(),
-                  args.get(3).eval(bindings).asDouble(),
-                  args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
-                  args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
-              )
+          return Finance.ppmt(
+              args.get(0).eval(bindings).asDouble(),
+              args.get(1).eval(bindings).asInt(),
+              args.get(2).eval(bindings).asInt(),
+              args.get(3).eval(bindings).asDouble(),
+              args.size() > 4 ? args.get(4).eval(bindings).asDouble() : 0D,
+              args.size() > 5 && args.get(5).eval(bindings).asBoolean() ? 1 : 0
           );
         }
       };

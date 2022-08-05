@@ -104,17 +104,17 @@ public class ModuleBuiltinFunctions implements Function.Library
       final boolean retainMissingValue = (boolean) parameter.get("retainMissingValue");
       final String replaceMissingValueWith = (String) parameter.get("replaceMissingValueWith");
 
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           Object key = args.get(1).eval(bindings).value();
           String evaluated = Objects.toString(lookup.get(key), null);
           if (Strings.isNullOrEmpty(evaluated)) {
-            return ExprEval.bestEffortOf(retainMissingValue ? key : replaceMissingValueWith);
+            return retainMissingValue ? Objects.toString(key, null) : replaceMissingValueWith;
           }
-          return ExprEval.of(evaluated);
+          return evaluated;
         }
       };
     }
@@ -152,17 +152,17 @@ public class ModuleBuiltinFunctions implements Function.Library
       final boolean retainMissingValue = (boolean) parameter.get("retainMissingValue");
       final String replaceMissingValueWith = (String) parameter.get("replaceMissingValueWith");
 
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String evaluated = null;
           if (args.size() == 2) {
             Object key = args.get(1).eval(bindings).value();
             evaluated = extractor.apply(key);
             if (retainMissingValue && Strings.isNullOrEmpty(evaluated)) {
-              return ExprEval.of(Strings.emptyToNull(Objects.toString(key, null)));
+              return Strings.emptyToNull(Objects.toString(key, null));
             }
           } else if (args.size() > 2) {
             final Object[] key = new Object[args.size() - 1];
@@ -172,7 +172,7 @@ public class ModuleBuiltinFunctions implements Function.Library
             evaluated = extractor.apply(new MultiKey(key, false));
             // cannot apply retainMissingValue (see MultiDimLookupExtractionFn)
           }
-          return ExprEval.of(Strings.isNullOrEmpty(evaluated) ? replaceMissingValueWith : evaluated);
+          return Strings.isNullOrEmpty(evaluated) ? replaceMissingValueWith : evaluated;
         }
       };
     }
@@ -182,39 +182,39 @@ public class ModuleBuiltinFunctions implements Function.Library
   public static class HaversinMeter extends NamedFactory.DoubleType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public DoubleFunc create(List<Expr> args, TypeResolver resolver)
     {
       if (args.size() != 4) {
         throw new IAE("function 'haversin_meter' needs 4 arguments (lat1,lon1,lat2,lon2)");
       }
-      return new DoubleChild()
+      return new DoubleFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Double eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           double lat1 = Evals.evalDouble(args.get(0), bindings);
           double lon1 = Evals.evalDouble(args.get(1), bindings);
           double lat2 = Evals.evalDouble(args.get(2), bindings);
           double lon2 = Evals.evalDouble(args.get(3), bindings);
-          return ExprEval.of(SloppyMath.haversinMeters(lat1, lon1, lat2, lon2));
+          return SloppyMath.haversinMeters(lat1, lon1, lat2, lon2);
         }
       };
     }
   }
 
   @Function.Named("hash")
-  public static class Hash extends NamedFactory.LongType
+  public static class Hash extends NamedFactory.IntType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public IntFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new LongChild()
+      return new IntFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Integer eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(Objects.hashCode(Evals.evalValue(args.get(0), bindings)));
+          return Objects.hashCode(Evals.evalValue(args.get(0), bindings));
         }
       };
     }
@@ -226,13 +226,13 @@ public class ModuleBuiltinFunctions implements Function.Library
   public static class Murmur32 extends NamedFactory.LongType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public LongFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new LongChild()
+      return new LongFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Long eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           return hashBytes(asBytes(Evals.eval(args.get(0), bindings)));
         }
@@ -254,9 +254,9 @@ public class ModuleBuiltinFunctions implements Function.Library
       };
     }
 
-    protected ExprEval hashBytes(byte[] bytes)
+    protected long hashBytes(byte[] bytes)
     {
-      return ExprEval.of(bytes.length == 0 ? NULL32 : Murmur3.hash32(bytes));
+      return bytes.length == 0 ? NULL32 : Murmur3.hash32(bytes);
     }
   }
 
@@ -266,9 +266,9 @@ public class ModuleBuiltinFunctions implements Function.Library
   public static final class Murmur64 extends Murmur32
   {
     @Override
-    protected ExprEval hashBytes(byte[] bytes)
+    protected long hashBytes(byte[] bytes)
     {
-      return ExprEval.of(bytes.length == 0 ? NULL64 : Murmur3.hash64(bytes));
+      return bytes.length == 0 ? NULL64 : Murmur3.hash64(bytes);
     }
   }
 
@@ -276,16 +276,16 @@ public class ModuleBuiltinFunctions implements Function.Library
   public static final class ToJson extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(List<Expr> args, TypeResolver resolver)
+    public StringFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           try {
-            return ExprEval.of(jsonMapper.writeValueAsString(Evals.evalValue(args.get(0), bindings)));
+            return jsonMapper.writeValueAsString(Evals.evalValue(args.get(0), bindings));
           }
           catch (Exception e) {
             throw Throwables.propagate(e);
@@ -305,10 +305,10 @@ public class ModuleBuiltinFunctions implements Function.Library
     }
 
     @Override
-    public Child create(List<Expr> args, TypeResolver resolver)
+    public Function create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args, ValueDesc.STRING);
-      return new Child()
+      return new Function()
       {
         private final Map<Object, Object> map = new LinkedHashMap<>();
 

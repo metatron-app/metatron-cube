@@ -45,15 +45,15 @@ public interface PredicateFunctions extends Function.Library
   abstract class SingleParamBooleanFactory extends Function.NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          return ExprEval.of(SingleParamBooleanFactory.this.evaluate(Evals.eval(args.get(0), bindings)));
+          return SingleParamBooleanFactory.this.evaluate(Evals.eval(args.get(0), bindings));
         }
       };
     }
@@ -138,17 +138,17 @@ public interface PredicateFunctions extends Function.Library
   final class Like extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       final Pair<RegexUtils.PatternType, Object> matcher = RegexUtils.parse(Evals.getConstantString(args.get(1)));
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval eval = args.get(0).eval(bindings);
-          return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
+          return RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs);
         }
       };
     }
@@ -158,7 +158,7 @@ public interface PredicateFunctions extends Function.Library
   final class RegexpLike extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastTwo(args);
       int flag = 0;
@@ -172,13 +172,13 @@ public interface PredicateFunctions extends Function.Library
       final String pattern = Evals.getConstantString(args.get(1));
       final Matcher matcher = Pattern.compile(pattern, flag).matcher("");
 
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final String target = Evals.evalString(args.get(0), bindings);
-          return ExprEval.of(target != null && matcher.reset(target).find());
+          return target != null && matcher.reset(target).find();
         }
       };
     }
@@ -188,7 +188,7 @@ public interface PredicateFunctions extends Function.Library
   final class InFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastTwo(args);
       final Set<Object> set = Sets.newHashSet();
@@ -197,23 +197,23 @@ public interface PredicateFunctions extends Function.Library
       }
       if (Evals.isConstant(args.get(0))) {
         // regard const in [const, const, const]
-        final ExprEval result = ExprEval.of(set.contains(Evals.getConstant(args.get(0))));
-        return new BooleanChild()
+        final Boolean result = set.contains(Evals.getConstant(args.get(0)));
+        return new BooleanFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
           {
             return result;
           }
         };
       } else {
         // column in [const, const, const]
-        return new BooleanChild()
+        return new BooleanFunc()
         {
           @Override
-          public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+          public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
           {
-            return ExprEval.of(set.contains(Evals.evalValue(args.get(0), bindings)));
+            return set.contains(Evals.evalValue(args.get(0), bindings));
           }
         };
       }
@@ -223,7 +223,7 @@ public interface PredicateFunctions extends Function.Library
   abstract class InColumnFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastTwo(args);
       final Expr last = GuavaUtils.lastOf(args);
@@ -236,10 +236,10 @@ public interface PredicateFunctions extends Function.Library
       for (int i = 0; i < args.size() - 1; i++) {
         targets.add(elementType.cast(Evals.getConstant(args.get(i))));
       }
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final List array = (List) Evals.evalValue(GuavaUtils.lastOf(args), bindings);
           return InColumnFunc.this.evaluate(targets, array);
@@ -247,21 +247,21 @@ public interface PredicateFunctions extends Function.Library
       };
     }
 
-    protected abstract ExprEval evaluate(List<Object> targets, List array);
+    protected abstract Boolean evaluate(List<Object> targets, List array);
   }
 
   @Function.Named("anyInColumn")
   final class AnyInColumnFunc extends InColumnFunc
   {
     @Override
-    protected ExprEval evaluate(List<Object> targets, List array)
+    protected Boolean evaluate(List<Object> targets, List array)
     {
       for (Object target : targets) {
         if (array.contains(target)) {
-          return ExprEval.TRUE;
+          return Boolean.TRUE;
         }
       }
-      return ExprEval.FALSE;
+      return Boolean.FALSE;
     }
   }
 
@@ -269,14 +269,14 @@ public interface PredicateFunctions extends Function.Library
   final class AllInColumnFunc extends InColumnFunc
   {
     @Override
-    protected ExprEval evaluate(List<Object> targets, List array)
+    protected Boolean evaluate(List<Object> targets, List array)
     {
       for (Object target : targets) {
         if (!array.contains(target)) {
-          return ExprEval.FALSE;
+          return Boolean.FALSE;
         }
       }
-      return ExprEval.TRUE;
+      return Boolean.TRUE;
     }
   }
 
@@ -284,20 +284,20 @@ public interface PredicateFunctions extends Function.Library
   final class BetweenFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       ExprEval eval1 = Evals.getConstantEval(args.get(1));
       ExprEval eval2 = Evals.castTo(Evals.getConstantEval(args.get(2)), eval1.type());
       final Range<Comparable> range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
       final ValueDesc type = eval1.type();
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
-          return ExprEval.of(range.contains((Comparable) eval.value()));
+          return range.contains((Comparable) eval.value());
         }
       };
     }
@@ -307,17 +307,17 @@ public interface PredicateFunctions extends Function.Library
   final class StartsWithFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       final String prefix = Evals.getConstantString(args.get(1));
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
-          return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.startsWith(prefix));
+          return eval == null ? prefix == null : prefix != null && eval.startsWith(prefix);
         }
       };
     }
@@ -327,17 +327,17 @@ public interface PredicateFunctions extends Function.Library
   final class EndsWithFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       final String suffix = Evals.getConstantString(args.get(1));
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
-          return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.endsWith(suffix));
+          return eval == null ? suffix == null : suffix != null && eval.endsWith(suffix);
         }
       };
     }
@@ -347,18 +347,18 @@ public interface PredicateFunctions extends Function.Library
   final class StartsWithIgnoreCaseFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       String value = Evals.getConstantString(args.get(1));
       final String prefix = value == null ? null : value.toLowerCase();
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
-          return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().startsWith(prefix));
+          return eval == null ? prefix == null : prefix != null && eval.toLowerCase().startsWith(prefix);
         }
       };
     }
@@ -368,18 +368,18 @@ public interface PredicateFunctions extends Function.Library
   final class EndsWithIgnoreCaseFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       String value = Evals.getConstantString(args.get(1));
       final String suffix = value == null ? null : value.toLowerCase();
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
-          return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.toLowerCase().endsWith(suffix));
+          return eval == null ? suffix == null : suffix != null && eval.toLowerCase().endsWith(suffix);
         }
       };
     }
@@ -389,17 +389,17 @@ public interface PredicateFunctions extends Function.Library
   final class ContainsFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       final String contained = Evals.getConstantString(args.get(1));
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
-          return ExprEval.of(eval == null ? contained == null : contained != null && eval.contains(contained));
+          return eval == null ? contained == null : contained != null && eval.contains(contained);
         }
       };
     }
@@ -409,17 +409,17 @@ public interface PredicateFunctions extends Function.Library
   final class MatchFunc extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
-          return ExprEval.of(eval != null && matcher.reset(eval).find());
+          return eval != null && matcher.reset(eval).find();
         }
       };
     }
@@ -429,7 +429,7 @@ public interface PredicateFunctions extends Function.Library
   final class IPv4In extends NamedFactory.BooleanType
   {
     @Override
-    public Function create(List<Expr> args, TypeResolver resolver)
+    public BooleanFunc create(List<Expr> args, TypeResolver resolver)
     {
       atLeastTwo(args);
       final byte[] start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
@@ -446,17 +446,17 @@ public interface PredicateFunctions extends Function.Library
           throw new IllegalArgumentException("start[n] <= end[n]");
         }
       }
-      return new BooleanChild()
+      return new BooleanFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Boolean eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           String ipString = Evals.evalString(args.get(0), bindings);
           try {
-            return ExprEval.of(evaluate(ipString));
+            return evaluate(ipString);
           }
           catch (Exception e) {
-            return ExprEval.of(false);
+            return Boolean.FALSE;
           }
         }
 

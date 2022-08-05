@@ -125,19 +125,19 @@ public class H3Functions implements Function.Library
   public static class ToH3 extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public LongFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       final H3Core instance = H3.get();
-      return new LongChild()
+      return new LongFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Long eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           double latitude = Evals.evalDouble(args.get(0), bindings);
           double longitude = Evals.evalDouble(args.get(1), bindings);
           int precision = Evals.evalInt(args.get(2), bindings);
-          return ExprEval.of(instance.geoToH3(latitude, longitude, precision));
+          return instance.geoToH3(latitude, longitude, precision);
         }
       };
     }
@@ -147,22 +147,22 @@ public class H3Functions implements Function.Library
   public static class GeomToH3 extends NamedFactory.LongType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public LongFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactTwo(args);
       final H3Core instance = H3.get();
-      return new LongChild()
+      return new LongFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public Long eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final Geometry geometry = GeomUtils.toGeometry(Evals.eval(args.get(0), bindings));
           if (geometry == null) {
-            return ExprEval.NULL_LONG;
+            return null;
           }
           final Point point = geometry.getCentroid();
           final int precision = Evals.evalInt(args.get(1), bindings);
-          return ExprEval.of(instance.geoToH3(point.getY(), point.getX(), precision));
+          return instance.geoToH3(point.getY(), point.getX(), precision);
         }
       };
     }
@@ -172,19 +172,22 @@ public class H3Functions implements Function.Library
   public static class ToH3Address extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactThree(args);
       final H3Core instance = H3.get();
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
-          double latitude = Evals.evalDouble(args.get(0), bindings);
-          double longitude = Evals.evalDouble(args.get(1), bindings);
-          int precision = Evals.evalInt(args.get(2), bindings);
-          return ExprEval.of(instance.geoToH3Address(latitude, longitude, precision));
+          Double latitude = Evals.evalDouble(args.get(0), bindings);
+          Double longitude = Evals.evalDouble(args.get(1), bindings);
+          if (latitude != null && longitude != null) {
+            int precision = Evals.evalInt(args.get(2), bindings);
+            return instance.geoToH3Address(latitude, longitude, precision);
+          }
+          return null;
         }
       };
     }
@@ -198,7 +201,7 @@ public class H3Functions implements Function.Library
     {
       exactOne(args);
       final H3Core instance = H3.get();
-      return new LatLonChild()
+      return new LatLonFunc()
       {
         @Override
         public double[] _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -252,14 +255,14 @@ public class H3Functions implements Function.Library
   public static class H3ToCenterWKT extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       final H3Core instance = H3.get();
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
           if (eval.isNull()) {
@@ -271,7 +274,7 @@ public class H3Functions implements Function.Library
           } else {
             point = instance.h3ToGeo(eval.asString());
           }
-          return ExprEval.of(String.format("POINT(%s %s)", point.lng, point.lat));
+          return String.format("POINT(%s %s)", point.lng, point.lat);
         }
       };
     }
@@ -281,16 +284,19 @@ public class H3Functions implements Function.Library
   public static class H3ToBoundary extends NamedFactory.DoubleArrayType
   {
     @Override
-    public Function create(final List<Expr> args, TypeResolver resolver)
+    public DoubleArrayFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       final H3Core instance = H3.get();
-      return new DoubleArrayChild()
+      return new DoubleArrayFunc()
       {
         @Override
         public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
+          if (eval.isNull()) {
+            return null;
+          }
           List<GeoCoord> points;
           if (eval.isLong()) {
             points = instance.h3ToGeoBoundary(eval.asLong());
@@ -317,7 +323,7 @@ public class H3Functions implements Function.Library
     {
       exactOne(args);
       final H3Core instance = H3.get();
-      return new GeomChild()
+      return new GeomFunc()
       {
         @Override
         public Geometry _eval(List<Expr> args, Expr.NumericBinding bindings)
@@ -348,16 +354,19 @@ public class H3Functions implements Function.Library
   public static class H3ToBoundaryWKT extends NamedFactory.StringType
   {
     @Override
-    public StringChild create(final List<Expr> args, TypeResolver resolver)
+    public StringFunc create(final List<Expr> args, TypeResolver resolver)
     {
       exactOne(args);
       final H3Core instance = H3.get();
-      return new StringChild()
+      return new StringFunc()
       {
         @Override
-        public ExprEval evaluate(List<Expr> args, Expr.NumericBinding bindings)
+        public String eval(List<Expr> args, Expr.NumericBinding bindings)
         {
           final ExprEval eval = Evals.eval(args.get(0), bindings);
+          if (eval.isNull()) {
+            return null;
+          }
           List<GeoCoord> points;
           if (eval.isLong()) {
             points = instance.h3ToGeoBoundary(eval.asLong());
@@ -370,7 +379,7 @@ public class H3Functions implements Function.Library
           }
           builder.append(points.get(0).lng).append(' ').append(points.get(0).lat);
           builder.append("))");
-          return ExprEval.of(builder.toString());
+          return builder.toString();
         }
       };
     }

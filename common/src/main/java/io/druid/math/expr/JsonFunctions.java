@@ -52,7 +52,7 @@ public interface JsonFunctions extends Function.Library
                                               .mappingProvider(new JacksonMappingProvider())
                                               .options(EnumSet.of(Option.SUPPRESS_EXCEPTIONS))
                                               .build();
-      return new Child()
+      return new Function()
       {
         @Override
         public ValueDesc returns()
