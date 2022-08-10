@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,27 +36,32 @@ import java.util.Map;
  */
 public class GenericIndexedTest
 {
+  private static GenericIndexed<String> of(String... values)
+  {
+    return GenericIndexed.v2(Arrays.asList(values), ObjectStrategy.STRING_STRATEGY);
+  }
+
   @Test(expected = UnsupportedOperationException.class)
   public void testNotSortedNoIndexOf() throws Exception
   {
-    GenericIndexed.fromArray(new String[]{"a", "c", "b"}, ObjectStrategy.STRING_STRATEGY).indexOf("a");
+    GenericIndexed<String> indexed = of("a", "c", "b");
+    Assert.assertFalse(indexed.isSorted());
+    indexed.indexOf("a");
   }
 
   @Test(expected = UnsupportedOperationException.class)
   public void testSerializationNotSortedNoIndexOf() throws Exception
   {
-    serializeAndDeserialize(
-        GenericIndexed.fromArray(
-            new String[]{"a", "c", "b"}, ObjectStrategy.STRING_STRATEGY
-        )
-    ).indexOf("a");
+    GenericIndexed<String> indexed = serializeAndDeserialize(of("a", "c", "b"));
+    Assert.assertFalse(indexed.isSorted());
+    indexed.indexOf("a");
   }
 
   @Test
   public void testSanity() throws Exception
   {
     final String[] strings = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"};
-    Indexed<String> indexed = GenericIndexed.fromArray(strings, ObjectStrategy.STRING_STRATEGY);
+    GenericIndexed<String> indexed = of(strings);
 
     checkBasicAPIs(strings, indexed, true);
 
@@ -69,9 +75,7 @@ public class GenericIndexedTest
   {
     final String[] strings = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"};
 
-    GenericIndexed<String> deserialized = serializeAndDeserialize(
-        GenericIndexed.fromArray(strings, ObjectStrategy.STRING_STRATEGY)
-    );
+    GenericIndexed<String> deserialized = serializeAndDeserialize(of(strings));
 
     checkBasicAPIs(strings, deserialized, true);
 
@@ -85,16 +89,23 @@ public class GenericIndexedTest
   {
     final String[] strings = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "k", "j", "l"};
 
-    GenericIndexed<String> deserialized = serializeAndDeserialize(
-        GenericIndexed.fromArray(
-            strings, ObjectStrategy.STRING_STRATEGY
-        )
-    );
+    GenericIndexed<String> deserialized = serializeAndDeserialize(of(strings));
     checkBasicAPIs(strings, deserialized, false);
   }
 
-  private void checkBasicAPIs(String[] strings, Indexed<String> index, boolean allowReverseLookup)
+  @Test
+  public void testEmptySerialization() throws Exception
   {
+    GenericIndexed<String> empty = of();
+    Assert.assertEquals(0, empty.size());
+
+    GenericIndexed<String> deserialized = serializeAndDeserialize(empty);
+    Assert.assertEquals(0, deserialized.size());
+  }
+
+  private void checkBasicAPIs(String[] strings, GenericIndexed<String> index, boolean allowReverseLookup)
+  {
+    Assert.assertEquals(allowReverseLookup, index.isSorted());
     Assert.assertEquals(strings.length, index.size());
     for (int i = 0; i < strings.length; i++) {
       Assert.assertEquals(strings[i], index.get(i));

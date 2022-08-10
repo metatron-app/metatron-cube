@@ -29,7 +29,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Map;
 
 /**
  */
@@ -48,7 +47,7 @@ public class CompressedDoublesSupplierSerializer implements ColumnPartWriter.Dou
 
     return new CompressedDoublesSupplierSerializer(
         CompressedDoublesIndexedSupplier.MAX_DOUBLES_IN_BUFFER,
-        new GenericIndexedWriter<ResourceHolder<DoubleBuffer>>(
+        GenericIndexedWriter.v2(
             ioPeon,
             filenameBase,
             CompressedDoubleBufferObjectStrategy.getBufferForOrder(

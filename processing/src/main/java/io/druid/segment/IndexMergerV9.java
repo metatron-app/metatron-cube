@@ -209,7 +209,7 @@ public class IndexMergerV9 extends IndexMerger
       );
       final ArrayList<Indexed.Closeable<String>> dimValues = Lists.newArrayList();
       for (GenericIndexedWriter<String> dictionaryWriter : dictionaryWriters) {
-        dimValues.add(dictionaryWriter.asIndexed(ObjectStrategy.STRING_STRATEGY));
+        dimValues.add(dictionaryWriter.asIndexed());
       }
       makeInvertedIndexes(
           adapters, progress, mergedDimensions, indexSpec, v9TmpDir, rowNumConversions,
@@ -431,8 +431,8 @@ public class IndexMergerV9 extends IndexMerger
       finalDimensions.add(mergedDimensions.get(i));
     }
 
-    GenericIndexed<String> cols = GenericIndexed.fromIterable(finalColumns, ObjectStrategy.STRING_STRATEGY);
-    GenericIndexed<String> dims = GenericIndexed.fromIterable(finalDimensions, ObjectStrategy.STRING_STRATEGY);
+    GenericIndexed<String> cols = GenericIndexed.v2(finalColumns, ObjectStrategy.STRING_STRATEGY);
+    GenericIndexed<String> dims = GenericIndexed.v2(finalDimensions, ObjectStrategy.STRING_STRATEGY);
 
     final String bitmapSerdeFactoryType = mapper.writeValueAsString(indexSpec.getBitmapSerdeFactory());
     final long numBytes = cols.getSerializedSize()
@@ -706,7 +706,7 @@ public class IndexMergerV9 extends IndexMerger
     ArrayList<ColumnPartWriter<ImmutableBitmap>> writers = Lists.newArrayListWithCapacity(mergedDimensions.size());
     BitmapFactory bitmapFactory = serdeFactory.getBitmapFactory();
     for (String dimension : mergedDimensions) {
-      ColumnPartWriter<ImmutableBitmap> writer = new GenericIndexedWriter<>(
+      ColumnPartWriter<ImmutableBitmap> writer = GenericIndexedWriter.v2(
           ioPeon, String.format("%s.inverted", dimension), serdeFactory.getObjectStrategy()
       );
       Integer cardinality = dimCardinalities.get(dimension);
@@ -957,7 +957,7 @@ public class IndexMergerV9 extends IndexMerger
   {
     ArrayList<GenericIndexedWriter<String>> dimValueWriters = Lists.newArrayListWithCapacity(mergedDimensions.size());
     for (String dimension : mergedDimensions) {
-      final GenericIndexedWriter<String> writer = GenericIndexedWriter.forDictionary(
+      final GenericIndexedWriter<String> writer = GenericIndexedWriter.forDictionaryV2(
           ioPeon, String.format("%s.dim_values", dimension)
       );
       writer.open();

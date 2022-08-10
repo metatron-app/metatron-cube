@@ -68,7 +68,7 @@ public class CompressedIntsIndexedWriter extends SingleValueIndexedIntsWriter
   {
     this.chunkFactor = chunkFactor;
     this.compression = compression;
-    this.flattener = new GenericIndexedWriter<>(
+    this.flattener = GenericIndexedWriter.v2(
         ioPeon, filenameBase, CompressedIntBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkFactor)
     );
     this.endBuffer = IntBuffer.allocate(chunkFactor);

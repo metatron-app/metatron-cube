@@ -47,7 +47,7 @@ public class CompressedLongsSupplierSerializer extends ColumnPartWriter.Abstract
     }
     return new CompressedLongsSupplierSerializer(
         CompressedLongsIndexedSupplier.MAX_LONGS_IN_BUFFER,
-        new GenericIndexedWriter<ResourceHolder<LongBuffer>>(
+        GenericIndexedWriter.v2(
             ioPeon,
             filenameBase,
             CompressedLongBufferObjectStrategy.getBufferForOrder(

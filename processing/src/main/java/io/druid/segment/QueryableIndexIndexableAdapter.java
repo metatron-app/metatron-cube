@@ -145,17 +145,8 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
           {
             this.dictionaryEncodedColumns = FluentIterable
                 .from(getDimensionNames())
-                .transform(
-                    new Function<String, DictionaryEncodedColumn>()
-                    {
-                      @Override
-                      public DictionaryEncodedColumn apply(String dimName)
-                      {
-                        return input.getColumn(dimName)
-                                    .getDictionaryEncoding();
-                      }
-                    }
-                ).toArray(DictionaryEncodedColumn.class);
+                .transform(dimName -> input.getColumn(dimName).getDictionaryEncoding())
+                .toArray(DictionaryEncodedColumn.class);
 
             final Indexed<String> availableMetrics = getMetricNames();
             metrics = new ColumnAccess[availableMetrics.size()];

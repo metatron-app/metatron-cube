@@ -19,12 +19,11 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Preconditions;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
+import io.druid.data.VLongUtils;
 import io.druid.java.util.common.ByteBufferUtils;
-import io.druid.java.util.common.logger.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -33,39 +32,49 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 
+import static io.druid.segment.data.GenericIndexed.Feature.SORTED;
+import static io.druid.segment.data.GenericIndexed.Feature.VSIZED_VALUE;
+
 /**
  * Streams arrays of objects out in the binary format described by GenericIndexed
  */
-public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
+public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
 {
-  static Logger LOG = new Logger(GenericIndexedWriter.class);
-
-  public static GenericIndexedWriter<String> forDictionary(IOPeon ioPeon, String filenameBase)
+  public static GenericIndexedWriter<String> forDictionaryV1(IOPeon ioPeon, String filenameBase)
   {
-    return new GenericIndexedWriter<>(ioPeon, filenameBase, ObjectStrategy.STRING_STRATEGY, true);
+    return new V1<>(ioPeon, filenameBase, ObjectStrategy.STRING_STRATEGY, true);
+  }
+
+  public static GenericIndexedWriter<String> forDictionaryV2(IOPeon ioPeon, String filenameBase)
+  {
+    return new V2<>(ioPeon, filenameBase, ObjectStrategy.STRING_STRATEGY, true);
+  }
+
+  public static <T> GenericIndexedWriter<T> v1(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy)
+  {
+    return new V1<>(ioPeon, filenameBase, strategy, false);
+  }
+
+  public static <T> GenericIndexedWriter<T> v2(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy)
+  {
+    return new V2<>(ioPeon, filenameBase, strategy, false);
   }
 
   final IOPeon ioPeon;
   final String filenameBase;
   final ObjectStrategy<T> strategy;
-  final boolean dictionary;
+  final boolean sorted;
 
-  CountingOutputStream headerOut = null;
-  CountingOutputStream valuesOut = null;
+  CountingOutputStream headerOut;
+  CountingOutputStream valuesOut;
+  int numRow;
 
-  int numWritten = 0;
-
-  public GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy)
-  {
-    this(ioPeon, filenameBase, strategy, false);
-  }
-
-  private GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean dictionary)
+  private GenericIndexedWriter(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean sorted)
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.strategy = strategy;
-    this.dictionary = dictionary;
+    this.sorted = sorted;
   }
 
   @Override
@@ -75,57 +84,60 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
     valuesOut = new CountingOutputStream(ioPeon.makeOutputStream(makeFilename("values")));
   }
 
-  String makeFilename(String suffix)
+  private String makeFilename(String suffix)
   {
     return String.format("%s.%s", filenameBase, suffix);
   }
 
-  @Override
-  public void add(T objectToWrite) throws IOException
-  {
-    writeValue(strategy.toBytes(objectToWrite));
-  }
-
-  void writeValue(final byte[] bytesToWrite) throws IOException
-  {
-    ++numWritten;
-    valuesOut.write(Ints.toByteArray(bytesToWrite.length));
-    valuesOut.write(bytesToWrite);
-
-    headerOut.write(Ints.toByteArray((int) valuesOut.getCount()));
-  }
+  private final byte[] scratch = new byte[Integer.BYTES];
 
   @Override
-  @SuppressWarnings("unchecked")
+  public void add(T object) throws IOException
+  {
+    final byte[] bytes = strategy.toBytes(object);
+    writeValueLength(valuesOut, bytes.length);
+    valuesOut.write(bytes);
+
+    final int offset = Ints.checkedCast(valuesOut.getCount());
+    headerOut.write(toInt(offset));
+    numRow++;
+  }
+
+  final byte[] toInt(int offset)
+  {
+    scratch[0] = (byte) (offset >> 24);
+    scratch[1] = (byte) (offset >> 16);
+    scratch[2] = (byte) (offset >> 8);
+    scratch[3] = (byte) offset;
+    return scratch;
+  }
+
+  protected abstract int flag();
+
+  protected abstract void writeValueLength(OutputStream valuesOut, int length) throws IOException;
+
+  protected abstract int readValueLength(ByteBuffer values);
+
+  @Override
   public void close() throws IOException
   {
-    headerOut.close();
+    // called after all add()
     valuesOut.close();
-
-    final long numBytesWritten = headerOut.getCount() + valuesOut.getCount();
-
-    Preconditions.checkState(
-        headerOut.getCount() == (numWritten * 4),
-        "numWritten[%s] number of rows should have [%s] bytes written to headerOut, had[%s]",
-        numWritten,
-        numWritten * 4,
-        headerOut.getCount()
-    );
-    Preconditions.checkState(
-        numBytesWritten < Integer.MAX_VALUE, "Wrote[%s] bytes, which is too many.", numBytesWritten
-    );
+    headerOut.close();
+    final int payload = Ints.checkedCast(valuesOut.getCount() + headerOut.getCount());
 
     try (OutputStream metaOut = ioPeon.makeOutputStream(makeFilename("meta"))) {
       metaOut.write(GenericIndexed.version);
-      metaOut.write(dictionary ? 0x1 : 0x0);
-      metaOut.write(Ints.toByteArray((int) numBytesWritten + 4));
-      metaOut.write(Ints.toByteArray(numWritten));
+      metaOut.write(flag());
+      metaOut.write(Ints.toByteArray(payload + Integer.BYTES));
+      metaOut.write(Ints.toByteArray(numRow));
     }
   }
 
   @Override
   public long getSerializedSize()
   {
+    // called after close()
     return Byte.BYTES +           // version
            Byte.BYTES +           // flag
            Integer.BYTES +        // numBytesWritten
@@ -137,17 +149,18 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
+    // called after getSerializedSize()
     ioPeon.copyTo(channel, makeFilename("meta"));
     ioPeon.copyTo(channel, makeFilename("header"));
     ioPeon.copyTo(channel, makeFilename("values"));
   }
 
   // this is just for index merger.. which only uses size() and get()
-  public Indexed.Closeable<T> asIndexed(final ObjectStrategy<T> strategy) throws IOException
+  public Indexed.Closeable<T> asIndexed() throws IOException
   {
-    final int size = numWritten;
     final MappedByteBuffer header = Files.map(ioPeon.getFile(makeFilename("header")));
     final MappedByteBuffer values = Files.map(ioPeon.getFile(makeFilename("values")));
+
     return new Indexed.Closeable<T>()
     {
       @Override
@@ -160,25 +173,18 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
       @Override
       public T get(int index)
       {
-        final int startOffset;
-        final int endOffset;
+        final int position = index == 0 ? 0 : header.getInt((index - 1) << 2);
+        values.position(position);
 
-        if (index == 0) {
-          startOffset = Integer.BYTES;
-          endOffset = header.getInt(0);
-        } else {
-          startOffset = header.getInt((index - 1) << 2) + Integer.BYTES;
-          endOffset = header.getInt(index << 2);
-        }
-
-        if (startOffset == endOffset) {
-          return null;
-        }
-
-        values.position(startOffset);
-
+        final int length = readValueLength(values);
         // fromByteBuffer must not modify the buffer limit
-        return strategy.fromByteBuffer(values, endOffset - startOffset);
+        return length == 0 ? null : strategy.fromByteBuffer(values, length);
+      }
+
+      @Override
+      public int size()
+      {
+        return numRow;
       }
 
       @Override
@@ -188,35 +194,62 @@ public class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<T>
       }
 
       @Override
-      public int size()
-      {
-        return size;
-      }
-
-      @Override
       public Iterator<T> iterator()
       {
-        final ByteBuffer readOnly = values.asReadOnlyBuffer();
-        return new Iterator<T>()
-        {
-          private int position = 0;
-
-          @Override
-          public boolean hasNext()
-          {
-            return position < readOnly.limit();
-          }
-
-          @Override
-          public T next()
-          {
-            readOnly.position(position);
-            final int length = readOnly.getInt();
-            position += length;
-            return strategy.fromByteBuffer(readOnly, length);
-          }
-        };
+        throw new UnsupportedOperationException("iterator");
       }
     };
+  }
+
+  private static class V1<T> extends GenericIndexedWriter<T>
+  {
+    public V1(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean sorted)
+    {
+      super(ioPeon, filenameBase, strategy, sorted);
+    }
+
+    @Override
+    protected int flag()
+    {
+      return sorted ? 1 : 0;
+    }
+
+    @Override
+    protected void writeValueLength(OutputStream valuesOut, int length) throws IOException
+    {
+      valuesOut.write(toInt(length));
+    }
+
+    @Override
+    protected int readValueLength(ByteBuffer values)
+    {
+      return values.getInt();
+    }
+  }
+
+  private static class V2<T> extends GenericIndexedWriter<T>
+  {
+    public V2(IOPeon ioPeon, String filenameBase, ObjectStrategy<T> strategy, boolean sorted)
+    {
+      super(ioPeon, filenameBase, strategy, true);
+    }
+
+    @Override
+    protected int flag()
+    {
+      return SORTED.set(VSIZED_VALUE.getMask(), sorted);
+    }
+
+    @Override
+    protected void writeValueLength(OutputStream valuesOut, int length) throws IOException
+    {
+      VLongUtils.writeUnsignedVarInt(valuesOut, length);
+    }
+
+    @Override
+    protected int readValueLength(ByteBuffer values)
+    {
+      return VLongUtils.readUnsignedVarInt(values);
+    }
   }
 }

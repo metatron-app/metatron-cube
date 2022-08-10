@@ -59,7 +59,7 @@ public class CumulativeBitmapWriter implements ColumnPartWriter<ImmutableBitmap>
     this.thresholds = new IntList();
     this.bitmapWriter = bitmapWriter;
     this.bitmapFactory = serdeFactory.getBitmapFactory();
-    this.cumulativeWriter = new GenericIndexedWriter<>(ioPeon, filenameBase, serdeFactory.getObjectStrategy());
+    this.cumulativeWriter = GenericIndexedWriter.v2(ioPeon, filenameBase, serdeFactory.getObjectStrategy());
     this.threshold = threshold;
   }
 

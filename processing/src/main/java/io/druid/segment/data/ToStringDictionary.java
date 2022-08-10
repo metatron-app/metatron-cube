@@ -70,12 +70,6 @@ public class ToStringDictionary implements Dictionary<String>
   }
 
   @Override
-  public int sizeOfWords()
-  {
-    return -1;
-  }
-
-  @Override
   public long getSerializedSize()
   {
     return 0;

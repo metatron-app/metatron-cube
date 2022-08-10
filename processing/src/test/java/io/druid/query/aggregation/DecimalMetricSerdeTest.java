@@ -55,7 +55,7 @@ public class DecimalMetricSerdeTest
   private void test(String type, String... expected)
   {
     ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
-    GenericIndexed<BigDecimal> indexed = GenericIndexed.<BigDecimal>fromIterable(
+    GenericIndexed<BigDecimal> indexed = GenericIndexed.<BigDecimal>v2(
         Iterables.transform(
             Arrays.<String>asList("1923.2341", null, "2391.9", "-37248", "-3.141592", "843923123123.99992"),
             new Function<String, BigDecimal>()

@@ -120,7 +120,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     return new CompressedDoublesIndexedSupplier(
         numRows,
         sizePer,
-        GenericIndexed.fromIterable(baseDoubleBuffers, CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
+        GenericIndexed.v2(baseDoubleBuffers, CompressedDoubleBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
         compression
     );
   }
@@ -175,7 +175,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     return new CompressedDoublesIndexedSupplier(
         buffer.remaining(),
         chunkFactor,
-        GenericIndexed.fromIterable(
+        GenericIndexed.v2(
             new Iterable<ResourceHolder<DoubleBuffer>>()
             {
               @Override

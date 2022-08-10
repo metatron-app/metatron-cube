@@ -613,8 +613,8 @@ public class IndexMerger
            FileChannel channel = fileOutputStream.getChannel()) {
         channel.write(ByteBuffer.wrap(new byte[]{IndexIO.V8_VERSION}));
 
-        GenericIndexed.fromIterable(mergedDimensions, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
-        GenericIndexed.fromIterable(mergedMetrics, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
+        GenericIndexed.v2(mergedDimensions, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
+        GenericIndexed.v2(mergedMetrics, ObjectStrategy.STRING_STRATEGY).writeToChannel(channel);
 
         SerializerUtils.writeString(channel, String.format("%s/%s", dataInterval.getStart(), dataInterval.getEnd()));
         SerializerUtils.writeString(channel, mapper.writeValueAsString(indexSpec.getBitmapSerdeFactory()));
@@ -641,7 +641,7 @@ public class IndexMerger
         final String dimension = mergedDimensions.get(dimIndex);
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
 
-        ColumnPartWriter<String> writer = GenericIndexedWriter.forDictionary(ioPeon, dimension);
+        ColumnPartWriter<String> writer = GenericIndexedWriter.forDictionaryV2(ioPeon, dimension);
         writer.open();
 
         boolean dimHasNull = false;
@@ -868,7 +868,7 @@ public class IndexMerger
         log.info("Starting dimension[%s] with cardinality[%,d]", dimension, dimVals.size());
 
         final BitmapSerdeFactory bitmapSerdeFactory = indexSpec.getBitmapSerdeFactory();
-        ColumnPartWriter<ImmutableBitmap> writer = new GenericIndexedWriter<>(
+        ColumnPartWriter<ImmutableBitmap> writer = GenericIndexedWriter.v2(
             ioPeon, dimension, bitmapSerdeFactory.getObjectStrategy()
         );
         writer.open();
@@ -995,8 +995,8 @@ public class IndexMerger
       createIndexDrdFile(
           IndexIO.V8_VERSION,
           v8OutDir,
-          GenericIndexed.fromIterable(mergedDimensions, ObjectStrategy.STRING_STRATEGY),
-          GenericIndexed.fromIterable(mergedMetrics, ObjectStrategy.STRING_STRATEGY),
+          GenericIndexed.v2(mergedDimensions, ObjectStrategy.STRING_STRATEGY),
+          GenericIndexed.v2(mergedMetrics, ObjectStrategy.STRING_STRATEGY),
           dataInterval,
           indexSpec.getBitmapSerdeFactory()
       );
@@ -1024,16 +1024,8 @@ public class IndexMerger
       final Map<String, IntBuffer> conversionMap = dimConversions.get(i);
       final IntBuffer[] conversions = FluentIterable
           .from(mergedDimensions)
-          .transform(
-              new Function<String, IntBuffer>()
-              {
-                @Override
-                public IntBuffer apply(String input)
-                {
-                  return conversionMap.get(input);
-                }
-              }
-          ).toArray(IntBuffer.class);
+          .transform(input -> conversionMap.get(input))
+          .toArray(IntBuffer.class);
 
       Iterator<Rowboat> target = indexes.get(i).getRows(mergedDimensions, mergedMetrics).iterator();
       if (!Arrays.equals(convertMissingDimsFlags, new boolean[mergedDimensions.size()]) ||
@@ -1288,15 +1280,7 @@ public class IndexMerger
     DictionaryMergeIterator(Indexed<String>[] dimValueLookups, boolean useDirect)
     {
       pQueue = new ObjectHeapPriorityQueue<>(
-          dimValueLookups.length,
-          new Comparator<Pair<Integer, PeekingIterator<String>>>()
-          {
-            @Override
-            public int compare(Pair<Integer, PeekingIterator<String>> lhs, Pair<Integer, PeekingIterator<String>> rhs)
-            {
-              return lhs.rhs.peek().compareTo(rhs.rhs.peek());
-            }
-          }
+          dimValueLookups.length, (lhs, rhs) -> lhs.rhs.peek().compareTo(rhs.rhs.peek())
       );
       conversions = new IntBuffer[dimValueLookups.length];
       for (int i = 0; i < conversions.length; i++) {
@@ -1311,17 +1295,7 @@ public class IndexMerger
         }
 
         final PeekingIterator<String> iter = Iterators.peekingIterator(
-            Iterators.transform(
-                indexed.iterator(),
-                new Function<String, String>()
-                {
-                  @Override
-                  public String apply(@Nullable String input)
-                  {
-                    return Strings.nullToEmpty(input);
-                  }
-                }
-            )
+            Iterators.transform(indexed.iterator(), Strings::nullToEmpty)
         );
         if (iter.hasNext()) {
           pQueue.enqueue(Pair.of(i, iter));
@@ -1404,15 +1378,7 @@ public class IndexMerger
     {
       Preconditions.checkArgument(rowboats.size() == conversions.length);
       pQueue = new ObjectHeapPriorityQueue<>(
-          rowboats.size(),
-          new Comparator<Pair<Integer, PeekingIterator<Rowboat>>>()
-          {
-            @Override
-            public int compare(Pair<Integer, PeekingIterator<Rowboat>> lhs, Pair<Integer, PeekingIterator<Rowboat>> rhs)
-            {
-              return ordering.compare(lhs.rhs.peek(), rhs.rhs.peek());
-            }
-          }
+          rowboats.size(), (lhs, rhs) -> ordering.compare(lhs.rhs.peek(), rhs.rhs.peek())
       );
       this.conversions = conversions;
       for (int i = 0; i < conversions.length; i++) {

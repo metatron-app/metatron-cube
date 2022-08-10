@@ -46,7 +46,7 @@ public class CompressedFloatsSupplierSerializer implements ColumnPartWriter.Floa
     }
     return new CompressedFloatsSupplierSerializer(
         CompressedFloatsIndexedSupplier.MAX_FLOATS_IN_BUFFER,
-        new GenericIndexedWriter<ResourceHolder<FloatBuffer>>(
+        GenericIndexedWriter.v2(
             ioPeon,
             filenameBase,
             CompressedFloatBufferObjectStrategy.getBufferForOrder(

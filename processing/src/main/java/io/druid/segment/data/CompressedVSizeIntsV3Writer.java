@@ -23,20 +23,18 @@
 package io.druid.segment.data;
 
 import io.druid.segment.CompressedVSizedIndexedIntV3Supplier;
-import io.druid.segment.IndexIO;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter implements ColumnPartWriter.Compressed
 {
   private static final byte VERSION = CompressedVSizedIndexedIntV3Supplier.VERSION;
-
-  private static final List<Integer> EMPTY_LIST = new ArrayList<>();
 
   public static CompressedVSizeIntsV3Writer create(
       final IOPeon ioPeon,
@@ -47,19 +45,15 @@ public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter imp
   {
     return new CompressedVSizeIntsV3Writer(
         compression,
-        new CompressedIntsIndexedWriter(
+        CompressedIntsIndexedWriter.create(
             ioPeon,
             String.format("%s.offsets", filenameBase),
-            CompressedIntsIndexedSupplier.MAX_INTS_IN_BUFFER,
-            IndexIO.BYTE_ORDER,
             compression
         ),
-        new CompressedVSizeIntWriter(
+        CompressedVSizeIntWriter.create(
             ioPeon,
             String.format("%s.values", filenameBase),
             maxValue,
-            CompressedVSizedIntSupplier.maxIntsInBufferForValue(maxValue),
-            IndexIO.BYTE_ORDER,
             compression
         )
     );
@@ -99,7 +93,7 @@ public class CompressedVSizeIntsV3Writer extends MultiValueIndexedIntsWriter imp
   protected void addValues(List<Integer> vals) throws IOException
   {
     if (vals == null) {
-      vals = EMPTY_LIST;
+      vals = Collections.emptyList();
     }
     offsetWriter.add(offset);
     for (Integer val : vals) {

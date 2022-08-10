@@ -22,6 +22,9 @@ package io.druid.data;
 import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 /**
@@ -128,6 +131,41 @@ public class VLongUtils
     }
   }
 
+  public static void writeVInt(OutputStream stream, long i) throws IOException
+  {
+    writeVLong(stream, i);
+  }
+
+  public static void writeVLong(OutputStream stream, long i) throws IOException
+  {
+    if (i >= -112L && i <= 127L) {
+      stream.write((byte) ((int) i));
+      return;
+    }
+
+    int len = -112;
+    if (i < 0L) {
+      i = ~i;
+      len = -120;
+    }
+
+    long tmp = i;
+    while (tmp != 0) {
+      tmp = tmp >> 8;
+      len--;
+    }
+
+    stream.write((byte) len);
+
+    len = len < -120 ? -(len + 120) : -(len + 112);
+
+    for (int idx = len; idx != 0; --idx) {
+      int shiftbits = (idx - 1) * 8;
+      long mask = 0xFFL << shiftbits;
+      stream.write((byte) ((int) ((i & mask) >> shiftbits)));
+    }
+  }
+
   /**
    * Reads a zero-compressed encoded long from input buffer and returns it.
    *
@@ -149,12 +187,64 @@ public class VLongUtils
     return isNegativeVInt(firstByte) ? ~i : i;
   }
 
+  public static int sizeOfUnsignedVarInt(int v)
+  {
+    int count = 1;
+    while ((long) (v & -128) != 0L) {
+      count++;
+      v >>>= 7;
+    }
+    return count;
+  }
+
+  public static void writeUnsignedVarInt(ByteBuffer buffer, int v)
+  {
+    int i = 0;
+    while ((long) (v & -128) != 0L) {
+      buffer.put((byte) (v & 127 | 128));
+      v >>>= 7;
+    }
+    buffer.put((byte) (v & 127));
+  }
+
+  public static void writeUnsignedVarInt(OutputStream out, int v) throws IOException
+  {
+    int i = 0;
+    while ((long) (v & -128) != 0L) {
+      out.write((byte) (v & 127 | 128));
+      v >>>= 7;
+    }
+    out.write((byte) (v & 127));
+  }
+
   public static int readUnsignedVarInt(ByteBuffer buffer)
   {
     int value = 0;
     int i;
     int b;
     for (i = 0; ((b = buffer.get() & 0xff) & 0x80) != 0; i += 7) {
+      value |= (b & 0x7f) << i;
+    }
+    return value | b << i;
+  }
+
+  public static int readUnsignedVarInt(ByteBuffer buffer, int offset)
+  {
+    int value = 0;
+    int i;
+    int b;
+    for (i = 0; ((b = buffer.get(offset) & 0xff) & 0x80) != 0; i += 7, offset++) {
+      value |= (b & 0x7f) << i;
+    }
+    return value | b << i;
+  }
+
+  public static int readUnsignedVarInt(InputStream input) throws IOException
+  {
+    int value = 0;
+    int i;
+    int b;
+    for (i = 0; ((b = input.read() & 0xff) & 0x80) != 0; i += 7) {
       value |= (b & 0x7f) << i;
     }
     return value | b << i;

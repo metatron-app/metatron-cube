@@ -19,12 +19,10 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
 import io.druid.collections.ResourceHolder;
-import io.druid.collections.StupidResourceHolder;
 import io.druid.java.util.common.IAE;
 import io.druid.java.util.common.guava.CloseQuietly;
 import io.druid.segment.CompressedPools;
@@ -36,8 +34,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.LongBuffer;
 import java.nio.channels.WritableByteChannel;
-import java.util.Iterator;
-import java.util.List;
 
 /**
  */
@@ -119,19 +115,6 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
     baseLongBuffers.writeToChannel(channel);
   }
 
-  public CompressedLongsIndexedSupplier convertByteOrder(ByteOrder order)
-  {
-    return new CompressedLongsIndexedSupplier(
-        numRows,
-        sizePer,
-        GenericIndexed.fromIterable(
-            baseLongBuffers,
-            CompressedLongBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)
-        ),
-        compression
-    );
-  }
-
   /**
    * For testing.  Do not use unless you like things breaking
    */
@@ -162,128 +145,6 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, C
         totalSize,
         sizePer,
         GenericIndexed.read(buffer, strategy),
-        compression
-    );
-  }
-
-  public static CompressedLongsIndexedSupplier fromLongBuffer(
-      LongBuffer buffer,
-      final ByteOrder byteOrder,
-      CompressionStrategy compression
-  )
-  {
-    return fromLongBuffer(buffer, MAX_LONGS_IN_BUFFER, byteOrder, compression);
-  }
-
-  public static CompressedLongsIndexedSupplier fromLongBuffer(
-      final LongBuffer buffer, final int chunkFactor, final ByteOrder byteOrder, CompressionStrategy compression
-  )
-  {
-    Preconditions.checkArgument(
-        chunkFactor <= MAX_LONGS_IN_BUFFER, "Chunks must be <= 64k bytes. chunkFactor was[%s]", chunkFactor
-    );
-
-    return new CompressedLongsIndexedSupplier(
-        buffer.remaining(),
-        chunkFactor,
-        GenericIndexed.fromIterable(
-            new Iterable<ResourceHolder<LongBuffer>>()
-            {
-              @Override
-              public Iterator<ResourceHolder<LongBuffer>> iterator()
-              {
-                return new Iterator<ResourceHolder<LongBuffer>>()
-                {
-                  LongBuffer myBuffer = buffer.asReadOnlyBuffer();
-
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return myBuffer.hasRemaining();
-                  }
-
-                  @Override
-                  public ResourceHolder<LongBuffer> next()
-                  {
-                    LongBuffer retVal = myBuffer.asReadOnlyBuffer();
-
-                    if (chunkFactor < myBuffer.remaining()) {
-                      retVal.limit(retVal.position() + chunkFactor);
-                    }
-                    myBuffer.position(myBuffer.position() + retVal.remaining());
-
-                    return StupidResourceHolder.create(retVal);
-                  }
-
-                  @Override
-                  public void remove()
-                  {
-                    throw new UnsupportedOperationException();
-                  }
-                };
-              }
-            },
-            CompressedLongBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkFactor)
-        ),
-        compression
-    );
-  }
-
-  public static CompressedLongsIndexedSupplier fromList(
-      final List<Long> list, final int chunkFactor, final ByteOrder byteOrder, CompressionStrategy compression
-  )
-  {
-    Preconditions.checkArgument(
-        chunkFactor <= MAX_LONGS_IN_BUFFER, "Chunks must be <= 64k bytes. chunkFactor was[%s]", chunkFactor
-    );
-
-    return new CompressedLongsIndexedSupplier(
-        list.size(),
-        chunkFactor,
-        GenericIndexed.fromIterable(
-            new Iterable<ResourceHolder<LongBuffer>>()
-            {
-              @Override
-              public Iterator<ResourceHolder<LongBuffer>> iterator()
-              {
-                return new Iterator<ResourceHolder<LongBuffer>>()
-                {
-                  int position = 0;
-
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return position < list.size();
-                  }
-
-                  @Override
-                  public ResourceHolder<LongBuffer> next()
-                  {
-                    LongBuffer retVal = LongBuffer.allocate(chunkFactor);
-
-                    if (chunkFactor > list.size() - position) {
-                      retVal.limit(list.size() - position);
-                    }
-                    final List<Long> longs = list.subList(position, position + retVal.remaining());
-                    for (long value : longs) {
-                      retVal.put(value);
-                    }
-                    retVal.rewind();
-                    position += retVal.remaining();
-
-                    return StupidResourceHolder.create(retVal);
-                  }
-
-                  @Override
-                  public void remove()
-                  {
-                    throw new UnsupportedOperationException();
-                  }
-                };
-              }
-            },
-            CompressedLongBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkFactor)
-        ),
         compression
     );
   }

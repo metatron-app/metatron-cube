@@ -19,7 +19,6 @@
 
 package io.druid.segment.data;
 
-import io.druid.collections.ResourceHolder;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -28,7 +27,6 @@ import org.junit.runners.Parameterized;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 
@@ -47,7 +45,7 @@ public class CompressedFloatsSupplierSerializerTest extends CompressionStrategyT
     final int sizePer = 999;
     CompressedFloatsSupplierSerializer serializer = new CompressedFloatsSupplierSerializer(
         sizePer,
-        new GenericIndexedWriter<ResourceHolder<FloatBuffer>>(
+        GenericIndexedWriter.v2(
             new IOPeonForTesting(),
             "test",
             CompressedFloatBufferObjectStrategy.getBufferForOrder(
@@ -93,7 +91,7 @@ public class CompressedFloatsSupplierSerializerTest extends CompressionStrategyT
     final int sizePer = 999;
     CompressedFloatsSupplierSerializer serializer = new CompressedFloatsSupplierSerializer(
         sizePer,
-        new GenericIndexedWriter<ResourceHolder<FloatBuffer>>(
+        GenericIndexedWriter.v2(
             new IOPeonForTesting(),
             "test",
             CompressedFloatBufferObjectStrategy.getBufferForOrder(

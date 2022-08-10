@@ -120,7 +120,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     return new CompressedFloatsIndexedSupplier(
         numRows,
         sizePer,
-        GenericIndexed.fromIterable(baseFloatBuffers, CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
+        GenericIndexed.v2(baseFloatBuffers, CompressedFloatBufferObjectStrategy.getBufferForOrder(order, compression, sizePer)),
         compression
     );
   }
@@ -175,7 +175,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     return new CompressedFloatsIndexedSupplier(
         buffer.remaining(),
         chunkFactor,
-        GenericIndexed.fromIterable(
+        GenericIndexed.v2(
             new Iterable<ResourceHolder<FloatBuffer>>()
             {
               @Override

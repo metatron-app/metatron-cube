@@ -75,7 +75,7 @@ public class CompressedVSizeIntWriter extends SingleValueIndexedIntsWriter imple
     this.chunkBytes = chunkFactor * numBytes + CompressedVSizedIntSupplier.bufferPadding(numBytes);
     this.byteOrder = byteOrder;
     this.compression = compression;
-    this.flattener = new GenericIndexedWriter<>(
+    this.flattener = GenericIndexedWriter.v2(
         ioPeon, filenameBase, CompressedByteBufferObjectStrategy.getBufferForOrder(byteOrder, compression, chunkBytes)
     );
     this.intBuffer = ByteBuffer.allocate(Integer.BYTES).order(byteOrder);

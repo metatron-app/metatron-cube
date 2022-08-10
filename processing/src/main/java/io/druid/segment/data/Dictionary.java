@@ -41,8 +41,6 @@ public interface Dictionary<T> extends Indexed.Closeable<T>
 
   BufferRef getAsRef(int index);
 
-  int sizeOfWords();
-
   long getSerializedSize();
 
   void scan(Tools.Scanner scanner);

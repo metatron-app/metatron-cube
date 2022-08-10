@@ -20,8 +20,11 @@
 package io.druid.data.input;
 
 import io.druid.common.utils.StringUtils;
+import io.druid.data.VLongUtils;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.nio.ByteBuffer;
 
 public class BytesOutputStreamTest
 {
@@ -45,5 +48,34 @@ public class BytesOutputStreamTest
     for (int i = 0; i < tests.length; i++) {
       Assert.assertEquals(tests[i], in.readVarSizeUTF());
     }
+
+    // 128, 256, 65536, 16777216
+    out.clear();
+    out.writeVarInt(255);
+    out.writeVarInt(65535);
+    Assert.assertEquals(5, out.size());
+    in = new BytesInputStream(out.toByteArray());
+    Assert.assertEquals(255, in.readVarInt());
+    Assert.assertEquals(65535, in.readVarInt());
+    ByteBuffer buffer = out.asByteBuffer();
+
+    Assert.assertEquals(2, VLongUtils.sizeOfUnsignedVarInt(255));
+    Assert.assertEquals(3, VLongUtils.sizeOfUnsignedVarInt(65535));
+
+    // 128, 16384, 2097152, 268435456
+    out.clear();
+    out.writeUnsignedVarInt(255);
+    out.writeUnsignedVarInt(65535);
+    Assert.assertEquals(5, out.size());
+    in = new BytesInputStream(out.toByteArray());
+    Assert.assertEquals(255, in.readUnsignedVarInt());
+    Assert.assertEquals(65535, in.readUnsignedVarInt());
+    Assert.assertEquals(255, VLongUtils.readUnsignedVarInt(buffer));
+    Assert.assertEquals(65535, VLongUtils.readUnsignedVarInt(buffer));
+
+    out.clear();
+    out.writeShort(65535);
+    in = new BytesInputStream(out.toByteArray());
+    Assert.assertEquals(65535, in.readUnsignedShort());
   }
 }

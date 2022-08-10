@@ -48,7 +48,7 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
   {
     if (compression != null && compression != CompressionStrategy.UNCOMPRESSED && serde instanceof CompressionSupport) {
       return new CompressedComplexColumnSerializer(
-          new GenericIndexedWriter<ResourceHolder<ByteBuffer>>(
+          GenericIndexedWriter.v2(
               ioPeon,
               filenameBase,
               new SizePrefixedCompressedObjectStrategy(compression)
@@ -57,7 +57,7 @@ public class CompressedComplexColumnSerializer extends ColumnPartWriter.Abstract
           (CompressionSupport) serde
       );
     } else {
-      return new GenericIndexedWriter(ioPeon, filenameBase, serde.getObjectStrategy());
+      return GenericIndexedWriter.v2(ioPeon, filenameBase, serde.getObjectStrategy());
     }
   }
 

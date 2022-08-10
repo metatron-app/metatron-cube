@@ -196,7 +196,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
         list.size(),
         chunkFactor,
         numBytes,
-        GenericIndexed.fromIterable(
+        GenericIndexed.v2(
             new Iterable<ResourceHolder<ByteBuffer>>()
             {
               @Override

@@ -25,6 +25,7 @@ import io.druid.common.guava.BytesRef;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public final class BytesOutputStream extends OutputStream implements ByteArrayDataOutput
@@ -32,7 +33,7 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   private static final int MAX_VARINT_SIZE = Integer.BYTES + Byte.BYTES;
   private static final int MAX_VARLONG_SIZE = Long.BYTES + Short.BYTES;
 
-  private byte buf[];
+  private byte[] buf;
   private int count;
 
   public BytesOutputStream()
@@ -227,16 +228,6 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
     buf[count++] = (byte) (v & 127);
   }
 
-  public static int sizeOfUnsignedVarInt(int v)
-  {
-    int count = 1;
-    while ((long) (v & -128) != 0L) {
-      count++;
-      v >>>= 7;
-    }
-    return count;
-  }
-
   public void write(BytesRef ref)
   {
     write(ref.bytes, 0, ref.length);
@@ -290,5 +281,10 @@ public final class BytesOutputStream extends OutputStream implements ByteArrayDa
   public BytesRef asRef()
   {
     return new BytesRef(buf, count);
+  }
+
+  public ByteBuffer asByteBuffer()
+  {
+    return ByteBuffer.wrap(buf, 0, count);
   }
 }

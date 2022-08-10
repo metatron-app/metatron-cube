@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
@@ -691,18 +690,18 @@ public class IndexIO
                 final List<String> nullList = Lists.newArrayList();
                 nullList.add(null);
 
-                dictionary = GenericIndexed.fromIterable(
+                dictionary = GenericIndexed.v2(
                     Iterables.concat(nullList, dictionary),
                     ObjectStrategy.STRING_STRATEGY
                 );
 
-                bitmaps = GenericIndexed.fromIterable(
+                bitmaps = GenericIndexed.v2(
                     Iterables.concat(Arrays.asList(theNullSet), bitmaps),
                     bitmapSerdeFactory.getObjectStrategy()
                 );
               } else {
                 bumpedDictionary = false;
-                bitmaps = GenericIndexed.fromIterable(
+                bitmaps = GenericIndexed.v2(
                     Iterables.concat(
                         Arrays.asList(
                             DimFilters.union(bitmapFactory, Arrays.asList(theNullSet, bitmaps.get(0)))
@@ -839,17 +838,8 @@ public class IndexIO
       final GenericIndexed<String> dims8 = GenericIndexed.read(
           indexBuffer, ObjectStrategy.STRING_STRATEGY
       );
-      final GenericIndexed<String> dims9 = GenericIndexed.fromIterable(
-          Iterables.filter(
-              dims8, new Predicate<String>()
-              {
-                @Override
-                public boolean apply(String s)
-                {
-                  return !skippedDimensions.contains(s);
-                }
-              }
-          ),
+      final GenericIndexed<String> dims9 = GenericIndexed.v2(
+          Iterables.filter(dims8, s -> !skippedDimensions.contains(s)),
           ObjectStrategy.STRING_STRATEGY
       );
       final GenericIndexed<String> availableMetrics = GenericIndexed.read(
@@ -864,7 +854,7 @@ public class IndexIO
       Set<String> columns = Sets.newTreeSet();
       columns.addAll(Lists.newArrayList(dims9));
       columns.addAll(Lists.newArrayList(availableMetrics));
-      GenericIndexed<String> cols = GenericIndexed.fromIterable(columns, ObjectStrategy.STRING_STRATEGY);
+      GenericIndexed<String> cols = GenericIndexed.v2(columns, ObjectStrategy.STRING_STRATEGY);
 
       final String segmentBitmapSerdeFactoryString = mapper.writeValueAsString(segmentBitmapSerdeFactory);
 
