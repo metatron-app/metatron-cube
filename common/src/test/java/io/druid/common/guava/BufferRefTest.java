@@ -41,9 +41,45 @@ public class BufferRefTest
       ByteBuffer buffer = ByteBuffer.wrap(bs.toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
       BufferRef ref = BufferRef.of(buffer, 0, buffer.remaining());
       for (int i = 0; i < 1024; i++) {
-        Assert.assertEquals(i + ":" + bs.toString(), bs.get(i), ref.get(i));
+        Assert.assertEquals(i + ":" + bs, bs.get(i), ref.get(i));
       }
       bs.clear();
     }
+  }
+
+  @Test
+  public void testBitsetIxWithOffset()
+  {
+    long h = 0b11111111_00000000_00110000_00100000;
+    long l = 0b00110011_10010001_10011111_10010001;
+    long[] x = new long[]{(h << 32) + l};
+    BitSet bs = BitSet.valueOf(x);
+    ByteBuffer buffer = ByteBuffer.wrap(bs.toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
+    BufferRef ref = BufferRef.of(buffer, 0, buffer.remaining());
+    for (int i = 0; i < bs.length(); i++) {
+      Assert.assertEquals(i + ":" + bs, bs.get(i), ref.get(i));
+    }
+    System.out.println(bs);
+    System.out.println(toString(ref, bs.size()));
+
+    ref = BufferRef.of(buffer, 1, buffer.remaining() - 1);
+    System.out.println(toString(ref, bs.size()));
+    for (int i = 0; i < bs.length(); i++) {
+      Assert.assertEquals(i + ":" + bs, bs.get(i + 8), ref.get(i));
+    }
+  }
+
+  private String toString(BufferRef ref, int max)
+  {
+    StringBuilder b = new StringBuilder("{");
+    for (int i = 0; i < max; i++) {
+      if (ref.get(i)) {
+        if (b.length() > 1) {
+          b.append(", ");
+        }
+        b.append(i);
+      }
+    }
+    return b.append("}").toString();
   }
 }

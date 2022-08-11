@@ -91,7 +91,7 @@ public class BitSetVirtualColumn implements VirtualColumn
         final ObjectColumnSelector.WithRawAccess rawAccess = (ObjectColumnSelector.WithRawAccess) selector;
         return ColumnSelectors.asSelector(ValueDesc.BOOLEAN, () -> {
           final BufferRef ref = rawAccess.getAsRef();
-          return ref.remaining() == 0 ? null : ref.get(access);
+          return ref.length() == 0 ? null : ref.get(access);
         });
       }
       return ColumnSelectors.asSelector(ValueDesc.BOOLEAN, () -> {

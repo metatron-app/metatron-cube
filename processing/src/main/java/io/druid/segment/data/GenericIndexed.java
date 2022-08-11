@@ -450,7 +450,7 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       final int offset = valueOffset(index);
       final int length = valueLength(offset);
       final int header = valueHeaderLength(length);
-      return BufferRef.of(theBuffer, offset + header, offset + header + length);
+      return BufferRef.of(theBuffer, offset + header, length);
     }
 
     public final void scan(final int index, final Tools.Scanner function)

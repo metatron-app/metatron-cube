@@ -25,38 +25,36 @@ import java.nio.ByteBuffer;
 
 public class BufferRef implements Comparable<BufferRef>
 {
-  public static BufferRef of(ByteBuffer buffer, int from, int to)
+  public static BufferRef of(ByteBuffer buffer, int from, int length)
   {
-    return new BufferRef(buffer, from, to);
+    return new BufferRef(buffer, from, length);
   }
 
   private final ByteBuffer buffer;
   private final int from;
-  private final int to;
+  private final int length;
 
-  private BufferRef(ByteBuffer buffer, int from, int to)
+  private BufferRef(ByteBuffer buffer, int from, int length)
   {
     this.buffer = buffer;
     this.from = from;
-    this.to = to;
+    this.length = length;
   }
 
-  public int remaining()
+  public int length()
   {
-    return to - from;
+    return length;
   }
 
   @Override
   public boolean equals(Object obj)
   {
     final BufferRef o = (BufferRef) obj;
-    final int len1 = remaining();
-    final int len2 = o.remaining();
-    if (len1 != len2) {
+    if (length != o.length) {
       return false;
     }
-    for (int i = to - 1, j = o.to - 1; i >= from; i--, j--) {
-      if (buffer.get(i) != o.buffer.get(j)) {
+    for (int i = 0; i < length; i++) {
+      if (buffer.get(from + i) != o.buffer.get(o.from + i)) {
         return false;
       }
     }
@@ -66,21 +64,19 @@ public class BufferRef implements Comparable<BufferRef>
   @Override
   public int compareTo(final BufferRef o)
   {
-    final int len1 = remaining();
-    final int len2 = o.remaining();
-    final int limit = from + Math.min(len1, len2);
+    final int limit = from + Math.min(length, length);
     for (int i = from, j = o.from; i < limit; i++, j++) {
       final int cmp = Integer.compare(buffer.get(i) & 0xff, o.buffer.get(j) & 0xff);
       if (cmp != 0) {
         return cmp;
       }
     }
-    return Ints.compare(len1, len2);
+    return Ints.compare(length, length);
   }
 
   public int compareTo(final byte[] value)
   {
-    final int len1 = remaining();
+    final int len1 = length;
     final int len2 = value.length;
     final int limit = Math.min(len1, len2);
     for (int i = 0; i < limit; i++) {
@@ -95,20 +91,23 @@ public class BufferRef implements Comparable<BufferRef>
   private static final int ADDRESS_BITS_PER_WORD = 6;
   private static final int BIT_INDEX_MASK = 0b111111;
 
+  // see java.util.BitSet#get
   public boolean get(final int index)
   {
-    final long word = getIxWord(index);
-    return word != 0 && (word & 1L << (index & BIT_INDEX_MASK)) != 0;
+    final int x = 8 * from + index;
+    final long word = getIxWord(x);
+    return word != 0 && (word & 1L << (x & BIT_INDEX_MASK)) != 0;
   }
 
   private long getIxWord(final int index)
   {
-    if (index >= remaining() * Byte.SIZE) {
+    final int limit = length + from;
+    if (index >= limit * Byte.SIZE) {
       return 0L;
     }
     final int ix = index >> ADDRESS_BITS_PER_WORD;
-    final int x = from + ix * Long.BYTES;
-    final int remnant = to - x;
+    final int x = ix * Long.BYTES;
+    final int remnant = limit - x;
     if (remnant >= Long.BYTES) {
       return buffer.getLong(x);
     }
