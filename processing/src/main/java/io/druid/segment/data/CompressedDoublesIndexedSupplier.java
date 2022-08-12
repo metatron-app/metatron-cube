@@ -183,7 +183,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
               {
                 return new Iterator<ResourceHolder<DoubleBuffer>>()
                 {
-                  DoubleBuffer myBuffer = buffer.asReadOnlyBuffer();
+                  final DoubleBuffer myBuffer = buffer.asReadOnlyBuffer();
 
                   @Override
                   public boolean hasNext()
@@ -220,7 +220,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
 
   private class CompressedIndexedDoubles implements IndexedDoubles
   {
-    final Indexed<ResourceHolder<DoubleBuffer>> singleThreadedDoubleBuffers = baseDoubleBuffers.singleThreaded();
+    final Indexed.Closeable<ResourceHolder<DoubleBuffer>> singleThreaded = baseDoubleBuffers.asSingleThreaded();
 
     int currIndex = -1;
     ResourceHolder<DoubleBuffer> holder;
@@ -269,7 +269,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     protected void loadBuffer(int bufferNum)
     {
       CloseQuietly.close(holder);
-      holder = singleThreadedDoubleBuffers.get(bufferNum);
+      holder = singleThreaded.get(bufferNum);
       buffer = holder.get();
       bufferPos = buffer.position();
       currIndex = bufferNum;
@@ -281,7 +281,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
       return "CompressedDoublesIndexedSupplier{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreadedDoubleBuffers.size() +
+             ", numChunks=" + singleThreaded.size() +
              ", numRows=" + numRows +
              '}';
     }
@@ -290,6 +290,7 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     public void close() throws IOException
     {
       Closeables.close(holder, false);
+      Closeables.close(singleThreaded, false);
     }
   }
 }

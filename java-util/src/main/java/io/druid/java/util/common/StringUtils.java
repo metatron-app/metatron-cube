@@ -23,10 +23,13 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import sun.misc.Unsafe;
+import sun.nio.ch.DirectBuffer;
 
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Base64;
@@ -329,8 +332,13 @@ public class StringUtils
 
   public static String fromUtf8(final byte[] bytes)
   {
+    return fromUtf8(bytes, 0, bytes.length);
+  }
+
+  public static String fromUtf8(final byte[] bytes, int offset, int length)
+  {
     try {
-      return new String(bytes, UTF8_STRING);
+      return new String(bytes, offset, length, UTF8_STRING);
     }
     catch (UnsupportedEncodingException e) {
       // Should never happen
@@ -338,16 +346,30 @@ public class StringUtils
     }
   }
 
-  public static String fromUtf8(final ByteBuffer buffer, final int numBytes)
+  public static String fromUtf8(ByteBuffer buffer, int length)
   {
-    final byte[] bytes = new byte[numBytes];
+    final byte[] bytes = new byte[length];
     buffer.get(bytes);
     return fromUtf8(bytes);
   }
 
+  public static String fromUtf8(ByteBuffer buffer, int offset, int length)
+  {
+    if (buffer.isDirect()) {
+      return fromUtf8(copyDirect(buffer, offset, length));
+    } else if (!buffer.isReadOnly()){
+      return fromUtf8(buffer.array(), buffer.arrayOffset() + offset, length);
+    } else {
+      final byte[] bytes = new byte[length];
+      buffer.position(offset);
+      buffer.get(bytes);
+      return fromUtf8(bytes);
+    }
+  }
+
   public static String fromUtf8(final ByteBuffer buffer)
   {
-    return fromUtf8(buffer, buffer.remaining());
+    return fromUtf8(buffer, 0, buffer.remaining());
   }
 
   public static byte[] toUtf8(final String string)
@@ -361,9 +383,33 @@ public class StringUtils
     }
   }
 
+  private static final long UNSAFE_COPY_THRESHOLD = 1024L * 1024L;
+
+  private static byte[] copyDirect(ByteBuffer buffer, int offset, int length)
+  {
+    Preconditions.checkArgument(buffer.isDirect());
+    if ((offset | length | offset + length) < 0) {
+      throw new IndexOutOfBoundsException();
+    }
+    if (length > buffer.remaining()) {
+      throw new BufferUnderflowException();
+    }
+    final Unsafe unsafe = (Unsafe) UnsafeUtils.theUnsafe();
+    final byte[] dest = new byte[length];
+    long soffset = ((DirectBuffer) buffer).address() + offset;
+    while (length > 0) {
+      long size = length > UNSAFE_COPY_THRESHOLD ? UNSAFE_COPY_THRESHOLD : length;
+      unsafe.copyMemory(null, soffset, dest, Unsafe.ARRAY_BYTE_BASE_OFFSET, size);
+      length -= size;
+      soffset += size;
+      offset += size;
+    }
+    return dest;
+  }
+
   public static String safeFormat(String message, Object... formatArgs)
   {
-    if(formatArgs == null || formatArgs.length == 0) {
+    if (formatArgs == null || formatArgs.length == 0) {
       return message;
     }
     try {

@@ -19,15 +19,13 @@
 
 package io.druid.segment.data;
 
-import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.io.smoosh.SmooshedWriter;
+import io.druid.java.util.common.io.smoosh.FileSmoosher;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
@@ -91,11 +89,7 @@ public class VSizeIntWriter extends SingleValueIndexedIntsWriter
     channel.write(ByteBuffer.wrap(new byte[]{VERSION, (byte) numBytes}));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(Ints.checkedCast(numBytesWritten))));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(valueFileName))) {
-      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
-        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
-      } else {
-        ByteStreams.copy(input, channel);
-      }
+      FileSmoosher.transfer(channel, input);
     }
   }
 }

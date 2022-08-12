@@ -158,7 +158,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
               {
                 return new Iterator<ResourceHolder<IntBuffer>>()
                 {
-                  IntBuffer myBuffer = buffer.asReadOnlyBuffer();
+                  final IntBuffer myBuffer = buffer.asReadOnlyBuffer();
 
                   @Override
                   public boolean hasNext()
@@ -254,7 +254,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
 
   private class CompressedIndexedInts implements IndexedInts
   {
-    final Indexed<ResourceHolder<IntBuffer>> singleThreadedIntBuffers = baseIntBuffers.singleThreaded();
+    final Indexed.Closeable<ResourceHolder<IntBuffer>> singleThreaded = baseIntBuffers.asSingleThreaded();
 
     int currIndex = -1;
     ResourceHolder<IntBuffer> holder;
@@ -282,7 +282,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     protected void loadBuffer(int bufferNum)
     {
       CloseQuietly.close(holder);
-      holder = singleThreadedIntBuffers.get(bufferNum);
+      holder = singleThreaded.get(bufferNum);
       buffer = holder.get();
       currIndex = bufferNum;
     }
@@ -293,7 +293,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
       return "CompressedIntsIndexedSupplier_Anonymous{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreadedIntBuffers.size() +
+             ", numChunks=" + singleThreaded.size() +
              ", totalSize=" + totalSize +
              '}';
     }
@@ -302,6 +302,7 @@ public class CompressedIntsIndexedSupplier implements WritableSupplier<IndexedIn
     public void close() throws IOException
     {
       Closeables.close(holder, false);
+      Closeables.close(singleThreaded, false);
     }
   }
 }

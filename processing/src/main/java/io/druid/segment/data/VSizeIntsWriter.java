@@ -20,17 +20,15 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.io.smoosh.SmooshedWriter;
+import io.druid.java.util.common.io.smoosh.FileSmoosher;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -104,7 +102,7 @@ public class VSizeIntsWriter extends MultiValueIndexedIntsWriter implements Clos
     final long numBytesWritten = headerOut.getCount() + valuesOut.getCount();
 
     Preconditions.checkState(
-        headerOut.getCount() == (numWritten * 4),
+        headerOut.getCount() == (numWritten * 4L),
         "numWritten[%s] number of rows should have [%s] bytes written to headerOut, had[%s]",
         numWritten,
         numWritten * 4,
@@ -137,11 +135,7 @@ public class VSizeIntsWriter extends MultiValueIndexedIntsWriter implements Clos
   {
     for (String fileName : Arrays.asList(metaFileName, headerFileName, valuesFileName)) {
       try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(fileName))) {
-        if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
-          ((SmooshedWriter) channel).transferFrom((FileChannel) input);
-        } else {
-          ByteStreams.copy(input, channel);
-        }
+        FileSmoosher.transfer(channel, input);
       }
     }
   }

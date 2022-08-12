@@ -64,6 +64,7 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
   @Override
   public BitmapIndex get()
   {
+    final GenericIndexed<ImmutableBitmap> dedicated = bitmaps.asSingleThreaded();
     final Dictionary<String> dictionary = provider == null ? null : provider.get();
     return new BitmapIndex.CumulativeSupport()
     {
@@ -82,7 +83,7 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
       @Override
       public GenericIndexed<ImmutableBitmap> getCumulativeBitmaps()
       {
-        return cumulativeBitmaps;
+        return cumulativeBitmaps == null ? null : cumulativeBitmaps.asSingleThreaded();
       }
 
       @Override
@@ -125,13 +126,13 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
       @Override
       public ImmutableBitmap getBitmap(int idx)
       {
-        return getImmutableBitmap(bitmaps, idx);
+        return getImmutableBitmap(dedicated, idx);
       }
 
       @Override
       public GenericIndexed<ImmutableBitmap> getBitmaps()
       {
-        return bitmaps;
+        return dedicated;
       }
 
       private ImmutableBitmap getImmutableBitmap(GenericIndexed<ImmutableBitmap> bitmaps, int idx)

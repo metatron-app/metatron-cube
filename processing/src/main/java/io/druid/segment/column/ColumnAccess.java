@@ -112,7 +112,7 @@ public interface ColumnAccess extends Closeable
         }
       }
       // this moves position of buffer
-      return strategy.fromByteBuffer(buffer, buffer.remaining());
+      return strategy.fromByteBuffer(buffer);
     }
 
     @Override

@@ -20,14 +20,12 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
-import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.primitives.Ints;
-import io.druid.java.util.common.io.smoosh.SmooshedWriter;
+import io.druid.java.util.common.io.smoosh.FileSmoosher;
 
 import java.io.IOException;
 import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -98,11 +96,7 @@ public class ByteBufferWriter<T> extends ColumnPartWriter.Abstract<T>
   {
     for (String name : Arrays.asList("header", "value")) {
       try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(makeFilename(name)))) {
-        if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
-          ((SmooshedWriter) channel).transferFrom((FileChannel) input);
-        } else {
-          ByteStreams.copy(input, channel);
-        }
+        FileSmoosher.transfer(channel, input);
       }
     }
   }

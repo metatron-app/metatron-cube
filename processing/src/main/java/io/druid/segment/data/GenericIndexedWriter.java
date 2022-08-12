@@ -163,6 +163,8 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
 
     return new Indexed.Closeable<T>()
     {
+      private final ObjectStrategy<T> dedicated = ObjectStrategies.singleThreaded(strategy);
+
       @Override
       public void close() throws IOException
       {
@@ -178,7 +180,7 @@ public abstract class GenericIndexedWriter<T> extends ColumnPartWriter.Abstract<
 
         final int length = readValueLength(values);
         // fromByteBuffer must not modify the buffer limit
-        return length == 0 ? null : strategy.fromByteBuffer(values, length);
+        return length == 0 ? null : dedicated.fromByteBuffer(values, length);
       }
 
       @Override

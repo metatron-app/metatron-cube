@@ -20,11 +20,14 @@
 package io.druid.segment.serde;
 
 import io.druid.collections.ResourceHolder;
+import io.druid.data.ValueDesc;
 import io.druid.java.util.common.logger.Logger;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.ObjectStrategies;
+import io.druid.segment.data.ObjectStrategy;
 
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
@@ -64,13 +67,16 @@ public class CompressedGenericColumnPartSupplier implements ColumnPartProvider<G
   @Override
   public long getSerializedSize()
   {
-    return indexed.getSerializedSize() + (1 + mapping.length) * Integer.BYTES + indexed.size() * Short.BYTES;
+    return indexed.getSerializedSize() + (1L + mapping.length) * Integer.BYTES + indexed.size() * Short.BYTES;
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public GenericColumn get()
   {
-    return new GenericColumn.Compressed(serde, mapping, offsets, indexed, compressionType)
+    ValueDesc type = ValueDesc.of(serde.getTypeName());
+    ObjectStrategy strategy = ObjectStrategies.singleThreaded(serde.getObjectStrategy());
+    return new GenericColumn.Compressed(type, strategy, mapping, offsets, indexed.asSingleThreaded(), compressionType)
     {
       @Override
       public String getString(int rowNum)

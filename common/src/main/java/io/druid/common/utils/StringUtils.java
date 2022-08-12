@@ -23,11 +23,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import io.druid.data.UTF8Bytes;
+import io.druid.data.input.BytesOutputStream;
 
 import javax.annotation.Nullable;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.IllegalFormatException;
 import java.util.Iterator;
 import java.util.Locale;
@@ -76,6 +78,14 @@ public class StringUtils extends io.druid.java.util.common.StringUtils
       // Should never happen
       throw Throwables.propagate(e);
     }
+  }
+
+  public static String fromUtf8(ByteBuffer buffer, int length, BytesOutputStream scratch)
+  {
+    scratch.clear();
+    scratch.ensureCapacity(length);
+    buffer.get(scratch.unwrap(), 0, length);
+    return fromUtf8(scratch.unwrap(), 0, length);
   }
 
   // should be used only for estimation

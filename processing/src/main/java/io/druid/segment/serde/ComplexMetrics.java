@@ -123,16 +123,8 @@ public class ComplexMetrics
   static Supplier<ImmutableBitmap> readBitmap(ByteBuffer buffer, final BitmapSerdeFactory serdeFactory)
   {
     if (buffer.remaining() > Integer.BYTES) {
-      final int size = buffer.getInt();
-      final ByteBuffer serialized = ByteBufferSerializer.prepareForRead(buffer, size);
-      return new Supplier<ImmutableBitmap>()
-      {
-        @Override
-        public ImmutableBitmap get()
-        {
-          return serdeFactory.getObjectStrategy().fromByteBuffer(serialized, size);
-        }
-      };
+      final ByteBuffer serialized = ByteBufferSerializer.prepareForRead(buffer);
+      return () -> serdeFactory.getObjectStrategy().fromByteBuffer(serialized);
     }
     return Suppliers.<ImmutableBitmap>ofInstance(serdeFactory.getBitmapFactory().makeEmptyImmutableBitmap());
   }

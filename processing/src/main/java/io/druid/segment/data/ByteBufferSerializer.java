@@ -19,8 +19,6 @@
 
 package io.druid.segment.data;
 
-import io.druid.java.util.common.IAE;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -31,21 +29,7 @@ public class ByteBufferSerializer<T>
 {
   public static <T> T read(ByteBuffer buffer, ObjectStrategy<T> strategy)
   {
-    int size = buffer.getInt();
-    ByteBuffer bufferToUse = buffer.asReadOnlyBuffer();
-    bufferToUse.limit(bufferToUse.position() + size);
-    buffer.position(bufferToUse.limit());
-
-    return strategy.fromByteBuffer(bufferToUse, size);
-  }
-
-  public static ByteBuffer prepareForRead(ByteBuffer buffer, byte version)
-  {
-    final byte versionFromBuffer = buffer.get();
-    if (versionFromBuffer != version) {
-      throw new IAE("Unknown version[%s]", versionFromBuffer);
-    }
-    return prepareForRead(buffer);
+    return strategy.fromByteBuffer(prepareForRead(buffer));
   }
 
   // make buffer for read and move forward position of original buffer
@@ -66,7 +50,7 @@ public class ByteBufferSerializer<T>
   public static <T> void writeToChannel(T obj, ObjectStrategy<T> strategy, WritableByteChannel channel)
       throws IOException
   {
-    byte[] toWrite = strategy.toBytes(obj);
+    final byte[] toWrite = strategy.toBytes(obj);
     channel.write(ByteBuffer.allocate(Integer.BYTES).putInt(0, toWrite.length));
     channel.write(ByteBuffer.wrap(toWrite));
   }

@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.FileUtils;
 import io.druid.java.util.common.IAE;
@@ -37,6 +38,8 @@ import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -61,17 +64,12 @@ public class FileSmoosher implements Closeable
 
   private OffsetWriter currOut = null;
 
-  public FileSmoosher(
-      File baseDir
-  )
+  public FileSmoosher(File baseDir)
   {
     this(baseDir, Integer.MAX_VALUE);
   }
 
-  public FileSmoosher(
-      File baseDir,
-      int maxChunkSize
-  )
+  public FileSmoosher(File baseDir, int maxChunkSize)
   {
     this.baseDir = baseDir;
     this.maxChunkSize = maxChunkSize;
@@ -311,5 +309,14 @@ public class FileSmoosher implements Closeable
       currOut.sync();
     }
     return new SmooshedFileMapper(baseDir, ImmutableList.copyOf(outFiles), ImmutableMap.copyOf(internalFiles));
+  }
+
+  public static void transfer(WritableByteChannel output, ReadableByteChannel input) throws IOException
+  {
+    if (output instanceof SmooshedWriter && input instanceof FileChannel) {
+      ((SmooshedWriter) output).transferFrom((FileChannel) input);
+    } else {
+      ByteStreams.copy(input, output);
+    }
   }
 }

@@ -22,7 +22,6 @@ package io.druid.segment.serde;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedStringsGenericColumn;
-import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
 
@@ -54,6 +53,6 @@ public class StringColumnPartSupplier implements ColumnPartProvider<GenericColum
   @Override
   public GenericColumn get()
   {
-    return new IndexedStringsGenericColumn(indexed, compressionType);
+    return new IndexedStringsGenericColumn(indexed.asSingleThreaded(), compressionType);
   }
 }

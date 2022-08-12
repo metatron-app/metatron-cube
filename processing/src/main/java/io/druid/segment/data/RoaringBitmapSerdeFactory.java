@@ -90,7 +90,7 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
   @Override
   public boolean equals(Object o)
   {
-    return this == o || o instanceof RoaringBitmapSerdeFactory;
+    return o instanceof RoaringBitmapSerdeFactory;
   }
 
   @Override

@@ -1045,8 +1045,8 @@ public class IndexIO
        * Index.drd should consist of the segment version, the columns and dimensions of the segment as generic
        * indexes, the interval start and end millis as longs (in 16 bytes), and a bitmap index type.
        */
-      final GenericIndexed<String> cols = GenericIndexed.read(indexBuffer, ObjectStrategy.STRING_STRATEGY);
-      final GenericIndexed<String> dims = GenericIndexed.read(indexBuffer, ObjectStrategy.STRING_STRATEGY);
+      final GenericIndexed<String> cols = GenericIndexed.readString(indexBuffer).asSingleThreaded();
+      final GenericIndexed<String> dims = GenericIndexed.readString(indexBuffer).asSingleThreaded();
       final Interval dataInterval = new Interval(indexBuffer.getLong(), indexBuffer.getLong());
       final BitmapSerdeFactory serdeFactory;
 

@@ -20,6 +20,7 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.primitives.Ints;
 import io.druid.common.guava.BufferRef;
 import io.druid.common.utils.StringUtils;
@@ -78,6 +79,11 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       i |= feature.getMask();
     }
     return i;
+  }
+
+  public static GenericIndexed<String> readString(ByteBuffer buffer)
+  {
+    return read(buffer, ObjectStrategy.STRING_STRATEGY);
   }
 
   public static <T> GenericIndexed<T> read(ByteBuffer buffer, ObjectStrategy<T> strategy)
@@ -191,7 +197,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   }
 
   private final ByteBuffer theBuffer;
-  private final ObjectStrategy<T> strategy;
   private final int flag;
 
   private final int size;
@@ -202,22 +207,20 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   private GenericIndexed(ByteBuffer buffer, ObjectStrategy<T> strategy, int flag)
   {
     this.theBuffer = buffer;
-    this.strategy = strategy;
     this.flag = flag;
 
     size = theBuffer.getInt();
     indexOffset = theBuffer.position();
     valuesOffset = theBuffer.position() + (size << 2);
     if (Feature.VSIZED_VALUE.isSet(flag)) {
-      bufferIndexed = new BufferIndexedV2(() -> theBuffer.asReadOnlyBuffer());
+      bufferIndexed = new BufferIndexedV2(strategy, () -> theBuffer.asReadOnlyBuffer());
     } else {
-      bufferIndexed = new BufferIndexedV1(() -> theBuffer.asReadOnlyBuffer());
+      bufferIndexed = new BufferIndexedV1(strategy, () -> theBuffer.asReadOnlyBuffer());
     }
   }
 
   private GenericIndexed(
       ByteBuffer buffer,
-      ObjectStrategy<T> strategy,
       int flag,
       int size,
       int indexOffset,
@@ -226,7 +229,6 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
   )
   {
     this.theBuffer = buffer;
-    this.strategy = strategy;
     this.flag = flag;
     this.size = size;
     this.indexOffset = indexOffset;
@@ -350,52 +352,53 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   public GenericIndexed<T> asSingleThreaded()
   {
-    final ByteBuffer buffer = theBuffer.asReadOnlyBuffer();
-
     return new GenericIndexed<T>(
-        buffer,
-        strategy,
+        theBuffer,
         flag,
         size,
         indexOffset,
         valuesOffset,
-        bufferIndexed.withSupplier(() -> buffer)
+        bufferIndexed.asSingleThreaded()
     )
     {
-      private int cacheId = -1;
-      private T cached;
+      private int vcacheId = -1;
+      private T vcached;
+
+      private int bcacheId = -1;
+      private byte[] bcached;
 
       @Override
       public T get(int index)
       {
-        if (index != cacheId) {
-          cached = bufferIndexed.get(cacheId = index);
+        if (index != vcacheId) {
+          vcached = super.get(vcacheId = index);
         }
-        return cached;
+        return vcached;
+      }
+
+      @Override
+      public byte[] getAsRaw(final int index)
+      {
+        if (index != bcacheId) {
+          bcached = super.getAsRaw(bcacheId = index);
+        }
+        return bcached;
       }
     };
   }
 
-  /**
-   * Create a non-thread-safe Indexed, which may perform better than the underlying Indexed.
-   *
-   * @return a non-thread-safe Indexed
-   */
-  public BufferIndexed singleThreaded()
-  {
-    return bufferIndexed.withSupplier(() -> theBuffer.asReadOnlyBuffer());
-  }
-
   abstract class BufferIndexed implements Indexed<T>
   {
+    final ObjectStrategy<T> strategy;
     final Supplier<ByteBuffer> supplier;
 
-    protected BufferIndexed(Supplier<ByteBuffer> supplier)
+    protected BufferIndexed(ObjectStrategy<T> strategy, Supplier<ByteBuffer> supplier)
     {
+      this.strategy = strategy;
       this.supplier = supplier;
     }
 
-    protected abstract BufferIndexed withSupplier(Supplier<ByteBuffer> supplier);
+    protected abstract BufferIndexed asSingleThreaded();
 
     private int valueOffset(int index)
     {
@@ -545,12 +548,14 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   private class BufferIndexedV1 extends BufferIndexed
   {
-    private BufferIndexedV1(Supplier<ByteBuffer> supplier) {super(supplier);}
+    private BufferIndexedV1(ObjectStrategy<T> strategy, Supplier<ByteBuffer> supplier) {super(strategy, supplier);}
 
     @Override
-    protected BufferIndexed withSupplier(Supplier<ByteBuffer> supplier)
+    protected BufferIndexed asSingleThreaded()
     {
-      return new BufferIndexedV1(supplier);
+      return new BufferIndexedV1(
+          ObjectStrategies.singleThreaded(strategy), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer())
+      );
     }
 
     @Override
@@ -568,12 +573,14 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
   private class BufferIndexedV2 extends BufferIndexed
   {
-    private BufferIndexedV2(Supplier<ByteBuffer> supplier) {super(supplier);}
+    private BufferIndexedV2(ObjectStrategy<T> strategy, Supplier<ByteBuffer> supplier) {super(strategy, supplier);}
 
     @Override
-    protected BufferIndexed withSupplier(Supplier<ByteBuffer> supplier)
+    protected BufferIndexed asSingleThreaded()
     {
-      return new BufferIndexedV2(supplier);
+      return new BufferIndexedV2(
+          ObjectStrategies.singleThreaded(strategy), Suppliers.ofInstance(theBuffer.asReadOnlyBuffer())
+      );
     }
 
     @Override

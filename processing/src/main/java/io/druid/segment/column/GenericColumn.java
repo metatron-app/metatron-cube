@@ -26,6 +26,7 @@ import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricSerde;
 import org.roaringbitmap.IntIterator;
 
@@ -249,14 +250,15 @@ public interface GenericColumn extends ComplexColumn
   abstract class Compressed extends ComplexColumn.Compressed implements GenericColumn
   {
     protected Compressed(
-        ComplexMetricSerde serde,
+        ValueDesc type,
+        ObjectStrategy strategy,
         int[] mapping,
         ShortBuffer offsets,
         GenericIndexed<ResourceHolder<ByteBuffer>> indexed,
         CompressionStrategy compression
     )
     {
-      super(serde, mapping, offsets, indexed, compression);
+      super(type, strategy, mapping, offsets, indexed, compression);
     }
   }
 }

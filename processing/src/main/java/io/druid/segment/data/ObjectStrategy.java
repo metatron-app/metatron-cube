@@ -19,14 +19,16 @@
 
 package io.druid.segment.data;
 
-import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.StringUtils;
-
 import java.nio.ByteBuffer;
 
 public interface ObjectStrategy<T>
 {
   Class<? extends T> getClazz();
+
+  default T fromByteBuffer(ByteBuffer buffer)
+  {
+    return fromByteBuffer(buffer, buffer.remaining());
+  }
 
   /**
    * Convert values from their underlying byte representation.
@@ -51,32 +53,12 @@ public interface ObjectStrategy<T>
   {
   }
 
-  ObjectStrategy<String> STRING_STRATEGY = new RawComparable<String>()
+  interface SingleThreadSupport<T> extends ObjectStrategy<T>
   {
-    @Override
-    public Class<? extends String> getClazz()
-    {
-      return String.class;
-    }
+    ObjectStrategy<T> singleThreaded();
+  }
 
-    @Override
-    public String fromByteBuffer(final ByteBuffer buffer, final int numBytes)
-    {
-      return StringUtils.fromUtf8(buffer, numBytes);
-    }
-
-    @Override
-    public byte[] toBytes(String val)
-    {
-      return StringUtils.toUtf8WithNullToEmpty(val);
-    }
-
-    @Override
-    public int compare(String o1, String o2)
-    {
-      return GuavaUtils.nullFirstNatural().compare(o1, o2);
-    }
-  };
+  ObjectStrategy<String> STRING_STRATEGY = new ObjectStrategies.StringObjectStrategy();
 
   ObjectStrategy<Object> DUMMY = new ObjectStrategy<Object>()
   {

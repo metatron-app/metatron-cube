@@ -307,7 +307,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
 
   private class CompressedVSizeIndexedInts implements IndexedInts
   {
-    final Indexed<ResourceHolder<ByteBuffer>> singleThreadedBuffers = baseBuffers.singleThreaded();
+    final Indexed.Closeable<ResourceHolder<ByteBuffer>> singleThreaded = baseBuffers.asSingleThreaded();
 
     final int div = Integer.numberOfTrailingZeros(sizePer);
     final int rem = sizePer - 1;
@@ -366,7 +366,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     protected void loadBuffer(int bufferNum)
     {
       CloseQuietly.close(holder);
-      holder = singleThreadedBuffers.get(bufferNum);
+      holder = singleThreaded.get(bufferNum);
       buffer = holder.get();
       currIndex = bufferNum;
       bigEndian = buffer.order().equals(ByteOrder.BIG_ENDIAN);
@@ -378,7 +378,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
       return "CompressedVSizedIntsIndexedSupplier{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreadedBuffers.size() +
+             ", numChunks=" + singleThreaded.size() +
              ", totalSize=" + totalSize +
              '}';
     }
@@ -387,6 +387,7 @@ public class CompressedVSizedIntSupplier implements WritableSupplier<IndexedInts
     public void close() throws IOException
     {
       Closeables.close(holder, false);
+      Closeables.close(singleThreaded, false);
     }
   }
 }

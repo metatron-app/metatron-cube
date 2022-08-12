@@ -220,7 +220,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
 
   private class CompressedIndexedFloats implements IndexedFloats
   {
-    final Indexed<ResourceHolder<FloatBuffer>> singleThreadedFloatBuffers = baseFloatBuffers.singleThreaded();
+    final Indexed.Closeable<ResourceHolder<FloatBuffer>> singleThreaded = baseFloatBuffers.asSingleThreaded();
 
     int currIndex = -1;
     ResourceHolder<FloatBuffer> holder;
@@ -269,7 +269,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     protected void loadBuffer(int bufferNum)
     {
       CloseQuietly.close(holder);
-      holder = singleThreadedFloatBuffers.get(bufferNum);
+      holder = singleThreaded.get(bufferNum);
       buffer = holder.get();
       bufferPos = buffer.position();
       currIndex = bufferNum;
@@ -281,7 +281,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
       return "CompressedFloatsIndexedSupplier{" +
              "currIndex=" + currIndex +
              ", sizePer=" + sizePer +
-             ", numChunks=" + singleThreadedFloatBuffers.size() +
+             ", numChunks=" + singleThreaded.size() +
              ", numRows=" + numRows +
              '}';
     }
@@ -290,6 +290,7 @@ public class CompressedFloatsIndexedSupplier implements Supplier<IndexedFloats>,
     public void close() throws IOException
     {
       Closeables.close(holder, false);
+      Closeables.close(singleThreaded, false);
     }
   }
 }

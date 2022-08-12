@@ -23,6 +23,7 @@ import io.druid.collections.ResourceHolder;
 import io.druid.data.ValueDesc;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
@@ -44,15 +45,16 @@ public interface ComplexColumn extends ColumnAccess
     private final CompressionStrategy compression;
 
     public Compressed(
-        ComplexMetricSerde serde,
+        ValueDesc type,
+        ObjectStrategy strategy,
         int[] mapping,
         ShortBuffer offsets,
         GenericIndexed<ResourceHolder<ByteBuffer>> indexed,
         CompressionStrategy compression
     )
     {
-      super(serde.getObjectStrategy(), mapping, offsets, indexed);
-      this.type = ValueDesc.of(serde.getTypeName());
+      super(strategy, mapping, offsets, indexed);
+      this.type = type;
       this.compression = compression;
     }
 

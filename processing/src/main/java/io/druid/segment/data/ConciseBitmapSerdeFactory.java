@@ -88,7 +88,7 @@ public class ConciseBitmapSerdeFactory implements BitmapSerdeFactory
   @Override
   public boolean equals(Object o)
   {
-    return this == o || o instanceof ConciseBitmapSerdeFactory;
+    return o instanceof ConciseBitmapSerdeFactory;
   }
 
   @Override

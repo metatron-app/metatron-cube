@@ -19,10 +19,9 @@
 
 package io.druid.segment.data;
 
-import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import io.druid.java.util.common.ISE;
-import io.druid.java.util.common.io.smoosh.SmooshedWriter;
+import io.druid.java.util.common.io.smoosh.FileSmoosher;
 import io.druid.segment.data.CompressedObjectStrategy.CompressionStrategy;
 import io.druid.segment.serde.ColumnPartSerde;
 
@@ -30,7 +29,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
-import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
@@ -91,11 +89,7 @@ public class FloatWriter implements ColumnPartWriter.FloatType
     channel.write(ByteBuffer.wrap(Ints.toByteArray(Float.BYTES)));
     channel.write(ByteBuffer.wrap(new byte[]{CompressionStrategy.NONE.getId()}));
     try (ReadableByteChannel input = Channels.newChannel(ioPeon.makeInputStream(valueFileName))) {
-      if (channel instanceof SmooshedWriter && input instanceof FileChannel) {
-        ((SmooshedWriter) channel).transferFrom((FileChannel) input);
-      } else {
-        ByteStreams.copy(input, channel);
-      }
+      FileSmoosher.transfer(channel, input);
     }
   }
 }

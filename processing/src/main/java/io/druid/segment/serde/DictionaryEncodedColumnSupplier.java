@@ -46,7 +46,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
 
-  public DictionaryEncodedColumnSupplier(
+  private DictionaryEncodedColumnSupplier(
       ColumnPartProvider<Dictionary<String>> dictionary,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
       ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn
