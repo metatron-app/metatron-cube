@@ -244,7 +244,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   {
     try {
       final IDBI dbi = connector.getDBI();
-      VersionedIntervalTimeline<String, DataSegment> segmentTimeline = inReadOnlyTransaction(
+      VersionedIntervalTimeline<String, DataSegment> timeline = inReadOnlyTransaction(
           new TransactionCallback<VersionedIntervalTimeline<String, DataSegment>>()
           {
             @Override
@@ -295,21 +295,16 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
             }
           }
       );
+      if (timeline.isEmpty()) {
+        log.info("No segments for datasource [%s]", ds);
+        return false;
+      }
 
       final List<DataSegment> segments = Lists.newArrayList();
-      for (TimelineObjectHolder<String, DataSegment> objectHolder : segmentTimeline.lookup(
-          new Interval(
-              "0000-01-01/3000-01-01"
-          )
-      )) {
+      for (TimelineObjectHolder<String, DataSegment> objectHolder : timeline.lookup(timeline.coverage())) {
         for (PartitionChunk<DataSegment> partitionChunk : objectHolder.getObject()) {
           segments.add(partitionChunk.getObject());
         }
-      }
-
-      if (segments.isEmpty()) {
-        log.warn("No segments found in the database!");
-        return false;
       }
 
       dbi.withHandle(
@@ -415,16 +410,9 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
 
     try {
       int update = connector.getDBI().withHandle(
-          new HandleCallback<Integer>()
-          {
-            @Override
-            public Integer withHandle(Handle handle) throws Exception
-            {
-              return handle.createStatement(sql)
-                           .bind("dataSource", ds)
-                           .execute();
-            }
-          }
+          handle -> handle.createStatement(sql)
+                          .bind("dataSource", ds)
+                          .execute()
       );
       synchronized (dataSources) {
         dataSources.remove(ds);
@@ -487,23 +475,14 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   }
 
   @Override
-  public boolean disableSegment(String ds, final String segmentId)
+  public boolean disableSegment(final String ds, final String segmentId)
   {
     try {
       connector.getDBI().withHandle(
-          new HandleCallback<Void>()
-          {
-            @Override
-            public Void withHandle(Handle handle) throws Exception
-            {
-              handle.createStatement(
-                  String.format("UPDATE %s SET used=false WHERE id = :segmentID", getSegmentsTable())
-              ).bind("segmentID", segmentId)
-                    .execute();
-
-              return null;
-            }
-          }
+          handle -> handle.createStatement(String.format(
+                              "UPDATE %s SET used=false WHERE id = :segmentID", getSegmentsTable()))
+                          .bind("segmentID", segmentId)
+                          .execute()
       );
 
       DruidDataSource dataSource = getInventoryValue(ds);

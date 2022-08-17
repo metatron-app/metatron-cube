@@ -297,9 +297,7 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
 
       Map<Interval, Map<VersionType, TimelineEntry>> overShadowed = Maps.newHashMap();
       for (Map.Entry<Interval, TreeMap<VersionType, TimelineEntry>> versionEntry : allTimelineEntries.entrySet()) {
-        Map<VersionType, TimelineEntry> versionCopy = Maps.newHashMap();
-        versionCopy.putAll(versionEntry.getValue());
-        overShadowed.put(versionEntry.getKey(), versionCopy);
+        overShadowed.put(versionEntry.getKey(), Maps.newHashMap(versionEntry.getValue()));
       }
 
       for (Map.Entry<Interval, TimelineEntry> entry : completePartitionsTimeline.entrySet()) {

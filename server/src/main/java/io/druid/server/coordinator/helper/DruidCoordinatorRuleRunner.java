@@ -37,7 +37,6 @@ import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  */
@@ -70,35 +69,34 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     final MetadataRuleManager databaseRuleManager = params.getDatabaseRuleManager();
 
     final List<String> segmentsWithMissingRules = Lists.newArrayListWithCapacity(MAX_MISSING_RULES);
-    final Map<String, List<Rule>> rulesPerDataSource = Maps.newHashMap();
     int segments = 0;
     int missingRules = 0;
     int notAssignedCount = 0;
-    for (DataSegment segment : getTargetSegments(params)) {
+    for (Map.Entry<String, Iterable<DataSegment>> entry : getTargetSegments(params).entrySet()) {
       segments++;
-      List<Rule> rules = rulesPerDataSource.computeIfAbsent(
-          segment.getDataSource(), dataSource -> databaseRuleManager.getRulesWithDefault(dataSource)
-      );
+      List<Rule> rules = databaseRuleManager.getRulesWithDefault(entry.getKey());
       boolean notAssigned = true;
       boolean foundMatchingRule = false;
-      for (Rule rule : rules) {
-        if (rule.appliesTo(segment, now)) {
-          notAssigned &= rule.run(coordinator, params, segment);
-          foundMatchingRule = true;
+      for (DataSegment segment : entry.getValue()) {
+        for (Rule rule : rules) {
+          if (rule.appliesTo(segment, now)) {
+            notAssigned &= rule.run(coordinator, params, segment);
+            foundMatchingRule = true;
+            break;
+          }
+        }
+
+        if (!foundMatchingRule) {
+          if (segmentsWithMissingRules.size() < MAX_MISSING_RULES) {
+            segmentsWithMissingRules.add(segment.getIdentifier());
+          }
+          missingRules++;
+        } else if (notAssigned) {
+          notAssignedCount++;
+        }
+        if (segments % TIMEOUT_CHECK_INTERVAL == 0 && params.hasPollinIntervalElapsed(now.getMillis())) {
           break;
         }
-      }
-
-      if (!foundMatchingRule) {
-        if (segmentsWithMissingRules.size() < MAX_MISSING_RULES) {
-          segmentsWithMissingRules.add(segment.getIdentifier());
-        }
-        missingRules++;
-      } else if (notAssigned) {
-        notAssignedCount++;
-      }
-      if (segments % TIMEOUT_CHECK_INTERVAL == 0 && params.hasPollinIntervalElapsed(now.getMillis())) {
-        break;
       }
     }
     final int maxNotAssigned = Math.max(10, Math.min((int)(segments * 0.3), MAX_NOT_ASSIGNED));
@@ -135,13 +133,14 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
     }
   }
 
-  protected Iterable<DataSegment> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)
+  protected Map<String, Iterable<DataSegment>> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)
   {
-    final Set<DataSegment> segments = coordinatorParam.getNonOvershadowedSegments();
+    final Map<String, Iterable<DataSegment>> segments = coordinatorParam.getNonOvershadowedSegments();
     if (!coordinatorParam.isMajorTick()) {
       final SegmentReplicantLookup replicantLookup = coordinatorParam.getSegmentReplicantLookup();
-      return Iterables.filter(
-          segments, segment -> replicantLookup.getTotalReplicants(segment.getIdentifier()) == 0
+      return Maps.transformValues(
+          segments,
+          list -> Iterables.filter(list, segment -> replicantLookup.getTotalReplicants(segment.getIdentifier()) == 0)
       );
     }
     return segments;

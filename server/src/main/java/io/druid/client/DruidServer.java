@@ -92,12 +92,14 @@ public class DruidServer implements Comparable
   public DruidServer(
       DruidServerMetadata metadata,
       ConcurrentMap<String, DruidDataSource> dataSources,
-      ConcurrentMap<String, DataSegment> segments
+      ConcurrentMap<String, DataSegment> segments,
+      long currSize
   )
   {
     this.metadata = metadata;
     this.dataSources = dataSources;
     this.segments = segments;
+    this.currSize = currSize;
   }
 
   public String getName()
@@ -185,7 +187,7 @@ public class DruidServer implements Comparable
   {
     synchronized (lock) {
       if (segments.isEmpty() && dataSources.isEmpty()) {
-        return new DruidServer(metadata, server.dataSources, server.segments);
+        return new DruidServer(metadata, server.dataSources, server.segments, server.currSize);
       }
       for (Map.Entry<String, DataSegment> entry : server.segments.entrySet()) {
         addDataSegment(entry.getValue());
@@ -218,8 +220,9 @@ public class DruidServer implements Comparable
 
       dataSource.removeSegment(segmentId);
 
-      segments.remove(segmentId);
-      currSize -= segment.getSize();
+      if (segments.remove(segmentId) != null) {
+        currSize -= segment.getSize();
+      }
 
       if (dataSource.isEmpty()) {
         dataSources.remove(dataSource.getName());

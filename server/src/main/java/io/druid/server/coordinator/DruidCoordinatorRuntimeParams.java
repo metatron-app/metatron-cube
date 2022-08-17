@@ -22,6 +22,8 @@ package io.druid.server.coordinator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.client.DruidDataSource;
@@ -34,11 +36,9 @@ import io.druid.timeline.VersionedIntervalTimeline;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 
 /**
  */
@@ -58,8 +58,8 @@ public class DruidCoordinatorRuntimeParams
   private final BalancerStrategy balancerStrategy;
   private final boolean majorTick;
 
-  private Set<DataSegment> materializedOvershadowedSegments;
-  private Set<DataSegment> materializedNonOvershadowedSegments;
+  private Map<String, Set<DataSegment>> materializedOvershadowedSegments;
+  private Map<String, Iterable<DataSegment>> materializedNonOvershadowedSegments;
 
   public DruidCoordinatorRuntimeParams(
       long startTime,
@@ -127,62 +127,70 @@ public class DruidCoordinatorRuntimeParams
     return availableSegments.get();
   }
 
-  public Set<DataSegment> getOvershadowedSegments()
+  public Map<String, Set<DataSegment>> getOvershadowedSegments()
   {
     if (materializedOvershadowedSegments == null) {
-      materializedOvershadowedSegments = Collections.unmodifiableSet(retainOverShadowed(getAvailableSegments()));
+      materializedOvershadowedSegments = ImmutableMap.copyOf(retainOverShadowed(dataSources));
     }
     return materializedOvershadowedSegments;
   }
 
-  public Set<DataSegment> getNonOvershadowedSegments()
+  public Map<String, Iterable<DataSegment>> getNonOvershadowedSegments()
   {
     if (materializedNonOvershadowedSegments == null) {
-      materializedNonOvershadowedSegments = Collections.unmodifiableSet(
-          retainNonOverShadowed(getAvailableSegments(), getOvershadowedSegments())
+      materializedNonOvershadowedSegments = ImmutableMap.copyOf(
+          retainNonOverShadowed(dataSources, getOvershadowedSegments())
       );
     }
     return materializedNonOvershadowedSegments;
   }
 
-  private Set<DataSegment> retainOverShadowed(Iterable<DataSegment> segments)
+  private Map<String, Set<DataSegment>> retainOverShadowed(Set<DruidDataSource> dataSources)
   {
-    Map<String, VersionedIntervalTimeline<String, DataSegment>> timelines = new HashMap<>();
-    for (DataSegment segment : segments) {
-      VersionedIntervalTimeline<String, DataSegment> timeline = timelines.computeIfAbsent(
-          segment.getDataSource(), new Function<String, VersionedIntervalTimeline<String, DataSegment>>()
-          {
-            @Override
-            public VersionedIntervalTimeline<String, DataSegment> apply(String dataSource)
-            {
-              return new VersionedIntervalTimeline<>();
-            }
-          });
-      timeline.add(
-          segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment)
-      );
-    }
-
-    Set<DataSegment> overshadowed = new HashSet<>();
-    for (VersionedIntervalTimeline<String, DataSegment> timeline : timelines.values()) {
+    Map<String, Set<DataSegment>> overshadows = Maps.newHashMap();
+    for (DruidDataSource ds : dataSources) {
+      VersionedIntervalTimeline<String, DataSegment> timeline = new VersionedIntervalTimeline<>();
+      for (DataSegment segment : ds.getCopyOfSegments()) {
+        timeline.add(
+            segment.getInterval(), segment.getVersion(), segment.getShardSpecWithDefault().createChunk(segment)
+        );
+      }
+      Set<DataSegment> overshadow = Sets.newHashSet();
       for (TimelineObjectHolder<String, DataSegment> holder : timeline.findOvershadowed()) {
         for (DataSegment dataSegment : holder.getObject().payloads()) {
-          overshadowed.add(dataSegment);
+          overshadow.add(dataSegment);
         }
       }
-    }
-    return overshadowed;
-  }
-
-  private Set<DataSegment> retainNonOverShadowed(Iterable<DataSegment> segments, Set<DataSegment> overshadowed)
-  {
-    Set<DataSegment> nonOvershadowed = new HashSet<>();
-    for (DataSegment dataSegment : segments) {
-      if (!overshadowed.contains(dataSegment)) {
-        nonOvershadowed.add(dataSegment);
+      if (!overshadow.isEmpty()) {
+        overshadows.put(ds.getName(), overshadow);
       }
     }
-    return nonOvershadowed;
+    return overshadows;
+  }
+
+  private static Map<String, List<DataSegment>> retainNonOverShadowed(
+      Set<DruidDataSource> dataSources,
+      Map<String, Set<DataSegment>> overshadows
+  )
+  {
+    Map<String, List<DataSegment>> nonOvershadows = Maps.newHashMap();
+    for (DruidDataSource ds : dataSources) {
+      Set<DataSegment> overshadow = overshadows.get(ds);
+      if (overshadow == null || overshadow.isEmpty()) {
+        nonOvershadows.put(ds.getName(), ds.getCopyOfSegments());
+        continue;
+      }
+      List<DataSegment> nonOvershadow = Lists.newArrayList();
+      for (DataSegment segment : ds.getCopyOfSegments()) {
+        if (!overshadow.contains(segment)) {
+          nonOvershadow.add(segment);
+        }
+      }
+      if (!nonOvershadow.isEmpty()) {
+        nonOvershadows.put(ds.getName(), nonOvershadow);
+      }
+    }
+    return nonOvershadows;
   }
 
   public Map<String, LoadQueuePeon> getLoadManagementPeons()
@@ -264,12 +272,12 @@ public class DruidCoordinatorRuntimeParams
     private final Map<String, LoadQueuePeon> loadManagementPeons;
     private ServiceEmitter emitter;
     private CoordinatorDynamicConfig coordinatorDynamicConfig;
-    private CoordinatorStats stats;
+    private final CoordinatorStats stats;
     private BalancerStrategy balancerStrategy;
     private boolean majorTick = true;     // test compatible
 
-    private Set<DataSegment> materializedOvershadowedSegments;
-    private Set<DataSegment> materializedNonOvershadowedSegments;
+    private Map<String, Set<DataSegment>> materializedOvershadowedSegments;
+    private Map<String, Iterable<DataSegment>> materializedNonOvershadowedSegments;
 
     Builder()
     {
@@ -381,7 +389,8 @@ public class DruidCoordinatorRuntimeParams
     public Builder withAvailableSegments(Supplier<Iterable<DataSegment>> availableSegments)
     {
       this.availableSegments = Suppliers.memoize(availableSegments);
-      materializedOvershadowedSegments = materializedNonOvershadowedSegments = null;
+      materializedOvershadowedSegments = null;
+      materializedNonOvershadowedSegments = null;
       return this;
     }
 
