@@ -41,7 +41,7 @@ public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelp
   {
     // Delete segments that are old
     // Unservice old partitions if we've had enough time to make sure we aren't flapping with old data
-    if (!params.isMajorTick() || !params.hasDeletionWaitTimeElapsed()) {
+    if (params.isStopNow() || !params.isMajorTick() || !params.hasDeletionWaitTimeElapsed()) {
       return params;
     }
 

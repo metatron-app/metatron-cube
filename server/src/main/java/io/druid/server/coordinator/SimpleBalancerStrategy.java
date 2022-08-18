@@ -172,7 +172,7 @@ public class SimpleBalancerStrategy implements BalancerStrategy
         }
 
         int remain = deficit.size();
-        for (int x = 0; remain > 0 && x < excessive.size(); x++) {
+        for (int x = 0; remain > 0 && x < excessive.size() && !params.isStopNow(); x++) {
           final int from = excessive.get(x);
           for (int y = 0; remain > 0 && y < deficit.size(); y++) {
             final int to = deficit.get(y);
@@ -195,6 +195,9 @@ public class SimpleBalancerStrategy implements BalancerStrategy
               remain--;
             }
           }
+        }
+        if (params.isStopNow()) {
+          return balanced;
         }
       }
     }

@@ -81,7 +81,7 @@ public class DruidCoordinatorSegmentKiller implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    if (!params.isMajorTick()) {
+    if (params.isStopNow() || !params.isMajorTick()) {
       return params;
     }
     Set<String> whitelist = params.getCoordinatorDynamicConfig().getKillDataSourceWhitelist();

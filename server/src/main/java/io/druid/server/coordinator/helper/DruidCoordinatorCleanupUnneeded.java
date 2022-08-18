@@ -48,7 +48,7 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
     // effectively removes first race condition
-    if (!params.isMajorTick() || !coordinator.isReady()) {
+    if (params.isStopNow() || !params.isMajorTick() || !coordinator.isReady()) {
       return params;
     }
 

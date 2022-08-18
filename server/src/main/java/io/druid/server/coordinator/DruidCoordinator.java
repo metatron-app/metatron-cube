@@ -234,6 +234,9 @@ public class DruidCoordinator
           @Override
           public ServerView.CallbackAction serverAdded(DruidServer server)
           {
+            if (leader && prevParam != null) {
+              prevParam.stopNow();
+            }
             if (leader && isClusterReady(false)) {
               balanceNow();
             }

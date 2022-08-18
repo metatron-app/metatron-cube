@@ -58,6 +58,8 @@ public class DruidCoordinatorRuntimeParams
   private final BalancerStrategy balancerStrategy;
   private final boolean majorTick;
 
+  private volatile boolean stopNow;
+
   private Map<String, Set<DataSegment>> materializedOvershadowedSegments;
   private Map<String, Iterable<DataSegment>> materializedNonOvershadowedSegments;
 
@@ -95,6 +97,16 @@ public class DruidCoordinatorRuntimeParams
   public boolean isMajorTick()
   {
     return majorTick;
+  }
+
+  public void stopNow()
+  {
+    this.stopNow = true;
+  }
+
+  public boolean isStopNow()
+  {
+    return stopNow;
   }
 
   public long getStartTime()

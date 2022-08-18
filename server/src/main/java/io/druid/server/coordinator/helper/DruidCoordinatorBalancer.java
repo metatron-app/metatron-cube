@@ -62,6 +62,9 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    if (params.isStopNow()) {
+      return params;
+    }
     // bulk moving of segments for decommissioned historical node
     handleDecommissionedServer(params);
     if (!params.isMajorTick()) {

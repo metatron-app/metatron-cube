@@ -75,7 +75,7 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    if (!params.isMajorTick()) {
+    if (params.isStopNow() || !params.isMajorTick()) {
       return params;
     }
     final int mergeTaskLimit = params.getCoordinatorDynamicConfig().getMergeTaskLimit();

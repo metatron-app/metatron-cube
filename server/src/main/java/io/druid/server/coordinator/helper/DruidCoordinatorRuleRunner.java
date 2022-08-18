@@ -94,7 +94,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
         } else if (notAssigned) {
           notAssignedCount++;
         }
-        if (segments % TIMEOUT_CHECK_INTERVAL == 0 && params.hasPollinIntervalElapsed(now.getMillis())) {
+        if (segments % TIMEOUT_CHECK_INTERVAL == 0 && (params.isStopNow() || params.hasPollinIntervalElapsed(now.getMillis()))) {
           break;
         }
       }

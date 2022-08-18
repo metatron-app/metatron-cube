@@ -50,7 +50,7 @@ public class DruidCoordinatorVersionConverter implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    if (!params.isMajorTick()) {
+    if (params.isStopNow() || !params.isMajorTick()) {
       return params;
     }
     DatasourceWhitelist whitelist = whitelistRef.get();
