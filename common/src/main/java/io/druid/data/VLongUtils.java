@@ -189,12 +189,17 @@ public class VLongUtils
 
   public static int sizeOfUnsignedVarInt(int v)
   {
-    int count = 1;
-    while ((long) (v & -128) != 0L) {
-      count++;
-      v >>>= 7;
+    if (v < 0x80) {
+      return 1;
+    } else if (v < 0x40_00) {
+      return 2;
+    } else if (v < 0x20_0000) {
+      return 3;
+    } else if (v < 0x10_000000) {
+      return 4;
+    } else {
+      return 5;
     }
-    return count;
   }
 
   public static void writeUnsignedVarInt(ByteBuffer buffer, int v)

@@ -30,7 +30,6 @@ import io.druid.java.util.common.IAE;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
-import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ObjectColumnSelector;
@@ -87,7 +86,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
     this.fieldName = fieldName;
     this.predicate = predicate;
     this.round = round;
-    this.b = b == 0 ? CardinalityAggregatorFactory.DEFAULT_B_PARAM : b;
+    this.b = b;
     Preconditions.checkArgument(
         b == 0 || (HyperLogLogCollector.CONTEXT_START <= b && b <= HyperLogLogCollector.CONTEXT_END),
         "invalid b argument %d", b
@@ -221,8 +220,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
   @Override
   public String getCubeName()
   {
-    return b == CardinalityAggregatorFactory.DEFAULT_B_PARAM ?
-           HyperLogLogCollector.HLL_TYPE_NAME : String.format("%s%d", HyperLogLogCollector.HLL_TYPE_NAME, b);
+    return b == 0 ? HyperLogLogCollector.HLL_TYPE_NAME : String.format("%s%d", HyperLogLogCollector.HLL_TYPE_NAME, b);
   }
 
   @Override
@@ -260,7 +258,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory implements 
            ", fieldName='" + fieldName + '\'' +
            (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", round=" + round +
-           ", b=" + b +
+           ", b=" + (b == 0 ? 11 : b) +
            '}';
   }
 

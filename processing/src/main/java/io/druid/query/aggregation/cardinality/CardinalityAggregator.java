@@ -44,7 +44,7 @@ public class CardinalityAggregator extends HashAggregator<HyperLogLogCollector>
 
   public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(ValueMatcher.TRUE, selectorList, null, byRow, CardinalityAggregatorFactory.DEFAULT_B_PARAM);
+    this(ValueMatcher.TRUE, selectorList, null, byRow, 0);
   }
 
   @Override

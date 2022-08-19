@@ -62,6 +62,7 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -364,6 +365,9 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
       {
         private final Granularity granularity = getGranularity();
 
+        private long cachedTimestamp;
+        private DateTime cachedDatetime;
+
         @Override
         public Row apply(Row input)
         {
@@ -374,7 +378,16 @@ public abstract class BaseAggregationQuery extends BaseQuery<Row>
               event.put(columns.get(i), values[i]);
             }
           }
-          return new MapBasedRow(granularity.toDateTime(((Number) values[timeIdx]).longValue()), event);
+          final long timestamp = ((Number) values[timeIdx]).longValue();
+
+          final DateTime dateTime;
+          if (cachedDatetime != null && cachedTimestamp == timestamp) {
+            dateTime = cachedDatetime;
+          } else {
+            cachedTimestamp = timestamp;
+            dateTime = cachedDatetime = granularity.toDateTime(timestamp);
+          }
+          return new MapBasedRow(dateTime, event);
         }
       };
     }

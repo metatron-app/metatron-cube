@@ -48,8 +48,6 @@ import java.util.Objects;
 public class CardinalityAggregatorFactory extends HashAggregatorFactory
     implements AggregatorFactory.CubeSupport
 {
-  public static final int DEFAULT_B_PARAM = 11;
-
   public static AggregatorFactory fields(String name, List<String> fieldNames, GroupingSetSpec groupingSets)
   {
     return new CardinalityAggregatorFactory(name, fieldNames, null, groupingSets, null, true, true, 0);
@@ -79,7 +77,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory
   {
     super(name, predicate, fieldNames, fields, groupingSets, byRow);
     this.round = round;
-    this.b = b == 0 ? DEFAULT_B_PARAM : b;
+    this.b = b;
     Preconditions.checkArgument(
         b == 0 || (HyperLogLogCollector.CONTEXT_START <= b && b <= HyperLogLogCollector.CONTEXT_END),
         "invalid b argument %d", b
@@ -184,7 +182,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory
   @Override
   public String getCubeName()
   {
-    return b == DEFAULT_B_PARAM ? "cardinality" : String.format("cardinality%d", b);
+    return b == 0 ? "cardinality" : String.format("cardinality%d", b);
   }
 
   @Override
@@ -236,7 +234,7 @@ public class CardinalityAggregatorFactory extends HashAggregatorFactory
            (predicate == null ? "" : ", predicate='" + predicate + '\'') +
            ", byRow=" + byRow +
            ", round=" + round +
-           ", b=" + b +
+           ", b=" + (b == 0 ? 11 : b) +
            '}';
   }
 }
