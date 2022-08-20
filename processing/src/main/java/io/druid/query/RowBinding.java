@@ -19,19 +19,26 @@
 
 package io.druid.query;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.DSuppliers.TypedSupplier;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
 import io.druid.segment.column.Column;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
  */
-public class RowBinding implements Expr.NumericBinding
+public class RowBinding implements Expr.TypedBinding
 {
   private final TypeResolver resolver;
   private volatile Row row;
@@ -45,6 +52,12 @@ public class RowBinding implements Expr.NumericBinding
   public Collection<String> names()
   {
     return row.getColumns();
+  }
+
+  @Override
+  public ValueDesc resolve(String column)
+  {
+    return resolver.resolve(column);
   }
 
   @Override
@@ -69,8 +82,31 @@ public class RowBinding implements Expr.NumericBinding
     return value;
   }
 
-  public void reset(Row row)
+  public RowBinding reset(Row row)
   {
     this.row = row;
+    return this;
+  }
+
+  public Expr optimize(Expr expr)
+  {
+    Map<String, TypedSupplier> suppliers = asSupplier(Parser.findRequiredBindings(expr));
+    if (suppliers != null) {
+      expr = Parser.optimize(expr, suppliers, ImmutableMap.of());
+    }
+    return expr;
+  }
+
+  private Map<String, TypedSupplier> asSupplier(List<String> columns)
+  {
+    Map<String, TypedSupplier> suppliers = Maps.newHashMap();
+    for (String column : columns) {
+      ValueDesc resolved = resolver.resolve(column, ValueDesc.UNKNOWN);
+      if (resolved.isUnknown()) {
+        return null;
+      }
+      suppliers.put(column, DSuppliers.asTypedSupplier(resolved, () -> get(column)));
+    }
+    return suppliers;
   }
 }

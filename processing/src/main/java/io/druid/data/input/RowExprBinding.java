@@ -53,11 +53,12 @@ public class RowExprBinding extends RowBinding
   }
 
   @Override
-  public void reset(Row row)
+  public RowExprBinding reset(Row row)
   {
     super.reset(row);
     this.evaluated = false;
     this.tempResult = null;
+    return this;
   }
 
   public ExprEval get()

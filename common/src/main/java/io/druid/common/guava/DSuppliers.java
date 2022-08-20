@@ -41,15 +41,27 @@ public class DSuppliers
 
   public static interface TypedSupplier<T> extends Supplier<T>, Typed
   {
-    class Simple<T> implements TypedSupplier<T>
+    abstract class FixedTyped<T> implements TypedSupplier<T>
+    {
+      private final ValueDesc type;
+
+      public FixedTyped(ValueDesc type) {this.type = type;}
+
+      @Override
+      public final ValueDesc type()
+      {
+        return type;
+      }
+    }
+
+    class Simple<T> extends FixedTyped<T>
     {
       private final T value;
-      private final ValueDesc type;
 
       public Simple(T value, ValueDesc type)
       {
+        super(type);
         this.value = value;
-        this.type = type;
       }
 
       @Override
@@ -57,15 +69,21 @@ public class DSuppliers
       {
         return value;
       }
-
-      @Override
-      public ValueDesc type()
-      {
-        return type;
-      }
     }
 
     Simple<Object> UNKNOWN = new Simple<Object>(null, ValueDesc.UNKNOWN);
+  }
+
+  public static <T> TypedSupplier<T> asTypedSupplier(ValueDesc type, Supplier<T> supplier)
+  {
+    return new TypedSupplier.FixedTyped<T>(type)
+    {
+      @Override
+      public T get()
+      {
+        return supplier.get();
+      }
+    };
   }
 
   public static interface WithRawAccess<T> extends TypedSupplier<T>
