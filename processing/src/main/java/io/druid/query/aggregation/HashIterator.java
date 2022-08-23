@@ -77,8 +77,16 @@ public abstract class HashIterator<T extends HashCollector>
     this.consumer = toConsumer(selectorList);
   }
 
+  // class of collector
+  protected abstract Class<T> collectorClass();
+
   protected Consumer<T> toConsumer(List<DimensionSelector> selectorList)
   {
+    if (ScanSupport.class.isAssignableFrom(collectorClass()) &&
+        selectorList.size() == 1 && selectorList.get(0) instanceof Scannable) {
+      final Scannable selector = (Scannable) selectorList.get(0);
+      return collector -> ((ScanSupport) collector).collect(selector);
+    }
     if (selectorList.isEmpty()) {
       return collector -> collector.collect(new Object[0], NULL_REF);
     } else if (byRow) {
@@ -234,37 +242,6 @@ public abstract class HashIterator<T extends HashCollector>
         final byte[] value = _toValue(selector, row.get(i), rawAccess);
         collector.collect(new Object[] {value}, value == null ? NULL_REF : new BytesRef(value));
       }
-    }
-  }
-
-  protected static abstract class BaseAggregator<T extends HashCollector> extends HashIterator<T>
-  {
-    public BaseAggregator(
-        ValueMatcher predicate,
-        List<DimensionSelector> selectorList,
-        int[][] groupings,
-        boolean byRow,
-        boolean needValue
-    )
-    {
-      super(predicate, selectorList, groupings, byRow, needValue);
-    }
-
-    @Override
-    protected Consumer<T> toConsumer(List<DimensionSelector> selectorList)
-    {
-      if (collectorClass() != null && ScanSupport.class.isAssignableFrom(collectorClass())) {
-        if (selectorList.size() == 1 && selectorList.get(0) instanceof Scannable) {
-          final Scannable selector = (Scannable) selectorList.get(0);
-          return collector -> ((ScanSupport) collector).collect(selector);
-        }
-      }
-      return super.toConsumer(selectorList);
-    }
-
-    protected Class<T> collectorClass()
-    {
-      return null;  // class of custom collector
     }
   }
 }

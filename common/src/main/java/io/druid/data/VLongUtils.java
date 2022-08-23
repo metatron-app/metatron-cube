@@ -23,7 +23,6 @@ import io.druid.data.input.BytesInputStream;
 import io.druid.data.input.BytesOutputStream;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
@@ -172,7 +171,8 @@ public class VLongUtils
    * @param buf ByteBuffer input buffer
    * @return deserialized long from buffer.
    */
-  public static long readVLong(ByteBuffer buf) {
+  public static long readVLong(ByteBuffer buf)
+  {
     byte firstByte = buf.get();
     int len = decodeVIntSize(firstByte);
     if (len == 1) {
@@ -222,35 +222,43 @@ public class VLongUtils
     out.write((byte) (v & 127));
   }
 
+  private static final int N_MASK = 0x80;
+  private static final int V_MASK = 0x7f;
+
   public static int readUnsignedVarInt(ByteBuffer buffer)
   {
-    int value = 0;
+    int b1 = buffer.get() & 0xff;
+    if ((b1 & N_MASK) == 0) {
+      return b1;
+    }
+    int b2 = buffer.get() & 0xff;
+    if ((b2 & N_MASK) == 0) {
+      return b2 << 7 | b1 & V_MASK;
+    }
+    int value = (b2 & V_MASK) << 7 | b1 & V_MASK;
     int i;
     int b;
-    for (i = 0; ((b = buffer.get() & 0xff) & 0x80) != 0; i += 7) {
-      value |= (b & 0x7f) << i;
+    for (i = 14; ((b = buffer.get() & 0xff) & N_MASK) != 0; i += 7) {
+      value |= (b & V_MASK) << i;
     }
     return value | b << i;
   }
 
   public static int readUnsignedVarInt(ByteBuffer buffer, int offset)
   {
-    int value = 0;
-    int i;
-    int b;
-    for (i = 0; ((b = buffer.get(offset) & 0xff) & 0x80) != 0; i += 7, offset++) {
-      value |= (b & 0x7f) << i;
+    int b1 = buffer.get(offset++) & 0xff;
+    if ((b1 & N_MASK) == 0) {
+      return b1;
     }
-    return value | b << i;
-  }
-
-  public static int readUnsignedVarInt(InputStream input) throws IOException
-  {
-    int value = 0;
+    int b2 = buffer.get(offset++) & 0xff;
+    if ((b2 & N_MASK) == 0) {
+      return b2 << 7 | b1 & V_MASK;
+    }
+    int value = (b2 & V_MASK) << 7 | b1 & V_MASK;
     int i;
     int b;
-    for (i = 0; ((b = input.read() & 0xff) & 0x80) != 0; i += 7) {
-      value |= (b & 0x7f) << i;
+    for (i = 14; ((b = buffer.get(offset) & 0xff) & N_MASK) != 0; i += 7, offset++) {
+      value |= (b & V_MASK) << i;
     }
     return value | b << i;
   }

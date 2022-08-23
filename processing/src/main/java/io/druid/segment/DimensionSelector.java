@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.common.guava.BufferRef;
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.IntScanner;
 import io.druid.segment.data.IndexedInts;
@@ -105,6 +106,8 @@ public interface DimensionSelector
   interface WithRawAccess extends DimensionSelector
   {
     byte[] lookupRaw(int id);
+
+    BufferRef getAsRef(int id);
   }
 
   // aka. dictionary with single value without extract function

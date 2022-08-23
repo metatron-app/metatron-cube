@@ -378,8 +378,26 @@ public class Parser
               }
             }
           }
+        } else if (op instanceof BinaryArithmeticOp) {
+          Arithmetics calculator = Arithmetics.of(op.op());
+          TypedSupplier supplier1;
+          TypedSupplier supplier2;
+          if (Evals.isConstant(left)) {
+            supplier2 = toTypedSupplier(right, values, ValueDesc.UNKNOWN);
+            supplier1 = toTypedSupplier(left, values, supplier2.type());
+          } else {
+            supplier1 = toTypedSupplier(left, values, ValueDesc.UNKNOWN);
+            supplier2 = toTypedSupplier(right, values, supplier1.type());
+          }
+          ValueDesc commonType = ValueDesc.toCommonType(supplier1.type(), supplier2.type());
+          if (commonType.isPrimitiveNumeric()) {
+            Expr rewritten = commonType.type().optimize(supplier1, supplier2, calculator);
+            if (rewritten != null) {
+              return rewritten;
+            }
+          }
         }
-        return op;
+        return super.visit(op, left, right);
       }
     });
     return traverse(optimized, new ExprVisitor()
@@ -390,6 +408,19 @@ public class Parser
         return expr.rewrite(values);
       }
     });
+  }
+
+  private static TypedSupplier toTypedSupplier(Expr expr, Map<String, TypedSupplier> suppliers, ValueDesc dv)
+  {
+    if (Evals.isIdentifier(expr)) {
+      return suppliers.getOrDefault(Evals.getIdentifier(expr), TypedSupplier.UNKNOWN);
+    } else if (Evals.isConstant(expr)) {
+      Object value = Evals.castTo(Evals.getConstantEval(expr), dv).value();
+      return DSuppliers.asTypedSupplier(dv, Suppliers.ofInstance(value));
+    } else if (expr instanceof Expr.Optimized) {
+      return DSuppliers.asTypedSupplier(expr.returns(), () -> expr.eval(null).value());
+    }
+    return TypedSupplier.UNKNOWN;
   }
 
   private static BooleanOp rewriteCompare(String op, WithRawAccess left, WithRawAccess right)

@@ -456,6 +456,16 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
       return BufferRef.of(theBuffer, offset + header, length);
     }
 
+    private int[] toIndices(final int index, final int[] reuse)
+    {
+      final int offset = valueOffset(index);
+      final int length = valueLength(offset);
+      final int header = valueHeaderLength(length);
+      reuse[0] = offset + header;
+      reuse[1] = length;
+      return reuse;
+    }
+
     public final void scan(final int index, final Tools.Scanner function)
     {
       final int offset = valueOffset(index);
@@ -521,11 +531,13 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
 
     private int binarySearchRaw(final byte[] target, final int start)
     {
+      final int[] indices = new int[2];
+      final ByteBuffer buffer = theBuffer;
       int minIndex = start < 0 ? -(start + 1) : start;
       int maxIndex = size - 1;
       while (minIndex <= maxIndex) {
         final int medianIndex = (minIndex + maxIndex) >>> 1;
-        final int comparison = getAsRef(medianIndex).compareTo(target);
+        final int comparison = compareTo(buffer, toIndices(medianIndex, indices), target);
         if (comparison == 0) {
           return medianIndex;
         }
@@ -544,6 +556,20 @@ public class GenericIndexed<T> implements Dictionary<T>, ColumnPartSerde.Seriali
     {
       return IndexedIterable.create(this).iterator();
     }
+  }
+
+  private static int compareTo(final ByteBuffer buffer, final int[] indices, final byte[] value)
+  {
+    final int len1 = indices[1];
+    final int len2 = value.length;
+    final int limit = Math.min(len1, len2);
+    for (int i = 0; i < limit; i++) {
+      final int cmp = Integer.compare(buffer.get(indices[0] + i) & 0xff, value[i] & 0xff);
+      if (cmp != 0) {
+        return cmp;
+      }
+    }
+    return Ints.compare(len1, len2);
   }
 
   private class BufferIndexedV1 extends BufferIndexed

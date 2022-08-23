@@ -25,7 +25,7 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.List;
 
-public class HashAggregator<T extends HashCollector> extends HashIterator.BaseAggregator<T> implements Aggregator<T>
+public abstract class HashAggregator<T extends HashCollector> extends HashIterator<T> implements Aggregator<T>
 {
   public HashAggregator(
       ValueMatcher predicate,

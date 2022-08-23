@@ -25,7 +25,7 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public abstract class HashBufferAggregator<T extends HashCollector> extends HashIterator.BaseAggregator<T>
+public abstract class HashBufferAggregator<T extends HashCollector> extends HashIterator<T>
     implements BufferAggregator
 {
   public HashBufferAggregator(

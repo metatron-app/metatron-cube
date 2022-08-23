@@ -181,9 +181,7 @@ public class BloomDimFilter implements LogProvider, BestEffort
         if (groupingSets != null) {
           grouping = groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensionSpecs));
         }
-        final HashAggregator<BloomTest> aggregator = new HashAggregator<BloomTest>(
-            null, selectors, grouping, false, false
-        );
+        final HashAggregator<BloomTest> aggregator = new BloomTestAggregator(selectors, grouping);
         return new ValueMatcher()
         {
           final BloomTest tester = new BloomTest(supplier.get());
@@ -202,6 +200,20 @@ public class BloomDimFilter implements LogProvider, BestEffort
   public DimFilter forLog()
   {
     return new BloomDimFilter(fieldNames, fields, groupingSets, StringUtils.EMPTY_BYTES);
+  }
+
+  private static class BloomTestAggregator extends HashAggregator<BloomTest>
+  {
+    public BloomTestAggregator(List<DimensionSelector> selectorList, int[][] groupings)
+    {
+      super(null, selectorList, groupings, false, false);
+    }
+
+    @Override
+    protected Class<BloomTest> collectorClass()
+    {
+      return BloomTest.class;
+    }
   }
 
   private static class BloomTest implements HashCollector.ScanSupport

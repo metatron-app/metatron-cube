@@ -526,6 +526,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
+                            public BufferRef getAsRef(int id)
+                            {
+                              return dictionary.getAsRef(id);
+                            }
+
+                            @Override
                             public int lookupId(Object name)
                             {
                               return dictionary.indexOf((String) name);
@@ -621,6 +627,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public byte[] lookupRaw(int id)
                             {
                               return dictionary.getAsRaw(id);
+                            }
+
+                            @Override
+                            public BufferRef getAsRef(int id)
+                            {
+                              return dictionary.getAsRef(id);
                             }
 
                             @Override

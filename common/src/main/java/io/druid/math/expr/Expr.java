@@ -90,6 +90,28 @@ public interface Expr extends Expression
       throw new IAE("Not a constant (contains '%s')", name);
     }
   };
+
+  interface Optimized extends Expr, Function.FixedTyped
+  {
+  }
+
+  interface FloatOptimized extends Optimized
+  {
+    @Override
+    public default ValueDesc returns() {return ValueDesc.FLOAT;}
+  }
+
+  interface DoubleOptimized extends Optimized
+  {
+    @Override
+    public default ValueDesc returns() {return ValueDesc.DOUBLE;}
+  }
+
+  interface LongOptimized extends Optimized
+  {
+    @Override
+    public default ValueDesc returns() {return ValueDesc.LONG;}
+  }
 }
 
 interface Constant extends Expr, Expression.ConstExpression

@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.bloomfilter;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import io.druid.common.guava.BufferRef;
 import io.druid.common.guava.BytesRef;
 import io.druid.common.utils.Murmur3;
 import io.druid.data.input.BytesInputStream;
